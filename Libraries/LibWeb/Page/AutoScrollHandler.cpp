@@ -12,6 +12,7 @@
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
@@ -38,13 +39,13 @@ static CSSPixelRect compute_effective_auto_scroll_edge(CSSPixelRect const& scrol
 
 static Optional<CSSPixelRect> scrollport_rect_in_viewport(Painting::Paintable const& paintable_box)
 {
-    auto scrollport = paintable_box.absolute_padding_box_rect();
+    auto scrollport = Painting::absolute_padding_box_rect(paintable_box.layout_node());
 
     // The viewport's scrollport is already in viewport coordinates.
-    if (paintable_box.is_viewport_paintable())
+    if (Painting::is_viewport_paintable(paintable_box.layout_node()))
         return scrollport;
 
-    return paintable_box.transform_rect_to_viewport(scrollport);
+    return Painting::transform_rect_to_viewport(paintable_box.layout_node(), scrollport);
 }
 
 // Returns scroll speed in CSS pixels per second for each axis, based on how far the mouse is past the auto scroll edge.
@@ -123,7 +124,7 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
 
         // The viewport is always a potential scroll container, but may not report has_scrollable_overflow() and its DOM
         // node is Document (not Element).
-        if (paintable_box->is_viewport_paintable() && paintable_box->could_be_scrolled_by_wheel_event()) {
+        if (Painting::is_viewport_paintable(paintable_box->layout_node()) && paintable_box->could_be_scrolled_by_wheel_event()) {
             if (auto scrolling_element = paintable_box->document().scrolling_element())
                 return const_cast<DOM::Element*>(scrolling_element.ptr());
         }

@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -393,7 +394,7 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
         auto paintable_box = paintable_for_item(item);
         if (!paintable_box)
             return false;
-        if (paintable_box->effective_z_index().value_or(0) < 0)
+        if (Painting::effective_z_index(paintable_box->layout_node()).value_or(0) < 0)
             return false;
         return paintable_box->dom_node()
             && paintable_box->dom_node()->parent()
@@ -465,7 +466,7 @@ static GC::Ptr<DOM::Node> image_map_area_for_point(Paintable& paintable, CSSPixe
 
     // For historical reasons, the coordinates must be interpreted relative to the displayed image after any stretching
     // caused by the CSS 'width' and 'height' properties.
-    auto image_rect = paintable.absolute_rect();
+    auto image_rect = Painting::absolute_rect(paintable.layout_node());
     return map_element->area_for_point(local_point - image_rect.location(), image_rect.size());
 }
 

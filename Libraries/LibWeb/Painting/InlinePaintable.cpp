@@ -21,12 +21,4 @@ InlinePaintable::InlinePaintable(Layout::NodeWithStyle const& layout_node)
 
 InlinePaintable::~InlinePaintable() = default;
 
-CSSPixelPoint InlinePaintable::box_type_agnostic_position() const
-{
-    auto result = Layout::RustFFI::layout_arena_inline_paintable_first_piece_position(rust_arena().handle(), rust_slot());
-    if (!result.has_value)
-        return absolute_position();
-    return { CSSPixels::from_raw(result.x), CSSPixels::from_raw(result.y) };
-}
-
 }

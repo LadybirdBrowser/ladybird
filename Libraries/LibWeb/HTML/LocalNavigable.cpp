@@ -3721,12 +3721,13 @@ void LocalNavigable::clamp_viewport_scroll_offset()
     auto document = active_document();
     if (!document || !document->layout_is_up_to_date())
         return;
-    if (!document->paintable_box())
+    auto paintable_box = document->paintable_box();
+    if (!paintable_box)
         return;
-    if (!document->paintable_box()->scrollable_overflow_rect().has_value())
+    if (!Painting::scrollable_overflow_rect(paintable_box->layout_node()).has_value())
         return;
-    auto minimum_scroll_offset = document->paintable_box()->minimum_scroll_offset();
-    auto maximum_scroll_offset = document->paintable_box()->maximum_scroll_offset();
+    auto minimum_scroll_offset = paintable_box->minimum_scroll_offset();
+    auto maximum_scroll_offset = paintable_box->maximum_scroll_offset();
     CSSPixelPoint clamped = {
         clamp(m_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()),
         clamp(m_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()),

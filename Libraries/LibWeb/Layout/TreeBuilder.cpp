@@ -42,7 +42,7 @@
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
@@ -724,10 +724,8 @@ static bool is_svg_resource_box(Node const& layout_node)
 // rebuilds them.
 static void transfer_saved_layout_state_to_replacement_box(Layout::Node& old_layout_node, Layout::Node& new_layout_node)
 {
-    if (auto* containing_block = old_layout_node.containing_block()) {
-        if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr()))
-            RustFFI::layout_arena_paintable_transfer_fragments_to_replacement_node(paintable_with_lines->rust_arena().handle(), paintable_with_lines->rust_slot(), Node::slot_id(&old_layout_node), Node::slot_id(&new_layout_node));
-    }
+    if (auto* containing_block = old_layout_node.containing_block())
+        Painting::transfer_fragments_to_replacement_node(*containing_block, old_layout_node, new_layout_node);
 }
 
 TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_and_paint_node(DOM::Node& node, DOM::Node const* cleared_subtree_root)

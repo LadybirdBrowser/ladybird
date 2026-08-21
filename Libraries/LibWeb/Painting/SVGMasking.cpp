@@ -7,6 +7,7 @@
 #include <LibGfx/BoundingBox.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -58,16 +59,16 @@ static Layout::Box const* get_clip_box(SVG::SVGGraphicsElement const& graphics_e
 //         box for it — so its border box still stands in there.
 static CSSPixelRect target_user_space_object_bounding_box(Paintable const& target_paintable)
 {
-    if (auto const* committed_path = target_paintable.committed_svg_path())
+    if (auto const* committed_path = Painting::committed_svg_path(target_paintable.layout_node()))
         return committed_path->bounding_box().to_type<CSSPixels>();
-    return target_paintable.absolute_border_box_rect();
+    return Painting::absolute_border_box_rect(target_paintable.layout_node());
 }
 
 // https://drafts.csswg.org/css-masking-1/#ClipPathElement
 static bool contributes_to_clip_path(Paintable const& paintable)
 {
     // If a child element is made invisible by display or visibility it does not contribute to the clipping path.
-    return paintable.layout_node().visibility() == CSS::Visibility::Visible && !paintable.display().is_none();
+    return paintable.layout_node().visibility() == CSS::Visibility::Visible && !Painting::display(paintable.layout_node()).is_none();
 }
 
 // https://drafts.csswg.org/css-masking-1/#ClipPathElement
@@ -77,7 +78,7 @@ static Optional<CSSPixelRect> svg_clip_path_geometry_bounds(Paintable const& pai
         return {};
 
     if (paintable.is_svg_path_paintable()) {
-        auto const* committed_path = paintable.committed_svg_path();
+        auto const* committed_path = Painting::committed_svg_path(paintable.layout_node());
         if (!committed_path)
             return {};
         auto path = committed_path->copy_transformed(additional_transform);

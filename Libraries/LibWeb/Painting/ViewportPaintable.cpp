@@ -17,6 +17,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -170,7 +171,7 @@ void ViewportPaintable::append_paint_command_cache_source_resources(DisplayListR
 void ViewportPaintable::invalidate_all_cached_paint()
 {
     Layout::RustFFI::layout_arena_invalidate_all_paint_caches(rust_arena().handle());
-    set_needs_repaint();
+    Painting::set_needs_repaint(layout_node());
 }
 
 void ViewportPaintable::refresh_scroll_state()

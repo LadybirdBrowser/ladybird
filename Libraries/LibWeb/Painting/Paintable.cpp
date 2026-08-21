@@ -46,12 +46,12 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -62,62 +62,6 @@
 
 namespace Web::Painting {
 
-static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
-{
-    return { CSSPixels::from_raw(box.top), CSSPixels::from_raw(box.right), CSSPixels::from_raw(box.bottom), CSSPixels::from_raw(box.left) };
-}
-
-BoxModelMetrics Paintable::box_model() const
-{
-    return {
-        .margin = pixel_box_from_ffi(rust_data().margin),
-        .padding = pixel_box_from_ffi(rust_data().padding),
-        .border = pixel_box_from_ffi(rust_data().border),
-        .inset = pixel_box_from_ffi(rust_data().inset),
-    };
-}
-
-CSS::Display Paintable::display() const
-{
-    return CSS::display_from_ffi_display(CSS::decode_ffi_display(rust_data().display));
-}
-
-CSSPixelSize Paintable::content_size() const
-{
-    return { CSSPixels::from_raw(rust_data().content_size.width), CSSPixels::from_raw(rust_data().content_size.height) };
-}
-
-Optional<Paintable::OverflowData> Paintable::overflow_data() const
-{
-    if (!rust_data().has_overflow)
-        return {};
-    return OverflowData { from_ffi_css_pixel_rect(rust_data().overflow.rect), rust_data().overflow.has_scrollable_overflow };
-}
-
-Optional<Paintable::CachedOverflowData> Paintable::cached_overflow_data() const
-{
-    if (!rust_data().has_cached_overflow)
-        return {};
-    return CachedOverflowData { from_ffi_css_pixel_rect(rust_data().cached_overflow.rect), rust_data().cached_overflow.has_scrollable_overflow };
-}
-
-Paintable::StickyInsets Paintable::sticky_insets() const
-{
-    VERIFY(has_sticky_insets());
-    auto const& insets = rust_data().sticky_insets;
-    auto side = [](i32 raw, bool present) -> Optional<CSSPixels> {
-        if (!present)
-            return {};
-        return CSSPixels::from_raw(raw);
-    };
-    return { side(insets.top, insets.has_top), side(insets.right, insets.has_right), side(insets.bottom, insets.has_bottom), side(insets.left, insets.has_left) };
-}
-
-String Paintable::debug_description() const
-{
-    return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
-}
-
 DOM::Document const& Paintable::document() const
 {
     return layout_node().document();
@@ -126,23 +70,6 @@ DOM::Document const& Paintable::document() const
 DOM::Document& Paintable::document()
 {
     return layout_node().document();
-}
-
-bool Paintable::is_visible() const
-{
-    return layout_node().visibility() == CSS::Visibility::Visible && layout_node().opacity() != 0;
-}
-
-CSS::StyleRecordID Paintable::style_record_identity() const
-{
-    return layout_node().style_record_identity();
-}
-
-bool Paintable::visible_for_hit_testing() const
-{
-    if (auto node = dom_node(); node && node->is_inert())
-        return false;
-    return layout_node().pointer_events() != CSS::PointerEvents::None;
 }
 
 void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
@@ -163,11 +90,6 @@ GC::Ptr<DOM::Node const> Paintable::dom_node() const
 GC::Ptr<HTML::LocalNavigable> Paintable::navigable() const
 {
     return document().navigable();
-}
-
-bool Paintable::has_stacking_context() const
-{
-    return rust_data().stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT;
 }
 
 GC::Ptr<DOM::Node> event_dispatch_dom_node_for(Paintable const& paintable)
@@ -194,134 +116,6 @@ RefPtr<Paintable> HitTestResult::paintable() const
 RefPtr<Paintable> CaretPosition::paintable() const
 {
     return paintable_for_slot(arena->handle(), box);
-}
-
-CSSPixelPoint Paintable::box_type_agnostic_position() const
-{
-    return absolute_position();
-}
-
-// https://drafts.csswg.org/css-pseudo-4/#highlight-styling
-// FIXME: Support additional ::selection properties: text-underline-offset, text-underline-position, stroke-color,
-//        fill-color, stroke-width, and CSS custom properties.
-Paintable::SelectionStyle Paintable::selection_style() const
-{
-    return selection_style_for_node(layout_node(), dom_node());
-}
-
-Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const& layout_node, GC::Ptr<DOM::Node const> node)
-{
-    // Selections render in a muted color while the window does not have focus.
-    auto navigable = layout_node.document().navigable();
-    auto window_is_active = navigable && navigable->is_focused();
-    auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(layout_node);
-    auto const& style_source = layout_node_with_style ? *layout_node_with_style : *layout_node.parent();
-
-    auto default_style_for_color_scheme = [&](CSS::PreferredColorScheme color_scheme, bool use_palette_for_normal_color_scheme = true) {
-        auto palette = layout_node.document().page().palette();
-        auto palette_color_scheme = palette.is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
-        if (color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme) {
-            auto background = window_is_active ? palette.selection() : palette.inactive_selection();
-            return SelectionStyle { CSS::SystemColor::transform_selection_background_color(background) };
-        }
-
-        auto background = window_is_active ? CSS::SystemColor::highlight(color_scheme) : CSS::SystemColor::inactive_highlight(color_scheme);
-        return SelectionStyle { CSS::SystemColor::transform_selection_background_color(background) };
-    };
-
-    // For text nodes, check the parent element since text nodes don't have computed properties.
-    if (!node)
-        return default_style_for_color_scheme(style_source.color_scheme());
-
-    DOM::Element const* element = as_if<DOM::Element>(*node);
-    if (!element)
-        element = node->parent_element().ptr();
-    if (!element)
-        return default_style_for_color_scheme(style_source.color_scheme());
-
-    auto color_scheme_is_normal = style_source.color_schemes().is_empty();
-    auto use_palette_for_normal_color_scheme = color_scheme_is_normal && !layout_node.document().supported_color_schemes().has_value();
-    auto default_style = default_style_for_color_scheme(style_source.color_scheme(), use_palette_for_normal_color_scheme);
-
-    auto style_from_element = [&](DOM::Element const& element) -> Optional<SelectionStyle> {
-        auto computed_selection_style = element.computed_style(CSS::PseudoElement::Selection);
-        if (!computed_selection_style)
-            return {};
-
-        SelectionStyle style;
-        style.background_color = computed_selection_style->background_color();
-
-        // Only use text color if it was explicitly set in the ::selection rule, not inherited.
-        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::Color))
-            style.text_color = computed_selection_style->color();
-
-        // Only use text-shadow if it was explicitly set in the ::selection rule, not inherited.
-        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextShadow)) {
-            auto const& css_shadows = computed_selection_style->text_shadow();
-            Vector<ShadowData> shadows;
-            shadows.ensure_capacity(css_shadows.size());
-            for (auto const& shadow : css_shadows)
-                shadows.unchecked_append(ShadowData::from_css(shadow));
-            style.text_shadow = move(shadows);
-        }
-
-        // Only use text-decoration if it was explicitly set in the ::selection rule, not inherited.
-        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextDecorationLine)) {
-            style.text_decoration = TextDecorationStyle {
-                .line = Vector<CSS::TextDecorationLine> { computed_selection_style->text_decoration_line() },
-                .style = computed_selection_style->text_decoration_style(),
-                .color = computed_selection_style->text_decoration_color(),
-            };
-        }
-
-        // Only return a style if there's a meaningful customization. This allows us to continue checking shadow hosts
-        // when the current element only has UA default styles.
-        if (!style.has_styling())
-            return {};
-
-        return style;
-    };
-
-    // Check the element itself.
-    if (auto style = style_from_element(*element); style.has_value())
-        return style.release_value();
-
-    // If inside a shadow tree, check the shadow host. This enables ::selection styling on elements like <input> to
-    // apply to text rendered inside their shadow DOM.
-    if (auto shadow_root = element->containing_shadow_root(); shadow_root && shadow_root->is_user_agent_internal()) {
-        if (auto const* host = shadow_root->host()) {
-            if (auto style = style_from_element(*host); style.has_value())
-                return style.release_value();
-        }
-    }
-
-    return default_style;
-}
-
-void Paintable::clear_overflow_data()
-{
-    Layout::RustFFI::layout_arena_paintable_clear_overflow_data(m_rust_arena->handle(), m_rust_slot);
-}
-
-void Paintable::clear_cached_overflow_data()
-{
-    Layout::RustFFI::layout_arena_paintable_clear_cached_overflow_data(m_rust_arena->handle(), m_rust_slot);
-}
-
-void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
-{
-    Layout::RustFFI::FfiStickyInsets ffi_insets {};
-    if (sticky_insets) {
-        auto pack = [](Optional<CSSPixels> const& value, i32& raw, bool& present) {
-            present = value.has_value();
-            raw = value.has_value() ? value->raw_value() : 0;
-        };
-        pack(sticky_insets->top, ffi_insets.top, ffi_insets.has_top);
-        pack(sticky_insets->right, ffi_insets.right, ffi_insets.has_right);
-        pack(sticky_insets->bottom, ffi_insets.bottom, ffi_insets.has_bottom);
-        pack(sticky_insets->left, ffi_insets.left, ffi_insets.has_left);
-    }
-    Layout::RustFFI::layout_arena_paintable_set_sticky_insets(m_rust_arena->handle(), m_rust_slot, ffi_insets, !!sticky_insets);
 }
 
 void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
@@ -353,7 +147,7 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
     }
     auto owner = paintable_for_slot(layout_node->arena_handle(), result.owner_paintable);
     for (auto* ancestor = owner.ptr(); ancestor;) {
-        if (ancestor->has_scrollable_overflow()) {
+        if (Painting::has_scrollable_overflow(ancestor->layout_node())) {
             if (scroll_block_direction == ScrollBlockDirection::No) {
                 auto snapport = ancestor->scroll_snapport_rect();
                 if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
@@ -484,7 +278,7 @@ CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const& paintable_bo
 Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const& layout_node)
 {
     for (auto const* ancestor = layout_node.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (auto paintable = ancestor->paintable(); paintable && paintable->svg_viewport_transform().has_value())
+        if (auto paintable = ancestor->paintable(); paintable && Painting::svg_viewport_transform(*ancestor).has_value())
             return paintable.ptr();
     }
     return nullptr;
@@ -496,8 +290,10 @@ static Gfx::FloatRect svg_svg_box_view_box_or_viewport_rect(Layout::Box const& s
 {
     if (auto view_box = as<SVG::SVGSVGElement>(*svg_svg_box.dom_node()).active_view_box(); view_box.has_value())
         return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
-    if (auto const* paintable = svg_svg_box.paintable_box().ptr())
-        return { {}, { paintable->svg_viewport_size().width().to_float(), paintable->svg_viewport_size().height().to_float() } };
+    if (svg_svg_box.paintable_box()) {
+        auto viewport_size = Painting::svg_viewport_size(svg_svg_box);
+        return { {}, { viewport_size.width().to_float(), viewport_size.height().to_float() } };
+    }
     return {};
 }
 
@@ -511,7 +307,7 @@ Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable)
                 return { static_cast<float>(view_box->min_x), static_cast<float>(view_box->min_y), static_cast<float>(view_box->width), static_cast<float>(view_box->height) };
         }
     }
-    return { {}, viewport_paintable.absolute_rect().size().to_type<float>() };
+    return { {}, Painting::absolute_rect(viewport_paintable.layout_node()).size().to_type<float>() };
 }
 
 ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Paintable const& paintable_box)
@@ -545,7 +341,7 @@ ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Pa
                 result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
                 // The bounds live in the filtered element's user space; an element without
                 // geometry of its own falls back to the whole enclosing viewport rect there.
-                auto bounds = paintable_box.absolute_border_box_rect();
+                auto bounds = Painting::absolute_border_box_rect(layout_node);
                 if (bounds.is_empty()) {
                     if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(paintable_box.layout_node()))
                         result.svg_filter_bounds = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
@@ -637,91 +433,13 @@ void Paintable::detach_chrome_widgets()
     }
 }
 
-bool Paintable::has_css_transform() const
-{
-    return layout_node().has_css_transform();
-}
-
-StringView Paintable::class_name() const
-{
-    switch (kind()) {
-    case Layout::RustFFI::PaintableKind::None:
-        return "Paintable"sv;
-    case Layout::RustFFI::PaintableKind::Paintable:
-        return "Paintable"sv;
-    case Layout::RustFFI::PaintableKind::PaintableWithLines:
-        return "PaintableWithLines"sv;
-    case Layout::RustFFI::PaintableKind::InlinePaintable:
-        return "InlinePaintable"sv;
-    case Layout::RustFFI::PaintableKind::ViewportPaintable:
-        return "ViewportPaintable"sv;
-    case Layout::RustFFI::PaintableKind::ImagePaintable:
-        return "ImagePaintable"sv;
-    case Layout::RustFFI::PaintableKind::CanvasPaintable:
-        return "CanvasPaintable"sv;
-    case Layout::RustFFI::PaintableKind::VideoPaintable:
-        return "VideoPaintable"sv;
-    case Layout::RustFFI::PaintableKind::CheckBoxPaintable:
-        return "CheckBoxPaintable"sv;
-    case Layout::RustFFI::PaintableKind::RadioButtonPaintable:
-        return "RadioButtonPaintable"sv;
-    case Layout::RustFFI::PaintableKind::FieldSetPaintable:
-        return "FieldSetPaintable"sv;
-    case Layout::RustFFI::PaintableKind::NavigableContainerViewportPaintable:
-        return "NavigableContainerViewportPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGSVGPaintable:
-        return "SVGSVGPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGPathPaintable:
-        return "SVGPathPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGGraphicsPaintable:
-        return "SVGGraphicsPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGImagePaintable:
-        return "SVGImagePaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGMaskPaintable:
-        return "SVGMaskPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGClipPaintable:
-        return "SVGClipPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGPatternPaintable:
-        return "SVGPatternPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable:
-        return "SVGForeignObjectPaintable"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<Gfx::AffineTransform> Paintable::svg_viewport_transform() const
-{
-    if (!rust_data().has_svg_viewport_transform)
-        return {};
-    auto const& transform = rust_data().svg_viewport_transform;
-    return Gfx::AffineTransform { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
-}
-
-Gfx::Path const* Paintable::committed_svg_path() const
-{
-    return static_cast<Gfx::Path const*>(Layout::RustFFI::layout_arena_paintable_computed_svg_path(m_rust_arena->handle(), m_rust_slot));
-}
-
-void Paintable::invalidate_paint_cache() const
-{
-    mirror_rust_invalidate_paint_cache(*this);
-}
-
-void Paintable::repaint_after_style_change(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
-{
-    if (invalidation.needs_repaint())
-        set_needs_repaint();
-    if (invalidation.repaint_propagated_text_decorations)
-        rust_invalidate_propagated_text_decoration_caches(*this);
-}
-
 void Paintable::reset_for_relayout()
 {
     // A reused paintable must shed its chrome widgets: whether the box still warrants them
     // (e.g. scrollbars on a scroll container) is only known after the new layout is painted.
     detach_chrome_widgets();
 
-    invalidate_stacking_context();
+    Painting::invalidate_stacking_context(layout_node());
 }
 
 CSSPixelPoint Paintable::scroll_offset() const
@@ -743,46 +461,24 @@ CSSPixelPoint Paintable::scroll_offset() const
 
 CSSPixelPoint Paintable::minimum_scroll_offset() const
 {
-    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(layout_node());
     if (!scrollable_overflow_rect.has_value())
         return {};
 
-    auto scrollport_rect = absolute_padding_box_rect();
+    auto scrollport_rect = Painting::absolute_padding_box_rect(layout_node());
     return {
         min(scrollable_overflow_rect->left() - scrollport_rect.left(), CSSPixels(0)),
         min(scrollable_overflow_rect->top() - scrollport_rect.top(), CSSPixels(0)),
     };
 }
 
-bool Paintable::has_scrollable_overflow() const
-{
-    if (auto const* box = as_if<Layout::Box>(layout_node()))
-        document().ensure_scrollable_overflow_is_measured(*box);
-    if (rust_data().has_overflow)
-        return rust_data().overflow.has_scrollable_overflow;
-    return rust_data().has_cached_overflow && rust_data().cached_overflow.has_scrollable_overflow;
-}
-
-Optional<CSSPixelRect> Paintable::scrollable_overflow_rect() const
-{
-    if (auto const* box = as_if<Layout::Box>(layout_node()))
-        document().ensure_scrollable_overflow_is_measured(*box);
-    if (rust_data().has_overflow)
-        return from_ffi_css_pixel_rect(rust_data().overflow.rect);
-    if (!rust_data().has_cached_overflow)
-        return {};
-    auto scrollable_overflow_rect = from_ffi_css_pixel_rect(rust_data().cached_overflow.rect);
-    scrollable_overflow_rect.translate_by(absolute_padding_box_rect().location());
-    return scrollable_overflow_rect;
-}
-
 CSSPixelPoint Paintable::maximum_scroll_offset() const
 {
-    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(layout_node());
     if (!scrollable_overflow_rect.has_value())
         return {};
 
-    auto scrollport_rect = absolute_padding_box_rect();
+    auto scrollport_rect = Painting::absolute_padding_box_rect(layout_node());
     return {
         max(scrollable_overflow_rect->right() - scrollport_rect.right(), CSSPixels(0)),
         max(scrollable_overflow_rect->bottom() - scrollport_rect.bottom(), CSSPixels(0)),
@@ -791,7 +487,7 @@ CSSPixelPoint Paintable::maximum_scroll_offset() const
 
 CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
 {
-    if (!scrollable_overflow_rect().has_value())
+    if (!Painting::scrollable_overflow_rect(layout_node()).has_value())
         return offset;
 
     auto minimum_offset = minimum_scroll_offset();
@@ -804,7 +500,7 @@ CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
 
 Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
 {
-    if (!scrollable_overflow_rect().has_value())
+    if (!Painting::scrollable_overflow_rect(layout_node()).has_value())
         return ScrollHandled::No;
 
     offset = clamp_scroll_offset(offset);
@@ -850,7 +546,7 @@ Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
     if (!document.append_pending_scroll_event({ *event_target, HTML::EventNames::scroll }))
         return ScrollHandled::Yes;
 
-    set_needs_repaint(InvalidateDisplayList::No);
+    Painting::set_needs_repaint(layout_node(), InvalidateDisplayList::No);
     return ScrollHandled::Yes;
 }
 
@@ -886,7 +582,7 @@ GC::Ptr<DOM::EventTarget> Paintable::scroll_event_target()
 
 CSSPixelRect Paintable::scroll_snapport_rect() const
 {
-    return scroll_snapport_rect(absolute_padding_box_rect());
+    return scroll_snapport_rect(Painting::absolute_padding_box_rect(layout_node()));
 }
 
 CSSPixelRect Paintable::scroll_snapport_rect(CSSPixelRect scrollport) const
@@ -933,34 +629,14 @@ void Paintable::scroll_into_view(CSSPixelRect rect)
     set_scroll_offset(new_offset);
 }
 
-CSSPixelPoint Paintable::offset() const
-{
-    return { CSSPixels::from_raw(rust_data().offset.x), CSSPixels::from_raw(rust_data().offset.y) };
-}
-
-CSSPixelRect Paintable::absolute_rect() const
-{
-    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_rect(m_rust_arena->handle(), m_rust_slot));
-}
-
-CSSPixelRect Paintable::absolute_padding_box_rect() const
-{
-    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_padding_box_rect(m_rust_arena->handle(), m_rust_slot));
-}
-
 Optional<CSSPixelRect> Paintable::absolute_resizer_rect(ChromeMetrics const& metrics) const
 {
     if (!has_resizer())
         return {};
-    auto padding_rect = absolute_padding_box_rect();
+    auto padding_rect = Painting::absolute_padding_box_rect(layout_node());
     CSSPixels x = is_chrome_mirrored() ? padding_rect.x() : padding_rect.right() - metrics.resize_gripper_size;
     CSSPixels y = padding_rect.bottom() - metrics.resize_gripper_size;
     return CSSPixelRect { x, y, metrics.resize_gripper_size, metrics.resize_gripper_size };
-}
-
-CSSPixelRect Paintable::absolute_border_box_rect() const
-{
-    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_border_box_rect(m_rust_arena->handle(), m_rust_slot));
 }
 
 RefPtr<Scrollbar> Paintable::scrollbar(ScrollDirection direction) const
@@ -1023,12 +699,12 @@ bool Paintable::could_be_scrolled_by_wheel_event(ScrollDirection direction) cons
     if (overflow != CSS::Overflow::Auto && overflow != CSS::Overflow::Scroll)
         return false;
 
-    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(layout_node());
     if (!scrollable_overflow_rect.has_value())
         return false;
 
     CSSPixels scrollable_overflow_size = scrollable_overflow_rect->primary_size_for_orientation(orientation);
-    CSSPixels scrollport_size = absolute_padding_box_rect().primary_size_for_orientation(orientation);
+    CSSPixels scrollport_size = Painting::absolute_padding_box_rect(layout_node()).primary_size_for_orientation(orientation);
 
     return scrollable_overflow_size > scrollport_size;
 }
@@ -1041,7 +717,7 @@ bool Paintable::could_be_scrolled_by_wheel_event() const
 CSSPixels Paintable::available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& metrics) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
-    auto padding_rect = absolute_padding_box_rect();
+    auto padding_rect = Painting::absolute_padding_box_rect(layout_node());
     CSSPixels full_scrollport_length = is_horizontal ? padding_rect.width() : padding_rect.height();
     if (has_resizer())
         full_scrollport_length -= metrics.resize_gripper_size;
@@ -1068,7 +744,7 @@ Optional<CSSPixelRect> Paintable::absolute_scrollbar_rect(ScrollDirection direct
     CSSPixels rect_thickness = with_gutter
         ? metrics.scroll_gutter_thickness
         : metrics.scroll_thumb_thickness_thin + metrics.scroll_thumb_padding_thin;
-    CSSPixelRect scrollbar_rect = absolute_padding_box_rect();
+    CSSPixelRect scrollbar_rect = Painting::absolute_padding_box_rect(layout_node());
 
     if (is_horizontal) {
         if (!adjusting_for_resizer && could_be_scrolled_by_wheel_event(ScrollDirection::Vertical)) {
@@ -1101,10 +777,10 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
     if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(direction))
         return {};
 
-    if (!own_scroll_node_index().value())
+    if (!Painting::own_scroll_node_index(layout_node()).value())
         return {};
 
-    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(layout_node());
     if (!scrollable_overflow_rect.has_value())
         return {};
 
@@ -1136,7 +812,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
     }
     CSSPixels scrollbar_length = scrollbar_rect->primary_size_for_orientation(orientation);
     CSSPixels usable_scrollbar_length = max(CSSPixels { 0 }, scrollbar_length - (2 * thumb_margin));
-    CSSPixels scrollport_size = absolute_padding_box_rect().primary_size_for_orientation(orientation);
+    CSSPixels scrollport_size = Painting::absolute_padding_box_rect(layout_node()).primary_size_for_orientation(orientation);
     CSSPixels min_thumb_length = min(usable_scrollbar_length, metrics.scroll_thumb_min_length);
     CSSPixels thumb_length = max(usable_scrollbar_length * (scrollport_size / scrollable_overflow_length), min_thumb_length);
 
@@ -1155,7 +831,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
         scrollbar_data.gutter_rect = scrollbar_rect.value();
 
     if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->device_offset_for_index(own_scroll_node_index());
+        auto own_offset = scroll_state_snapshot->device_offset_for_index(Painting::own_scroll_node_index(layout_node()));
         auto device_scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
         auto device_pixels_per_css_pixel = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
         CSSPixels thumb_offset = CSSPixels::nearest_value_for(device_scroll_offset / device_pixels_per_css_pixel) * scrollbar_data.thumb_travel_to_scroll_ratio;
@@ -1163,120 +839,6 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
     }
 
     return scrollbar_data;
-}
-
-Optional<UsedGridTrackList> Paintable::used_values_for_grid_template_columns() const
-{
-    Optional<UsedGridTrackList> result;
-    Layout::RustFFI::layout_arena_paintable_used_grid_tracks(rust_arena().handle(), rust_slot(), &result,
-        [](void* context, Layout::RustFFI::FfiUsedGridTrackList const* columns, Layout::RustFFI::FfiUsedGridTrackList const*) {
-            *static_cast<Optional<UsedGridTrackList>*>(context) = Layout::build_used_grid_track_list(*columns);
-        });
-    return result;
-}
-
-Optional<UsedGridTrackList> Paintable::used_values_for_grid_template_rows() const
-{
-    Optional<UsedGridTrackList> result;
-    Layout::RustFFI::layout_arena_paintable_used_grid_tracks(rust_arena().handle(), rust_slot(), &result,
-        [](void* context, Layout::RustFFI::FfiUsedGridTrackList const*, Layout::RustFFI::FfiUsedGridTrackList const* rows) {
-            *static_cast<Optional<UsedGridTrackList>*>(context) = Layout::build_used_grid_track_list(*rows);
-        });
-    return result;
-}
-
-Optional<String> Paintable::grid_layout_json(UniqueNodeID container_node_id) const
-{
-    Optional<String> result;
-    Layout::RustFFI::layout_arena_paintable_grid_layout_json(rust_arena().handle(), rust_slot(), container_node_id.value(), &result,
-        [](void* context, u8 const* bytes, size_t length) {
-            *static_cast<Optional<String>*>(context) = MUST(String::from_utf8(StringView { bytes, length }));
-        });
-    return result;
-}
-
-Optional<String> Paintable::flex_layout_json(UniqueNodeID container_node_id) const
-{
-    Optional<String> result;
-    Layout::RustFFI::layout_arena_paintable_flex_layout_json(rust_arena().handle(), rust_slot(), container_node_id.value(), &result,
-        [](void* context, u8 const* bytes, size_t length) {
-            *static_cast<Optional<String>*>(context) = MUST(String::from_utf8(StringView { bytes, length }));
-        });
-    return result;
-}
-
-void Paintable::invalidate_stacking_context()
-{
-    if (!has_layout_node())
-        return;
-    if (auto viewport_paintable = document().unsafe_paintable())
-        viewport_paintable->invalidate_stacking_context_tree();
-}
-
-Optional<int> Paintable::effective_z_index() const
-{
-    // https://drafts.csswg.org/css2/#z-index
-    // Applies to: positioned elements
-    if (is_positioned())
-        return layout_node().z_index();
-
-    return {};
-}
-
-Optional<CSSPixelPoint> Paintable::transform_point_to_local(CSSPixelPoint screen_position) const
-{
-    auto viewport_paintable = document().paintable();
-    if (!viewport_paintable)
-        return screen_position;
-    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-    auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
-    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(accumulated_visual_context_index(), screen_position.to_type<float>() * pixel_ratio, scroll_state);
-    if (!result.has_value())
-        return {};
-    return (*result / pixel_ratio).to_type<CSSPixels>();
-}
-
-Optional<CSSPixelPoint> Paintable::transform_point_to_local_for_descendants(CSSPixelPoint screen_position) const
-{
-    auto viewport_paintable = document().paintable();
-    if (!viewport_paintable)
-        return screen_position;
-    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-    auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
-    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(accumulated_visual_context_for_descendants_index(), screen_position.to_type<float>() * pixel_ratio, scroll_state);
-    if (!result.has_value())
-        return {};
-    return (*result / pixel_ratio).to_type<CSSPixels>();
-}
-
-CSSPixelRect Paintable::transform_rect_to_viewport(CSSPixelRect const& rect, AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform) const
-{
-    auto viewport_paintable = document().paintable();
-    if (!viewport_paintable)
-        return rect;
-    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-    auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
-    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.transform_rect_to_viewport(accumulated_visual_context_index(), rect.to_type<float>() * pixel_ratio, scroll_state, include_visual_viewport_transform);
-    return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
-}
-
-CSSPixelPoint Paintable::inverse_transform_point(CSSPixelPoint screen_position) const
-{
-    auto viewport_paintable = document().paintable();
-    if (!viewport_paintable)
-        return screen_position;
-    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.inverse_transform_point(accumulated_visual_context_index(), screen_position.to_type<float>() * pixel_ratio);
-    return (result / pixel_ratio).to_type<CSSPixels>();
-}
-
-CSSPixelPoint Paintable::transform_to_local_coordinates(CSSPixelPoint screen_position) const
-{
-    return transform_point_to_local(screen_position).value_or(screen_position);
 }
 
 bool Paintable::has_resizer() const
@@ -1337,134 +899,10 @@ bool Paintable::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics 
     if (!handle_rect.has_value())
         return false;
     bool bottom_left_resizer = is_chrome_mirrored();
-    handle_rect->inflate(0, bottom_left_resizer ? 0 : box_model().border.right, box_model().border.bottom, bottom_left_resizer ? box_model().border.left : 0);
+    auto box_model = Painting::box_model(layout_node());
+    handle_rect->inflate(0, bottom_left_resizer ? 0 : box_model.border.right, box_model.border.bottom, bottom_left_resizer ? box_model.border.left : 0);
 
     return handle_rect->contains(adjusted_position);
-}
-
-void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
-{
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
-        Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(rust_arena().handle(), rust_slot());
-
-        // The root element paints the body's propagated background, so a body repaint must also refresh the
-        // root's cached background. A root repaint can conversely flip whether propagation applies, changing
-        // what the body itself paints.
-        if (body_background_is_propagated_to_root(layout_node())) {
-            if (auto const* document_element = document().document_element()) {
-                if (auto document_element_paintable = document_element->unsafe_paintable())
-                    document_element_paintable->invalidate_paint_cache();
-            }
-        } else if (layout_node().is_root_element()) {
-            if (auto const* body = document().body()) {
-                if (auto body_paintable = body->unsafe_paintable())
-                    body_paintable->invalidate_paint_cache();
-            }
-        }
-    }
-    document().set_needs_repaint(Badge<Painting::Paintable> {}, should_invalidate_display_list);
-}
-
-// https://www.w3.org/TR/css-transforms-1/#reference-box
-CSSPixelRect Paintable::transform_reference_box() const
-{
-    auto transform_box = layout_node().transform_box();
-    // For SVG elements without associated CSS layout box, the used value for content-box is fill-box and for
-    // border-box is stroke-box.
-    // FIXME: This currently detects any SVG element except the <svg> one. Is that correct?
-    //        And is it correct to use `else` below?
-    if (is_svg_paintable()) {
-        switch (transform_box) {
-        case CSS::TransformBox::ContentBox:
-            transform_box = CSS::TransformBox::FillBox;
-            break;
-        case CSS::TransformBox::BorderBox:
-            transform_box = CSS::TransformBox::StrokeBox;
-            break;
-        default:
-            break;
-        }
-    }
-    // For elements with associated CSS layout box, the used value for fill-box is content-box and for
-    // stroke-box and view-box is border-box.
-    else {
-        switch (transform_box) {
-        case CSS::TransformBox::FillBox:
-            transform_box = CSS::TransformBox::ContentBox;
-            break;
-        case CSS::TransformBox::StrokeBox:
-        case CSS::TransformBox::ViewBox:
-            transform_box = CSS::TransformBox::BorderBox;
-            break;
-        default:
-            break;
-        }
-    }
-
-    switch (transform_box) {
-    case CSS::TransformBox::ContentBox:
-        // Uses the content box as reference box.
-        // FIXME: The reference box of a table is the border box of its table wrapper box, not its table box.
-        return absolute_rect();
-    case CSS::TransformBox::BorderBox:
-        // Uses the border box as reference box.
-        // FIXME: The reference box of a table is the border box of its table wrapper box, not its table box.
-        return absolute_border_box_rect();
-    case CSS::TransformBox::FillBox:
-        // Uses the object bounding box as reference box.
-        // FIXME: For now we're using the content rect as an approximation.
-        return absolute_rect();
-    case CSS::TransformBox::StrokeBox:
-        // Uses the stroke bounding box as reference box.
-        // FIXME: For now we're using the border rect as an approximation.
-        return absolute_border_box_rect();
-    case CSS::TransformBox::ViewBox: {
-        // Uses the nearest SVG viewport as reference box.
-        // FIXME: If a viewBox attribute is specified for the SVG viewport creating element:
-        //  - The reference box is positioned at the origin of the coordinate system established by the viewBox attribute.
-        //  - The dimension of the reference box is set to the width and height values of the viewBox attribute.
-        auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node());
-        if (!viewport_paintable)
-            return absolute_border_box_rect();
-        return svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
-    }
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Optional<CSS::BorderData> border_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)
-{
-    CSS::LineStyle line_style;
-    if (outline_style == CSS::OutlineStyle::Auto) {
-        line_style = CSS::LineStyle::Solid;
-        outline_color = CSS::KeywordStyleValue::create(CSS::Keyword::Accentcolor)->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle const*>(&layout_node))).value();
-        outline_width = 2;
-    } else {
-        line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);
-    }
-
-    if (outline_color.alpha() == 0 || line_style == CSS::LineStyle::None || outline_width == 0)
-        return {};
-
-    return CSS::BorderData {
-        .color = outline_color,
-        .line_style = line_style,
-        .width = outline_width,
-    };
-}
-
-Optional<CSS::BorderData> Paintable::outline_data(CSS::ComputedValues const& computed_values) const
-{
-    // The `auto` outline is the UA focus ring; like native controls, it is only shown while the window has focus.
-    if (computed_values.outline_style() == CSS::OutlineStyle::Auto && (!navigable() || !navigable()->is_focused()))
-        return {};
-
-    return border_data_for_outline(layout_node(), computed_values.outline_color(), computed_values.outline_style(), computed_values.outline_width());
-}
-
-CSSPixels Paintable::outline_offset() const
-{
-    return layout_node().outline_offset();
 }
 
 RefPtr<Paintable const> Paintable::nearest_scrollable_ancestor() const
@@ -1477,7 +915,7 @@ RefPtr<Paintable const> Paintable::nearest_scrollable_ancestor() const
             return nullptr;
         if (paintable->could_be_scrolled_by_wheel_event())
             return paintable;
-        if (paintable->is_fixed_position())
+        if (Painting::is_fixed_position(*box))
             return nullptr;
     }
     return nullptr;

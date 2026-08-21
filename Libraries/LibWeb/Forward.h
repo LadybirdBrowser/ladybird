@@ -1067,6 +1067,7 @@ class Notification;
 namespace Web::Painting {
 
 class AudioPaintable;
+class BoxViewRepaintAccess;
 class MediaPaintable;
 class Paintable;
 class PaintableWithLines;

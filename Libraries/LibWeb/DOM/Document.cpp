@@ -2487,7 +2487,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     // For every box that will be re-measured, the overflow data it had before, so the diff below
     // can tell what actually changed; an empty value means the box's paintable was reset by a
     // subtree layout commit and the old data is unknown.
-    HashMap<Layout::Box const*, Optional<Painting::Paintable::OverflowData>> old_overflow_data_by_box;
+    HashMap<Layout::Box const*, Optional<Painting::OverflowData>> old_overflow_data_by_box;
 
     auto pending_paintables = move(m_paintable_boxes_needing_scrollable_overflow_recalculation);
     auto needs_full_recalculation = exchange(m_needs_full_scrollable_overflow_recalculation, false);

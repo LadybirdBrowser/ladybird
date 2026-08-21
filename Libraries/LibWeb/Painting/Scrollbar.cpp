@@ -53,7 +53,7 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
         return MouseAction::None;
     }
 
-    auto position = paintable_box->transform_to_local_coordinates(visual_viewport_position);
+    auto position = Painting::transform_to_local_coordinates(paintable_box->layout_node(), visual_viewport_position);
     if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
         return MouseAction::None;
     Painting::set_needs_repaint(paintable_box->layout_node());
@@ -72,7 +72,7 @@ MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
         auto paintable_box = paintable();
         if (!paintable_box)
             return MouseAction::None;
-        position = paintable_box->transform_to_local_coordinates(position);
+        position = Painting::transform_to_local_coordinates(paintable_box->layout_node(), position);
         scroll_to_mouse_position(position);
         return MouseAction::SwallowEvent;
     }
@@ -143,8 +143,8 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     auto constrained_offset = AK::clamp(offset_relative_to_gutter - m_thumb_grab_position.value(), 0, gutter_size - thumb_size);
     auto scroll_position = constrained_offset.to_double() / (gutter_size - thumb_size).to_double();
 
-    auto scrollable_overflow_size = paintable_box->scrollable_overflow_rect()->primary_size_for_orientation(orientation);
-    auto padding_size = paintable_box->absolute_padding_box_rect().primary_size_for_orientation(orientation);
+    auto scrollable_overflow_size = Painting::scrollable_overflow_rect(paintable_box->layout_node())->primary_size_for_orientation(orientation);
+    auto padding_size = Painting::absolute_padding_box_rect(paintable_box->layout_node()).primary_size_for_orientation(orientation);
     auto minimum_scroll_offset = paintable_box->minimum_scroll_offset().primary_offset_for_orientation(orientation);
     auto scroll_position_in_pixels = minimum_scroll_offset + CSSPixels::nearest_value_for(scroll_position * (scrollable_overflow_size - padding_size));
 
