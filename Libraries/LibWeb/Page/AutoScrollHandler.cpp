@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -127,7 +128,8 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
                 return const_cast<DOM::Element*>(scrolling_element.ptr());
         }
 
-        paintable_box = paintable_box->containing_block();
+        auto* containing_block_box = paintable_box->layout_node().containing_block();
+        paintable_box = containing_block_box ? containing_block_box->paintable() : nullptr;
     }
     return {};
 }

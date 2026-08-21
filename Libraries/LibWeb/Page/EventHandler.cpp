@@ -779,7 +779,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 if (handled_scroll_event)
                     return EventResult::Handled;
 
-                containing_block = containing_block->containing_block();
+                auto* containing_block_box = containing_block->layout_node().containing_block();
+                containing_block = containing_block_box ? containing_block_box->paintable() : nullptr;
             }
 
             auto document = m_navigable->active_document();
@@ -1324,7 +1325,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         while (containing_block) {
             if (containing_block->handle_mousewheel({}, {}, 0, 0, delta_x, delta_y))
                 return true;
-            containing_block = containing_block->containing_block();
+            auto* containing_block_box = containing_block->layout_node().containing_block();
+            containing_block = containing_block_box ? containing_block_box->paintable() : nullptr;
         }
         return false;
     };
