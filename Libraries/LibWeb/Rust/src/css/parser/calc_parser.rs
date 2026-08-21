@@ -18,7 +18,10 @@ use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::value_parser::{
     ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, RESOLUTION_UNIT_NAMES, TIME_UNIT_NAMES,
 };
+use crate::css::property_metadata::property_name;
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::LENGTH_UNIT_NAMES;
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,6 +31,28 @@ pub(crate) enum CalcParseError {
 }
 
 type Result<T> = std::result::Result<T, CalcParseError>;
+
+#[derive(Clone, Copy)]
+pub(crate) struct CalcParserContext {
+    pub percentages_resolve_as: Option<u8>,
+    pub property: u16,
+    pub random_function_index: *mut usize,
+    pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+    pub allow_random_functions: bool,
+}
+
+impl CalcParserContext {
+    #[cfg(test)]
+    fn for_test(percentages_resolve_as: Option<u8>) -> Self {
+        Self {
+            percentages_resolve_as,
+            property: 0,
+            random_function_index: std::ptr::null_mut(),
+            intern_utf16_fly_string: None,
+            allow_random_functions: false,
+        }
+    }
+}
 
 fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
     value.len() == expected.len()
@@ -47,15 +72,15 @@ fn unit_index(unit: &[u16], names: &[&str]) -> Option<u8> {
 struct CalculationParser<'a> {
     values: Vec<&'a ComponentValue>,
     position: usize,
-    percentages_resolve_as: Option<u8>,
+    context: CalcParserContext,
 }
 
 impl<'a> CalculationParser<'a> {
-    fn new(values: &'a [ComponentValue], percentages_resolve_as: Option<u8>) -> Self {
+    fn new(values: &'a [ComponentValue], context: CalcParserContext) -> Self {
         Self {
             values: values.iter().filter(|value| !value.is_whitespace()).collect(),
             position: 0,
-            percentages_resolve_as,
+            context,
         }
     }
 
@@ -67,7 +92,7 @@ impl<'a> CalculationParser<'a> {
         if self.position != self.values.len() {
             return Err(CalcParseError::Invalid);
         }
-        simplify_parsed_calculation(root, self.percentages_resolve_as)
+        simplify_parsed_calculation(root, self.context.percentages_resolve_as)
             .map(|(root, _)| root)
             .ok_or(CalcParseError::Invalid)
     }
@@ -129,12 +154,12 @@ impl<'a> CalculationParser<'a> {
             ComponentKind::SimpleBlock {
                 opening: ParserTokenKind::OpenParen,
                 values,
-            } => parse_a_calculation(values, self.percentages_resolve_as),
+            } => parse_a_calculation(values, self.context),
             ComponentKind::Function { name, values } => {
                 if math_function_from_name(name).is_none() {
                     return Err(CalcParseError::NotHandled);
                 }
-                parse_a_calc_function_node(name, values, self.percentages_resolve_as)
+                parse_a_calc_function_node(name, values, self.context)
             }
             ComponentKind::Token(ParserTokenKind::Ident(identifier)) => parse_calc_keyword(identifier),
             ComponentKind::Token(ParserTokenKind::Number { value, number_type }) => {
@@ -193,8 +218,8 @@ fn split_arguments(values: &[ComponentValue]) -> Vec<&[ComponentValue]> {
     values.split(ComponentValue::is_comma).collect()
 }
 
-fn parse_argument(values: &[ComponentValue], percentages_resolve_as: Option<u8>) -> Result<Arc<CalcNode>> {
-    parse_a_calculation(values, percentages_resolve_as)
+fn parse_argument(values: &[ComponentValue], context: CalcParserContext) -> Result<Arc<CalcNode>> {
+    parse_a_calculation(values, context)
 }
 
 fn argument_type(node: &Arc<CalcNode>, percentages_resolve_as: Option<u8>) -> Result<CalcNumericType> {
@@ -232,7 +257,7 @@ fn require_consistent(types: &[CalcNumericType]) -> Result<()> {
 
 fn parse_variadic(
     arguments: &[&[ComponentValue]],
-    percentages_resolve_as: Option<u8>,
+    context: CalcParserContext,
     constructor: impl FnOnce(Vec<Arc<CalcNode>>) -> CalcNode,
 ) -> Result<Arc<CalcNode>> {
     if arguments.is_empty() {
@@ -240,11 +265,11 @@ fn parse_variadic(
     }
     let nodes = arguments
         .iter()
-        .map(|argument| parse_argument(argument, percentages_resolve_as))
+        .map(|argument| parse_argument(argument, context))
         .collect::<Result<Vec<_>>>()?;
     let types = nodes
         .iter()
-        .map(|node| argument_type(node, percentages_resolve_as))
+        .map(|node| argument_type(node, context.percentages_resolve_as))
         .collect::<Result<Vec<_>>>()?;
     if !types.iter().all(accepts_dimension_or_percentage) {
         return Err(CalcParseError::Invalid);
@@ -256,25 +281,26 @@ fn parse_variadic(
 fn parse_fixed_arguments(
     arguments: &[&[ComponentValue]],
     count: usize,
-    percentages_resolve_as: Option<u8>,
+    context: CalcParserContext,
 ) -> Result<Vec<Arc<CalcNode>>> {
     if arguments.len() != count {
         return Err(CalcParseError::Invalid);
     }
     arguments
         .iter()
-        .map(|argument| parse_argument(argument, percentages_resolve_as))
+        .map(|argument| parse_argument(argument, context))
         .collect()
 }
 
 pub(crate) fn parse_a_calc_function_node(
     name: &[u16],
     values: &[ComponentValue],
-    percentages_resolve_as: Option<u8>,
+    context: CalcParserContext,
 ) -> Result<Arc<CalcNode>> {
+    let percentages_resolve_as = context.percentages_resolve_as;
     let function = math_function_from_name(name).ok_or(CalcParseError::NotHandled)?;
     if function == MathFunction::Calc {
-        return parse_a_calculation(values, percentages_resolve_as);
+        return parse_a_calculation(values, context);
     }
 
     let mut progress_no_clamp = false;
@@ -292,11 +318,11 @@ pub(crate) fn parse_a_calc_function_node(
     }
     let arguments = split_arguments(function_values);
     let root = match function {
-        MathFunction::Min => parse_variadic(&arguments, percentages_resolve_as, CalcNode::Min)?,
-        MathFunction::Max => parse_variadic(&arguments, percentages_resolve_as, CalcNode::Max)?,
-        MathFunction::Hypot => parse_variadic(&arguments, percentages_resolve_as, CalcNode::Hypot)?,
+        MathFunction::Min => parse_variadic(&arguments, context, CalcNode::Min)?,
+        MathFunction::Max => parse_variadic(&arguments, context, CalcNode::Max)?,
+        MathFunction::Hypot => parse_variadic(&arguments, context, CalcNode::Hypot)?,
         MathFunction::Abs | MathFunction::Sign => {
-            let nodes = parse_fixed_arguments(&arguments, 1, percentages_resolve_as)?;
+            let nodes = parse_fixed_arguments(&arguments, 1, context)?;
             if !accepts_dimension_or_percentage(&argument_type(&nodes[0], percentages_resolve_as)?) {
                 return Err(CalcParseError::Invalid);
             }
@@ -307,7 +333,7 @@ pub(crate) fn parse_a_calc_function_node(
             })
         }
         MathFunction::Sin | MathFunction::Cos | MathFunction::Tan => {
-            let nodes = parse_fixed_arguments(&arguments, 1, percentages_resolve_as)?;
+            let nodes = parse_fixed_arguments(&arguments, 1, context)?;
             let numeric_type = argument_type(&nodes[0], percentages_resolve_as)?;
             if !accepts_number(&numeric_type, percentages_resolve_as)
                 && !numeric_type.matches_dimension(1, resolve_as_for_value_type(percentages_resolve_as))
@@ -321,7 +347,7 @@ pub(crate) fn parse_a_calc_function_node(
             })
         }
         MathFunction::Asin | MathFunction::Acos | MathFunction::Atan | MathFunction::Sqrt | MathFunction::Exp => {
-            let nodes = parse_fixed_arguments(&arguments, 1, percentages_resolve_as)?;
+            let nodes = parse_fixed_arguments(&arguments, 1, context)?;
             if !accepts_number(
                 &argument_type(&nodes[0], percentages_resolve_as)?,
                 percentages_resolve_as,
@@ -337,7 +363,7 @@ pub(crate) fn parse_a_calc_function_node(
             })
         }
         MathFunction::Atan2 | MathFunction::Pow | MathFunction::Mod | MathFunction::Rem => {
-            let nodes = parse_fixed_arguments(&arguments, 2, percentages_resolve_as)?;
+            let nodes = parse_fixed_arguments(&arguments, 2, context)?;
             let types = nodes
                 .iter()
                 .map(|node| argument_type(node, percentages_resolve_as))
@@ -386,7 +412,7 @@ pub(crate) fn parse_a_calc_function_node(
             })
         }
         MathFunction::Clamp | MathFunction::Progress => {
-            let nodes = parse_fixed_arguments(&arguments, 3, percentages_resolve_as)?;
+            let nodes = parse_fixed_arguments(&arguments, 3, context)?;
             let types = nodes
                 .iter()
                 .map(|node| argument_type(node, percentages_resolve_as))
@@ -416,7 +442,7 @@ pub(crate) fn parse_a_calc_function_node(
             }
             let mut nodes = arguments
                 .iter()
-                .map(|argument| parse_argument(argument, percentages_resolve_as))
+                .map(|argument| parse_argument(argument, context))
                 .collect::<Result<Vec<_>>>()?;
             if nodes.len() == 1 {
                 nodes.push(parse_calc_keyword(&"e".encode_utf16().collect::<Vec<_>>())?);
@@ -447,7 +473,7 @@ pub(crate) fn parse_a_calc_function_node(
             } else {
                 (1, arguments.as_slice())
             };
-            let nodes = parse_fixed_arguments(arguments, 2, percentages_resolve_as)?;
+            let nodes = parse_fixed_arguments(arguments, 2, context)?;
             let types = nodes
                 .iter()
                 .map(|node| argument_type(node, percentages_resolve_as))
@@ -462,7 +488,7 @@ pub(crate) fn parse_a_calc_function_node(
                 interval: nodes[1].clone(),
             })
         }
-        MathFunction::Random => return Err(CalcParseError::NotHandled),
+        MathFunction::Random => parse_random(&arguments, context)?,
         MathFunction::Calc => unreachable!(),
     };
     simplify_parsed_calculation(root, percentages_resolve_as)
@@ -489,11 +515,140 @@ fn parse_rounding_strategy(values: &[ComponentValue]) -> Option<u8> {
     }
 }
 
-pub(crate) fn parse_a_calculation(
-    values: &[ComponentValue],
-    percentages_resolve_as: Option<u8>,
-) -> Result<Arc<CalcNode>> {
-    CalculationParser::new(values, percentages_resolve_as).parse()
+fn retain_fly_string(context: CalcParserContext, value: &[u16]) -> Result<RetainedUtf16FlyString> {
+    let callback = context.intern_utf16_fly_string.ok_or(CalcParseError::NotHandled)?;
+    let raw = unsafe { callback(value.as_ptr(), value.len()) };
+    Ok(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
+}
+
+fn random_auto_name(context: CalcParserContext, index: usize) -> Result<RetainedUtf16FlyString> {
+    let name = format!("{} {index}", property_name(context.property));
+    retain_fly_string(context, &name.encode_utf16().collect::<Vec<_>>())
+}
+
+fn parse_random_value_sharing(
+    argument: &[ComponentValue],
+    context: CalcParserContext,
+    auto_name: RetainedUtf16FlyString,
+) -> Result<Option<StyleValueData>> {
+    let values = argument
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .collect::<Vec<_>>();
+    if values
+        .first()
+        .and_then(|value| value.ident())
+        .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"fixed"))
+    {
+        let [_, fixed] = values.as_slice() else {
+            return Err(CalcParseError::Invalid);
+        };
+        let ComponentKind::Token(ParserTokenKind::Number { value, .. }) = fixed.kind else {
+            return Err(CalcParseError::Invalid);
+        };
+        if !(0.0..=0.999999).contains(&value) {
+            return Err(CalcParseError::Invalid);
+        }
+        return Ok(Some(StyleValueData::RandomValueSharing {
+            fixed_value: RetainedStyleValueData::from_owned(StyleValueData::Number { value }),
+            is_auto: false,
+            has_name: false,
+            name: RetainedUtf16FlyString::none(),
+            element_shared: false,
+        }));
+    }
+
+    let mut has_explicit_auto = false;
+    let mut dashed_ident = None;
+    let mut element_shared = false;
+    for value in values {
+        let Some(identifier) = value.ident() else {
+            return Ok(None);
+        };
+        if identifier.starts_with(&[u16::from(b'-'), u16::from(b'-')]) {
+            if has_explicit_auto || dashed_ident.is_some() {
+                return Err(CalcParseError::Invalid);
+            }
+            dashed_ident = Some(retain_fly_string(context, identifier)?);
+        } else if equals_ascii_case_insensitive(identifier, b"auto") {
+            if has_explicit_auto || dashed_ident.is_some() {
+                return Err(CalcParseError::Invalid);
+            }
+            has_explicit_auto = true;
+        } else if equals_ascii_case_insensitive(identifier, b"element-shared") {
+            if element_shared {
+                return Err(CalcParseError::Invalid);
+            }
+            element_shared = true;
+        } else {
+            return Ok(None);
+        }
+    }
+    if !has_explicit_auto && dashed_ident.is_none() && !element_shared {
+        return Ok(None);
+    }
+    let (is_auto, name) = dashed_ident.map_or((true, auto_name), |name| (false, name));
+    Ok(Some(StyleValueData::RandomValueSharing {
+        fixed_value: RetainedStyleValueData::none(),
+        is_auto,
+        has_name: true,
+        name,
+        element_shared,
+    }))
+}
+
+fn parse_random(arguments: &[&[ComponentValue]], context: CalcParserContext) -> Result<Arc<CalcNode>> {
+    if !context.allow_random_functions
+        || context.random_function_index.is_null()
+        || context.intern_utf16_fly_string.is_none()
+    {
+        return Err(CalcParseError::NotHandled);
+    }
+    let index = unsafe { *context.random_function_index };
+    unsafe { *context.random_function_index += 1 };
+    let auto_name = random_auto_name(context, index)?;
+    let explicit_sharing = arguments
+        .first()
+        .map(|argument| parse_random_value_sharing(argument, context, auto_name.clone()))
+        .transpose()?
+        .flatten();
+    let calculation_arguments = if explicit_sharing.is_some() {
+        &arguments[1..]
+    } else {
+        arguments
+    };
+    if !(2..=3).contains(&calculation_arguments.len()) {
+        return Err(CalcParseError::Invalid);
+    }
+    let nodes = calculation_arguments
+        .iter()
+        .map(|argument| parse_argument(argument, context))
+        .collect::<Result<Vec<_>>>()?;
+    let types = nodes
+        .iter()
+        .map(|node| argument_type(node, context.percentages_resolve_as))
+        .collect::<Result<Vec<_>>>()?;
+    if !types.iter().all(accepts_dimension_or_percentage) {
+        return Err(CalcParseError::Invalid);
+    }
+    require_consistent(&types)?;
+    let sharing = explicit_sharing.unwrap_or(StyleValueData::RandomValueSharing {
+        fixed_value: RetainedStyleValueData::none(),
+        is_auto: true,
+        has_name: true,
+        name: auto_name,
+        element_shared: false,
+    });
+    Ok(Arc::new(CalcNode::Random {
+        min: nodes[0].clone(),
+        max: nodes[1].clone(),
+        step: nodes.get(2).cloned(),
+        sharing: RetainedStyleValueData::from_owned(sharing),
+    }))
+}
+
+pub(crate) fn parse_a_calculation(values: &[ComponentValue], context: CalcParserContext) -> Result<Arc<CalcNode>> {
+    CalculationParser::new(values, context).parse()
 }
 
 #[cfg(test)]
@@ -505,7 +660,11 @@ mod tests {
     fn parse(source: &str, percentages_resolve_as: Option<u8>) -> Result<Arc<CalcNode>> {
         let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
         let (name, values) = values[0].function().unwrap();
-        parse_a_calc_function_node(name, values, percentages_resolve_as)
+        parse_a_calc_function_node(name, values, CalcParserContext::for_test(percentages_resolve_as))
+    }
+
+    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
+        0
     }
 
     #[test]
@@ -550,5 +709,23 @@ mod tests {
             parse("calc(anchor-size(width) + 1px)", None),
             Err(CalcParseError::NotHandled)
         ));
+    }
+
+    #[test]
+    fn parses_random_sharing_and_advances_the_function_index() {
+        let values =
+            consume_a_list_of_component_values(&tokenize_for_parser(b"random(element-shared, 1px, 3px)")).unwrap();
+        let (name, values) = values[0].function().unwrap();
+        let mut random_function_index = 4;
+        let context = CalcParserContext {
+            percentages_resolve_as: None,
+            property: 1,
+            random_function_index: &mut random_function_index,
+            intern_utf16_fly_string: Some(discard_interned_string),
+            allow_random_functions: true,
+        };
+        let parsed = parse_a_calc_function_node(name, values, context).unwrap();
+        assert!(matches!(&*parsed, CalcNode::Random { .. }));
+        assert_eq!(random_function_index, 5);
     }
 }

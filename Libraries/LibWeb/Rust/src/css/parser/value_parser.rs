@@ -15,7 +15,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_parser};
 use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
-use crate::css::math_functions::{MathFunction, math_function_from_name};
+use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::property_metadata::{
@@ -103,7 +103,7 @@ pub(crate) struct NotHandledReason {
 
 /// The C++ value-parsing contexts which affect grammar decisions.
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum FfiValueParsingContextKind {
     Property,
@@ -139,6 +139,7 @@ pub struct ParseContext {
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+    pub random_function_index: *mut usize,
 }
 
 pub(crate) enum ParseOutcome {
@@ -649,8 +650,6 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
         ComponentKind::Function { name, values } => {
             if is_arbitrary_substitution_function(name) {
                 Some(&SUBSTITUTION_NOT_PORTED)
-            } else if math_function_from_name(name) == Some(MathFunction::Random) {
-                Some(&FUNCTION_NOT_PORTED)
             } else if math_function_from_name(name).is_some() {
                 unported_function_reason(values)
             } else {
@@ -696,7 +695,7 @@ fn parse_single_numeric_value_type(
     if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
-        return parse_calculated_numeric_value(property, value_type, name, values);
+        return parse_calculated_numeric_value(context, property, value_type, name, values);
     }
     match value_type {
         VALUE_TYPE_OPACITY_VALUE => parse_opacity_value(value),
@@ -757,13 +756,25 @@ fn parse_single_numeric_value_type(
 }
 
 fn parse_calculated_numeric_value(
+    context: &ParseContext,
     property: u16,
     value_type: u8,
     name: &[u16],
     values: &[ComponentValue],
 ) -> Option<StyleValueData> {
-    let percentages_resolve_as = property_percentages_resolve_to(property);
-    let root = match parse_a_calc_function_node(name, values, percentages_resolve_as) {
+    let property_percentages_resolve_as = property_percentages_resolve_to(property);
+    let percentages_resolve_as = (property_percentages_resolve_as == Some(value_type)).then_some(value_type);
+    let root = match parse_a_calc_function_node(
+        name,
+        values,
+        crate::css::parser::calc_parser::CalcParserContext {
+            percentages_resolve_as,
+            property,
+            random_function_index: context.random_function_index,
+            intern_utf16_fly_string: context.intern_utf16_fly_string,
+            allow_random_functions: context_allows_random_functions(context),
+        },
+    ) {
         Ok(root) => root,
         Err(CalcParseError::Invalid | CalcParseError::NotHandled) => return None,
     };
@@ -1178,6 +1189,32 @@ fn parse_display_keyword(values: &[ComponentValue]) -> ParseOutcome {
     ParseOutcome::Parsed(Arc::new(StyleValueData::Display { raw: display.encoded() }))
 }
 
+pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
+    let value_contexts = if context.value_context_count == 0 {
+        &[]
+    } else if context.value_contexts.is_null() {
+        return false;
+    } else {
+        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+    };
+
+    const CANVAS_CONTEXT_GENERIC_VALUE: u16 = 0;
+    const ON_SCREEN_CANVAS_CONTEXT_FONT_VALUE: u16 = 3;
+    if value_contexts.first().is_some_and(|value_context| {
+        value_context.kind == FfiValueParsingContextKind::Special
+            && matches!(
+                value_context.value,
+                CANVAS_CONTEXT_GENERIC_VALUE | ON_SCREEN_CANVAS_CONTEXT_FONT_VALUE
+            )
+    }) {
+        return false;
+    }
+
+    value_contexts
+        .iter()
+        .any(|value_context| value_context.kind == FfiValueParsingContextKind::Property)
+}
+
 /// Parse a property value using the grammars which have been ported to Rust.
 ///
 /// `Invalid` is reserved for grammars which Rust handles completely. Until a
@@ -1359,6 +1396,7 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
+            random_function_index: std::ptr::null_mut(),
         }
     }
 
@@ -1748,17 +1786,31 @@ mod tests {
     }
 
     #[test]
-    fn parses_calculations_and_defers_random() {
+    fn parses_calculations_and_random() {
         for source in ["calc(1 / 2)", "progress(1, 0, 2)"] {
             let ParseOutcome::Parsed(value) = parse(property_id::OPACITY, source) else {
                 panic!("math function should parse: {source}");
             };
             assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
         }
-        let ParseOutcome::NotHandled(reason) = parse(property_id::OPACITY, "random(0, 1)") else {
-            panic!("random should remain deferred until its sharing state is wired");
+        let mut random_function_index = 0;
+        let mut random_context = context();
+        let property_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: property_id::OPACITY,
+            secondary_value: 0,
+            name: FfiUtf16View::default(),
+            allowed_channels: 0,
         };
-        assert_eq!(reason.label, "function:not-ported");
+        random_context.value_contexts = &property_context;
+        random_context.value_context_count = 1;
+        random_context.random_function_index = &mut random_function_index;
+        let ParseOutcome::Parsed(value) = parse_with_context(&random_context, property_id::OPACITY, "random(0, 1)")
+        else {
+            panic!("random should parse with property parser state");
+        };
+        assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
+        assert_eq!(random_function_index, 1);
     }
 
     #[test]
