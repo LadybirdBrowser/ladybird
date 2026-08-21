@@ -70,9 +70,13 @@ public:
 protected:
     explicit PlatformObject(JS::Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit PlatformObject(JS::Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
+    PlatformObject(JS::Realm&, GC::Ref<Bindings::Wrappable>, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
+    PlatformObject(JS::Object& prototype, GC::Ref<Bindings::Wrappable>, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
-    [[nodiscard]] virtual Bindings::Wrappable* wrappable_impl() { return nullptr; }
-    [[nodiscard]] virtual Bindings::Wrappable const* wrappable_impl() const { return nullptr; }
+    [[nodiscard]] Bindings::Wrappable* wrappable_impl() { return m_wrappable.ptr(); }
+    [[nodiscard]] Bindings::Wrappable const* wrappable_impl() const { return m_wrappable.ptr(); }
+
+    virtual void visit_edges(JS::Cell::Visitor&) override;
 
     struct LegacyPlatformObjectFlags {
         u16 supports_indexed_properties : 1 = false;
@@ -127,6 +131,8 @@ private:
     friend WEB_API Bindings::Wrappable* wrappable_impl_from(JS::Object*);
     friend WEB_API Bindings::Wrappable const* wrappable_impl_from(JS::Object const*);
     friend WEB_API void cache_global_object_wrapper(JS::Realm&);
+
+    GC::Ptr<Bindings::Wrappable> m_wrappable;
 
     WebIDL::ExceptionOr<void> invoke_indexed_property_setter(JS::PropertyKey const&, JS::Value);
     WebIDL::ExceptionOr<void> invoke_named_property_setter(Utf16FlyString const&, JS::Value);
