@@ -145,10 +145,10 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 
     auto scrollable_overflow_size = Painting::scrollable_overflow_rect(paintable_box->layout_node())->primary_size_for_orientation(orientation);
     auto padding_size = Painting::absolute_padding_box_rect(paintable_box->layout_node()).primary_size_for_orientation(orientation);
-    auto minimum_scroll_offset = paintable_box->minimum_scroll_offset().primary_offset_for_orientation(orientation);
+    auto minimum_scroll_offset = Painting::minimum_scroll_offset(paintable_box->layout_node()).primary_offset_for_orientation(orientation);
     auto scroll_position_in_pixels = minimum_scroll_offset + CSSPixels::nearest_value_for(scroll_position * (scrollable_overflow_size - padding_size));
 
-    auto new_scroll_offset = paintable_box->scroll_offset();
+    auto new_scroll_offset = Painting::scroll_offset(paintable_box->layout_node());
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
     paintable_box->set_scroll_offset_from_user_input(new_scroll_offset);
     return true;
