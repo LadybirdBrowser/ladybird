@@ -592,6 +592,19 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 
 Document::~Document() = default;
 
+void Document::synchronize_dirty_style_attributes()
+{
+    if (!m_has_dirty_style_attributes)
+        return;
+
+    m_has_dirty_style_attributes = false;
+    for_each_shadow_including_descendant([](Node& node) {
+        if (auto* element = as_if<Element>(node))
+            element->synchronize_all_attributes();
+        return TraversalDecision::Continue;
+    });
+}
+
 Layout::NodeArena& Document::layout_node_arena()
 {
     // Created on first layout node so documents that never build a layout tree (e.g. temporary

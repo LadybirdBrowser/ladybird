@@ -306,6 +306,7 @@ public:
 
     void for_each_attribute(Function<void(QualifiedName, Utf16String)>) const;
     void for_each_attribute(Function<void(Utf16FlyString, Utf16String)>) const;
+    void synchronize_all_attributes() const;
 
     bool has_class(Utf16View, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
@@ -423,6 +424,9 @@ public:
     GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
     void set_inline_style(GC::Ptr<CSS::CSSStyleProperties>);
+    void prepare_for_inline_style_change();
+    bool can_defer_inline_style_attribute_update() const;
+    void did_update_inline_style();
 
     GC::Ref<CSS::CSSStyleProperties> style();
     GC::Ref<CSS::StylePropertyMap> attribute_style_map();
@@ -837,6 +841,9 @@ private:
     using AttributeList = Vector<Attribute, 1>;
 
     AttributeList& ensure_attribute_list();
+    void synchronize_attribute(Utf16FlyString const& qualified_name) const;
+    void synchronize_attribute_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
+    void synchronize_style_attribute() const;
     Optional<size_t> find_attribute_index(Utf16FlyString const& qualified_name) const;
     Optional<size_t> find_attribute_index_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void change_attribute_value(GC::Ref<Attr>, Utf16String value);
@@ -921,6 +928,7 @@ private:
     bool m_fullscreen_flag : 1 { false };
     bool m_uses_document_global_custom_element_registry : 1 { false };
     bool m_has_name : 1 { false };
+    mutable bool m_style_attribute_is_dirty : 1 { false };
 
     mutable Optional<Utf16String> m_lang_value;
 
