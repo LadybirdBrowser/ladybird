@@ -15,6 +15,8 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_parser};
 use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::math_functions::{MathFunction, math_function_from_name};
+use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::property_metadata::{
     FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
@@ -25,8 +27,8 @@ use crate::css::property_metadata::{
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
-    RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData,
+    RetainedNumericRangeList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
+    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 use std::collections::BTreeMap;
 use std::ffi::c_void;
@@ -45,10 +47,6 @@ const COMPONENT_VALUES_INVALID: NotHandledReason = NotHandledReason {
 const INVALID_FFI_INPUT: NotHandledReason = NotHandledReason {
     label: "ffi:invalid-input",
     c_label: b"ffi:invalid-input\0",
-};
-const CALC_NOT_PORTED: NotHandledReason = NotHandledReason {
-    label: "calc",
-    c_label: b"calc\0",
 };
 const SUBSTITUTION_NOT_PORTED: NotHandledReason = NotHandledReason {
     label: "substitution",
@@ -639,17 +637,6 @@ fn parse_opacity_value(value: &ComponentValue) -> Option<StyleValueData> {
     })
 }
 
-fn is_math_function(name: &[u16]) -> bool {
-    // NB: This is the MathFunctions.json set plus calc(). Task 006 replaces
-    //     this fallback check with the generated math-function parser.
-    [
-        "abs", "acos", "asin", "atan", "atan2", "calc", "clamp", "cos", "exp", "hypot", "log", "max", "min", "mod",
-        "pow", "progress", "random", "rem", "round", "sign", "sin", "sqrt", "tan",
-    ]
-    .iter()
-    .any(|function| equals_ascii_case_insensitive(name, function.as_bytes()))
-}
-
 fn is_arbitrary_substitution_function(name: &[u16]) -> bool {
     (name.len() >= 2 && name[0] == u16::from(b'-') && name[1] == u16::from(b'-'))
         || ["attr", "env", "if", "inherit", "var"]
@@ -662,14 +649,15 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
         ComponentKind::Function { name, values } => {
             if is_arbitrary_substitution_function(name) {
                 Some(&SUBSTITUTION_NOT_PORTED)
-            } else if is_math_function(name) {
-                Some(&CALC_NOT_PORTED)
-            } else if equals_ascii_case_insensitive(name, b"sibling-count")
-                || equals_ascii_case_insensitive(name, b"sibling-index")
-            {
+            } else if math_function_from_name(name) == Some(MathFunction::Random) {
                 Some(&FUNCTION_NOT_PORTED)
-            } else {
+            } else if math_function_from_name(name).is_some() {
                 unported_function_reason(values)
+            } else {
+                // NB: C++ numeric grammars can accept functions such as
+                //     anchor-size(). Until Rust parses a function itself, it
+                //     cannot authoritatively reject the enclosing value.
+                Some(&FUNCTION_NOT_PORTED)
             }
         }
         ComponentKind::SimpleBlock { values, .. } => unported_function_reason(values),
@@ -705,6 +693,11 @@ fn parse_single_numeric_value_type(
     value_type: u8,
     value: &ComponentValue,
 ) -> Option<StyleValueData> {
+    if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        return parse_calculated_numeric_value(property, value_type, name, values);
+    }
     match value_type {
         VALUE_TYPE_OPACITY_VALUE => parse_opacity_value(value),
         VALUE_TYPE_INTEGER => parse_integer_value(value, accepted_range(property, VALUE_TYPE_INTEGER)),
@@ -760,6 +753,84 @@ fn parse_single_numeric_value_type(
         }
         VALUE_TYPE_PERCENTAGE => parse_percentage_value(value, accepted_range(property, VALUE_TYPE_PERCENTAGE)),
         _ => None,
+    }
+}
+
+fn parse_calculated_numeric_value(
+    property: u16,
+    value_type: u8,
+    name: &[u16],
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let percentages_resolve_as = property_percentages_resolve_to(property);
+    let root = match parse_a_calc_function_node(name, values, percentages_resolve_as) {
+        Ok(root) => root,
+        Err(CalcParseError::Invalid | CalcParseError::NotHandled) => return None,
+    };
+    let (_, numeric_type) = crate::css::calc::simplify_parsed_calculation(root.clone(), percentages_resolve_as)?;
+    let resolve_as = crate::css::calc::resolve_as_for_value_type(percentages_resolve_as);
+    let opacity_resolved_type = if value_type == VALUE_TYPE_OPACITY_VALUE {
+        if numeric_type.matches_number(resolve_as) {
+            Some(VALUE_TYPE_NUMBER)
+        } else if numeric_type.matches_percentage() {
+            Some(VALUE_TYPE_PERCENTAGE)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let matches = match value_type {
+        VALUE_TYPE_OPACITY_VALUE => opacity_resolved_type.is_some(),
+        VALUE_TYPE_INTEGER | VALUE_TYPE_NUMBER => numeric_type.matches_number(resolve_as),
+        VALUE_TYPE_ANGLE => {
+            numeric_type.matches_dimension(1, resolve_as)
+                || (percentages_resolve_as == Some(VALUE_TYPE_ANGLE) && numeric_type.matches_percentage())
+        }
+        VALUE_TYPE_FLEX => numeric_type.matches_dimension(5, resolve_as),
+        VALUE_TYPE_FREQUENCY => {
+            numeric_type.matches_dimension(3, resolve_as)
+                || (percentages_resolve_as == Some(VALUE_TYPE_FREQUENCY) && numeric_type.matches_percentage())
+        }
+        VALUE_TYPE_LENGTH => {
+            numeric_type.matches_dimension(0, resolve_as)
+                || (percentages_resolve_as == Some(VALUE_TYPE_LENGTH) && numeric_type.matches_percentage())
+        }
+        VALUE_TYPE_RESOLUTION => numeric_type.matches_dimension(4, resolve_as),
+        VALUE_TYPE_TIME => {
+            numeric_type.matches_dimension(2, resolve_as)
+                || (percentages_resolve_as == Some(VALUE_TYPE_TIME) && numeric_type.matches_percentage())
+        }
+        VALUE_TYPE_PERCENTAGE => numeric_type.matches_percentage(),
+        _ => false,
+    };
+    if !matches {
+        return None;
+    }
+    let (range_value_type, range) = opacity_resolved_type
+        .map(|value_type| (value_type, NumericRange::INFINITE))
+        .unwrap_or_else(|| (value_type, accepted_range(property, value_type)));
+    let calculated = StyleValueData::Calculated {
+        rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(root),
+        resolve_as_is_number: percentages_resolve_as == Some(VALUE_TYPE_NUMBER),
+        resolve_as_base: resolve_as
+            .and_then(|resolve_as| match resolve_as {
+                crate::css::calc::ResolveAs::Base(base) => Some(base),
+                crate::css::calc::ResolveAs::Number => None,
+            })
+            .unwrap_or(0),
+        resolved_type: crate::css::calc::FfiNumericType::from_calc(Some(numeric_type)),
+        has_percentages_resolve_as: percentages_resolve_as.is_some(),
+        percentages_resolve_as: percentages_resolve_as.unwrap_or(0),
+        resolve_numbers_as_integers: value_type == VALUE_TYPE_INTEGER,
+        accepted_ranges: RetainedNumericRangeList::from_single_numeric_range(range_value_type, range.min, range.max),
+    };
+    if value_type == VALUE_TYPE_OPACITY_VALUE {
+        Some(StyleValueData::OpacityValue {
+            value: RetainedStyleValueData::from_owned(calculated),
+        })
+    } else {
+        Some(calculated)
     }
 }
 
@@ -1677,13 +1748,17 @@ mod tests {
     }
 
     #[test]
-    fn leaves_calculations_with_cpp() {
-        for source in ["calc(1 / 2)", "random(0, 1)", "progress(1, 0, 2)"] {
-            let ParseOutcome::NotHandled(reason) = parse(property_id::OPACITY, source) else {
-                panic!("math function should fall back: {source}");
+    fn parses_calculations_and_defers_random() {
+        for source in ["calc(1 / 2)", "progress(1, 0, 2)"] {
+            let ParseOutcome::Parsed(value) = parse(property_id::OPACITY, source) else {
+                panic!("math function should parse: {source}");
             };
-            assert_eq!(reason.label, "calc");
+            assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
         }
+        let ParseOutcome::NotHandled(reason) = parse(property_id::OPACITY, "random(0, 1)") else {
+            panic!("random should remain deferred until its sharing state is wired");
+        };
+        assert_eq!(reason.label, "function:not-ported");
     }
 
     #[test]
