@@ -75,9 +75,9 @@
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Selection/Selection.h>
@@ -569,7 +569,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
 
     if (request == "dump-paint-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            if (auto paintable = doc->paintable())
+            if (auto paintable = static_cast<Web::DOM::Node&>(*doc).paintable())
                 Web::dump_tree(*paintable);
         }
         return;
@@ -578,8 +578,8 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-stacking-context-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             if (auto* viewport = doc->layout_node()) {
-                auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*viewport->paintable_box());
-                viewport_paintable.build_stacking_context_tree_if_needed();
+                VERIFY(viewport->paintable_box());
+                doc->paint_state().build_stacking_context_tree_if_needed(*doc);
                 StringBuilder builder;
                 Web::Painting::dump_stacking_context_tree(builder, *doc);
                 dbgln("{}", builder.string_view());
@@ -1841,8 +1841,8 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
         return;
     }
 
-    auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*layout_root->paintable_box());
-    viewport_paintable.build_stacking_context_tree_if_needed();
+    VERIFY(layout_root->paintable_box());
+    document->paint_state().build_stacking_context_tree_if_needed(*document);
     Web::Painting::dump_stacking_context_tree(builder, *document);
 }
 

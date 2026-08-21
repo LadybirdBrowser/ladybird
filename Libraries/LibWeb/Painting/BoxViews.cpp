@@ -22,8 +22,8 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Painting {
 
@@ -875,7 +875,7 @@ CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect c
     if (!node.paintable_ptr())
         return {};
     auto const& document = node.document();
-    if (!document.paintable())
+    if (!static_cast<DOM::Node const&>(document).paintable())
         return rect;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_rect_to_viewport(
@@ -889,7 +889,7 @@ Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPi
     if (!node.paintable_ptr())
         return {};
     auto const& document = node.document();
-    if (!document.paintable())
+    if (!static_cast<DOM::Node const&>(document).paintable())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_point_for_hit_test(
@@ -905,7 +905,7 @@ Optional<CSSPixelPoint> transform_point_to_local_for_descendants(Layout::Node co
     if (!node.paintable_ptr())
         return {};
     auto const& document = node.document();
-    if (!document.paintable())
+    if (!static_cast<DOM::Node const&>(document).paintable())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_point_for_hit_test(
@@ -921,7 +921,7 @@ CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint po
     if (!node.paintable_ptr())
         return {};
     auto const& document = node.document();
-    if (!document.paintable())
+    if (!static_cast<DOM::Node const&>(document).paintable())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().inverse_transform_point(accumulated_visual_context_index(node), position.to_type<float>() * pixel_ratio);
@@ -1107,8 +1107,7 @@ void invalidate_stacking_context(Layout::Node const& node)
 {
     if (!node.paintable_ptr())
         return;
-    if (auto viewport_paintable = node.document().unsafe_paintable())
-        const_cast<ViewportPaintable&>(*viewport_paintable).invalidate_stacking_context_tree();
+    const_cast<DOM::Document&>(node.document()).paint_state().invalidate_stacking_context_tree();
 }
 
 void clear_overflow_data(Layout::Node const& node)
@@ -1175,7 +1174,7 @@ CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)
     auto index = enclosing_scroll_node_index(node);
     if (!index.value())
         return {};
-    return node.document().paintable()->cumulative_scroll_offset_for_node(index);
+    return node.document().paint_state().cumulative_scroll_offset_for_node(node.document(), index);
 }
 
 }

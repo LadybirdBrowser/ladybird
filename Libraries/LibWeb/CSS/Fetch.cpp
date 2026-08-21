@@ -11,7 +11,6 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::CSS {
 

@@ -1851,7 +1851,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
 
     // Selection state lives on paintable fragments, which the commit has rebuilt.
     if (auto range = get_selection()->range())
-        unsafe_paintable()->recompute_selection_states(*range);
+        paint_state().recompute_selection_states(*this, *range);
 
     if (layout_tree_changed == LayoutTreeChanged::Yes) {
         // Broadcast the current viewport rect to any new paintables, so they know whether
@@ -2306,7 +2306,7 @@ void Document::collect_paintable_boxes_with_auto_content_visibility()
             paintables_with_auto_content_visibility.append(*paintable);
         return TraversalDecision::Continue;
     });
-    unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintables_with_auto_content_visibility));
+    paint_state().set_paintable_boxes_with_auto_content_visibility(move(paintables_with_auto_content_visibility));
 }
 
 void Document::clear_devtools_layout_inspection_data()
@@ -2514,7 +2514,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     auto needs_full_recalculation = exchange(m_needs_full_scrollable_overflow_recalculation, false);
     if (pending_paintables.is_empty() && !needs_full_recalculation)
         return;
-    if (!m_layout_root || !unsafe_paintable())
+    if (!m_layout_root || !Node::unsafe_paintable())
         return;
 
     style_invalidation_counters().scrollable_overflow_recalculations++;
@@ -2644,7 +2644,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // overflow size though, so they have to be refreshed. When a full visual context rebuild is
         // already pending it recaptures constraints anyway, and skipping the refresh then also avoids
         // touching scroll nodes whose paintables a subtree relayout may have replaced.
-        unsafe_paintable()->refresh_sticky_constraints();
+        paint_state().refresh_sticky_constraints(*this);
     }
     set_needs_to_record_display_list();
     m_document->set_needs_repaint();
@@ -2664,19 +2664,19 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         m_paintable_boxes_needing_visual_context_value_update.clear_with_capacity();
-        if (auto paintable = this->unsafe_paintable()) {
+        if (Node::unsafe_paintable()) {
             if (m_layout_root)
                 rebuild_sticky_insets(*m_layout_root);
-            paintable->assign_accumulated_visual_contexts();
+            paint_state().assign_accumulated_visual_contexts(*this);
         }
     } else if (!m_paintable_boxes_needing_visual_context_value_update.is_empty()) {
         auto paintable_boxes = move(m_paintable_boxes_needing_visual_context_value_update);
-        if (auto paintable = this->unsafe_paintable()) {
+        if (Node::unsafe_paintable()) {
             for (auto const& weak_paintable_box : paintable_boxes) {
                 auto paintable_box = weak_paintable_box.strong_ref();
-                if (!paintable_box || !paintable->update_accumulated_visual_context_values(*paintable_box)) {
+                if (!paintable_box || !paint_state().update_accumulated_visual_context_values(*this, *paintable_box)) {
                     // Structure changed after all; rebuild the whole tree.
-                    paintable->assign_accumulated_visual_contexts();
+                    paint_state().assign_accumulated_visual_contexts(*this);
                     break;
                 }
             }
@@ -2685,8 +2685,8 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
 
     // Scroll nodes are (re)created by the visual context tree build above, so scroll offsets and
     // the snapshot must be derived only after structure work is done.
-    if (auto paintable = this->unsafe_paintable())
-        paintable->refresh_scroll_state();
+    if (Node::unsafe_paintable())
+        paint_state().refresh_scroll_state(*this);
 }
 
 bool Document::can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const& layout_node) const
@@ -3020,11 +3020,11 @@ static CSSPixelPoint hover_event_page_offset(Optional<HoverEventData> const& hov
 static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::Node const& layout_node)
 {
     auto inverse_transform_point = [](Layout::Node const& layout_node, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
-        auto viewport_paintable = layout_node.document().unsafe_paintable();
-        if (!viewport_paintable)
+        auto& document = layout_node.document();
+        if (!static_cast<DOM::Node const&>(document).unsafe_paintable())
             return {};
-        auto pixel_ratio = static_cast<float>(layout_node.document().page().client().device_pixels_per_css_pixel());
-        auto const& visual_context_tree = viewport_paintable->visual_context_tree();
+        auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
+        auto const& visual_context_tree = document.visual_context_tree();
         auto transformed_position = visual_context_tree.inverse_transform_point(
             Painting::accumulated_visual_context_index(layout_node), position.to_type<float>() * pixel_ratio);
         return (transformed_position / pixel_ratio).to_type<CSSPixels>();
@@ -8347,7 +8347,7 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
 void Document::set_needs_to_refresh_scroll_state(bool b)
 {
     // NB: Propagating scroll state invalidation.
-    if (this->unsafe_paintable())
+    if (Node::unsafe_paintable())
         paint_state().set_needs_to_refresh_scroll_state(*this, b);
 }
 
@@ -9042,14 +9042,14 @@ void Document::set_needs_to_record_display_list()
 RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config, Painting::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
 {
     update_paint_and_hit_testing_properties_if_needed();
-    VERIFY(paintable());
+    VERIFY(Node::paintable());
 
     bool const line_box_border_overlays_replace_cacheable_content = config.should_show_line_box_borders;
     if (line_box_border_overlays_replace_cacheable_content)
         cache_mode = Painting::PaintCommandCacheMode::ReadOnly;
 
-    auto& viewport_paintable = *paintable();
-    auto const& visual_context_tree = viewport_paintable.visual_context_tree();
+    auto& document_paint_state = paint_state();
+    auto const& visual_context_tree = document_paint_state.visual_context_tree(*this);
 
     auto placeholder_display_list = Painting::DisplayList::create(visual_context_tree);
 
@@ -9061,8 +9061,8 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         page().client().page_did_change_background_color(canvas_background_color);
     }
 
-    viewport_paintable.build_stacking_context_tree_if_needed();
-    viewport_paintable.refresh_scroll_state();
+    document_paint_state.build_stacking_context_tree_if_needed(*this);
+    document_paint_state.refresh_scroll_state(*this);
 
     Painting::InspectorOverlayInputs overlay_inputs;
     if (highlighted_node() && highlighted_node()->paintable())
@@ -9085,10 +9085,10 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     auto display_list = Painting::record_rust_display_list(*this, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
     if (!display_list)
         return nullptr;
-    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), viewport_paintable.rust_arena(), *m_chrome_widget_registry);
+    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), layout_node_arena(), *m_chrome_widget_registry);
 
     if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite) {
-        viewport_paintable.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
+        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
     }
 
     return display_list;
@@ -9108,7 +9108,7 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
 {
     update_paint_and_hit_testing_properties_if_needed();
 
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!viewport_paintable)
         return nullptr;
 
@@ -9125,7 +9125,7 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
-    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_version() != viewport_paintable->visual_context_tree().version())
+    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_version() != visual_context_tree().version())
         rebuild_hit_test_display_list();
 
     return m_hit_test_display_list.ptr();
@@ -9134,10 +9134,10 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
 Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     auto result = hit_test_display_list->hit_test(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     if (result.has_value() && (result->chrome_widget || result->node))
         return result;
@@ -9160,70 +9160,70 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
 Optional<Painting::CaretPosition> Document::caret_position_from_point(CSSPixelPoint position)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Normal);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(CSSPixelPoint position)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Selection, constraint_scope);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineEdge edge)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_at_line_edge(node, offset, affinity, edge);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineDirection direction, CSSPixels inline_coordinate, Node const& scope)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_on_adjacent_line(node, offset, affinity, direction, inline_coordinate, scope);
 }
 
 Optional<CSSPixels> Document::caret_line_block_coordinate(Node const& node, size_t offset, TextAffinity affinity)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_line_block_coordinate(node, offset, affinity);
 }
 
 TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return TraversalDecision::Continue;
-    viewport_paintable->refresh_scroll_state();
+    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->hit_test_all(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), callback);
 }
 
@@ -9581,7 +9581,7 @@ Utf16String Document::dump_display_list()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!viewport_paintable)
         return "No paintable"_utf16;
 
@@ -9608,7 +9608,7 @@ Utf16String Document::dump_display_list()
     StringBuilder builder;
     builder.append("AccumulatedVisualContext Tree:\n"sv);
 
-    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
+    auto const& visual_context_tree = paint_state().visual_context_tree(*this);
     HashTable<size_t> visited;
     HashMap<size_t, Vector<size_t>> children;
     Vector<size_t> root_contexts;
@@ -9691,11 +9691,11 @@ Utf16String Document::dump_stacking_context_tree()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
-    auto viewport_paintable = paintable();
+    auto viewport_paintable = Node::paintable();
     if (!viewport_paintable)
         return "No paintable"_utf16;
 
-    viewport_paintable->build_stacking_context_tree_if_needed();
+    paint_state().build_stacking_context_tree_if_needed(*this);
 
     StringBuilder builder;
     Painting::dump_stacking_context_tree(builder, *this);

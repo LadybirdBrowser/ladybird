@@ -78,9 +78,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableTypes.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -4718,32 +4718,31 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     Painting::DisplayListResourceSet display_list_resources;
     Painting::DisplayListResourceTransaction resource_transaction;
     Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
+    auto& document_paint_state = document->paint_state();
     if (should_record_display_list) {
         display_list = document->record_display_list(paint_config, m_display_list_resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
         if (!display_list)
             return false;
-        auto recorded_document_paintable = document->paintable();
-        VERIFY(recorded_document_paintable);
-        visual_context_tree = recorded_document_paintable->visual_context_tree();
-        if (recorded_document_paintable->display_list_used_as_paint_command_cache_source() == display_list.ptr()) {
-            display_list_resources.include(recorded_document_paintable->paint_command_cache_source_referenced_resources());
+        VERIFY(static_cast<DOM::Node&>(*document).paintable());
+        visual_context_tree = document_paint_state.visual_context_tree(*document);
+        if (document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr()) {
+            display_list_resources.include(document_paint_state.paint_command_cache_source_referenced_resources());
         } else {
             // A recording downgraded to cache-read-only leaves the retained source and the cached ranges
             // into it live, so the resources they reference must survive the pruning below.
             display_list_resources = m_display_list_resource_storage.collect_referenced_resources(*display_list);
-            recorded_document_paintable->append_paint_command_cache_source_resources(display_list_resources);
+            document_paint_state.append_paint_command_cache_source_resources(display_list_resources);
         }
         resource_transaction = m_display_list_resource_storage.create_transaction(
             m_compositor_display_list_resources,
             display_list_resources);
     }
 
-    auto document_paintable = document->paintable();
-    VERIFY(document_paintable);
-    auto visual_context_tree_needs_compositor_update = document_paintable->visual_context_tree_needs_compositor_update();
-    document_paintable->refresh_scroll_state();
+    VERIFY(static_cast<DOM::Node&>(*document).paintable());
+    auto visual_context_tree_needs_compositor_update = document_paint_state.visual_context_tree_needs_compositor_update();
+    document_paint_state.refresh_scroll_state(*document);
 
-    Painting::ScrollStateSnapshot scroll_state_snapshot { document_paintable->scroll_state_snapshot() };
+    Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     Gfx::IntRect surface_rect { {}, viewport_rect.size() };
     if (damage_rect)
@@ -4772,16 +4771,16 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         m_compositor_scroll_state_snapshot = scroll_state_snapshot;
         m_compositor_display_list_visual_context_tree_version = display_list->compatible_visual_context_tree_version();
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
-        document_paintable->did_update_visual_context_tree_in_compositor();
+        document_paint_state.did_update_visual_context_tree_in_compositor();
         m_display_list_resource_storage.retain_only(display_list_resources);
         m_compositor_display_list_resources = move(display_list_resources);
         m_needs_to_record_display_list = false;
         m_compositor_display_list_paint_config = paint_config;
     } else {
         if (visual_context_tree_needs_compositor_update) {
-            VERIFY(document_paintable->visual_context_tree().version() == m_compositor_display_list_visual_context_tree_version);
-            compositor_context().update_visual_context_tree(document_paintable->visual_context_tree());
-            document_paintable->did_update_visual_context_tree_in_compositor();
+            VERIFY(document_paint_state.visual_context_tree(*document).version() == m_compositor_display_list_visual_context_tree_version);
+            compositor_context().update_visual_context_tree(document_paint_state.visual_context_tree(*document));
+            document_paint_state.did_update_visual_context_tree_in_compositor();
         }
         compositor_context().update_scroll_state(move(scroll_state_snapshot));
     }

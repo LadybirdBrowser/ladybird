@@ -24,7 +24,6 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Painting {
 
