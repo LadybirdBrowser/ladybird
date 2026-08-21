@@ -27,9 +27,10 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -439,17 +440,22 @@ void EventLoop::update_the_rendering()
             // 3. For each element element with 'auto' used value of 'content-visibility':
             auto* document_element = document->document_element();
             if (document_element) {
-                for (auto& paintable_box : document->paint_state().paintable_boxes_with_auto_content_visibility()) {
-                    auto& element = as<DOM::Element>(*paintable_box->dom_node());
+                for (auto paintable_slot : document->paint_state().paintable_boxes_with_auto_content_visibility()) {
+                    auto* layout_node = Painting::layout_node_for_committed_slot(document->layout_node_arena(), paintable_slot);
+                    if (!layout_node)
+                        continue;
+                    auto* element = as_if<DOM::Element>(layout_node->dom_node());
+                    if (!element)
+                        continue;
 
                     // 1. Let checkForInitialDetermination be true if element's proximity to the viewport is not determined and it is not relevant to the user. Otherwise, let checkForInitialDetermination be false.
-                    bool check_for_initial_determination = element.proximity_to_the_viewport() == Web::DOM::ProximityToTheViewport::NotDetermined && !element.is_relevant_to_the_user();
+                    bool check_for_initial_determination = element->proximity_to_the_viewport() == Web::DOM::ProximityToTheViewport::NotDetermined && !element->is_relevant_to_the_user();
 
                     // 2. Determine proximity to the viewport for element.
-                    element.determine_proximity_to_the_viewport();
+                    element->determine_proximity_to_the_viewport();
 
                     // 3. If checkForInitialDetermination is true and element is now relevant to the user, then set hadInitialVisibleContentVisibilityDetermination to true.
-                    if (check_for_initial_determination && element.is_relevant_to_the_user()) {
+                    if (check_for_initial_determination && element->is_relevant_to_the_user()) {
                         had_initial_visible_content_visibility_determination = true;
                     }
                 }

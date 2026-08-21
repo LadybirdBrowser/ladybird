@@ -84,7 +84,7 @@ pub(crate) fn apply(
                 invalidate_self_painting_inline_box(layout_arena, paintables, entry.layout_node);
             }
         } else {
-            let slot = entry.paintable;
+            let slot = paintables.paintable_of_node(entry.layout_node);
             if slot.is_invalid() || !paintables.is_live(slot) {
                 continue;
             }
