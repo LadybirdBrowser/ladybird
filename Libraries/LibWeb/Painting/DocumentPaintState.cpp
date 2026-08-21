@@ -65,7 +65,7 @@ BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_ev
 void DocumentPaintState::viewport_row_was_reset(DOM::Document& document)
 {
     clear_scroll_state(document);
-    m_paintable_boxes_with_auto_content_visibility.clear();
+    m_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree_needs_compositor_update = false;
 }
 

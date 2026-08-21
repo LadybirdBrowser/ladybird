@@ -327,7 +327,7 @@ Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geom
     }
 
     return PaintGeometry {
-        .pattern_paintable = pattern_box,
+        .pattern_layout_node = pattern_box,
         .tile_rect = tile_rect,
         .content_scale = content_scale,
         .tile_content_transform = tile_content_transform,
