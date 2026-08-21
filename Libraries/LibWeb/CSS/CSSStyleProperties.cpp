@@ -964,15 +964,9 @@ static bool property_computed_value_may_be_stored_as_style_value_handle(Property
 static Optional<Utf16String> serialize_style_value_handle(RustStyleValueHandle const& handle, SerializationMode mode)
 {
     auto text = StyleValueFFI::rust_style_value_serialize(handle.data(), to_underlying(mode));
-    if (!text.storage)
+    if (!text.has_value)
         return {};
-    Utf16StringBuilder builder;
-    if (text.ascii)
-        builder.append_ascii(StringView { reinterpret_cast<char const*>(text.ascii), text.length });
-    else
-        builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length });
-    StyleValueFFI::rust_serialized_text_release(text.storage);
-    return builder.to_string();
+    return Utf16String::adopt_raw(text.raw);
 }
 
 Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_handle(PropertyID property_id) const
