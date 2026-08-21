@@ -28,7 +28,6 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/BordersData.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
@@ -324,8 +323,7 @@ public:
 
     BorderRadiiData border_radii_data() const;
 
-    Optional<BordersData> outline_data() const;
-    Optional<BordersData> outline_data(CSS::ComputedValues const&) const;
+    Optional<CSS::BorderData> outline_data(CSS::ComputedValues const&) const;
     CSSPixels outline_offset() const;
 
     void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
