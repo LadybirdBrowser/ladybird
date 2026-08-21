@@ -2472,9 +2472,7 @@ static void rebuild_sticky_insets(Layout::Node const& root)
         if (!node_with_style || !node_with_style->is_sticky_position())
             return TraversalDecision::Continue;
 
-        auto paintable = const_cast<Layout::Node&>(layout_node).paintable();
-        auto* box_paintable = paintable.ptr();
-        if (!box_paintable)
+        if (!Painting::has_committed_box(layout_node))
             return TraversalDecision::Continue;
 
         // https://drafts.csswg.org/css-position/#insets
@@ -2487,7 +2485,7 @@ static void rebuild_sticky_insets(Layout::Node const& root)
         auto nearest_scrollable_ancestor = Painting::nearest_scrollable_ancestor(layout_node);
         CSSPixelSize scrollport_size;
         if (nearest_scrollable_ancestor)
-            scrollport_size = Painting::absolute_rect(nearest_scrollable_ancestor->layout_node()).size();
+            scrollport_size = Painting::absolute_rect(*nearest_scrollable_ancestor).size();
 
         if (!inset.top().is_auto())
             sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
@@ -2522,9 +2520,9 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     // example, if the scroll container has been scrolled to the very end and then its scrollable
     // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
     // current offset clamps it against the new rect.
-    auto clamp_scroll_offset = [](Painting::Paintable& paintable) {
-        if (!Painting::scroll_offset(paintable.layout_node()).is_zero())
-            Painting::set_scroll_offset(paintable.layout_node(), Painting::scroll_offset(paintable.layout_node()));
+    auto clamp_scroll_offset = [](Layout::Node const& box) {
+        if (!Painting::scroll_offset(box).is_zero())
+            Painting::set_scroll_offset(const_cast<Layout::Node&>(box), Painting::scroll_offset(box));
     };
 
     if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit) {
@@ -2535,10 +2533,10 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // measured recursively when their overflow contributes to one of these roots, so they do
         // not need separate eager measurement.
         for (auto const* box : boxes_needing_eager_measurement) {
-            if (auto box_paintable = box->paintable_box()) {
-                Painting::rust_measure_scrollable_overflow(*box_paintable);
-                clamp_scroll_offset(const_cast<Painting::Paintable&>(*box_paintable));
-            }
+            if (!Painting::has_committed_box(*box))
+                continue;
+            Painting::rust_measure_scrollable_overflow(*box);
+            clamp_scroll_offset(*box);
         }
         return;
     }
@@ -2587,8 +2585,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         return;
 
     for (auto const& it : old_overflow_data_by_box) {
-        auto box_paintable = it.key->paintable_box();
-        if (!box_paintable)
+        if (!Painting::has_committed_box(*it.key))
             continue;
 
         // Boxes reset by a subtree commit have no previous overflow data. They will be measured
@@ -2597,8 +2594,8 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         if (!it.value.has_value() && it.key != m_layout_root.ptr() && !it.key->is_scroll_container() && Painting::scroll_offset(*it.key).is_zero())
             continue;
 
-        Painting::rust_measure_scrollable_overflow(*box_paintable);
-        clamp_scroll_offset(const_cast<Painting::Paintable&>(*box_paintable));
+        Painting::rust_measure_scrollable_overflow(*it.key);
+        clamp_scroll_offset(*it.key);
     }
 
     bool any_overflow_changed = false;
@@ -2649,14 +2646,6 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     m_document->set_needs_repaint();
 }
 
-void Document::ensure_scrollable_overflow_is_measured(Layout::Box const& box) const
-{
-    auto paintable = box.paintable_box();
-    if (!paintable || Painting::overflow_data(box).has_value() || Painting::cached_overflow_data(box).has_value())
-        return;
-    Painting::rust_measure_scrollable_overflow(*paintable);
-}
-
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // NB: Called during paint property resolution.
@@ -2675,8 +2664,7 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
                 auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
                 if (!layout_node)
                     continue;
-                auto paintable_box = layout_node->paintable();
-                if (!paintable_box || !paint_state().update_accumulated_visual_context_values(*this, *paintable_box)) {
+                if (!paint_state().update_accumulated_visual_context_values(*this, paintable_slot)) {
                     // Structure changed after all; rebuild the whole tree.
                     paint_state().assign_accumulated_visual_contexts(*this);
                     break;

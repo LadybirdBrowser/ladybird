@@ -123,15 +123,18 @@ void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& docum
     m_visual_context_tree_needs_compositor_update = true;
 }
 
-bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Paintable& paintable_box)
+bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::PaintableSlotId paintable_slot)
 {
     if (!m_visual_context_tree.has_value())
         return false;
     if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
         return false;
-    if (!rust_update_accumulated_visual_context_values(document, paintable_box.rust_slot()))
+    if (!rust_update_accumulated_visual_context_values(document, paintable_slot))
         return false;
-    patch_rust_visual_context_nodes(document, *m_visual_context_tree, paintable_box.visual_context_nodes_begin(), paintable_box.visual_context_nodes_end());
+    auto const* row = Layout::RustFFI::layout_arena_paintable_row(m_layout_node_arena->handle(), paintable_slot);
+    if (!row)
+        return false;
+    patch_rust_visual_context_nodes(document, *m_visual_context_tree, row->visual_context_nodes_begin, row->visual_context_nodes_end);
     m_visual_context_tree_needs_compositor_update = true;
     return true;
 }
@@ -189,7 +192,7 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
             return;
         }
         if (auto* layout_node = container.unsafe_layout_node()) {
-            if (layout_node->paintable()) {
+            if (has_committed_box(*layout_node)) {
                 entries.append({
                     .is_text_node_entry = false,
                     .layout_node = Layout::Node::slot_id(layout_node),

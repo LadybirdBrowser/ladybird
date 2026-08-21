@@ -501,15 +501,16 @@ bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layo
     return Layout::RustFFI::layout_arena_update_visual_context_values(layout_arena_handle(document), paintable_slot, visual_context_host_callbacks(document));
 }
 
-Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Paintable const& paintable_box)
+Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const& box)
 {
-    return Layout::RustFFI::layout_arena_physical_overflow_directions(paintable_box.rust_arena().handle(), paintable_box.rust_slot());
+    return Layout::RustFFI::layout_arena_physical_overflow_directions(box.arena_handle(), committed_row_slot(box));
 }
 
-void rust_measure_scrollable_overflow(Paintable const& box_paintable)
+void rust_measure_scrollable_overflow(Layout::Node const& box)
 {
-    auto viewport_paintable = static_cast<DOM::Node const&>(box_paintable.document()).unsafe_paintable();
-    if (!viewport_paintable)
+    auto& document = const_cast<DOM::Document&>(box.document());
+    auto const* viewport = document.unsafe_layout_node();
+    if (!viewport || !has_committed_box(*viewport))
         return;
     Layout::RustFFI::FfiScrollableOverflowHostCallbacks overflow_callbacks {
         .context = nullptr,
@@ -525,8 +526,7 @@ void rust_measure_scrollable_overflow(Paintable const& box_paintable)
                 && shadow_root->host()->is_focused();
         },
     };
-    auto& document = const_cast<DOM::Document&>(box_paintable.document());
-    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box_paintable.rust_arena().handle(), box_paintable.rust_slot(), visual_context_host_callbacks(document), overflow_callbacks);
+    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), overflow_callbacks);
 }
 
 CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)
@@ -632,14 +632,14 @@ void mirror_rust_reset_visual_context_state(DOM::Document& document)
     Layout::RustFFI::layout_arena_reset_visual_context_state(layout_arena_handle(document));
 }
 
-void mirror_rust_invalidate_paint_cache(Paintable const& paintable)
+void mirror_rust_invalidate_paint_cache(Layout::Node const& node)
 {
-    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(paintable.rust_arena().handle(), paintable.rust_slot(), false);
+    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), false);
 }
 
-void rust_invalidate_propagated_text_decoration_caches(Paintable const& paintable)
+void rust_invalidate_propagated_text_decoration_caches(Layout::Node const& node)
 {
-    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(paintable.rust_arena().handle(), paintable.rust_slot(), true);
+    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), true);
 }
 
 void rust_build_stacking_context_tree(DOM::Document& document)
@@ -693,8 +693,9 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             facts.dom_node_has_parent = dom_node && dom_node->parent();
             facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
             facts.has_resizer = has_resizer(layout_node);
-            facts.could_be_scrolled_horizontally = could_be_scrolled_by_wheel_event(paintable.layout_node(), ScrollDirection::Horizontal);
-            facts.could_be_scrolled_vertically = could_be_scrolled_by_wheel_event(paintable.layout_node(), ScrollDirection::Vertical);
+            auto wheel_scrollable_axes = Painting::wheel_scrollable_axes(layout_node);
+            facts.could_be_scrolled_horizontally = wheel_scrollable_axes.horizontal;
+            facts.could_be_scrolled_vertically = wheel_scrollable_axes.vertical;
             if (paintable.is_svg_path_paintable()) {
                 auto const& graphics_element = as<SVG::SVGGraphicsElement>(*paintable.dom_node());
                 facts.svg_path_has_fill = graphics_element.fill_color().has_value();
@@ -1293,7 +1294,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 },
                 [&](SVG::SVGGraphicsElement::PatternPaintServer const& pattern) {
                     style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
-                    style.pattern_paintable = pattern.pattern_paintable->paintable_ptr()->rust_slot();
+                    style.pattern_paintable = committed_row_slot(*pattern.pattern_paintable);
                     write_matrix(pattern.tile_content_transform.matrix, style.tile_content_transform);
                     style.tile_rect[0] = pattern.tile_rect.x();
                     style.tile_rect[1] = pattern.tile_rect.y();
@@ -1375,7 +1376,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     Layout::RustFFI::FfiRecordingInputs inputs {};
     if (overlay_inputs.highlighted_paintable) {
         inputs.has_inspector_highlight = true;
-        inputs.inspector_highlight_paintable = overlay_inputs.highlighted_paintable->rust_slot();
+        inputs.inspector_highlight_paintable = committed_row_slot(overlay_inputs.highlighted_paintable->layout_node());
     }
     inputs.tooltip_color = overlay_inputs.tooltip_color.value();
     inputs.tooltip_text_color = overlay_inputs.tooltip_text_color.value();
@@ -1386,7 +1387,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         : Platform::FontPlugin::the().default_font(10)->pixel_size();
     for (auto const& highlight : overlay_inputs.grid_highlights) {
         ffi_grid_overlays.append({
-            .paintable = highlight.paintable->rust_slot(),
+            .paintable = committed_row_slot(highlight.paintable->layout_node()),
             .color = highlight.options.color.value(),
             .label_foreground_color = highlight.options.color.with_alpha(235).suggested_foreground_color().value(),
             .label_css_pixel_size = grid_label_css_pixel_size,
@@ -1401,7 +1402,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     Vector<Layout::RustFFI::FfiFlexOverlayInput> ffi_flex_overlays;
     for (auto const& highlight : overlay_inputs.flex_highlights) {
         ffi_flex_overlays.append({
-            .paintable = highlight.paintable->rust_slot(),
+            .paintable = committed_row_slot(highlight.paintable->layout_node()),
             .color = highlight.options.color.value(),
         });
     }
