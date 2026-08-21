@@ -23,7 +23,7 @@ class WEB_API EventLoop : public JS::Cell {
     GC_CELL(EventLoop, JS::Cell);
     GC_DECLARE_ALLOCATOR(EventLoop);
 
-    struct PauseHandle {
+    struct WEB_API PauseHandle {
         PauseHandle(EventLoop&, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
         ~PauseHandle();
 
