@@ -2782,6 +2782,12 @@ pub struct RelativeAnchor {
     /// puts `.a` a step away from one, and that step can leave the anchor's subtree entirely - the
     /// element carrying `.a` is then an *ancestor* of the anchor, and no walk from it finds one.
     pub input_is_on_the_witness: bool,
+    /// Whether the input occurs on the anchor itself.
+    ///
+    /// In `:has(> :is(.active > li))`, `.active` is reached from the possible `li` witness by
+    /// exactly the inverse of the query's child axis. A change to that class already names the
+    /// anchor, so routing through every possible `li` witness would only rediscover it many times.
+    pub input_is_on_the_anchor: bool,
     /// How many siblings back of a witness this query's anchor can be, on an adjacent axis.
     ///
     /// `X:has(+ B)` anchors on the element beside the witness and `X:has(+ A + B)` two beside it, so
@@ -3164,9 +3170,17 @@ impl SelectorProgram {
             let depth = anchor.map_or(walk.path.len(), |(_, depth)| depth);
             walk.applied_path.clear();
             walk.applied_path.extend(walk.path[..depth].iter().rev().copied());
-            let anchor = anchor.map(|(anchor, depth)| RelativeAnchor {
-                input_is_on_the_witness: depth == walk.path.len(),
-                ..anchor
+            let anchor = anchor.map(|(anchor, depth)| {
+                let relative_path = &walk.path[depth..];
+                let input_is_on_the_anchor = matches!(
+                    (anchor.axis, relative_path),
+                    (RelativeAxis::Child, [InverseStep::Children])
+                );
+                RelativeAnchor {
+                    input_is_on_the_witness: relative_path.is_empty(),
+                    input_is_on_the_anchor,
+                    ..anchor
+                }
             });
             // The waypoints were collected subject-first, like the path, and the last one is the
             // subject's own compound rather than an intermediate. Reversed alongside the path, each
@@ -3266,6 +3280,7 @@ impl SelectorProgram {
                     query,
                     witness_dispatch: self.dispatch_key_of(compiled.compound),
                     input_is_on_the_witness: true,
+                    input_is_on_the_anchor: false,
                     // The anchor has to satisfy the compound the `:has()` sits in, which is what
                     // separates the handful of real anchors from every ancestor of the witness.
                     anchor_dispatch: self.dispatch_key_of(enclosing),

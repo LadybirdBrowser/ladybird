@@ -1,0 +1,7 @@
+changed anchors gain the relational style: true
+unchanged anchors do not gain the relational style: true
+addition routing: anchors=16, candidates=15
+addition avoids witness-scale matching: true
+changed anchors lose the relational style: true
+removal routing: anchors=16, candidates=15
+removal avoids document-scale witness matching: true
