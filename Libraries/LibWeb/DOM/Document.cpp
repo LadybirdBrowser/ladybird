@@ -9092,14 +9092,7 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position, Pai
         return {};
     viewport_paintable->refresh_scroll_state();
     auto result = hit_test_display_list->hit_test(position, type, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
-    auto has_dom_node_for_event_dispatch = [](Painting::Paintable& paintable) {
-        for (auto const* current = &paintable; current; current = current->parent()) {
-            if (current->dom_node())
-                return true;
-        }
-        return false;
-    };
-    if (result.has_value() && (result->chrome_widget || has_dom_node_for_event_dispatch(result->paintable)))
+    if (result.has_value() && (result->chrome_widget || Painting::event_dispatch_dom_node_for(result->paintable)))
         return result;
 
     if (auto* body_element = body(); body_element && body_element->paintable())

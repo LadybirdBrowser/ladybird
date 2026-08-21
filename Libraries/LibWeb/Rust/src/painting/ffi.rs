@@ -110,6 +110,30 @@ pub unsafe extern "C" fn layout_arena_paintable_shell(arena: *mut c_void, slot: 
     })
 }
 
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> *mut c_void {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let mut current = slot;
+        while !current.is_invalid() && paintables.is_live(current) {
+            let layout_node = paintables.data_ref(current).layout_node;
+            let flags = arena.node_flags_if_live(layout_node);
+            if flags & crate::layout::node_data::NodeFlag::Anonymous as u32 == 0 {
+                return arena.shell_if_live(layout_node);
+            }
+            current = paintables.data_ref(current).parent;
+        }
+        std::ptr::null_mut()
+    })
+}
+
 unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
     assert!(!data.is_null() || length == 0);
     if length == 0 {

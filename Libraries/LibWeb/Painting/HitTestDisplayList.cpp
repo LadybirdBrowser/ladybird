@@ -422,11 +422,7 @@ DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const
     if (item.kind == ItemKind::EmptyLine)
         return item_dom_node(item);
 
-    for (auto const* current = item.paintable.ptr(); current; current = current->parent()) {
-        if (auto node = current->dom_node())
-            return node.ptr();
-    }
-    return nullptr;
+    return event_dispatch_dom_node_for(*item.paintable).ptr();
 }
 
 bool HitTestDisplayList::item_is_direct_caret_target(Item const& item) const

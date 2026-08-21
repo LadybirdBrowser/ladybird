@@ -187,16 +187,20 @@ bool Paintable::has_stacking_context() const
     return rust_data().stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT;
 }
 
+GC::Ptr<DOM::Node> event_dispatch_dom_node_for(Paintable const& paintable)
+{
+    auto* layout_node_shell = Layout::RustFFI::layout_arena_paintable_event_dispatch_node_shell(paintable.rust_arena().handle(), paintable.rust_slot());
+    if (!layout_node_shell)
+        return nullptr;
+    return static_cast<Layout::Node*>(layout_node_shell)->dom_node();
+}
+
 DOM::Node* HitTestResult::dom_node()
 {
     if (dom_node_override)
         return dom_node_override.ptr();
 
-    for (auto* current = paintable.ptr(); current; current = current->parent()) {
-        if (auto node = current->dom_node())
-            return node.ptr();
-    }
-    return nullptr;
+    return event_dispatch_dom_node_for(*paintable).ptr();
 }
 
 DOM::Node const* HitTestResult::dom_node() const
@@ -204,11 +208,7 @@ DOM::Node const* HitTestResult::dom_node() const
     if (dom_node_override)
         return dom_node_override.ptr();
 
-    for (auto const* current = paintable.ptr(); current; current = current->parent()) {
-        if (auto node = current->dom_node())
-            return node.ptr();
-    }
-    return nullptr;
+    return event_dispatch_dom_node_for(*paintable).ptr();
 }
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const

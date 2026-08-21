@@ -62,6 +62,8 @@ WEB_API Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const&);
 // The viewport's rect in its own user units: the active viewBox rect, else {0,0} + the used size.
 WEB_API Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable);
 
+GC::Ptr<DOM::Node> event_dispatch_dom_node_for(Paintable const&);
+
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
 void invalidate_descendant_styles_for_container_query_size_change(Paintable&, CSSPixelSize old_content_size, CSSPixelSize new_content_size);
