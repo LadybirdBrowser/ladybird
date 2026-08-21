@@ -276,7 +276,7 @@ bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_
         return false;
     auto center_point = center_point_or_error.release_value();
 
-    auto result = const_cast<DOM::Document&>(*document).hit_test(center_point, Painting::HitTestType::Exact);
+    auto result = const_cast<DOM::Document&>(*document).hit_test(center_point);
     if (!result.has_value())
         return false;
 
