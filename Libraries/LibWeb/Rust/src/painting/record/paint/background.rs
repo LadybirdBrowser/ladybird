@@ -836,14 +836,18 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: Paintable
                 .has_flag(crate::painting::paintable_data::PaintableFlag::AbsolutelyPositioned)
                 || current_data.has_flag(crate::painting::paintable_data::PaintableFlag::FixedPosition))
                 && !current_data.has_flag(crate::painting::paintable_data::PaintableFlag::Floating);
-            if let Some(next) = recorder.paintables.next_sibling(current) {
+            if let Some(next) =
+                crate::painting::paint_order::next_paint_sibling(recorder.layout_arena, recorder.paintables, current)
+            {
                 stack.push(next);
             }
             if out_of_flow_not_floating {
                 continue;
             }
         }
-        if let Some(first_child) = recorder.paintables.first_child(current) {
+        if let Some(first_child) =
+            crate::painting::paint_order::first_paint_child(recorder.layout_arena, recorder.paintables, current)
+        {
             stack.push(first_child);
         }
         if recorder.data(current).kind.has_lines() {

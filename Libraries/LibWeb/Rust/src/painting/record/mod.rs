@@ -251,7 +251,7 @@ impl<'a> PaintRecorder<'a> {
         let is_visible = style.visibility() == crate::css::css_enums::visibility::VISIBLE && effects.opacity != 0.0;
         let empty_cells_property_applies = self.display(paintable).is_internal_table()
             && style.empty_cells() == crate::css::css_enums::empty_cells::HIDE
-            && self.paintables.first_child(paintable).is_none();
+            && crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, paintable).is_none();
         let has_backdrop_filter = effects.backdrop_filter.operations.length != 0;
         let paints_border_image = crate::painting::style_queries::handle_value(&style.border().border_image_source)
             .is_some_and(|source| matches!(source, crate::css::style_value::StyleValueData::Image { .. }));

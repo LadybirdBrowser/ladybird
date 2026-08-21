@@ -378,9 +378,9 @@ impl PaintRecorder<'_> {
 
     fn paint_descendants(&mut self, paintable: PaintableSlotId, phase: StackingContextPaintPhase) {
         let paintables = self.paintables;
-        let mut next_child = paintables.first_child(paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
         while let Some(child) = next_child {
-            next_child = paintables.next_sibling(child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintables, child);
             if self.append_cached_descendant_subtree(child, phase) {
                 continue;
             }
@@ -599,9 +599,9 @@ impl PaintRecorder<'_> {
             return;
         }
         let paintables = self.paintables;
-        let mut next_child = paintables.first_child(paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
         while let Some(child) = next_child {
-            next_child = paintables.next_sibling(child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintables, child);
             // A child that establishes a stacking context is painted by that context.
             if self.has_stacking_context(child) {
                 continue;
