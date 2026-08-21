@@ -44,7 +44,6 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
@@ -813,7 +812,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (facts.records_viewport_scrollbars) {
                 auto scrollbar_colors = scrollbar_colors_for_paint(paintable);
                 auto const& metrics = paintable.document().page().chrome_metrics();
-                DevicePixelConverter converter { paintable.document().page().client().device_pixels_per_css_pixel() };
                 size_t index = 0;
                 for (auto direction : { Paintable::ScrollDirection::Vertical, Paintable::ScrollDirection::Horizontal }) {
                     auto& out = facts.viewport_scrollbars[index++];
@@ -823,10 +821,10 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     auto expanded_scrollbar_data = paintable.compute_scrollbar_data(direction, metrics, nullptr, Paintable::ScrollbarSizing::Enlarged);
                     VERIFY(expanded_scrollbar_data.has_value());
                     out.present = true;
-                    write_rect(converter.rounded_device_rect(scrollbar_data->gutter_rect), out.gutter_rect);
-                    write_rect(converter.rounded_device_rect(scrollbar_data->thumb_rect), out.thumb_rect);
-                    write_rect(converter.rounded_device_rect(expanded_scrollbar_data->gutter_rect), out.expanded_gutter_rect);
-                    write_rect(converter.rounded_device_rect(expanded_scrollbar_data->thumb_rect), out.expanded_thumb_rect);
+                    write_css_rect(scrollbar_data->gutter_rect, out.gutter_rect);
+                    write_css_rect(scrollbar_data->thumb_rect, out.thumb_rect);
+                    write_css_rect(expanded_scrollbar_data->gutter_rect, out.expanded_gutter_rect);
+                    write_css_rect(expanded_scrollbar_data->thumb_rect, out.expanded_thumb_rect);
                     out.scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
                     out.expanded_scroll_size = expanded_scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
                     out.thumb_color = scrollbar_colors.thumb_color.value();
@@ -1368,9 +1366,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 
 }
 
-RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintable, DisplayList const& placeholder_display_list, DisplayListResourceStorage& resource_storage, DisplayListRecordingContext& context, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
+RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintable, DisplayList const& placeholder_display_list, DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
 {
+    static u64 s_next_paint_generation_id = 0;
+    auto paint_generation_id = s_next_paint_generation_id++;
     auto* arena = viewport_paintable.rust_arena().handle();
+    auto& document = viewport_paintable.document();
+    auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
+    auto device_viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
+    auto wheel_event_region_state = viewport_paintable.collect_root_blocking_wheel_event_regions();
     Layout::RustFFI::FfiRecordingInputs inputs {};
     if (overlay_inputs.highlighted_paintable) {
         inputs.has_inspector_highlight = true;
@@ -1410,16 +1414,16 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
         inputs.has_caret_debug_rect = true;
         inputs.caret_debug_rect = to_ffi_css_pixel_rect(*overlay_inputs.caret_debug_rect);
     }
-    inputs.device_pixels_per_css_pixel = context.device_pixels_per_css_pixel();
-    write_rect(context.device_viewport_rect(), inputs.device_viewport_rect);
+    inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
+    write_rect(device_viewport_rect, inputs.device_viewport_rect);
     if (auto navigable = viewport_paintable.navigable())
         write_css_rect(navigable->viewport_rect(), inputs.css_viewport_rect);
     inputs.should_show_line_box_borders = config.should_show_line_box_borders;
     inputs.should_paint_overlay = config.paint_overlay;
-    inputs.is_recording_async_scrolling_metadata = context.is_recording_async_scrolling_metadata();
-    inputs.document_id = context.async_scrolling_document_id().value();
-    inputs.has_blocking_wheel_event_region_covering_viewport = context.has_blocking_wheel_event_region_covering_viewport();
-    inputs.paint_command_cache_read_write = context.paint_command_cache_mode() == PaintCommandCacheMode::ReadWrite;
+    inputs.is_recording_async_scrolling_metadata = true;
+    inputs.document_id = document.unique_id().value();
+    inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
+    inputs.paint_command_cache_read_write = cache_mode == PaintCommandCacheMode::ReadWrite;
     inputs.display_list_id = placeholder_display_list.id();
     {
         auto navigable = viewport_paintable.navigable();
@@ -1427,7 +1431,6 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
         inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto).value();
     }
     {
-        auto& document = viewport_paintable.document();
         auto color_scheme = document.canvas_color_scheme();
         bool opaque_canvas = false;
         if (auto container_element = document.navigable()->container(); container_element && container_element->layout_node()) {
@@ -1442,18 +1445,17 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
         }
         inputs.canvas_color = CSS::SystemColor::canvas(color_scheme).value();
         inputs.opaque_canvas = opaque_canvas;
-        auto viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
-        Gfx::IntRect bitmap_rect { {}, viewport_rect.size().to_type<int>() };
+        Gfx::IntRect bitmap_rect { {}, device_viewport_rect.size().to_type<int>() };
         write_rect(bitmap_rect, inputs.bitmap_rect);
         inputs.background_color = document.background_color().value();
     }
-    PaintHostContext paint_host_context { resource_storage, viewport_paintable, context.paint_generation_id(), context.device_pixels_per_css_pixel() };
+    PaintHostContext paint_host_context { resource_storage, viewport_paintable, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_paintable.rust_slot(), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(viewport_paintable), inputs);
     if (generation == 0)
         return nullptr;
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
-        context.set_has_blocking_wheel_event_listeners(true);
+        wheel_event_region_state.has_blocking_wheel_event_listeners = true;
 
     size_t rust_length = 0;
     auto const* rust_bytes = Layout::RustFFI::layout_arena_display_list_bytes(arena, &rust_length);
@@ -1472,6 +1474,14 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
     }
     if (auto color = placeholder_display_list.surface_clear_color(); color.has_value())
         display_list->set_surface_clear_color(*color);
+    if (auto navigable = viewport_paintable.navigable()) {
+        display_list->set_async_scrolling_metadata({
+            .viewport_rect = device_viewport_rect.to_type<int>(),
+            .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
+            .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,
+            .has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport,
+        });
+    }
     return display_list;
 }
 
@@ -1497,7 +1507,7 @@ NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& pai
         inputs.polar_color_space = to_underlying(method.polar_color_space);
         inputs.hue_interpolation_method = to_underlying(method.hue_interpolation_method);
     };
-    DevicePixelConverter device_pixel_converter { device_pixels_per_css_pixel };
+    inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
     paint.value.visit(
         [&](ImagePaint::DecodedFrame const& decoded_frame) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::DecodedFrame;
@@ -1520,21 +1530,15 @@ NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& pai
         },
         [&](ResolvedRadialGradient const& gradient) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::RadialGradient;
-            auto center = device_pixel_converter.rounded_device_point(gradient.center).to_type<int>();
-            auto size = device_pixel_converter.rounded_device_size(gradient.gradient_size).to_type<int>();
-            inputs.center[0] = center.x();
-            inputs.center[1] = center.y();
-            inputs.size[0] = size.width();
-            inputs.size[1] = size.height();
+            inputs.center = { gradient.center.x().raw_value(), gradient.center.y().raw_value() };
+            inputs.size = { gradient.gradient_size.width().raw_value(), gradient.gradient_size.height().raw_value() };
             write_color_stops(gradient.data.color_stops);
             write_interpolation_method(gradient.data.interpolation_method);
         },
         [&](ResolvedConicGradient const& gradient) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::ConicGradient;
             inputs.gradient_angle = gradient.data.start_angle;
-            auto position = device_pixel_converter.rounded_device_point(gradient.position).to_type<int>();
-            inputs.position[0] = position.x();
-            inputs.position[1] = position.y();
+            inputs.position = { gradient.position.x().raw_value(), gradient.position.y().raw_value() };
             write_color_stops(gradient.data.color_stops);
             write_interpolation_method(gradient.data.interpolation_method);
         });

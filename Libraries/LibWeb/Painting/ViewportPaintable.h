@@ -15,6 +15,11 @@
 
 namespace Web::Painting {
 
+struct BlockingWheelEventRegionState {
+    bool has_blocking_wheel_event_listeners { false };
+    bool has_blocking_wheel_event_region_covering_viewport { false };
+};
+
 class WEB_API ViewportPaintable final : public PaintableWithLines {
 public:
     static NonnullRefPtr<ViewportPaintable> create(Layout::Viewport const&);
@@ -22,8 +27,7 @@ public:
 
     virtual void reset_for_relayout() override;
 
-    void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&);
-    void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext const&, HTML::LocalNavigable&, Gfx::IntRect viewport_rect, DisplayList&);
+    BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions();
     void build_stacking_context_tree_if_needed();
     void invalidate_stacking_context_tree();
 

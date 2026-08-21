@@ -21,7 +21,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
-#include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>

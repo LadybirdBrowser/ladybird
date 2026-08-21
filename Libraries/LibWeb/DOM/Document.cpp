@@ -205,9 +205,9 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -9016,26 +9016,22 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
-    auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
     if (navigable()->is_top_level_traversable()) {
         auto canvas_background_color = this->canvas_background_color();
         placeholder_display_list->set_surface_clear_color(canvas_background_color);
         page().client().page_did_change_background_color(canvas_background_color);
     }
 
-    Web::DisplayListRecordingContext context(page().palette(), page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
-    context.set_device_viewport_rect(viewport_rect);
-    context.set_paint_command_cache_mode(cache_mode);
     viewport_paintable.build_stacking_context_tree_if_needed();
     viewport_paintable.refresh_scroll_state();
-    viewport_paintable.initialize_async_scrolling_metadata_recording(context);
 
     Painting::InspectorOverlayInputs overlay_inputs;
     if (highlighted_node() && highlighted_node()->paintable())
         overlay_inputs.highlighted_paintable = highlighted_node()->paintable().ptr();
-    overlay_inputs.tooltip_color = context.palette().color(Gfx::ColorRole::Tooltip);
-    overlay_inputs.tooltip_text_color = context.palette().color(Gfx::ColorRole::TooltipText);
-    overlay_inputs.tooltip_border_color = context.palette().threed_shadow1();
+    auto const& palette = page().palette();
+    overlay_inputs.tooltip_color = palette.color(Gfx::ColorRole::Tooltip);
+    overlay_inputs.tooltip_text_color = palette.color(Gfx::ColorRole::TooltipText);
+    overlay_inputs.tooltip_border_color = palette.threed_shadow1();
     for (auto const& flexbox_highlight : m_flexbox_highlights) {
         if (flexbox_highlight.node && flexbox_highlight.node->paintable())
             overlay_inputs.flex_highlights.append({ flexbox_highlight.node->paintable().ptr(), flexbox_highlight.options });
@@ -9047,10 +9043,9 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    auto display_list = Painting::record_rust_display_list(viewport_paintable, *placeholder_display_list, resource_storage, context, config, overlay_inputs);
+    auto display_list = Painting::record_rust_display_list(viewport_paintable, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
     if (!display_list)
         return nullptr;
-    viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>(), *display_list);
     m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), viewport_paintable.rust_arena());
 
     if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite) {

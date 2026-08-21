@@ -83,7 +83,6 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/Paintable.h>

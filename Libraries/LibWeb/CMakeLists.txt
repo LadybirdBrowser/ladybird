@@ -856,8 +856,6 @@ set(SOURCES
     Page/ScreenWakeLockHandle.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/Blending.cpp
-    Painting/BorderRadiiData.cpp
-    Painting/BordersData.cpp
     Painting/BoxModelMetrics.cpp
     Painting/Canvas2DCommandStream.cpp
     Painting/ChromeWidget.cpp
@@ -866,7 +864,6 @@ set(SOURCES
     Painting/DisplayListCommand.cpp
     Painting/DisplayListDamage.cpp
     Painting/DisplayListPlayerSkia.cpp
-    Painting/DisplayListRecordingContext.cpp
     Painting/DisplayListResourceTransaction.cpp
     Painting/DisplayListResourceStorage.cpp
     Painting/HitTestDisplayList.cpp
