@@ -8,9 +8,9 @@
 //!
 //! Serializes Rust-owned [`StyleValueData`] into text without crossing the FFI per component.
 //! The output stays ASCII until the first non-ASCII code unit forces UTF-16 storage, matching
-//! AK::Utf16String's ASCII-or-UTF16 representation so C++ can adopt the buffer without
-//! transcoding. Value types whose serialization has not been ported yet return the null
-//! serialization, and the C++ dispatcher falls back to the legacy per-class serializer.
+//! AK::Utf16String's ASCII-or-UTF16 representation, then moves a native string owner to C++.
+//! Value types whose serialization has not been ported yet return no string, and the C++
+//! dispatcher falls back to the legacy per-class serializer.
 
 use std::ffi::c_void;
 
@@ -3441,55 +3441,33 @@ fn serialize_shorthand(
     default_serialize(sink)
 }
 
-/// A serialized text buffer handed to C++. Exactly one of `ascii` and `utf16` is set when
-/// `storage` is non-null; a null `storage` means the value's serialization is not ported.
+/// A native `AK::Utf16String` ownership reference handed to C++ without copying.
 #[repr(C)]
 pub struct FfiSerializedText {
-    pub ascii: *const u8,
-    pub utf16: *const u16,
-    pub length: usize,
-    pub storage: *mut c_void,
+    pub raw: usize,
+    pub has_value: bool,
 }
 
 impl FfiSerializedText {
     fn unported() -> Self {
         Self {
-            ascii: std::ptr::null(),
-            utf16: std::ptr::null(),
-            length: 0,
-            storage: std::ptr::null_mut(),
+            raw: 0,
+            has_value: false,
         }
     }
 }
 
-struct SerializedTextStorage {
-    ascii: Vec<u8>,
-    utf16: Vec<u16>,
-}
-
 pub(crate) fn sink_into_ffi(sink: TextSink) -> FfiSerializedText {
-    let storage = Box::new(SerializedTextStorage {
-        ascii: sink.ascii,
-        utf16: sink.utf16,
-    });
-    let result = if sink.is_ascii {
-        FfiSerializedText {
-            ascii: storage.ascii.as_ptr(),
-            utf16: std::ptr::null(),
-            length: storage.ascii.len(),
-            storage: std::ptr::null_mut(),
-        }
+    let string = if sink.is_ascii {
+        // SAFETY: The ASCII representation is valid UTF-8.
+        let text = unsafe { str::from_utf8_unchecked(&sink.ascii) };
+        ak::Utf16String::from_utf8(text)
     } else {
-        FfiSerializedText {
-            ascii: std::ptr::null(),
-            utf16: storage.utf16.as_ptr(),
-            length: storage.utf16.len(),
-            storage: std::ptr::null_mut(),
-        }
+        ak::Utf16String::from_utf16(&sink.utf16)
     };
     FfiSerializedText {
-        storage: Box::into_raw(storage).cast(),
-        ..result
+        raw: string.into_raw(),
+        has_value: true,
     }
 }
 
@@ -3509,14 +3487,6 @@ pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: 
         }
         sink_into_ffi(sink)
     })
-}
-
-/// # Safety
-/// `storage` must be a non-null storage returned by a serialization entry point that has not
-/// been released.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_serialized_text_release(storage: *mut c_void) {
-    drop(unsafe { Box::from_raw(storage.cast::<SerializedTextStorage>()) });
 }
 
 #[cfg(test)]

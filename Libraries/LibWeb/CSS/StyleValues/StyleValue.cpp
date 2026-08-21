@@ -353,12 +353,12 @@ void StyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     // The Rust serializer covers the ported types; everything else falls back to the
     // per-class C++ serializers until the port is complete.
-    if (auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode)); text.storage) {
-        if (text.ascii)
-            builder.append(StringView { reinterpret_cast<char const*>(text.ascii), text.length });
+    if (auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode)); text.has_value) {
+        auto string = Utf16String::adopt_raw(text.raw);
+        if (string.has_ascii_storage())
+            builder.append(string.ascii_view());
         else
-            builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length });
-        StyleValueFFI::rust_serialized_text_release(text.storage);
+            builder.append(string.utf16_view());
         return;
     }
 
@@ -446,12 +446,9 @@ void StyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) 
 {
     // Rust serializes natively into ASCII-or-UTF-16, so ported types never round-trip
     // through UTF-8 here.
-    if (auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode)); text.storage) {
-        if (text.ascii)
-            builder.append_ascii(StringView { reinterpret_cast<char const*>(text.ascii), text.length });
-        else
-            builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length });
-        StyleValueFFI::rust_serialized_text_release(text.storage);
+    if (auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode)); text.has_value) {
+        auto string = Utf16String::adopt_raw(text.raw);
+        builder.append(string.utf16_view());
         return;
     }
 
