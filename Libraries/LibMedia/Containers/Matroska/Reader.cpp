@@ -756,7 +756,7 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
     timestamp_offset_in_cluster_offset = saturating_sub(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(context.codec_delay));
     // This is only mentioned in the elements specification under TrackOffset.
     // https://www.matroska.org/technical/elements.html
-    timestamp_offset_in_cluster_offset = saturating_add(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(context.timestamp_offset));
+    timestamp_offset_in_cluster_offset = saturating_add(timestamp_offset_in_cluster_offset, context.timestamp_offset);
     return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset);
 }
 
