@@ -144,8 +144,7 @@ static LinkedSeekHeadsTestFile make_matroska_with_linked_seek_heads(size_t seek_
     append_ebml_uint(data, Media::Matroska::DOCTYPE_VERSION_ELEMENT_ID, 4);
     finish_ebml_master(data, ebml_header);
 
-    append_ebml_id(data, Media::Matroska::SEGMENT_ELEMENT_ID);
-    data.append(0xff); // Unknown Segment size.
+    auto segment = begin_ebml_master(data, Media::Matroska::SEGMENT_ELEMENT_ID);
     auto segment_contents_position = data.size();
 
     Vector<size_t> seek_head_positions;
@@ -201,7 +200,98 @@ static LinkedSeekHeadsTestFile make_matroska_with_linked_seek_heads(size_t seek_
         patch_big_endian_uint(data, seek_head_position_patch_offsets[i], target_position - segment_contents_position, 8);
     }
 
+    finish_ebml_master(data, segment);
+
     return { move(data), cluster_end, cues_position };
+}
+
+enum class SegmentSize {
+    Undeclared,
+    LongerThanTheStream,
+};
+
+enum class ClusterSize {
+    Known,
+    Unknown,
+};
+
+static ByteBuffer make_matroska_without_cues(SegmentSize segment_size, ClusterSize cluster_size)
+{
+    ByteBuffer data;
+    auto ebml_header = begin_ebml_master(data, Media::Matroska::EBML_MASTER_ELEMENT_ID);
+    append_ebml_string(data, Media::Matroska::DOCTYPE_ELEMENT_ID, "webm"sv);
+    append_ebml_uint(data, Media::Matroska::DOCTYPE_VERSION_ELEMENT_ID, 4);
+    finish_ebml_master(data, ebml_header);
+
+    append_ebml_id(data, Media::Matroska::SEGMENT_ELEMENT_ID);
+    auto segment_size_offset = data.size();
+    append_ebml_size(data, 0, 8);
+    auto segment_contents_position = data.size();
+
+    auto info = begin_ebml_master(data, Media::Matroska::SEGMENT_INFORMATION_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_SCALE_ID, 1000000);
+    finish_ebml_master(data, info);
+
+    auto tracks = begin_ebml_master(data, Media::Matroska::TRACK_ELEMENT_ID);
+    auto track_entry = begin_ebml_master(data, Media::Matroska::TRACK_ENTRY_ID);
+    append_ebml_uint(data, Media::Matroska::TRACK_NUMBER_ID, 1);
+    append_ebml_uint(data, Media::Matroska::TRACK_UID_ID, 1);
+    append_ebml_uint(data, Media::Matroska::TRACK_TYPE_ID, 1);
+    append_ebml_string(data, Media::Matroska::TRACK_CODEC_ID, "V_VP9"sv);
+    auto video = begin_ebml_master(data, Media::Matroska::TRACK_VIDEO_ID);
+    append_ebml_uint(data, Media::Matroska::PIXEL_WIDTH_ID, 1);
+    append_ebml_uint(data, Media::Matroska::PIXEL_HEIGHT_ID, 1);
+    finish_ebml_master(data, video);
+    finish_ebml_master(data, track_entry);
+    finish_ebml_master(data, tracks);
+
+    if (cluster_size == ClusterSize::Unknown) {
+        append_ebml_id(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+        data.append(0xff);
+        append_ebml_uint(data, Media::Matroska::TIMESTAMP_ID, 0);
+    } else {
+        auto cluster = begin_ebml_master(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+        append_ebml_uint(data, Media::Matroska::TIMESTAMP_ID, 0);
+        finish_ebml_master(data, cluster);
+    }
+
+    switch (segment_size) {
+    case SegmentSize::Undeclared:
+        patch_big_endian_uint(data, segment_size_offset, 0x01ffffffffffffff, 8);
+        break;
+    case SegmentSize::LongerThanTheStream:
+        patch_ebml_size(data, segment_size_offset, data.size() - segment_contents_position + 1, 8);
+        break;
+    }
+
+    return data;
+}
+
+TEST_CASE(reader_reads_segment_with_no_declared_size_and_no_cues)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(make_matroska_without_cues(SegmentSize::Undeclared, ClusterSize::Known));
+
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    EXPECT_EQ(MUST(reader.track_count()), 1u);
+    EXPECT(!reader.cue_points_for_track(1).has_value());
+}
+
+TEST_CASE(reader_reads_cluster_with_no_declared_size)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(make_matroska_without_cues(SegmentSize::Undeclared, ClusterSize::Unknown));
+
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    EXPECT_EQ(MUST(reader.track_count()), 1u);
+    EXPECT(!reader.cue_points_for_track(1).has_value());
+}
+
+TEST_CASE(reader_reads_segment_that_ends_before_its_declared_size)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(make_matroska_without_cues(SegmentSize::LongerThanTheStream, ClusterSize::Known));
+
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    EXPECT_EQ(MUST(reader.track_count()), 1u);
+    EXPECT(!reader.cue_points_for_track(1).has_value());
 }
 
 TEST_CASE(reader_follows_linked_seek_heads)
