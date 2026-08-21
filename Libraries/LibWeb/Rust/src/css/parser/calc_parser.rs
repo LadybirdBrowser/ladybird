@@ -12,6 +12,7 @@
 use crate::css::calc::{
     CalcNode, CalcNumericType, CalcNumericValue, resolve_as_for_value_type, simplify_parsed_calculation,
 };
+use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_channel_keyword};
 use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::math_functions::{MathFunction, math_function_from_name};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
@@ -38,6 +39,7 @@ pub(crate) struct CalcParserContext {
     pub property: u16,
     pub random_function_index: *mut usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+    pub allowed_color_channels: u64,
     pub allow_random_functions: bool,
 }
 
@@ -49,6 +51,7 @@ impl CalcParserContext {
             property: 0,
             random_function_index: std::ptr::null_mut(),
             intern_utf16_fly_string: None,
+            allowed_color_channels: 0,
             allow_random_functions: false,
         }
     }
@@ -161,7 +164,7 @@ impl<'a> CalculationParser<'a> {
                 }
                 parse_a_calc_function_node(name, values, self.context)
             }
-            ComponentKind::Token(ParserTokenKind::Ident(identifier)) => parse_calc_keyword(identifier),
+            ComponentKind::Token(ParserTokenKind::Ident(identifier)) => parse_calc_keyword(identifier, self.context),
             ComponentKind::Token(ParserTokenKind::Number { value, number_type }) => {
                 Ok(Arc::new(CalcNode::Numeric(CalcNumericValue::Number {
                     value: *value,
@@ -194,7 +197,12 @@ impl<'a> CalculationParser<'a> {
     }
 }
 
-fn parse_calc_keyword(identifier: &[u16]) -> Result<Arc<CalcNode>> {
+fn parse_calc_keyword(identifier: &[u16], context: CalcParserContext) -> Result<Arc<CalcNode>> {
+    if let Some(channel) = keyword_from_ascii_case_insensitive(identifier).and_then(keyword_to_channel_keyword)
+        && context.allowed_color_channels & (1 << channel) != 0
+    {
+        return Ok(Arc::new(CalcNode::ChannelKeyword(channel)));
+    }
     let value = if equals_ascii_case_insensitive(identifier, b"e") {
         std::f64::consts::E
     } else if equals_ascii_case_insensitive(identifier, b"pi") {
@@ -445,7 +453,7 @@ pub(crate) fn parse_a_calc_function_node(
                 .map(|argument| parse_argument(argument, context))
                 .collect::<Result<Vec<_>>>()?;
             if nodes.len() == 1 {
-                nodes.push(parse_calc_keyword(&"e".encode_utf16().collect::<Vec<_>>())?);
+                nodes.push(parse_calc_keyword(&"e".encode_utf16().collect::<Vec<_>>(), context)?);
             }
             let types = nodes
                 .iter()
@@ -722,6 +730,7 @@ mod tests {
             property: 1,
             random_function_index: &mut random_function_index,
             intern_utf16_fly_string: Some(discard_interned_string),
+            allowed_color_channels: 0,
             allow_random_functions: true,
         };
         let parsed = parse_a_calc_function_node(name, values, context).unwrap();
