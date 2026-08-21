@@ -19,7 +19,9 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 
@@ -380,7 +382,8 @@ bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web
 {
     // An element is in view if it is a member of its own pointer-interactable paint tree, given the pretense that its
     // pointer events are not disabled.
-    if (!element.paintable() || !element.paintable()->is_visible() || !element.paintable()->visible_for_hit_testing())
+    auto const* layout_node = element.layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node) || !Painting::is_visible(*layout_node) || !Painting::visible_for_hit_testing(*layout_node))
         return false;
 
     return paint_tree.contains_slow(GC::Ref { element });

@@ -5135,7 +5135,8 @@ bool Element::check_visibility(CheckVisibilityOptions const& options)
     document().update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementCheckVisibility);
 
     // 1. If this does not have an associated box, return false.
-    if (!paintable_box())
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return false;
 
     // 2. If an ancestor of this in the flat tree has content-visibility: hidden, return false.
@@ -5999,7 +6000,8 @@ void Element::invalidate_lang_value()
 bool Element::not_rendered() const
 {
     // An element is not rendered if it does not have an associated box.
-    if (!layout_node() || !paintable_box())
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return true;
 
     return false;
