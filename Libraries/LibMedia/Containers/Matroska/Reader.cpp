@@ -286,7 +286,13 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(St
 
     while (!segment_contents_end.has_value() || streamer.position() < segment_contents_end.value()) {
         auto found_element_position = streamer.position();
-        auto found_element_id = TRY(streamer.read_element_id());
+        auto found_element_id_or_error = streamer.read_element_id();
+        if (found_element_id_or_error.is_error()) {
+            if (found_element_id_or_error.error().category() != DecoderErrorCategory::EndOfStream)
+                return found_element_id_or_error.release_error();
+            break;
+        }
+        auto found_element_id = found_element_id_or_error.release_value();
         dbgln_if(MATROSKA_TRACE_DEBUG, "Found element ID {:#010x} with position {}.", found_element_id, found_element_position);
 
         if (found_element_id == SEEK_HEAD_ELEMENT_ID) {
@@ -310,9 +316,7 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(St
             return position;
         }
 
-        TRY(streamer.read_unknown_element());
-
-        m_last_top_level_element_position = streamer.position();
+        auto found_element_size = TRY(streamer.read_element_size());
 
         DECODER_TRY_ALLOC(m_seek_entries.try_set(found_element_id, found_element_position, AK::HashSetExistingEntryBehavior::Keep));
 
@@ -320,6 +324,15 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(St
             position = found_element_position;
             break;
         }
+
+        if (!found_element_size.has_value())
+            break;
+
+        if (!segment_contents_end.has_value() && found_element_id == CLUSTER_ELEMENT_ID)
+            break;
+
+        TRY(streamer.seek_to_position(AK::saturating_add(streamer.position(), found_element_size.value())));
+        m_last_top_level_element_position = streamer.position();
 
         dbgln_if(MATROSKA_TRACE_DEBUG, "Skipped to position {}.", m_last_top_level_element_position);
     }
