@@ -109,6 +109,7 @@ static void collect_matches(ParentNode& root, Matcher&& matcher, Vector<GC::RawP
 
 static void settle_connected_selector_query(Document& document)
 {
+    document.synchronize_dirty_style_attributes();
     document.style_computer().style_engine().prepare_selector_query();
 }
 

@@ -77,6 +77,7 @@ protected:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
+    void prepare_to_update_style_attribute();
     void update_style_attribute();
 
 private:

@@ -446,6 +446,8 @@ static void update_style(DOM::Document& document)
     if (document.created_for_appropriate_template_contents())
         return;
 
+    document.synchronize_dirty_style_attributes();
+
     document.begin_style_stabilization_epoch();
     ScopeGuard end_stabilization_epoch = [&] {
         document.end_style_stabilization_epoch();

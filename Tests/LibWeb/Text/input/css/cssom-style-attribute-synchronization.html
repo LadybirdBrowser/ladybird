@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("div");
+        document.body.appendChild(element);
+
+        element.style.color = "red";
+        println(element.getAttribute("style"));
+        println(element.attributes.getNamedItem("style").value);
+        println(element.matches('[style="color: red;"]'));
+        println(document.querySelector('[style="color: red;"]') === element);
+
+        element.style.backgroundColor = "blue";
+        println(element.outerHTML);
+
+        element.removeAttribute("style");
+        println(element.style.length);
+        println(element.hasAttribute("style"));
+
+        const getAttributeElement = document.createElement("div");
+        getAttributeElement.setAttribute("style", "color: blue");
+        getAttributeElement.style.color = "red";
+        println(getAttributeElement.getAttribute("STYLE"));
+
+        const hasAttributeElement = document.createElement("div");
+        hasAttributeElement.style.color = "red";
+        println(hasAttributeElement.hasAttribute("STYLE"));
+
+        const namedItemElement = document.createElement("div");
+        namedItemElement.setAttribute("style", "color: blue");
+        namedItemElement.style.color = "red";
+        println(namedItemElement.attributes.getNamedItem("STYLE").value);
+
+        const makeElementWithDirtyStyle = (initialStyle = undefined) => {
+            const element = document.createElement("div");
+            if (initialStyle !== undefined)
+                element.setAttribute("style", initialStyle);
+            element.style.color = "red";
+            return element;
+        };
+
+        const attributeNodeElement = makeElementWithDirtyStyle("color: blue");
+        println(`getAttributeNode: ${attributeNodeElement.getAttributeNode("STYLE").value}`);
+
+        const getAttributeNSElement = makeElementWithDirtyStyle("color: blue");
+        println(`getAttributeNS: ${getAttributeNSElement.getAttributeNS(null, "style")}`);
+
+        const hasAttributeNSElement = makeElementWithDirtyStyle();
+        println(`hasAttributeNS: ${hasAttributeNSElement.hasAttributeNS(null, "style")}`);
+
+        const attributeNodeNSElement = makeElementWithDirtyStyle("color: blue");
+        println(`getAttributeNodeNS: ${attributeNodeNSElement.getAttributeNodeNS(null, "style").value}`);
+
+        const namedItemNSElement = makeElementWithDirtyStyle("color: blue");
+        println(`getNamedItemNS: ${namedItemNSElement.attributes.getNamedItemNS(null, "style").value}`);
+
+        const attributeValueElement = document.createElement("div");
+        attributeValueElement.setAttribute("style", "color: blue");
+        const styleAttribute = attributeValueElement.getAttributeNode("style");
+        attributeValueElement.style.color = "red";
+        println(`Attr.value: ${styleAttribute.value}`);
+
+        const attributeNamesElement = makeElementWithDirtyStyle();
+        println(`getAttributeNames: ${attributeNamesElement.getAttributeNames().join(",")}`);
+
+        const attributeLengthElement = makeElementWithDirtyStyle();
+        println(`attributes.length: ${attributeLengthElement.attributes.length}`);
+
+        const attributeItemElement = makeElementWithDirtyStyle("color: blue");
+        println(`attributes.item: ${attributeItemElement.attributes.item(0).value}`);
+
+        const hasAttributesElement = makeElementWithDirtyStyle();
+        println(`hasAttributes: ${hasAttributesElement.hasAttributes()}`);
+
+        const namedPropertyElement = makeElementWithDirtyStyle("color: blue");
+        println(`NamedNodeMap named property: ${namedPropertyElement.attributes.style.value}`);
+
+        const serializedElement = makeElementWithDirtyStyle();
+        println(`outerHTML: ${serializedElement.outerHTML}`);
+
+        const clonedElement = makeElementWithDirtyStyle("color: blue");
+        println(`cloneNode: ${clonedElement.cloneNode().getAttribute("style")}`);
+
+        const matchesElement = makeElementWithDirtyStyle();
+        println(`matches: ${matchesElement.matches('[STYLE="color: red;"]')}`);
+
+        const queryElement = makeElementWithDirtyStyle();
+        document.body.appendChild(queryElement);
+        println(`querySelector: ${document.querySelector('[STYLE="color: red;"]') === queryElement}`);
+        queryElement.remove();
+
+        const setAttributeElement = makeElementWithDirtyStyle("color: blue");
+        setAttributeElement.setAttribute("STYLE", "color: green");
+        println(`setAttribute: ${setAttributeElement.getAttribute("style")} / ${setAttributeElement.style.color}`);
+
+        const removeAttributeElement = makeElementWithDirtyStyle();
+        removeAttributeElement.removeAttribute("STYLE");
+        println(`removeAttribute: ${removeAttributeElement.hasAttribute("style")} / ${removeAttributeElement.style.length}`);
+
+        const removeAttributeNSElement = makeElementWithDirtyStyle();
+        removeAttributeNSElement.removeAttributeNS(null, "style");
+        println(`removeAttributeNS: ${removeAttributeNSElement.hasAttribute("style")} / ${removeAttributeNSElement.style.length}`);
+
+        const toggleAttributeElement = makeElementWithDirtyStyle();
+        println(`toggleAttribute: ${toggleAttributeElement.toggleAttribute("STYLE", false)} / ${toggleAttributeElement.hasAttribute("style")} / ${toggleAttributeElement.style.length}`);
+
+        const setAttributeNodeElement = makeElementWithDirtyStyle("color: blue");
+        const newStyleAttribute = document.createAttribute("style");
+        newStyleAttribute.value = "color: green";
+        const replacedStyleAttribute = setAttributeNodeElement.setAttributeNode(newStyleAttribute);
+        println(`setAttributeNode: ${replacedStyleAttribute.value} / ${setAttributeNodeElement.style.color}`);
+
+        const setNamedItemElement = makeElementWithDirtyStyle("color: blue");
+        const newNamedStyleAttribute = document.createAttribute("style");
+        newNamedStyleAttribute.value = "color: green";
+        const replacedNamedStyleAttribute = setNamedItemElement.attributes.setNamedItem(newNamedStyleAttribute);
+        println(`setNamedItem: ${replacedNamedStyleAttribute.value} / ${setNamedItemElement.style.color}`);
+
+        const removeAttributeNodeElement = document.createElement("div");
+        removeAttributeNodeElement.setAttribute("style", "color: blue");
+        const removedStyleAttribute = removeAttributeNodeElement.getAttributeNode("style");
+        removeAttributeNodeElement.style.color = "red";
+        removeAttributeNodeElement.removeAttributeNode(removedStyleAttribute);
+        println(`removeAttributeNode: ${removedStyleAttribute.value} / ${removeAttributeNodeElement.hasAttribute("style")} / ${removeAttributeNodeElement.style.length}`);
+
+        const removeNamedItemElement = makeElementWithDirtyStyle("color: blue");
+        const removedNamedItem = removeNamedItemElement.attributes.removeNamedItem("STYLE");
+        println(`removeNamedItem: ${removedNamedItem.value} / ${removeNamedItemElement.hasAttribute("style")}`);
+
+        const removeNamedItemNSElement = makeElementWithDirtyStyle("color: blue");
+        const removedNamedItemNS = removeNamedItemNSElement.attributes.removeNamedItemNS(null, "style");
+        println(`removeNamedItemNS: ${removedNamedItemNS.value} / ${removeNamedItemNSElement.hasAttribute("style")}`);
+
+        const namespaceCaseElement = makeElementWithDirtyStyle("color: blue");
+        println(`namespace case-sensitive get: ${namespaceCaseElement.getAttributeNS(null, "STYLE")}`);
+        println(`namespace lowercase get: ${namespaceCaseElement.getAttributeNS(null, "style")}`);
+
+        const namespaceCaseNamedItemElement = makeElementWithDirtyStyle("color: blue");
+        println(`namespace case-sensitive named item: ${namespaceCaseNamedItemElement.attributes.getNamedItemNS(null, "STYLE")}`);
+        println(`namespace lowercase named item: ${namespaceCaseNamedItemElement.attributes.getNamedItemNS(null, "style").value}`);
+
+        const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svgElement.style.color = "red";
+        println(`SVG uppercase: ${svgElement.getAttribute("STYLE")}`);
+        println(`SVG lowercase: ${svgElement.getAttribute("style")}`);
+
+        const xmlDocument = new DOMParser().parseFromString('<html xmlns="http://www.w3.org/1999/xhtml"><body><div/></body></html>', "application/xml");
+        const xmlElement = xmlDocument.querySelector("div");
+        xmlElement.style.color = "red";
+        println(`XML uppercase: ${xmlElement.getAttribute("STYLE")}`);
+        println(`XML lowercase: ${xmlElement.getAttribute("style")}`);
+    });
+</script>

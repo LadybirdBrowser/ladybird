@@ -66,6 +66,7 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/ElementRareData.h>
 #include <LibWeb/DOM/HTMLCollection.h>
+#include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/SelectorQuery.h>
@@ -316,17 +317,36 @@ Element::AttributeList& Element::ensure_attribute_list()
     return *m_attributes;
 }
 
+void Element::synchronize_attribute(Utf16FlyString const& qualified_name) const
+{
+    if (m_style_attribute_is_dirty && qualified_name == HTML::AttributeNames::style)
+        synchronize_style_attribute();
+}
+
+void Element::synchronize_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
+{
+    if (m_style_attribute_is_dirty && !namespace_.has_value() && local_name == HTML::AttributeNames::style)
+        synchronize_style_attribute();
+}
+
+void Element::synchronize_all_attributes() const
+{
+    synchronize_style_attribute();
+}
+
 Optional<size_t> Element::find_attribute_index(Utf16FlyString const& qualified_name) const
 {
-    if (!m_attributes)
-        return {};
-
     Utf16FlyString const* effective_name = &qualified_name;
     Utf16FlyString lowercase_name;
     if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
         lowercase_name = qualified_name.to_ascii_lowercase();
         effective_name = &lowercase_name;
     }
+
+    synchronize_attribute(*effective_name);
+
+    if (!m_attributes)
+        return {};
 
     for (size_t index = 0; index < m_attributes->size(); ++index) {
         if (m_attributes->at(index).name.as_string() == *effective_name)
@@ -337,12 +357,15 @@ Optional<size_t> Element::find_attribute_index(Utf16FlyString const& qualified_n
 
 Optional<size_t> Element::find_attribute_index_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
 {
-    if (!m_attributes)
-        return {};
-
     Optional<Utf16FlyString> normalized_namespace;
     if (namespace_ != Utf16FlyString {})
         normalized_namespace = namespace_;
+
+    synchronize_attribute_ns(normalized_namespace, local_name);
+
+    if (!m_attributes)
+        return {};
+
     for (size_t index = 0; index < m_attributes->size(); ++index) {
         auto const& attribute = m_attributes->at(index);
         if (attribute.name.namespace_() == normalized_namespace && attribute.name.local_name() == local_name)
@@ -384,8 +407,6 @@ Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and this.
-    if (!m_attributes)
-        return {};
     auto index = find_attribute_index_ns(namespace_, name);
 
     // 2. If attr is null, return null.
@@ -400,8 +421,6 @@ Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& 
 Utf16String Element::get_attribute_value(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const
 {
     // 1. Let attr be the result of getting an attribute given namespace, localName, and element.
-    if (!m_attributes)
-        return {};
     auto index = find_attribute_index_ns(namespace_, local_name);
 
     // 2. If attr is null, then return the empty string.
@@ -748,7 +767,7 @@ void Element::activate_the_hyperlink(Event const& event)
 GC::Ptr<Attr> Element::get_attribute_node(Utf16FlyString const& name) const
 {
     // The getAttributeNode(qualifiedName) method steps are to return the result of getting an attribute given qualifiedName and this.
-    if (!m_attributes)
+    if (!find_attribute_index(name).has_value())
         return {};
     return const_cast<Element&>(*this).attributes()->get_attribute(name);
 }
@@ -757,7 +776,7 @@ GC::Ptr<Attr> Element::get_attribute_node(Utf16FlyString const& name) const
 GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
     // The getAttributeNodeNS(namespace, localName) method steps are to return the result of getting an attribute given namespace, localName, and this.
-    if (!m_attributes)
+    if (!find_attribute_index_ns(namespace_, name).has_value())
         return {};
     return const_cast<Element&>(*this).attributes()->get_attribute_ns(namespace_, name);
 }
@@ -1024,9 +1043,6 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns(Attr& attr)
 void Element::remove_attribute(Utf16FlyString const& name)
 {
     // The removeAttribute(qualifiedName) method steps are to remove an attribute given qualifiedName and this, and then return undefined.
-    if (!m_attributes)
-        return;
-
     Utf16FlyString const* effective_name = &name;
     Utf16FlyString lowercase_name;
     if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
@@ -1042,8 +1058,6 @@ void Element::remove_attribute(Utf16FlyString const& name)
 void Element::remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name)
 {
     // The removeAttributeNS(namespace, localName) method steps are to remove an attribute given namespace, localName, and this, and then return undefined.
-    if (!m_attributes)
-        return;
     if (auto index = find_attribute_index_ns(namespace_, name); index.has_value())
         remove_attribute_at(*index);
 }
@@ -1073,9 +1087,6 @@ bool Element::has_attribute(Utf16FlyString const& name) const
 // https://dom.spec.whatwg.org/#dom-element-hasattributens
 bool Element::has_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const
 {
-    if (!m_attributes)
-        return false;
-
     // 1. If namespace is the empty string, then set it to null.
     // 2. Return true if this has an attribute whose namespace is namespace and local name is localName; otherwise false.
     if (namespace_ == Utf16FlyString {})
@@ -1127,6 +1138,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(Utf16FlyString const& name, 
 Vector<Utf16FlyString> Element::get_attribute_names() const
 {
     // The getAttributeNames() method steps are to return the qualified names of the attributes in this’s attribute list, in order; otherwise a new list.
+    synchronize_all_attributes();
     if (!m_attributes)
         return {};
     Vector<Utf16FlyString> names;
@@ -2470,6 +2482,96 @@ void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
         CSS::ElementDeclarationKind::InlineStyle,
         had_declarations,
         style && !style->properties().is_empty());
+}
+
+void Element::prepare_for_inline_style_change()
+{
+    if (is_custom() || document().page().listen_for_dom_mutations()) {
+        synchronize_style_attribute();
+        return;
+    }
+
+    for (Node* node = this; node; node = node->parent()) {
+        auto* registered_observers = node->registered_observer_list();
+        if (!registered_observers)
+            continue;
+        for (auto const& registered_observer : *registered_observers) {
+            auto const& options = registered_observer->options();
+            if (node != this && !options.subtree)
+                continue;
+            if (!options.attributes.value_or(false))
+                continue;
+            if (options.attribute_filter.has_value() && !options.attribute_filter->contains_slow(HTML::AttributeNames::style))
+                continue;
+            synchronize_style_attribute();
+            return;
+        }
+    }
+}
+
+bool Element::can_defer_inline_style_attribute_update() const
+{
+    return !is_custom() && !document().page().listen_for_dom_mutations();
+}
+
+void Element::did_update_inline_style()
+{
+    VERIFY(can_defer_inline_style_attribute_update());
+    VERIFY(m_inline_style);
+
+    bool had_style_attribute = m_style_attribute_is_dirty;
+    Optional<Utf16String> old_value;
+    if (m_attributes) {
+        for (auto const& attribute : *m_attributes) {
+            if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
+                had_style_attribute = true;
+                old_value = attribute.value;
+                break;
+            }
+        }
+    }
+
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
+    m_style_attribute_is_dirty = true;
+    document().mark_style_attribute_dirty();
+    queue_mutation_record(MutationType::attributes, HTML::AttributeNames::style, {}, old_value, {}, {}, nullptr, nullptr);
+
+    if (!document().suppresses_attribute_style_invalidation())
+        CSS::record_element_declarations_changed(*this, CSS::ElementDeclarationKind::InlineStyle, had_style_attribute, true);
+    document().bump_dom_tree_version();
+}
+
+void Element::synchronize_style_attribute() const
+{
+    if (!m_style_attribute_is_dirty)
+        return;
+
+    auto& element = const_cast<Element&>(*this);
+    element.m_style_attribute_is_dirty = false;
+
+    Optional<Utf16String> old_value;
+    Optional<size_t> style_attribute_index;
+    if (element.m_attributes) {
+        for (size_t index = 0; index < element.m_attributes->size(); ++index) {
+            auto const& attribute = element.m_attributes->at(index);
+            if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
+                old_value = attribute.value;
+                style_attribute_index = index;
+                break;
+            }
+        }
+    }
+
+    auto new_value = element.m_inline_style->serialized();
+    if (style_attribute_index.has_value()) {
+        element.m_attributes->at(*style_attribute_index).value = new_value;
+    } else {
+        element.ensure_attribute_list().empend(QualifiedName { HTML::AttributeNames::style, {}, {} }, new_value);
+    }
+
+    CSS::record_element_attribute_changed(element, HTML::AttributeNames::style, {}, old_value, new_value);
 }
 
 // https://dom.spec.whatwg.org/#element-html-uppercased-qualified-name
@@ -4571,6 +4673,7 @@ Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16View> nam
 
 void Element::for_each_attribute(Function<void(Attr&)> callback)
 {
+    synchronize_all_attributes();
     if (!m_attributes)
         return;
     auto attribute_map = attributes();
@@ -4580,6 +4683,7 @@ void Element::for_each_attribute(Function<void(Attr&)> callback)
 
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
+    synchronize_all_attributes();
     if (!m_attributes)
         return;
     auto attribute_map = attributes();
@@ -4589,6 +4693,7 @@ void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 
 void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> callback) const
 {
+    synchronize_all_attributes();
     if (!m_attributes)
         return;
     for (size_t index = 0; index < m_attributes->size(); ++index) {
@@ -4600,6 +4705,7 @@ void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> cal
 
 void Element::for_each_attribute(Function<void(QualifiedName, Utf16String)> callback) const
 {
+    synchronize_all_attributes();
     if (!m_attributes)
         return;
     for (size_t index = 0; index < m_attributes->size(); ++index) {
@@ -4631,11 +4737,13 @@ Layout::NodeWithStyle const* Element::unsafe_layout_node() const
 
 bool Element::has_attributes() const
 {
+    synchronize_all_attributes();
     return m_attributes && !m_attributes->is_empty();
 }
 
 size_t Element::attribute_list_size() const
 {
+    synchronize_all_attributes();
     return m_attributes ? m_attributes->size() : 0;
 }
 

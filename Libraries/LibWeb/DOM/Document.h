@@ -794,6 +794,8 @@ public:
 
     bool has_completed_style_update() const { return m_has_completed_style_update; }
     void set_has_completed_style_update() { m_has_completed_style_update = true; }
+    void mark_style_attribute_dirty() { m_has_dirty_style_attributes = true; }
+    void synchronize_dirty_style_attributes();
     void build_registered_properties_cache_for_style_update() { build_registered_properties_cache(); }
     void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
@@ -1645,6 +1647,7 @@ private:
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_has_completed_style_update { false };
+    bool m_has_dirty_style_attributes { false };
     bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     bool m_needs_full_layout_tree_update { false };

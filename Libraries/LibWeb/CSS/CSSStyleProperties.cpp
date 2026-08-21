@@ -239,6 +239,8 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
     if (!component_value_list)
         return {};
 
+    prepare_to_update_style_attribute();
+
     // 7. Let updated be false.
     bool updated = false;
 
@@ -538,6 +540,8 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
             return {};
         }
 
+        prepare_to_update_style_attribute();
+
         m_custom_properties.set(property.name(),
             StyleProperty {
                 Important::No,
@@ -566,6 +570,8 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         && !is_filter_style_value_list(*style_value)) {
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Setting {} to '{}' is not allowed.", property.name(), style_value->to_string(SerializationMode::Normal)) };
     }
+
+    prepare_to_update_style_attribute();
 
     StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
         m_properties.remove_first_matching([longhand_id](StyleProperty const& style_property) {
@@ -1509,6 +1515,7 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property_internal(Op
             return removed;
         };
 
+        prepare_to_update_style_attribute();
         auto removed = remove_declaration(property.value());
 
         // 7. If removed is true, Update style attribute for the CSS declaration block.
@@ -1810,6 +1817,8 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_css_text(Utf16View css_text)
     if (is_readonly()) {
         return WebIDL::NoModificationAllowedError::create("Cannot modify properties: CSSStyleProperties is read-only."_utf16);
     }
+
+    prepare_to_update_style_attribute();
 
     // 2. Empty the declarations.
     // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the declarations, in specified order.

@@ -1,0 +1,42 @@
+color: red;
+color: red;
+true
+true
+<div style="color: red; background-color: blue;"></div>
+0
+false
+color: red;
+true
+color: red;
+getAttributeNode: color: red;
+getAttributeNS: color: red;
+hasAttributeNS: true
+getAttributeNodeNS: color: red;
+getNamedItemNS: color: red;
+Attr.value: color: red;
+getAttributeNames: style
+attributes.length: 1
+attributes.item: color: red;
+hasAttributes: true
+NamedNodeMap named property: color: red;
+outerHTML: <div style="color: red;"></div>
+cloneNode: color: red;
+matches: true
+querySelector: true
+setAttribute: color: green / green
+removeAttribute: false / 0
+removeAttributeNS: false / 0
+toggleAttribute: false / false / 0
+setAttributeNode: color: red; / green
+setNamedItem: color: red; / green
+removeAttributeNode: color: red; / false / 0
+removeNamedItem: color: red; / false
+removeNamedItemNS: color: red; / false
+namespace case-sensitive get: null
+namespace lowercase get: color: red;
+namespace case-sensitive named item: null
+namespace lowercase named item: color: red;
+SVG uppercase: null
+SVG lowercase: color: red;
+XML uppercase: null
+XML lowercase: color: red;
