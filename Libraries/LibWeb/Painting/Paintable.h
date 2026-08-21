@@ -46,7 +46,7 @@ class PaintableWithLines;
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();
-ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Paintable const& paintable_box);
+ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Layout::NodeWithStyle const& layout_node);
 
 // Walks layout ancestors so it also covers content of unconnected resource subtrees.
 WEB_API Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const&);
@@ -164,13 +164,6 @@ public:
     Layout::RustFFI::PaintableSlotId rust_slot() const { return m_rust_slot; }
     Layout::NodeArena& rust_arena() const { return *m_rust_arena; }
     Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }
-
-    Optional<CSSPixelRect> get_mask_area() const;
-    Optional<Gfx::MaskKind> get_mask_type() const;
-    Optional<CSSPixelRect> get_clip_area() const;
-
-    [[nodiscard]] size_t visual_context_nodes_begin() const { return rust_data().visual_context_nodes_begin; }
-    [[nodiscard]] size_t visual_context_nodes_end() const { return rust_data().visual_context_nodes_end; }
 
 protected:
     explicit Paintable(Layout::NodeWithStyle const&);

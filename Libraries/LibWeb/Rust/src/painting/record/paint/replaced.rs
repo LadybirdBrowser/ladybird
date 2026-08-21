@@ -222,7 +222,9 @@ pub(crate) fn get_replaced_box_painting_area(
 }
 
 fn replaced_facts(recorder: &PaintRecorder<'_>, paintable: PaintableSlotId) -> FfiReplacedPaintFacts {
-    recorder.paint_host.replaced_paint_facts(recorder.shell(paintable))
+    recorder
+        .paint_host
+        .replaced_paint_facts(recorder.layout_node_shell(paintable))
 }
 
 fn replaced_style(recorder: &PaintRecorder<'_>, paintable: PaintableSlotId) -> (u8, u8) {
@@ -271,7 +273,7 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
             let dest_rect = draw_rect.to_float();
             let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
             let paint = recorder.paint_host.replaced_image_paint(
-                recorder.shell(paintable),
+                recorder.layout_node_shell(paintable),
                 [dest_rect.x, dest_rect.y, dest_rect.width, dest_rect.height],
                 accumulated_scale,
             );

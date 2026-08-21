@@ -127,11 +127,12 @@ static Gfx::AffineTransform object_bounding_box_content_units_transform(SVG::SVG
         .scale({ bounding_box.width().to_float(), bounding_box.height().to_float() });
 }
 
-Optional<CSSPixelRect> Paintable::get_mask_area() const
+Optional<CSSPixelRect> mask_area(Layout::Node const& node)
 {
-    if (!kind_supports_svg_masking(kind()))
+    auto const* row = committed_row(node);
+    if (!row || !kind_supports_svg_masking(row->kind))
         return {};
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node());
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
     auto* mask_box = get_mask_box(graphics_element);
     if (!mask_box)
         return {};
@@ -163,21 +164,23 @@ static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
     }
 }
 
-Optional<Gfx::MaskKind> Paintable::get_mask_type() const
+Optional<Gfx::MaskKind> mask_type(Layout::Node const& node)
 {
-    if (!kind_supports_svg_masking(kind()))
+    auto const* row = committed_row(node);
+    if (!row || !kind_supports_svg_masking(row->kind))
         return {};
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node());
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
     if (auto* mask_box = get_mask_box(graphics_element))
         return mask_type_to_gfx_mask_kind(mask_box->mask_type());
     return {};
 }
 
-Optional<CSSPixelRect> Paintable::get_clip_area() const
+Optional<CSSPixelRect> clip_area(Layout::Node const& node)
 {
-    if (!kind_supports_svg_masking(kind()))
+    auto const* row = committed_row(node);
+    if (!row || !kind_supports_svg_masking(row->kind))
         return {};
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node());
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
     auto const* clip_box = get_clip_box(graphics_element);
     if (!clip_box)
         return {};

@@ -20,7 +20,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: Paintab
     {
         return;
     }
-    let facts = recorder.paint_host.overlay_facts(recorder.shell(paintable));
+    let facts = recorder.paint_host.overlay_facts(recorder.layout_node_shell(paintable));
     let converter = recorder.converter;
 
     if facts.paints_scrollbars {

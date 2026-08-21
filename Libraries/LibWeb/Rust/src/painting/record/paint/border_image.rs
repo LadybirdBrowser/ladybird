@@ -398,7 +398,7 @@ pub(crate) fn paint_border_image(
     }
     let image_rendering = style.image_rendering();
     let frame = recorder.paint_host.layer_image_current_frame(
-        recorder.shell(paintable),
+        recorder.layout_node_shell(paintable),
         FfiLayerImageList::BorderImageSource,
         0,
         libgfx_rust::IntRect::default(),

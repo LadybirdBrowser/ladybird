@@ -48,6 +48,7 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
 
 pub(crate) fn transform_reference_box(
     style: ComputedValuesView<'_>,
+    layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     slot: PaintableSlotId,
@@ -71,7 +72,7 @@ pub(crate) fn transform_reference_box(
     match transform_box {
         CONTENT_BOX | FILL_BOX => paintable_geometry::absolute_rect(paintables, slot),
         VIEW_BOX => callbacks
-            .svg_transform_view_box_rect(data.shell)
+            .svg_transform_view_box_rect(layout_arena.shell_if_live(data.layout_node))
             .map(CssPixelRect::from)
             .unwrap_or_else(|| paintable_geometry::absolute_border_box_rect(paintables, slot)),
         _ => paintable_geometry::absolute_border_box_rect(paintables, slot),
@@ -126,7 +127,7 @@ pub(crate) fn compute_transform(
     let node_kind = layout_arena.node_kind_if_live(node)?;
 
     let additional_element_transform = if style_queries::kind_is_svg_element_box(node_kind) {
-        callbacks.svg_additional_element_transform(data.shell)
+        callbacks.svg_additional_element_transform(layout_arena.shell_if_live(node))
     } else {
         None
     };
@@ -142,7 +143,7 @@ pub(crate) fn compute_transform(
 
     // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
     // offset properties as follows:
-    let reference_box = transform_reference_box(style, paintables, callbacks, slot);
+    let reference_box = transform_reference_box(style, layout_arena, paintables, callbacks, slot);
     let origin_lp = |handle: &ComputedStyleValueHandle| {
         handle
             .length_percentage()
@@ -223,7 +224,7 @@ pub(crate) fn compute_perspective_data(
     // 2. Translate by the computed X and Y values of 'perspective-origin'
     // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
     // Percentages: refer to the size of the reference box
-    let reference_box = transform_reference_box(style, paintables, callbacks, slot);
+    let reference_box = transform_reference_box(style, layout_arena, paintables, callbacks, slot);
     let origin_x = transform_values
         .perspective_origin_x
         .length_percentage()
@@ -522,7 +523,7 @@ pub(crate) fn compute_effects_data(
 ) -> Option<EffectsData> {
     use crate::css::css_enums::mix_blend_mode;
     let data = paintables.data_ref(slot);
-    let resolved_filter = callbacks.resolve_effects_filter(data.shell);
+    let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(data.layout_node));
     paintables.side(slot).svg_filter_bounds.set(
         resolved_filter
             .has_svg_filter_bounds
@@ -664,7 +665,7 @@ pub(crate) fn mask_layer_presence(
         }
     }
     if kind_overrides_svg_mask_virtuals(data.kind) {
-        let svg_facts = callbacks.svg_mask_facts(data.shell);
+        let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(data.layout_node));
         if svg_facts.has_mask_area {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgMask,

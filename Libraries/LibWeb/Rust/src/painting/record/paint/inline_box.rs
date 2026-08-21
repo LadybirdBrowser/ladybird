@@ -183,9 +183,10 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId
             text::paint_cursor(recorder, root, Some(paintable));
         }
         if facts.is_visible {
-            let cursor = recorder
-                .paint_host
-                .cursor_facts(recorder.shell(paintable), recorder.shell(paintable));
+            let cursor = recorder.paint_host.cursor_facts(
+                recorder.layout_node_shell(paintable),
+                recorder.layout_node_shell(paintable),
+            );
             if cursor.paints {
                 let color = libgfx_rust::Color(cursor.color);
                 if color.alpha() != 0 {

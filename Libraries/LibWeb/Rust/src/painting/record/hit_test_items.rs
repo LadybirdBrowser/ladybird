@@ -138,7 +138,7 @@ impl<'a> PaintRecorder<'a> {
             self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
         }
         if !self.paintables.side(paintable).fragments.is_empty() {
-            for target in self.host.line_break_caret_targets(self.shell(paintable)) {
+            for target in self.host.line_break_caret_targets(self.layout_node_shell(paintable)) {
                 let rect = CssPixelRect::from(target.rect);
                 let caret_node = self.data(paintable).layout_node;
                 self.append_empty_line_for_node(paintable, caret_node, target.caret_offset, rect, context);

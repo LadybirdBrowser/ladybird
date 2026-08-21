@@ -193,10 +193,8 @@ Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable)
     return { {}, Painting::absolute_rect(viewport_paintable.layout_node()).size().to_type<float>() };
 }
 
-ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Paintable const& paintable_box)
+ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Layout::NodeWithStyle const& layout_node)
 {
-    auto const& layout_node = paintable_box.layout_node();
-
     ResolvedCSSFilter result;
     bool failed = false;
     computed_filter.for_each_operation([&](auto const& operation) {
@@ -207,7 +205,7 @@ ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Pa
                 failed = true;
                 return;
             }
-            auto maybe_filter = paintable_box.document().get_element_by_id(url->fragment);
+            auto maybe_filter = layout_node.document().get_element_by_id(url->fragment);
             if (!maybe_filter) {
                 failed = true;
                 return;
@@ -219,14 +217,14 @@ ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Pa
                 // The replay-time layer maps filter parameters through the accumulated transform,
                 // so only the device pixel ratio — which lives in recorded coordinates, not in the
                 // transform chain — converts here.
-                auto device_pixels_per_css_pixel = paintable_box.document().page().client().device_pixels_per_css_pixel();
+                auto device_pixels_per_css_pixel = layout_node.document().page().client().device_pixels_per_css_pixel();
                 auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
                 result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
                 // The bounds live in the filtered element's user space; an element without
                 // geometry of its own falls back to the whole enclosing viewport rect there.
                 auto bounds = Painting::absolute_border_box_rect(layout_node);
                 if (bounds.is_empty()) {
-                    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(paintable_box.layout_node()))
+                    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node))
                         result.svg_filter_bounds = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
                 }
                 if (!bounds.is_empty())
