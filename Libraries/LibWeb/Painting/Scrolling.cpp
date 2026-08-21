@@ -17,7 +17,6 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Scrolling.h>
 
@@ -150,44 +149,55 @@ static CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM:
     return overflow;
 }
 
-bool could_be_scrolled_by_wheel_event(Layout::Node const& node, ScrollDirection direction)
+static bool overflow_allows_wheel_scrolling(Layout::NodeWithStyle const& node, ScrollDirection direction)
 {
-    if (!has_committed_box(node))
-        return false;
-
-    auto const& node_with_style = as<Layout::NodeWithStyle>(node);
-    bool is_horizontal = direction == ScrollDirection::Horizontal;
-    Gfx::Orientation orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
-    auto overflow = is_horizontal ? node_with_style.overflow_x() : node_with_style.overflow_y();
+    auto overflow = direction == ScrollDirection::Horizontal ? node.overflow_x() : node.overflow_y();
     if (node.is_viewport())
         overflow = overflow_value_applied_to_viewport_for_wheel_scrolling(node.document(), direction);
+    return overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll;
+}
 
-    if (overflow != CSS::Overflow::Auto && overflow != CSS::Overflow::Scroll)
-        return false;
+WheelScrollableAxes wheel_scrollable_axes(Layout::Node const& node)
+{
+    auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
+    if (!node_with_style)
+        return {};
+    WheelScrollableAxes axes {
+        .horizontal = overflow_allows_wheel_scrolling(*node_with_style, ScrollDirection::Horizontal),
+        .vertical = overflow_allows_wheel_scrolling(*node_with_style, ScrollDirection::Vertical),
+    };
+    if (!axes.horizontal && !axes.vertical)
+        return {};
 
     auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(node);
     if (!scrollable_overflow_rect.has_value())
-        return false;
+        return {};
 
-    CSSPixels scrollable_overflow_size = scrollable_overflow_rect->primary_size_for_orientation(orientation);
-    CSSPixels scrollport_size = absolute_padding_box_rect(node).primary_size_for_orientation(orientation);
+    auto scrollport_rect = absolute_padding_box_rect(node);
+    axes.horizontal = axes.horizontal && scrollable_overflow_rect->width() > scrollport_rect.width();
+    axes.vertical = axes.vertical && scrollable_overflow_rect->height() > scrollport_rect.height();
+    return axes;
+}
 
-    return scrollable_overflow_size > scrollport_size;
+bool could_be_scrolled_by_wheel_event(Layout::Node const& node, ScrollDirection direction)
+{
+    auto axes = wheel_scrollable_axes(node);
+    return direction == ScrollDirection::Horizontal ? axes.horizontal : axes.vertical;
 }
 
 bool could_be_scrolled_by_wheel_event(Layout::Node const& node)
 {
-    return could_be_scrolled_by_wheel_event(node, ScrollDirection::Horizontal) || could_be_scrolled_by_wheel_event(node, ScrollDirection::Vertical);
+    auto axes = wheel_scrollable_axes(node);
+    return axes.horizontal || axes.vertical;
 }
 
-RefPtr<Paintable const> nearest_scrollable_ancestor(Layout::Node const& node)
+Layout::Node const* nearest_scrollable_ancestor(Layout::Node const& node)
 {
     for (auto const* box = node.containing_block(); box; box = box->containing_block()) {
-        auto const* paintable = box->paintable_ptr();
-        if (!paintable)
+        if (!has_committed_box(*box))
             return nullptr;
         if (could_be_scrolled_by_wheel_event(*box))
-            return paintable;
+            return box;
         if (is_fixed_position(*box))
             return nullptr;
     }
@@ -286,9 +296,10 @@ ScrollHandled wheel_scroll(Layout::Node& node, double wheel_delta_x, double whee
 {
     if (node.is_viewport())
         return ScrollHandled::No;
-    if (!could_be_scrolled_by_wheel_event(node, ScrollDirection::Horizontal))
+    auto axes = wheel_scrollable_axes(node);
+    if (!axes.horizontal)
         wheel_delta_x = 0;
-    if (!could_be_scrolled_by_wheel_event(node, ScrollDirection::Vertical))
+    if (!axes.vertical)
         wheel_delta_y = 0;
     if (wheel_delta_x == 0 && wheel_delta_y == 0)
         return ScrollHandled::No;
@@ -356,24 +367,24 @@ void scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffi
             cursor_rect.set_y(cursor_rect.y() - 1);
         cursor_rect.set_height(1);
     }
-    auto owner = paintable_for_slot(layout_node->arena_handle(), result.owner_paintable);
-    for (auto* ancestor = owner.ptr(); ancestor;) {
-        if (Painting::has_scrollable_overflow(ancestor->layout_node())) {
+    auto* owner = layout_node_for_committed_slot(layout_node->node_arena(), result.owner_paintable);
+    for (auto* ancestor = owner; ancestor;) {
+        if (Painting::has_scrollable_overflow(*ancestor)) {
             if (scroll_block_direction == ScrollBlockDirection::No) {
-                auto snapport = scroll_snapport_rect(ancestor->layout_node());
+                auto snapport = scroll_snapport_rect(*ancestor);
                 if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-                    cursor_rect.set_y(snapport.y() + scroll_offset(ancestor->layout_node()).y());
+                    cursor_rect.set_y(snapport.y() + scroll_offset(*ancestor).y());
                     cursor_rect.set_height(snapport.height());
                 } else {
-                    cursor_rect.set_x(snapport.x() + scroll_offset(ancestor->layout_node()).x());
+                    cursor_rect.set_x(snapport.x() + scroll_offset(*ancestor).x());
                     cursor_rect.set_width(snapport.width());
                 }
             }
-            scroll_into_view(ancestor->layout_node(), cursor_rect);
+            scroll_into_view(*ancestor, cursor_rect);
             return;
         }
-        auto* containing_block_box = ancestor->layout_node().containing_block();
-        ancestor = containing_block_box ? containing_block_box->paintable_ptr() : nullptr;
+        auto* containing_block_box = ancestor->containing_block();
+        ancestor = containing_block_box && has_committed_box(*containing_block_box) ? containing_block_box : nullptr;
     }
 }
 

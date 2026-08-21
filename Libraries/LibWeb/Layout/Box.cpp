@@ -79,7 +79,7 @@ void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
 static bool commit_splice_position_is_derivable_from_layout_ancestors(Box const& box)
 {
     for (auto const* ancestor = box.parent_ptr(); ancestor; ancestor = ancestor->parent_ptr()) {
-        if (ancestor->paintable_ptr())
+        if (Painting::has_committed_box(*ancestor))
             return true;
         if (!ancestor->is_fragmented_inline())
             return false;

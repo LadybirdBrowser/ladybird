@@ -371,11 +371,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     if (auto const* block_container = as_if<Layout::BlockContainer>(layout_node);
         block_container && block_container->children_are_inline() && Painting::is_paintable_with_lines(layout_node)) {
-        auto paintable = layout_node.paintable();
-        VERIFY(paintable);
         Layout::RustFFI::layout_arena_paintable_dump_block_fragments(
             layout_node.arena_handle(),
-            paintable->rust_slot(),
+            Painting::committed_row_slot(layout_node),
             indent,
             interactive,
             &builder,
@@ -383,11 +381,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     if (Painting::is_inline_paintable(layout_node)) {
-        auto paintable = layout_node.paintable();
-        VERIFY(paintable);
         Layout::RustFFI::layout_arena_paintable_dump_inline_piece_fragments(
             layout_node.arena_handle(),
-            paintable->rust_slot(),
+            Painting::committed_row_slot(layout_node),
             indent,
             interactive,
             &builder,
@@ -520,8 +516,7 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         if (!entry.layout_node_shell)
             continue;
         auto& layout_node = *static_cast<Layout::Node*>(entry.layout_node_shell);
-        auto entry_paintable = layout_node.paintable();
-        if (!entry_paintable)
+        if (!Painting::has_committed_box(layout_node))
             continue;
 
         auto entry_indent = indent + static_cast<int>(entry.depth);
@@ -540,8 +535,8 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         if (Painting::has_scrollable_overflow(layout_node))
             builder.appendff(" overflow: {}", Painting::scrollable_overflow_rect(layout_node));
 
-        if (!Painting::scroll_offset(entry_paintable->layout_node()).is_zero())
-            builder.appendff(" scroll-offset: {}", Painting::scroll_offset(entry_paintable->layout_node()));
+        if (!Painting::scroll_offset(layout_node).is_zero())
+            builder.appendff(" scroll-offset: {}", Painting::scroll_offset(layout_node));
         builder.append("\n"sv);
     }
 }

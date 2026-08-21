@@ -87,8 +87,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     Layout::RustFFI::layout_arena_export_hit_test_items(arena_handle, exported_items.data(), exported_items.size());
     for (auto const& exported : exported_items) {
         VERIFY(exported.paintable.index != Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX);
-        auto paintable = paintable_for_slot(arena_handle, exported.paintable);
-        VERIFY(paintable);
+        VERIFY(Layout::RustFFI::layout_arena_paintable_row(arena_handle, exported.paintable));
         switch (static_cast<ChromeWidgetKind>(exported.chrome_widget_kind)) {
         case ChromeWidgetKind::None:
             break;
@@ -354,11 +353,6 @@ Layout::Node const* HitTestDisplayList::layout_node_for_item(Item const& item) c
     return static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(m_arena->handle(), item.box));
 }
 
-RefPtr<Paintable> HitTestDisplayList::paintable_for_item(Item const& item) const
-{
-    return paintable_for_slot(m_arena->handle(), item.box);
-}
-
 RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item) const
 {
     switch (item.chrome_widget_kind) {
@@ -388,14 +382,14 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
         return layout_node && layout_node->dom_node();
     }
     case ItemKind::Box: {
-        auto paintable_box = paintable_for_item(item);
-        if (!paintable_box)
+        auto const* layout_node = layout_node_for_item(item);
+        if (!layout_node)
             return false;
-        if (Painting::effective_z_index(paintable_box->layout_node()).value_or(0) < 0)
+        if (Painting::effective_z_index(*layout_node).value_or(0) < 0)
             return false;
-        return paintable_box->dom_node()
-            && paintable_box->dom_node()->parent()
-            && (paintable_box->layout_node().is_atomic_inline() || paintable_box->layout_node().is_replaced_box());
+        return layout_node->dom_node()
+            && layout_node->dom_node()->parent()
+            && (layout_node->is_atomic_inline() || layout_node->is_replaced_box());
     }
     case ItemKind::SvgPath:
     case ItemKind::ChromeWidget:
@@ -451,9 +445,9 @@ bool HitTestDisplayList::item_is_direct_caret_target(Item const& item) const
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
-static GC::Ptr<DOM::Node> image_map_area_for_point(Paintable& paintable, CSSPixelPoint local_point)
+static GC::Ptr<DOM::Node> image_map_area_for_point(Layout::Node const& layout_node, CSSPixelPoint local_point)
 {
-    auto* image_element = as_if<HTML::HTMLImageElement>(paintable.dom_node().ptr());
+    auto* image_element = as_if<HTML::HTMLImageElement>(const_cast<DOM::Node*>(layout_node.dom_node()));
     if (!image_element)
         return {};
 
@@ -463,7 +457,7 @@ static GC::Ptr<DOM::Node> image_map_area_for_point(Paintable& paintable, CSSPixe
 
     // For historical reasons, the coordinates must be interpreted relative to the displayed image after any stretching
     // caused by the CSS 'width' and 'height' properties.
-    auto image_rect = Painting::absolute_rect(paintable.layout_node());
+    auto image_rect = Painting::absolute_rect(layout_node);
     return map_element->area_for_point(local_point - image_rect.location(), image_rect.size());
 }
 
@@ -472,8 +466,8 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
     switch (item.kind) {
     case ItemKind::Box: {
         GC::Ptr<DOM::Node> node;
-        if (auto paintable = paintable_for_item(item))
-            node = image_map_area_for_point(*paintable, local_point);
+        if (auto const* layout_node = layout_node_for_item(item))
+            node = image_map_area_for_point(*layout_node, local_point);
         if (!node)
             node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item));
         return HitTestResult {

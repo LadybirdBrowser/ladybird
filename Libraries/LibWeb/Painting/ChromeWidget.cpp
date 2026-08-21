@@ -11,7 +11,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -194,7 +193,7 @@ bool has_resizer(Layout::Node const& node)
         return false;
 
     // https://drafts.csswg.org/css-ui#resize
-    if (is_viewport_paintable(node))
+    if (node.is_viewport())
         return false;
 
     // The effect of the resize property on generated content is undefined.

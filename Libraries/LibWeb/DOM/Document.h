@@ -488,7 +488,6 @@ public:
         HandledByAfterLayoutCommit,
         HandledByFullLayoutCommit,
     };
-    void ensure_scrollable_overflow_is_measured(Layout::Box const&) const;
     void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement = {});
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
