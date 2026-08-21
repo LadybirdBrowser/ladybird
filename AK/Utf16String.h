@@ -80,6 +80,13 @@ public:
         return raw();
     }
 
+    // Transfer this string's existing ownership reference to an FFI caller. The caller must
+    // eventually pass the raw value to adopt_raw() or unref_raw().
+    [[nodiscard]] FlatPtr into_raw() &&
+    {
+        return leak_raw(Badge<Utf16String> {});
+    }
+
     [[nodiscard]] static Utf16String from_raw(FlatPtr raw)
     {
         Utf16String string;
@@ -88,6 +95,19 @@ public:
         if (string.has_long_storage())
             string.data_without_union_member_assertion()->ref();
         return string;
+    }
+
+    // Adopt a raw value produced by into_raw() without changing its reference count. This consumes
+    // the caller's reference. Use from_raw() when the caller keeps its own reference.
+    [[nodiscard]] static Utf16String adopt_raw(FlatPtr raw)
+    {
+        return Utf16String { Detail::Utf16StringBase::adopt_raw(Badge<Utf16String> {}, raw) };
+    }
+
+    static void unref_raw(FlatPtr raw)
+    {
+        // Adopt the bridge's reference and let it drop.
+        auto string = adopt_raw(raw);
     }
 
     template<typename T>
