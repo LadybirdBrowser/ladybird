@@ -619,7 +619,7 @@ fn parse_color_function(context: &ParseContext, property: u16, values: &[Compone
     ))
 }
 
-fn parse_color_interpolation_method(stream: &mut TokenStream<'_>) -> Option<StyleValueData> {
+pub(crate) fn parse_color_interpolation_method(stream: &mut TokenStream<'_>) -> Option<StyleValueData> {
     let start = stream.current_index();
     stream.discard_whitespace();
     if !stream
@@ -881,6 +881,16 @@ pub(crate) fn parse_color_value(
         return Some(color);
     }
     None
+}
+
+pub(crate) fn color_syntax(value: &StyleValueData) -> u8 {
+    match value {
+        StyleValueData::ContrastColor { color_base, .. }
+        | StyleValueData::ColorFunction { color_base, .. }
+        | StyleValueData::ColorMix { color_base, .. }
+        | StyleValueData::LightDark { color_base, .. } => color_base.color_syntax,
+        _ => COLOR_SYNTAX_LEGACY,
+    }
 }
 
 #[cfg(test)]
