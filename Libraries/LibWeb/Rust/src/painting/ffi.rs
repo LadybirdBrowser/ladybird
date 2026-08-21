@@ -46,7 +46,10 @@ pub unsafe extern "C" fn layout_arena_paintable_shell_destroyed(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().shell_destroyed(slot, generation, shell);
+        arena
+            .paintables()
+            .borrow_mut()
+            .shell_destroyed(arena, slot, generation, shell);
     });
 }
 
@@ -61,7 +64,7 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().node_cleared(layout_node, slot);
+        arena.paintables().borrow_mut().node_cleared(arena, layout_node, slot);
     });
 }
 

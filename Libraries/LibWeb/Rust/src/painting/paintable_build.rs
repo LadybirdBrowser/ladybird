@@ -169,6 +169,7 @@ impl<'a> PaintableCommit<'a> {
         if self.callbacks.node_data(root).kind == NodeKind::Viewport {
             return CommitAnchors::default();
         }
+        arena.clear_descendant_subtree_caches_from_layout_node(self.callbacks.arena(), root);
         let parent = self.derived_commit_parent(&arena, root);
         let insert_before = self.derived_commit_insert_before(&arena, root, parent);
         let replaced = arena.paintable_of_node(root);
