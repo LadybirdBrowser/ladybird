@@ -52,8 +52,6 @@ public:
     // renders, such as the window focus state changing.
     void invalidate_all_cached_paint();
 
-    bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y) override;
-
     void set_needs_to_refresh_scroll_state(bool value);
 
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }

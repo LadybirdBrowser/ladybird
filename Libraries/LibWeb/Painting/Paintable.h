@@ -176,8 +176,6 @@ public:
     Optional<Gfx::MaskKind> get_mask_type() const;
     Optional<CSSPixelRect> get_clip_area() const;
 
-    virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y);
-
     struct ScrollbarData {
         CSSPixelRect gutter_rect;
         CSSPixelRect thumb_rect;

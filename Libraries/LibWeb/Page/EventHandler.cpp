@@ -783,7 +783,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (!paintable || !target_layout_node)
             return EventResult::Dropped;
 
-        auto resolve_wheel_default_action_target = [&]() -> RefPtr<Painting::Paintable> {
+        auto resolve_wheel_default_action_target = [&]() -> Layout::Node* {
             auto document = m_navigable->active_document();
             if (!document || !document->is_fully_active())
                 return nullptr;
@@ -793,20 +793,13 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 return nullptr;
 
             if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
-                return Painting::paintable_for_slot(document->layout_node_arena().handle(), result->box);
+                return layout_node_for_target(*document, result->box);
             return nullptr;
         };
 
-        auto perform_wheel_default_action = [&](RefPtr<Painting::Paintable> target) -> EventResult {
-            RefPtr<Painting::Paintable> containing_block = move(target);
-            while (containing_block) {
-                auto handled_scroll_event = containing_block->handle_mousewheel({}, visual_viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y);
-                if (handled_scroll_event)
-                    return EventResult::Handled;
-
-                auto* containing_block_box = containing_block->layout_node().containing_block();
-                containing_block = containing_block_box ? containing_block_box->paintable() : nullptr;
-            }
+        auto perform_wheel_default_action = [&](Layout::Node* target) -> EventResult {
+            if (target && Painting::wheel_scroll_along_containing_block_chain(*target, wheel_delta_x, wheel_delta_y) == Painting::ScrollHandled::Yes)
+                return EventResult::Handled;
 
             auto document = m_navigable->active_document();
             if (!document || !document->paintable_box())
@@ -855,7 +848,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             } else
                 handled_event = dispatch_result;
         } else if (!async_scroll_performed_default_action) {
-            handled_event = perform_wheel_default_action(move(paintable));
+            handled_event = perform_wheel_default_action(target_layout_node);
         }
     }
 
@@ -1349,14 +1342,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (!scroll_target)
             return false;
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
-        RefPtr<Painting::Paintable> containing_block = scroll_target->paintable();
-        while (containing_block) {
-            if (containing_block->handle_mousewheel({}, {}, 0, 0, delta_x, delta_y))
-                return true;
-            auto* containing_block_box = containing_block->layout_node().containing_block();
-            containing_block = containing_block_box ? containing_block_box->paintable() : nullptr;
-        }
-        return false;
+        auto* scroll_target_layout_node = scroll_target->layout_node();
+        return scroll_target_layout_node
+            && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y) == Painting::ScrollHandled::Yes;
     };
     auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y) {
         hold_scroll_gesture_until_key_release();
