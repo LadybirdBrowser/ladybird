@@ -59,6 +59,7 @@ public:
     bool wrapper_is_preserved(JS::Object&);
     bool has_activity_root(JS::Object&);
     WebIDL::UnsignedLongLong message_port_pending_outgoing_message_count(HTML::MessagePort&);
+    WebIDL::UnsignedLongLong html_collection_cache_generation(DOM::HTMLCollection&);
     void fail_next_message_port_transfer(HTML::MessagePort&);
     bool message_ports_are_directly_entangled(HTML::MessagePort&, HTML::MessagePort&);
     GC::Ref<XHR::XMLHttpRequest> create_xml_http_request_for_document(DOM::Document&);

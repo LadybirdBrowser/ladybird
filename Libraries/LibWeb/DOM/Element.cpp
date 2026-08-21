@@ -1378,6 +1378,9 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
             if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
                 invalidate_content_blocker_style_if_needed(*this);
         }
+        auto html_collection_invalidation_types = document().html_collection_attribute_invalidation_types_for_attribute(local_name, namespace_);
+        if (html_collection_invalidation_types != 0)
+            invalidate_html_collection_caches_in_ancestors_for_attribute_change(html_collection_invalidation_types);
         document().bump_dom_tree_version();
     }
 }
@@ -4490,7 +4493,7 @@ void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinitio
     }
 
     if (was_form_associated != is_form_associated)
-        document().bump_form_associated_custom_element_version();
+        document().bump_form_controls_version();
 }
 
 GC::Ptr<HTML::CustomElementRegistry> Element::custom_element_registry() const

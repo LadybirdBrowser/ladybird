@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.createElement("div");
+        host.innerHTML = `
+            <div id="blocker"></div>
+            <form id="first"></form>
+            <input id="control" form="first">
+            <form id="second"></form>
+        `;
+        document.body.append(host);
+
+        const blocker = host.querySelector("#blocker");
+        const firstForm = host.querySelector("#first");
+        const secondForm = host.querySelector("#second");
+        const control = host.querySelector("#control");
+        const firstControls = firstForm.elements;
+        const secondControls = secondForm.elements;
+
+        println(`initial: first=${firstControls.length}, second=${secondControls.length}, owner=${control.form.id}`);
+        let generation = internals.htmlCollectionCacheGeneration(firstControls);
+
+        firstForm.id = "renamed";
+        println(`after form ID change: first=${firstControls.length}, owner=${control.form}, cache rebuilt=${internals.htmlCollectionCacheGeneration(firstControls) > generation}`);
+
+        firstForm.id = "first";
+        println(`after restoring form ID: first=${firstControls.length}, owner=${control.form.id}`);
+        generation = internals.htmlCollectionCacheGeneration(firstControls);
+
+        blocker.id = "first";
+        println(`after introducing earlier matching ID: first=${firstControls.length}, owner=${control.form}, cache rebuilt=${internals.htmlCollectionCacheGeneration(firstControls) > generation}`);
+
+        blocker.id = "blocker";
+        println(`after removing earlier matching ID: first=${firstControls.length}, owner=${control.form.id}`);
+
+        control.setAttribute("form", "second");
+        println(`after changing form attribute: first=${firstControls.length}, second=${secondControls.length}, owner=${control.form.id}`);
+
+        generation = internals.htmlCollectionCacheGeneration(secondControls);
+        control.type = "image";
+        println(`after changing type to image: second=${secondControls.length}, cache rebuilt=${internals.htmlCollectionCacheGeneration(secondControls) > generation}`);
+
+        control.type = "text";
+        println(`after restoring type: second=${secondControls.length}`);
+
+        host.remove();
+    });
+</script>

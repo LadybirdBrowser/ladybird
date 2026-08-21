@@ -1,0 +1,8 @@
+initial: first=1, second=0, owner=first
+after form ID change: first=0, owner=null, cache rebuilt=true
+after restoring form ID: first=1, owner=first
+after introducing earlier matching ID: first=0, owner=null, cache rebuilt=true
+after removing earlier matching ID: first=1, owner=first
+after changing form attribute: first=0, second=1, owner=second
+after changing type to image: second=0, cache rebuilt=true
+after restoring type: second=1

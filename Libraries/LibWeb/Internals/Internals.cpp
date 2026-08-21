@@ -48,6 +48,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -290,6 +291,11 @@ bool Internals::has_activity_root(JS::Object& object)
 WebIDL::UnsignedLongLong Internals::message_port_pending_outgoing_message_count(HTML::MessagePort& port)
 {
     return port.pending_outgoing_message_count();
+}
+
+WebIDL::UnsignedLongLong Internals::html_collection_cache_generation(DOM::HTMLCollection& collection)
+{
+    return collection.cache_generation_for_testing();
 }
 
 void Internals::fail_next_message_port_transfer(HTML::MessagePort& port)

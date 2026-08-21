@@ -19,22 +19,30 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(HTMLCollection);
 
-GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort, Kind kind)
+GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, AttributeInvalidationType attribute_invalidation_type, Function<bool(Element const&, Element const&)> sort, Kind kind)
 {
-    return GC::Heap::the().allocate<HTMLCollection>(root, scope, move(filter), move(sort), kind);
+    return GC::Heap::the().allocate<HTMLCollection>(root, scope, move(filter), attribute_invalidation_type, move(sort), kind);
 }
 
-HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort, Kind kind)
+HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, AttributeInvalidationType attribute_invalidation_type, Function<bool(Element const&, Element const&)> sort, Kind kind)
     : GC::WeakContainer(heap())
     , m_root(root)
     , m_filter(move(filter))
     , m_sort(move(sort))
+    , m_cache_registration(*this)
     , m_scope(scope)
     , m_kind(kind)
+    , m_attribute_invalidation_type(attribute_invalidation_type)
 {
 }
 
 HTMLCollection::~HTMLCollection() = default;
+
+void HTMLCollection::finalize()
+{
+    Base::finalize();
+    invalidate_cache();
+}
 
 void HTMLCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
@@ -83,6 +91,7 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
                 m_cached_name_to_element_mappings->set(move(element_name), element);
         }
     }
+    m_cached_document->register_valid_html_collection_cache(AttributeInvalidationType::IdOrName);
 }
 
 void HTMLCollection::update_cache_if_needed() const
@@ -90,12 +99,13 @@ void HTMLCollection::update_cache_if_needed() const
     auto& document = root()->document();
     auto invalidation_version = this->invalidation_version(document);
 
-    // Nothing to do, the DOM hasn't updated since we last built the cache.
-    if (m_cached_document.ptr().ptr() == &document
-        && m_cached_dom_tree_version == document.dom_tree_version()
+    if (m_cache_registration.list_node.is_in_list()
+        && m_cached_document.ptr().ptr() == &document
         && m_cached_invalidation_version == invalidation_version) {
         return;
     }
+
+    invalidate_cache();
 
     m_cached_elements.clear();
     m_cached_name_to_element_mappings = nullptr;
@@ -120,8 +130,68 @@ void HTMLCollection::update_cache_if_needed() const
     }
 
     m_cached_document = document;
-    m_cached_dom_tree_version = document.dom_tree_version();
     m_cached_invalidation_version = invalidation_version;
+    ++m_cache_generation;
+    document.register_valid_html_collection_cache(m_attribute_invalidation_type);
+    m_root->register_html_collection_with_valid_cache(const_cast<HTMLCollection&>(*this));
+}
+
+void HTMLCollection::invalidate_cache() const
+{
+    if (!m_cache_registration.list_node.is_in_list())
+        return;
+    invalidate_name_to_element_mappings();
+    if (auto cached_document = m_cached_document.ptr())
+        cached_document->unregister_valid_html_collection_cache(m_attribute_invalidation_type);
+    m_cache_registration.list_node.remove();
+    m_cached_elements.clear();
+}
+
+void HTMLCollection::invalidate_name_to_element_mappings() const
+{
+    if (!m_cached_name_to_element_mappings)
+        return;
+    if (auto cached_document = m_cached_document.ptr())
+        cached_document->unregister_valid_html_collection_cache(AttributeInvalidationType::IdOrName);
+    m_cached_name_to_element_mappings = nullptr;
+}
+
+void HTMLCollection::invalidate_cache_for_tree_mutation(Node const& mutation_parent) const
+{
+    if (m_scope == Scope::Children && m_root.ptr() != &mutation_parent)
+        return;
+    invalidate_cache();
+}
+
+void HTMLCollection::invalidate_cache_for_attribute_change(Element const& element, AttributeInvalidationTypes invalidation_types) const
+{
+    if (m_root.ptr() == &element)
+        return;
+    if (m_scope == Scope::Children && m_root.ptr() != element.parent())
+        return;
+
+    auto membership_invalidation_type = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(m_attribute_invalidation_type);
+    if (!(invalidation_types & membership_invalidation_type)) {
+        if (invalidation_types & HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(AttributeInvalidationType::IdOrName))
+            invalidate_name_to_element_mappings();
+        return;
+    }
+
+    if (m_sort) {
+        invalidate_cache();
+        return;
+    }
+
+    // OPTIMIZATION: The cache still records whether the element matched before the attribute
+    // change. Keep the element vector when reevaluating the filter produces the same result.
+    bool was_matching = m_cached_elements.contains([&](auto const& cached_element) { return cached_element.ptr() == &element; });
+    if (was_matching != m_filter(element)) {
+        invalidate_cache();
+        return;
+    }
+
+    if (invalidation_types & HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(AttributeInvalidationType::IdOrName))
+        invalidate_name_to_element_mappings();
 }
 
 u64 HTMLCollection::invalidation_version(Document const& document) const
@@ -130,7 +200,7 @@ u64 HTMLCollection::invalidation_version(Document const& document) const
     case Kind::Generic:
         return 0;
     case Kind::FormControls:
-        return document.form_associated_custom_element_version();
+        return document.form_controls_version();
     case Kind::SelectedOptions:
         return document.option_selectedness_version();
     }

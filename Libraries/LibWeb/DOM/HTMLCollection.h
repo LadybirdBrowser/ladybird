@@ -12,7 +12,14 @@
 #include <LibGC/Weak.h>
 #include <LibGC/WeakContainer.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/DOM/HTMLCollectionCacheRegistration.h>
 #include <LibWeb/Forward.h>
+
+namespace Web::Internals {
+
+class Internals;
+
+}
 
 namespace Web::DOM {
 
@@ -30,6 +37,8 @@ class HTMLCollection
     GC_DECLARE_ALLOCATOR(HTMLCollection);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     enum class Scope {
         Children,
         Descendants,
@@ -41,7 +50,10 @@ public:
         SelectedOptions,
     };
 
-    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
+    using AttributeInvalidationType = HTMLCollectionCacheRegistration::AttributeInvalidationType;
+    using AttributeInvalidationTypes = HTMLCollectionCacheRegistration::AttributeInvalidationTypes;
+
+    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, AttributeInvalidationType, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
 
     virtual ~HTMLCollection() override;
 
@@ -55,7 +67,7 @@ public:
     virtual bool is_supported_property_name(Utf16FlyString const&) const override;
 
 protected:
-    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
+    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, AttributeInvalidationType, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
 
     GC::Ref<ParentNode> root() { return *m_root; }
     GC::Ref<ParentNode const> root() const { return *m_root; }
@@ -64,16 +76,26 @@ protected:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
+    virtual void finalize() override;
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
     virtual GC::Cell const& owner_cell(Badge<GC::Heap>) const override;
 
     void update_cache_if_needed() const;
     void update_name_to_element_mappings_if_needed() const;
     u64 invalidation_version(Document const&) const;
+    void invalidate_cache() const;
+    void invalidate_name_to_element_mappings() const;
+    void invalidate_cache_for_tree_mutation(Node const& mutation_parent) const;
+    void invalidate_cache_for_attribute_change(Element const&, AttributeInvalidationTypes) const;
+
+    friend class Node;
+    friend class Web::Internals::Internals;
+
+    u64 cache_generation_for_testing() const { return m_cache_generation; }
 
     mutable GC::Weak<Document const> m_cached_document;
-    mutable u64 m_cached_dom_tree_version { 0 };
     mutable u64 m_cached_invalidation_version { 0 };
+    mutable u64 m_cache_generation { 0 };
     mutable Vector<GC::RawPtr<Element>> m_cached_elements;
     mutable OwnPtr<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
 
@@ -81,8 +103,11 @@ private:
     Function<bool(Element const&)> m_filter;
     Function<bool(Element const&, Element const&)> m_sort;
 
+    mutable HTMLCollectionCacheRegistration m_cache_registration;
+
     Scope m_scope { Scope::Descendants };
     Kind m_kind { Kind::Generic };
+    AttributeInvalidationType m_attribute_invalidation_type { AttributeInvalidationType::None };
 };
 
 }

@@ -40,6 +40,7 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
+#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/MutationObserver.h>
@@ -171,6 +172,60 @@ void Node::RareData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(children);
     if (registered_observer_list)
         visitor.visit(*registered_observer_list);
+}
+
+void Node::register_html_collection_with_valid_cache(HTMLCollection& collection)
+{
+    auto& collections = ensure_rare_data().html_collections_with_valid_caches;
+    if (!collections)
+        collections = make<HTMLCollectionCacheRegistration::List>();
+    collections->append(collection.m_cache_registration);
+}
+
+void Node::invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadata::AffectsElements affects_elements)
+{
+    if (affects_elements == ChildrenChangedMetadata::AffectsElements::No || !document().has_valid_html_collection_caches())
+        return;
+
+    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+        if (!ancestor->m_rare_data || !ancestor->m_rare_data->html_collections_with_valid_caches)
+            continue;
+
+        GC::RootVector<GC::Ref<HTMLCollection>> collections;
+        for (auto& registration : *ancestor->m_rare_data->html_collections_with_valid_caches)
+            collections.append(registration.collection());
+        for (auto& collection : collections)
+            collection->invalidate_cache_for_tree_mutation(*this);
+    }
+}
+
+void Node::invalidate_html_collection_caches_in_ancestors_for_attribute_change(HTMLCollectionCacheRegistration::AttributeInvalidationTypes invalidation_types)
+{
+    auto& element = as<Element>(*this);
+    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+        if (!ancestor->m_rare_data || !ancestor->m_rare_data->html_collections_with_valid_caches)
+            continue;
+
+        GC::RootVector<GC::Ref<HTMLCollection>> collections;
+        for (auto& registration : *ancestor->m_rare_data->html_collections_with_valid_caches)
+            collections.append(registration.collection());
+        for (auto& collection : collections)
+            collection->invalidate_cache_for_attribute_change(element, invalidation_types);
+    }
+}
+
+static Node::ChildrenChangedMetadata::AffectsElements mutation_affects_elements(ReadonlySpan<GC::Root<Node>> nodes)
+{
+    for (auto const& node : nodes) {
+        if (is<Element>(*node))
+            return Node::ChildrenChangedMetadata::AffectsElements::Yes;
+    }
+    return Node::ChildrenChangedMetadata::AffectsElements::No;
+}
+
+static Node::ChildrenChangedMetadata::AffectsElements mutation_affects_elements(Node& node)
+{
+    return is<Element>(node) ? Node::ChildrenChangedMetadata::AffectsElements::Yes : Node::ChildrenChangedMetadata::AffectsElements::No;
 }
 
 size_t Node::RareData::external_memory_size() const
@@ -732,6 +787,10 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     if (count == 0)
         return;
 
+    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
+    if (document().has_valid_html_collection_caches())
+        affects_elements = mutation_affects_elements(nodes.span());
+
     // 4. If node is a DocumentFragment node:
     if (is<DocumentFragment>(*node)) {
         // 1. Remove its children with suppressObservers set to true.
@@ -862,8 +921,9 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     }
 
     // 9. Run the children changed steps for parent.
-    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node };
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
     children_changed(metadata);
+    invalidate_html_collection_caches_in_ancestors(affects_elements);
 
     // 10. Let staticNodeList be a list of nodes, initially « ».
     // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
@@ -1225,8 +1285,12 @@ void Node::remove(bool suppress_observers)
     }
 
     // 17. Run the children changed steps for parent.
-    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Removal, *this };
+    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
+    if (document().has_valid_html_collection_caches())
+        affects_elements = mutation_affects_elements(*this);
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Removal, *this, affects_elements };
     parent->children_changed(metadata);
+    parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
 
     document().bump_dom_tree_version();
 }
@@ -1433,6 +1497,10 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // 8. Assert: oldParent is non-null.
     VERIFY(old_parent);
 
+    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
+    if (document().has_valid_html_collection_caches())
+        affects_elements = mutation_affects_elements(*this);
+
     struct PreviousReadWriteState {
         GC::Ptr<Element> element;
         bool value;
@@ -1627,6 +1695,9 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 26. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
     new_parent.queue_tree_mutation_record({ *this }, {}, new_previous_sibling, child);
+
+    old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
+    new_parent.invalidate_html_collection_caches_in_ancestors(affects_elements);
 
     document().bump_dom_tree_version();
 

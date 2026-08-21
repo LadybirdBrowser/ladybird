@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -278,11 +279,19 @@ public:
     u64 dom_tree_version() const { return m_dom_tree_version; }
     void bump_dom_tree_version() { ++m_dom_tree_version; }
 
-    u64 form_associated_custom_element_version() const { return m_form_associated_custom_element_version; }
-    void bump_form_associated_custom_element_version() { ++m_form_associated_custom_element_version; }
+    u64 form_controls_version() const { return m_form_controls_version; }
+    void bump_form_controls_version() { ++m_form_controls_version; }
 
     u64 option_selectedness_version() const { return m_option_selectedness_version; }
     void bump_option_selectedness_version() { ++m_option_selectedness_version; }
+
+    using HTMLCollectionAttributeInvalidationType = HTMLCollectionCacheRegistration::AttributeInvalidationType;
+    using HTMLCollectionAttributeInvalidationTypes = HTMLCollectionCacheRegistration::AttributeInvalidationTypes;
+
+    void register_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType) const;
+    void unregister_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType) const;
+    bool has_valid_html_collection_caches() const { return m_html_collection_attribute_invalidation_types != 0; }
+    HTMLCollectionAttributeInvalidationTypes html_collection_attribute_invalidation_types_for_attribute(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const;
 
     // Everything a style input record cannot name by an identity of its own: a stylesheet rule's
     // declarations changing under a block that has not moved, a font finishing loading, the
@@ -1847,8 +1856,10 @@ private:
     Optional<AK::UnixDateTime> m_last_modified;
 
     u64 m_dom_tree_version { 0 };
-    u64 m_form_associated_custom_element_version { 0 };
+    u64 m_form_controls_version { 0 };
     u64 m_option_selectedness_version { 0 };
+    mutable Array<u64, to_underlying(HTMLCollectionAttributeInvalidationType::Count)> m_html_collection_attribute_invalidation_type_counts {};
+    mutable HTMLCollectionAttributeInvalidationTypes m_html_collection_attribute_invalidation_types { 0 };
     u64 m_style_environment_version { 0 };
     u64 m_next_counter_style_environment_identity { 1 };
     u64 m_character_data_version { 0 };

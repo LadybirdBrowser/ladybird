@@ -125,9 +125,7 @@ static AllNamedElementsLookupResult find_all_named_elements(DOM::ParentNode& roo
 static GC::Ref<DOM::HTMLCollection> create_all_named_elements_sub_collection(DOM::ParentNode& root, Utf16String name)
 {
     // 2. Let subCollection be an HTMLCollection object rooted at the same Document as collection, whose filter matches only elements that are either:
-    return DOM::HTMLCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [name = move(name)](DOM::Element const& element) {
-        return all_collection_element_matches_name(element, name);
-    });
+    return DOM::HTMLCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [name = move(name)](DOM::Element const& element) { return all_collection_element_matches_name(element, name); }, DOM::HTMLCollection::AttributeInvalidationType::IdOrName);
 }
 
 static Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> get_the_all_named_elements(DOM::ParentNode& root, Utf16View name)

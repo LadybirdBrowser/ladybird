@@ -203,7 +203,7 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
             }
             return false;
         };
-        m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, move(filter), nullptr, DOM::HTMLCollection::Kind::SelectedOptions);
+        m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, move(filter), DOM::HTMLCollection::AttributeInvalidationType::None, nullptr, DOM::HTMLCollection::Kind::SelectedOptions);
     }
     return *m_selected_options;
 }

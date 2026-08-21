@@ -246,6 +246,53 @@
 
 namespace Web::DOM {
 
+void Document::register_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType type) const
+{
+    VERIFY(type != HTMLCollectionAttributeInvalidationType::Count);
+    auto index = to_underlying(type);
+    ++m_html_collection_attribute_invalidation_type_counts[index];
+    m_html_collection_attribute_invalidation_types |= HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(type);
+}
+
+void Document::unregister_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType type) const
+{
+    VERIFY(type != HTMLCollectionAttributeInvalidationType::Count);
+    auto index = to_underlying(type);
+    VERIFY(m_html_collection_attribute_invalidation_type_counts[index] > 0);
+    if (--m_html_collection_attribute_invalidation_type_counts[index] == 0)
+        m_html_collection_attribute_invalidation_types &= ~HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(type);
+}
+
+Document::HTMLCollectionAttributeInvalidationTypes Document::html_collection_attribute_invalidation_types_for_attribute(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const
+{
+    constexpr auto none = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::None);
+    constexpr auto class_ = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::Class);
+    constexpr auto name = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::Name);
+    constexpr auto id_or_name = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::IdOrName);
+    constexpr auto href = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::Href);
+    constexpr auto form_controls = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::FormControls);
+
+    auto registered_types = m_html_collection_attribute_invalidation_types;
+    auto attribute_sensitive_types = registered_types & ~none;
+    if (attribute_sensitive_types == 0)
+        return 0;
+
+    HTMLCollectionAttributeInvalidationTypes types = 0;
+    if (!namespace_.has_value()) {
+        if ((attribute_sensitive_types & class_) && local_name == HTML::AttributeNames::class_)
+            types |= class_;
+        if ((attribute_sensitive_types & name) && local_name == HTML::AttributeNames::name)
+            types |= name;
+        if ((attribute_sensitive_types & id_or_name) && local_name.is_one_of(HTML::AttributeNames::id, HTML::AttributeNames::name))
+            types |= id_or_name;
+        if ((attribute_sensitive_types & href) && local_name == HTML::AttributeNames::href)
+            types |= href;
+        if ((attribute_sensitive_types & form_controls) && local_name == HTML::AttributeNames::type)
+            types |= form_controls;
+    }
+    return types;
+}
+
 GC_DEFINE_ALLOCATOR(Document);
 
 // https://html.spec.whatwg.org/multipage/origin.html#obtain-browsing-context-navigation
@@ -3270,7 +3317,7 @@ GC::Ref<NodeList> Document::get_elements_by_name(Utf16View name)
 GC::Ref<HTMLCollection> Document::applets()
 {
     if (!m_applets)
-        m_applets = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](auto&) { return false; });
+        m_applets = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](auto&) { return false; }, HTMLCollection::AttributeInvalidationType::None);
     return *m_applets;
 }
 
@@ -3278,9 +3325,7 @@ GC::Ref<HTMLCollection> Document::applets()
 GC::Ref<HTMLCollection> Document::anchors()
 {
     if (!m_anchors) {
-        m_anchors = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return is<HTML::HTMLAnchorElement>(element) && element.name().has_value();
-        });
+        m_anchors = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLAnchorElement>(element) && element.name().has_value(); }, HTMLCollection::AttributeInvalidationType::Name);
     }
     return *m_anchors;
 }
@@ -3289,9 +3334,7 @@ GC::Ref<HTMLCollection> Document::anchors()
 GC::Ref<HTMLCollection> Document::images()
 {
     if (!m_images) {
-        m_images = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return is<HTML::HTMLImageElement>(element);
-        });
+        m_images = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLImageElement>(element); }, HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_images;
 }
@@ -3300,9 +3343,7 @@ GC::Ref<HTMLCollection> Document::images()
 GC::Ref<HTMLCollection> Document::embeds()
 {
     if (!m_embeds) {
-        m_embeds = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return is<HTML::HTMLEmbedElement>(element);
-        });
+        m_embeds = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLEmbedElement>(element); }, HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_embeds;
 }
@@ -3317,9 +3358,7 @@ GC::Ref<HTMLCollection> Document::plugins()
 GC::Ref<HTMLCollection> Document::links()
 {
     if (!m_links) {
-        m_links = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return (is<HTML::HTMLAnchorElement>(element) || is<HTML::HTMLAreaElement>(element)) && element.has_attribute(HTML::AttributeNames::href);
-        });
+        m_links = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) { return (is<HTML::HTMLAnchorElement>(element) || is<HTML::HTMLAreaElement>(element)) && element.has_attribute(HTML::AttributeNames::href); }, HTMLCollection::AttributeInvalidationType::Href);
     }
     return *m_links;
 }
@@ -3328,9 +3367,7 @@ GC::Ref<HTMLCollection> Document::links()
 GC::Ref<HTMLCollection> Document::forms()
 {
     if (!m_forms) {
-        m_forms = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return is<HTML::HTMLFormElement>(element);
-        });
+        m_forms = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLFormElement>(element); }, HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_forms;
 }
@@ -3339,9 +3376,7 @@ GC::Ref<HTMLCollection> Document::forms()
 GC::Ref<HTMLCollection> Document::scripts()
 {
     if (!m_scripts) {
-        m_scripts = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return is<HTML::HTMLScriptElement>(element);
-        });
+        m_scripts = HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLScriptElement>(element); }, HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_scripts;
 }
@@ -5290,8 +5325,7 @@ void Document::check_favicon_after_loading_link_resource()
     auto favicon_link_elements = HTMLCollection::create(*head_element, HTMLCollection::Scope::Descendants, [](Element const& element) {
         if (auto const* link_element = as_if<HTML::HTMLLinkElement>(element))
             return link_element->has_loaded_icon();
-        return false;
-    });
+        return false; }, HTMLCollection::AttributeInvalidationType::None);
 
     if (favicon_link_elements->length() == 0) {
         dbgln_if(SPAM_DEBUG, "No favicon found to be used");
@@ -10177,9 +10211,7 @@ JS::Value document_named_item_value(WrapperWorld& wrapper_world, JS::Realm& real
         return wrap(wrapper_world, realm, elements.first()).ptr();
 
     // 4. Otherwise return an HTMLCollection rooted at the Document node, whose filter matches only named elements with the name name.
-    auto collection = DOM::HTMLCollection::create(*const_cast<DOM::Document*>(&document), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) {
-        return DOM::Document::is_named_element_with_name(element, name);
-    });
+    auto collection = DOM::HTMLCollection::create(*const_cast<DOM::Document*>(&document), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) { return DOM::Document::is_named_element_with_name(element, name); }, DOM::HTMLCollection::AttributeInvalidationType::IdOrName);
     return wrap(wrapper_world, realm, collection);
 }
 

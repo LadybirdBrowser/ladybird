@@ -82,9 +82,7 @@ GC::Ref<DOM::HTMLCollection> HTMLTableRowElement::cells() const
     // The cells attribute must return an HTMLCollection rooted at this tr element,
     // whose filter matches only td and th elements that are children of the tr element.
     if (!m_cells) {
-        m_cells = DOM::HTMLCollection::create(const_cast<HTMLTableRowElement&>(*this), DOM::HTMLCollection::Scope::Children, [](Element const& element) {
-            return is<HTMLTableCellElement>(element);
-        });
+        m_cells = DOM::HTMLCollection::create(const_cast<HTMLTableRowElement&>(*this), DOM::HTMLCollection::Scope::Children, [](Element const& element) { return is<HTMLTableCellElement>(element); }, DOM::HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_cells;
 }

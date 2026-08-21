@@ -33,7 +33,7 @@ GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::Pare
 }
 
 HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, HTMLFormElement& form, Function<bool(DOM::Element const&)> filter)
-    : DOM::HTMLCollection(root, scope, move(filter), nullptr, Kind::FormControls)
+    : DOM::HTMLCollection(root, scope, move(filter), AttributeInvalidationType::FormControls, nullptr, Kind::FormControls)
     , m_form(form)
 {
 }

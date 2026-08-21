@@ -76,7 +76,7 @@ GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
 
             return false;
         };
-        m_elements = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, move(filter), nullptr, DOM::HTMLCollection::Kind::FormControls);
+        m_elements = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, move(filter), DOM::HTMLCollection::AttributeInvalidationType::FormControls, nullptr, DOM::HTMLCollection::Kind::FormControls);
     }
     return m_elements;
 }

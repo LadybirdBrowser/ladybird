@@ -1,0 +1,26 @@
+initial descendants: section,span
+after fragment insertion: section,span,p,em
+after subtree removal: p,em
+initial children: first,second
+after descendant insertion: first,second, cache preserved: true
+after child insertion: first,second,third, cache rebuilt: true
+after atomic move: third,first,second
+rows after text move: 2, same first row: true, cache preserved: true
+cells after text move: 2, same first cell: true, cache preserved: true
+rows after attribute change: cache preserved: true
+before adoption: before, named=true
+after adoption and insertion: before,after, named=true
+after subsequent insertion: before,after,final
+after cross-root move: source=source, destination=destination,moved
+cross-root caches rebuilt: source=true, destination=true
+initial attribute collections: class=1, link=0
+after irrelevant attribute: cache preserved=true
+after matching attributes: class=2, link=1, anchor=1
+named candidate: true
+after id change: old=null, new=true, cache preserved=true
+after name change: old=null, new=true, anchor=1
+after removing matching attributes: class=1, link=0, anchor=0
+initial scoped names: direct=true, nested=null
+after nested ID change: nested=null, cache preserved=true
+after direct ID change: old=null, new=true, cache preserved=true
+mutations after named collection GC: 2, id=after

@@ -83,9 +83,7 @@ GC::Ref<HTMLCollection> ParentNode::children()
     // The children getter steps are to return an HTMLCollection collection rooted at this matching only element children.
     auto& children = ensure_rare_data().children;
     if (!children) {
-        children = HTMLCollection::create(*this, HTMLCollection::Scope::Children, [](Element const&) {
-            return true;
-        });
+        children = HTMLCollection::create(*this, HTMLCollection::Scope::Children, [](Element const&) { return true; }, HTMLCollection::AttributeInvalidationType::None);
     }
     return *children;
 }
@@ -96,9 +94,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString cons
 {
     // 1. If qualifiedName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches only descendant elements.
     if (qualified_name == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) {
-            return true;
-        });
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) { return true; }, HTMLCollection::AttributeInvalidationType::None);
     }
 
     // 2. Otherwise, if root’s node document is an HTML document, return a HTMLCollection rooted at root, whose filter matches the following descendant elements:
@@ -110,14 +106,11 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString cons
                 return element.qualified_name() == lowercase_qualified_name;
 
             // - Whose namespace is not the HTML namespace and whose qualified name is qualifiedName.
-            return element.qualified_name().view() == qualified_name.view();
-        });
+            return element.qualified_name() == qualified_name; }, HTMLCollection::AttributeInvalidationType::None);
     }
 
     // 3. Otherwise, return a HTMLCollection rooted at root, whose filter matches descendant elements whose qualified name is qualifiedName.
-    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name](Element const& element) {
-        return element.qualified_name().view() == qualified_name.view();
-    });
+    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name](Element const& element) { return element.qualified_name() == qualified_name; }, HTMLCollection::AttributeInvalidationType::None);
 }
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagnamens
@@ -130,16 +123,12 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<Utf16Fl
 
     // 2. If both namespace and localName are "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements.
     if (namespace_ == u"*"sv && local_name == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) {
-            return true;
-        });
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [](Element const&) { return true; }, HTMLCollection::AttributeInvalidationType::None);
     }
 
     // 3. Otherwise, if namespace is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose local name is localName.
     if (namespace_ == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [local_name](Element const& element) {
-            return element.local_name().view() == local_name.view();
-        });
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [local_name](Element const& element) { return element.local_name().view() == local_name.view(); }, HTMLCollection::AttributeInvalidationType::None);
     }
 
     // 4. Otherwise, if localName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace.
@@ -148,8 +137,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<Utf16Fl
             auto element_namespace = element.namespace_uri();
             if (element_namespace.has_value() != namespace_.has_value())
                 return false;
-            return !namespace_.has_value() || element_namespace->view() == namespace_->view();
-        });
+            return !namespace_.has_value() || element_namespace->view() == namespace_->view(); }, HTMLCollection::AttributeInvalidationType::None);
     }
 
     // 5. Otherwise, return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace and local name is localName.
@@ -158,8 +146,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<Utf16Fl
         if (element_namespace.has_value() != namespace_.has_value())
             return false;
         return (!namespace_.has_value() || element_namespace->view() == namespace_->view())
-            && element.local_name().view() == local_name.view();
-    });
+            && element.local_name().view() == local_name.view(); }, HTMLCollection::AttributeInvalidationType::None);
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-prepend
@@ -247,8 +234,7 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16View class_n
             if (!element.has_class(name.utf16_view(), quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
                 return false;
         }
-        return !list_of_class_names.is_empty();
-    });
+        return !list_of_class_names.is_empty(); }, HTMLCollection::AttributeInvalidationType::Class);
 }
 
 GC::Ptr<Element> ParentNode::get_element_by_id(Utf16View id) const

@@ -23,7 +23,7 @@ GC::Ref<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& ro
 }
 
 HTMLOptionsCollection::HTMLOptionsCollection(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
-    : DOM::HTMLCollection(root, Scope::Descendants, move(filter))
+    : DOM::HTMLCollection(root, Scope::Descendants, move(filter), AttributeInvalidationType::None)
 {
 }
 
