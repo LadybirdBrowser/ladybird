@@ -58,7 +58,25 @@ PlatformObject::PlatformObject(JS::Object& prototype, MayInterfereWithIndexedPro
     set_requires_slow_add_own_property();
 }
 
+PlatformObject::PlatformObject(JS::Realm& realm, GC::Ref<Bindings::Wrappable> wrappable, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+    : PlatformObject(realm, may_interfere_with_indexed_property_access)
+{
+    m_wrappable = wrappable;
+}
+
+PlatformObject::PlatformObject(JS::Object& prototype, GC::Ref<Bindings::Wrappable> wrappable, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+    : PlatformObject(prototype, may_interfere_with_indexed_property_access)
+{
+    m_wrappable = wrappable;
+}
+
 PlatformObject::~PlatformObject() = default;
+
+void PlatformObject::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_wrappable);
+}
 
 void PlatformObject::finalize()
 {

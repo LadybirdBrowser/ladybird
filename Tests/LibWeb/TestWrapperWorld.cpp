@@ -144,8 +144,7 @@ public:
     using PlatformObject::set_value_of_new_indexed_property;
 
     TestWrapperObject(JS::Realm& realm, GC::Ref<Web::Bindings::Wrappable> impl)
-        : PlatformObject(realm)
-        , m_impl(impl)
+        : PlatformObject(realm, impl)
     {
         m_legacy_platform_object_flags = LegacyPlatformObjectFlags {};
         m_legacy_platform_object_flags->supports_indexed_properties = true;
@@ -154,23 +153,20 @@ public:
 
     virtual Web::WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm& realm, Utf16FlyString const&, JS::Value) override
     {
-        static_cast<TestWrappable&>(*m_impl).record_setter_realm(realm);
+        static_cast<TestWrappable&>(*wrappable_impl()).record_setter_realm(realm);
         return {};
     }
 
     virtual Web::WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm& realm, u32, JS::Value) override
     {
-        static_cast<TestWrappable&>(*m_impl).record_setter_realm(realm);
+        static_cast<TestWrappable&>(*wrappable_impl()).record_setter_realm(realm);
         return {};
     }
 
 protected:
-    virtual Web::Bindings::Wrappable* wrappable_impl() override { return m_impl.ptr(); }
-    virtual Web::Bindings::Wrappable const* wrappable_impl() const override { return m_impl.ptr(); }
-
     virtual Optional<JS::Value> item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override
     {
-        auto const& impl = static_cast<TestWrappable const&>(*m_impl);
+        auto const& impl = static_cast<TestWrappable const&>(*wrappable_impl());
         if (index != 0 || !impl.indexed_value())
             return {};
         return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.indexed_value() }).ptr();
@@ -178,20 +174,11 @@ protected:
 
     virtual JS::Value named_item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, Utf16FlyString const& name) const override
     {
-        auto const& impl = static_cast<TestWrappable const&>(*m_impl);
+        auto const& impl = static_cast<TestWrappable const&>(*wrappable_impl());
         if (name != "child"_utf16_fly_string || !impl.named_value())
             return JS::js_undefined();
         return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.named_value() }).ptr();
     }
-
-private:
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit(m_impl);
-    }
-
-    GC::Ref<Web::Bindings::Wrappable> m_impl;
 };
 
 #define EXPECT_NOT_CONSTRUCTIBLE_FROM_WRAPPABLE(Target)              \

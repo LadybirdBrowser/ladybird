@@ -28,7 +28,6 @@ from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import needs_legacy_platform_object_flags_initialization
 from Generators.libweb_bindings.wrappers import wrapper_base_class_name
 from Generators.libweb_bindings.wrappers import wrapper_class_name
-from Generators.libweb_bindings.wrappers import wrapper_needs_wrappable_impl
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 
@@ -122,8 +121,7 @@ def write_wrapper_implementation(
     else:
         out.write(
             f"""{wrapper_class}::{wrapper_class}(JS::Realm& realm, GC::Ref<{impl_type}> impl)
-    : {base_class}(realm{location_object_constructor_argument})
-    , m_impl(impl)
+    : {base_class}(realm, impl{location_object_constructor_argument})
 {{
 {legacy_platform_object_flags_initialization(interface)}
 }}
@@ -160,27 +158,12 @@ def write_wrapper_implementation(
         out.write(
             f"""{impl_type}& {wrapper_class}::impl()
 {{
-    return *m_impl;
+    return static_cast<{impl_type}&>(*wrappable_impl());
 }}
 
 {impl_type} const& {wrapper_class}::impl() const
 {{
-    return *m_impl;
-}}
-
-"""
-        )
-
-    if wrapper_needs_wrappable_impl(context, interface):
-        out.write(
-            f"""Wrappable* {wrapper_class}::wrappable_impl()
-{{
-    return &impl();
-}}
-
-Wrappable const* {wrapper_class}::wrappable_impl() const
-{{
-    return &impl();
+    return static_cast<{impl_type} const&>(*wrappable_impl());
 }}
 
 """
@@ -257,18 +240,13 @@ JS::ErrorData const* {wrapper_class}::error_data() const
 
 """
         )
-    if not interface.parent_name or interface.name == "Window":
+    if interface.name in ("Location", "Window"):
         out.write(
             f"""void {wrapper_class}::visit_edges(JS::Cell::Visitor& visitor)
 {{
     Base::visit_edges(visitor);
 """
         )
-        if not interface.parent_name:
-            out.write(
-                """    visitor.visit(m_impl);
-"""
-            )
         if interface.name == "Location":
             out.write(
                 """    visitor.visit(m_default_properties);
