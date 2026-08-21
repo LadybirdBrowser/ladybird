@@ -38,6 +38,7 @@ public:
     void set_prompt_text(QString const& text);
     void accept();
     void dismiss();
+    void reset();
 
     Function<void(Type, bool accepted, QString const& prompt_text)> on_complete;
 
