@@ -680,7 +680,7 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             auto dom_node = paintable.dom_node();
             facts.dom_node_has_parent = dom_node && dom_node->parent();
             facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
-            facts.has_resizer = paintable.has_resizer();
+            facts.has_resizer = has_resizer(layout_node);
             facts.could_be_scrolled_horizontally = could_be_scrolled_by_wheel_event(paintable.layout_node(), ScrollDirection::Horizontal);
             facts.could_be_scrolled_vertically = could_be_scrolled_by_wheel_event(paintable.layout_node(), ScrollDirection::Vertical);
             if (paintable.is_svg_path_paintable()) {
@@ -793,15 +793,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 && should_paint_viewport_scrollbars()
                 && layout_node.scrollbar_width() != CSS::ScrollbarWidth::None;
             if (facts.records_viewport_scrollbars) {
-                auto scrollbar_colors = scrollbar_colors_for_paint(paintable);
+                auto scrollbar_colors = scrollbar_colors_for_paint(layout_node);
                 auto const& metrics = paintable.document().page().chrome_metrics();
                 size_t index = 0;
                 for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
                     auto& out = facts.viewport_scrollbars[index++];
-                    auto scrollbar_data = paintable.compute_scrollbar_data(direction, metrics, nullptr, Paintable::ScrollbarSizing::Regular);
+                    auto scrollbar_data = compute_scrollbar_data(layout_node, direction, metrics, nullptr, ScrollbarSizing::Regular);
                     if (!scrollbar_data.has_value())
                         continue;
-                    auto expanded_scrollbar_data = paintable.compute_scrollbar_data(direction, metrics, nullptr, Paintable::ScrollbarSizing::Enlarged);
+                    auto expanded_scrollbar_data = compute_scrollbar_data(layout_node, direction, metrics, nullptr, ScrollbarSizing::Enlarged);
                     VERIFY(expanded_scrollbar_data.has_value());
                     out.present = true;
                     write_css_rect(scrollbar_data->gutter_rect, out.gutter_rect);
@@ -824,13 +824,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             facts.paints_scrollbars = ((should_paint_viewport_scrollbars() && !paintable.document().page().async_scrolling_enabled()) || !paintable.is_viewport_paintable())
                 && layout_node.scrollbar_width() != CSS::ScrollbarWidth::None;
             if (facts.paints_scrollbars) {
-                auto scrollbar_colors = scrollbar_colors_for_paint(paintable);
+                auto scrollbar_colors = scrollbar_colors_for_paint(layout_node);
                 facts.thumb_color = scrollbar_colors.thumb_color.value();
                 facts.track_color = scrollbar_colors.track_color.value();
                 size_t index = 0;
                 for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
                     auto& out = facts.scrollbars[index++];
-                    auto scrollbar_data = paintable.compute_scrollbar_data(direction, metrics);
+                    auto scrollbar = paintable.scrollbar(direction);
+                    auto scrollbar_data = compute_scrollbar_data(layout_node, direction, metrics, nullptr,
+                        scrollbar && scrollbar->is_enlarged() ? ScrollbarSizing::Enlarged : ScrollbarSizing::Regular);
                     if (!scrollbar_data.has_value())
                         continue;
                     out.present = true;
@@ -840,7 +842,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     out.thumb_travel_to_scroll_ratio = scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
                 }
             }
-            if (auto resizer_rect = paintable.absolute_resizer_rect(metrics); resizer_rect.has_value()) {
+            if (auto resizer_rect = absolute_resizer_rect(layout_node, metrics); resizer_rect.has_value()) {
                 facts.has_resizer_rect = true;
                 write_css_rect(*resizer_rect, facts.resizer_rect);
                 facts.resize_gripper_padding = metrics.resize_gripper_padding.raw_value();

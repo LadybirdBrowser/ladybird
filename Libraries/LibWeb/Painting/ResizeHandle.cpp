@@ -6,6 +6,7 @@
 
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ResizeHandle.h>
@@ -31,7 +32,7 @@ bool ResizeHandle::contains(CSSPixelPoint position, ChromeMetrics const& metrics
     auto paintable_box = paintable();
     if (!paintable_box)
         return false;
-    return paintable_box->resizer_contains(position, metrics);
+    return resizer_contains(paintable_box->layout_node(), position, metrics);
 }
 
 Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
@@ -39,10 +40,10 @@ Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
     auto paintable_box = paintable();
     if (!paintable_box)
         return {};
-    auto axes = paintable_box->physical_resize_axes();
+    auto axes = physical_resize_axes(paintable_box->layout_node());
     if (axes.vertical) {
         if (axes.horizontal) {
-            if (paintable_box->is_chrome_mirrored())
+            if (is_chrome_mirrored(paintable_box->layout_node()))
                 return CSS::CursorPredefined::SwResize;
             return CSS::CursorPredefined::SeResize;
         }

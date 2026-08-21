@@ -33,7 +33,7 @@ bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) c
     auto paintable_box = paintable();
     if (!paintable_box)
         return false;
-    if (auto rect = paintable_box->absolute_scrollbar_rect(m_direction, is_enlarged(), metrics); rect.has_value())
+    if (auto rect = absolute_scrollbar_rect(paintable_box->layout_node(), m_direction, is_enlarged(), metrics); rect.has_value())
         return rect->contains(position);
     return false;
 }
@@ -120,7 +120,8 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     ChromeMetrics metrics = paintable_box->document().page().chrome_metrics();
 
     auto const& scroll_state = paintable_box->document().paintable()->scroll_state_snapshot();
-    auto scrollbar_data = paintable_box->compute_scrollbar_data(m_direction, metrics, &scroll_state);
+    auto scrollbar_data = compute_scrollbar_data(paintable_box->layout_node(), m_direction, metrics, &scroll_state,
+        is_enlarged() ? ScrollbarSizing::Enlarged : ScrollbarSizing::Regular);
     if (!scrollbar_data.has_value())
         return false;
 
