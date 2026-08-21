@@ -19,12 +19,18 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Painting {
+
+Layout::RustFFI::PaintableSlotId viewport_row_slot(DOM::Document const& document)
+{
+    return { Layout::Node::slot_id(document.unsafe_layout_node()).index };
+}
 
 bool has_committed_box(Layout::Node const& node)
 {

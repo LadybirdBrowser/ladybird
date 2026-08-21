@@ -8347,8 +8347,8 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
 void Document::set_needs_to_refresh_scroll_state(bool b)
 {
     // NB: Propagating scroll state invalidation.
-    if (auto paintable = this->unsafe_paintable())
-        paint_state().set_needs_to_refresh_scroll_state(*paintable, b);
+    if (this->unsafe_paintable())
+        paint_state().set_needs_to_refresh_scroll_state(*this, b);
 }
 
 Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)
@@ -9082,7 +9082,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    auto display_list = Painting::record_rust_display_list(viewport_paintable, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
+    auto display_list = Painting::record_rust_display_list(*this, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
     if (!display_list)
         return nullptr;
     m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), viewport_paintable.rust_arena(), *m_chrome_widget_registry);
@@ -9138,7 +9138,7 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     if (!hit_test_display_list || !viewport_paintable)
         return {};
     viewport_paintable->refresh_scroll_state();
-    auto result = hit_test_display_list->hit_test(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
+    auto result = hit_test_display_list->hit_test(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     if (result.has_value() && (result->chrome_widget || result->node))
         return result;
 
@@ -9164,7 +9164,7 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point(CSSPixelPo
     if (!hit_test_display_list || !viewport_paintable)
         return {};
     viewport_paintable->refresh_scroll_state();
-    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Normal);
+    return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Normal);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(CSSPixelPoint position)
@@ -9174,7 +9174,7 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point_for_select
     if (!hit_test_display_list || !viewport_paintable)
         return {};
     viewport_paintable->refresh_scroll_state();
-    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
+    return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
@@ -9184,7 +9184,7 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point_for_select
     if (!hit_test_display_list || !viewport_paintable)
         return {};
     viewport_paintable->refresh_scroll_state();
-    return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Selection, constraint_scope);
+    return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Selection, constraint_scope);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineEdge edge)
@@ -9224,7 +9224,7 @@ TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<Traver
     if (!hit_test_display_list || !viewport_paintable)
         return TraversalDecision::Continue;
     viewport_paintable->refresh_scroll_state();
-    return hit_test_display_list->hit_test_all(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), callback);
+    return hit_test_display_list->hit_test_all(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), callback);
 }
 
 Unicode::Segmenter& Document::grapheme_segmenter() const
@@ -9698,7 +9698,7 @@ Utf16String Document::dump_stacking_context_tree()
     viewport_paintable->build_stacking_context_tree_if_needed();
 
     StringBuilder builder;
-    Painting::dump_stacking_context_tree(builder, *viewport_paintable);
+    Painting::dump_stacking_context_tree(builder, *this);
     if (builder.is_empty())
         return "No stacking context"_utf16;
     return Utf16String::from_utf8_without_validation(builder.string_view());
