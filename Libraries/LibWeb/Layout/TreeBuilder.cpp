@@ -756,11 +756,10 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_and_paint_node(DOM::
             return TraversalDecision::SkipChildrenAndContinue;
     }
 
+    node.clear_paintable();
+    LayoutTreeBuilderAccess::detach_layout_node(node);
     if (layout_node && layout_node->parent())
         layout_node->remove();
-
-    LayoutTreeBuilderAccess::detach_layout_node(node);
-    node.clear_paintable();
 
     if (is<DOM::Element>(node))
         LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(static_cast<DOM::Element&>(node));
