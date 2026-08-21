@@ -1182,6 +1182,13 @@ impl RetainedNumericRangeList {
         }
     }
 
+    pub(crate) fn from_single_numeric_range(value_type: u8, min: f64, max: f64) -> Self {
+        let ranges = vec![RetainedNumericRangeByType { value_type, min, max }].into_boxed_slice();
+        let length = ranges.len();
+        let pointer = Box::into_raw(ranges) as *mut RetainedNumericRangeByType;
+        Self { pointer, length }
+    }
+
     pub(crate) fn as_slice(&self) -> &[RetainedNumericRangeByType] {
         if self.pointer.is_null() {
             return &[];

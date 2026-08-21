@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub(crate) mod calc_parser;
 pub(crate) mod component_value;
 pub(crate) mod token_stream;
 pub(crate) mod value_parser;

@@ -75,6 +75,18 @@ pub struct CalcNumericType {
 }
 
 impl CalcNumericType {
+    pub(crate) fn matches_dimension_category(&self) -> bool {
+        let mut ones = 0;
+        for (base, exponent) in self.exponents.iter().enumerate() {
+            match exponent {
+                Some(1) if base != BASE_TYPE_PERCENT => ones += 1,
+                Some(0) | None => {}
+                _ => return false,
+            }
+        }
+        ones <= 1
+    }
+
     fn contains_all_the_non_zero_entries_of_other_with_the_same_value(&self, other: &CalcNumericType) -> bool {
         for i in 0..BASE_TYPE_COUNT {
             let other_exponent = other.exponents[i];
@@ -284,6 +296,46 @@ impl CalcNumericType {
         // 3. Return base.
         Some(base)
     }
+}
+
+fn base_type_from_value_type(value_type: u8) -> Option<u8> {
+    match value_type {
+        value_type::ANGLE => Some(1),
+        value_type::FLEX => Some(5),
+        value_type::FREQUENCY => Some(3),
+        value_type::LENGTH => Some(0),
+        value_type::PERCENTAGE => Some(6),
+        value_type::RESOLUTION => Some(4),
+        value_type::TIME => Some(2),
+        _ => None,
+    }
+}
+
+pub(crate) fn resolve_as_for_value_type(value_type: Option<u8>) -> Option<ResolveAs> {
+    value_type.map(|value_type| base_type_from_value_type(value_type).map_or(ResolveAs::Number, ResolveAs::Base))
+}
+
+pub(crate) fn simplify_parsed_calculation(
+    root: Arc<CalcNode>,
+    percentages_resolve_as: Option<u8>,
+) -> Option<(Arc<CalcNode>, CalcNumericType)> {
+    let resolve_as = resolve_as_for_value_type(percentages_resolve_as);
+    let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
+    let evaluation_context = CalcEvaluationContext {
+        percentage_leaf_type: &percentage_leaf_type,
+        resolve_as,
+        percentage_basis: None,
+        length_resolution: LengthResolution::default(),
+        random_base_value: None,
+    };
+    let callbacks = CalcSimplifyCallbacks {
+        resolve_non_math_function: &|_| None,
+        resolve_channel_keyword: &|_| None,
+        absolutize_random_sharing: &|_| None,
+    };
+    let simplified = root.simplify(&evaluation_context, &callbacks);
+    let numeric_type = simplified.numeric_type(&percentage_leaf_type)?;
+    Some((simplified, numeric_type))
 }
 
 /// The result of evaluating a calculation: the numeric value in canonical
