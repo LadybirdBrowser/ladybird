@@ -857,6 +857,7 @@ set(SOURCES
     Painting/AccumulatedVisualContext.cpp
     Painting/Blending.cpp
     Painting/BoxModelMetrics.cpp
+    Painting/BoxViews.cpp
     Painting/Canvas2DCommandStream.cpp
     Painting/ChromeWidget.cpp
     Painting/DepthSortedReplayPlan.cpp
