@@ -183,9 +183,11 @@ DecoderErrorOr<double> Streamer::read_float()
 
 DecoderErrorOr<void> Streamer::read_unknown_element()
 {
-    auto element_length = TRY(read_variable_size_integer());
-    dbgln_if(MATROSKA_TRACE_DEBUG, "Skipping unknown element of size {}.", element_length);
-    TRY(m_stream_cursor->seek(element_length, AK::SeekMode::FromCurrentPosition));
+    auto element_size = TRY(read_element_size());
+    if (!element_size.has_value())
+        return DecoderError::corrupted("Cannot skip past an element with an unknown size"sv);
+    dbgln_if(MATROSKA_TRACE_DEBUG, "Skipping unknown element of size {}.", element_size.value());
+    TRY(m_stream_cursor->seek(element_size.value(), AK::SeekMode::FromCurrentPosition));
     return {};
 }
 
