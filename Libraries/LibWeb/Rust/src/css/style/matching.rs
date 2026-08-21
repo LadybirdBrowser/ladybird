@@ -163,6 +163,34 @@ impl StyleEngine {
         }
     }
 
+    /// Retire an active traversal whose plan describes the previous transaction's facts.
+    ///
+    /// A selector-reaching transaction taken between the reaction batches of one style update
+    /// retires the answers it names — and with them, the traversal that produced those answers.
+    /// The completion batch that follows serves the new transaction's answers instead.
+    pub(super) fn discard_batch_matching_traversal(&mut self) {
+        let Some(mut traversal) = self.batch_matching_traversal.take() else {
+            return;
+        };
+        if let Some(batch) = traversal.batch.take() {
+            self.memory
+                .release(MemoryCategory::BatchScratch, batch.capacity_bytes());
+        }
+        if let Some(topology) = traversal.topology.take() {
+            self.memory
+                .release(MemoryCategory::BatchScratch, topology.capacity_bytes());
+        }
+        traversal.ancestor_requirements.release(&mut self.memory);
+        self.memory
+            .release(MemoryCategory::BatchScratch, traversal.match_workspace_bytes);
+        self.memory
+            .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
+        self.memory.release(
+            MemoryCategory::BatchScratch,
+            traversal.cascade_compaction_workspace_bytes,
+        );
+    }
+
     pub(super) fn discard_published_match_answers(&mut self) {
         let published = std::mem::take(&mut self.published_match_answers);
         verify_published_style_transaction(self, |verifier| {
