@@ -31,24 +31,24 @@ inline CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect con
     return { CSSPixels::from_raw(rect.x), CSSPixels::from_raw(rect.y), CSSPixels::from_raw(rect.width), CSSPixels::from_raw(rect.height) };
 }
 
-WEB_API void rust_build_stacking_context_tree(ViewportPaintable&);
-WEB_API void dump_stacking_context_tree(StringBuilder&, ViewportPaintable const&);
+WEB_API void rust_build_stacking_context_tree(DOM::Document&);
+WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 
-WEB_API bool rust_assign_accumulated_visual_contexts(ViewportPaintable&, bool forced_incompatible_rebuild);
-WEB_API AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(ViewportPaintable&);
-WEB_API void patch_rust_visual_context_nodes(ViewportPaintable&, AccumulatedVisualContextTree&, size_t begin, size_t end);
-WEB_API bool rust_update_accumulated_visual_context_values(ViewportPaintable&, Paintable&);
+WEB_API bool rust_assign_accumulated_visual_contexts(DOM::Document&, bool forced_incompatible_rebuild);
+WEB_API AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(DOM::Document&);
+WEB_API void patch_rust_visual_context_nodes(DOM::Document&, AccumulatedVisualContextTree&, size_t begin, size_t end);
+WEB_API bool rust_update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::PaintableSlotId);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Paintable const&);
 WEB_API void rust_measure_scrollable_overflow(Paintable const&);
 WEB_API CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const&, Layout::NodeWithStyle const&, CSSPixelSize);
-WEB_API void rust_update_visual_viewport_transform(ViewportPaintable&);
-WEB_API void rust_refresh_scroll_state(ViewportPaintable&);
-WEB_API ScrollStateSnapshot rust_scroll_state_snapshot(ViewportPaintable&);
-WEB_API CSSPixelPoint rust_cumulative_scroll_offset_for_node(ViewportPaintable const&, VisualContextIndex scroll_node_index);
-WEB_API void mirror_rust_refresh_sticky_constraints(ViewportPaintable&);
-WEB_API void mirror_rust_clear_scroll_state(ViewportPaintable&);
-WEB_API void mirror_rust_set_needs_to_refresh_scroll_state(ViewportPaintable&, bool);
-WEB_API void mirror_rust_reset_visual_context_state(ViewportPaintable&);
+WEB_API void rust_update_visual_viewport_transform(DOM::Document&);
+WEB_API void rust_refresh_scroll_state(DOM::Document&);
+WEB_API ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document&);
+WEB_API CSSPixelPoint rust_cumulative_scroll_offset_for_node(DOM::Document const&, VisualContextIndex scroll_node_index);
+WEB_API void mirror_rust_refresh_sticky_constraints(DOM::Document&);
+WEB_API void mirror_rust_clear_scroll_state(DOM::Document&);
+WEB_API void mirror_rust_set_needs_to_refresh_scroll_state(DOM::Document&, bool);
+WEB_API void mirror_rust_reset_visual_context_state(DOM::Document&);
 WEB_API void mirror_rust_invalidate_paint_cache(Paintable const&);
 WEB_API void rust_invalidate_propagated_text_decoration_caches(Paintable const&);
 struct InspectorOverlayInputs {
@@ -69,7 +69,7 @@ struct InspectorOverlayInputs {
     Optional<CSSPixelRect> caret_debug_rect;
 };
 
-WEB_API RefPtr<DisplayList> record_rust_display_list(ViewportPaintable&, DisplayList const& placeholder_display_list, DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
+WEB_API RefPtr<DisplayList> record_rust_display_list(DOM::Document&, DisplayList const& placeholder_display_list, DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
 
 WEB_API NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering, double device_pixels_per_css_pixel, AccumulatedVisualContextTree const&, DisplayListResourceStorage&);
 

@@ -20,7 +20,7 @@ NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport cons
 ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
     : PaintableWithLines(layout_viewport)
 {
-    mirror_rust_reset_visual_context_state(*this);
+    mirror_rust_reset_visual_context_state(document());
 }
 
 ViewportPaintable::~ViewportPaintable() = default;
@@ -43,12 +43,12 @@ BlockingWheelEventRegionState ViewportPaintable::collect_root_blocking_wheel_eve
 void ViewportPaintable::reset_for_relayout()
 {
     PaintableWithLines::reset_for_relayout();
-    document().paint_state().viewport_row_was_reset(*this);
+    document().paint_state().viewport_row_was_reset(document());
 }
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()
 {
-    document().paint_state().build_stacking_context_tree_if_needed(*this);
+    document().paint_state().build_stacking_context_tree_if_needed(document());
 }
 
 void ViewportPaintable::invalidate_stacking_context_tree()
@@ -58,32 +58,32 @@ void ViewportPaintable::invalidate_stacking_context_tree()
 
 void ViewportPaintable::refresh_sticky_constraints()
 {
-    document().paint_state().refresh_sticky_constraints(*this);
+    document().paint_state().refresh_sticky_constraints(document());
 }
 
 void ViewportPaintable::set_needs_to_refresh_scroll_state(bool value)
 {
-    document().paint_state().set_needs_to_refresh_scroll_state(*this, value);
+    document().paint_state().set_needs_to_refresh_scroll_state(document(), value);
 }
 
 CSSPixelPoint ViewportPaintable::cumulative_scroll_offset_for_node(VisualContextIndex scroll_node_index) const
 {
-    return document().paint_state().cumulative_scroll_offset_for_node(*this, scroll_node_index);
+    return document().paint_state().cumulative_scroll_offset_for_node(document(), scroll_node_index);
 }
 
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
-    document().paint_state().assign_accumulated_visual_contexts(*this);
+    document().paint_state().assign_accumulated_visual_contexts(document());
 }
 
 bool ViewportPaintable::update_accumulated_visual_context_values(Paintable& paintable_box)
 {
-    return document().paint_state().update_accumulated_visual_context_values(*this, paintable_box);
+    return document().paint_state().update_accumulated_visual_context_values(document(), paintable_box);
 }
 
 void ViewportPaintable::update_visual_viewport_accumulated_visual_context()
 {
-    document().paint_state().update_visual_viewport_accumulated_visual_context(*this);
+    document().paint_state().update_visual_viewport_accumulated_visual_context(document());
 }
 
 void ViewportPaintable::append_paint_command_cache_source_resources(DisplayListResourceSet& retained_resources) const
@@ -93,22 +93,22 @@ void ViewportPaintable::append_paint_command_cache_source_resources(DisplayListR
 
 void ViewportPaintable::invalidate_all_cached_paint()
 {
-    document().paint_state().invalidate_all_cached_paint(*this);
+    document().paint_state().invalidate_all_cached_paint(document());
 }
 
 void ViewportPaintable::refresh_scroll_state()
 {
-    document().paint_state().refresh_scroll_state(*this);
+    document().paint_state().refresh_scroll_state(document());
 }
 
 void ViewportPaintable::reset_selection_states()
 {
-    document().paint_state().reset_selection_states(*this);
+    document().paint_state().reset_selection_states(document());
 }
 
 void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 {
-    document().paint_state().recompute_selection_states(*this, range);
+    document().paint_state().recompute_selection_states(document(), range);
 }
 
 bool ViewportPaintable::visual_context_tree_needs_compositor_update() const

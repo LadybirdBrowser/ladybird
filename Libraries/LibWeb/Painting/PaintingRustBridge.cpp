@@ -38,6 +38,7 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -374,20 +375,20 @@ static Layout::RustFFI::FfiRootBackgroundSource rust_root_background_source(DOM:
     return source;
 }
 
-Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(ViewportPaintable& viewport_paintable)
+Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM::Document& document)
 {
     return {
-        .context = &viewport_paintable,
+        .context = &document,
         .tree_inputs = [](void* context) -> Layout::RustFFI::FfiVisualContextTreeInputs {
-            auto& viewport_paintable = *static_cast<ViewportPaintable*>(context);
+            auto& document = *static_cast<DOM::Document*>(context);
             Layout::RustFFI::FfiVisualContextTreeInputs inputs {};
-            inputs.device_pixels_per_css_pixel = viewport_paintable.document().page().client().device_pixels_per_css_pixel();
-            auto const& visual_viewport = *viewport_paintable.document().visual_viewport();
+            inputs.device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
+            auto const& visual_viewport = *document.visual_viewport();
             auto offset = visual_viewport.offset().to_type<double>();
             inputs.visual_viewport_offset_x = offset.x();
             inputs.visual_viewport_offset_y = offset.y();
             inputs.visual_viewport_scale = visual_viewport.scale();
-            inputs.may_have_default_scroll_shift_anchor = viewport_paintable.document().may_have_default_scroll_shift_anchor();
+            inputs.may_have_default_scroll_shift_anchor = document.may_have_default_scroll_shift_anchor();
             return inputs;
         },
         .scroll_offset = [](void*, void* paintable_shell) -> Layout::RustFFI::FfiCssPixelPoint {
@@ -418,8 +419,8 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(Vie
             return true;
         },
         .root_background_source = [](void* context) -> Layout::RustFFI::FfiRootBackgroundSource {
-            auto& viewport_paintable = *static_cast<ViewportPaintable*>(context);
-            return rust_root_background_source(viewport_paintable.document());
+            auto& document = *static_cast<DOM::Document*>(context);
+            return rust_root_background_source(document);
         },
         .svg_mask_facts = [](void*, void* paintable_shell) -> Layout::RustFFI::FfiSvgMaskFacts {
             auto& paintable = *static_cast<Paintable*>(paintable_shell);
@@ -436,7 +437,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(Vie
             return facts;
         },
         .resolve_effects_filter = [](void* context, void* paintable_shell) -> void* {
-            auto& viewport_paintable = *static_cast<ViewportPaintable*>(context);
+            auto& document = *static_cast<DOM::Document*>(context);
             auto& box = *static_cast<Paintable*>(paintable_shell);
             auto const& style_source = box.layout_node();
             if (style_source.filter().has_filters())
@@ -445,7 +446,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(Vie
                 box.set_filter({});
             if (!box.filter().has_filters())
                 return nullptr;
-            auto pixel_ratio = viewport_paintable.document().page().client().device_pixels_per_css_pixel();
+            auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
             auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
             if (!gfx_filter.has_value())
                 return nullptr;
@@ -464,30 +465,35 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(Vie
 
 }
 
-bool rust_assign_accumulated_visual_contexts(ViewportPaintable& viewport_paintable, bool forced_incompatible_rebuild)
+static void* layout_arena_handle(DOM::Document const& document)
 {
-    return Layout::RustFFI::layout_arena_assign_accumulated_visual_contexts(viewport_paintable.rust_arena().handle(), viewport_paintable.rust_slot(), visual_context_host_callbacks(viewport_paintable), forced_incompatible_rebuild);
+    return const_cast<DOM::Document&>(document).layout_node_arena().handle();
 }
 
-AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(ViewportPaintable& viewport_paintable)
+bool rust_assign_accumulated_visual_contexts(DOM::Document& document, bool forced_incompatible_rebuild)
 {
-    auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree(viewport_paintable.rust_arena().handle());
+    return Layout::RustFFI::layout_arena_assign_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document), visual_context_host_callbacks(document), forced_incompatible_rebuild);
+}
+
+AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(DOM::Document& document)
+{
+    auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree(layout_arena_handle(document));
     VERIFY(tree);
     return materialize_rust_visual_context_tree(tree);
 }
 
-void patch_rust_visual_context_nodes(ViewportPaintable& viewport_paintable, AccumulatedVisualContextTree& visual_context_tree, size_t begin, size_t end)
+void patch_rust_visual_context_nodes(DOM::Document& document, AccumulatedVisualContextTree& visual_context_tree, size_t begin, size_t end)
 {
-    auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree(viewport_paintable.rust_arena().handle());
+    auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree(layout_arena_handle(document));
     VERIFY(tree);
     VERIFY(end <= visual_context_tree.nodes().size());
     for (size_t index = begin; index < end; ++index)
         visual_context_tree.node_at(VisualContextIndex { index }).data = visual_context_data_from_export(Layout::RustFFI::layout_arena_visual_context_tree_node(tree, index));
 }
 
-bool rust_update_accumulated_visual_context_values(ViewportPaintable& viewport_paintable, Paintable& paintable_box)
+bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::PaintableSlotId paintable_slot)
 {
-    return Layout::RustFFI::layout_arena_update_visual_context_values(viewport_paintable.rust_arena().handle(), paintable_box.rust_slot(), visual_context_host_callbacks(viewport_paintable));
+    return Layout::RustFFI::layout_arena_update_visual_context_values(layout_arena_handle(document), paintable_slot, visual_context_host_callbacks(document));
 }
 
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Paintable const& paintable_box)
@@ -514,7 +520,8 @@ void rust_measure_scrollable_overflow(Paintable const& box_paintable)
                 && shadow_root->host()->is_focused();
         },
     };
-    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box_paintable.rust_arena().handle(), box_paintable.rust_slot(), visual_context_host_callbacks(*viewport_paintable), overflow_callbacks);
+    auto& document = const_cast<DOM::Document&>(box_paintable.document());
+    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box_paintable.rust_arena().handle(), box_paintable.rust_slot(), visual_context_host_callbacks(document), overflow_callbacks);
 }
 
 CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)
@@ -569,19 +576,19 @@ CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradien
     VERIFY_NOT_REACHED();
 }
 
-void rust_update_visual_viewport_transform(ViewportPaintable& viewport_paintable)
+void rust_update_visual_viewport_transform(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_update_visual_viewport_transform(viewport_paintable.rust_arena().handle(), visual_context_host_callbacks(viewport_paintable));
+    Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-void rust_refresh_scroll_state(ViewportPaintable& viewport_paintable)
+void rust_refresh_scroll_state(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_refresh_scroll_state(viewport_paintable.rust_arena().handle(), visual_context_host_callbacks(viewport_paintable));
+    Layout::RustFFI::layout_arena_refresh_scroll_state(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-ScrollStateSnapshot rust_scroll_state_snapshot(ViewportPaintable& viewport_paintable)
+ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document& document)
 {
-    auto* arena = viewport_paintable.rust_arena().handle();
+    auto* arena = layout_arena_handle(document);
     auto count = Layout::RustFFI::layout_arena_scroll_state_snapshot(arena, nullptr, 0);
     Vector<float> values;
     values.resize(count);
@@ -593,31 +600,31 @@ ScrollStateSnapshot rust_scroll_state_snapshot(ViewportPaintable& viewport_paint
     return snapshot;
 }
 
-CSSPixelPoint rust_cumulative_scroll_offset_for_node(ViewportPaintable const& viewport_paintable, VisualContextIndex scroll_node_index)
+CSSPixelPoint rust_cumulative_scroll_offset_for_node(DOM::Document const& document, VisualContextIndex scroll_node_index)
 {
     i32 raw[2] = { 0, 0 };
-    Layout::RustFFI::layout_arena_cumulative_scroll_offset_for_node(viewport_paintable.rust_arena().handle(), scroll_node_index.value(), raw);
+    Layout::RustFFI::layout_arena_cumulative_scroll_offset_for_node(layout_arena_handle(document), scroll_node_index.value(), raw);
     return { CSSPixels::from_raw(raw[0]), CSSPixels::from_raw(raw[1]) };
 }
 
-void mirror_rust_refresh_sticky_constraints(ViewportPaintable& viewport_paintable)
+void mirror_rust_refresh_sticky_constraints(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_refresh_sticky_constraints(viewport_paintable.rust_arena().handle());
+    Layout::RustFFI::layout_arena_refresh_sticky_constraints(layout_arena_handle(document));
 }
 
-void mirror_rust_clear_scroll_state(ViewportPaintable& viewport_paintable)
+void mirror_rust_clear_scroll_state(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_clear_scroll_state(viewport_paintable.rust_arena().handle());
+    Layout::RustFFI::layout_arena_clear_scroll_state(layout_arena_handle(document));
 }
 
-void mirror_rust_set_needs_to_refresh_scroll_state(ViewportPaintable& viewport_paintable, bool value)
+void mirror_rust_set_needs_to_refresh_scroll_state(DOM::Document& document, bool value)
 {
-    Layout::RustFFI::layout_arena_set_needs_to_refresh_scroll_state(viewport_paintable.rust_arena().handle(), value);
+    Layout::RustFFI::layout_arena_set_needs_to_refresh_scroll_state(layout_arena_handle(document), value);
 }
 
-void mirror_rust_reset_visual_context_state(ViewportPaintable& viewport_paintable)
+void mirror_rust_reset_visual_context_state(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_reset_visual_context_state(viewport_paintable.rust_arena().handle());
+    Layout::RustFFI::layout_arena_reset_visual_context_state(layout_arena_handle(document));
 }
 
 void mirror_rust_invalidate_paint_cache(Paintable const& paintable)
@@ -630,9 +637,9 @@ void rust_invalidate_propagated_text_decoration_caches(Paintable const& paintabl
     Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(paintable.rust_arena().handle(), paintable.rust_slot(), true);
 }
 
-void rust_build_stacking_context_tree(ViewportPaintable& viewport_paintable)
+void rust_build_stacking_context_tree(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_build_stacking_context_tree(viewport_paintable.rust_arena().handle(), viewport_paintable.rust_slot());
+    Layout::RustFFI::layout_arena_build_stacking_context_tree(layout_arena_handle(document), viewport_row_slot(document));
 }
 
 static void dump_stacking_context_node(StringBuilder& builder, void* arena, size_t index, int indent)
@@ -657,9 +664,9 @@ static void dump_stacking_context_node(StringBuilder& builder, void* arena, size
         dump_stacking_context_node(builder, arena, Layout::RustFFI::layout_arena_stacking_context_tree_child(arena, index, child), indent + 1);
 }
 
-void dump_stacking_context_tree(StringBuilder& builder, ViewportPaintable const& viewport_paintable)
+void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
-    auto* arena = viewport_paintable.rust_arena().handle();
+    auto* arena = layout_arena_handle(document);
     if (Layout::RustFFI::layout_arena_stacking_context_tree_node_count(arena) == 0)
         return;
     dump_stacking_context_node(builder, arena, 0, 0);
@@ -743,7 +750,7 @@ void write_css_rect(CSSPixelRect const& rect, Layout::RustFFI::FfiCssPixelRect& 
 
 struct PaintHostContext {
     DisplayListResourceStorage& resource_storage;
-    ViewportPaintable const& viewport_paintable;
+    GC::Ref<DOM::Document const> document;
     u64 paint_generation_id { 0 };
     double device_pixels_per_css_pixel { 1 };
 };
@@ -910,7 +917,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         },
         .root_background_source = [](void* context_pointer) -> Layout::RustFFI::FfiRootBackgroundSource {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            return rust_root_background_source(context.viewport_paintable.document());
+            return rust_root_background_source(context.document);
         },
         .text_control_selection = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiTextControlSelection {
             Layout::RustFFI::FfiTextControlSelection result {};
@@ -1304,7 +1311,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto scale = rust_visual_context_tree
                 ? materialize_rust_visual_context_tree(rust_visual_context_tree).accumulated_2d_scale(VisualContextIndex { visual_context_index }, ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No)
-                : context.viewport_paintable.visual_context_tree().accumulated_2d_scale(VisualContextIndex { visual_context_index }, ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+                : context.document->visual_context_tree().accumulated_2d_scale(VisualContextIndex { visual_context_index }, ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
             out[0] = scale.width();
             out[1] = scale.height(); },
         .materialize_visual_context_tree = [](void*, void const* tree) -> void* {
@@ -1356,15 +1363,14 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 
 }
 
-RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintable, DisplayList const& placeholder_display_list, DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
+RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayList const& placeholder_display_list, DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
 {
     static u64 s_next_paint_generation_id = 0;
     auto paint_generation_id = s_next_paint_generation_id++;
-    auto* arena = viewport_paintable.rust_arena().handle();
-    auto& document = viewport_paintable.document();
+    auto* arena = layout_arena_handle(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
     auto device_viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
-    auto wheel_event_region_state = viewport_paintable.collect_root_blocking_wheel_event_regions();
+    auto wheel_event_region_state = document.paint_state().collect_root_blocking_wheel_event_regions(document);
     Layout::RustFFI::FfiRecordingInputs inputs {};
     if (overlay_inputs.highlighted_paintable) {
         inputs.has_inspector_highlight = true;
@@ -1406,7 +1412,7 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
     }
     inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
     write_rect(device_viewport_rect, inputs.device_viewport_rect);
-    if (auto navigable = viewport_paintable.navigable())
+    if (auto navigable = document.navigable())
         write_css_rect(navigable->viewport_rect(), inputs.css_viewport_rect);
     inputs.should_show_line_box_borders = config.should_show_line_box_borders;
     inputs.should_paint_overlay = config.paint_overlay;
@@ -1416,7 +1422,7 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
     inputs.paint_command_cache_read_write = cache_mode == PaintCommandCacheMode::ReadWrite;
     inputs.display_list_id = placeholder_display_list.id();
     {
-        auto navigable = viewport_paintable.navigable();
+        auto navigable = document.navigable();
         inputs.window_is_focused = navigable && navigable->is_focused();
         inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto).value();
     }
@@ -1439,9 +1445,9 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
         write_rect(bitmap_rect, inputs.bitmap_rect);
         inputs.background_color = document.background_color().value();
     }
-    PaintHostContext paint_host_context { resource_storage, viewport_paintable, paint_generation_id, device_pixels_per_css_pixel };
+    PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_paintable.rust_slot(), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(viewport_paintable), inputs);
+    auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs);
     if (generation == 0)
         return nullptr;
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
@@ -1454,7 +1460,7 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
 
     VERIFY(rust_length % DisplayList::command_alignment == 0);
     auto command_bytes = MUST(ByteBuffer::copy(rust_bytes, rust_length));
-    auto display_list = DisplayList::create_from_command_bytes(viewport_paintable.visual_context_tree(), move(command_bytes));
+    auto display_list = DisplayList::create_from_command_bytes(document.visual_context_tree(), move(command_bytes));
     auto registration_count = Layout::RustFFI::layout_arena_display_list_mask_registration_count(arena);
     for (size_t i = 0; i < registration_count; ++i) {
         size_t context_index = 0;
@@ -1464,7 +1470,7 @@ RefPtr<DisplayList> record_rust_display_list(ViewportPaintable& viewport_paintab
     }
     if (auto color = placeholder_display_list.surface_clear_color(); color.has_value())
         display_list->set_surface_clear_color(*color);
-    if (auto navigable = viewport_paintable.navigable()) {
+    if (auto navigable = document.navigable()) {
         display_list->set_async_scrolling_metadata({
             .viewport_rect = device_viewport_rect.to_type<int>(),
             .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),

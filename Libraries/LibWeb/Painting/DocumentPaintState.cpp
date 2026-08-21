@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -62,18 +63,18 @@ BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_ev
     return {};
 }
 
-void DocumentPaintState::viewport_row_was_reset(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::viewport_row_was_reset(DOM::Document& document)
 {
-    clear_scroll_state(viewport_paintable);
+    clear_scroll_state(document);
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree_needs_compositor_update = false;
 }
 
-void DocumentPaintState::build_stacking_context_tree_if_needed(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::build_stacking_context_tree_if_needed(DOM::Document& document)
 {
     if (m_stacking_context_tree_is_valid)
         return;
-    rust_build_stacking_context_tree(viewport_paintable);
+    rust_build_stacking_context_tree(document);
     m_stacking_context_tree_is_valid = true;
 }
 
@@ -82,68 +83,68 @@ void DocumentPaintState::invalidate_stacking_context_tree()
     m_stacking_context_tree_is_valid = false;
 }
 
-void DocumentPaintState::refresh_sticky_constraints(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
 {
     m_needs_to_refresh_scroll_state = true;
-    mirror_rust_refresh_sticky_constraints(viewport_paintable);
+    mirror_rust_refresh_sticky_constraints(document);
 }
 
-void DocumentPaintState::set_needs_to_refresh_scroll_state(ViewportPaintable& viewport_paintable, bool value)
+void DocumentPaintState::set_needs_to_refresh_scroll_state(DOM::Document& document, bool value)
 {
     m_needs_to_refresh_scroll_state = value;
-    mirror_rust_set_needs_to_refresh_scroll_state(viewport_paintable, value);
+    mirror_rust_set_needs_to_refresh_scroll_state(document, value);
 }
 
-void DocumentPaintState::clear_scroll_state(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::clear_scroll_state(DOM::Document& document)
 {
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
-    mirror_rust_clear_scroll_state(viewport_paintable);
+    mirror_rust_clear_scroll_state(document);
 }
 
-CSSPixelPoint DocumentPaintState::cumulative_scroll_offset_for_node(ViewportPaintable const& viewport_paintable, VisualContextIndex scroll_node_index) const
+CSSPixelPoint DocumentPaintState::cumulative_scroll_offset_for_node(DOM::Document const& document, VisualContextIndex scroll_node_index) const
 {
-    return rust_cumulative_scroll_offset_for_node(viewport_paintable, scroll_node_index);
+    return rust_cumulative_scroll_offset_for_node(document, scroll_node_index);
 }
 
-void DocumentPaintState::assign_accumulated_visual_contexts(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& document)
 {
-    clear_scroll_state(viewport_paintable);
+    clear_scroll_state(document);
     ++m_accumulated_visual_context_tree_build_count;
     auto forced_incompatible_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
     m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
-    auto is_compatible = rust_assign_accumulated_visual_contexts(viewport_paintable, forced_incompatible_rebuild);
-    auto visual_context_tree = materialize_rust_main_visual_context_tree(viewport_paintable);
+    auto is_compatible = rust_assign_accumulated_visual_contexts(document, forced_incompatible_rebuild);
+    auto visual_context_tree = materialize_rust_main_visual_context_tree(document);
     if (is_compatible) {
         visual_context_tree.reuse_version_from(*m_visual_context_tree);
     } else {
-        viewport_paintable.document().set_needs_to_record_display_list();
+        document.set_needs_to_record_display_list();
     }
     m_visual_context_tree = move(visual_context_tree);
     m_visual_context_tree_needs_compositor_update = true;
 }
 
-bool DocumentPaintState::update_accumulated_visual_context_values(ViewportPaintable& viewport_paintable, Paintable& paintable_box)
+bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Paintable& paintable_box)
 {
     if (!m_visual_context_tree.has_value())
         return false;
     if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
         return false;
-    if (!rust_update_accumulated_visual_context_values(viewport_paintable, paintable_box))
+    if (!rust_update_accumulated_visual_context_values(document, paintable_box.rust_slot()))
         return false;
-    patch_rust_visual_context_nodes(viewport_paintable, *m_visual_context_tree, paintable_box.visual_context_nodes_begin(), paintable_box.visual_context_nodes_end());
+    patch_rust_visual_context_nodes(document, *m_visual_context_tree, paintable_box.visual_context_nodes_begin(), paintable_box.visual_context_nodes_end());
     m_visual_context_tree_needs_compositor_update = true;
     return true;
 }
 
-void DocumentPaintState::update_visual_viewport_accumulated_visual_context(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::Document& document)
 {
     if (!m_visual_context_tree.has_value()) {
-        assign_accumulated_visual_contexts(viewport_paintable);
+        assign_accumulated_visual_contexts(document);
         return;
     }
-    rust_update_visual_viewport_transform(viewport_paintable);
-    patch_rust_visual_context_nodes(viewport_paintable, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1);
+    rust_update_visual_viewport_transform(document);
+    patch_rust_visual_context_nodes(document, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1);
     m_visual_context_tree_needs_compositor_update = true;
 }
 
@@ -152,28 +153,28 @@ void DocumentPaintState::append_paint_command_cache_source_resources(DisplayList
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
 
-void DocumentPaintState::invalidate_all_cached_paint(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 {
     Layout::RustFFI::layout_arena_invalidate_all_paint_caches(m_layout_node_arena->handle());
-    Painting::set_needs_repaint(viewport_paintable.layout_node());
+    Painting::set_needs_repaint(*document.unsafe_layout_node());
 }
 
-void DocumentPaintState::refresh_scroll_state(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
 {
     if (!m_needs_to_refresh_scroll_state)
         return;
     m_needs_to_refresh_scroll_state = false;
     // https://drafts.csswg.org/css-position/#sticky-pos
-    rust_refresh_scroll_state(viewport_paintable);
-    m_scroll_state_snapshot = rust_scroll_state_snapshot(viewport_paintable);
+    rust_refresh_scroll_state(document);
+    m_scroll_state_snapshot = rust_scroll_state_snapshot(document);
 }
 
-void DocumentPaintState::reset_selection_states(ViewportPaintable& viewport_paintable)
+void DocumentPaintState::reset_selection_states(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_selection_clear(m_layout_node_arena->handle(), viewport_paintable.rust_slot());
+    Layout::RustFFI::layout_arena_selection_clear(m_layout_node_arena->handle(), viewport_row_slot(document));
 }
 
-void DocumentPaintState::recompute_selection_states(ViewportPaintable& viewport_paintable, DOM::Range& range)
+void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM::Range& range)
 {
     Vector<Layout::RustFFI::FfiSelectionEntry> entries;
     auto set_selection_state_on_all_slices = [&](DOM::Node& container, SelectionState state) {
@@ -201,7 +202,7 @@ void DocumentPaintState::recompute_selection_states(ViewportPaintable& viewport_
         }
     };
     auto apply_entries = [&] {
-        Layout::RustFFI::layout_arena_selection_apply(m_layout_node_arena->handle(), viewport_paintable.rust_slot(), entries.data(), entries.size(), range.start_offset(), range.end_offset());
+        Layout::RustFFI::layout_arena_selection_apply(m_layout_node_arena->handle(), viewport_row_slot(document), entries.data(), entries.size(), range.start_offset(), range.end_offset());
     };
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
