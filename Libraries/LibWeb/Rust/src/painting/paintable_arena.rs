@@ -165,7 +165,13 @@ impl PaintableArena {
         }
     }
 
-    pub fn shell_destroyed(&mut self, id: PaintableSlotId, generation: u32, shell: *mut c_void) {
+    pub(crate) fn shell_destroyed(
+        &mut self,
+        layout_arena: &LayoutNodeArena,
+        id: PaintableSlotId,
+        generation: u32,
+        shell: *mut c_void,
+    ) {
         assert!(!id.is_invalid(), "invalid paintable arena slot ID");
         assert_eq!(
             u32::from(id.generation()),
@@ -175,10 +181,13 @@ impl PaintableArena {
         if !self.is_live(id) || self.data_ref(id).shell != shell {
             return;
         }
-        self.reset_row(id);
+        self.reset_row(Some(layout_arena), id);
     }
 
-    fn reset_row(&mut self, id: PaintableSlotId) {
+    fn reset_row(&mut self, layout_arena: Option<&LayoutNodeArena>, id: PaintableSlotId) {
+        if let Some(layout_arena) = layout_arena {
+            self.clear_descendant_subtree_caches_along_paint_chain(layout_arena, id);
+        }
         self.clear_absolute_rect_memo();
         self.remove_from_tree(id);
         while let Some(child) = self.first_child(id) {
@@ -198,14 +207,19 @@ impl PaintableArena {
         if generation == 0 {
             return;
         }
-        self.reset_row(PaintableSlotId::new(layout_slot_index, generation));
+        self.reset_row(None, PaintableSlotId::new(layout_slot_index, generation));
     }
 
-    pub fn node_cleared(&mut self, layout_node: NodeSlotId, id: PaintableSlotId) {
+    pub(crate) fn node_cleared(
+        &mut self,
+        layout_arena: &LayoutNodeArena,
+        layout_node: NodeSlotId,
+        id: PaintableSlotId,
+    ) {
         if self.paintable_of_node(layout_node) != id {
             return;
         }
-        self.reset_row(id);
+        self.reset_row(Some(layout_arena), id);
     }
 
     pub fn is_live(&self, id: PaintableSlotId) -> bool {
@@ -279,6 +293,42 @@ impl PaintableArena {
         while let Some(current) = ancestor {
             self.paint_caches[current.slot_index() as usize].clear_descendant_subtrees();
             ancestor = crate::painting::paint_order::paint_parent(layout_arena, self, current);
+        }
+    }
+
+    pub(crate) fn clear_descendant_subtree_caches_along_paint_chain(
+        &self,
+        layout_arena: &LayoutNodeArena,
+        id: PaintableSlotId,
+    ) {
+        if !self.is_live(id) {
+            return;
+        }
+        let mut current = Some(id);
+        while let Some(slot) = current {
+            self.paint_caches[slot.slot_index() as usize].clear_descendant_subtrees();
+            current = crate::painting::paint_order::paint_parent(layout_arena, self, slot);
+        }
+    }
+
+    pub(crate) fn clear_descendant_subtree_caches_from_layout_node(
+        &self,
+        layout_arena: &LayoutNodeArena,
+        mut node: NodeSlotId,
+    ) {
+        loop {
+            let paintable = self.paintable_of_node(node);
+            if !paintable.is_invalid() {
+                self.clear_descendant_subtree_caches_along_paint_chain(layout_arena, paintable);
+                return;
+            }
+            if !crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
+                return;
+            }
+            let Some(parent) = layout_arena.node_parent_if_live(node) else {
+                return;
+            };
+            node = parent;
         }
     }
 

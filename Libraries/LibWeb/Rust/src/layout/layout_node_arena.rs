@@ -407,6 +407,9 @@ impl LayoutNodeArena {
             generation,
             "layout node arena slot ID and allocation generation disagree"
         );
+        self.paintables
+            .borrow()
+            .clear_descendant_subtree_caches_from_layout_node(self, id);
         let metadata = self.metadata_mut(index);
         assert!(metadata.occupied, "layout node arena freed an unused slot");
         assert_eq!(
