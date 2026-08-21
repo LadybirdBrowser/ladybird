@@ -18,9 +18,8 @@
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
-#include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Selection/CaretNavigation.h>
 #include <LibWeb/VisualLines.h>
 
@@ -66,9 +65,8 @@ static bool is_empty_line_host(DOM::Node& node)
     auto* element = as_if<DOM::Element>(node);
     if (!element || !element->is_editable())
         return false;
-    auto element_paintable = element->unsafe_paintable();
-    auto* paintable = as_if<Painting::PaintableWithLines>(element_paintable.ptr());
-    if (!paintable || paintable->layout_node().display().is_inline_outside())
+    auto const* layout_node = element->unsafe_layout_node();
+    if (!layout_node || !Painting::is_paintable_with_lines(*layout_node) || Painting::display(*layout_node).is_inline_outside())
         return false;
 
     bool has_rendered_content = false;
@@ -183,9 +181,9 @@ Optional<CSSPixels> CaretNavigator::inline_coordinate(CaretLocation const& locat
         }
     }
 
-    auto paintable = location.node->paintable();
+    auto const* layout_node = location.node->layout_node();
     return m_document->current_caret_rect().map([&](auto const& rect) {
-        if (paintable && paintable->layout_node().writing_mode() != CSS::WritingMode::HorizontalTb)
+        if (layout_node && Painting::has_committed_box(*layout_node) && as<Layout::NodeWithStyle>(*layout_node).writing_mode() != CSS::WritingMode::HorizontalTb)
             return rect.y();
         return rect.x();
     });
@@ -566,8 +564,8 @@ Optional<CaretLocation> CaretNavigator::move_by_page(CaretLocation const& locati
         return {};
 
     m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
-    auto editing_host_paintable = editing_host->paintable();
-    if (!editing_host_paintable)
+    auto const* editing_host_layout_node = editing_host->layout_node();
+    if (!editing_host_layout_node || !Painting::has_committed_box(*editing_host_layout_node))
         return {};
     auto window = m_document->window();
     if (!window)
@@ -576,7 +574,7 @@ Optional<CaretLocation> CaretNavigator::move_by_page(CaretLocation const& locati
     // INTEROP: Chromium defines a page as the smaller of the editing host and viewport heights, then leaves either
     // 12.5% or (on macOS) at least 40 CSS pixels of overlap. It walks visual lines until the next line would exceed
     // that distance, rather than mapping the target coordinate directly back into the DOM.
-    auto page_height = min(editing_host_paintable->absolute_padding_box_rect().height().to_int(), window->inner_height());
+    auto page_height = min(Painting::absolute_padding_box_rect(*editing_host_layout_node).height().to_int(), window->inner_height());
     if (page_height <= 0)
         return {};
     auto page_distance = static_cast<i32>(page_height * 0.875);

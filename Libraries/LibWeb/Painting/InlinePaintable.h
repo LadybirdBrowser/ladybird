@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
@@ -19,21 +19,10 @@ public:
     static NonnullRefPtr<InlinePaintable> create(Layout::NodeWithStyle const&);
     virtual ~InlinePaintable() override;
 
-    // Whether this box paints its own foreground (fragments and caret) instead of the
-    // containing block: it forms a group that content must be recorded inside.
-    bool is_self_painting() const { return has_stacking_context() || is_positioned(); }
-
     virtual CSSPixelPoint box_type_agnostic_position() const override;
-
-    bool has_content() const;
 
 private:
     explicit InlinePaintable(Layout::NodeWithStyle const&);
-
-    bool has_content_pieces() const;
-
-public:
-    Optional<PaintableWithLines::CaretPaint> resolve_empty_editable_caret_paint() const;
 };
 
 template<>

@@ -199,8 +199,6 @@ public:
 
     Gfx::Path const* committed_svg_path() const;
 
-    bool should_paint_cursor() const;
-
     // Callers are responsible for checking that the element is empty and visible.
 
     void invalidate_stacking_context();
