@@ -10,6 +10,7 @@ use crate::layout::{
     FfiAffineTransform, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph, FlexLayoutData,
     GridLayoutData, OwnedUsedGridTracks,
 };
+use std::cell::Cell;
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -388,6 +389,7 @@ pub struct PaintableSideData {
     pub(crate) piece_indices: Vec<u32>,
     pub(crate) computed_svg_path: Option<Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) computed_svg_path_identity: u64,
+    pub(crate) svg_filter_bounds: Cell<Option<FfiCssPixelRect>>,
     // Only meaningful while is_self_painting(); assigned by the containing block's
     // assign_fragment_ownership().
     pub(crate) fragment_ownership: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,

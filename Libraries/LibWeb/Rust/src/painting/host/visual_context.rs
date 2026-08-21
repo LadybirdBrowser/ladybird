@@ -27,6 +27,14 @@ pub struct FfiVisualContextTreeInputs {
     pub may_have_default_scroll_shift_anchor: bool,
 }
 
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiResolvedEffectsFilter {
+    pub gfx_filter: *mut c_void,
+    pub has_svg_filter_bounds: bool,
+    pub svg_filter_bounds: crate::layout::FfiCssPixelRect,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiVisualContextHostCallbacks {
@@ -38,7 +46,7 @@ pub struct FfiVisualContextHostCallbacks {
     pub svg_additional_element_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut f32) -> bool,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
-    pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiResolvedEffectsFilter,
     pub default_scroll_shift_anchor:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::node_data::NodeSlotId,
 }
@@ -77,7 +85,7 @@ impl FfiVisualContextHostCallbacks {
         // SAFETY: The C++ host answers synchronously from a live paintable shell.
         unsafe { (self.svg_mask_facts)(self.context, paintable_shell) }
     }
-    pub(crate) fn resolve_effects_filter(&self, paintable_shell: *mut c_void) -> *mut c_void {
+    pub(crate) fn resolve_effects_filter(&self, paintable_shell: *mut c_void) -> FfiResolvedEffectsFilter {
         // SAFETY: The C++ host answers synchronously from a live paintable shell.
         unsafe { (self.resolve_effects_filter)(self.context, paintable_shell) }
     }

@@ -20,8 +20,6 @@ pub struct FfiHitTestPaintableFacts {
     pub could_be_scrolled_vertically: bool,
     pub svg_path_has_fill: bool,
     pub svg_path_winding_rule: i32,
-    pub has_svg_filter_bounds: bool,
-    pub svg_filter_bounds: crate::layout::FfiCssPixelRect,
     pub svg_mask_content_units_object_bbox: bool,
     pub svg_clip_path_units_object_bbox: bool,
 }

@@ -203,11 +203,10 @@ impl PaintRecorder<'_> {
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
-        let facts = self.paintable_facts(paintable);
-        if facts.has_svg_filter_bounds {
+        if let Some(svg_filter_bounds) = self.paintables.side(paintable).svg_filter_bounds.get() {
             let device_rect = self
                 .converter
-                .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(facts.svg_filter_bounds));
+                .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
             self.recorder.fill_rect_transparent(device_rect);
         }
 
@@ -566,11 +565,10 @@ impl PaintRecorder<'_> {
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
-        let facts = self.paintable_facts(svg_box);
-        if facts.has_svg_filter_bounds {
+        if let Some(svg_filter_bounds) = self.paintables.side(svg_box).svg_filter_bounds.get() {
             let device_rect = self
                 .converter
-                .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(facts.svg_filter_bounds));
+                .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
             self.recorder.fill_rect_transparent(device_rect);
         }
 
