@@ -191,6 +191,15 @@ void JavaScriptDialog::dismiss()
     complete(m_type == Type::Alert);
 }
 
+void JavaScriptDialog::reset()
+{
+    if (!m_type.has_value())
+        return;
+
+    m_type.clear();
+    restore_focus_after_close();
+}
+
 void JavaScriptDialog::complete(bool accepted)
 {
     auto type = m_type.release_value();

@@ -307,6 +307,29 @@ TEST_CASE(dialog_visibility_and_state_follow_the_owning_tab)
     EXPECT(prompt->text() == "preserved text");
 }
 
+TEST_CASE(reset_closes_without_reporting_completion)
+{
+    QWidget web_view;
+    web_view.resize(800, 600);
+    web_view.setFocusPolicy(Qt::StrongFocus);
+    web_view.show();
+
+    Ladybird::JavaScriptDialog dialog(&web_view);
+    Completion completion;
+    record_completions(dialog, completion);
+
+    web_view.setFocus();
+    QApplication::processEvents();
+    VERIFY(web_view.hasFocus());
+    dialog.show_alert("https://example.com", "Alert message");
+    dialog.reset();
+
+    EXPECT(!dialog.is_open());
+    EXPECT(!dialog.isVisible());
+    EXPECT(!completion.type.has_value());
+    EXPECT(web_view.hasFocus());
+}
+
 TEST_CASE(long_messages_remain_plain_text_and_bounded)
 {
     QWidget web_view;
