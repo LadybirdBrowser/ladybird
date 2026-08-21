@@ -215,60 +215,6 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
     return absolute_position();
 }
 
-Painting::BorderRadiiData normalize_border_radii_data(CSSPixelRect const& border_rect, CSSPixelRect const& reference_rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius)
-{
-    Painting::BorderRadiiData radii_px {
-        .top_left = {
-            top_left_radius.horizontal_radius.to_px(reference_rect.width()),
-            top_left_radius.vertical_radius.to_px(reference_rect.height()) },
-        .top_right = { top_right_radius.horizontal_radius.to_px(reference_rect.width()), top_right_radius.vertical_radius.to_px(reference_rect.height()) },
-        .bottom_right = { bottom_right_radius.horizontal_radius.to_px(reference_rect.width()), bottom_right_radius.vertical_radius.to_px(reference_rect.height()) },
-        .bottom_left = { bottom_left_radius.horizontal_radius.to_px(reference_rect.width()), bottom_left_radius.vertical_radius.to_px(reference_rect.height()) }
-    };
-
-    // Scale overlapping curves according to https://www.w3.org/TR/css-backgrounds-3/#corner-overlap
-    // Let f = min(Li/Si), where i ∈ {top, right, bottom, left},
-    // Si is the sum of the two corresponding radii of the corners on side i,
-    // and Ltop = Lbottom = the width of the box, and Lleft = Lright = the height of the box.
-    //
-    // NOTE: We iterate twice as a form of iterative refinement. A single scaling pass using
-    // fixed-point arithmetic can result in small rounding errors, causing the scaled radii to
-    // still slightly overflow the box dimensions. A second pass corrects this remaining error.
-    auto border_width = max(CSSPixels(0), border_rect.width());
-    auto border_height = max(CSSPixels(0), border_rect.height());
-    for (int iteration = 0; iteration < 2; ++iteration) {
-        auto s_top = radii_px.top_left.horizontal_radius + radii_px.top_right.horizontal_radius;
-        auto s_right = radii_px.top_right.vertical_radius + radii_px.bottom_right.vertical_radius;
-        auto s_bottom = radii_px.bottom_right.horizontal_radius + radii_px.bottom_left.horizontal_radius;
-        auto s_left = radii_px.bottom_left.vertical_radius + radii_px.top_left.vertical_radius;
-
-        CSSPixelFraction f = 1;
-        if (s_top > 0 && s_top > border_width)
-            f = min(f, border_width / s_top);
-        if (s_right > 0 && s_right > border_height)
-            f = min(f, border_height / s_right);
-        if (s_bottom > 0 && s_bottom > border_width)
-            f = min(f, border_width / s_bottom);
-        if (s_left > 0 && s_left > border_height)
-            f = min(f, border_height / s_left);
-
-        // If f is 1 or more, the radii fit perfectly and no more scaling is needed
-        if (f >= 1)
-            break;
-
-        Painting::BorderRadiusData* corners[] = {
-            &radii_px.top_left, &radii_px.top_right, &radii_px.bottom_right, &radii_px.bottom_left
-        };
-
-        for (auto* corner : corners) {
-            corner->horizontal_radius *= f;
-            corner->vertical_radius *= f;
-        }
-    }
-
-    return radii_px;
-}
-
 // https://drafts.csswg.org/css-pseudo-4/#highlight-styling
 // FIXME: Support additional ::selection properties: text-underline-offset, text-underline-position, stroke-color,
 //        fill-color, stroke-width, and CSS custom properties.
@@ -1518,16 +1464,6 @@ CSSPixelRect Paintable::transform_reference_box() const
     }
     }
     VERIFY_NOT_REACHED();
-}
-
-BorderRadiiData Paintable::border_radii_data() const
-{
-    if (!layout_node().has_noninitial_border_radii())
-        return {};
-    CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
-    return normalize_border_radii_data(border_rect, border_rect,
-        layout_node().border_top_left_radius(), layout_node().border_top_right_radius(),
-        layout_node().border_bottom_right_radius(), layout_node().border_bottom_left_radius());
 }
 
 static Optional<CSS::BorderData> border_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)

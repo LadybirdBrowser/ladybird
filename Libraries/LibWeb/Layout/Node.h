@@ -651,11 +651,6 @@ public:
         return *m_border_image;
     }
     RefPtr<CSS::AbstractImageStyleValue const> border_image_source() const { return style_group<CSS::ComputedValues::BorderValues>().border_image_source_value(); }
-    bool has_noninitial_border_radii() const { return style_group<CSS::ComputedValues::BorderValues>().has_noninitial_border_radii_value(); }
-    CSS::BorderRadiusData border_bottom_left_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_bottom_left_radius_value(); }
-    CSS::BorderRadiusData border_bottom_right_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_bottom_right_radius_value(); }
-    CSS::BorderRadiusData border_top_left_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_top_left_radius_value(); }
-    CSS::BorderRadiusData border_top_right_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_top_right_radius_value(); }
     Color color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().color_value(); }
     Color webkit_text_fill_color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().webkit_text_fill_color_value(); }
     CSSPixels letter_spacing() const { return style_group<CSS::ComputedValues::InheritedTextValues>().letter_spacing_value(); }

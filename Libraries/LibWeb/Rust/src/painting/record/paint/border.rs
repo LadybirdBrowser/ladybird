@@ -1201,8 +1201,7 @@ pub(crate) fn paint_box_borders_from_style(
         },
     ];
     let border_box_rect = crate::painting::paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
-    let border_radii =
-        crate::painting::border_radii::BorderRadii::from_raw(recorder.hit_test_facts(paintable).border_radii);
+    let border_radii = recorder.border_radii(paintable);
     paint_box_borders(
         recorder,
         paintable,

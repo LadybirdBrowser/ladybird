@@ -28,7 +28,6 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
@@ -431,8 +430,6 @@ public:
 
     bool uses_collapsing_borders_model() const { return rust_data().uses_collapsing_borders_model; }
 
-    BorderRadiiData border_radii_data() const;
-
     Optional<CSS::BorderData> outline_data(CSS::ComputedValues const&) const;
     CSSPixels outline_offset() const;
 
@@ -532,7 +529,5 @@ private:
 
 template<>
 inline bool Paintable::fast_is<PaintableWithLines>() const { return is_paintable_with_lines(); }
-
-WEB_API Painting::BorderRadiiData normalize_border_radii_data(CSSPixelRect const& border_rect, CSSPixelRect const& reference_rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius);
 
 }

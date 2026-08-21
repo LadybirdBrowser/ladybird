@@ -7,7 +7,6 @@
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::border_radii::BorderRadii;
 use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::PaintRecorder;
@@ -104,7 +103,7 @@ pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: Paintable
     let top_border = top_border_data.width;
 
     let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder, fieldset));
-    let corners = BorderRadii::from_raw(recorder.hit_test_facts(fieldset).border_radii).as_corners(&converter);
+    let corners = recorder.border_radii(fieldset).as_corners(&converter);
 
     let borders_data = BordersDataDevicePixels {
         top: none,

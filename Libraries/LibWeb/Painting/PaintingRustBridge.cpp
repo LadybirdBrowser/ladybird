@@ -668,18 +668,6 @@ void dump_stacking_context_tree(StringBuilder& builder, ViewportPaintable const&
 
 namespace {
 
-void write_border_radii(BorderRadiiData const& radii, i32* out)
-{
-    out[0] = radii.top_left.horizontal_radius.raw_value();
-    out[1] = radii.top_left.vertical_radius.raw_value();
-    out[2] = radii.top_right.horizontal_radius.raw_value();
-    out[3] = radii.top_right.vertical_radius.raw_value();
-    out[4] = radii.bottom_right.horizontal_radius.raw_value();
-    out[5] = radii.bottom_right.vertical_radius.raw_value();
-    out[6] = radii.bottom_left.horizontal_radius.raw_value();
-    out[7] = radii.bottom_left.vertical_radius.raw_value();
-}
-
 Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
 {
     return {
@@ -703,8 +691,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                     ? to_underlying(Gfx::WindingRule::EvenOdd)
                     : to_underlying(Gfx::WindingRule::Nonzero);
             }
-            write_border_radii(paintable.border_radii_data(), facts.border_radii);
-            facts.has_noninitial_border_radii = layout_node.has_noninitial_border_radii();
             if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(paintable.dom_node().ptr()); graphics_element && graphics_element->unsafe_layout_node()) {
                 for (auto child = graphics_element->unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
                     if (child->kind() == Layout::RustFFI::NodeKind::SVGMaskBox)
@@ -729,9 +715,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                 .is_inert = dom_text && dom_text->is_inert(),
             };
         },
-        .piece_border_radii = [](void*, void* paintable_shell, i32 width_raw, i32 height_raw, u8 present_edges, i32* out) {
-            auto const& inline_paintable = as<InlinePaintable>(*static_cast<Paintable const*>(paintable_shell));
-            write_border_radii(inline_paintable.piece_border_radii_data({ CSSPixels::from_raw(width_raw), CSSPixels::from_raw(height_raw) }, present_edges), out); },
         .line_break_caret_targets = [](void*, void* paintable_shell, void* sink) {
             auto const& paintable = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
             auto* dom_node = paintable.layout_node().dom_node();

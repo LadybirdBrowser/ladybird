@@ -23,7 +23,6 @@ public:
     // containing block: it forms a group that content must be recorded inside.
     bool is_self_painting() const { return has_stacking_context() || is_positioned(); }
 
-    BorderRadiiData piece_border_radii_data(CSSPixelSize border_box_size, u8 present_edges) const;
     virtual CSSPixelPoint box_type_agnostic_position() const override;
 
     bool has_content() const;

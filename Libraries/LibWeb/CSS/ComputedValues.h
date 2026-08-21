@@ -867,19 +867,6 @@ struct CounterData {
     bool operator==(CounterData const&) const = default;
 };
 
-struct BorderRadiusData {
-    LengthPercentage horizontal_radius { InitialValues::border_radius() };
-    LengthPercentage vertical_radius { InitialValues::border_radius() };
-
-    [[nodiscard]] bool is_initial() const
-    {
-        return horizontal_radius.is_length() && horizontal_radius.length().is_px() && horizontal_radius.length().absolute_length_to_px() == 0
-            && vertical_radius.is_length() && vertical_radius.length().is_px() && vertical_radius.length().absolute_length_to_px() == 0;
-    }
-
-    bool operator==(BorderRadiusData const&) const = default;
-};
-
 enum class ComputedAnimationNameSyntax {
     None,
     CustomIdent,
@@ -1513,11 +1500,6 @@ public:
     CSSPixels border_right_computed_width() const { return m_noninherited.border->border_right_computed_width_value(); }
     CSSPixels border_bottom_computed_width() const { return m_noninherited.border->border_bottom_computed_width_value(); }
 
-    bool has_noninitial_border_radii() const { return m_noninherited.border->has_noninitial_border_radii_value(); }
-    BorderRadiusData border_bottom_left_radius() const { return m_noninherited.border->border_bottom_left_radius_value(); }
-    BorderRadiusData border_bottom_right_radius() const { return m_noninherited.border->border_bottom_right_radius_value(); }
-    BorderRadiusData border_top_left_radius() const { return m_noninherited.border->border_top_left_radius_value(); }
-    BorderRadiusData border_top_right_radius() const { return m_noninherited.border->border_top_right_radius_value(); }
     double corner_bottom_left_shape() const { return m_noninherited.border->corner_bottom_left_shape; }
     double corner_bottom_right_shape() const { return m_noninherited.border->corner_bottom_right_shape; }
     double corner_top_left_shape() const { return m_noninherited.border->corner_top_left_shape; }
@@ -2283,11 +2265,6 @@ public:
         CSSPixels border_top_computed_width_value() const { return CSSPixels::from_raw(border_top_computed_width); }
         CSSPixels border_right_computed_width_value() const { return CSSPixels::from_raw(border_right_computed_width); }
         CSSPixels border_bottom_computed_width_value() const { return CSSPixels::from_raw(border_bottom_computed_width); }
-        BorderRadiusData border_bottom_left_radius_value() const;
-        BorderRadiusData border_bottom_right_radius_value() const;
-        BorderRadiusData border_top_left_radius_value() const;
-        BorderRadiusData border_top_right_radius_value() const;
-        bool has_noninitial_border_radii_value() const;
         BorderImageData border_image_value() const;
         RefPtr<AbstractImageStyleValue const> border_image_source_value() const;
 

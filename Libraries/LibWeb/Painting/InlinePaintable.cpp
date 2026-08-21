@@ -27,28 +27,6 @@ InlinePaintable::InlinePaintable(Layout::NodeWithStyle const& layout_node)
 
 InlinePaintable::~InlinePaintable() = default;
 
-BorderRadiiData InlinePaintable::piece_border_radii_data(CSSPixelSize border_box_size, u8 present_edges) const
-{
-    if (!layout_node().has_noninitial_border_radii())
-        return {};
-
-    constexpr u8 top_edge_bit = 1 << 0;
-    constexpr u8 right_edge_bit = 1 << 1;
-    constexpr u8 bottom_edge_bit = 1 << 2;
-    constexpr u8 left_edge_bit = 1 << 3;
-    auto top_edge_is_cut = !(present_edges & top_edge_bit);
-    auto right_edge_is_cut = !(present_edges & right_edge_bit);
-    auto bottom_edge_is_cut = !(present_edges & bottom_edge_bit);
-    auto left_edge_is_cut = !(present_edges & left_edge_bit);
-
-    CSSPixelRect const border_rect { 0, 0, border_box_size.width(), border_box_size.height() };
-    auto top_left = top_edge_is_cut || left_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_top_left_radius();
-    auto top_right = top_edge_is_cut || right_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_top_right_radius();
-    auto bottom_right = bottom_edge_is_cut || right_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_bottom_right_radius();
-    auto bottom_left = bottom_edge_is_cut || left_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_bottom_left_radius();
-    return normalize_border_radii_data(border_rect, border_rect, top_left, top_right, bottom_right, bottom_left);
-}
-
 bool InlinePaintable::has_content_pieces() const
 {
     return Layout::RustFFI::layout_arena_inline_paintable_has_content_pieces(rust_arena().handle(), rust_slot());
