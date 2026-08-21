@@ -54,7 +54,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
@@ -719,17 +719,19 @@ int HTMLElement::offset_top() const
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetTop);
 
-    if (!paintable_box())
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
-    CSSPixels top_border_edge_of_element = paintable_box()->absolute_border_box_rect().y();
+    CSSPixels top_border_edge_of_element = Painting::absolute_border_box_rect(*layout_node).y();
 
     // 2. If the offsetParent of the element is null
     //    return the y-coordinate of the top border edge of the first CSS layout box associated with the element,
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
-    if (!offset_parent || !offset_parent->paintable_box()) {
+    auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node() : nullptr;
+    if (!offset_parent_layout_node || !Painting::has_committed_box(*offset_parent_layout_node)) {
         return top_border_edge_of_element.to_int();
     }
 
@@ -743,10 +745,10 @@ int HTMLElement::offset_top() const
     //       Spec bug: https://github.com/w3c/csswg-drafts/issues/10549
 
     CSSPixels top_padding_edge_of_offset_parent;
-    if (offset_parent->is_html_body_element() && !offset_parent->paintable_box()->is_positioned()) {
+    if (offset_parent->is_html_body_element() && !Painting::is_positioned(*offset_parent_layout_node)) {
         top_padding_edge_of_offset_parent = 0;
     } else {
-        top_padding_edge_of_offset_parent = offset_parent->paintable_box()->absolute_padding_box_rect().y();
+        top_padding_edge_of_offset_parent = Painting::absolute_padding_box_rect(*offset_parent_layout_node).y();
     }
     return (top_border_edge_of_element - top_padding_edge_of_offset_parent).to_int();
 }
@@ -761,17 +763,19 @@ int HTMLElement::offset_left() const
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetLeft);
 
-    if (!paintable_box())
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
-    CSSPixels left_border_edge_of_element = paintable_box()->absolute_border_box_rect().x();
+    CSSPixels left_border_edge_of_element = Painting::absolute_border_box_rect(*layout_node).x();
 
     // 2. If the offsetParent of the element is null
     //    return the x-coordinate of the left border edge of the first CSS layout box associated with the element,
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
-    if (!offset_parent || !offset_parent->paintable_box()) {
+    auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node() : nullptr;
+    if (!offset_parent_layout_node || !Painting::has_committed_box(*offset_parent_layout_node)) {
         return left_border_edge_of_element.to_int();
     }
 
@@ -785,10 +789,10 @@ int HTMLElement::offset_left() const
     //       Spec bug: https://github.com/w3c/csswg-drafts/issues/10549
 
     CSSPixels left_padding_edge_of_offset_parent;
-    if (offset_parent->is_html_body_element() && !offset_parent->paintable_box()->is_positioned()) {
+    if (offset_parent->is_html_body_element() && !Painting::is_positioned(*offset_parent_layout_node)) {
         left_padding_edge_of_offset_parent = 0;
     } else {
-        left_padding_edge_of_offset_parent = offset_parent->paintable_box()->absolute_padding_box_rect().x();
+        left_padding_edge_of_offset_parent = Painting::absolute_padding_box_rect(*offset_parent_layout_node).x();
     }
     return (left_border_edge_of_element - left_padding_edge_of_offset_parent).to_int();
 }
@@ -800,8 +804,8 @@ int HTMLElement::offset_width() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetWidth);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
-    auto box = paintable_box();
-    if (!box)
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
     // 2. Return the unscaled width of the axis-aligned bounding box of the border boxes of all fragments generated by
@@ -809,7 +813,7 @@ int HTMLElement::offset_width() const
     //
     //    If the element’s principal box is an inline-level box which was "split" by a block-level descendant, also
     //    include fragments generated by the block-level descendants, unless they are zero width or height.
-    return round(box->absolute_border_box_rect().width()).to_int();
+    return round(Painting::absolute_border_box_rect(*layout_node).width()).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-offsetheight
@@ -819,8 +823,8 @@ int HTMLElement::offset_height() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetHeight);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
-    auto box = paintable_box();
-    if (!box)
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
     // 2. Return the unscaled height of the axis-aligned bounding box of the border boxes of all fragments generated by
@@ -828,7 +832,7 @@ int HTMLElement::offset_height() const
     //
     //    If the element’s principal box is an inline-level box which was "split" by a block-level descendant, also
     //    include fragments generated by the block-level descendants, unless they are zero width or height.
-    return round(box->absolute_border_box_rect().height()).to_int();
+    return round(Painting::absolute_border_box_rect(*layout_node).height()).to_int();
 }
 
 void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
