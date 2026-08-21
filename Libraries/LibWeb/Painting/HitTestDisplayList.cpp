@@ -814,10 +814,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     return caret_position;
 }
 
-Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, HitTestType type, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics) const
+Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics) const
 {
-    (void)type;
-
     if (m_visual_context_tree_version != viewport_paintable.visual_context_tree().version() || !is_current())
         return {};
 

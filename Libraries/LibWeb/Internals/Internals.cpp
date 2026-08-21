@@ -317,7 +317,7 @@ Optional<Painting::HitTestResult> Internals::hit_test(double x, double y)
     //       for stacking context traversal, might not exist if this call occurs between the tear_down_layout_tree()
     //       and update_layout() calls
     active_document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
-    return active_document.hit_test({ x, y }, Painting::HitTestType::Exact);
+    return active_document.hit_test({ x, y });
 }
 
 struct WebDriverKeyData {

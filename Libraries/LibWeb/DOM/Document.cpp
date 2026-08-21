@@ -9092,14 +9092,14 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
     return m_hit_test_display_list.ptr();
 }
 
-Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position, Painting::HitTestType type)
+Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
     auto viewport_paintable = paintable();
     if (!hit_test_display_list || !viewport_paintable)
         return {};
     viewport_paintable->refresh_scroll_state();
-    auto result = hit_test_display_list->hit_test(position, type, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
+    auto result = hit_test_display_list->hit_test(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     if (result.has_value() && (result->chrome_widget || Painting::event_dispatch_dom_node_for(result->paintable)))
         return result;
 

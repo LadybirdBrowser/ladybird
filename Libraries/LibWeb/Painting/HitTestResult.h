@@ -27,14 +27,6 @@ struct HitTestResult {
     GC::Ptr<DOM::Node> dom_node_override {};
     size_t index_in_node { 0 };
     bool is_text_fragment { false };
-    enum InternalPosition {
-        None,
-        Before,
-        Inside,
-        After,
-    };
-    InternalPosition internal_position { None };
-
     DOM::Node* dom_node();
     DOM::Node const* dom_node() const;
 };
@@ -45,10 +37,6 @@ struct CaretPosition {
     TextAffinity affinity { TextAffinity::Downstream };
     Optional<DOM::BoundaryPoint> secondary_boundary {};
     Optional<CSSPixelRect> debug_rect {};
-};
-
-enum class HitTestType : u8 {
-    Exact, // Exact matches only
 };
 
 }

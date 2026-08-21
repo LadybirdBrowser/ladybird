@@ -2113,7 +2113,7 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
     if (!document)
         return {};
 
-    if (auto result = document->hit_test(position, Painting::HitTestType::Exact); result.has_value())
+    if (auto result = document->hit_test(position); result.has_value())
         return Target {
             .paintable = result->paintable.ptr(),
             .chrome_widget = result->chrome_widget,
@@ -2135,7 +2135,7 @@ GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint po
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
 {
-    auto exact_hit = m_navigable->active_document()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+    auto exact_hit = m_navigable->active_document()->hit_test(visual_viewport_position);
     if (!exact_hit.has_value())
         return {};
 
@@ -2162,7 +2162,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         if (!m_navigable->page().enable_autoscroll())
             return;
 
-        auto hit = document.hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+        auto hit = document.hit_test(visual_viewport_position);
         if (!hit.has_value())
             return;
 
@@ -2234,7 +2234,7 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
     // NOTE: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or
     //       dispatching a synthetic click event on it won't cause the element to get focused.
     GC::Ptr<DOM::Node> editable_hit_node_before_focus;
-    if (auto hit_before_focus = document.hit_test(visual_viewport_position, Painting::HitTestType::Exact); hit_before_focus.has_value()) {
+    if (auto hit_before_focus = document.hit_test(visual_viewport_position); hit_before_focus.has_value()) {
         if (auto* hit_node = hit_before_focus->dom_node())
             editable_hit_node_before_focus = *hit_node;
     }
