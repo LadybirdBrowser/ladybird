@@ -5434,20 +5434,17 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     movzx esi, BYTE PTR [rdx + 16]
     test esi, 1
     jnz .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_14
-    mov rdx, QWORD PTR [rcx + 8]
-    test rdx, rdx
-    jns .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_17
-    shl rdx, 1
-    shr rdx, 1
+    mov edx, DWORD PTR [rcx + 4]
     cmp rdx, rax
     jbe .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    lea rcx, [rcx + 32]
+    mov edx, DWORD PTR [rcx + 16]
+    test edx, 1
+    jz .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_19
+    lea rcx, [rcx + 24]
     movzx eax, WORD PTR [rcx + rax * 2]
     jmp .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_15
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_17:
-    cmp rdx, rax
-    jbe .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    lea rcx, [rcx + 32]
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_19:
+    lea rcx, [rcx + 24]
     movzx eax, BYTE PTR [rcx + rax]
     jmp .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_15
 .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_14:
@@ -5507,20 +5504,17 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     movzx esi, BYTE PTR [rdx + 16]
     test esi, 1
     jnz .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14
-    mov rdx, QWORD PTR [rcx + 8]
-    test rdx, rdx
-    jns .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_17
-    shl rdx, 1
-    shr rdx, 1
+    mov edx, DWORD PTR [rcx + 4]
     cmp rdx, rax
     jbe .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    lea rcx, [rcx + 32]
+    mov edx, DWORD PTR [rcx + 16]
+    test edx, 1
+    jz .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_19
+    lea rcx, [rcx + 24]
     movzx ecx, WORD PTR [rcx + rax * 2]
     jmp .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_17:
-    cmp rdx, rax
-    jbe .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    lea rcx, [rcx + 32]
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_19:
+    lea rcx, [rcx + 24]
     movzx ecx, BYTE PTR [rcx + rax]
     jmp .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14:

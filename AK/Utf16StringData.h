@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
+#include <AK/Checked.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/NumericLimits.h>
-#include <AK/RefCounted.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
@@ -25,8 +26,32 @@ namespace AK::Detail {
 
 void did_destroy_utf16_fly_string_data(Badge<Detail::Utf16StringData>, Detail::Utf16StringData const&);
 
-class Utf16StringData final : public RefCounted<Utf16StringData> {
+// This is an intentionally stable representation shared with Rust. Keep all fields fixed-width,
+// and update the corresponding Rust layout assertions when changing it.
+struct alignas(8) Utf16StringDataHeader {
+    mutable u32 reference_count { 1 };
+    u32 length_in_code_units { 0 };
+    mutable u32 length_in_code_points { NumericLimits<u32>::max() };
+    mutable u32 hash { 0 };
+    mutable u32 flags { 0 };
+};
+
+static_assert(sizeof(Utf16StringDataHeader) == 24);
+static_assert(alignof(Utf16StringDataHeader) == 8);
+static_assert(offsetof(Utf16StringDataHeader, reference_count) == 0);
+static_assert(offsetof(Utf16StringDataHeader, length_in_code_units) == 4);
+static_assert(offsetof(Utf16StringDataHeader, length_in_code_points) == 8);
+static_assert(offsetof(Utf16StringDataHeader, hash) == 12);
+static_assert(offsetof(Utf16StringDataHeader, flags) == 16);
+
+class Utf16StringData final {
+    AK_MAKE_NONCOPYABLE(Utf16StringData);
+    AK_MAKE_NONMOVABLE(Utf16StringData);
+
 public:
+    using RefCountType = u32;
+    using AllowOwnPtr = FalseType;
+
     enum class StorageType : u8 {
         ASCII,
         UTF16,
@@ -36,6 +61,16 @@ public:
         No,
         Yes,
     };
+
+    enum Flag : u32 {
+        HasUtf16Storage = 1 << 0,
+        HasHash = 1 << 1,
+        IsFlyString = 1 << 2,
+    };
+
+    static_assert(HasUtf16Storage == 1);
+    static_assert(HasHash == 2);
+    static_assert(IsFlyString == 4);
 
     static NonnullRefPtr<Utf16StringData> from_utf8(StringView, AllowASCIIStorage);
     static NonnullRefPtr<Utf16StringData> from_ascii(ReadonlyBytes);
@@ -47,13 +82,47 @@ public:
 
     ~Utf16StringData()
     {
+        VERIFY(ref_count() == 0);
         if (is_fly_string())
             did_destroy_utf16_fly_string_data({}, *this);
     }
 
+    ALWAYS_INLINE void ref() const
+    {
+        auto old_reference_count = atomic_fetch_add(&m_header.reference_count, 1u, memory_order_relaxed);
+        VERIFY(old_reference_count > 0);
+        VERIFY(!Checked<RefCountType>::addition_would_overflow(old_reference_count, 1));
+    }
+
+    [[nodiscard]] bool try_ref() const
+    {
+        auto expected = atomic_load(&m_header.reference_count, memory_order_relaxed);
+        for (;;) {
+            if (expected == 0)
+                return false;
+            VERIFY(!Checked<RefCountType>::addition_would_overflow(expected, 1));
+            if (atomic_compare_exchange_strong(&m_header.reference_count, expected, expected + 1, memory_order_acquire))
+                return true;
+        }
+    }
+
+    ALWAYS_INLINE bool unref() const
+    {
+        auto old_reference_count = atomic_fetch_sub(&m_header.reference_count, 1u, memory_order_release);
+        VERIFY(old_reference_count > 0);
+        if (old_reference_count != 1)
+            return false;
+
+        atomic_thread_fence(memory_order_acquire);
+        delete this;
+        return true;
+    }
+
+    [[nodiscard]] RefCountType ref_count() const { return atomic_load(&m_header.reference_count, memory_order_relaxed); }
+
     [[nodiscard]] static constexpr size_t offset_of_string_storage()
     {
-        return offsetof(Utf16StringData, m_ascii_data);
+        return sizeof(Utf16StringDataHeader);
     }
 
     void operator delete(void* ptr)
@@ -80,57 +149,71 @@ public:
         return utf16_view() == Utf16View { other.characters_without_null_termination(), other.length() };
     }
 
-    [[nodiscard]] ALWAYS_INLINE bool has_ascii_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG == 0; }
-    [[nodiscard]] ALWAYS_INLINE bool has_utf16_storage() const { return m_length_in_code_units >> Detail::UTF16_FLAG != 0; }
+    [[nodiscard]] ALWAYS_INLINE bool has_ascii_storage() const { return !has_flag(HasUtf16Storage); }
+    [[nodiscard]] ALWAYS_INLINE bool has_utf16_storage() const { return has_flag(HasUtf16Storage); }
 
     ALWAYS_INLINE u32 hash() const
     {
-        if (!m_has_hash) {
-            m_hash = utf16_view().hash();
-            m_has_hash = true;
+        if (!has_flag(HasHash)) {
+            auto hash = utf16_view().hash();
+            atomic_store(&m_header.hash, hash, memory_order_relaxed);
+            atomic_fetch_or(&m_header.flags, static_cast<u32>(HasHash), memory_order_release);
+            return hash;
         }
 
-        return m_hash;
+        return atomic_load(&m_header.hash, memory_order_relaxed);
     }
 
-    [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const { return m_length_in_code_units & ~(1uz << Detail::UTF16_FLAG); }
+    [[nodiscard]] ALWAYS_INLINE size_t length_in_code_units() const { return m_header.length_in_code_units; }
     [[nodiscard]] ALWAYS_INLINE size_t length_in_code_points() const
     {
         if (has_ascii_storage())
             return length_in_code_units();
-        if (m_length_in_code_points == NumericLimits<size_t>::max())
-            m_length_in_code_points = calculate_code_point_length();
-        return m_length_in_code_points;
+
+        auto length_in_code_points = atomic_load(&m_header.length_in_code_points, memory_order_acquire);
+        if (length_in_code_points != NumericLimits<u32>::max())
+            return length_in_code_points;
+
+        auto calculated_length = calculate_code_point_length();
+        VERIFY(calculated_length < NumericLimits<u32>::max());
+
+        auto expected = NumericLimits<u32>::max();
+        if (atomic_compare_exchange_strong(&m_header.length_in_code_points, expected, static_cast<u32>(calculated_length), memory_order_acq_rel))
+            return calculated_length;
+        return expected;
     }
 
     [[nodiscard]] ALWAYS_INLINE StringView ascii_view() const LIFETIME_BOUND
     {
         ASSERT(has_ascii_storage());
-        return { m_ascii_data, length_in_code_units() };
+        return { ascii_data(), length_in_code_units() };
     }
 
     [[nodiscard]] ALWAYS_INLINE Utf16View utf16_view() const LIFETIME_BOUND
     {
         if (has_ascii_storage())
-            return { m_ascii_data, length_in_code_units() };
+            return { ascii_data(), length_in_code_units() };
 
-        Utf16View view { m_utf16_data, length_in_code_units() };
-        view.m_length_in_code_points = m_length_in_code_points;
+        Utf16View view { utf16_data(), length_in_code_units() };
+        auto length_in_code_points = atomic_load(&m_header.length_in_code_points, memory_order_acquire);
+        if (length_in_code_points != NumericLimits<u32>::max())
+            view.m_length_in_code_points = length_in_code_points;
 
         return view;
     }
 
-    ALWAYS_INLINE void mark_as_fly_string(Badge<Utf16FlyString>) const { m_is_fly_string = true; }
-    [[nodiscard]] ALWAYS_INLINE bool is_fly_string() const { return m_is_fly_string; }
+    ALWAYS_INLINE void mark_as_fly_string(Badge<Utf16FlyString>) const { atomic_fetch_or(&m_header.flags, static_cast<u32>(IsFlyString), memory_order_release); }
+    [[nodiscard]] ALWAYS_INLINE bool is_fly_string() const { return has_flag(IsFlyString); }
 
 private:
     friend class AK::Utf16String;
 
     ALWAYS_INLINE Utf16StringData(StorageType storage_type, size_t code_unit_length)
-        : m_length_in_code_units(code_unit_length)
     {
+        VERIFY(code_unit_length < NumericLimits<u32>::max());
+        m_header.length_in_code_units = static_cast<u32>(code_unit_length);
         if (storage_type == StorageType::UTF16)
-            m_length_in_code_units |= 1uz << Detail::UTF16_FLAG;
+            m_header.flags = HasUtf16Storage;
     }
 
     static NonnullRefPtr<Utf16StringData> create_uninitialized(StorageType storage_type, size_t code_unit_length);
@@ -148,21 +231,36 @@ private:
 
     [[nodiscard]] size_t calculate_code_point_length() const;
 
-    // We store whether this string has ASCII or UTF-16 storage by setting the most significant bit of m_length_in_code_units
-    // to 1 for UTF-16 storage. This shrinks the size of most UTF-16 string related classes, at the cost of not being
-    // allowed to create a string larger than 2**63 - 1.
-    size_t m_length_in_code_units { 0 };
-    mutable size_t m_length_in_code_points { NumericLimits<size_t>::max() };
+    [[nodiscard]] ALWAYS_INLINE bool has_flag(Flag flag) const
+    {
+        return atomic_load(&m_header.flags, memory_order_acquire) & static_cast<u32>(flag);
+    }
 
-    mutable u32 m_hash { 0 };
-    mutable bool m_has_hash { false };
+    [[nodiscard]] ALWAYS_INLINE char* ascii_data()
+    {
+        return reinterpret_cast<char*>(this) + offset_of_string_storage();
+    }
 
-    mutable bool m_is_fly_string { false };
+    [[nodiscard]] ALWAYS_INLINE char const* ascii_data() const
+    {
+        return reinterpret_cast<char const*>(this) + offset_of_string_storage();
+    }
 
-    union alignas(8) {
-        char m_ascii_data[0];
-        char16_t m_utf16_data[0];
-    };
+    [[nodiscard]] ALWAYS_INLINE char16_t* utf16_data()
+    {
+        return reinterpret_cast<char16_t*>(reinterpret_cast<char*>(this) + offset_of_string_storage());
+    }
+
+    [[nodiscard]] ALWAYS_INLINE char16_t const* utf16_data() const
+    {
+        return reinterpret_cast<char16_t const*>(reinterpret_cast<char const*>(this) + offset_of_string_storage());
+    }
+
+    Utf16StringDataHeader m_header;
 };
+
+static_assert(Utf16StringData::offset_of_string_storage() == sizeof(Utf16StringDataHeader));
+static_assert(sizeof(Utf16StringData) == sizeof(Utf16StringDataHeader));
+static_assert(alignof(Utf16StringData) == alignof(Utf16StringDataHeader));
 
 }

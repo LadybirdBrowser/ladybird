@@ -5323,19 +5323,16 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     cbz x1, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldrb w3, [x2, #16]
     tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_14
-    ldr x2, [x1, #8]
-    tbz x2, #63, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_17
-    lsl x2, x2, #1
-    lsr x2, x2, #1
+    ldr w2, [x1, #4]
     cmp x2, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    add x1, x1, #32
+    ldr w2, [x1, #16]
+    tbz x2, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_19
+    add x1, x1, #24
     ldrh w0, [x1, x0, lsl #1]
     b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_15
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_17:
-    cmp x2, x0
-    b.ls .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    add x1, x1, #32
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_19:
+    add x1, x1, #24
     ldrb w0, [x1, x0]
     b .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_15
 .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_14:
@@ -5390,19 +5387,16 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     cbz x1, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldrb w3, [x2, #16]
     tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14
-    ldr x2, [x1, #8]
-    tbz x2, #63, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_17
-    lsl x2, x2, #1
-    lsr x2, x2, #1
+    ldr w2, [x1, #4]
     cmp x2, x0
     b.ls .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    add x1, x1, #32
+    ldr w2, [x1, #16]
+    tbz x2, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_19
+    add x1, x1, #24
     ldrh w0, [x1, x0, lsl #1]
     b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15
-.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_17:
-    cmp x2, x0
-    b.ls .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    add x1, x1, #32
+.Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_19:
+    add x1, x1, #24
     ldrb w0, [x1, x0]
     b .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14:
