@@ -1,0 +1,2 @@
+buffered ranges after the partial Void element: 0
+buffered ranges after the first Cluster: 1

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // The test WebM file's initialization segment ends, and its second Cluster starts, at these offsets.
+        const INIT_END = 530;
+        const CLUSTER2_START = 946885;
+
+        // A Void element holding eight octets, split so that only its header and two octets arrive at first.
+        const VOID_HEAD = new Uint8Array([0xec, 0x88, 0x00, 0x00]);
+        const VOID_TAIL = new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9,opus"');
+
+            function append(buffer) {
+                return new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () => reject(new Error("append error")), { once: true });
+                    sourceBuffer.appendBuffer(buffer);
+                });
+            }
+
+            try {
+                const response = await fetch("../../../Assets/test-webm.webm");
+                const data = await response.arrayBuffer();
+
+                await append(data.slice(0, INIT_END));
+                await append(VOID_HEAD);
+                println(`buffered ranges after the partial Void element: ${sourceBuffer.buffered.length}`);
+
+                const rest = new Uint8Array(VOID_TAIL.length + (CLUSTER2_START - INIT_END));
+                rest.set(VOID_TAIL, 0);
+                rest.set(new Uint8Array(data.slice(INIT_END, CLUSTER2_START)), VOID_TAIL.length);
+                await append(rest);
+                println(`buffered ranges after the first Cluster: ${sourceBuffer.buffered.length}`);
+            } catch (error) {
+                println(`FAIL: ${error.message}`);
+            }
+            done();
+        });
+    });
+</script>
