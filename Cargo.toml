@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "AK/Rust",
     "Libraries/LibGfx/Rust",
     "Libraries/LibJS/Rust",
     "Libraries/LibRegex/Rust",

@@ -5214,13 +5214,6 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_utf16_fly_string_view(
-        _raw: usize,
-        _short_buffer: *mut u8,
-    ) -> crate::css::serialize::FfiFlyStringView {
-        crate::css::serialize::FfiFlyStringView::empty()
-    }
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_animated_properties_unref(_values: *const std::ffi::c_void) {}

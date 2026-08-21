@@ -18,6 +18,7 @@ style-replay = ["style-recording"]
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
+ak = { path = "../../../AK/Rust" }
 chardetng = "1.0.0"
 foldhash = "0.1"
 hashbrown = "0.16.1"
