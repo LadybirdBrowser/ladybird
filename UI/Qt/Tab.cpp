@@ -791,6 +791,18 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
     set_loading(view().is_loading());
 
+    view().on_load_finish = [this](auto const&) {
+        m_suppress_javascript_dialogs_until_navigation = false;
+    };
+
+    view().on_top_level_navigation_commit = [this] {
+        m_suppress_javascript_dialogs_until_navigation = false;
+    };
+
+    view().on_browser_history_traversal_complete = [this] {
+        m_suppress_javascript_dialogs_until_navigation = false;
+    };
+
     view().on_url_change = [this](auto const& url) {
         m_location_edit->set_url(url);
     };
@@ -833,14 +845,26 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_request_alert = [this, javascript_dialog_title](auto const& message) {
+        if (m_suppress_javascript_dialogs_until_navigation) {
+            view().alert_closed();
+            return;
+        }
         m_javascript_dialog->show_alert(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
     view().on_request_confirm = [this, javascript_dialog_title](auto const& message) {
+        if (m_suppress_javascript_dialogs_until_navigation) {
+            view().confirm_closed(false);
+            return;
+        }
         m_javascript_dialog->show_confirm(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
     view().on_request_prompt = [this, javascript_dialog_title](auto const& message, auto const& default_) {
+        if (m_suppress_javascript_dialogs_until_navigation) {
+            view().prompt_closed({});
+            return;
+        }
         m_javascript_dialog->show_prompt(javascript_dialog_title(), qstring_from_utf16_string(message), qstring_from_utf16_string(default_));
     };
 
@@ -866,6 +890,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_before_browser_initiated_navigation = [this] {
+        m_suppress_javascript_dialogs_until_navigation = true;
         m_javascript_dialog->dismiss();
     };
 
@@ -1619,6 +1644,7 @@ void Tab::find_next()
 
 void Tab::request_close()
 {
+    m_suppress_javascript_dialogs_until_navigation = true;
     m_javascript_dialog->dismiss();
 
     if (!view().needs_beforeunload_check()) {

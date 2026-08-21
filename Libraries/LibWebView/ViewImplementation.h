@@ -372,6 +372,8 @@ public:
     Function<void()> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(bool)> on_loading_state_change;
+    Function<void()> on_top_level_navigation_commit;
+    Function<void()> on_browser_history_traversal_complete;
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(DictionaryLookup const&, Gfx::IntPoint)> on_request_dictionary_lookup;
     Function<void(Optional<Gfx::Bitmap const&>)> on_favicon_change;

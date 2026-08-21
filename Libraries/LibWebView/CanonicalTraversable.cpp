@@ -612,6 +612,8 @@ void CanonicalTraversable::start_pending_browser_history_traversal(u64 generatio
         m_pending_browser_history_traversal.clear();
         for (auto& callback : callbacks)
             callback();
+        if (view->on_browser_history_traversal_complete)
+            view->on_browser_history_traversal_complete();
         promise->resolve({});
         return;
     }
@@ -2113,6 +2115,8 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
                             view->m_client_state.site_url = move(active_document_url);
                         view->m_client_state.hosts_committed_entry = true;
                         view->m_external_url_request_policy.clear_page_request_allowance();
+                        if (view->on_top_level_navigation_commit)
+                            view->on_top_level_navigation_commit();
                     }
                 }
             }

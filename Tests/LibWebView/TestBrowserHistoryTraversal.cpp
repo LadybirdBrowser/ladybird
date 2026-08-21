@@ -93,6 +93,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     size_t loads_finished = 0;
     view->on_load_finish = [&](auto const&) { ++loads_finished; };
 
+    size_t browser_history_traversals_completed = 0;
+    view->on_browser_history_traversal_complete = [&] { ++browser_history_traversals_completed; };
+
     size_t expected_loads = 1;
     // Wait out the initial about:blank load; navigating before it completes would drop the navigation.
     Core::EventLoop::current().spin_until([&]() { return loads_finished >= expected_loads; });
@@ -185,6 +188,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return loads_finished > loads_finished_before_javascript_url; });
     VERIFY(loads_started == loads_started_before_javascript_url + 1);
     VERIFY(view_is_at(url_c));
+
+    view->traverse_the_history_to_step(back_menu_items.last().step);
+    wait_until_at(url_a);
+
+    auto completed_traversals_before_history_boundary = browser_history_traversals_completed;
+    bool history_boundary_traversal_ready = false;
+    view->traverse_the_history_by_delta(-1, WebView::CheckForCancelation::Yes, [&] {
+        history_boundary_traversal_ready = true;
+    });
+    Core::EventLoop::current().spin_until([&] { return history_boundary_traversal_ready; });
+    VERIFY(browser_history_traversals_completed == completed_traversals_before_history_boundary + 1);
 
     outln("PASS: browser history traversal");
     return 0;

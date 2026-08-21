@@ -638,6 +638,8 @@ void ViewImplementation::did_finish_history_traversal(Web::HTML::CrossProcessId 
 
     complete_webdriver_history_traversal(operation_id);
     update_navigation_action_state();
+    if (on_browser_history_traversal_complete)
+        on_browser_history_traversal_complete();
     dump_session_history(result == Web::HTML::HistoryStepResult::Applied
             ? "webcontent-history-step-applied"sv
             : "webcontent-history-step-canceled"sv);
