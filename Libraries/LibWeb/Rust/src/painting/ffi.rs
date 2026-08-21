@@ -980,6 +980,20 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        for cache in &paintables.paint_caches {
+            cache.clear();
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
     arena: *mut c_void,
     paintable: PaintableSlotId,

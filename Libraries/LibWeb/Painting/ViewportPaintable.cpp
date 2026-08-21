@@ -196,10 +196,7 @@ void ViewportPaintable::append_paint_command_cache_source_resources(DisplayListR
 
 void ViewportPaintable::invalidate_all_cached_paint()
 {
-    for_each_in_inclusive_subtree([](auto& paintable) {
-        paintable.invalidate_paint_cache();
-        return TraversalDecision::Continue;
-    });
+    Layout::RustFFI::layout_arena_invalidate_all_paint_caches(rust_arena().handle());
     set_needs_repaint();
 }
 
