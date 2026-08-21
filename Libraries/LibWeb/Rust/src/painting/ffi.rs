@@ -2020,10 +2020,9 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
                 paintables.is_live(item.paintable),
                 "exporting a hit-test item for a non-live paintable"
             );
-            let paintable_shell = paintables.data_ref(item.paintable).shell;
             *output = crate::painting::host::FfiHitTestItemExport {
                 kind: item.kind as u8,
-                paintable_shell,
+                paintable: item.paintable,
                 chrome_widget_kind: item.chrome_widget_kind,
                 has_text_fragment_index: item.text_fragment_index.is_some(),
                 text_fragment_index: item.text_fragment_index.unwrap_or(0),

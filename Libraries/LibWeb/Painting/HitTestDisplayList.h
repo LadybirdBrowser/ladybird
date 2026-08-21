@@ -13,7 +13,8 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/ChromeWidget.h>
+#include <LibWeb/Painting/HitTestResult.h>
 
 namespace Web {
 
@@ -21,6 +22,7 @@ struct ChromeMetrics;
 
 namespace Painting {
 
+class Paintable;
 class ViewportPaintable;
 
 enum class CaretPositionMode : u8 {
@@ -77,7 +79,7 @@ private:
 
     struct Item {
         ItemKind kind;
-        NonnullRefPtr<Paintable> paintable;
+        Layout::RustFFI::PaintableSlotId box;
         ChromeWidgetKind chrome_widget_kind { ChromeWidgetKind::None };
         Optional<u32> text_fragment_index;
         GC::Ptr<DOM::Node const> caret_node { nullptr };
@@ -133,6 +135,8 @@ private:
 
     [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] CSSPixelRect viewport_rect_for_context(VisualContextIndex, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
+    [[nodiscard]] Layout::Node const* layout_node_for_item(Item const&) const;
+    [[nodiscard]] RefPtr<Paintable> paintable_for_item(Item const&) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;
     [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(Item const&) const;
