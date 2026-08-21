@@ -81,6 +81,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/ValueParserRustFFI.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/CompositorConnection.h>
 #include <LibWebView/DictionaryLookup.h>
@@ -115,6 +116,7 @@ void ConnectionFromClient::did_destroy_compositor_context(Web::Compositor::Compo
 
 void ConnectionFromClient::die()
 {
+    Web::CSS::Parser::ValueParserFFI::rust_parse_fallback_stats_dump();
     Core::Process::terminate_immediately(0);
 }
 

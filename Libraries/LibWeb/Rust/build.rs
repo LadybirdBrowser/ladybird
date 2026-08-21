@@ -1182,6 +1182,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         .collect();
     let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
     output.push_str(&format!(
+        "pub(crate) static PROPERTY_NAMES: [&str; {}] = {:?};\n",
+        property_names.len(),
+        property_names
+    ));
+    output.push_str(&format!(
         "pub(crate) static PROPERTY_IDL_NAMES: [&str; {}] = {:?};\n",
         idl_names.len(),
         idl_names
@@ -1750,6 +1755,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
         &out_dir,
         Path::new("StyleValueRustFFI.h"),
+    );
+
+    // CSS value parser header - namespace Web::CSS::Parser::ValueParserFFI.
+    let mut value_parser_config = base_config.clone();
+    value_parser_config.namespaces = Some(vec![
+        "Web".to_string(),
+        "CSS".to_string(),
+        "Parser".to_string(),
+        "ValueParserFFI".to_string(),
+    ]);
+    value_parser_config.export.include = vec![
+        "FfiParseStatus".to_string(),
+        "FfiValueParsingContext".to_string(),
+        "FfiValueParsingContextKind".to_string(),
+        "FfiUtf16View".to_string(),
+        "ParseContext".to_string(),
+    ];
+
+    generate_ffi_header(
+        value_parser_config,
+        &[manifest_dir.join("src/css/parser/value_parser.rs")],
+        &out_dir,
+        Path::new("ValueParserRustFFI.h"),
     );
 
     // StyleEngine header - namespace Web::CSS::StyleEngineFFI. The flat input transaction and the

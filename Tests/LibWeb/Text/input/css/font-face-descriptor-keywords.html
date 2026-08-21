@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: x;
+        font-style: italic;
+        font-weight: bold;
+        font-width: condensed;
+        font-display: swap;
+        src: url(x.woff);
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let style = document.styleSheets[0].cssRules[0].style;
+        println(`font-style: ${style.fontStyle}`);
+        println(`font-weight: ${style.fontWeight}`);
+        println(`font-width: ${style.fontWidth}`);
+        println(`font-display: ${style.fontDisplay}`);
+        println(`src: ${style.src}`);
+    });
+</script>
