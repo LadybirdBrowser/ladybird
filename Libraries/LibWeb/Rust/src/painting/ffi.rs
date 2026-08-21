@@ -99,21 +99,6 @@ pub unsafe extern "C" fn layout_arena_paintable_transfer_fragments_to_replacemen
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_shell(arena: *mut c_void, slot: PaintableSlotId) -> *mut c_void {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
-            return std::ptr::null_mut();
-        }
-        paintables.data_ref(slot).shell
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
     arena: *mut c_void,
     slot: PaintableSlotId,

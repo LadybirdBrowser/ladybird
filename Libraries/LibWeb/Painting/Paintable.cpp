@@ -130,21 +130,6 @@ DOM::Document& Paintable::document()
     return layout_node().document();
 }
 
-RefPtr<Paintable> Paintable::containing_block() const
-{
-    return const_cast<Paintable*>(containing_block_ptr());
-}
-
-Paintable const* Paintable::containing_block_ptr() const
-{
-    return shell_from_slot(rust_data().containing_block);
-}
-
-Paintable* Paintable::shell_from_slot(Layout::RustFFI::PaintableSlotId slot) const
-{
-    return static_cast<Paintable*>(Layout::RustFFI::layout_arena_paintable_shell(m_rust_arena->handle(), slot));
-}
-
 bool Paintable::is_visible() const
 {
     return layout_node().visibility() == CSS::Visibility::Visible && layout_node().opacity() != 0;

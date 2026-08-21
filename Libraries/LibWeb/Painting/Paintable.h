@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/IterationDecision.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
@@ -41,7 +40,6 @@
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
-#include <LibWeb/TreeTraversal.h>
 
 namespace Web::Painting {
 
@@ -101,113 +99,6 @@ public:
 
     bool has_stacking_context() const;
 
-    Paintable* parent_ptr() { return shell_from_slot(rust_data().parent); }
-    Paintable const* parent_ptr() const { return shell_from_slot(rust_data().parent); }
-    RefPtr<Paintable> parent() { return parent_ptr(); }
-    RefPtr<Paintable const> parent() const { return parent_ptr(); }
-    Paintable* first_child_ptr() { return shell_from_slot(rust_data().first_child); }
-    Paintable const* first_child_ptr() const { return shell_from_slot(rust_data().first_child); }
-    RefPtr<Paintable> first_child() { return first_child_ptr(); }
-    RefPtr<Paintable const> first_child() const { return first_child_ptr(); }
-    Paintable* next_sibling_ptr() { return shell_from_slot(rust_data().next_sibling); }
-    Paintable const* next_sibling_ptr() const { return shell_from_slot(rust_data().next_sibling); }
-    RefPtr<Paintable> next_sibling() { return next_sibling_ptr(); }
-    RefPtr<Paintable const> next_sibling() const { return next_sibling_ptr(); }
-    bool has_children() const { return rust_data().first_child.index != Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX; }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree(Callback callback)
-    {
-        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::Yes, move(callback));
-    }
-    template<typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree(Callback callback) const
-    {
-        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::Yes, move(callback));
-    }
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
-    {
-        return for_each_in_inclusive_subtree([callback = move(callback)](Paintable& paintable) {
-            if (auto* paintable_of_type = as_if<U>(paintable))
-                return callback(*paintable_of_type);
-            return TraversalDecision::Continue;
-        });
-    }
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback) const
-    {
-        return for_each_in_inclusive_subtree([callback = move(callback)](Paintable const& paintable) {
-            if (auto const* paintable_of_type = as_if<U>(paintable))
-                return callback(*paintable_of_type);
-            return TraversalDecision::Continue;
-        });
-    }
-    template<typename Callback>
-    TraversalDecision for_each_in_subtree(Callback callback)
-    {
-        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::No, move(callback));
-    }
-    template<typename Callback>
-    TraversalDecision for_each_in_subtree(Callback callback) const
-    {
-        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::No, move(callback));
-    }
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_subtree_of_type(Callback callback)
-    {
-        return for_each_in_subtree([callback = move(callback)](Paintable& paintable) {
-            if (auto* paintable_of_type = as_if<U>(paintable))
-                return callback(*paintable_of_type);
-            return TraversalDecision::Continue;
-        });
-    }
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_subtree_of_type(Callback callback) const
-    {
-        return for_each_in_subtree([callback = move(callback)](Paintable const& paintable) {
-            if (auto const* paintable_of_type = as_if<U>(paintable))
-                return callback(*paintable_of_type);
-            return TraversalDecision::Continue;
-        });
-    }
-    template<typename Callback>
-    void for_each_child(Callback callback)
-    {
-        for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
-            if (callback(*child) == IterationDecision::Break)
-                return;
-        }
-    }
-    template<typename Callback>
-    void for_each_child(Callback callback) const
-    {
-        for (auto const* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
-            if (callback(*child) == IterationDecision::Break)
-                return;
-        }
-    }
-    template<typename U, typename Callback>
-    void for_each_child_of_type(Callback callback)
-    {
-        for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
-            if (auto* child_of_type = as_if<U>(*child)) {
-                if (callback(*child_of_type) == IterationDecision::Break)
-                    return;
-            }
-        }
-    }
-    template<typename U, typename Callback>
-    void for_each_child_of_type(Callback callback) const
-    {
-        for (auto const* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
-            if (auto const* child_of_type = as_if<U>(*child)) {
-                if (callback(*child_of_type) == IterationDecision::Break)
-                    return;
-            }
-        }
-    }
-
     bool has_layout_node() const { return m_layout_node; }
     Layout::NodeWithStyle const& layout_node() const
     {
@@ -225,9 +116,6 @@ public:
     bool visible_for_hit_testing() const;
 
     GC::Ptr<HTML::LocalNavigable> navigable() const;
-
-    RefPtr<Paintable> containing_block() const;
-    Paintable const* containing_block_ptr() const;
 
     template<typename T>
     bool fast_is() const = delete;
@@ -517,8 +405,6 @@ private:
 
     bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
     Layout::RustFFI::PaintableData& rust_data() { return *m_rust_data; }
-    Paintable* shell_from_slot(Layout::RustFFI::PaintableSlotId) const;
-
     GC::Weak<DOM::Node> m_dom_node;
     WeakPtr<Layout::NodeWithStyle const> m_layout_node;
 
