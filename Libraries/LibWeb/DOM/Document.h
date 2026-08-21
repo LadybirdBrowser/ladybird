@@ -1225,7 +1225,7 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
     void set_navigable(GC::Ptr<HTML::LocalNavigable>);
 
-    void set_needs_repaint(Badge<Node, Painting::Paintable, HTML::LocalNavigable, CSS::VisualViewport, Web::EventHandler>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
+    void set_needs_repaint(Badge<Node, Painting::BoxViewRepaintAccess, HTML::LocalNavigable, CSS::VisualViewport, Web::EventHandler>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
     {
         set_needs_repaint(should_invalidate_display_list);
     }

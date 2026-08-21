@@ -38,7 +38,6 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/SVG/SVGImageElement.h>

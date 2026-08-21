@@ -1220,16 +1220,16 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             return Geometry::DOMRectList::create({});
     }
     for (GC::Ptr<Node> node = start_node; node && node.ptr() != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
-        auto selection_state = Painting::Paintable::SelectionState::Full;
+        auto selection_state = Painting::SelectionState::Full;
         if (node == start_node && node == end_node) {
             if (m_start_offset == m_end_offset)
-                selection_state = Painting::Paintable::SelectionState::None;
+                selection_state = Painting::SelectionState::None;
             else
-                selection_state = Painting::Paintable::SelectionState::StartAndEnd;
+                selection_state = Painting::SelectionState::StartAndEnd;
         } else if (node == start_node) {
-            selection_state = Painting::Paintable::SelectionState::Start;
+            selection_state = Painting::SelectionState::Start;
         } else if (node == end_node) {
-            selection_state = Painting::Paintable::SelectionState::End;
+            selection_state = Painting::SelectionState::End;
         }
 
         auto node_type = static_cast<NodeType>(node->node_type());
@@ -1247,7 +1247,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             // 2. For each Text node selected or partially selected by the range (including when the boundary-points
             // are identical), include scaled DOMRect object (for the part that is selected, not the whole line box).
             auto const& text = static_cast<DOM::Text const&>(*node);
-            if (selection_state == Painting::Paintable::SelectionState::None)
+            if (selection_state == Painting::SelectionState::None)
                 continue;
 
             Layout::TextOffsetMapping mapping { text };
@@ -1258,19 +1258,19 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             size_t filter_dom_start = 0;
             size_t filter_dom_end = NumericLimits<size_t>::max();
             switch (selection_state) {
-            case Painting::Paintable::SelectionState::Full:
+            case Painting::SelectionState::Full:
                 break;
-            case Painting::Paintable::SelectionState::StartAndEnd:
+            case Painting::SelectionState::StartAndEnd:
                 filter_dom_start = start_offset();
                 filter_dom_end = end_offset();
                 break;
-            case Painting::Paintable::SelectionState::Start:
+            case Painting::SelectionState::Start:
                 filter_dom_start = start_offset();
                 break;
-            case Painting::Paintable::SelectionState::End:
+            case Painting::SelectionState::End:
                 filter_dom_end = end_offset();
                 break;
-            case Painting::Paintable::SelectionState::None:
+            case Painting::SelectionState::None:
                 VERIFY_NOT_REACHED();
             }
             auto text_slots = mapping.slot_ids();

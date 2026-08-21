@@ -19,8 +19,6 @@ public:
     static NonnullRefPtr<InlinePaintable> create(Layout::NodeWithStyle const&);
     virtual ~InlinePaintable() override;
 
-    virtual CSSPixelPoint box_type_agnostic_position() const override;
-
 private:
     explicit InlinePaintable(Layout::NodeWithStyle const&);
 };

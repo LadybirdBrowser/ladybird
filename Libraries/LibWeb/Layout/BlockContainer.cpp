@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Layout {
 
@@ -16,11 +15,5 @@ BlockContainer::BlockContainer(DOM::Document& document, GC::Ptr<DOM::Node> node,
 }
 
 BlockContainer::~BlockContainer() = default;
-
-RefPtr<Painting::PaintableWithLines const> BlockContainer::paintable_with_lines() const
-{
-    auto paintable_box = Box::paintable_box();
-    return as_if<Painting::PaintableWithLines>(paintable_box.ptr());
-}
 
 }

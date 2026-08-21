@@ -35,8 +35,8 @@ WEB_API CSSPixels outline_offset(Layout::Node const&);
 WEB_API CSSPixelRect transform_reference_box(Layout::Node const&);
 WEB_API Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const&);
 WEB_API bool has_scrollable_overflow(Layout::Node const&);
-WEB_API Optional<Paintable::OverflowData> overflow_data(Layout::Node const&);
-WEB_API Optional<Paintable::CachedOverflowData> cached_overflow_data(Layout::Node const&);
+WEB_API Optional<OverflowData> overflow_data(Layout::Node const&);
+WEB_API Optional<CachedOverflowData> cached_overflow_data(Layout::Node const&);
 
 WEB_API bool is_visible(Layout::Node const&);
 WEB_API bool visible_for_hit_testing(Layout::Node const&);
@@ -93,8 +93,8 @@ WEB_API bool has_content(Layout::Node const&);
 WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::Node const&, size_t offset);
 WEB_API Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node const* owner_inline);
 WEB_API Optional<CaretPaint> resolve_empty_editable_caret_paint(Layout::Node const&);
-WEB_API Paintable::SelectionStyle selection_style(Layout::Node const&);
-WEB_API Paintable::SelectionStyle selection_style_for_node(Layout::Node const&, GC::Ptr<DOM::Node const>);
+WEB_API SelectionStyle selection_style(Layout::Node const&);
+WEB_API SelectionStyle selection_style_for_node(Layout::Node const&, GC::Ptr<DOM::Node const>);
 
 WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 WEB_API void invalidate_paint_cache(Layout::Node const&);
@@ -105,6 +105,7 @@ WEB_API void clear_cached_overflow_data(Layout::Node const&);
 WEB_API void set_sticky_insets(Layout::Node const&, OwnPtr<StickyInsets>);
 WEB_API StickyInsets sticky_insets(Layout::Node const&);
 WEB_API bool has_sticky_insets(Layout::Node const&);
+WEB_API void transfer_fragments_to_replacement_node(Layout::Node const& containing_block, Layout::Node const& old_node, Layout::Node const& new_node);
 
 WEB_API void inline_piece_border_box_rects(Layout::Node const&, Vector<CSSPixelRect>&);
 WEB_API CSSPixelPoint cumulative_scroll_compensation(Layout::Node const&);
