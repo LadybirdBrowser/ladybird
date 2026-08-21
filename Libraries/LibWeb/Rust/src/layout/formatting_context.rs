@@ -756,8 +756,7 @@ pub enum FfiFormattingContextType {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiBorderData {
+pub struct BorderData {
     pub color: u32,
     pub line_style: u8,
     pub width: CssPixels,

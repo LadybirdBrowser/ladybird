@@ -42,7 +42,7 @@ pub(crate) fn child_participates_in_table_run(container_display: FfiDisplay, chi
     }
 }
 
-pub(crate) fn border_is_less_specific(incumbent: FfiBorderData, candidate: FfiBorderData) -> bool {
+pub(crate) fn border_is_less_specific(incumbent: BorderData, candidate: BorderData) -> bool {
     // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
     // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
 
@@ -71,16 +71,16 @@ pub(crate) fn border_is_less_specific(incumbent: FfiBorderData, candidate: FfiBo
     line_style_score(incumbent.line_style) < line_style_score(candidate.line_style)
 }
 
-fn candidate_wins(candidate: FfiBorderData, incumbent: FfiBorderData) -> bool {
+fn candidate_wins(candidate: BorderData, incumbent: BorderData) -> bool {
     candidate.line_style != LINE_STYLE_NONE && border_is_less_specific(incumbent, candidate)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ElementBorders {
-    pub(crate) top: FfiBorderData,
-    pub(crate) right: FfiBorderData,
-    pub(crate) bottom: FfiBorderData,
-    pub(crate) left: FfiBorderData,
+    pub(crate) top: BorderData,
+    pub(crate) right: BorderData,
+    pub(crate) bottom: BorderData,
+    pub(crate) left: BorderData,
 }
 
 // Each segment stores the border that currently wins at one slot boundary of the table grid,
@@ -111,9 +111,8 @@ pub(crate) struct BorderWidths {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCollapsedBorderEdge {
-    pub border_data: FfiBorderData,
+pub struct CollapsedBorderEdge {
+    pub border_data: BorderData,
     pub source_order: u32,
 }
 
@@ -121,8 +120,8 @@ pub struct FfiCollapsedBorderEdge {
 pub(crate) struct OwnedCollapsedTableBorders {
     pub(crate) row_offsets: Vec<CssPixels>,
     pub(crate) column_offsets: Vec<CssPixels>,
-    pub(crate) horizontal_edges: Vec<FfiCollapsedBorderEdge>,
-    pub(crate) vertical_edges: Vec<FfiCollapsedBorderEdge>,
+    pub(crate) horizontal_edges: Vec<CollapsedBorderEdge>,
+    pub(crate) vertical_edges: Vec<CollapsedBorderEdge>,
 }
 
 fn grid_line_offsets(sizes: impl ExactSizeIterator<Item = CssPixels>) -> Vec<CssPixels> {
@@ -137,15 +136,15 @@ fn grid_line_offsets(sizes: impl ExactSizeIterator<Item = CssPixels>) -> Vec<Css
 }
 
 pub(crate) struct CollapsedBorderGrid {
-    horizontal_lines: Vec<Vec<FfiCollapsedBorderEdge>>,
-    vertical_lines: Vec<Vec<FfiCollapsedBorderEdge>>,
+    horizontal_lines: Vec<Vec<CollapsedBorderEdge>>,
+    vertical_lines: Vec<Vec<CollapsedBorderEdge>>,
 }
 
 impl CollapsedBorderGrid {
     pub(crate) fn new(row_count: usize, column_count: usize) -> Self {
         Self {
-            horizontal_lines: vec![vec![FfiCollapsedBorderEdge::default(); column_count]; row_count + 1],
-            vertical_lines: vec![vec![FfiCollapsedBorderEdge::default(); row_count]; column_count + 1],
+            horizontal_lines: vec![vec![CollapsedBorderEdge::default(); column_count]; row_count + 1],
+            vertical_lines: vec![vec![CollapsedBorderEdge::default(); row_count]; column_count + 1],
         }
     }
 
@@ -198,8 +197,8 @@ impl CollapsedBorderGrid {
     ) {
         // Segments strictly inside a spanning cell are not borders of any element; mark them as hidden
         // so that borders of rows and columns crossing the span cannot win there.
-        let hidden = FfiCollapsedBorderEdge {
-            border_data: FfiBorderData {
+        let hidden = CollapsedBorderEdge {
+            border_data: BorderData {
                 color: 0,
                 line_style: LINE_STYLE_HIDDEN,
                 width: CssPixels::default(),
@@ -233,13 +232,13 @@ impl CollapsedBorderGrid {
         }
     }
 
-    fn apply_to_segments(line: &mut [FfiCollapsedBorderEdge], start: usize, end: usize, data: FfiBorderData, source_order: u32) {
+    fn apply_to_segments(line: &mut [CollapsedBorderEdge], start: usize, end: usize, data: BorderData, source_order: u32) {
         if data.line_style == LINE_STYLE_NONE {
             return;
         }
         for segment in &mut line[start..end] {
             if candidate_wins(data, segment.border_data) {
-                *segment = FfiCollapsedBorderEdge {
+                *segment = CollapsedBorderEdge {
                     border_data: data,
                     source_order,
                 };
@@ -248,7 +247,7 @@ impl CollapsedBorderGrid {
     }
 
     pub(crate) fn outer_edge_widths(&self) -> BorderWidths {
-        let max_width = |segments: &[FfiCollapsedBorderEdge]| {
+        let max_width = |segments: &[CollapsedBorderEdge]| {
             segments
                 .iter()
                 .fold(CssPixels::default(), |max, segment| max.max(segment.border_data.width))
@@ -262,7 +261,7 @@ impl CollapsedBorderGrid {
     }
 
     pub(crate) fn has_paintable_edges(&self) -> bool {
-        let paints = |segment: &FfiCollapsedBorderEdge| {
+        let paints = |segment: &CollapsedBorderEdge| {
             segment.border_data.width > CssPixels::default()
                 && segment.border_data.line_style != LINE_STYLE_NONE
                 && segment.border_data.line_style != LINE_STYLE_HIDDEN
@@ -270,14 +269,14 @@ impl CollapsedBorderGrid {
         self.horizontal_lines.iter().flatten().any(paints) || self.vertical_lines.iter().flatten().any(paints)
     }
 
-    pub(crate) fn take_edges(self) -> (Vec<FfiCollapsedBorderEdge>, Vec<FfiCollapsedBorderEdge>) {
+    pub(crate) fn take_edges(self) -> (Vec<CollapsedBorderEdge>, Vec<CollapsedBorderEdge>) {
         (
             self.horizontal_lines.iter().flatten().copied().collect(),
             self.vertical_lines.iter().flatten().copied().collect(),
         )
     }
 
-    fn most_specific(line: &[FfiCollapsedBorderEdge], start: usize, end: usize) -> FfiCollapsedBorderEdge {
+    fn most_specific(line: &[CollapsedBorderEdge], start: usize, end: usize) -> CollapsedBorderEdge {
         let mut winner = line[start];
         for segment in &line[start + 1..end] {
             if candidate_wins(segment.border_data, winner.border_data) {
@@ -976,22 +975,22 @@ impl TableFormattingContext {
     fn element_borders(&mut self, node: Node) -> ElementBorders {
         let style = self.style(node);
         ElementBorders {
-            top: FfiBorderData {
+            top: BorderData {
                 color: style.border_top_color(),
                 line_style: style.border_top_style(),
                 width: style.border_top_width(),
             },
-            right: FfiBorderData {
+            right: BorderData {
                 color: style.border_right_color(),
                 line_style: style.border_right_style(),
                 width: style.border_right_width(),
             },
-            bottom: FfiBorderData {
+            bottom: BorderData {
                 color: style.border_bottom_color(),
                 line_style: style.border_bottom_style(),
                 width: style.border_bottom_width(),
             },
-            left: FfiBorderData {
+            left: BorderData {
                 color: style.border_left_color(),
                 line_style: style.border_left_style(),
                 width: style.border_left_width(),
