@@ -12,7 +12,8 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 
@@ -77,17 +78,18 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event)
         auto const& mouse_event = as<UIEvents::MouseEvent>(event);
         auto click_event = UIEvents::MouseEvent::create_from_mouse_event(mouse_event, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
-        // NB: Ensure layout is up to date before accessing the control's paintable.
+        // NB: Ensure layout is up to date before accessing the control's committed box.
         document().update_layout(DOM::UpdateLayoutReason::HTMLLabelElementActivationBehavior);
 
         // Recompute offsetX/offsetY relative to the control element, since the original values are relative to the label.
-        if (auto paintable = control_element->paintable(); paintable && document().navigable()) {
+        auto const* layout_node = control_element->layout_node();
+        if (layout_node && Painting::has_committed_box(*layout_node) && document().navigable()) {
             auto scroll_offset = document().navigable()->viewport_scroll_offset();
             auto page_position = CSSPixelPoint {
                 CSSPixels::nearest_value_for(mouse_event.client_x() + scroll_offset.x().to_double()),
                 CSSPixels::nearest_value_for(mouse_event.client_y() + scroll_offset.y().to_double())
             };
-            auto box_position = paintable->box_type_agnostic_position();
+            auto box_position = Painting::box_type_agnostic_position(*layout_node);
             click_event->set_offset_x(AK::round((page_position.x() - box_position.x()).to_double()));
             click_event->set_offset_y(AK::round((page_position.y() - box_position.y()).to_double()));
         }

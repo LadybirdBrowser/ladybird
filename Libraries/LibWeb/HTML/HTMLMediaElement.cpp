@@ -58,7 +58,7 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -2566,8 +2566,8 @@ bool HTMLMediaElement::video_sink_should_tick() const
         return true;
     if (document().visibility_state_value() != VisibilityState::Visible)
         return false;
-    auto paintable = this->paintable();
-    return paintable && paintable->is_visible();
+    auto const* layout_node = this->layout_node();
+    return layout_node && Painting::has_committed_box(*layout_node) && Painting::is_visible(*layout_node);
 }
 
 void HTMLMediaElement::sync_video_sink_ticking() const

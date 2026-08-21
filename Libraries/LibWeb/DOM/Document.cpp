@@ -2997,24 +2997,24 @@ static CSSPixelPoint hover_event_page_offset(Optional<HoverEventData> const& hov
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
-static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting::Paintable const& paintable)
+static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::Node const& layout_node)
 {
-    auto inverse_transform_point = [](Painting::Paintable const& paintable_box, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
-        auto viewport_paintable = paintable_box.document().unsafe_paintable();
+    auto inverse_transform_point = [](Layout::Node const& layout_node, CSSPixelPoint position) -> Optional<CSSPixelPoint> {
+        auto viewport_paintable = layout_node.document().unsafe_paintable();
         if (!viewport_paintable)
             return {};
-        auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
+        auto pixel_ratio = static_cast<float>(layout_node.document().page().client().device_pixels_per_css_pixel());
         auto const& visual_context_tree = viewport_paintable->visual_context_tree();
         auto transformed_position = visual_context_tree.inverse_transform_point(
-            paintable_box.accumulated_visual_context_index(), position.to_type<float>() * pixel_ratio);
+            Painting::accumulated_visual_context_index(layout_node), position.to_type<float>() * pixel_ratio);
         return (transformed_position / pixel_ratio).to_type<CSSPixels>();
     };
 
     CSSPixelPoint offset_position = position;
-    if (auto transformed_position = inverse_transform_point(paintable, position); transformed_position.has_value())
+    if (auto transformed_position = inverse_transform_point(layout_node, position); transformed_position.has_value())
         offset_position = *transformed_position;
 
-    auto const top_left_of_layout_node = paintable.box_type_agnostic_position();
+    auto const top_left_of_layout_node = Painting::box_type_agnostic_position(layout_node);
     return offset_position - top_left_of_layout_node;
 }
 
@@ -3030,11 +3030,10 @@ static CSSPixelPoint hover_event_offset_for_target(Optional<HoverEventData> cons
     if (!layout_node)
         return hover_event_data->viewport_position;
 
-    auto paintable = layout_node->paintable();
-    if (!paintable)
+    if (!Painting::has_committed_box(*layout_node))
         return hover_event_data->viewport_position;
 
-    return compute_mouse_event_offset(hover_event_data->page_offset, *paintable);
+    return compute_mouse_event_offset(hover_event_data->page_offset, *layout_node);
 }
 
 static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optional<HoverEventData> const& hover_event_data)

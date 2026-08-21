@@ -21,6 +21,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/Forward.h>
@@ -105,12 +106,12 @@ private:
     };
     bool fire_click_events(GC::Ref<DOM::Node>, MouseEventCoordinates const&, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
 
-    MouseEventCoordinates compute_mouse_event_coordinates(CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, Painting::Paintable const& paintable, Layout::Node const& layout_node) const;
+    MouseEventCoordinates compute_mouse_event_coordinates(CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, Layout::Node const& layout_node) const;
     CSSPixelPoint compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const;
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint screen_position) const;
 
     struct Target {
-        RefPtr<Painting::Paintable> paintable;
+        Layout::RustFFI::PaintableSlotId box;
         RefPtr<Painting::ChromeWidget> chrome_widget;
         GC::Ptr<DOM::Node> dom_node;
         Optional<int> index_in_node;
@@ -122,7 +123,7 @@ private:
     void run_mousedown_default_actions(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count);
     void run_activation_behavior(GC::Ref<DOM::Node>, unsigned button, unsigned modifiers);
 
-    void maybe_show_context_menu(GC::Ref<DOM::Node>, Painting::Paintable&, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
+    void maybe_show_context_menu(GC::Ref<DOM::Node>, Layout::RustFFI::PaintableSlotId, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers);
     bool maybe_request_paste_for_middle_click(DOM::Document&, CSSPixelPoint visual_viewport_position);
 
     Optional<Painting::CaretPosition> prepare_mouse_selection(DOM::Document&, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position);
@@ -164,7 +165,7 @@ private:
     bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);
 
-    void update_cursor(RefPtr<Painting::Paintable>, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget>, bool hit_text_fragment = false);
+    void update_cursor(Layout::Node const*, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget>, bool hit_text_fragment = false);
     void record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult cancel_drag_and_drop_event(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
 
