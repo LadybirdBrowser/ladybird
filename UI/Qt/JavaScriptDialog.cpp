@@ -189,6 +189,23 @@ void JavaScriptDialog::dismiss()
     complete(m_type == Type::Alert);
 }
 
+void JavaScriptDialog::reset()
+{
+    if (!m_type.has_value())
+        return;
+
+    auto* focus_widget = QApplication::focusWidget();
+    auto dialog_had_focus = focus_widget == this || isAncestorOf(focus_widget);
+    m_type.clear();
+    hide();
+    restore_parent_focus_policy();
+
+    auto previous_focus_widget = m_previous_focus_widget;
+    m_previous_focus_widget = nullptr;
+    if (dialog_had_focus && previous_focus_widget && previous_focus_widget->isVisible())
+        previous_focus_widget->setFocus();
+}
+
 void JavaScriptDialog::complete(bool accepted)
 {
     auto type = m_type.release_value();
