@@ -19,6 +19,7 @@ class CaretPosition final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(CaretPosition);
 
 public:
+    static constexpr size_t offset_node_offset() { return offsetof(CaretPosition, m_offset_node); }
     [[nodiscard]] static GC::Ref<CaretPosition> create(GC::Ref<Node> offset_node, WebIDL::UnsignedLong offset, Optional<Gfx::FloatRect> client_rect);
 
     virtual ~CaretPosition() override;

@@ -51,6 +51,45 @@ inline fn box_object(object: Object) -> Value<Object> {
     value
 }
 
+inline fn load_direct_getter_value(
+    function: Object,
+    receiver_object: Object,
+    else failure: Label
+) -> Value {
+    let direct_getter: DirectGetterFunction = alias(function);
+    let wrapper_words: Sequence<u64> = alias(receiver_object);
+    let implementation = wrapper_words[direct_getter.wrapper_implementation_word_offset];
+    guard implementation != 0 else failure;
+    let implementation_words: Sequence<u64> = alias(implementation);
+
+    # This first version directly reuses wrappers only in the main world.
+    let receiver_weak_impl = implementation_words[direct_getter.main_world_wrapper_word_offset];
+    guard receiver_weak_impl != 0 else failure;
+    let receiver_weak_impl_words: Sequence<u64> = alias(receiver_weak_impl);
+    let cached_receiver = receiver_weak_impl_words[direct_getter.weak_impl_value_word_offset];
+    let receiver_pointer: u64 = alias(receiver_object);
+    guard cached_receiver == receiver_pointer else failure;
+
+    let result_implementation = implementation_words[direct_getter.implementation_value_word_offset];
+    if result_implementation == 0 {
+        let null_value: Value;
+        mov(null_value, NULL_VALUE);
+        null_value
+    } else {
+        let result_implementation_words: Sequence<u64> = alias(result_implementation);
+        let result_weak_impl = result_implementation_words[direct_getter.main_world_wrapper_word_offset];
+        guard result_weak_impl != 0 else failure;
+        let result_weak_impl_words: Sequence<u64> = alias(result_weak_impl);
+        let cached_result = result_weak_impl_words[direct_getter.weak_impl_value_word_offset];
+        guard cached_result != 0 else failure;
+        let result_object: Object = alias(cached_result);
+        let result_flags = result_object.flags;
+        branch_bits_set(result_flags, OBJECT_FLAG_IS_GLOBAL_OBJECT, failure);
+        let result_value: Value = alias(box_object(result_object));
+        result_value
+    }
+}
+
 inline fn move_operand(dst: out Operand, src: in Operand) {
     let [dst_index, src_index] = load_pair32([pb, pc, dst], [pb, pc, src]);
     values[dst_index] = values[src_index];
@@ -2262,7 +2301,7 @@ handler GetById(
         goto_handler(pc);
     };
 
-    let invoke_accessor = |accessor_value: Value, receiver_object: Object| @cold {
+    let invoke_accessor = |accessor_value: Value, receiver_object: Object, property_cache: PropertyLookupCache| @cold {
         let accessor: Accessor = unbox_object(accessor_value);
         let getter = accessor.getter;
         guard getter != 0 else {
@@ -2272,6 +2311,16 @@ handler GetById(
         let function: Object = alias(getter);
         let flags = function.flags;
         guard flags has OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION else invoke_accessor_slow;
+
+        if flags has OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION {
+            if property_cache.direct_getter_validated != 0 {
+                guard let result = load_direct_getter_value(function, receiver_object) else invoke_accessor_slow;
+                store(dst, result);
+                dispatch_next;
+            }
+            goto invoke_accessor_slow();
+        }
+
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_table_vm = current_vm();
@@ -2385,7 +2434,7 @@ handler GetById(
 
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
     let value = holder.named_properties[property_cache.property_offset];
-    guard value is not Value<Accessor> else invoke_accessor(value, object);
+    guard value is not Value<Accessor> else invoke_accessor(value, object, property_cache);
     store(dst, value);
     dispatch_next;
 }

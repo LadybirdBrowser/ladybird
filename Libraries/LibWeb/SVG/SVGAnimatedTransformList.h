@@ -17,6 +17,8 @@ class SVGAnimatedTransformList final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedTransformList);
 
 public:
+    static constexpr size_t base_val_offset() { return offsetof(SVGAnimatedTransformList, m_base_val); }
+    static constexpr size_t anim_val_offset() { return offsetof(SVGAnimatedTransformList, m_anim_val); }
     [[nodiscard]] static GC::Ref<SVGAnimatedTransformList> create(GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
     virtual ~SVGAnimatedTransformList() override = default;
 

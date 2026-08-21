@@ -8,7 +8,7 @@ callback DecodeSuccessCallback = undefined (AudioBuffer decodedData);
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 [Exposed=Window]
 interface BaseAudioContext : EventTarget {
-    readonly attribute AudioDestinationNode destination;
+    [DirectGetter] readonly attribute AudioDestinationNode destination;
     readonly attribute float sampleRate;
     readonly attribute double currentTime;
     readonly attribute AudioListener listener;

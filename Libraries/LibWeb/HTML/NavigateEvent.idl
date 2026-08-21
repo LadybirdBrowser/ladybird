@@ -4,16 +4,16 @@ interface NavigateEvent : Event {
     constructor(DOMString type, NavigateEventInit eventInitDict);
 
     readonly attribute NavigationType navigationType;
-    readonly attribute NavigationDestination destination;
+    [DirectGetter] readonly attribute NavigationDestination destination;
     readonly attribute boolean canIntercept;
     readonly attribute boolean userInitiated;
     readonly attribute boolean hashChange;
-    readonly attribute AbortSignal signal;
-    readonly attribute FormData? formData;
+    [DirectGetter] readonly attribute AbortSignal signal;
+    [DirectGetter] readonly attribute FormData? formData;
     readonly attribute DOMString? downloadRequest;
     readonly attribute any info;
     readonly attribute boolean hasUAVisualTransition;
-    readonly attribute Element? sourceElement;
+    [DirectGetter] readonly attribute Element? sourceElement;
 
     [NeedsCallerRealm] undefined intercept(optional NavigationInterceptOptions options = {});
     undefined scroll();

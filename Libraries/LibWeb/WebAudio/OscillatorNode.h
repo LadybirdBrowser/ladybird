@@ -20,6 +20,8 @@ class OscillatorNode : public AudioScheduledSourceNode {
     GC_DECLARE_ALLOCATOR(OscillatorNode);
 
 public:
+    static constexpr size_t frequency_offset() { return offsetof(OscillatorNode, m_frequency); }
+    static constexpr size_t detune_offset() { return offsetof(OscillatorNode, m_detune); }
     virtual ~OscillatorNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create(GC::Ref<BaseAudioContext>, OscillatorOptions const& = {});

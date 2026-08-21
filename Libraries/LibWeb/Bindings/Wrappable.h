@@ -150,6 +150,8 @@ public:
 
     [[nodiscard]] virtual GC::Ptr<Wrappable> relevant_global_impl() const { return nullptr; }
 
+    static constexpr size_t main_world_wrapper_offset() { return offsetof(Wrappable, m_main_world_wrapper); }
+
 protected:
     Wrappable();
 

@@ -7,5 +7,5 @@ dictionary MediaStreamTrackEventInit : EventInit {
 [Exposed=Window]
 interface MediaStreamTrackEvent : Event {
     constructor(DOMString type, MediaStreamTrackEventInit eventInitDict);
-    [SameObject] readonly attribute MediaStreamTrack track;
+    [DirectGetter, SameObject] readonly attribute MediaStreamTrack track;
 };

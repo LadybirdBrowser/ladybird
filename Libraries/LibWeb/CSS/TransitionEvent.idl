@@ -5,7 +5,7 @@ interface TransitionEvent : Event {
     readonly attribute Utf16CSSOMString propertyName;
     readonly attribute double elapsedTime;
     readonly attribute Utf16CSSOMString pseudoElement;
-    readonly attribute CSSTransition? animation;
+    [DirectGetter] readonly attribute CSSTransition? animation;
 };
 
 // https://drafts.csswg.org/css-transitions-2/#interface-transitionevent-idl

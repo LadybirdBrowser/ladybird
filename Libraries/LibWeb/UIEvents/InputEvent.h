@@ -41,6 +41,7 @@ public:
     Utf16FlyString input_type() const { return m_input_type; }
 
     GC::Ptr<HTML::DataTransfer> data_transfer() const { return m_data_transfer; }
+    static constexpr size_t data_transfer_offset() { return offsetof(InputEvent, m_data_transfer); }
 
     ReadonlySpan<GC::Ref<DOM::StaticRange>> get_target_ranges() const;
 

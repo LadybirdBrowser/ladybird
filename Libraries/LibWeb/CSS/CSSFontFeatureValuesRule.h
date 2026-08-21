@@ -22,6 +22,13 @@ class CSSFontFeatureValuesRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesRule);
 
 public:
+    static constexpr size_t annotation_offset() { return offsetof(CSSFontFeatureValuesRule, m_annotation); }
+    static constexpr size_t ornaments_offset() { return offsetof(CSSFontFeatureValuesRule, m_ornaments); }
+    static constexpr size_t stylistic_offset() { return offsetof(CSSFontFeatureValuesRule, m_stylistic); }
+    static constexpr size_t swash_offset() { return offsetof(CSSFontFeatureValuesRule, m_swash); }
+    static constexpr size_t character_variant_offset() { return offsetof(CSSFontFeatureValuesRule, m_character_variant); }
+    static constexpr size_t styleset_offset() { return offsetof(CSSFontFeatureValuesRule, m_styleset); }
+    static constexpr size_t historical_forms_offset() { return offsetof(CSSFontFeatureValuesRule, m_historical_forms); }
     static GC::Ref<CSSFontFeatureValuesRule> create(Vector<Utf16FlyString> font_families);
 
     static bool is_font_feature_value_type_at_keyword(Utf16View);

@@ -30,6 +30,7 @@ class SpeechSynthesisUtterance final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SpeechSynthesisUtterance);
 
 public:
+    static constexpr size_t voice_offset() { return offsetof(SpeechSynthesisUtterance, m_voice); }
     static GC::Ref<SpeechSynthesisUtterance> create(Utf16String const& text = {});
     virtual ~SpeechSynthesisUtterance() override;
 

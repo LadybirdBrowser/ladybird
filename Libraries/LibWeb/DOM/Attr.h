@@ -43,6 +43,7 @@ public:
     Element* owner_element();
     Element const* owner_element() const;
     void set_owner_element(Element* owner_element);
+    static constexpr size_t owner_element_offset() { return offsetof(Attr, m_owner_element); }
 
     // Always returns true: https://dom.spec.whatwg.org/#dom-attr-specified
     constexpr bool specified() const { return true; }

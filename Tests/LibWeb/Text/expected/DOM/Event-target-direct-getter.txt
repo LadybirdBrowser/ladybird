@@ -1,0 +1,6 @@
+undispatched target is null: true
+dispatched target is the element: true
+srcElement aliases target: true
+relatedTarget is read from Event: true
+window target matches the binding getter: true
+invalid receivers throw every time: true

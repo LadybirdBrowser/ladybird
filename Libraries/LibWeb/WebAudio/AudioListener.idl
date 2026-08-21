@@ -1,15 +1,15 @@
 // https://webaudio.github.io/web-audio-api/#AudioListener
 [Exposed=Window]
 interface AudioListener {
-    readonly attribute AudioParam positionX;
-    readonly attribute AudioParam positionY;
-    readonly attribute AudioParam positionZ;
-    readonly attribute AudioParam forwardX;
-    readonly attribute AudioParam forwardY;
-    readonly attribute AudioParam forwardZ;
-    readonly attribute AudioParam upX;
-    readonly attribute AudioParam upY;
-    readonly attribute AudioParam upZ;
+    [DirectGetter] readonly attribute AudioParam positionX;
+    [DirectGetter] readonly attribute AudioParam positionY;
+    [DirectGetter] readonly attribute AudioParam positionZ;
+    [DirectGetter] readonly attribute AudioParam forwardX;
+    [DirectGetter] readonly attribute AudioParam forwardY;
+    [DirectGetter] readonly attribute AudioParam forwardZ;
+    [DirectGetter] readonly attribute AudioParam upX;
+    [DirectGetter] readonly attribute AudioParam upY;
+    [DirectGetter] readonly attribute AudioParam upZ;
     undefined setPosition (float x, float y, float z);
     undefined setOrientation (float x, float y, float z, float xUp, float yUp, float zUp);
 };

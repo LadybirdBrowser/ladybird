@@ -20,6 +20,15 @@ class AudioListener final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(AudioListener);
 
 public:
+    static constexpr size_t position_x_offset() { return offsetof(AudioListener, m_position_x); }
+    static constexpr size_t position_y_offset() { return offsetof(AudioListener, m_position_y); }
+    static constexpr size_t position_z_offset() { return offsetof(AudioListener, m_position_z); }
+    static constexpr size_t forward_x_offset() { return offsetof(AudioListener, m_forward_x); }
+    static constexpr size_t forward_y_offset() { return offsetof(AudioListener, m_forward_y); }
+    static constexpr size_t forward_z_offset() { return offsetof(AudioListener, m_forward_z); }
+    static constexpr size_t up_x_offset() { return offsetof(AudioListener, m_up_x); }
+    static constexpr size_t up_y_offset() { return offsetof(AudioListener, m_up_y); }
+    static constexpr size_t up_z_offset() { return offsetof(AudioListener, m_up_z); }
     static GC::Ref<AudioListener> create(GC::Ref<BaseAudioContext>);
     virtual ~AudioListener() override;
 

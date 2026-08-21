@@ -23,6 +23,7 @@ class MediaElementAudioSourceNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(MediaElementAudioSourceNode);
 
 public:
+    static constexpr size_t media_element_offset() { return offsetof(MediaElementAudioSourceNode, m_media_element); }
     virtual ~MediaElementAudioSourceNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create(GC::Ref<AudioContext>, GC::Ref<HTML::HTMLMediaElement>);

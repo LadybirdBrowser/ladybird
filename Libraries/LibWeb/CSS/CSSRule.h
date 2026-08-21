@@ -59,10 +59,12 @@ public:
     CSSRule* parent_rule() { return m_parent_rule.ptr(); }
     CSSRule const* parent_rule() const { return m_parent_rule.ptr(); }
     void set_parent_rule(CSSRule*);
+    static constexpr size_t parent_rule_offset() { return offsetof(CSSRule, m_parent_rule); }
 
     CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
     CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
     MUST_UPCALL virtual void set_parent_style_sheet(CSSStyleSheet*);
+    static constexpr size_t parent_style_sheet_offset() { return offsetof(CSSRule, m_parent_style_sheet); }
 
     Optional<SourcePosition> const& source_location() const { return m_source_position; }
     void set_source_position(Optional<SourcePosition> source_location) { m_source_position = move(source_location); }

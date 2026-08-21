@@ -6,5 +6,5 @@ interface CSSRotate : CSSTransformComponent {
     attribute CSSNumberish x;
     attribute CSSNumberish y;
     attribute CSSNumberish z;
-    attribute CSSNumericValue angle;
+    [DirectGetter] attribute CSSNumericValue angle;
 };

@@ -3,7 +3,7 @@
 interface FocusEvent : UIEvent {
 
     constructor(DOMString type, optional FocusEventInit eventInitDict = {});
-    readonly attribute EventTarget? relatedTarget;
+    [DirectGetter] readonly attribute EventTarget? relatedTarget;
 
 };
 

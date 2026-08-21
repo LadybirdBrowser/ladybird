@@ -53,8 +53,10 @@ public:
     bool connected() const { return m_connected; }
     // https://wicg.github.io/serial/#readable-attribute
     GC::Ptr<Streams::ReadableStream> readable() { return m_readable; }
+    static constexpr size_t readable_offset() { return offsetof(SerialPort, m_readable); }
     // https://wicg.github.io/serial/#writable-attribute
     GC::Ptr<Streams::WritableStream> writable() { return m_writable; }
+    static constexpr size_t writable_offset() { return offsetof(SerialPort, m_writable); }
 
     // https://wicg.github.io/serial/#onconnect-attribute-0
     void set_onconnect(WebIDL::CallbackType*);

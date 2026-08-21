@@ -17,6 +17,7 @@ class CSSRotate final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSRotate);
 
 public:
+    static constexpr size_t angle_offset() { return offsetof(CSSRotate, m_angle); }
     [[nodiscard]] static GC::Ref<CSSRotate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z, GC::Ref<CSSNumericValue> angle);
     static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> create_for_constructor(GC::Ref<CSSNumericValue> angle);
     static WebIDL::ExceptionOr<GC::Ref<CSSRotate>> create_for_constructor(CSSNumberish x, CSSNumberish y, CSSNumberish z, GC::Ref<CSSNumericValue> angle);

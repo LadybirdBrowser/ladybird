@@ -21,14 +21,14 @@ interface Node : EventTarget {
     readonly attribute boolean isConnected;
     readonly attribute Document? ownerDocument;
     Node getRootNode(optional GetRootNodeOptions options = {});
-    readonly attribute Node? parentNode;
+    [DirectGetter] readonly attribute Node? parentNode;
     readonly attribute Element? parentElement;
     boolean hasChildNodes();
     [SameObject] readonly attribute NodeList childNodes;
-    readonly attribute Node? firstChild;
-    readonly attribute Node? lastChild;
-    readonly attribute Node? previousSibling;
-    readonly attribute Node? nextSibling;
+    [DirectGetter] readonly attribute Node? firstChild;
+    [DirectGetter] readonly attribute Node? lastChild;
+    [DirectGetter] readonly attribute Node? previousSibling;
+    [DirectGetter] readonly attribute Node? nextSibling;
 
     [CEReactions] attribute Utf16DOMString? nodeValue;
     [CEReactions] attribute Utf16DOMString? textContent;

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function readRepeatedly(callback) {
+        let value;
+        for (let i = 0; i < 10; ++i)
+            value = callback();
+        return value;
+    }
+
+    function countTypeErrors(callback) {
+        let typeErrors = 0;
+        for (let i = 0; i < 10; ++i) {
+            try {
+                callback();
+            } catch (error) {
+                if (error instanceof TypeError)
+                    ++typeErrors;
+            }
+        }
+        return typeErrors;
+    }
+
+    test(() => {
+        const parent = document.createElement("div");
+        const first = document.createElement("span");
+        const second = document.createElement("span");
+
+        println(`empty firstChild is null: ${readRepeatedly(() => parent.firstChild) === null}`);
+        println(`empty lastChild is null: ${readRepeatedly(() => parent.lastChild) === null}`);
+
+        parent.append(first, second);
+        println(`parentNode is updated: ${readRepeatedly(() => first.parentNode) === parent}`);
+        println(`firstChild is updated: ${readRepeatedly(() => parent.firstChild) === first}`);
+        println(`lastChild is updated: ${readRepeatedly(() => parent.lastChild) === second}`);
+        println(`nextSibling is updated: ${readRepeatedly(() => first.nextSibling) === second}`);
+        println(`previousSibling is updated: ${readRepeatedly(() => second.previousSibling) === first}`);
+
+        first.remove();
+        println(`removed parentNode is null: ${readRepeatedly(() => first.parentNode) === null}`);
+        println(`removed nextSibling is null: ${readRepeatedly(() => first.nextSibling) === null}`);
+        println(`remaining previousSibling is null: ${readRepeatedly(() => second.previousSibling) === null}`);
+
+        const invalidReceiver = Object.create(Node.prototype);
+        const typeErrors = countTypeErrors(() => invalidReceiver.parentNode)
+            + countTypeErrors(() => invalidReceiver.firstChild)
+            + countTypeErrors(() => invalidReceiver.lastChild)
+            + countTypeErrors(() => invalidReceiver.previousSibling)
+            + countTypeErrors(() => invalidReceiver.nextSibling);
+        println(`invalid receivers throw every time: ${typeErrors === 50}`);
+    });
+</script>

@@ -19,11 +19,13 @@ class NavigationActivation final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(NavigationActivation);
 
 public:
+    static constexpr size_t entry_offset() { return offsetof(NavigationActivation, m_entry); }
     [[nodiscard]] static GC::Ref<NavigationActivation> create(GC::Ptr<NavigationHistoryEntry> from, GC::Ref<NavigationHistoryEntry> entry, NavigationType);
 
     virtual ~NavigationActivation() override;
 
     GC::Ptr<NavigationHistoryEntry> from() const { return m_from; }
+    static constexpr size_t from_offset() { return offsetof(NavigationActivation, m_from); }
     GC::Ref<NavigationHistoryEntry> entry() const { return m_entry; }
     NavigationType navigation_type() const { return m_navigation_type; }
 

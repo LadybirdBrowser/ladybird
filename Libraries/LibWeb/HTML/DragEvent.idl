@@ -3,7 +3,7 @@
 interface DragEvent : MouseEvent {
     constructor(DOMString type, optional DragEventInit eventInitDict = {});
 
-    readonly attribute DataTransfer? dataTransfer;
+    [DirectGetter] readonly attribute DataTransfer? dataTransfer;
 };
 
 dictionary DragEventInit : MouseEventInit {

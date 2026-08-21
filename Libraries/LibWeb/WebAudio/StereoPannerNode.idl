@@ -7,5 +7,5 @@ dictionary StereoPannerOptions : AudioNodeOptions {
 [Exposed=Window]
 interface StereoPannerNode : AudioNode {
     constructor (BaseAudioContext context, optional StereoPannerOptions options = {});
-    readonly attribute AudioParam pan;
+    [DirectGetter] readonly attribute AudioParam pan;
 };

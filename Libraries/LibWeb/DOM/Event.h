@@ -105,12 +105,14 @@ public:
 
     GC::Ptr<EventTarget> target() const { return m_target; }
     void set_target(EventTarget* target) { m_target = target; }
+    static constexpr size_t target_offset() { return offsetof(Event, m_target); }
 
     // NOTE: This is intended for the JS bindings.
     GC::Ptr<EventTarget> src_element() const { return target(); }
 
     GC::Ptr<EventTarget> related_target() const { return m_related_target; }
     void set_related_target(GC::Ptr<EventTarget> related_target) { m_related_target = related_target; }
+    static constexpr size_t related_target_offset() { return offsetof(Event, m_related_target); }
 
     bool should_stop_propagation() const { return m_stop_propagation; }
     void set_stop_propagation(bool stop_propagation) { m_stop_propagation = stop_propagation; }

@@ -43,12 +43,14 @@ class IDBTransaction : public DOM::EventTarget {
     };
 
 public:
+    static constexpr size_t connection_offset() { return offsetof(IDBTransaction, m_connection); }
     virtual ~IDBTransaction() override;
 
     [[nodiscard]] static GC::Ref<IDBTransaction> create(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, Vector<GC::Ref<ObjectStore>>);
     [[nodiscard]] TransactionMode mode() const { return m_mode; }
     [[nodiscard]] TransactionState state() const { return m_state; }
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
+    static constexpr size_t error_offset() { return offsetof(IDBTransaction, m_error); }
     [[nodiscard]] GC::Ref<IDBDatabase> connection() const { return m_connection; }
     [[nodiscard]] TransactionDurability durability() const { return m_durability; }
     [[nodiscard]] GC::Ptr<IDBRequest> associated_request() const { return m_associated_request; }

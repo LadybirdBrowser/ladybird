@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface CSSKeyframesRule : CSSRule {
     attribute Utf16CSSOMString name;
-    readonly attribute CSSRuleList cssRules;
+    [DirectGetter=rules] readonly attribute CSSRuleList cssRules;
     readonly attribute unsigned long length;
 
     getter CSSKeyframeRule (unsigned long index);

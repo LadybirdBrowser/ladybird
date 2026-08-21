@@ -22,6 +22,7 @@ class ConstantSourceNode final : public AudioScheduledSourceNode {
     GC_DECLARE_ALLOCATOR(ConstantSourceNode);
 
 public:
+    static constexpr size_t offset_offset() { return offsetof(ConstantSourceNode, m_offset); }
     virtual ~ConstantSourceNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create(GC::Ref<BaseAudioContext>, float offset = 1);

@@ -31,6 +31,10 @@ class WEB_API DOMQuad
     GC_DECLARE_ALLOCATOR(DOMQuad);
 
 public:
+    static constexpr size_t p1_offset() { return offsetof(DOMQuad, m_p1); }
+    static constexpr size_t p2_offset() { return offsetof(DOMQuad, m_p2); }
+    static constexpr size_t p3_offset() { return offsetof(DOMQuad, m_p3); }
+    static constexpr size_t p4_offset() { return offsetof(DOMQuad, m_p4); }
     static GC::Ref<DOMQuad> create(GC::Ref<DOMPoint> p1, GC::Ref<DOMPoint> p2, GC::Ref<DOMPoint> p3, GC::Ref<DOMPoint> p4);
     static GC::Ref<DOMQuad> create(Bindings::DOMPointInit const& p1, Bindings::DOMPointInit const& p2, Bindings::DOMPointInit const& p3, Bindings::DOMPointInit const& p4);
     static GC::Ref<DOMQuad> create();

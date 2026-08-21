@@ -20,7 +20,7 @@ interface FileReader : EventTarget {
     // File or Blob data
     [ReturnsJSValue] readonly attribute (DOMString or ArrayBuffer)? result;
 
-    readonly attribute DOMException? error;
+    [DirectGetter] readonly attribute DOMException? error;
 
     // event handler content attributes
     attribute EventHandler onloadstart;

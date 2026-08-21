@@ -17,6 +17,7 @@ class SVGAnimatedLengthList final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedLengthList);
 
 public:
+    static constexpr size_t base_val_offset() { return offsetof(SVGAnimatedLengthList, m_base_val); }
     [[nodiscard]] static GC::Ref<SVGAnimatedLengthList> create(GC::Ref<SVGLengthList>);
     virtual ~SVGAnimatedLengthList() override = default;
 

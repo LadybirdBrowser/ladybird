@@ -7,7 +7,7 @@ interface StorageEvent : Event {
     readonly attribute Utf16DOMString? oldValue;
     readonly attribute Utf16DOMString? newValue;
     readonly attribute Utf16USVString url;
-    readonly attribute Storage? storageArea;
+    [DirectGetter] readonly attribute Storage? storageArea;
 
     undefined initStorageEvent([Utf16FlyString] Utf16DOMString type, optional boolean bubbles = false, optional boolean cancelable = false, optional Utf16DOMString? key = null, optional Utf16DOMString? oldValue = null, optional Utf16DOMString? newValue = null, optional Utf16USVString url = "", optional Storage? storageArea = null);
 };

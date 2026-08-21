@@ -31,6 +31,7 @@ class SpeechRecognitionEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionEvent);
 
 public:
+    static constexpr size_t results_offset() { return offsetof(SpeechRecognitionEvent, m_results); }
     static GC::Ref<SpeechRecognitionEvent> create(FlyString const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     static GC::Ref<SpeechRecognitionEvent> create(Utf16String const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     static GC::Ref<SpeechRecognitionEvent> create(Utf16FlyString const& event_name, SpeechRecognitionEventInit const&);

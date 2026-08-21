@@ -692,6 +692,7 @@ public:
 
     GC::Ptr<HTML::HTMLScriptElement> current_script() const { return m_current_script.ptr(); }
     void set_current_script(Badge<HTML::HTMLScriptElement>, GC::Ptr<HTML::HTMLScriptElement> script) { m_current_script = move(script); }
+    static constexpr size_t current_script_offset() { return offsetof(Document, m_current_script); }
 
     u32 ignore_destructive_writes_counter() const { return m_ignore_destructive_writes_counter; }
     void increment_ignore_destructive_writes_counter() { m_ignore_destructive_writes_counter++; }
@@ -1281,6 +1282,7 @@ public:
 
     GC::Ptr<ViewTransition::ViewTransition> active_view_transition() const { return m_active_view_transition; }
     void set_active_view_transition(GC::Ptr<ViewTransition::ViewTransition> view_transition) { m_active_view_transition = view_transition; }
+    static constexpr size_t active_view_transition_offset() { return offsetof(Document, m_active_view_transition); }
     bool rendering_suppression_for_view_transitions() const { return m_rendering_suppression_for_view_transitions; }
     void set_rendering_suppression_for_view_transitions(bool);
     GC::Ptr<CSS::CSSStyleSheet> dynamic_view_transition_style_sheet() const { return m_dynamic_view_transition_style_sheet; }

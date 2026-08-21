@@ -42,6 +42,7 @@ public:
     {
         return m_default_policy;
     }
+    static constexpr size_t default_policy_offset() { return offsetof(TrustedTypePolicyFactory, m_default_policy); }
 
 private:
     explicit TrustedTypePolicyFactory(DOM::EventTarget&);

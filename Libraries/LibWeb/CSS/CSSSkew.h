@@ -16,6 +16,8 @@ class CSSSkew final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSSkew);
 
 public:
+    static constexpr size_t ax_offset() { return offsetof(CSSSkew, m_ax); }
+    static constexpr size_t ay_offset() { return offsetof(CSSSkew, m_ay); }
     [[nodiscard]] static GC::Ref<CSSSkew> create(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
     static WebIDL::ExceptionOr<GC::Ref<CSSSkew>> create_for_constructor(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
 

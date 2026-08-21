@@ -17,6 +17,8 @@ class SVGAnimatedLength final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedLength);
 
 public:
+    static constexpr size_t base_val_offset() { return offsetof(SVGAnimatedLength, m_base_val); }
+    static constexpr size_t anim_val_offset() { return offsetof(SVGAnimatedLength, m_anim_val); }
     [[nodiscard]] static GC::Ref<SVGAnimatedLength> create(GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val);
     virtual ~SVGAnimatedLength() override;
 

@@ -4,7 +4,7 @@ interface NavigationCurrentEntryChangeEvent : Event {
     constructor(DOMString type, NavigationCurrentEntryChangeEventInit eventInitDict);
 
     readonly attribute NavigationType? navigationType;
-    readonly attribute NavigationHistoryEntry from;
+    [DirectGetter] readonly attribute NavigationHistoryEntry from;
 };
 
 dictionary NavigationCurrentEntryChangeEventInit : EventInit {

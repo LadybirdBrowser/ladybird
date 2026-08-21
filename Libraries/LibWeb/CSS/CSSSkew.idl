@@ -2,6 +2,6 @@
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSSkew : CSSTransformComponent {
     constructor(CSSNumericValue ax, CSSNumericValue ay);
-    attribute CSSNumericValue ax;
-    attribute CSSNumericValue ay;
+    [DirectGetter] attribute CSSNumericValue ax;
+    [DirectGetter] attribute CSSNumericValue ay;
 };

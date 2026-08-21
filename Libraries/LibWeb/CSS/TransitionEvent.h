@@ -36,6 +36,7 @@ public:
     double elapsed_time() const { return m_elapsed_time; }
     Utf16String const& pseudo_element() const { return m_pseudo_element; }
     GC::Ptr<CSSTransition> animation() const { return m_animation; }
+    static constexpr size_t animation_offset() { return offsetof(TransitionEvent, m_animation); }
 
     virtual void visit_edges(Cell::Visitor&) override;
 

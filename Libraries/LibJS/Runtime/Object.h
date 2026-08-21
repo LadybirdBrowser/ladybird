@@ -282,10 +282,14 @@ public:
     virtual bool is_proxy_object() const { return false; }
     virtual bool is_native_function() const { return false; }
     [[nodiscard]] bool is_raw_native_function() const { return m_flags & Flag::IsRawNativeFunction; }
+    [[nodiscard]] bool is_direct_getter_function() const { return m_flags & Flag::IsDirectGetterFunction; }
+    [[nodiscard]] bool has_global_object_flag() const { return m_flags & Flag::IsGlobalObject; }
     [[nodiscard]] bool is_ecmascript_function_object() const { return m_flags & Flag::IsECMAScriptFunctionObject; }
     void set_is_ecmascript_function_object() { m_flags |= Flag::IsECMAScriptFunctionObject; }
     void set_is_function() { m_flags |= Flag::IsFunction; }
     void set_is_raw_native_function() { m_flags |= Flag::IsRawNativeFunction; }
+    void set_is_direct_getter_function() { m_flags |= Flag::IsDirectGetterFunction; }
+    void set_global_object_flag() { m_flags |= Flag::IsGlobalObject; }
     void clear_is_function() { m_flags &= ~Flag::IsFunction; }
     virtual bool is_array_iterator() const { return false; }
     virtual bool is_raw_json_object() const { return false; }
@@ -443,6 +447,8 @@ private:
         static constexpr u16 IsFunction = 1 << 7;
         static constexpr u16 RequiresSlowAddOwnProperty = 1 << 8;
         static constexpr u16 IsPlatformObject = 1 << 9;
+        static constexpr u16 IsDirectGetterFunction = 1 << 10;
+        static constexpr u16 IsGlobalObject = 1 << 11;
     };
 
     u16 m_flags { Flag::IsExtensible };

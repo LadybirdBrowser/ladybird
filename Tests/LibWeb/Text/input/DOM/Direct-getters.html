@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function readRepeatedly(callback) {
+        let value;
+        for (let i = 0; i < 10; ++i)
+            value = callback();
+        return value;
+    }
+
+    test(() => {
+        const quad = new DOMQuad();
+        println(`GC::Ref field: ${readRepeatedly(() => quad.p1) === quad.p1}`);
+
+        const transform = new TransformStream();
+        println(`non-null GC::Ptr readable: ${readRepeatedly(() => transform.readable) === transform.readable}`);
+        println(`non-null GC::Ptr writable: ${readRepeatedly(() => transform.writable) === transform.writable}`);
+
+        const style_sheet = new CSSStyleSheet();
+        println(`aliased field: ${readRepeatedly(() => style_sheet.cssRules) === style_sheet.rules}`);
+
+        const animation = new Animation();
+        println(`writable field starts null: ${readRepeatedly(() => animation.effect) === null}`);
+        const effect = new KeyframeEffect(document.createElement("div"), []);
+        animation.effect = effect;
+        println(`writable field updates: ${readRepeatedly(() => animation.effect) === effect}`);
+    });
+</script>

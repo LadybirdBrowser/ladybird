@@ -144,6 +144,7 @@ GC::Ref<Object> Object::create_with_premade_shape(Shape& shape)
 
 Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
 {
+    set_global_object_flag();
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
     // This is the global object

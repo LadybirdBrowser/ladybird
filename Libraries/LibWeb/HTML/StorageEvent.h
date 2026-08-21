@@ -37,6 +37,7 @@ public:
     Optional<Utf16String> const& new_value() const { return m_new_value; }
     Utf16String const& url() const { return m_url; }
     GC::Ptr<Storage const> storage_area() const { return m_storage_area; }
+    static constexpr size_t storage_area_offset() { return offsetof(StorageEvent, m_storage_area); }
 
     void init_storage_event(Utf16FlyString const& type,
         bool bubbles = false,

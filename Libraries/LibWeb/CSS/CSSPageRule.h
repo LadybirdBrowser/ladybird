@@ -20,6 +20,7 @@ class CSSPageRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSPageRule);
 
 public:
+    static constexpr size_t style_offset() { return offsetof(CSSPageRule, m_style); }
     [[nodiscard]] static GC::Ref<CSSPageRule> create(PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
 
     virtual ~CSSPageRule() override = default;

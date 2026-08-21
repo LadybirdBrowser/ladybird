@@ -43,6 +43,8 @@ public:
 
     GC::Ptr<NavigationActivation> activation() const { return m_activation; }
     GC::Ptr<ViewTransition::ViewTransition> view_transition() const { return m_view_transition; }
+    static constexpr size_t activation_offset() { return offsetof(PageSwapEvent, m_activation); }
+    static constexpr size_t view_transition_offset() { return offsetof(PageSwapEvent, m_view_transition); }
 
 private:
     PageSwapEvent(FlyString const& event_name, PageSwapEventInit const&, HighResolutionTime::DOMHighResTimeStamp);

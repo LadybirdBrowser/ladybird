@@ -20,7 +20,7 @@ typedef (MediaSource or Blob) MediaProvider;
 interface HTMLMediaElement : HTMLElement {
 
     // error state
-    readonly attribute MediaError? error;
+    [DirectGetter] readonly attribute MediaError? error;
 
     // network state
     [Reflect, CEReactions, URL] attribute Utf16USVString src;
@@ -70,9 +70,9 @@ interface HTMLMediaElement : HTMLElement {
     [Reflect=muted, CEReactions] attribute boolean defaultMuted;
 
     // tracks
-    [SameObject] readonly attribute AudioTrackList audioTracks;
-    [SameObject] readonly attribute VideoTrackList videoTracks;
-    [SameObject] readonly attribute TextTrackList textTracks;
+    [DirectGetter, SameObject] readonly attribute AudioTrackList audioTracks;
+    [DirectGetter, SameObject] readonly attribute VideoTrackList videoTracks;
+    [DirectGetter, SameObject] readonly attribute TextTrackList textTracks;
     [ImplementedAs=add_text_track] TextTrack addTextTrack(TextTrackKind kind, optional DOMString label = "", optional DOMString language = "");
 
 };

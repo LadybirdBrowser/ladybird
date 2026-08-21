@@ -18,6 +18,7 @@ class CSSGroupingRule : public CSSRule {
     WEB_WRAPPABLE(CSSGroupingRule, CSSRule);
 
 public:
+    static constexpr size_t rules_offset() { return offsetof(CSSGroupingRule, m_rules); }
     virtual ~CSSGroupingRule() = default;
 
     CSSRuleList const& css_rules() const { return m_rules; }

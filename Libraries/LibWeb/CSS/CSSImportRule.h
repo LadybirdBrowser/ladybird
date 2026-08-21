@@ -43,6 +43,7 @@ public:
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet.ptr(); }
     GC::Ref<MediaList> media() const;
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet.ptr(); }
+    static constexpr size_t style_sheet_offset() { return offsetof(CSSImportRule, m_style_sheet); }
 
     Optional<Utf16FlyString> layer_name() const;
     Optional<Utf16String> supports_text() const;

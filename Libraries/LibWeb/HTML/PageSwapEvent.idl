@@ -1,8 +1,8 @@
 [Exposed=Window]
 interface PageSwapEvent : Event {
     constructor(DOMString type, optional PageSwapEventInit eventInitDict = {});
-    readonly attribute NavigationActivation? activation;
-    readonly attribute ViewTransition? viewTransition;
+    [DirectGetter] readonly attribute NavigationActivation? activation;
+    [DirectGetter] readonly attribute ViewTransition? viewTransition;
 };
 
 dictionary PageSwapEventInit : EventInit {

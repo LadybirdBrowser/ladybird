@@ -18,6 +18,7 @@ class HTMLTrackElement final : public HTMLElement {
     GC_DECLARE_ALLOCATOR(HTMLTrackElement);
 
 public:
+    static constexpr size_t track_offset() { return offsetof(HTMLTrackElement, m_track); }
     virtual ~HTMLTrackElement() override;
 
     WebIDL::UnsignedShort ready_state();

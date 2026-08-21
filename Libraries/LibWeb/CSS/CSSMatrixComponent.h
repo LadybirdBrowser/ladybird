@@ -23,6 +23,7 @@ class CSSMatrixComponent final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSMatrixComponent);
 
 public:
+    static constexpr size_t matrix_offset() { return offsetof(CSSMatrixComponent, m_matrix); }
     [[nodiscard]] static GC::Ref<CSSMatrixComponent> create(Is2D, GC::Ref<Geometry::DOMMatrix>);
     static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> create_from_dom_matrix_read_only(GC::Ref<Geometry::DOMMatrixReadOnly>, Optional<bool> is_2d = {});
     static WebIDL::ExceptionOr<GC::Ref<CSSMatrixComponent>> create_for_constructor(GC::Ref<Geometry::DOMMatrixReadOnly>, Bindings::CSSMatrixComponentOptions const&);

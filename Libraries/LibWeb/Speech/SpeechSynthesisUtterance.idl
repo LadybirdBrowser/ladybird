@@ -5,7 +5,7 @@ interface SpeechSynthesisUtterance : EventTarget {
 
     attribute Utf16DOMString text;
     attribute Utf16DOMString lang;
-    attribute SpeechSynthesisVoice? voice;
+    [DirectGetter] attribute SpeechSynthesisVoice? voice;
     attribute float volume;
     attribute float rate;
     attribute float pitch;

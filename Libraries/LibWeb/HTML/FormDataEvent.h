@@ -21,6 +21,7 @@ class FormDataEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(FormDataEvent);
 
 public:
+    static constexpr size_t form_data_offset() { return offsetof(FormDataEvent, m_form_data); }
     static GC::Ref<FormDataEvent> create(FlyString const& event_name, FormDataEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     static GC::Ref<FormDataEvent> create(Utf16FlyString const& event_name, FormDataEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 

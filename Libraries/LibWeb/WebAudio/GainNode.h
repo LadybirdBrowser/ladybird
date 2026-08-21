@@ -19,6 +19,7 @@ class GainNode : public AudioNode {
     GC_DECLARE_ALLOCATOR(GainNode);
 
 public:
+    static constexpr size_t gain_offset() { return offsetof(GainNode, m_gain); }
     virtual ~GainNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<GainNode>> create(GC::Ref<BaseAudioContext>, GainOptions const& = {});

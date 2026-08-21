@@ -36,6 +36,7 @@ public:
     [[nodiscard]] bool processed() const { return m_processed; }
     [[nodiscard]] IDBRequestSource source() const { return m_source; }
     [[nodiscard]] GC::Ptr<IDBTransaction> transaction() const { return m_transaction; }
+    static constexpr size_t transaction_offset() { return offsetof(IDBRequest, m_transaction); }
     [[nodiscard]] String uuid() const { return m_uuid; }
 
     [[nodiscard]] HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;

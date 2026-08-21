@@ -31,6 +31,7 @@ ALLOWED_EXTENDED_ATTRIBUTES = frozenset(
         "Experimental",
         "Exposed",
         "FIXME",
+        "DirectGetter",
         "FlyString",
         "GenerateToValue",
         "Global",

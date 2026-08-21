@@ -19,6 +19,7 @@ class StereoPannerNode : public AudioNode {
     GC_DECLARE_ALLOCATOR(StereoPannerNode);
 
 public:
+    static constexpr size_t pan_offset() { return offsetof(StereoPannerNode, m_pan); }
     virtual ~StereoPannerNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});

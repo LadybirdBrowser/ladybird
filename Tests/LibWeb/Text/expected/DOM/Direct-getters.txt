@@ -1,0 +1,6 @@
+GC::Ref field: true
+non-null GC::Ptr readable: true
+non-null GC::Ptr writable: true
+aliased field: true
+writable field starts null: true
+writable field updates: true

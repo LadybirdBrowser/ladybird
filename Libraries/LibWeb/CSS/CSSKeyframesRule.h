@@ -24,6 +24,7 @@ class CSSKeyframesRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSKeyframesRule);
 
 public:
+    static constexpr size_t rules_offset() { return offsetof(CSSKeyframesRule, m_rules); }
     [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(Utf16FlyString name, GC::Ref<CSSRuleList>);
 
     virtual ~CSSKeyframesRule() = default;

@@ -23,12 +23,15 @@ public:
 
     GC::Ptr<ServiceWorker> installing() const { return m_installing; }
     void set_installing(GC::Ptr<ServiceWorker> installing) { m_installing = installing; }
+    static constexpr size_t installing_offset() { return offsetof(ServiceWorkerRegistration, m_installing); }
 
     GC::Ptr<ServiceWorker> waiting() const { return m_waiting; }
     void set_waiting(GC::Ptr<ServiceWorker> waiting) { m_waiting = waiting; }
+    static constexpr size_t waiting_offset() { return offsetof(ServiceWorkerRegistration, m_waiting); }
 
     GC::Ptr<ServiceWorker> active() const { return m_active; }
     void set_active(GC::Ptr<ServiceWorker> active) { m_active = active; }
+    static constexpr size_t active_offset() { return offsetof(ServiceWorkerRegistration, m_active); }
 
     // https://w3c.github.io/ServiceWorker/#dom-serviceworkerregistration-scope
     Utf16String scope() const

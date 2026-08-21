@@ -34,6 +34,7 @@ class Animation : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(Animation);
 
 public:
+    static constexpr size_t effect_offset() { return offsetof(Animation, m_effect); }
     enum class ShouldInvalidate {
         Yes,
         No,

@@ -17,6 +17,7 @@ class TreeWalker final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(TreeWalker);
 
 public:
+    static constexpr size_t root_offset() { return offsetof(TreeWalker, m_root); }
     [[nodiscard]] static GC::Ref<TreeWalker> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~TreeWalker() override;

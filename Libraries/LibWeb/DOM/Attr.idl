@@ -7,7 +7,7 @@ interface Attr : Node {
     readonly attribute Utf16DOMString name;
     [CEReactions] attribute Utf16DOMString value;
 
-    readonly attribute Element? ownerElement;
+    [DirectGetter] readonly attribute Element? ownerElement;
 
     readonly attribute boolean specified; // useless; always returns true
 };

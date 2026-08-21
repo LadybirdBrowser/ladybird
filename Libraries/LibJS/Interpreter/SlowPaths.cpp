@@ -27,6 +27,7 @@
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/MathObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -981,7 +982,17 @@ i64 asm_slow_path_get_by_id_cached_accessor(VM* vm, u32 pc, Op::GetById const* i
     auto* holder = entry->prototype ? entry->prototype.ptr() : &object;
     auto value = holder->get_direct(entry->property_offset);
     VERIFY(value.is_accessor());
-    vm->set(instruction->dst(), ASM_TRY(*vm, pc, get_cached_property_value(*vm, value, &object)));
+    auto* getter = value.as_accessor().getter();
+    auto result = ASM_TRY(*vm, pc, get_cached_property_value(*vm, value, &object));
+    if (getter && is<DirectGetterFunction>(*getter)) {
+        if (auto* completed_entry = cache.first_entry(); completed_entry && completed_entry->shape.ptr() == &object.shape()) {
+            auto* completed_holder = completed_entry->prototype ? completed_entry->prototype.ptr() : &object;
+            auto completed_value = completed_holder->get_direct(completed_entry->property_offset);
+            if (completed_value.is_accessor() && completed_value.as_accessor().getter() == getter)
+                completed_entry->direct_getter_validated = true;
+        }
+    }
+    vm->set(instruction->dst(), result);
     return static_cast<i64>(pc + sizeof(Op::GetById));
 }
 

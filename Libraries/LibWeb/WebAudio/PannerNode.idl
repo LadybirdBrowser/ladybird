@@ -34,12 +34,12 @@ dictionary PannerOptions : AudioNodeOptions {
 interface PannerNode : AudioNode {
     constructor(BaseAudioContext context, optional PannerOptions options = {});
     attribute PanningModelType panningModel;
-    readonly attribute AudioParam positionX;
-    readonly attribute AudioParam positionY;
-    readonly attribute AudioParam positionZ;
-    readonly attribute AudioParam orientationX;
-    readonly attribute AudioParam orientationY;
-    readonly attribute AudioParam orientationZ;
+    [DirectGetter] readonly attribute AudioParam positionX;
+    [DirectGetter] readonly attribute AudioParam positionY;
+    [DirectGetter] readonly attribute AudioParam positionZ;
+    [DirectGetter] readonly attribute AudioParam orientationX;
+    [DirectGetter] readonly attribute AudioParam orientationY;
+    [DirectGetter] readonly attribute AudioParam orientationZ;
     attribute DistanceModelType distanceModel;
     attribute double refDistance;
     attribute double maxDistance;
