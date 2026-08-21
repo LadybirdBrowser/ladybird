@@ -66,6 +66,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -287,6 +288,21 @@ bool Internals::has_activity_root(JS::Object& object)
     if (auto* web_socket = Bindings::impl_from<WebSockets::WebSocket>(&object))
         return web_socket->has_activity_root();
     return false;
+}
+
+WebIDL::UnsignedLongLong Internals::message_port_pending_outgoing_message_count(HTML::MessagePort& port)
+{
+    return port.pending_outgoing_message_count();
+}
+
+void Internals::fail_next_message_port_transfer(HTML::MessagePort& port)
+{
+    port.fail_next_transfer_for_testing();
+}
+
+bool Internals::message_ports_are_directly_entangled(HTML::MessagePort& first, HTML::MessagePort& second)
+{
+    return first.entangled_port().ptr() == &second && second.entangled_port().ptr() == &first;
 }
 
 GC::Ref<XHR::XMLHttpRequest> Internals::create_xml_http_request_for_document(DOM::Document& document)

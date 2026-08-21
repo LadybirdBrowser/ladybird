@@ -54,6 +54,8 @@ public:
 
     GC::Ptr<MessagePort> entangled_port() { return m_remote_port; }
     GC::Ptr<MessagePort const> entangled_port() const { return m_remote_port; }
+    size_t pending_outgoing_message_count() const { return m_pending_outgoing_messages.size(); }
+    void fail_next_transfer_for_testing() { m_fail_next_transfer_for_testing = true; }
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
@@ -104,6 +106,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#has-been-shipped
     bool m_has_been_shipped { false };
+    bool m_has_ever_been_entangled { false };
+    bool m_fail_next_transfer_for_testing { false };
 
     OwnPtr<IPC::Transport> m_transport;
 

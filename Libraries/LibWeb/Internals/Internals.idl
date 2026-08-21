@@ -17,6 +17,9 @@ interface Internals {
     undefined markAsGarbage(DOMString variableName);
     boolean wrapperIsPreserved(object object);
     boolean hasActivityRoot(object object);
+    unsigned long long messagePortPendingOutgoingMessageCount(MessagePort port);
+    undefined failNextMessagePortTransfer(MessagePort port);
+    boolean messagePortsAreDirectlyEntangled(MessagePort first, MessagePort second);
     XMLHttpRequest createXMLHttpRequestForDocument(Document document);
     [ImplementedAs=hit_test_result] object hitTest(double x, double y);
 

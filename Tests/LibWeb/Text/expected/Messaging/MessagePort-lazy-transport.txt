@@ -1,0 +1,11 @@
+created many local channels
+first, second, third
+closed port retained messages: 0
+closed port received message: false
+after GC
+before transfer, after transfer
+detached port received message: false
+reply after transfer
+transfer failed: DataCloneError
+directly entangled after failed transfer: true
+after failed transfer
