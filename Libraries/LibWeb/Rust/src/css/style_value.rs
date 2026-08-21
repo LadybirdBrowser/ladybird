@@ -70,6 +70,12 @@ impl PartialEq for RetainedStyleValueData {
 }
 
 impl RetainedStyleValueData {
+    pub(crate) fn none() -> Self {
+        Self {
+            pointer: std::ptr::null(),
+        }
+    }
+
     pub(crate) fn from_owned(data: StyleValueData) -> Self {
         let pointer = Arc::into_raw(Arc::new(data));
         // SAFETY: Arc::into_raw transfers one strong reference to this handle.

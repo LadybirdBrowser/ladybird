@@ -512,6 +512,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .document_base_url = document_base_url.data(),
         .document_base_url_length = document_base_url.size(),
         .intern_utf16_fly_string = retain_utf16_fly_string,
+        .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
