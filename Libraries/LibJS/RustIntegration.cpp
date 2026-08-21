@@ -1176,11 +1176,6 @@ static Utf16View view_from_ffi(FFIUtf16Slice slice)
     return JS::RustIntegration::utf16_view_from_bytes(slice.data, slice.length);
 }
 
-static Utf16String utf16_from_ffi(FFIUtf16Slice slice)
-{
-    return Utf16String::from_utf16(view_from_ffi(slice));
-}
-
 static Utf16FlyString utf16_fly_from_ffi(FFIUtf16Slice slice)
 {
     return Utf16FlyString::from_utf16(view_from_ffi(slice));
@@ -1346,7 +1341,7 @@ extern "C" void* rust_create_executable(
     auto str_table = make<JS::Bytecode::StringTable>();
     str_table->ensure_capacity(data->string_count);
     for (size_t i = 0; i < data->string_count; ++i) {
-        str_table->insert(utf16_from_ffi(data->string_table[i]));
+        str_table->insert(Utf16String::adopt_raw(data->owned_string_table[i]));
     }
 
     // Build regex table from pre-compiled regex objects.

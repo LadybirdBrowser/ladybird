@@ -213,7 +213,8 @@ pub struct FFIExecutableData {
     pub identifier_count: usize,
     pub property_key_table: *const FFIUtf16Slice,
     pub property_key_count: usize,
-    pub string_table: *const FFIUtf16Slice,
+    /// Raw `AK::Utf16String` owners transferred to C++ by `rust_create_executable`.
+    pub owned_string_table: *const usize,
     pub string_count: usize,
     pub constants_data: *const u8,
     pub constants_data_length: usize,
@@ -783,6 +784,60 @@ pub struct ExecutableSlices<'a> {
     pub compiled_regexes: &'a [*mut c_void],
 }
 
+struct NativeUtf16StringTable {
+    strings: Vec<usize>,
+    transferred: bool,
+}
+
+impl NativeUtf16StringTable {
+    /// Creates native AK string owners from borrowed FFI slices.
+    ///
+    /// # Safety
+    /// Every slice must point to valid UTF-16 storage for the duration of this call.
+    unsafe fn new(slices: &[FFIUtf16Slice]) -> Self {
+        let mut table = Self {
+            strings: Vec::with_capacity(slices.len()),
+            transferred: false,
+        };
+        for slice in slices {
+            let units = if slice.length == 0 {
+                &[]
+            } else {
+                assert!(!slice.data.is_null());
+                // SAFETY: The caller guarantees that every FFI slice is valid for this call.
+                unsafe { std::slice::from_raw_parts(slice.data, slice.length) }
+            };
+            table.strings.push(ak::Utf16String::from_utf16(units).into_raw());
+        }
+        table
+    }
+
+    fn as_ptr(&self) -> *const usize {
+        self.strings.as_ptr()
+    }
+
+    fn len(&self) -> usize {
+        self.strings.len()
+    }
+
+    fn mark_transferred(&mut self) {
+        self.transferred = true;
+    }
+}
+
+impl Drop for NativeUtf16StringTable {
+    fn drop(&mut self) {
+        if self.transferred {
+            return;
+        }
+
+        for raw in self.strings.drain(..) {
+            // SAFETY: Until the table is marked transferred, it owns every raw reference.
+            drop(unsafe { ak::Utf16String::from_raw_owned(raw) });
+        }
+    }
+}
+
 /// Create a C++ Executable from borrowed FFI slices.
 ///
 /// This is the lowest-level executable constructor wrapper. It lets cache
@@ -824,6 +879,10 @@ pub unsafe fn create_executable_from_slices(
             })
             .collect();
 
+        // Materialize ordinary strings directly in AK's stable representation. C++ adopts these
+        // owners below without copying character data or changing their reference counts.
+        let mut native_string_table = NativeUtf16StringTable::new(slices.string_table);
+
         let ffi_data = FFIExecutableData {
             bytecode: parts.bytecode.as_ptr(),
             bytecode_length: parts.bytecode.len(),
@@ -832,8 +891,8 @@ pub unsafe fn create_executable_from_slices(
             identifier_count: slices.identifier_table.len(),
             property_key_table: slices.property_key_table.as_ptr(),
             property_key_count: slices.property_key_table.len(),
-            string_table: slices.string_table.as_ptr(),
-            string_count: slices.string_table.len(),
+            owned_string_table: native_string_table.as_ptr(),
+            string_count: native_string_table.len(),
             constants_data: slices.constants_data.as_ptr(),
             constants_data_length: slices.constants_data.len(),
             constants_count: slices.constants_count,
@@ -863,7 +922,10 @@ pub unsafe fn create_executable_from_slices(
             regex_count: slices.compiled_regexes.len(),
         };
 
-        rust_create_executable(vm_ptr, source_code_ptr, &raw const ffi_data)
+        let executable = rust_create_executable(vm_ptr, source_code_ptr, &raw const ffi_data);
+        // C++ adopts all string_count owners before returning, including on validation failure.
+        native_string_table.mark_transferred();
+        executable
     }
 }
 
