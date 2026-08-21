@@ -18,6 +18,7 @@ interface Internals {
     boolean wrapperIsPreserved(object object);
     boolean hasActivityRoot(object object);
     unsigned long long messagePortPendingOutgoingMessageCount(MessagePort port);
+    unsigned long long htmlCollectionCacheGeneration(HTMLCollection collection);
     undefined failNextMessagePortTransfer(MessagePort port);
     boolean messagePortsAreDirectlyEntangled(MessagePort first, MessagePort second);
     XMLHttpRequest createXMLHttpRequestForDocument(Document document);

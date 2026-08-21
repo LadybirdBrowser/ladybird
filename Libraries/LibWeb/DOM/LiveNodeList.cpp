@@ -90,7 +90,7 @@ u64 LiveNodeList::invalidation_version(Document const& document) const
         return 0;
     case Kind::Labels:
     case Kind::FormControls:
-        return document.form_associated_custom_element_version();
+        return document.form_controls_version();
     }
     VERIFY_NOT_REACHED();
 }

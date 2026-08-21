@@ -356,9 +356,7 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::t_bodies()
     // The tBodies attribute must return an HTMLCollection rooted at the table node,
     // whose filter matches only tbody elements that are children of the table element.
     if (!m_t_bodies) {
-        m_t_bodies = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Children, [](DOM::Element const& element) {
-            return element.local_name() == TagNames::tbody;
-        });
+        m_t_bodies = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Children, [](DOM::Element const& element) { return element.local_name() == TagNames::tbody; }, DOM::HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_t_bodies;
 }
@@ -412,6 +410,7 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
                 return true;
 
             return false; },
+            DOM::HTMLCollection::AttributeInvalidationType::None,
             [](Element const& a, Element const& b) -> bool {
                 auto static sort_priority = [](Element const& element) {
                     auto const& parent_tag = element.parent_element()->local_name();

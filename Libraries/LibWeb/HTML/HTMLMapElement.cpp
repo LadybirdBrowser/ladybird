@@ -74,9 +74,7 @@ GC::Ref<DOM::HTMLCollection> HTMLMapElement::areas()
 {
     // The areas attribute must return an HTMLCollection rooted at the map element, whose filter matches only area elements.
     if (!m_areas) {
-        m_areas = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [](Element const& element) {
-            return is<HTML::HTMLAreaElement>(element);
-        });
+        m_areas = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [](Element const& element) { return is<HTML::HTMLAreaElement>(element); }, DOM::HTMLCollection::AttributeInvalidationType::None);
     }
     return *m_areas;
 }

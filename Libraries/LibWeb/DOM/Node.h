@@ -19,6 +19,7 @@
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
+#include <LibWeb/DOM/HTMLCollectionCacheRegistration.h>
 #include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
@@ -361,8 +362,13 @@ public:
             Removal,
             Mutation,
         };
+        enum class AffectsElements {
+            No,
+            Yes,
+        };
         Type type {};
         GC::Ref<Node> node;
+        AffectsElements affects_elements { AffectsElements::No };
     };
     // FIXME: It would be good if we could always provide this metadata for use in optimizations.
     virtual void children_changed(ChildrenChangedMetadata const&) { }
@@ -542,6 +548,8 @@ public:
     }
 
 protected:
+    friend class HTMLCollection;
+
     struct RareData {
         virtual ~RareData();
         virtual void visit_edges(Cell::Visitor&);
@@ -555,7 +563,12 @@ protected:
 
         GC::Ptr<NodeList> child_nodes;
         GC::Ptr<HTMLCollection> children;
+        OwnPtr<HTMLCollectionCacheRegistration::List> html_collections_with_valid_caches;
     };
+
+    void register_html_collection_with_valid_cache(HTMLCollection&);
+    void invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadata::AffectsElements);
+    void invalidate_html_collection_caches_in_ancestors_for_attribute_change(HTMLCollectionCacheRegistration::AttributeInvalidationTypes);
 
     Node(Document&, NodeType);
 

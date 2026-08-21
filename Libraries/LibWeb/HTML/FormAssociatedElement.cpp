@@ -173,14 +173,18 @@ void FormAssociatedElement::reset_algorithm()
 
 void FormAssociatedElement::set_form(HTMLFormElement* form)
 {
-    if (auto* old_form = this->form())
-        old_form->remove_associated_element({}, form_associated_element_to_html_element());
+    auto& element = form_associated_element_to_html_element();
+    GC::Ptr<HTMLFormElement> old_form { this->form() };
+    if (old_form)
+        old_form->remove_associated_element({}, element);
     if (form)
         ensure_form_associated_rare_data().form = form;
     else if (auto* rare_data = form_associated_rare_data())
         rare_data->form = nullptr;
     if (form)
-        form->add_associated_element({}, form_associated_element_to_html_element());
+        form->add_associated_element({}, element);
+    if (old_form.ptr() != form)
+        element.document().bump_form_controls_version();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity

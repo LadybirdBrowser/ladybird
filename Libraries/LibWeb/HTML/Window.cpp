@@ -2213,8 +2213,7 @@ Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCol
         if ((is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element))
             && (element.name() == name))
             return true;
-        return element.id() == name;
-    });
+        return element.id() == name; }, DOM::HTMLCollection::AttributeInvalidationType::IdOrName);
     return collection;
 }
 

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.createElement("div");
+        root.innerHTML = "<section><span id='first'></span></section>";
+        const descendants = root.getElementsByTagName("*");
+
+        println(`initial descendants: ${Array.from(descendants, element => element.localName)}`);
+
+        const fragment = document.createDocumentFragment();
+        const paragraph = document.createElement("p");
+        paragraph.innerHTML = "<em></em>";
+        fragment.append(paragraph);
+        root.append(fragment);
+        println(`after fragment insertion: ${Array.from(descendants, element => element.localName)}`);
+
+        root.firstChild.remove();
+        println(`after subtree removal: ${Array.from(descendants, element => element.localName)}`);
+        {
+            const root = document.createElement("div");
+            const first = document.createElement("div");
+            const second = document.createElement("div");
+            first.id = "first";
+            second.id = "second";
+            root.append(first, second);
+
+            const children = root.children;
+            println(`initial children: ${Array.from(children, element => element.id)}`);
+            const initialGeneration = internals.htmlCollectionCacheGeneration(children);
+
+            first.append(document.createTextNode("text"), document.createElement("span"));
+            println(`after descendant insertion: ${Array.from(children, element => element.id)}, cache preserved: ${internals.htmlCollectionCacheGeneration(children) === initialGeneration}`);
+
+            const third = document.createElement("div");
+            third.id = "third";
+            root.append(third);
+            println(`after child insertion: ${Array.from(children, element => element.id)}, cache rebuilt: ${internals.htmlCollectionCacheGeneration(children) > initialGeneration}`);
+
+            root.moveBefore(third, first);
+            println(`after atomic move: ${Array.from(children, element => element.id)}`);
+        }
+
+        {
+            const table = document.createElement("table");
+            table.innerHTML = "<tbody><tr><td>first</td><td>second</td></tr><tr><td>third</td><td>fourth</td></tr></tbody>";
+            const rows = table.rows;
+            const firstRow = rows[0];
+            const cells = firstRow.cells;
+            const firstText = cells[0].firstChild;
+            const rowsGeneration = internals.htmlCollectionCacheGeneration(rows);
+            const cellsGeneration = internals.htmlCollectionCacheGeneration(cells);
+
+            cells[0].removeChild(firstText);
+            cells[1].appendChild(firstText);
+
+            println(`rows after text move: ${rows.length}, same first row: ${rows[0] === firstRow}, cache preserved: ${internals.htmlCollectionCacheGeneration(rows) === rowsGeneration}`);
+            println(`cells after text move: ${cells.length}, same first cell: ${cells[0] === firstRow.firstElementChild}, cache preserved: ${internals.htmlCollectionCacheGeneration(cells) === cellsGeneration}`);
+
+            firstRow.id = "first-row";
+            rows.length;
+            println(`rows after attribute change: cache preserved: ${internals.htmlCollectionCacheGeneration(rows) === rowsGeneration}`);
+        }
+
+        {
+            const otherDocument = document.implementation.createHTMLDocument();
+            const root = otherDocument.createElement("div");
+            root.innerHTML = "<span id='before'></span>";
+            const children = root.children;
+            const before = children[0];
+            println(`before adoption: ${before.id}, named=${children.namedItem("before") === before}`);
+
+            document.adoptNode(root);
+            const after = document.createElement("span");
+            after.id = "after";
+            root.append(after);
+            println(`after adoption and insertion: ${Array.from(children, element => element.id)}, named=${children.namedItem("before") === before && children.namedItem("after") === after}`);
+
+            const final = document.createElement("span");
+            final.id = "final";
+            root.append(final);
+            println(`after subsequent insertion: ${Array.from(children, element => element.id)}`);
+        }
+
+        {
+            const host = document.createElement("div");
+            const source = document.createElement("div");
+            const destination = document.createElement("div");
+            host.append(source, destination);
+            source.innerHTML = "<span id='moved'></span><span id='source'></span>";
+            destination.innerHTML = "<span id='destination'></span>";
+            const moved = source.firstElementChild;
+            const sourceChildren = source.children;
+            const destinationChildren = destination.children;
+            const sourceGeneration = internals.htmlCollectionCacheGeneration(sourceChildren);
+            const destinationGeneration = internals.htmlCollectionCacheGeneration(destinationChildren);
+
+            destination.moveBefore(moved, null);
+            println(`after cross-root move: source=${Array.from(sourceChildren, element => element.id)}, destination=${Array.from(destinationChildren, element => element.id)}`);
+            println(`cross-root caches rebuilt: source=${internals.htmlCollectionCacheGeneration(sourceChildren) > sourceGeneration}, destination=${internals.htmlCollectionCacheGeneration(destinationChildren) > destinationGeneration}`);
+        }
+
+        {
+            const root = document.createElement("div");
+            root.innerHTML = "<a id='candidate'></a><span class='wanted'></span>";
+            const candidate = root.firstElementChild;
+            const byClass = root.getElementsByClassName("wanted");
+            const links = root.getElementsByTagName("a");
+            document.body.append(root);
+
+            println(`initial attribute collections: class=${byClass.length}, link=${document.links.length}`);
+            const initialClassGeneration = internals.htmlCollectionCacheGeneration(byClass);
+            candidate.title = "irrelevant";
+            byClass.length;
+            println(`after irrelevant attribute: cache preserved=${internals.htmlCollectionCacheGeneration(byClass) === initialClassGeneration}`);
+            candidate.className = "wanted";
+            candidate.href = "https://example.com/";
+            candidate.name = "named";
+            println(`after matching attributes: class=${byClass.length}, link=${document.links.length}, anchor=${document.anchors.length}`);
+
+            println(`named candidate: ${links.namedItem("candidate") === candidate}`);
+            const linksGeneration = internals.htmlCollectionCacheGeneration(links);
+            candidate.id = "renamed";
+            println(`after id change: old=${links.namedItem("candidate")}, new=${links.namedItem("renamed") === candidate}, cache preserved=${internals.htmlCollectionCacheGeneration(links) === linksGeneration}`);
+
+            candidate.name = "aliased";
+            println(`after name change: old=${links.namedItem("named")}, new=${links.namedItem("aliased") === candidate}, anchor=${document.anchors.length}`);
+
+            candidate.className = "";
+            candidate.removeAttribute("href");
+            candidate.removeAttribute("name");
+            println(`after removing matching attributes: class=${byClass.length}, link=${document.links.length}, anchor=${document.anchors.length}`);
+            root.remove();
+        }
+
+        {
+            const root = document.createElement("div");
+            root.innerHTML = "<div id='direct'><span id='nested'></span></div>";
+            const children = root.children;
+            const direct = root.firstElementChild;
+            const nested = direct.firstElementChild;
+            println(`initial scoped names: direct=${children.namedItem("direct") === direct}, nested=${children.namedItem("nested")}`);
+            const generation = internals.htmlCollectionCacheGeneration(children);
+
+            nested.id = "nested-renamed";
+            println(`after nested ID change: nested=${children.namedItem("nested-renamed")}, cache preserved=${internals.htmlCollectionCacheGeneration(children) === generation}`);
+
+            direct.id = "direct-renamed";
+            println(`after direct ID change: old=${children.namedItem("direct")}, new=${children.namedItem("direct-renamed") === direct}, cache preserved=${internals.htmlCollectionCacheGeneration(children) === generation}`);
+        }
+
+        {
+            const root = document.createElement("div");
+            root.innerHTML = "<span id='before'></span>";
+            (() => root.getElementsByTagName("*").namedItem("before"))();
+            internals.gc();
+            root.firstElementChild.id = "after";
+            root.append(document.createElement("span"));
+            println(`mutations after named collection GC: ${root.childElementCount}, id=${root.firstElementChild.id}`);
+        }
+    });
+</script>

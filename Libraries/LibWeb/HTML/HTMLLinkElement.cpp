@@ -1039,8 +1039,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
         if (!is<HTMLLinkElement>(element))
             return false;
 
-        return static_cast<HTMLLinkElement const&>(element).has_icon_keyword();
-    });
+        return static_cast<HTMLLinkElement const&>(element).has_icon_keyword(); }, DOM::HTMLCollection::AttributeInvalidationType::None);
     if (icon_link_elements->length() != 0)
         return;
 
