@@ -1968,6 +1968,75 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
     });
 }
 
+fn paint_tree_dump_entries(
+    arena: &LayoutNodeArena,
+    paintables: &crate::painting::paintable_arena::PaintableArena,
+    root: PaintableSlotId,
+) -> Vec<crate::painting::host::FfiPaintTreeDumpEntry> {
+    fn visit(
+        arena: &LayoutNodeArena,
+        paintables: &crate::painting::paintable_arena::PaintableArena,
+        slot: PaintableSlotId,
+        depth: u32,
+        entries: &mut Vec<crate::painting::host::FfiPaintTreeDumpEntry>,
+    ) {
+        entries.push(crate::painting::host::FfiPaintTreeDumpEntry {
+            layout_node_shell: arena.shell_if_live(paintables.data_ref(slot).layout_node),
+            depth,
+        });
+        let mut child = paintables.first_child(slot);
+        while let Some(current) = child {
+            visit(arena, paintables, current, depth + 1, entries);
+            child = paintables.next_sibling(current);
+        }
+    }
+
+    if !paintables.is_live(root) {
+        return Vec::new();
+    }
+    let mut entries = Vec::new();
+    visit(arena, paintables, root, 0, &mut entries);
+    entries
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paint_tree_dump_entry_count(arena: *mut c_void, root: PaintableSlotId) -> usize {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        paint_tree_dump_entries(arena, &paintables, root).len()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`; `output` must point to writable
+/// storage for exactly `output_length` items, matching the current paint-tree dump entry count.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_export_paint_tree_dump_entries(
+    arena: *mut c_void,
+    root: PaintableSlotId,
+    output: *mut crate::painting::host::FfiPaintTreeDumpEntry,
+    output_length: usize,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let entries = paint_tree_dump_entries(arena, &paintables, root);
+        assert_eq!(entries.len(), output_length);
+        if entries.is_empty() {
+            return;
+        }
+        assert!(!output.is_null());
+        // SAFETY: The caller provides writable storage for exactly `output_length` exports.
+        let output = unsafe { std::slice::from_raw_parts_mut(output, output_length) };
+        output.copy_from_slice(&entries);
+    });
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

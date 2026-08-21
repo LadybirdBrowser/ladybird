@@ -510,27 +510,38 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         color_off = "\033[0m"sv;
     }
 
-    for (int i = 0; i < indent; ++i)
-        builder.append("  "sv);
+    auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(paintable.rust_arena().handle(), paintable.rust_slot());
+    Vector<Layout::RustFFI::FfiPaintTreeDumpEntry> entries;
+    entries.resize(entry_count);
+    Layout::RustFFI::layout_arena_export_paint_tree_dump_entries(paintable.rust_arena().handle(), paintable.rust_slot(), entries.data(), entries.size());
+    for (auto const& entry : entries) {
+        if (!entry.layout_node_shell)
+            continue;
+        auto& layout_node = *static_cast<Layout::Node*>(entry.layout_node_shell);
+        auto entry_paintable = layout_node.paintable();
+        if (!entry_paintable)
+            continue;
 
-    if (is<Painting::PaintableWithLines>(paintable))
-        builder.append(paintable_with_lines_color_on);
-    else
-        builder.append(paintable_box_color_on);
+        auto entry_indent = indent + static_cast<int>(entry.depth);
+        for (int i = 0; i < entry_indent; ++i)
+            builder.append("  "sv);
 
-    builder.appendff("{}{} ({})", paintable.class_name(), color_off, paintable.layout_node().debug_description());
+        if (is<Painting::PaintableWithLines>(*entry_paintable))
+            builder.append(paintable_with_lines_color_on);
+        else
+            builder.append(paintable_box_color_on);
 
-    builder.appendff(" {}", paintable.absolute_border_box_rect());
+        builder.appendff("{}{} ({})", entry_paintable->class_name(), color_off, layout_node.debug_description());
 
-    if (paintable.has_scrollable_overflow())
-        builder.appendff(" overflow: {}", paintable.scrollable_overflow_rect());
+        builder.appendff(" {}", entry_paintable->absolute_border_box_rect());
 
-    if (!paintable.scroll_offset().is_zero())
-        builder.appendff(" scroll-offset: {}", paintable.scroll_offset());
-    builder.append("\n"sv);
+        if (entry_paintable->has_scrollable_overflow())
+            builder.appendff(" overflow: {}", entry_paintable->scrollable_overflow_rect());
 
-    for (auto child = paintable.first_child(); child; child = child->next_sibling())
-        dump_tree(builder, *child, colorize, indent + 1);
+        if (!entry_paintable->scroll_offset().is_zero())
+            builder.appendff(" scroll-offset: {}", entry_paintable->scroll_offset());
+        builder.append("\n"sv);
+    }
 }
 
 }
