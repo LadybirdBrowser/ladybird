@@ -39,7 +39,6 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -568,22 +567,6 @@ NonnullRefPtr<ResizeHandle> Paintable::ensure_resize_handle()
     if (!m_resize_handle)
         m_resize_handle = ResizeHandle::create(*this);
     return *m_resize_handle;
-}
-
-bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y)
-{
-    auto can_scroll_horizontally = could_be_scrolled_by_wheel_event(layout_node(), ScrollDirection::Horizontal);
-    auto can_scroll_vertically = could_be_scrolled_by_wheel_event(layout_node(), ScrollDirection::Vertical);
-    if (!can_scroll_horizontally)
-        wheel_delta_x = 0;
-    if (!can_scroll_vertically)
-        wheel_delta_y = 0;
-
-    // if none of the axes we scrolled with can be accepted by this element, don't handle scroll.
-    if (wheel_delta_x == 0 && wheel_delta_y == 0)
-        return false;
-
-    return scroll_by(layout_node(), wheel_delta_x, wheel_delta_y) == ScrollHandled::Yes;
 }
 
 bool Paintable::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& metrics) const

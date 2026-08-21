@@ -282,6 +282,28 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
     return scroll_handled;
 }
 
+ScrollHandled wheel_scroll(Layout::Node& node, double wheel_delta_x, double wheel_delta_y)
+{
+    if (node.is_viewport())
+        return ScrollHandled::No;
+    if (!could_be_scrolled_by_wheel_event(node, ScrollDirection::Horizontal))
+        wheel_delta_x = 0;
+    if (!could_be_scrolled_by_wheel_event(node, ScrollDirection::Vertical))
+        wheel_delta_y = 0;
+    if (wheel_delta_x == 0 && wheel_delta_y == 0)
+        return ScrollHandled::No;
+    return scroll_by(node, wheel_delta_x, wheel_delta_y);
+}
+
+ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node& node, double wheel_delta_x, double wheel_delta_y)
+{
+    for (auto* current = &node; current; current = current->containing_block()) {
+        if (wheel_scroll(*current, wheel_delta_x, wheel_delta_y) == ScrollHandled::Yes)
+            return ScrollHandled::Yes;
+    }
+    return ScrollHandled::No;
+}
+
 static void scroll_into_view(Layout::Node& node, CSSPixelRect rect)
 {
     if (!has_committed_box(node))
