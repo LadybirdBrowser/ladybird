@@ -1118,7 +1118,7 @@ void Node::remove(bool suppress_observers)
             } else if (can_detach_layout_subtree_for_removal(*this, *parent)) {
                 RefPtr<Layout::Node> layout_node = unsafe_layout_node();
                 layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
-                    node.clear_paintable();
+                    node.clear_committed_box();
                     return TraversalDecision::Continue;
                 });
                 layout_node->prepare_subtree_for_detach_from_layout_tree();
@@ -2126,7 +2126,7 @@ void Node::clear_layout_node_paintable()
     if (!m_layout_node)
         return;
 
-    m_layout_node->clear_paintable();
+    m_layout_node->clear_committed_box();
 }
 
 void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
@@ -3127,26 +3127,26 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUp
 
 RefPtr<Painting::Paintable const> Node::paintable() const
 {
-    if (m_paintable)
+    if (m_layout_node)
         VERIFY(document().layout_is_up_to_date());
-    return m_paintable.strong_ref();
+    return m_layout_node ? m_layout_node->paintable() : nullptr;
 }
 
 RefPtr<Painting::Paintable> Node::paintable()
 {
-    if (m_paintable)
+    if (m_layout_node)
         VERIFY(document().layout_is_up_to_date());
-    return m_paintable.strong_ref();
+    return m_layout_node ? m_layout_node->paintable() : nullptr;
 }
 
 RefPtr<Painting::Paintable const> Node::unsafe_paintable() const
 {
-    return m_paintable.strong_ref();
+    return m_layout_node ? m_layout_node->paintable() : nullptr;
 }
 
 RefPtr<Painting::Paintable> Node::unsafe_paintable()
 {
-    return m_paintable.strong_ref();
+    return m_layout_node ? m_layout_node->paintable() : nullptr;
 }
 
 RefPtr<Painting::Paintable const> Node::paintable_box() const
@@ -3161,12 +3161,12 @@ RefPtr<Painting::Paintable> Node::paintable_box()
 
 RefPtr<Painting::Paintable const> Node::unsafe_paintable_box() const
 {
-    return m_paintable.strong_ref();
+    return unsafe_paintable();
 }
 
 RefPtr<Painting::Paintable> Node::unsafe_paintable_box()
 {
-    return m_paintable.strong_ref();
+    return unsafe_paintable();
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record

@@ -267,12 +267,12 @@ public:
     bool is_generated_for_backdrop_pseudo_element() const { return m_data->generated_for == encode_generated_for(CSS::PseudoElement::Backdrop); }
     void set_generated_for(CSS::PseudoElement type, DOM::Element&);
 
-    RefPtr<Painting::Paintable> paintable() { return m_paintable; }
-    RefPtr<Painting::Paintable const> paintable() const { return m_paintable; }
-    Painting::Paintable* paintable_ptr() { return m_paintable.ptr(); }
-    Painting::Paintable const* paintable_ptr() const { return m_paintable.ptr(); }
+    RefPtr<Painting::Paintable> paintable();
+    RefPtr<Painting::Paintable const> paintable() const;
+    Painting::Paintable* paintable_ptr();
+    Painting::Paintable const* paintable_ptr() const;
     void set_paintable(RefPtr<Painting::Paintable>);
-    void clear_paintable();
+    void clear_committed_box();
     void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
     void pin_style_record_for_detachment();

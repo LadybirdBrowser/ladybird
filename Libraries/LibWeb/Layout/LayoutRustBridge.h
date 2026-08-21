@@ -49,7 +49,6 @@ private:
     [[nodiscard]] RustFFI::FfiCommitSink commit_sink();
 
     Box const* m_commit_root { nullptr };
-    Vector<NonnullRefPtr<Painting::Paintable>> m_committed_navigable_container_viewports;
 };
 
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);

@@ -1249,16 +1249,43 @@ void Node::set_paintable(RefPtr<Painting::Paintable> paintable)
     m_paintable = move(paintable);
 }
 
-void Node::clear_paintable()
+RefPtr<Painting::Paintable> Node::paintable()
 {
-    if (m_paintable)
+    if (!Painting::has_committed_box(*this))
+        return nullptr;
+    if (!m_paintable) {
+        m_paintable = create_paintable();
+        if (m_paintable) {
+            m_paintable->set_dom_node(dom_node());
+            if (auto* node = dom_node())
+                node->set_paintable(*m_paintable);
+        }
+    }
+    return m_paintable;
+}
+
+RefPtr<Painting::Paintable const> Node::paintable() const
+{
+    return const_cast<Node*>(this)->paintable();
+}
+
+Painting::Paintable* Node::paintable_ptr()
+{
+    return paintable().ptr();
+}
+
+Painting::Paintable const* Node::paintable_ptr() const
+{
+    return paintable().ptr();
+}
+
+void Node::clear_committed_box()
+{
+    if (Painting::has_committed_box(*this))
         document().invalidate_stacking_context_tree();
 
     invalidate_paint_caches(*this);
-    if (m_paintable) {
-        RustFFI::layout_arena_paintable_cleared_from_node(arena_handle(), slot_id(this), m_paintable->rust_slot());
-        m_paintable = nullptr;
-    }
+    RustFFI::layout_arena_paintable_cleared_from_node(arena_handle(), slot_id(this));
 }
 
 RefPtr<Painting::Paintable> Node::create_paintable() const

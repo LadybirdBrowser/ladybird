@@ -26,10 +26,4 @@ ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
 
 ViewportPaintable::~ViewportPaintable() = default;
 
-void ViewportPaintable::reset_for_relayout()
-{
-    PaintableWithLines::reset_for_relayout();
-    document().paint_state().viewport_row_was_reset(document());
-}
-
 }

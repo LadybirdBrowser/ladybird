@@ -17,11 +17,9 @@ use crate::painting::paintable_data::*;
 use std::cell::RefCell;
 
 #[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiPreparedPaintable {
-    pub paintable: *mut std::ffi::c_void,
-    pub slot: PaintableSlotId,
-    pub reused: bool,
+pub(crate) struct PreparedPaintable {
+    pub(crate) slot: PaintableSlotId,
+    pub(crate) row_existed_before_this_commit: bool,
 }
 
 pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
@@ -116,6 +114,7 @@ pub(crate) struct PaintableCommit<'a> {
     arena: &'a RefCell<PaintableArena>,
     offsets_before_commit: RefCell<std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>>,
     reused_subtree_roots: RefCell<Vec<PaintableSlotId>>,
+    committed_navigable_container_viewports: RefCell<Vec<NodeSlotId>>,
 }
 
 impl<'a> PaintableCommit<'a> {
@@ -125,6 +124,7 @@ impl<'a> PaintableCommit<'a> {
             arena: callbacks.arena().paintables(),
             offsets_before_commit: RefCell::new(std::collections::HashMap::new()),
             reused_subtree_roots: RefCell::new(Vec::new()),
+            committed_navigable_container_viewports: RefCell::new(Vec::new()),
         }
     }
 
@@ -171,40 +171,49 @@ impl<'a> PaintableCommit<'a> {
         node: Node,
         has_used_values: bool,
         reuses_committed_subtree: bool,
-        prepared: FfiPreparedPaintable,
-    ) -> PaintableSlotId {
+    ) -> PreparedPaintable {
         let facts = NodeFacts::new(self.callbacks, node);
         let data = self.callbacks.node_data(node);
-        let mut arena = self.arena.borrow_mut();
         let expected_kind = paintable_kind_for_node(&facts, data.kind);
         let wants_paintable = (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
             && expected_kind != PaintableKind::None;
+        let existing_slot = self.arena.borrow().paintable_of_node(node);
         if !wants_paintable {
-            debug_assert!(arena.paintable_of_node(node).is_invalid());
-            debug_assert!(
-                prepared.slot.is_invalid(),
-                "C++ prepared a paintable for a node Rust gives none"
-            );
-            return PaintableSlotId::INVALID;
+            if !existing_slot.is_invalid() {
+                let reset = {
+                    let arena = self.arena.borrow();
+                    arena.invalidate_paint_cache(self.callbacks.arena(), existing_slot);
+                    arena
+                        .prepare_node_cleared_reset(node, existing_slot)
+                        .expect("live row for node could not be cleared")
+                };
+                reset.invoke_callback();
+                self.arena.borrow_mut().node_cleared(self.callbacks.arena(), reset);
+            }
+            return PreparedPaintable {
+                slot: PaintableSlotId::INVALID,
+                row_existed_before_this_commit: false,
+            };
         }
-        assert!(
-            !prepared.slot.is_invalid(),
-            "C++ prepared no paintable for a node Rust expects one for"
-        );
-        let slot = prepared.slot;
-        assert!(arena.is_live(slot));
+        if data.kind == NodeKind::NavigableContainerViewport {
+            self.committed_navigable_container_viewports.borrow_mut().push(node);
+        }
         if reuses_committed_subtree {
+            assert!(!existing_slot.is_invalid(), "a kept subtree root has no committed row");
+            let arena = self.arena.borrow();
             debug_assert_eq!(
                 arena.paintable_of_node(node),
-                slot,
-                "reused subtree root is not the node's own paintable"
+                existing_slot,
+                "reused subtree root is not the node's own row"
             );
-            debug_assert!(!prepared.reused, "a kept subtree's shell must not have been reset");
             self.offsets_before_commit
                 .borrow_mut()
-                .insert(slot, arena.data_ref(slot).offset);
-            self.reused_subtree_roots.borrow_mut().push(slot);
-            return slot;
+                .insert(existing_slot, arena.data_ref(existing_slot).offset);
+            self.reused_subtree_roots.borrow_mut().push(existing_slot);
+            return PreparedPaintable {
+                slot: existing_slot,
+                row_existed_before_this_commit: true,
+            };
         }
         let style = self.callbacks.computed_values_view_if_styled(node);
         let (position, floating, has_z_index, display) = match style {
@@ -225,26 +234,33 @@ impl<'a> PaintableCommit<'a> {
             ),
         };
         let is_item = data.flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
-        if prepared.reused {
+        let row_existed_before_this_commit = !existing_slot.is_invalid();
+        let slot = if row_existed_before_this_commit {
+            let arena = self.arena.borrow();
             debug_assert_eq!(
                 arena.paintable_of_node(node),
-                slot,
-                "reused paintable is not the node's own"
+                existing_slot,
+                "reused row is not the node's own"
             );
             self.offsets_before_commit
                 .borrow_mut()
-                .insert(slot, arena.data_ref(slot).offset);
-            let reset = arena.prepare_reset_for_relayout(slot);
+                .insert(existing_slot, arena.data_ref(existing_slot).offset);
+            let reset = arena.prepare_reset_for_relayout(existing_slot);
             drop(arena);
             reset.invoke_callback();
-            arena = self.arena.borrow_mut();
-            arena.reset_for_relayout(reset);
+            self.arena.borrow_mut().reset_for_relayout(reset);
+            existing_slot
         } else {
+            let allocation = self.arena.borrow_mut().row_for_node(node);
+            let slot = allocation.slot;
+            let arena = self.arena.borrow();
             arena.update_data(slot, |paintable| {
                 paintable.layout_node = node;
                 paintable.kind = expected_kind;
             });
-        }
+            slot
+        };
+        let arena = self.arena.borrow();
         arena.update_data(slot, |paintable| {
             // Flex and grid items with a z-index other than auto behave as if positioned.
             paintable.set_flag(
@@ -278,7 +294,18 @@ impl<'a> PaintableCommit<'a> {
             paintable.set_flag(PaintableFlag::PreparedByCommit, true);
             paintable.display = display.encoded();
         });
-        slot
+        PreparedPaintable {
+            slot,
+            row_existed_before_this_commit,
+        }
+    }
+
+    pub(crate) fn committed_navigable_container_viewport_shells(&self) -> Vec<*mut std::ffi::c_void> {
+        self.committed_navigable_container_viewports
+            .borrow()
+            .iter()
+            .map(|node| self.callbacks.shell(*node))
+            .collect()
     }
 
     pub(crate) fn set_box_metrics(
