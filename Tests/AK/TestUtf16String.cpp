@@ -196,6 +196,18 @@ TEST_CASE(from_utf16)
     }
 }
 
+TEST_CASE(to_well_formed_utf8)
+{
+    auto ascii = Utf16String::from_utf16(u"hello!"sv);
+    EXPECT_EQ(ascii.to_well_formed_utf8(), "hello!"sv);
+
+    auto valid = Utf16String::from_utf16(u"hello 😀!"sv);
+    EXPECT_EQ(valid.to_well_formed_utf8(), "hello 😀!"sv);
+
+    auto invalid = Utf16String::from_utf16(u"hello \xd800 there \xdc00!"sv);
+    EXPECT_EQ(invalid.to_well_formed_utf8(), "hello � there �!"sv);
+}
+
 TEST_CASE(from_code_point)
 {
     u32 code_point = 0;
