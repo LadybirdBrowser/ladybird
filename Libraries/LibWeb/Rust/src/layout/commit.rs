@@ -69,24 +69,13 @@ pub struct FfiCommitSink {
     pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
-#[derive(Clone, Copy)]
-struct CommitInsertion {
-    parent_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
-    insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
-}
-
 fn commit_subtree(
     node: Node,
-    insertion: CommitInsertion,
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
     paintables: &crate::painting::paintable_build::PaintableCommit<'_>,
     scopes: &mut crate::layout::CommitScopes<'_>,
 ) {
-    let CommitInsertion {
-        parent_paintable_slot,
-        insert_before_paintable_slot,
-    } = insertion;
     let slot_index = callbacks.slot_index(node);
     let entry = scopes.link_for_slot(slot_index);
     let reuses_committed_subtree = scopes.subtree_was_reused(slot_index);
@@ -222,7 +211,7 @@ fn commit_subtree(
         }
     }
 
-    let paintable_slot_for_children = paintables.finish_node(node, paintable_slot, parent_paintable_slot, insert_before_paintable_slot);
+    paintables.finish_node(node, paintable_slot);
     // SAFETY: Wiring uses only live layout and paintable pointers for this
     // synchronous commit.
     unsafe {
@@ -239,17 +228,7 @@ fn commit_subtree(
     let mut child = callbacks.first_child(node);
     while !child.is_invalid() {
         let next = callbacks.next_sibling(child);
-        commit_subtree(
-            child,
-            CommitInsertion {
-                parent_paintable_slot: paintable_slot_for_children,
-                insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId::INVALID,
-            },
-            callbacks,
-            sink,
-            paintables,
-            scopes,
-        );
+        commit_subtree(child, callbacks, sink, paintables, scopes);
         child = next;
     }
     if entry.is_some() {
@@ -272,25 +251,11 @@ pub(crate) fn commit_replacing(
 ) {
     let mut scopes = crate::layout::CommitScopes::for_pass(pass_fragments);
     let paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);
-    let anchors = paintables.begin_commit(root);
-    commit_subtree(
-        root,
-        CommitInsertion {
-            parent_paintable_slot: anchors.parent_paintable,
-            insert_before_paintable_slot: anchors.insert_before_paintable,
-        },
-        callbacks,
-        sink,
-        &paintables,
-        &mut scopes,
-    );
+    paintables.begin_commit(root);
+    commit_subtree(root, callbacks, sink, &paintables, &mut scopes);
     paintables.translate_reused_subtrees();
     paintables.discard_absolute_rects_memoized_during_commit();
     unsafe {
         (sink.finish_commit)(sink.context);
     }
-    crate::painting::paint_order::assert_stored_tree_matches_derived_walk(
-        callbacks.arena(),
-        &callbacks.arena().paintables().borrow(),
-    );
 }

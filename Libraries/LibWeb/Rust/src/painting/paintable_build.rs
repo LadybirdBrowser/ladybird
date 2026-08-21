@@ -24,12 +24,6 @@ pub struct FfiPreparedPaintable {
     pub reused: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct CommitAnchors {
-    pub parent_paintable: PaintableSlotId,
-    pub insert_before_paintable: PaintableSlotId,
-}
-
 pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
     match kind {
         NodeKind::Viewport => PaintableKind::ViewportPaintable,
@@ -163,96 +157,13 @@ impl<'a> PaintableCommit<'a> {
         }
     }
 
-    pub(crate) fn begin_commit(&self, root: Node) -> CommitAnchors {
+    pub(crate) fn begin_commit(&self, root: Node) {
         let arena = self.arena.borrow();
         arena.clear_absolute_rect_memo();
         if self.callbacks.node_data(root).kind == NodeKind::Viewport {
-            return CommitAnchors::default();
+            return;
         }
         arena.clear_descendant_subtree_caches_from_layout_node(self.callbacks.arena(), root);
-        let parent = self.derived_commit_parent(&arena, root);
-        let insert_before = self.derived_commit_insert_before(&arena, root, parent);
-        let replaced = arena.paintable_of_node(root);
-        if !replaced.is_invalid() && arena.is_live(replaced) {
-            if let Some(replaced_parent) = arena.parent(replaced) {
-                assert_eq!(
-                    parent, replaced_parent,
-                    "derived commit parent disagrees with the replaced paintable's parent"
-                );
-            }
-            arena.remove_from_tree(replaced);
-        }
-        CommitAnchors {
-            parent_paintable: parent,
-            insert_before_paintable: insert_before,
-        }
-    }
-
-    fn derived_commit_parent(&self, arena: &PaintableArena, root: Node) -> PaintableSlotId {
-        let mut ancestor = self.callbacks.parent(root);
-        while !ancestor.is_invalid() {
-            let paintable = arena.paintable_of_node(ancestor);
-            if !paintable.is_invalid() {
-                return paintable;
-            }
-            if !NodeFacts::new(self.callbacks, ancestor).is_fragmented_inline() {
-                return PaintableSlotId::INVALID;
-            }
-            ancestor = self.callbacks.parent(ancestor);
-        }
-        PaintableSlotId::INVALID
-    }
-
-    fn derived_commit_insert_before(
-        &self,
-        arena: &PaintableArena,
-        root: Node,
-        parent: PaintableSlotId,
-    ) -> PaintableSlotId {
-        if parent.is_invalid() {
-            return PaintableSlotId::INVALID;
-        }
-        let mut current = root;
-        let mut descend = false;
-        loop {
-            let mut next = Node::INVALID;
-            if descend {
-                next = self.callbacks.first_child(current);
-            }
-            if next.is_invalid() {
-                let mut node = current;
-                loop {
-                    let sibling = self.callbacks.next_sibling(node);
-                    if !sibling.is_invalid() {
-                        next = sibling;
-                        break;
-                    }
-                    let ancestor = self.callbacks.parent(node);
-                    if ancestor.is_invalid() {
-                        return PaintableSlotId::INVALID;
-                    }
-                    let ancestor_paintable = arena.paintable_of_node(ancestor);
-                    if !ancestor_paintable.is_invalid() {
-                        assert_eq!(
-                            ancestor_paintable, parent,
-                            "commit insertion scan escaped the derived parent's scope"
-                        );
-                        return PaintableSlotId::INVALID;
-                    }
-                    node = ancestor;
-                }
-            }
-            current = next;
-            let paintable = arena.paintable_of_node(current);
-            if !paintable.is_invalid() {
-                if arena.parent(paintable) == Some(parent) {
-                    return paintable;
-                }
-                descend = false;
-            } else {
-                descend = NodeFacts::new(self.callbacks, current).is_fragmented_inline();
-            }
-        }
     }
 
     pub(crate) fn prepare_node(
@@ -293,7 +204,6 @@ impl<'a> PaintableCommit<'a> {
                 .borrow_mut()
                 .insert(slot, arena.data_ref(slot).offset);
             self.reused_subtree_roots.borrow_mut().push(slot);
-            arena.remove_from_tree(slot);
             return slot;
         }
         let style = self.callbacks.computed_values_view_if_styled(node);
@@ -700,26 +610,10 @@ impl<'a> PaintableCommit<'a> {
         self.arena.borrow_mut().side_mut(slot).collapsed_table_borders = Some(borders.clone());
     }
 
-    pub(crate) fn finish_node(
-        &self,
-        node: Node,
-        slot: PaintableSlotId,
-        parent: PaintableSlotId,
-        insert_before: PaintableSlotId,
-    ) -> PaintableSlotId {
+    pub(crate) fn finish_node(&self, node: Node, slot: PaintableSlotId) {
         let arena = self.arena.borrow();
         if slot.is_invalid() {
-            let facts = NodeFacts::new(self.callbacks, node);
-            return if facts.is_fragmented_inline() {
-                parent
-            } else {
-                PaintableSlotId::INVALID
-            };
-        }
-        let kind = arena.data_ref(slot).kind;
-        if !parent.is_invalid() && !kind.forms_unconnected_subtree() {
-            assert!(arena.parent(slot).is_none(), "committed paintable is already parented");
-            arena.insert_before(parent, slot, insert_before);
+            return;
         }
         let containing_block = self.callbacks.node_data(node).containing_block;
         let containing_block = if containing_block.is_invalid() {
@@ -728,7 +622,6 @@ impl<'a> PaintableCommit<'a> {
             arena.paintable_of_node(containing_block)
         };
         arena.update_data(slot, |data| data.containing_block = containing_block);
-        slot
     }
 
     pub(crate) fn assign_inline_box_geometry(&self, slot: PaintableSlotId) {
