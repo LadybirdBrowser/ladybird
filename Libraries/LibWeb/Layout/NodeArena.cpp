@@ -35,23 +35,6 @@ void NodeArena::free(RustFFI::NodeSlotId slot, u32 generation)
     RustFFI::layout_arena_free(m_handle, slot, generation);
 }
 
-RustFFI::PaintableAllocation NodeArena::paintable_row_for_node(RustFFI::NodeSlotId layout_node)
-{
-    auto slot = RustFFI::PaintableSlotId { layout_node.index };
-    auto* data = RustFFI::layout_arena_paintable_row(m_handle, slot);
-    VERIFY(data);
-    return {
-        .slot = slot,
-        .data = data,
-        .generation = slot.index >> 24,
-    };
-}
-
-void NodeArena::paintable_shell_destroyed(RustFFI::PaintableSlotId slot, u32 generation, void* shell)
-{
-    RustFFI::layout_arena_paintable_shell_destroyed(m_handle, slot, generation, shell);
-}
-
 u64 NodeArena::formatting_context_run_cache_hit_count() const
 {
     return RustFFI::layout_arena_fc_run_cache_hit_count(m_handle);

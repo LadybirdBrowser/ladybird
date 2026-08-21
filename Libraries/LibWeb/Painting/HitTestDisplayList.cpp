@@ -14,7 +14,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -351,7 +350,7 @@ static Layout::Node const* fragment_layout_node(Layout::RustFFI::FfiFragmentText
 
 Layout::Node const* HitTestDisplayList::layout_node_for_item(Item const& item) const
 {
-    return static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(m_arena->handle(), item.box));
+    return layout_node_for_committed_slot(*m_arena, item.box);
 }
 
 RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item) const

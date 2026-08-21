@@ -11,7 +11,6 @@ use crate::layout::{
     GridLayoutData, OwnedUsedGridTracks,
 };
 use std::cell::Cell;
-use std::ffi::c_void;
 use std::rc::Rc;
 
 pub const INVALID_PAINTABLE_SLOT_INDEX: u32 = u32::MAX;
@@ -224,8 +223,6 @@ pub struct PaintableData {
     /// Range of visual context nodes this box appended during the last tree build.
     pub visual_context_nodes_begin: usize,
     pub visual_context_nodes_end: usize,
-
-    pub shell: *mut c_void,
 }
 
 impl Default for PaintableData {
@@ -269,7 +266,6 @@ impl Default for PaintableData {
             has_fixed_background_visual_context: false,
             visual_context_nodes_begin: 0,
             visual_context_nodes_end: 0,
-            shell: std::ptr::null_mut(),
         }
     }
 }
@@ -286,14 +282,6 @@ impl PaintableData {
             self.flags &= !(flag as u32);
         }
     }
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct PaintableAllocation {
-    pub slot: PaintableSlotId,
-    pub data: *mut PaintableData,
-    pub generation: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -316,7 +304,6 @@ pub enum PaintableRowResetKind {
     RelayoutReuse = 0,
     Cleared = 1,
     Freed = 2,
-    ShellReplaced = 3,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

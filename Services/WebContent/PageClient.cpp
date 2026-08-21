@@ -49,8 +49,8 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebView/ViewImplementation.h>
@@ -190,7 +190,7 @@ void PageClient::set_has_focus(bool has_focus)
         if (auto navigable_document = navigable.active_document()) {
             // Focus changes can arrive while layout is invalidated. We only need to invalidate cached paint
             // on the current paintable tree here, without requiring layout to be up to date first.
-            if (static_cast<Web::DOM::Node&>(*navigable_document).unsafe_paintable())
+            if (navigable_document->has_committed_viewport_box())
                 navigable_document->paint_state().invalidate_all_cached_paint(*navigable_document);
         }
         for (auto& child_navigable : navigable.child_navigables())

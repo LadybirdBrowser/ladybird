@@ -569,16 +569,16 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
 
     if (request == "dump-paint-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            if (auto paintable = static_cast<Web::DOM::Node&>(*doc).paintable())
-                Web::dump_tree(*paintable);
+            if (doc->has_committed_viewport_box())
+                Web::dump_paint_tree(*doc->layout_node());
         }
         return;
     }
 
     if (request == "dump-stacking-context-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            if (auto* viewport = doc->layout_node()) {
-                VERIFY(viewport->paintable_box());
+            if (doc->layout_node()) {
+                VERIFY(doc->has_committed_viewport_box());
                 doc->paint_state().build_stacking_context_tree_if_needed(*doc);
                 StringBuilder builder;
                 Web::Painting::dump_stacking_context_tree(builder, *doc);
@@ -1813,12 +1813,12 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
         builder.append("(no layout tree)"sv);
         return;
     }
-    if (!layout_root->paintable()) {
+    if (!document->has_committed_viewport_box()) {
         builder.append("(no paint tree)"sv);
         return;
     }
 
-    Web::dump_tree(builder, *layout_root->paintable());
+    Web::dump_paint_tree(builder, *layout_root);
 }
 
 static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder)
@@ -1836,12 +1836,11 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
         builder.append("(no layout tree)"sv);
         return;
     }
-    if (!layout_root->paintable()) {
+    if (!document->has_committed_viewport_box()) {
         builder.append("(no paint tree)"sv);
         return;
     }
 
-    VERIFY(layout_root->paintable_box());
     document->paint_state().build_stacking_context_tree_if_needed(*document);
     Web::Painting::dump_stacking_context_tree(builder, *document);
 }

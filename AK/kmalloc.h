@@ -17,7 +17,6 @@ enum class HeapPartition {
     ArrayBuffer,
     JSObjectStorage,
     Layout,
-    Painting,
     String,
 };
 

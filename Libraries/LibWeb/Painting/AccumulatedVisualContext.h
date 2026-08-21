@@ -27,7 +27,6 @@
 
 namespace Web::Painting {
 
-class Paintable;
 class ScrollStateSnapshot;
 
 // The node's own VisualContextIndex keys the scroll offset snapshot; the paintable that owns the

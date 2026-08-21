@@ -79,7 +79,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
@@ -4723,7 +4722,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         display_list = document->record_display_list(paint_config, m_display_list_resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
         if (!display_list)
             return false;
-        VERIFY(static_cast<DOM::Node&>(*document).paintable());
+        VERIFY(document->has_committed_viewport_box());
         visual_context_tree = document_paint_state.visual_context_tree(*document);
         if (document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr()) {
             display_list_resources.include(document_paint_state.paint_command_cache_source_referenced_resources());
@@ -4738,7 +4737,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
             display_list_resources);
     }
 
-    VERIFY(static_cast<DOM::Node&>(*document).paintable());
+    VERIFY(document->has_committed_viewport_box());
     auto visual_context_tree_needs_compositor_update = document_paint_state.visual_context_tree_needs_compositor_update();
     document_paint_state.refresh_scroll_state(*document);
 

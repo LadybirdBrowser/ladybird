@@ -67,43 +67,6 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: Pa
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_row_for_node(
-    arena: *mut c_void,
-    layout_node: NodeSlotId,
-) -> PaintableAllocation {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().row_for_node(layout_node)
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_shell_destroyed(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-    generation: u32,
-    shell: *mut c_void,
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let reset = {
-            let paintables = arena.paintables().borrow();
-            paintables.prepare_shell_destroyed_reset(slot, generation, shell)
-        };
-        if let Some(reset) = reset {
-            reset.invoke_callback();
-            arena.paintables().borrow_mut().shell_destroyed(arena, reset);
-        }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_void, layout_node: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
@@ -685,23 +648,6 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
         let mut paintables = arena.paintables().borrow_mut();
         paintables.visual_context.scroll_state = scroll_state;
         paintables.visual_context.scroll_state_snapshot = snapshot;
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_reset_visual_context_state(arena: *mut c_void) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        let next_tree_version = paintables.visual_context.next_tree_version;
-        paintables.visual_context = crate::painting::visual_context::VisualContextState {
-            needs_to_refresh_scroll_state: true,
-            next_tree_version,
-            ..Default::default()
-        };
     });
 }
 

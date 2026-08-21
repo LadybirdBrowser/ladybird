@@ -8,7 +8,6 @@
 
 #include <LibGC/Weak.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 

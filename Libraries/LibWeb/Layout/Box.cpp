@@ -21,7 +21,6 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Layout {
@@ -95,7 +94,7 @@ bool Box::is_partial_relayout_boundary() const
     if (abspos_descendant_escapes())
         return false;
 
-    if (!paintable_box() && !commit_splice_position_is_derivable_from_layout_ancestors(*this))
+    if (!Painting::has_committed_box(*this) && !commit_splice_position_is_derivable_from_layout_ancestors(*this))
         return false;
 
     // An in-flow SVG viewport's used size is determined solely by its own attributes and outer
@@ -312,20 +311,6 @@ void Box::notify_content_navigable_of_committed_viewport()
         as<HTML::LocalNavigable>(*content_navigable).set_viewport_size(content_size);
         document().page().client().page_did_update_child_frame_viewport(content_navigable->id(), Painting::absolute_rect(*this));
     }
-}
-
-RefPtr<Painting::Paintable> Box::paintable_box()
-{
-    if (auto paintable = Node::paintable())
-        return static_cast<Painting::Paintable&>(*paintable);
-    return nullptr;
-}
-
-RefPtr<Painting::Paintable const> Box::paintable_box() const
-{
-    if (auto paintable = Node::paintable())
-        return static_cast<Painting::Paintable const&>(*paintable);
-    return nullptr;
 }
 
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const

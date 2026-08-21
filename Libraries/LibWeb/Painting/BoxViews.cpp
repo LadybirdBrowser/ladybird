@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
@@ -24,8 +25,139 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/SVG/SVGFilterElement.h>
+#include <LibWeb/SVG/SVGFitToViewBox.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
+
+static bool g_paint_viewport_scrollbars = true;
+
+void set_paint_viewport_scrollbars(bool enabled)
+{
+    g_paint_viewport_scrollbars = enabled;
+}
+
+bool should_paint_viewport_scrollbars()
+{
+    return g_paint_viewport_scrollbars;
+}
+
+bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_node)
+{
+    if (!layout_node.is_body())
+        return false;
+    // Reachable at invalidation time, when the root element's layout node may already be detached.
+    auto const* html_element = layout_node.document().html_element();
+    return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
+}
+
+Layout::Node const* nearest_svg_viewport_of(Layout::Node const& layout_node)
+{
+    for (auto const* ancestor = layout_node.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (svg_viewport_transform(*ancestor).has_value())
+            return ancestor;
+    }
+    return nullptr;
+}
+
+// active_view_box covers <view> redirection and the svg-as-image fallback viewBox, which
+// layout used to build the geometry these callers interpret.
+static Gfx::FloatRect svg_svg_box_view_box_or_viewport_rect(Layout::Box const& svg_svg_box)
+{
+    if (auto view_box = as<SVG::SVGSVGElement>(*svg_svg_box.dom_node()).active_view_box(); view_box.has_value())
+        return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
+    if (auto const* row = committed_row(svg_svg_box))
+        return { {}, { CSSPixels::from_raw(row->svg_viewport_size.width).to_float(), CSSPixels::from_raw(row->svg_viewport_size.height).to_float() } };
+    return {};
+}
+
+Gfx::FloatRect svg_viewport_user_rect(Layout::Node const& viewport)
+{
+    if (viewport.is_svg_svg_box())
+        return svg_svg_box_view_box_or_viewport_rect(static_cast<Layout::Box const&>(viewport));
+    if (auto const* dom_node = viewport.dom_node()) {
+        if (auto const* fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node)) {
+            if (auto view_box = fit_to_view_box->view_box(); view_box.has_value())
+                return { static_cast<float>(view_box->min_x), static_cast<float>(view_box->min_y), static_cast<float>(view_box->width), static_cast<float>(view_box->height) };
+        }
+    }
+    return { {}, absolute_rect(viewport).size().to_type<float>() };
+}
+
+ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Layout::NodeWithStyle const& layout_node)
+{
+    ResolvedCSSFilter result;
+    bool failed = false;
+    computed_filter.for_each_operation([&](auto const& operation) {
+        if (failed)
+            return;
+        if (auto const* url = operation.template get_pointer<CSS::Filter::Url>()) {
+            if (url->fragment.is_empty()) {
+                failed = true;
+                return;
+            }
+            auto maybe_filter = layout_node.document().get_element_by_id(url->fragment);
+            if (!maybe_filter) {
+                failed = true;
+                return;
+            }
+            if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
+                // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
+                // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
+                // filter can convert its lengths accordingly.
+                // The replay-time layer maps filter parameters through the accumulated transform,
+                // so only the device pixel ratio — which lives in recorded coordinates, not in the
+                // transform chain — converts here.
+                auto device_pixels_per_css_pixel = layout_node.document().page().client().device_pixels_per_css_pixel();
+                auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
+                result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
+                // The bounds live in the filtered element's user space; an element without
+                // geometry of its own falls back to the whole enclosing viewport rect there.
+                auto bounds = absolute_border_box_rect(layout_node);
+                if (bounds.is_empty()) {
+                    if (auto const* viewport = nearest_svg_viewport_of(layout_node))
+                        result.svg_filter_bounds = svg_viewport_user_rect(*viewport).to_type<CSSPixels>();
+                }
+                if (!bounds.is_empty())
+                    result.svg_filter_bounds = bounds;
+            } else {
+                failed = true;
+            }
+            return;
+        }
+
+        operation.visit(
+            [&](CSS::Filter::Blur const& blur) {
+                result.operations.empend(ResolvedCSSFilter::Blur {
+                    .radius = CSSPixels::nearest_value_for(blur.resolved_radius),
+                });
+            },
+            [&](CSS::Filter::DropShadow const& drop_shadow) {
+                result.operations.empend(ResolvedCSSFilter::DropShadow {
+                    .offset_x = drop_shadow.offset_x,
+                    .offset_y = drop_shadow.offset_y,
+                    .radius = drop_shadow.radius,
+                    .color = drop_shadow.color,
+                });
+            },
+            [&](CSS::Filter::ColorOperation const& color_operation) {
+                result.operations.empend(ResolvedCSSFilter::Color {
+                    .operation = color_operation.operation,
+                    .amount = color_operation.resolved_amount,
+                });
+            },
+            [&](CSS::Filter::HueRotate const& hue_rotate) {
+                result.operations.empend(ResolvedCSSFilter::HueRotate {
+                    .angle_degrees = hue_rotate.angle_degrees,
+                });
+            },
+            [&](CSS::Filter::Url const&) {});
+    });
+    if (failed)
+        return {};
+    return result;
+}
 
 static_assert(Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX == Layout::RustFFI::INVALID_NODE_SLOT_INDEX);
 
@@ -852,7 +984,7 @@ CSSPixelRect transform_reference_box(Layout::Node const& node)
         // FIXME: If a viewBox attribute is specified for the SVG viewport creating element:
         //  - The reference box is positioned at the origin of the coordinate system established by the viewBox attribute.
         //  - The dimension of the reference box is set to the width and height values of the viewBox attribute.
-        auto const* viewport_paintable = nearest_svg_viewport_paintable_of(node);
+        auto const* viewport_paintable = nearest_svg_viewport_of(node);
         if (!viewport_paintable)
             return absolute_border_box_rect(node);
         return svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();

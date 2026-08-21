@@ -22,9 +22,6 @@ struct LineBoxFragmentCoordinate {
 
 class WEB_API Box : public NodeWithStyle {
 public:
-    RefPtr<Painting::Paintable const> paintable_box() const;
-    RefPtr<Painting::Paintable> paintable_box();
-
     // A partial relayout boundary is a box whose subtree can be re-laid out in
     // isolation: its own used size and position are guaranteed not to change
     // when layout is invalidated somewhere inside its subtree.

@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
+#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -38,6 +39,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/SVG/SVGImageElement.h>
@@ -493,13 +495,36 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box)
     }
 }
 
+static bool content_size_change_affects_container_queries(NodeWithStyle const& layout_node, CSSPixelSize old_size, CSSPixelSize new_size)
+{
+    auto container_type = layout_node.container_type();
+    if (container_type.is_size_container)
+        return old_size != new_size;
+    if (!container_type.is_inline_size_container)
+        return false;
+    if (layout_node.writing_mode() == CSS::WritingMode::HorizontalTb)
+        return old_size.width() != new_size.width();
+    return old_size.height() != new_size.height();
+}
+
+static void invalidate_descendant_styles_for_container_query_size_change(GC::Ptr<DOM::Node> node, CSSPixelSize old_size, CSSPixelSize new_size)
+{
+    auto* element = as_if<DOM::Element>(node.ptr());
+    if (!element)
+        return;
+    auto const* layout_node = element->unsafe_layout_node();
+    if (!layout_node || !content_size_change_affects_container_queries(*layout_node, old_size, new_size))
+        return;
+    CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(*element);
+}
+
 RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
 {
     return {
         .context = this,
         .content_size_changed = [](void*, void* layout_node_shell, RustFFI::FfiCssPixelSize old_size, RustFFI::FfiCssPixelSize new_size) {
             auto& layout_node = *static_cast<Node*>(layout_node_shell);
-            Painting::invalidate_descendant_styles_for_container_query_size_change(
+            invalidate_descendant_styles_for_container_query_size_change(
                 layout_node.dom_node(),
                 { CSSPixels::from_raw(old_size.width), CSSPixels::from_raw(old_size.height) },
                 { CSSPixels::from_raw(new_size.width), CSSPixels::from_raw(new_size.height) }); },

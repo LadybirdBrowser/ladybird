@@ -61,7 +61,6 @@
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -167,15 +166,15 @@ static Optional<Painting::CaretPosition> caret_position_from_editable_hit_node(D
         return {};
     }
 
-    auto paintable = boundary_node->paintable();
-    if (!paintable || !paintable->has_layout_node())
-        paintable = hit_node.paintable();
-    if (!paintable || !paintable->has_layout_node())
+    auto* layout_node = boundary_node->unsafe_layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        layout_node = hit_node.unsafe_layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return {};
 
     return Painting::CaretPosition {
-        .box = paintable->rust_slot(),
-        .arena = paintable->rust_arena(),
+        .box = Painting::committed_row_slot(*layout_node),
+        .arena = layout_node->node_arena(),
         .boundary = { *boundary_node, 0 },
     };
 }
@@ -201,14 +200,9 @@ EventHandler::EventHandler(Badge<HTML::LocalNavigable>, HTML::LocalNavigable& na
 
 EventHandler::~EventHandler() = default;
 
-static Layout::Node* layout_node_for_box(void* arena_handle, Layout::RustFFI::PaintableSlotId box)
-{
-    return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena_handle, box));
-}
-
 static Layout::Node* layout_node_for_target(DOM::Document& document, Layout::RustFFI::PaintableSlotId box)
 {
-    return layout_node_for_box(document.layout_node_arena().handle(), box);
+    return Painting::layout_node_for_committed_slot(document.layout_node_arena(), box);
 }
 
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
@@ -228,7 +222,7 @@ static CSS::UserSelect user_select_used_value_for_caret_position(Painting::Caret
 {
     if (auto* layout_node = caret_position.boundary.node->layout_node())
         return layout_node->user_select_used_value();
-    if (auto* layout_node = layout_node_for_box(caret_position.arena->handle(), caret_position.box))
+    if (auto* layout_node = caret_position.layout_node())
         return layout_node->user_select_used_value();
     return CSS::UserSelect::Auto;
 }
@@ -432,7 +426,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (caret_position.has_value()) {
             document->set_caret_hit_test_debug_rect(caret_position->debug_rect);
             auto paintable_description = "(gone)"_string;
-            if (auto const* layout_node = layout_node_for_box(caret_position->arena->handle(), caret_position->box))
+            if (auto const* layout_node = caret_position->layout_node())
                 paintable_description = Painting::debug_description(*layout_node);
             dbgln("Caret hit test: point=({}, {}) boundary=({}, {}) paintable={} debug_rect={}",
                 visual_viewport_position.x(),
@@ -777,9 +771,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto handled_event = EventResult::Dropped;
 
     if (target.has_value()) {
-        auto paintable = Painting::paintable_for_slot(document->layout_node_arena().handle(), target->box);
         auto* target_layout_node = layout_node_for_target(*document, target->box);
-        if (!paintable || !target_layout_node)
+        if (!target_layout_node)
             return EventResult::Dropped;
 
         auto resolve_wheel_default_action_target = [&]() -> Layout::Node* {
@@ -800,10 +793,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             if (target && Painting::wheel_scroll_along_containing_block_chain(*target, wheel_delta_x, wheel_delta_y) == Painting::ScrollHandled::Yes)
                 return EventResult::Handled;
 
-            auto document = m_navigable->active_document();
-            if (!document || !document->paintable_box())
+            if (!paint_root())
                 return EventResult::Dropped;
 
+            auto document = m_navigable->active_document();
             auto visual_viewport = document->visual_viewport();
             auto visual_viewport_max_x = m_navigable->viewport_rect().width().to_double() - visual_viewport->width();
             auto visual_viewport_max_y = m_navigable->viewport_rect().height().to_double() - visual_viewport->height();
@@ -831,10 +824,13 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 result.has_value()) {
                 if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
                     return result.value();
+                target_layout_node = layout_node_for_target(*document, target->box);
+                if (!target_layout_node)
+                    return EventResult::Dropped;
             }
 
             auto is_cancelable = async_scroll_performed_default_action ? UIEvents::WheelEventIsCancelable::No : UIEvents::WheelEventIsCancelable::Yes;
-            auto dispatch_result = dispatch_wheel_event(*paintable, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, is_cancelable == UIEvents::WheelEventIsCancelable::Yes);
+            auto dispatch_result = dispatch_wheel_event(*target_layout_node, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, is_cancelable == UIEvents::WheelEventIsCancelable::Yes);
             if (dispatch_result == EventResult::Accepted) {
                 if (async_scroll_performed_default_action)
                     handled_event = EventResult::Handled;
@@ -854,24 +850,26 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     return handled_event;
 }
 
-EventResult EventHandler::dispatch_wheel_event(Painting::Paintable& paintable, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool is_cancelable)
+EventResult EventHandler::dispatch_wheel_event(Layout::Node& hit_layout_node, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, bool is_cancelable)
 {
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active())
         return EventResult::Dropped;
 
-    auto node = event_dispatch_dom_node_for(paintable);
+    auto* event_dispatch_layout_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_event_dispatch_node_shell(
+        hit_layout_node.arena_handle(), Painting::committed_row_slot(hit_layout_node)));
+    GC::Ptr<DOM::Node> node = event_dispatch_layout_node ? event_dispatch_layout_node->dom_node() : nullptr;
     if (!node)
         return EventResult::Dropped;
 
     // NB: Search for the first parent of the hit target that's an element.
     Layout::Node* layout_node = nullptr;
-    if (!parent_element_for_event_dispatch(paintable.layout_node(), node, layout_node))
+    if (!parent_element_for_event_dispatch(hit_layout_node, node, layout_node))
         return EventResult::Dropped;
 
     auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
-    auto const* offset_layout_node = Painting::has_committed_box(*layout_node) ? layout_node : &paintable.layout_node();
+    auto const* offset_layout_node = Painting::has_committed_box(*layout_node) ? layout_node : &hit_layout_node;
     auto scroll_offset = document->navigable()->viewport_scroll_offset();
     auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_layout_node);
     auto cancelability = is_cancelable ? UIEvents::WheelEventIsCancelable::Yes : UIEvents::WheelEventIsCancelable::No;
@@ -904,13 +902,13 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
         result.has_value()) {
         if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
             return result.value();
+        target_layout_node = layout_node_for_target(*document, target->box);
+        if (!target_layout_node)
+            return EventResult::Dropped;
     }
 
     modifiers |= UIEvents::KeyModifier::Mod_Ctrl;
-    auto paintable = Painting::paintable_for_slot(document->layout_node_arena().handle(), target->box);
-    if (!paintable)
-        return EventResult::Dropped;
-    return dispatch_wheel_event(*paintable, visual_viewport_position, screen_position, UIEvents::MouseButton::None, UIEvents::MouseButton::None, modifiers, 0, wheel_delta_y, true);
+    return dispatch_wheel_event(*target_layout_node, visual_viewport_position, screen_position, UIEvents::MouseButton::None, UIEvents::MouseButton::None, modifiers, 0, wheel_delta_y, true);
 }
 
 EventResult EventHandler::handle_mouseleave()
@@ -2192,8 +2190,8 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
                 return;
         }
 
-        if (auto hit_paintable = hit->paintable()) {
-            if (auto container = MiddleButtonScrollHandler::find_scrollable_ancestor(document, *hit_paintable))
+        if (auto* hit_layout_node = hit->layout_node()) {
+            if (auto container = MiddleButtonScrollHandler::find_scrollable_ancestor(document, *hit_layout_node))
                 m_middle_button_scroll_handler = make<MiddleButtonScrollHandler>(*container, visual_viewport_position);
         }
 
@@ -2239,8 +2237,8 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
 
     // NB: Initiating the selection may run script (setting a selection inside an editing host runs the focusing
     //     steps on it), which may have rebuilt the layout tree and detached the caret position's paintable.
-    if (auto caret_paintable = caret_position->paintable()) {
-        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_paintable))
+    if (auto* caret_layout_node = caret_position->layout_node()) {
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_layout_node))
             m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
     }
 }
@@ -2410,8 +2408,8 @@ void EventHandler::start_selection_from_preserved_mousedown(DOM::Document& docum
     if (!initiate_character_selection(document, *caret_position, user_select, false))
         return;
 
-    if (auto caret_paintable = caret_position->paintable()) {
-        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_paintable))
+    if (auto* caret_layout_node = caret_position->layout_node()) {
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_layout_node))
             m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
     }
 }
@@ -3496,18 +3494,10 @@ void EventHandler::update_cursor(Layout::Node const* layout_node, GC::Ptr<DOM::N
     set_page_cursor(m_navigable->page(), cursor);
 }
 
-RefPtr<Painting::Paintable> EventHandler::paint_root()
+bool EventHandler::paint_root() const
 {
-    if (!m_navigable->active_document())
-        return nullptr;
-    return m_navigable->active_document()->paintable_box();
-}
-
-RefPtr<Painting::Paintable const> EventHandler::paint_root() const
-{
-    if (!m_navigable->active_document())
-        return nullptr;
-    return m_navigable->active_document()->paintable_box();
+    auto document = m_navigable->active_document();
+    return document && document->has_committed_viewport_box();
 }
 
 Unicode::Segmenter& EventHandler::word_segmenter()

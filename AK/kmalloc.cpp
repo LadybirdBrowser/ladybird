@@ -143,9 +143,6 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
     case HeapPartition::Layout:
         static mi_heap_t* layout_heap = mi_heap_new();
         return layout_heap;
-    case HeapPartition::Painting:
-        static mi_heap_t* painting_heap = mi_heap_new();
-        return painting_heap;
     case HeapPartition::String:
         if (!s_string_heap)
             s_string_heap = mi_heap_new();

@@ -754,7 +754,8 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_and_paint_node(DOM::
             return TraversalDecision::SkipChildrenAndContinue;
     }
 
-    node.clear_paintable();
+    if (layout_node)
+        layout_node->clear_committed_box();
     LayoutTreeBuilderAccess::detach_layout_node(node);
     if (layout_node && layout_node->parent())
         layout_node->remove();

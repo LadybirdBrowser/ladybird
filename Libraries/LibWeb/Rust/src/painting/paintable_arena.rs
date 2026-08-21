@@ -89,6 +89,15 @@ impl PaintableArena {
         self.chrome_state_callback = None;
     }
 
+    pub(crate) fn reset_visual_context_state(&mut self) {
+        let next_tree_version = self.visual_context.next_tree_version;
+        self.visual_context = crate::painting::visual_context::VisualContextState {
+            needs_to_refresh_scroll_state: true,
+            next_tree_version,
+            ..Default::default()
+        };
+    }
+
     fn prepare_row_reset(&self, slot: PaintableSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {
         PaintableRowReset {
             slot,
@@ -155,7 +164,7 @@ impl PaintableArena {
         (!root.is_invalid() && self.is_live(root) && self.data_ref(root).kind.has_lines()).then_some(root)
     }
 
-    pub fn row_for_node(&mut self, layout_node: NodeSlotId) -> PaintableAllocation {
+    pub fn row_for_node(&mut self, layout_node: NodeSlotId) -> PaintableSlotId {
         let index = layout_node.slot_index();
         assert!(
             index < MAX_PAINTABLE_SLOT_COUNT,
@@ -180,33 +189,7 @@ impl PaintableArena {
         self.paint_caches[index as usize].clear();
         self.absolute_rect_memo.get_mut()[index as usize] = None;
 
-        PaintableAllocation {
-            slot: PaintableSlotId::new(index, generation),
-            data: self.data_mut_by_index(index),
-            generation: u32::from(generation),
-        }
-    }
-
-    pub(crate) fn prepare_shell_destroyed_reset(
-        &self,
-        id: PaintableSlotId,
-        generation: u32,
-        shell: *mut c_void,
-    ) -> Option<PaintableRowReset> {
-        assert!(!id.is_invalid(), "invalid paintable arena slot ID");
-        assert_eq!(
-            u32::from(id.generation()),
-            generation,
-            "paintable arena slot ID and allocation generation disagree"
-        );
-        if !self.is_live(id) || self.data_ref(id).shell != shell {
-            return None;
-        }
-        Some(self.prepare_row_reset(id, PaintableRowResetKind::ShellReplaced))
-    }
-
-    pub(crate) fn shell_destroyed(&mut self, layout_arena: &LayoutNodeArena, reset: PaintableRowReset) {
-        self.reset_row(Some(layout_arena), reset);
+        PaintableSlotId::new(index, generation)
     }
 
     fn reset_row(&mut self, layout_arena: Option<&LayoutNodeArena>, reset: PaintableRowReset) {

@@ -4152,11 +4152,8 @@ static void scroll_an_element_into_view(Element& target, Element::ScrollBehavior
         //         are considered, so move the target to where this scroll is going to leave it. The viewport is always
         //         the outermost scrolling box, so its own scroll cannot affect a later iteration.
         if (!scrolling_box.is_document()) {
-            if (auto paintable_box = scrolling_box.paintable_box()) {
-                target_bounding_border_box.translate_by(Painting::scroll_offset(paintable_box->layout_node()) - Painting::clamp_scroll_offset(paintable_box->layout_node(), position));
-
-                auto const* layout_node = scrolling_box.layout_node();
-                VERIFY(layout_node && Painting::has_committed_box(*layout_node));
+            if (auto const* layout_node = scrolling_box.layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+                target_bounding_border_box.translate_by(Painting::scroll_offset(*layout_node) - Painting::clamp_scroll_offset(*layout_node, position));
                 auto scrollport_rect = Painting::transform_rect_to_viewport(*layout_node, Painting::absolute_padding_box_rect(*layout_node), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
                 auto visible_rect = target_bounding_border_box.intersected(scrollport_rect);
                 if (!visible_rect.is_empty())

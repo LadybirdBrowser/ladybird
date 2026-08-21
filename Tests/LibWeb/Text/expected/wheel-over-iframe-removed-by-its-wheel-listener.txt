@@ -1,0 +1,4 @@
+iframe wheel event count: 1
+parent wheel event count: 0
+iframe removed: true
+window.scrollY: 0

@@ -86,7 +86,6 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/XLink/AttributeNames.h>
@@ -1940,12 +1939,11 @@ void Node::set_layout_node(Badge<Layout::Node>, Layout::Node& layout_node)
     m_layout_node = layout_node;
 }
 
-void Node::clear_layout_node_and_paintable(Badge<Document>)
+void Node::clear_layout_node(Badge<Document>)
 {
     if (m_layout_node)
         m_layout_node->prepare_for_detach_from_layout_tree();
     m_layout_node = nullptr;
-    m_paintable = nullptr;
 }
 
 void Node::detach_layout_node(Badge<Layout::LayoutTreeBuilderAccess>)
@@ -2121,7 +2119,7 @@ void Node::inserted()
     }
 }
 
-void Node::clear_layout_node_paintable()
+void Node::clear_committed_layout_box()
 {
     if (!m_layout_node)
         return;
@@ -2148,7 +2146,7 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
     m_inside_blocking_wheel_event_handler = false;
     if (m_layout_node)
         m_layout_node->pin_style_record_for_detachment();
-    clear_layout_node_paintable();
+    clear_committed_layout_box();
     // A top layer element's box is a viewport child rather than part of the parent's box
     // subtree, so the parent rebuild triggered by this removal can never detach it.
     if (m_layout_node) {
@@ -2158,7 +2156,6 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
         }
     }
     m_layout_node = nullptr;
-    m_paintable = nullptr;
 
     if (auto* element = as_if<Element>(*this))
         element->clear_synthetic_pseudo_element_layout_nodes(Badge<Node> {});
@@ -3090,16 +3087,6 @@ Layout::Node* Node::layout_node()
     return m_layout_node;
 }
 
-void Node::set_paintable(WeakPtr<Painting::Paintable> paintable)
-{
-    m_paintable = paintable;
-}
-
-void Node::clear_paintable()
-{
-    m_paintable = nullptr;
-}
-
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
     if (auto* layout_node = unsafe_layout_node()) {
@@ -3123,50 +3110,6 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUp
         node->set_needs_layout_update(reason, propagation);
         document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
     }
-}
-
-RefPtr<Painting::Paintable const> Node::paintable() const
-{
-    if (m_layout_node)
-        VERIFY(document().layout_is_up_to_date());
-    return m_layout_node ? m_layout_node->paintable() : nullptr;
-}
-
-RefPtr<Painting::Paintable> Node::paintable()
-{
-    if (m_layout_node)
-        VERIFY(document().layout_is_up_to_date());
-    return m_layout_node ? m_layout_node->paintable() : nullptr;
-}
-
-RefPtr<Painting::Paintable const> Node::unsafe_paintable() const
-{
-    return m_layout_node ? m_layout_node->paintable() : nullptr;
-}
-
-RefPtr<Painting::Paintable> Node::unsafe_paintable()
-{
-    return m_layout_node ? m_layout_node->paintable() : nullptr;
-}
-
-RefPtr<Painting::Paintable const> Node::paintable_box() const
-{
-    return paintable();
-}
-
-RefPtr<Painting::Paintable> Node::paintable_box()
-{
-    return paintable();
-}
-
-RefPtr<Painting::Paintable const> Node::unsafe_paintable_box() const
-{
-    return unsafe_paintable();
-}
-
-RefPtr<Painting::Paintable> Node::unsafe_paintable_box()
-{
-    return unsafe_paintable();
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record

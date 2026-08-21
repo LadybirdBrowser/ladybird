@@ -47,7 +47,7 @@ static Optional<size_t> visual_line_index_for_offset(Vector<VisualLine> const& l
 {
     // An offset exactly at a soft wrap boundary belongs to the earlier line with Upstream affinity and to the later
     // line with Downstream affinity. This matches how the caret is painted (see
-    // PaintableWithLines::fragment_at_position).
+    // the painted-line fragment lookup).
     Optional<size_t> boundary_match;
     for (size_t i = 0; i < lines.size(); ++i) {
         if (offset < lines[i].start_offset || offset > lines[i].end_offset_with_trailing_whitespace)
