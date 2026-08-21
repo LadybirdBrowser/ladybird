@@ -451,33 +451,58 @@ static GC::Ptr<DOM::Node> image_map_area_for_point(Paintable& paintable, CSSPixe
 HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSSPixelPoint local_point) const
 {
     switch (item.kind) {
-    case ItemKind::Box:
+    case ItemKind::Box: {
+        auto node = image_map_area_for_point(*item.paintable, local_point);
+        if (!node)
+            node = event_dispatch_dom_node_for(*item.paintable);
         return HitTestResult {
-            .paintable = item.paintable,
-            .dom_node_override = image_map_area_for_point(*item.paintable, local_point),
+            .node = node,
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
         };
+    }
     case ItemKind::SvgPath:
-        return HitTestResult { .paintable = item.paintable };
-    case ItemKind::TextFragment:
-        VERIFY(item.text_fragment_index.has_value());
         return HitTestResult {
-            .paintable = item.paintable,
-            .dom_node_override = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
+            .node = event_dispatch_dom_node_for(*item.paintable),
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
+        };
+    case ItemKind::TextFragment: {
+        VERIFY(item.text_fragment_index.has_value());
+        GC::Ptr<DOM::Node> node = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item));
+        if (!node)
+            node = event_dispatch_dom_node_for(*item.paintable);
+        return HitTestResult {
+            .node = node,
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
             .index_in_node = Layout::RustFFI::layout_arena_paintable_fragment_index_in_node_for_point(
                 item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index,
                 local_point.x().raw_value(), local_point.y().raw_value()),
             .is_text_fragment = true,
         };
+    }
     case ItemKind::EmptyLine:
         // NB: Not reachable through regular hit testing; see item_contains().
-        return HitTestResult { .paintable = item.paintable };
+        return HitTestResult {
+            .node = event_dispatch_dom_node_for(*item.paintable),
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
+        };
     case ItemKind::EmptyEditable:
         return HitTestResult {
-            .paintable = item.paintable,
+            .node = event_dispatch_dom_node_for(*item.paintable),
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
             .index_in_node = 0,
         };
     case ItemKind::ChromeWidget:
-        return HitTestResult { .paintable = item.paintable, .chrome_widget = chrome_widget_for_item(item) };
+        return HitTestResult {
+            .node = event_dispatch_dom_node_for(*item.paintable),
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
+            .chrome_widget = chrome_widget_for_item(item),
+        };
     }
     VERIFY_NOT_REACHED();
 }

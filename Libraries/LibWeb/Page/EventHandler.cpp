@@ -2113,14 +2113,18 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
     if (!document)
         return {};
 
-    if (auto result = document->hit_test(position); result.has_value())
+    if (auto result = document->hit_test(position); result.has_value()) {
+        auto paintable = result->paintable();
+        if (!paintable)
+            return {};
         return Target {
-            .paintable = result->paintable.ptr(),
+            .paintable = move(paintable),
             .chrome_widget = result->chrome_widget,
             .dom_node = result->dom_node(),
             .index_in_node = result->index_in_node,
             .is_text_fragment = result->is_text_fragment,
         };
+    }
     return {};
 }
 
@@ -2173,8 +2177,10 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
                 return;
         }
 
-        if (auto container = MiddleButtonScrollHandler::find_scrollable_ancestor(document, *hit->paintable))
-            m_middle_button_scroll_handler = make<MiddleButtonScrollHandler>(*container, visual_viewport_position);
+        if (auto hit_paintable = hit->paintable()) {
+            if (auto container = MiddleButtonScrollHandler::find_scrollable_ancestor(document, *hit_paintable))
+                m_middle_button_scroll_handler = make<MiddleButtonScrollHandler>(*container, visual_viewport_position);
+        }
 
         return;
     }
