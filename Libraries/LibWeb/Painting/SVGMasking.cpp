@@ -89,19 +89,27 @@ static Optional<CSSPixelRect> svg_clip_path_geometry_bounds(Paintable const& pai
     // which paint can be applied. Thus, a point is inside the clipping path if it is inside any of the
     // children of the clipPath.
     Gfx::BoundingBox<CSSPixels> bounding_box;
-    paintable.for_each_child_of_type<Paintable>([&](Paintable const& child) {
-        if (!child.is_svg_paintable())
-            return IterationDecision::Continue;
+    for (auto const* child = paintable.layout_node().first_child_ptr(); child; child = child->next_sibling_ptr()) {
+        switch (child->kind()) {
+        case Layout::RustFFI::NodeKind::SVGMaskBox:
+        case Layout::RustFFI::NodeKind::SVGClipBox:
+        case Layout::RustFFI::NodeKind::SVGPatternBox:
+            continue;
+        default:
+            break;
+        }
+        auto const* child_paintable = child->paintable_ptr();
+        if (!child_paintable || !child_paintable->is_svg_paintable())
+            continue;
 
-        auto child_transform = Gfx::AffineTransform { additional_transform }.multiply(child.layout_node().used_svg_element_transform());
-        auto child_bounds = svg_clip_path_geometry_bounds(child, child_transform);
+        auto child_transform = Gfx::AffineTransform { additional_transform }.multiply(child_paintable->layout_node().used_svg_element_transform());
+        auto child_bounds = svg_clip_path_geometry_bounds(*child_paintable, child_transform);
         if (!child_bounds.has_value())
-            return IterationDecision::Continue;
+            continue;
 
         bounding_box.add_point(child_bounds->left(), child_bounds->top());
         bounding_box.add_point(child_bounds->right(), child_bounds->bottom());
-        return IterationDecision::Continue;
-    });
+    }
 
     if (bounding_box.has_no_points())
         return {};
