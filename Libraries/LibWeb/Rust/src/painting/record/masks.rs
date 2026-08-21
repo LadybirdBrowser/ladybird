@@ -200,9 +200,9 @@ impl PaintRecorder<'_> {
             return;
         }
         crate::painting::record::paint::svg::record_pattern_paint_styles(self, root);
-        let mut child = self.paintables.first_child(root);
+        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, root);
         while let Some(paintable) = child {
-            child = self.paintables.next_sibling(paintable);
+            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, self.paintables, paintable);
             self.prerecord_nested_display_lists_for_svg_subtree(paintable);
         }
     }

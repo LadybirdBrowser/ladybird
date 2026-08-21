@@ -49,9 +49,9 @@ impl<'a> PaintRecorder<'a> {
 
     pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: PaintableSlotId) {
         let paintables = self.paintables;
-        let mut next_child = paintables.first_child(paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
         while let Some(child) = next_child {
-            next_child = paintables.next_sibling(child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintables, child);
             self.record_hit_test_items(child, PaintPhase::Background);
             self.record_foreign_object_descendant_hit_test_items(child);
             self.record_hit_test_items(child, PaintPhase::Foreground);
@@ -111,7 +111,9 @@ impl<'a> PaintRecorder<'a> {
             return;
         }
         let fragment_count = self.paintables.side(paintable).fragments.len();
-        if fragment_count == 0 && self.paintables.first_child(paintable).is_none() {
+        if fragment_count == 0
+            && crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, paintable).is_none()
+        {
             if self.is_visible(paintable) && self.visible_for_hit_testing(paintable) {
                 self.record_empty_editable_hit_test_item(paintable);
             }
@@ -223,7 +225,8 @@ impl<'a> PaintRecorder<'a> {
                 .iter()
                 .any(|piece_index| !self.piece_of(root, *piece_index).is_geometry_only_placeholder)
         });
-        has_content_pieces || self.paintables.first_child(paintable).is_some()
+        has_content_pieces
+            || crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, paintable).is_some()
     }
 
     fn append_piece_boxes(&mut self, paintable: PaintableSlotId) {
