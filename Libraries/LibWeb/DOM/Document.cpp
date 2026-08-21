@@ -2269,12 +2269,19 @@ void Document::update_layout(UpdateLayoutReason reason)
 void Document::collect_paintable_boxes_with_auto_content_visibility()
 {
     Vector<WeakPtr<Painting::Paintable>> paintables_with_auto_content_visibility;
-    unsafe_paintable()->for_each_in_subtree_of_type<Painting::Paintable>([&](auto& paintable) {
-        if (paintable.dom_node()
-            && paintable.dom_node()->is_element()
-            && paintable.layout_node().content_visibility() == CSS::ContentVisibility::Auto) {
-            paintables_with_auto_content_visibility.append(paintable);
+    unsafe_layout_node()->for_each_in_inclusive_subtree([&](Layout::Node& node) {
+        switch (node.kind()) {
+        case Layout::RustFFI::NodeKind::SVGMaskBox:
+        case Layout::RustFFI::NodeKind::SVGClipBox:
+        case Layout::RustFFI::NodeKind::SVGPatternBox:
+            return TraversalDecision::SkipChildrenAndContinue;
+        default:
+            break;
         }
+        auto* paintable = node.paintable_ptr();
+        if (paintable && node.dom_node() && node.dom_node()->is_element()
+            && paintable->layout_node().content_visibility() == CSS::ContentVisibility::Auto)
+            paintables_with_auto_content_visibility.append(*paintable);
         return TraversalDecision::Continue;
     });
     unsafe_paintable()->set_paintable_boxes_with_auto_content_visibility(move(paintables_with_auto_content_visibility));
