@@ -3694,7 +3694,7 @@ impl ElementFactStore {
         if Rc::ptr_eq(&self.rows.attribute_catalogs, &self.attribute_catalogs) {
             return;
         }
-        let rows = Rc::get_mut(&mut self.rows).expect("attribute catalog synchronization requires unique primary rows");
+        let rows = Rc::make_mut(&mut self.rows);
         rows.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
     }
 
@@ -4748,6 +4748,13 @@ impl ElementFactStore {
     #[cfg(test)]
     pub(super) fn primary_rows_are_shared(&self) -> bool {
         Rc::strong_count(&self.rows) != 1
+    }
+
+    /// Whether catalog publication has moved past the attribute-catalogs handle the primary rows carry — so the next
+    /// synchronization has to advance the rows.
+    #[cfg(test)]
+    pub(super) fn primary_attribute_catalogs_are_stale(&self) -> bool {
+        !Rc::ptr_eq(&self.rows.attribute_catalogs, &self.attribute_catalogs)
     }
 
     pub(super) fn sweep_auxiliary_catalogs_without_sync(&mut self) {

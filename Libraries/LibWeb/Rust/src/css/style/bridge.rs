@@ -3050,6 +3050,94 @@ mod tests {
     }
 
     #[test]
+    fn staged_facts_land_while_a_traversal_borrows_the_primary_rows() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut nodes = [0_u32; 3];
+        engine.allocate_style_nodes(&mut nodes);
+        let initial_tree = [
+            FfiTreeDelta {
+                node: nodes[0],
+                old_connected: false,
+                new_connected: true,
+                old_relations: no_relations(),
+                new_relations: no_relations(),
+            },
+            FfiTreeDelta {
+                node: nodes[1],
+                old_connected: false,
+                new_connected: true,
+                old_relations: no_relations(),
+                new_relations: FfiTreeRelations {
+                    parent: nodes[0],
+                    ..no_relations()
+                },
+            },
+            FfiTreeDelta {
+                node: nodes[2],
+                old_connected: false,
+                new_connected: true,
+                old_relations: no_relations(),
+                new_relations: FfiTreeRelations {
+                    parent: nodes[1],
+                    ..no_relations()
+                },
+            },
+        ];
+        let initial_features = nodes.map(|node| FfiLocalFeatureDelta {
+            node,
+            feature_kind: FfiFeatureKind::TagName,
+            name_atom: 0,
+            old_kind: FfiFeatureValueKind::Absent,
+            old_atom: 0,
+            new_kind: FfiFeatureValueKind::Atom,
+            new_atom: 1,
+        });
+        engine.apply_transaction_batch(&initial_tree, (&[], &[]), &initial_features, &[], &[], &[]);
+
+        let root = StyleNodeID::from_raw(nodes[0]).unwrap();
+        assert!(!engine.take_style_transaction(root, |_, _, _| {}));
+
+        // The style update begins its traversal over the prepared broad plan — whose batch is a borrowed view of the
+        // primary rows.
+        assert!(engine.begin_cold_matching_batch(root));
+        assert!(engine.facts.primary_rows_are_shared());
+
+        // Matching publishes attribute value text on selector demand — which moves the store's catalogs ahead of the
+        // catalogs handle the borrowed rows carry.
+        engine.facts.set_attribute_value_text(StyleAtomID(3), &[b'a' as u16]);
+        assert!(engine.facts.primary_attribute_catalogs_are_stale());
+
+        // An attribute change staged between reaction batches becomes the next transaction of the same stabilization
+        // epoch, taken while the traversal still borrows the rows.
+        let feedback_features = [FfiLocalFeatureDelta {
+            node: nodes[2],
+            feature_kind: FfiFeatureKind::Attribute,
+            name_atom: 2,
+            old_kind: FfiFeatureValueKind::Absent,
+            old_atom: 0,
+            new_kind: FfiFeatureValueKind::Atom,
+            new_atom: 3,
+        }];
+        engine.apply_transaction_batch(&[], (&[], &[]), &feedback_features, &[], &[], &[]);
+        engine.take_style_transaction(root, |_, _, _| {});
+
+        // The committed rows advanced onto the transaction's facts — and the traversal whose plan described the retired
+        // facts went with its answers.
+        let node = StyleNodeID::from_raw(nodes[2]).unwrap();
+        let committed = engine.facts.primary();
+        let committed_row = committed.row_of(node).unwrap();
+        assert_eq!(
+            committed
+                .attribute_of(committed_row, StyleAtomID(2))
+                .map(|fact| fact.value),
+            Some(StyleAtomID(3))
+        );
+        assert!(engine.batch_matching_traversal.is_none());
+        // The style update's bracket still closes over the retired traversal without complaint.
+        engine.end_cold_matching_batch();
+    }
+
+    #[test]
     fn one_batch_carries_every_typed_delta_kind() {
         let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
         let mut nodes = [0_u32; 3];
