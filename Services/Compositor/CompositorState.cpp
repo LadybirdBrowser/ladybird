@@ -417,7 +417,7 @@ bool CompositorState::handle_pinch_event(Web::Compositor::CompositorContextId co
     return apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::SnapContainerHandling snap_container_handling, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
     if (!m_async_scrolling_enabled)
         return {};
@@ -425,13 +425,13 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, operation_tracking);
+    auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, snap_container_handling, operation_tracking);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
     return result.enqueue_result;
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
+Web::Compositor::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind animation_kind)
 {
     if (!m_async_scrolling_enabled)
         return {};
@@ -439,7 +439,7 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Web:
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    auto result = context->smooth_scroll_to(stable_node_id, offset, viewport_rect, device_pixels_per_css_pixel);
+    auto result = context->smooth_scroll_to(stable_node_id, offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel, animation_kind);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
     return result.enqueue_result;
@@ -453,7 +453,7 @@ void CompositorState::cancel_smooth_scroll(Web::Compositor::CompositorContextId 
     context->cancel_smooth_scroll(stable_node_id);
 }
 
-bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta)
+bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling snap_container_handling)
 {
     if (!m_async_scrolling_enabled)
         return false;
@@ -462,7 +462,7 @@ bool CompositorState::async_scroll_by(Web::Compositor::CompositorContextId conte
     if (!context)
         return false;
 
-    return apply_context_update_result(context_id, *context, context->async_scroll_by(position, delta));
+    return apply_context_update_result(context_id, *context, context->async_scroll_by(position, delta, snap_container_handling));
 }
 
 Web::Compositor::PendingAsyncScrollUpdates CompositorState::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)

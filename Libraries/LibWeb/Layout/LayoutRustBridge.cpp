@@ -524,6 +524,8 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 node.set_paintable(paintable);
                 if (node.kind() == RustFFI::NodeKind::NavigableContainerViewport && paintable)
                     bridge.m_committed_navigable_container_viewports.append(*paintable);
+                if (paintable && Painting::is_scroll_snap_container(*paintable))
+                    node.document().register_scroll_snap_container(*paintable);
             } else if (node.paintable_ptr()) {
                 // A paintable surviving from a previous layout on a node this pass did not lay out is
                 // stale; drop it so the layout tree only points into the paint tree built by this commit.

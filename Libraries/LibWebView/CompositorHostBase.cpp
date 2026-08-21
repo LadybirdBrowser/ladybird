@@ -256,17 +256,17 @@ void CompositorHostBase::invalidate_wheel_event_listener_state(Web::Compositor::
 }
 
 Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::Compositor::SnapContainerHandling snap_container_handling, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
     if (auto* connection = compositor_connection())
-        return connection->async_scroll_by(context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
+        return connection->async_scroll_by(context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, snap_container_handling, operation_tracking);
     return {};
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
+Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind animation_kind)
 {
     if (auto* connection = compositor_connection())
-        return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, viewport_rect, device_pixels_per_css_pixel);
+        return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, main_thread_offset_in_device_pixels, viewport_rect, device_pixels_per_css_pixel, animation_kind);
     return {};
 }
 

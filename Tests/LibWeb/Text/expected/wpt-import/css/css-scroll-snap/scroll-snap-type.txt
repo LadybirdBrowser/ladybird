@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	mandatory scroll-snap-type should snap as long as the element is visible.
+Pass	proximity scroll-snap-type shouldn't snap if the snap position is too far away.
+Pass	proximity scroll-snap-type should snap if the snap position is close.
+Pass	none scroll-snap-type shouldn't snap.

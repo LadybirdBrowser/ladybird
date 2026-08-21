@@ -1,0 +1,7 @@
+discrete step along the snapping axis: main-thread
+precise delta along the snapping axis: non-viewport
+discrete step across the snapping axis: non-viewport
+momentum delta along the snapping axis: main-thread
+momentum delta across the snapping axis: non-viewport
+discrete step chained to the snap container: main-thread
+precise delta chained to the snap container: non-viewport

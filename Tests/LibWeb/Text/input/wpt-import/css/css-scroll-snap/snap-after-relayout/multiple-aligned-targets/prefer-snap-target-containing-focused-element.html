@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#multiple-aligned-snap-areas" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+#scroller {
+  scroll-snap-type: y mandatory;
+  overflow: scroll;
+  width: 200px;
+  height: 200px;
+  position: relative;
+}
+.snap {
+  width: 100px;
+  height: 100px;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  scroll-snap-align: start;
+}
+#focus {
+  width: 50px;
+  height: 50px;
+}
+#spacer {
+  width: 1000px;
+  height: 1000px;
+}
+</style>
+<div id="scroller">
+  <div class="snap"></div>
+  <div class="snap">
+    <div id="focus" tabindex="-1"></div>
+  </div>
+  <div id="spacer"></div>
+</div>
+<script>
+promise_test(async () => {
+  assert_equals(scroller.scrollTop, 0);
+  assert_equals(scroller.scrollLeft, 0);
+
+  const focusedElement = document.querySelector("#focus");
+  focusedElement.focus({preventScroll: false});
+  assert_equals(document.activeElement, focusedElement);
+
+  const scrollendPromise = new Promise(resolve => {
+    scroller.addEventListener("scrollend", resolve);
+  });
+
+  // Move the parent of the focused element.
+  focusedElement.parentElement.style.top = "10px";
+
+  await scrollendPromise;
+
+  assert_equals(scroller.scrollTop, 10);
+  assert_equals(scroller.scrollLeft, 0);
+}, "Re-snap prefers snap target containing the focused element when multiple targets are aligned");
+</script>

@@ -16,6 +16,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/InsertionSort.h>
 #include <AK/JsonObjectSerializer.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
@@ -1839,6 +1840,8 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
             collect_paintable_boxes_with_auto_content_visibility();
     }
 
+    schedule_scroll_container_resnap();
+
     m_document->set_needs_repaint();
 }
 
@@ -2123,6 +2126,12 @@ void Document::update_layout(UpdateLayoutReason reason)
     m_is_running_update_layout = true;
     ScopeGuard guard = [&] {
         m_is_running_update_layout = false;
+
+        if (m_needs_scroll_container_resnap) {
+            if (auto navigable = this->navigable(); navigable && navigable->active_document().ptr() == this)
+                navigable->re_snap_scroll_containers_after_layout_change();
+        }
+
         page().client().flush_pending_dom_mutations();
     };
 
@@ -8978,6 +8987,58 @@ void Document::schedule_scrollable_overflow_recalculation(Element& element)
         if (auto* pseudo_element_layout_node = pseudo_element.unsafe_layout_node())
             schedule_scrollable_overflow_recalculation(*pseudo_element_layout_node);
     });
+}
+
+Painting::SnappedAreas const& Document::snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const& stable_node_id) const
+{
+    static NeverDestroyed<Painting::SnappedAreas const> no_snapped_areas;
+    auto snapped_areas = m_scroll_container_snapped_areas.find(stable_node_id);
+    if (snapped_areas == m_scroll_container_snapped_areas.end())
+        return *no_snapped_areas;
+    return snapped_areas->value;
+}
+
+void Document::set_snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const& stable_node_id, Painting::SnappedAreas snapped_areas)
+{
+    if (snapped_areas.is_empty()) {
+        m_scroll_container_snapped_areas.remove(stable_node_id);
+        return;
+    }
+    m_scroll_container_snapped_areas.set(stable_node_id, move(snapped_areas));
+}
+
+void Document::forget_snapped_areas_of_scroll_container(Painting::Paintable const& scroll_container)
+{
+    if (m_scroll_container_snapped_areas.is_empty())
+        return;
+    if (auto stable_node_id = scroll_container.async_scroll_node_stable_id(); stable_node_id.has_value())
+        m_scroll_container_snapped_areas.remove(*stable_node_id);
+}
+
+void Document::register_scroll_snap_container(Painting::Paintable const& snap_container)
+{
+    if (any_of(m_scroll_snap_containers, [&](auto const& registered) { return registered.ptr() == &snap_container; }))
+        return;
+    m_scroll_snap_containers.append(snap_container.make_weak_ptr());
+}
+
+Vector<NonnullRefPtr<Painting::Paintable const>> Document::collect_scroll_snap_containers()
+{
+    // A box replaced by a commit that rebuilt its node is no longer the paint tree's box for that node, so it stops
+    // being a snap container of this document.
+    m_scroll_snap_containers.remove_all_matching([](auto const& registered) {
+        return !registered || !registered->has_layout_node() || registered->layout_node().paintable_ptr() != registered.ptr();
+    });
+
+    Vector<NonnullRefPtr<Painting::Paintable const>> snap_containers;
+    snap_containers.ensure_capacity(m_scroll_snap_containers.size());
+    for (auto const& registered : m_scroll_snap_containers) {
+        // The scroll snap properties of a registered box can stop making it a snap container without the paint tree
+        // being built again.
+        if (Painting::is_scroll_snap_container(*registered))
+            snap_containers.unchecked_append(*registered);
+    }
+    return snap_containers;
 }
 
 void Document::set_needs_to_record_display_list()

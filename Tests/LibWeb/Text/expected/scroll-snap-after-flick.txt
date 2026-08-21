@@ -1,0 +1,6 @@
+offset after the flick settled: 0,600
+flick traveled beyond the offset it settled at: false
+scrollend events fired by the flick: 1
+offset after the flick back settled: 0,600
+flick back traveled beyond the offset it settled at: false
+offset after the flick that never decayed settled: 0,200

@@ -1,0 +1,3 @@
+scroll offset after initial snap: 100
+scroll offset after translating the scroller: 100
+scroll offset after moving the snap areas: 150

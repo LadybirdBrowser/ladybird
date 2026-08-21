@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    html {
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+    }
+    body {
+        margin: 0;
+    }
+    section {
+        height: 100vh;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+    }
+</style>
+<section></section>
+<section></section>
+<section></section>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const keyPressSettled = key => scrollSettled(document, () => internals.sendKey(document.body, key));
+
+        // A key press scrolls directly to the snap position it selects, rather than snapping back once it has arrived.
+        await keyPressSettled("Down");
+        println(`down arrow key press scrolls to the second section: ${window.scrollY === window.innerHeight ? "PASS" : `FAIL (${window.scrollY})`}`);
+
+        await keyPressSettled("Down");
+        println(`another press scrolls to the third section: ${window.scrollY === 2 * window.innerHeight ? "PASS" : `FAIL (${window.scrollY})`}`);
+
+        await keyPressSettled("Up");
+        println(`up arrow key press scrolls back to the second section: ${window.scrollY === window.innerHeight ? "PASS" : `FAIL (${window.scrollY})`}`);
+    });
+</script>

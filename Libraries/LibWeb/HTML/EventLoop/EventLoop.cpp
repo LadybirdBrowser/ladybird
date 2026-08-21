@@ -267,9 +267,9 @@ void EventLoop::process_input_events() const
                     case MouseEvent::Type::MouseWheel:
                         if (mouse_event.async_scroll_performed_default_action) {
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread handling DOM wheel after async default action");
-                            return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, true);
+                            return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase, true);
                         }
-                        return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y);
+                        return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase);
                     }
                     VERIFY_NOT_REACHED();
                 },
@@ -430,8 +430,13 @@ void EventLoop::update_the_rendering()
 
             // Clamp viewport scroll offset to valid range after layout, in case the
             // scrollable overflow area has shrunk (e.g. after a viewport size change).
-            if (auto navigable = document->navigable())
+            if (auto navigable = document->navigable()) {
                 navigable->clamp_viewport_scroll_offset();
+
+                // AD-HOC: A user scroll gesture that ended while layout was out of date could not select the snap
+                //         position it ends at, so it does now.
+                navigable->snap_user_scroll_gestures_that_awaited_layout();
+            }
 
             // 2. Let hadInitialVisibleContentVisibilityDetermination be false.
             bool had_initial_visible_content_visibility_determination = false;

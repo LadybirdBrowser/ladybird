@@ -71,14 +71,14 @@ void CompositorContextHandle::invalidate_wheel_event_listener_state(u64 generati
 }
 
 AsyncScrollEnqueueResult CompositorContextHandle::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, AsyncScrollOperationTracking operation_tracking)
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, SnapContainerHandling snap_container_handling, AsyncScrollOperationTracking operation_tracking)
 {
-    return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, operation_tracking);
+    return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, snap_container_handling, operation_tracking);
 }
 
-AsyncScrollEnqueueResult CompositorContextHandle::smooth_scroll_to(AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
+AsyncScrollEnqueueResult CompositorContextHandle::smooth_scroll_to(AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, ScrollAnimationKind animation_kind)
 {
-    return m_host.smooth_scroll_to(m_context_id, stable_node_id, offset_in_device_pixels, viewport_rect, device_pixels_per_css_pixel);
+    return m_host.smooth_scroll_to(m_context_id, stable_node_id, offset_in_device_pixels, main_thread_offset_in_device_pixels, viewport_rect, device_pixels_per_css_pixel, animation_kind);
 }
 
 void CompositorContextHandle::cancel_smooth_scroll(AsyncScrollNodeStableID stable_node_id)

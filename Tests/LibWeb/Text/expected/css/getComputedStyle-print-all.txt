@@ -291,6 +291,9 @@ scroll-padding-inline-start: auto
 scroll-padding-left: auto
 scroll-padding-right: auto
 scroll-padding-top: auto
+scroll-snap-align: none
+scroll-snap-stop: normal
+scroll-snap-type: none
 scroll-timeline-axis: block
 scroll-timeline-name: none
 scrollbar-gutter: auto
@@ -311,7 +314,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2034.5px
+transform-origin: 392px 2054px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s

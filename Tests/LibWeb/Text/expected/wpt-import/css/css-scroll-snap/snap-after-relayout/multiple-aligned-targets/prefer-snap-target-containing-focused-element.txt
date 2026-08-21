@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Re-snap prefers snap target containing the focused element when multiple targets are aligned

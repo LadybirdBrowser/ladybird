@@ -261,21 +261,21 @@ void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compos
     m_compositor_state->invalidate_wheel_event_listener_state(context_id, generation);
 }
 
-Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebContent::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebContent::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::SnapContainerHandling snap_container_handling, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return Web::Compositor::AsyncScrollEnqueueResult {};
-    auto result = m_compositor_state->async_scroll_by(context_id, document_id, position, delta, viewport_rect, operation_tracking);
+    auto result = m_compositor_state->async_scroll_by(context_id, document_id, position, delta, viewport_rect, snap_container_handling, operation_tracking);
     if (result.accepted)
         async_request_rendering_update();
     return result;
 }
 
-Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebContent::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
+Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebContent::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind animation_kind)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return Web::Compositor::AsyncScrollEnqueueResult {};
-    auto result = m_compositor_state->smooth_scroll_to(context_id, stable_node_id, offset, viewport_rect, device_pixels_per_css_pixel);
+    auto result = m_compositor_state->smooth_scroll_to(context_id, stable_node_id, offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel, animation_kind);
     if (result.accepted)
         async_request_rendering_update();
     return result;

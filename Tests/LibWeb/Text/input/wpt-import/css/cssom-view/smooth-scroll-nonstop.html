@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Noop smooth scrolls don't interrupt ongoing smooth scrolls</title>
+<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#concept-smooth-scroll">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../dom/events/scrolling/scroll_support.js"></script>
+</head>
+<body>
+  <style>
+    .scroller {
+      height: 200px;
+      width: 200px;
+      border: solid 1px black;
+      background-color: teal;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      position: relative;
+    }
+    .box {
+      height: 50px;
+      width: 50px;
+      background-color: purple;
+      margin-top: 400px;
+    }
+    .space {
+      position: absolute;
+      height: 200vh;
+      width: 200vw;
+    }
+    </style>
+    <div id="scroller" class="scroller">
+      <div class="space"></div>
+      <div id="box" class="box"></div>
+    </div>
+    <script>
+      const scroller = document.getElementById("scroller");
+      const box = document.getElementById("box");
+
+      async function test_smooth_scroll_nonstop(test, scroll_function, target_offset) {
+        await waitForScrollReset(test, scroller);
+        await waitForCompositorCommit(test, scroller);
+
+        const scrollend_promise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+        const MAX_NO_MOVE_DURATION_MS = 1000;
+        let resolve_stuck_promise = null;
+        const stuck_promise = new Promise((resolve) => {
+          resolve_stuck_promise = resolve;
+        });
+        let last_observed_offset = scroller.scrollTop;
+        let last_update_time = performance.now;
+        function run_scroll_function() {
+          if (scroller.scrollTop != last_observed_offset) {
+            last_update_time = performance.now();
+            last_observed_offset = scroller.scrollTop;
+          } else {
+            if (performance.now() - last_update_time > MAX_NO_MOVE_DURATION_MS) {
+              resolve_stuck_promise();
+            }
+          }
+          scroll_function();
+        }
+
+        // Run the scroll function repeatedly.
+        const id = setInterval(run_scroll_function);
+        await Promise.any([scrollend_promise, stuck_promise]);
+
+        clearInterval(id);
+        assert_equals(scroller.scrollTop, target_offset,
+          "scroller reached the target offset");
+      }
+
+      promise_test(async (t) => {
+        const target_offset = box.offsetTop;
+        const scroll_function = () => {
+          scroller.scrollTo({ top: target_offset, behavior: "smooth" });
+        }
+        await test_smooth_scroll_nonstop(test, scroll_function, target_offset);
+      }, "noop scrollTo doesn't interrupt ongoing smooth scroll.");
+
+      promise_test(async (t) => {
+        const target_offset = box.offsetTop;
+        const scroll_function = () => {
+          box.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+        await test_smooth_scroll_nonstop(test, scroll_function, target_offset);
+      }, "noop scrollIntoView doesn't interrupt ongoing smooth scroll.");
+    </script>
+</body>
+</html>

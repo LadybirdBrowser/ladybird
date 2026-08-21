@@ -37,6 +37,8 @@ class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
 enum class TraversalDecision;
+enum class WheelDeltaPrecision : u8;
+enum class ScrollGesturePhase : u8;
 
 struct AsyncScrollOperation;
 struct InitiatorSourceSnapshot;
@@ -65,6 +67,7 @@ class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;
+enum class CompositorScrollNodeKind : u8;
 enum class PaintCommandCacheMode : u8;
 struct GradientPaintStyle;
 struct PatternPaintStyle;

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 400px;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+    #inner {
+        width: 150px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #inner > div {
+        height: 200px;
+    }
+</style>
+<div id="scroller">
+    <div class="item"><div id="inner"><div></div></div></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    test(() => {
+        // Only the main thread can select the snap position a step scrolls to, so the compositor leaves the step to it.
+        println(`discrete step along the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 0, 50)}`);
+        println(`precise delta along the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 0, 50, true)}`);
+
+        println(`discrete step across the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 50, 0)}`);
+
+        println(`momentum delta along the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 0, 50, true, "momentum")}`);
+        println(`momentum delta across the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 50, 0, true, "momentum")}`);
+
+        // The inner scroller reaches its scroll extent, so a step over it chains to the snap container around it.
+        document.getElementById("inner").scrollTop = 100;
+        println(`discrete step chained to the snap container: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 50)}`);
+        println(`precise delta chained to the snap container: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 50, true)}`);
+    });
+</script>

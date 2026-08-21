@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Only snap to visible area on Y axis, even when the non-visible ones are closer

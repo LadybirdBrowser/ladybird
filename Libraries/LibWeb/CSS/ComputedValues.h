@@ -335,6 +335,20 @@ struct ScrollbarColorData {
     bool operator==(ScrollbarColorData const&) const = default;
 };
 
+struct ScrollSnapType {
+    ScrollSnapAxis axis { ScrollSnapAxis::Both };
+    ScrollSnapStrictness strictness { ScrollSnapStrictness::None };
+
+    bool operator==(ScrollSnapType const&) const = default;
+};
+
+struct ScrollSnapAlignData {
+    ScrollSnapAlign block_alignment { ScrollSnapAlign::None };
+    ScrollSnapAlign inline_alignment { ScrollSnapAlign::None };
+
+    bool operator==(ScrollSnapAlignData const&) const = default;
+};
+
 struct TextIndentData {
     LengthPercentage length_percentage;
     bool each_line { false };
@@ -563,6 +577,9 @@ public:
     static int math_depth() { return 0; }
 
     static ScrollBehavior scroll_behavior() { return ScrollBehavior::Auto; }
+    static ScrollSnapAlignData scroll_snap_align() { return {}; }
+    static ScrollSnapStop scroll_snap_stop() { return ScrollSnapStop::Normal; }
+    static ScrollSnapType scroll_snap_type() { return {}; }
     static ScrollbarColorData scrollbar_color()
     {
         return ScrollbarColorData {
@@ -1628,6 +1645,9 @@ public:
     int math_depth() const { return m_inherited.font->math_depth; }
 
     ScrollBehavior scroll_behavior() const { return static_cast<ScrollBehavior>(m_noninherited.misc->scroll_behavior); }
+    ScrollSnapAlignData scroll_snap_align() const { return m_noninherited.misc->scroll_snap_align_value(); }
+    ScrollSnapStop scroll_snap_stop() const { return static_cast<ScrollSnapStop>(m_noninherited.misc->scroll_snap_stop); }
+    ScrollSnapType scroll_snap_type() const { return m_noninherited.misc->scroll_snap_type_value(); }
     ScrollbarColorData scrollbar_color() const { return m_inherited.ui->scrollbar_color_value(); }
     ScrollbarGutter scrollbar_gutter() const { return static_cast<ScrollbarGutter>(m_noninherited.misc->scrollbar_gutter); }
     ScrollbarWidth scrollbar_width() const { return static_cast<ScrollbarWidth>(m_noninherited.misc->scrollbar_width); }
@@ -2335,6 +2355,8 @@ public:
         Position object_position_value() const;
         Optional<Utf16FlyString> view_transition_name_value() const;
         TouchActionData touch_action_value() const;
+        ScrollSnapAlignData scroll_snap_align_value() const;
+        ScrollSnapType scroll_snap_type_value() const;
         ShapeOutsideData shape_outside_value() const;
         WillChange will_change_value() const;
 

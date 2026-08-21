@@ -65,6 +65,8 @@ struct RequiredInvalidationAfterStyleChange {
     [[nodiscard]] bool needs_scrollable_overflow_recalculation() const { return m_needs_scrollable_overflow_recalculation && !needs_relayout(); }
     [[nodiscard]] AccumulatedVisualContextInvalidation accumulated_visual_contexts() const { return m_accumulated_visual_contexts; }
 
+    // A scroll snap property changed, so snap containers must re-evaluate their scroll position and re-snap.
+    bool needs_scroll_container_resnap : 1 { false };
     // The element's change affects rule matching for descendants, without necessarily changing inherited style.
     bool recompute_descendant_styles : 1 { false };
     // Names the inherited ComputedValues groups whose identities changed. Descendants can use the
@@ -98,6 +100,7 @@ struct RequiredInvalidationAfterStyleChange {
         m_accumulated_visual_contexts = max(m_accumulated_visual_contexts, other.m_accumulated_visual_contexts);
         m_rebuild_stacking_context_tree |= other.m_rebuild_stacking_context_tree;
         m_needs_scrollable_overflow_recalculation |= other.m_needs_scrollable_overflow_recalculation;
+        needs_scroll_container_resnap |= other.needs_scroll_container_resnap;
         recompute_descendant_styles |= other.recompute_descendant_styles;
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
         changes_containing_block_establishment |= other.changes_containing_block_establishment;
@@ -110,6 +113,7 @@ struct RequiredInvalidationAfterStyleChange {
         return m_level == InvalidationLevel::None
             && m_accumulated_visual_contexts == AccumulatedVisualContextInvalidation::None
             && !m_needs_scrollable_overflow_recalculation
+            && !needs_scroll_container_resnap
             && !recompute_descendant_styles
             && !inherited_style_changed()
             && !changes_containing_block_establishment

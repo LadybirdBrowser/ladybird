@@ -179,12 +179,12 @@ void CompositorConnection::invalidate_wheel_event_listener_state(Web::Compositor
     async_invalidate_wheel_event_listener_state(context_id, generation);
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::SnapContainerHandling snap_container_handling, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::AsyncScrollBy>(context_id, document_id, position, delta, viewport_rect, operation_tracking);
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::AsyncScrollBy>(context_id, document_id, position, delta, viewport_rect, snap_container_handling, operation_tracking);
     if (!response) {
         did_lose_compositor();
         return {};
@@ -192,12 +192,12 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(
     return response->take_result();
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
+Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind animation_kind)
 {
     if (!can_send_message_to_compositor())
         return {};
 
-    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::SmoothScrollTo>(context_id, stable_node_id, offset, viewport_rect, device_pixels_per_css_pixel);
+    auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::SmoothScrollTo>(context_id, stable_node_id, offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel, animation_kind);
     if (!response) {
         did_lose_compositor();
         return {};

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    html {
+        scroll-snap-type: y mandatory;
+    }
+    body {
+        margin: 0;
+    }
+    .section {
+        height: 100vh;
+        scroll-snap-align: start;
+    }
+</style>
+<div class="section"></div>
+<div class="section"></div>
+<div class="section"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const pinchScrollend = scrollendEvent(visualViewport);
+        internals.pinch(100, 100, 1.0, 0);
+        await animationFrame();
+        await animationFrame();
+        await pinchScrollend;
+        println(`scale: ${visualViewport.scale}`);
+
+        // A zoomed page pans its visual viewport within the layout viewport before the layout viewport scrolls, so a
+        // step does not take the viewport to its next snap position.
+        const offsetTopBeforeWheelStep = visualViewport.offsetTop;
+        await internals.wheel(100, 100, 0, 50);
+        await scrollOffsetStopsChanging(() => window.scrollY);
+        println(`visual viewport panned by the wheel step: ${visualViewport.offsetTop > offsetTopBeforeWheelStep}`);
+        println(`page scroll offset after the wheel step: ${window.scrollY}`);
+
+        const offsetTopBeforeKeyPress = visualViewport.offsetTop;
+        internals.sendKey(document.body, "Down");
+        await scrollOffsetStopsChanging(() => window.scrollY);
+        println(`visual viewport panned by the key press: ${visualViewport.offsetTop > offsetTopBeforeKeyPress}`);
+        println(`page scroll offset after the key press: ${window.scrollY}`);
+    });
+</script>

@@ -98,6 +98,26 @@ namespace Web::Internals {
 
 static u16 s_echo_server_port { 0 };
 
+static WheelDeltaPrecision wheel_delta_precision_from(bool precise)
+{
+    return precise ? WheelDeltaPrecision::Precise : WheelDeltaPrecision::Discrete;
+}
+
+static ScrollGesturePhase scroll_gesture_phase_from(Bindings::ScrollGesturePhase scroll_gesture_phase)
+{
+    switch (scroll_gesture_phase) {
+    case Bindings::ScrollGesturePhase::None:
+        return ScrollGesturePhase::None;
+    case Bindings::ScrollGesturePhase::Ongoing:
+        return ScrollGesturePhase::Ongoing;
+    case Bindings::ScrollGesturePhase::Momentum:
+        return ScrollGesturePhase::Momentum;
+    case Bindings::ScrollGesturePhase::Ended:
+        return ScrollGesturePhase::Ended;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 GC_DEFINE_ALLOCATOR(Internals);
 
 Internals::Internals(HTML::Window& window)
@@ -358,19 +378,26 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
     target.focus();
 
     for (auto code_point : text) {
-        if (auto data = webdriver_key_to_key_code(code_point); data.has_value())
+        if (auto data = webdriver_key_to_key_code(code_point); data.has_value()) {
             page.handle_keydown(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false, data->code_point_to_send != 0);
-        else
+            page.handle_keyup(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false);
+        } else {
             page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false, true);
+            page.handle_keyup(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
+        }
     }
 }
 
-void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers)
+void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
 {
+    if (repeat_count == 0)
+        return;
+
     auto key_code = UIEvents::key_code_from_string(key_name.utf16_view());
     target.focus();
 
-    page().handle_keydown(key_code, modifiers, 0, false, false);
+    for (u32 press = 0; press < repeat_count; ++press)
+        page().handle_keydown(key_code, modifiers, 0, press > 0, false);
     page().handle_keyup(key_code, modifiers, 0, false);
 }
 
@@ -449,13 +476,15 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     page.handle_mousedown(position, position, mouse_button, 0, modifiers, click_count);
 }
 
-void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y)
+void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase)
 {
     auto& page = this->page();
 
+    auto wheel_delta_precision = wheel_delta_precision_from(precise);
+    auto scroll_gesture_phase = scroll_gesture_phase_from(phase);
     auto position = page.css_to_device_point({ x, y });
     Optional<AsyncScrollOperation> async_scroll_operation;
-    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, false, &async_scroll_operation);
+    page.handle_mousewheel(position, position, 0, 0, 0, delta_x, delta_y, wheel_delta_precision, scroll_gesture_phase, false, &async_scroll_operation);
 
     if (async_scroll_operation.has_value() && async_scroll_operation->navigable) {
         async_scroll_operation->navigable->wait_for_async_scroll_operation(async_scroll_operation->operation_id, promise);
@@ -465,9 +494,9 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
     WebIDL::resolve_promise(promise);
 }
 
-void Internals::wheel(double x, double y, double delta_x, double delta_y, GC::Ref<WebIDL::Promise> promise)
+void Internals::wheel(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, GC::Ref<WebIDL::Promise> promise)
 {
-    wheel(promise, x, y, delta_x, delta_y);
+    wheel(promise, x, y, delta_x, delta_y, precise, phase);
 }
 
 void Internals::pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers)
@@ -1528,7 +1557,7 @@ Utf16String Internals::async_scrolling_state_wheel_routing_admission()
     return Utf16String::from_utf16(Compositor::wheel_routing_admission_to_utf16_view(admission));
 }
 
-static Compositor::WheelScrollAdmission wheel_scroll_admission_at(DOM::Document& document, double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+static Compositor::WheelScrollAdmission wheel_scroll_admission_at(DOM::Document& document, double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions)
 {
     auto snapshot = capture_async_scrolling_state(document);
     if (!snapshot.has_value())
@@ -1540,12 +1569,13 @@ static Compositor::WheelScrollAdmission wheel_scroll_admission_at(DOM::Document&
         snapshot->document_paintable->scroll_state_snapshot(),
         { static_cast<float>(x), static_cast<float>(y) },
         { static_cast<float>(delta_x), static_cast<float>(delta_y) },
+        Compositor::snap_container_handling_for(wheel_delta_precision_from(precise), ScrollGesturePhase::None),
         snapshot->state.has_blocking_wheel_event_listeners && !force_stale_wheel_event_regions);
 }
 
-bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+bool Internals::async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions)
 {
-    return wheel_scroll_admission_at(window().associated_document(), x, y, delta_x, delta_y, force_stale_wheel_event_regions) == Compositor::WheelScrollAdmission::Accepted;
+    return wheel_scroll_admission_at(window().associated_document(), x, y, delta_x, delta_y, precise, force_stale_wheel_event_regions) == Compositor::WheelScrollAdmission::Accepted;
 }
 
 static Utf16String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmission admission)
@@ -1565,13 +1595,13 @@ static Utf16String wheel_scroll_admission_to_string(Compositor::WheelScrollAdmis
     VERIFY_NOT_REACHED();
 }
 
-Utf16String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions)
+Utf16String Internals::async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions)
 {
-    auto admission = wheel_scroll_admission_at(window().associated_document(), x, y, delta_x, delta_y, force_stale_wheel_event_regions);
+    auto admission = wheel_scroll_admission_at(window().associated_document(), x, y, delta_x, delta_y, precise, force_stale_wheel_event_regions);
     return wheel_scroll_admission_to_string(admission);
 }
 
-Utf16String Internals::async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y)
+Utf16String Internals::async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase)
 {
     auto snapshot = capture_async_scrolling_state(window().associated_document());
     if (!snapshot.has_value())
@@ -1583,8 +1613,11 @@ Utf16String Internals::async_scrolling_state_wheel_target_at(double x, double y,
 
     auto target = scroll_tree.hit_test_scroll_node_for_wheel(
         { static_cast<float>(x), static_cast<float>(y) },
-        { static_cast<float>(delta_x), static_cast<float>(delta_y) });
-    if (target.blocked_by_main_thread_region || target.blocked_by_wheel_event_region || !target.node_id.has_value())
+        { static_cast<float>(delta_x), static_cast<float>(delta_y) },
+        Compositor::snap_container_handling_for(wheel_delta_precision_from(precise), scroll_gesture_phase_from(phase)));
+    if (target.blocked_by_main_thread_region)
+        return "main-thread"_utf16;
+    if (target.blocked_by_wheel_event_region || !target.node_id.has_value())
         return "none"_utf16;
     if (scroll_tree.scroll_node_is_viewport(*target.node_id))
         return "viewport"_utf16;
