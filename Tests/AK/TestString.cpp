@@ -14,6 +14,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Try.h>
+#include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <ctype.h>
@@ -201,6 +202,14 @@ TEST_CASE(with_replacement_character)
 
     auto string7 = String::from_utf8_with_replacement_character("\xED\xA0\x80WHF!"sv); // U+D800
     EXPECT_EQ(string7, "\ufffdWHF!"sv);
+}
+
+TEST_CASE(from_utf16_with_replacement_character)
+{
+    EXPECT_EQ(MUST(String::from_utf16_with_replacement_character(Utf16View { "hello!"sv })), "hello!"sv);
+    EXPECT_EQ(MUST(String::from_utf16_with_replacement_character(u"hello 😀!"sv)), "hello 😀!"sv);
+    EXPECT_EQ(MUST(String::from_utf16_with_replacement_character(u"hello \xd800!"sv)), "hello �!"sv);
+    EXPECT_EQ(MUST(String::from_utf16_with_replacement_character(u""sv)), ""sv);
 }
 
 TEST_CASE(from_code_points)

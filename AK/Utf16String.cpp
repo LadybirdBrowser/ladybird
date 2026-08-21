@@ -155,9 +155,7 @@ Utf16String Utf16String::to_well_formed() const
 
 String Utf16String::to_well_formed_utf8() const
 {
-    if (utf16_view().validate())
-        return to_utf8(AllowLonelySurrogates::No);
-    return to_well_formed().to_utf8(AllowLonelySurrogates::No);
+    return MUST(String::from_utf16_with_replacement_character(utf16_view()));
 }
 
 ErrorOr<void> Formatter<Utf16String>::format(FormatBuilder& builder, Utf16String const& utf16_string)

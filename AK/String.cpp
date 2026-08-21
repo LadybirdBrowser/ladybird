@@ -72,6 +72,24 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
+ErrorOr<String> String::from_utf16_with_replacement_character(Utf16View const& view)
+{
+    if (view.has_ascii_storage())
+        return String::from_utf8_without_validation(view.bytes());
+
+    auto utf16 = view.utf16_span();
+    auto utf8_length = simdutf::utf8_length_from_utf16_with_replacement(utf16.data(), utf16.size()).count;
+
+    String result;
+    TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
+        [[maybe_unused]] auto result = simdutf::convert_utf16_to_utf8_with_replacement(utf16.data(), utf16.size(), reinterpret_cast<char*>(buffer.data()));
+        ASSERT(result == buffer.size());
+        return {};
+    }));
+
+    return result;
+}
+
 ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
 {
     String result;
