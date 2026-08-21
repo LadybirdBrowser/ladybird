@@ -885,8 +885,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                             if (auto path = area_element->shape_path(paintable.absolute_rect().size()); path.has_value()) {
                                 facts.paints_focused_area_outline = true;
                                 facts.focused_area_path = new Gfx::Path(path.release_value());
-                                facts.focused_area_color = outline_data->top.color.value();
-                                facts.focused_area_width = outline_data->top.width.raw_value();
+                                facts.focused_area_color = outline_data->color.value();
+                                facts.focused_area_width = outline_data->width.raw_value();
                             }
                         }
                     }

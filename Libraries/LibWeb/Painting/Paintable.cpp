@@ -1530,7 +1530,7 @@ BorderRadiiData Paintable::border_radii_data() const
         layout_node().border_bottom_right_radius(), layout_node().border_bottom_left_radius());
 }
 
-static Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)
+static Optional<CSS::BorderData> border_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)
 {
     CSS::LineStyle line_style;
     if (outline_style == CSS::OutlineStyle::Auto) {
@@ -1544,30 +1544,20 @@ static Optional<BordersData> borders_data_for_outline(Layout::Node const& layout
     if (outline_color.alpha() == 0 || line_style == CSS::LineStyle::None || outline_width == 0)
         return {};
 
-    CSS::BorderData border_data {
+    return CSS::BorderData {
         .color = outline_color,
         .line_style = line_style,
         .width = outline_width,
     };
-    return BordersData { border_data, border_data, border_data, border_data };
 }
 
-Optional<BordersData> Paintable::outline_data() const
-{
-    // The `auto` outline is the UA focus ring; like native controls, it is only shown while the window has focus.
-    if (layout_node().outline_style() == CSS::OutlineStyle::Auto && (!navigable() || !navigable()->is_focused()))
-        return {};
-
-    return borders_data_for_outline(layout_node(), layout_node().outline_color(), layout_node().outline_style(), layout_node().outline_width());
-}
-
-Optional<BordersData> Paintable::outline_data(CSS::ComputedValues const& computed_values) const
+Optional<CSS::BorderData> Paintable::outline_data(CSS::ComputedValues const& computed_values) const
 {
     // The `auto` outline is the UA focus ring; like native controls, it is only shown while the window has focus.
     if (computed_values.outline_style() == CSS::OutlineStyle::Auto && (!navigable() || !navigable()->is_focused()))
         return {};
 
-    return borders_data_for_outline(layout_node(), computed_values.outline_color(), computed_values.outline_style(), computed_values.outline_width());
+    return border_data_for_outline(layout_node(), computed_values.outline_color(), computed_values.outline_style(), computed_values.outline_width());
 }
 
 CSSPixels Paintable::outline_offset() const
