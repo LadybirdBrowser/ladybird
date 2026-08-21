@@ -37,12 +37,10 @@ static constexpr simdutf::last_chunk_handling_options to_simdutf_last_chunk_hand
     VERIFY_NOT_REACHED();
 }
 
-static Optional<InvalidBase64> base64_error_from_result(simdutf::result result, ByteBuffer& output)
+static Optional<InvalidBase64> base64_error_from_result(simdutf::result result)
 {
     if (result.error == simdutf::SUCCESS || result.error == simdutf::OUTPUT_BUFFER_TOO_SMALL)
         return {};
-
-    output.resize((result.count / 4) * 3);
 
     struct DecodeError {
         Base64DecodeError decode_error;
@@ -65,53 +63,40 @@ static Optional<InvalidBase64> base64_error_from_result(simdutf::result result, 
     return InvalidBase64 { .decode_error = decode_error, .error = move(error), .valid_input_bytes = result.count };
 }
 
-static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
+template<typename CodeUnit>
+static ErrorOr<size_t, InvalidBase64> decode_base64_into_span(ReadonlySpan<CodeUnit> input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
 {
     static constexpr auto decode_up_to_bad_character = true;
     auto output_length = output.size();
 
     auto result = simdutf::base64_to_binary_safe(
-        input.characters_without_null_termination(),
-        input.length(),
+        input.data(),
+        input.size(),
         reinterpret_cast<char*>(output.data()),
         output_length,
         options,
         to_simdutf_last_chunk_handling(last_chunk_handling),
         decode_up_to_bad_character);
 
-    if (auto error = base64_error_from_result(result, output); error.has_value())
-        return error.release_value();
-
     VERIFY(output_length <= output.size());
     output.resize(output_length);
 
+    if (auto error = base64_error_from_result(result); error.has_value())
+        return error.release_value();
+
     return result.count;
+}
+
+static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(StringView input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
+{
+    return decode_base64_into_span(ReadonlySpan<char> { input.characters_without_null_termination(), input.length() }, output, last_chunk_handling, options);
 }
 
 static ErrorOr<size_t, InvalidBase64> decode_base64_into_impl(Utf16View input, ByteBuffer& output, LastChunkHandling last_chunk_handling, simdutf::base64_options options)
 {
     if (input.has_ascii_storage())
-        return decode_base64_into_impl(StringView { input.bytes() }, output, last_chunk_handling, options);
-
-    static constexpr auto decode_up_to_bad_character = true;
-    auto output_length = output.size();
-
-    auto result = simdutf::base64_to_binary_safe(
-        input.utf16_span().data(),
-        input.length_in_code_units(),
-        reinterpret_cast<char*>(output.data()),
-        output_length,
-        options,
-        to_simdutf_last_chunk_handling(last_chunk_handling),
-        decode_up_to_bad_character);
-
-    if (auto error = base64_error_from_result(result, output); error.has_value())
-        return error.release_value();
-
-    VERIFY(output_length <= output.size());
-    output.resize(output_length);
-
-    return result.count;
+        return decode_base64_into_span(input.ascii_span(), output, last_chunk_handling, options);
+    return decode_base64_into_span(input.utf16_span(), output, last_chunk_handling, options);
 }
 
 static ErrorOr<ByteBuffer> decode_base64_impl(StringView input, LastChunkHandling last_chunk_handling, simdutf::base64_options options)

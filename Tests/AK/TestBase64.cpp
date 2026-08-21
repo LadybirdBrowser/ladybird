@@ -118,6 +118,27 @@ TEST_CASE(test_decode_into_error_kind)
     expect_error("-"sv, AK::Base64DecodeError::InvalidCharacter);
 }
 
+TEST_CASE(test_decode_into_error_output)
+{
+    auto expect_error = [](auto input, StringView expected_output, Optional<size_t> buffer_size = {}) {
+        auto buffer = MUST(ByteBuffer::create_uninitialized(buffer_size.value_or_lazy_evaluated([&] {
+            return AK::size_required_to_decode_base64(input);
+        })));
+
+        auto result = AK::decode_base64_into(input, buffer);
+        VERIFY(result.is_error());
+        EXPECT_EQ(StringView { buffer }, expected_output);
+    };
+
+    expect_error("    -"sv, ""sv);
+    expect_error("    Zm9v-"sv, "foo"sv);
+    expect_error("    -"sv, ""sv, 1);
+
+    expect_error(u"    -"sv, ""sv);
+    expect_error(u"    Zm9v-"sv, "foo"sv);
+    expect_error(u"    -"sv, ""sv, 1);
+}
+
 TEST_CASE(test_decode_only_padding)
 {
     // Only padding is not allowed
