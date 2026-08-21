@@ -174,7 +174,8 @@ static Optional<Painting::CaretPosition> caret_position_from_editable_hit_node(D
         return {};
 
     return Painting::CaretPosition {
-        .paintable = *paintable,
+        .box = paintable->rust_slot(),
+        .arena = paintable->rust_arena(),
         .boundary = { *boundary_node, 0 },
     };
 }
@@ -222,7 +223,9 @@ static CSS::UserSelect user_select_used_value_for_caret_position(Painting::Caret
 {
     if (auto* layout_node = caret_position.boundary.node->layout_node())
         return layout_node->user_select_used_value();
-    return caret_position.paintable->layout_node().user_select_used_value();
+    if (auto caret_paintable = caret_position.paintable(); caret_paintable && caret_paintable->has_layout_node())
+        return caret_paintable->layout_node().user_select_used_value();
+    return CSS::UserSelect::Auto;
 }
 
 static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Paintable& paintable, CSSPixelPoint viewport_position, Function<EventResult(EventHandler&, CSSPixelPoint)> dispatch)
@@ -421,12 +424,15 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         auto caret_position = document->caret_position_from_point(visual_viewport_position);
         if (caret_position.has_value()) {
             document->set_caret_hit_test_debug_rect(caret_position->debug_rect);
+            auto paintable_description = "(gone)"_string;
+            if (auto caret_paintable = caret_position->paintable())
+                paintable_description = caret_paintable->debug_description();
             dbgln("Caret hit test: point=({}, {}) boundary=({}, {}) paintable={} debug_rect={}",
                 visual_viewport_position.x(),
                 visual_viewport_position.y(),
                 caret_position->boundary.node->debug_description(),
                 caret_position->boundary.offset,
-                caret_position->paintable->debug_description(),
+                paintable_description,
                 caret_position->debug_rect);
         } else {
             document->set_caret_hit_test_debug_rect({});
@@ -2224,8 +2230,10 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
 
     // NB: Initiating the selection may run script (setting a selection inside an editing host runs the focusing
     //     steps on it), which may have rebuilt the layout tree and detached the caret position's paintable.
-    if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_position->paintable))
-        m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
+    if (auto caret_paintable = caret_position->paintable()) {
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_paintable))
+            m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
+    }
 }
 
 Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position)
@@ -2389,8 +2397,10 @@ void EventHandler::start_selection_from_preserved_mousedown(DOM::Document& docum
     if (!initiate_character_selection(document, *caret_position, user_select, false))
         return;
 
-    if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_position->paintable))
-        m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
+    if (auto caret_paintable = caret_position->paintable()) {
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*caret_paintable))
+            m_auto_scroll_handler = make<AutoScrollHandler>(m_navigable, *container);
+    }
 }
 
 void EventHandler::finish_selection_from_preserved_mousedown(DOM::Document& document, CSSPixelPoint visual_viewport_position)

@@ -37,11 +37,14 @@ struct HitTestResult {
 };
 
 struct CaretPosition {
-    NonnullRefPtr<Paintable> paintable;
+    Layout::RustFFI::PaintableSlotId box;
+    NonnullRefPtr<Layout::NodeArena> arena;
     DOM::BoundaryPoint boundary;
     TextAffinity affinity { TextAffinity::Downstream };
     Optional<DOM::BoundaryPoint> secondary_boundary {};
     Optional<CSSPixelRect> debug_rect {};
+
+    RefPtr<Paintable> paintable() const;
 };
 
 }
