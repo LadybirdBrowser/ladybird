@@ -122,8 +122,7 @@ DecoderErrorOr<i64> Streamer::read_variable_size_signed_integer()
 DecoderErrorOr<ByteBuffer> Streamer::read_raw_octets(size_t num_octets)
 {
     auto result = MUST(ByteBuffer::create_uninitialized(num_octets));
-    auto bytes = result.bytes();
-    TRY(m_stream_cursor->read_into(bytes));
+    TRY(m_stream_cursor->read_until_filled(result.bytes()));
     return result;
 }
 
