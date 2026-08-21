@@ -143,6 +143,48 @@ TEST_CASE(moved_fly_string_becomes_empty)
     EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), 1u);
 }
 
+TEST_CASE(raw_ownership_transfer)
+{
+    {
+        auto string = "short"_utf16_fly_string;
+        auto raw = move(string).into_raw();
+
+        EXPECT(string.is_empty());
+
+        auto adopted_string = Utf16FlyString::adopt_raw(raw);
+        EXPECT_EQ(adopted_string, "short"sv);
+        EXPECT_EQ(adopted_string.raw_identity(), raw);
+    }
+
+    {
+        auto string = "this is a long fly string"_utf16_fly_string;
+        auto raw = string.raw_identity();
+        auto const* header = reinterpret_cast<AK::Detail::Utf16StringDataHeader const*>(raw);
+
+        EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 1u);
+
+        EXPECT_EQ(move(string).into_raw(), raw);
+        EXPECT(string.is_empty());
+        EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 1u);
+
+        auto adopted_string = Utf16FlyString::adopt_raw(raw);
+        EXPECT_EQ(adopted_string, "this is a long fly string"sv);
+        EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 1u);
+
+        Utf16FlyString::ref_raw(raw);
+        EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 2u);
+        Utf16FlyString::unref_raw(raw);
+        EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 1u);
+
+        {
+            auto copied_string = Utf16FlyString::from_raw(raw);
+            EXPECT_EQ(copied_string, adopted_string);
+            EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 2u);
+        }
+        EXPECT_EQ(AK::atomic_load(&header->reference_count, AK::memory_order_relaxed), 1u);
+    }
+}
+
 TEST_CASE(is_one_of)
 {
     auto foo = Utf16FlyString::from_utf8("foo"sv);
