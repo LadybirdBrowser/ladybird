@@ -58,6 +58,9 @@ public:
     WebIDL::ExceptionOr<void> mark_as_garbage(Utf16String const& variable_name);
     bool wrapper_is_preserved(JS::Object&);
     bool has_activity_root(JS::Object&);
+    WebIDL::UnsignedLongLong message_port_pending_outgoing_message_count(HTML::MessagePort&);
+    void fail_next_message_port_transfer(HTML::MessagePort&);
+    bool message_ports_are_directly_entangled(HTML::MessagePort&, HTML::MessagePort&);
     GC::Ref<XHR::XMLHttpRequest> create_xml_http_request_for_document(DOM::Document&);
     Optional<Painting::HitTestResult> hit_test(double x, double y);
     GC::Ptr<JS::Object> hit_test_result(double x, double y);

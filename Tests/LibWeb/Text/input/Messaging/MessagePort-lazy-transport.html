@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        function nextMessage(target) {
+            return new Promise(resolve => {
+                target.addEventListener("message", resolve, { once: true });
+                target.start?.();
+            });
+        }
+
+        for (let i = 0; i < 10_000; ++i)
+            new MessageChannel();
+        println("created many local channels");
+
+        const orderedChannel = new MessageChannel();
+        const orderedMessages = [];
+        const receivedOrderedMessages = new Promise(resolve => {
+            orderedChannel.port1.onmessage = event => {
+                orderedMessages.push(event.data);
+                if (orderedMessages.length === 3)
+                    resolve();
+            };
+        });
+        orderedChannel.port2.postMessage("first");
+        orderedChannel.port2.postMessage("second");
+        orderedChannel.port2.postMessage("third");
+        await receivedOrderedMessages;
+        println(orderedMessages.join(", "));
+
+        const closedChannel = new MessageChannel();
+        let closedPortReceivedMessage = false;
+        closedChannel.port1.onmessage = () => closedPortReceivedMessage = true;
+        closedChannel.port1.close();
+        closedChannel.port2.postMessage("must not arrive");
+        for (let i = 0; i < 16; ++i) {
+            const buffer = new ArrayBuffer(256 * 1024);
+            closedChannel.port2.postMessage(buffer, [buffer]);
+        }
+        println(`closed port retained messages: ${internals.messagePortPendingOutgoingMessageCount(closedChannel.port2)}`);
+
+        const controlChannel = new MessageChannel();
+        const controlMessage = nextMessage(controlChannel.port1);
+        controlChannel.port2.postMessage("control");
+        await controlMessage;
+        println(`closed port received message: ${closedPortReceivedMessage}`);
+
+        let receiveAfterGC;
+        const sender = (() => {
+            const channel = new MessageChannel();
+            receiveAfterGC = nextMessage(channel.port1);
+            return channel.port2;
+        })();
+        await internals.gcAsync();
+        sender.postMessage("after GC");
+        println((await receiveAfterGC).data);
+
+        const transferredChannel = new MessageChannel();
+        let detachedPortReceivedMessage = false;
+        transferredChannel.port1.onmessage = () => detachedPortReceivedMessage = true;
+        transferredChannel.port2.postMessage("before transfer");
+
+        const portTransferred = nextMessage(window);
+        window.postMessage({ port: transferredChannel.port1 }, "*", [transferredChannel.port1]);
+        transferredChannel.port2.postMessage("after transfer");
+
+        const transferredPort = (await portTransferred).data.port;
+        const messagesAroundTransfer = [];
+        const receivedMessagesAroundTransfer = new Promise(resolve => {
+            transferredPort.onmessage = event => {
+                messagesAroundTransfer.push(event.data);
+                if (messagesAroundTransfer.length === 2)
+                    resolve();
+            };
+        });
+        await receivedMessagesAroundTransfer;
+        println(messagesAroundTransfer.join(", "));
+        println(`detached port received message: ${detachedPortReceivedMessage}`);
+
+        const reply = nextMessage(transferredChannel.port2);
+        transferredPort.postMessage("reply after transfer");
+        println((await reply).data);
+
+        const failedTransferChannel = new MessageChannel();
+        internals.failNextMessagePortTransfer(failedTransferChannel.port1);
+        try {
+            window.postMessage({ port: failedTransferChannel.port1 }, "*", [failedTransferChannel.port1]);
+        } catch (error) {
+            println(`transfer failed: ${error.name}`);
+        }
+        println(`directly entangled after failed transfer: ${internals.messagePortsAreDirectlyEntangled(failedTransferChannel.port1, failedTransferChannel.port2)}`);
+
+        const messageAfterFailedTransfer = nextMessage(failedTransferChannel.port1);
+        failedTransferChannel.port2.postMessage("after failed transfer");
+        println((await messageAfterFailedTransfer).data);
+    });
+</script>
