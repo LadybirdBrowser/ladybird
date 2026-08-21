@@ -904,6 +904,7 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
+            normalize_svg_path_data: None,
             random_function_index: std::ptr::null_mut(),
         }
     }

@@ -72,6 +72,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
@@ -106,6 +107,14 @@ static bool verify_rust_value_parser_enabled()
 static size_t retain_utf16_fly_string(u16 const* code_units, size_t length)
 {
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
+}
+
+static size_t normalize_svg_path_data(u16 const* code_units, size_t length)
+{
+    auto path = SVG::AttributeParser::parse_path_data(Utf16View { reinterpret_cast<char16_t const*>(code_units), length });
+    if (path.instructions().is_empty())
+        return 0;
+    return Utf16String::from_utf8(path.serialize()).to_raw_leaked();
 }
 
 static void dump_parse_fallback_statistics()
@@ -512,6 +521,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .document_base_url = document_base_url.data(),
         .document_base_url_length = document_base_url.size(),
         .intern_utf16_fly_string = retain_utf16_fly_string,
+        .normalize_svg_path_data = normalize_svg_path_data,
         .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };

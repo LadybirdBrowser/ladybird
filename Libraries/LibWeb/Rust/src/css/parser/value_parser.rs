@@ -19,6 +19,9 @@ use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::positions_shapes_parser::{
+    is_position_shape_function_name, parse_geometry_property, parse_position_property,
+};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::property_metadata::{
     FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
@@ -38,7 +41,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
-const PROPERTY_NOT_PORTED: NotHandledReason = NotHandledReason {
+pub(crate) const PROPERTY_NOT_PORTED: NotHandledReason = NotHandledReason {
     label: "property:not-ported",
     c_label: b"property:not-ported\0",
 };
@@ -68,10 +71,10 @@ const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_FREQUENCY: u8 = 21;
 const VALUE_TYPE_IMAGE: u8 = 23;
 const VALUE_TYPE_INTEGER: u8 = 24;
-const VALUE_TYPE_LENGTH: u8 = 25;
+pub(crate) const VALUE_TYPE_LENGTH: u8 = 25;
 const VALUE_TYPE_NUMBER: u8 = 27;
 const VALUE_TYPE_OPACITY_VALUE: u8 = 28;
-const VALUE_TYPE_PERCENTAGE: u8 = 31;
+pub(crate) const VALUE_TYPE_PERCENTAGE: u8 = 31;
 const VALUE_TYPE_RATIO: u8 = 33;
 const VALUE_TYPE_RESOLUTION: u8 = 35;
 const VALUE_TYPE_STRING: u8 = 37;
@@ -142,6 +145,7 @@ pub struct ParseContext {
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+    pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub random_function_index: *mut usize,
 }
 
@@ -261,17 +265,17 @@ fn property_uses_special_keyword_parser(property: u16) -> bool {
 }
 
 #[derive(Clone, Copy)]
-struct NumericRange {
+pub(crate) struct NumericRange {
     min: f64,
     max: f64,
 }
 
 impl NumericRange {
-    const INFINITE: Self = Self {
+    pub(crate) const INFINITE: Self = Self {
         min: f32::MIN as f64,
         max: f32::MAX as f64,
     };
-    const NON_NEGATIVE: Self = Self {
+    pub(crate) const NON_NEGATIVE: Self = Self {
         min: 0.0,
         max: f32::MAX as f64,
     };
@@ -329,7 +333,7 @@ fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> bool {
         .any(|blocked| equals_ascii_case_insensitive(identifier, blocked.as_bytes()))
 }
 
-fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
+pub(crate) fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
     let callback = context.intern_utf16_fly_string?;
     let raw = unsafe { callback(string.as_ptr(), string.len()) };
     Some(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
@@ -594,7 +598,7 @@ fn parse_length_value(
     })
 }
 
-fn parse_length_percentage_value(
+pub(crate) fn parse_length_percentage_value(
     context: &ParseContext,
     property: u16,
     value: &ComponentValue,
@@ -603,6 +607,105 @@ fn parse_length_percentage_value(
 ) -> Option<StyleValueData> {
     parse_length_value(context, property, value, accepted_length_range)
         .or_else(|| parse_percentage_value(value, accepted_percentage_range))
+}
+
+pub(crate) fn parse_length_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_LENGTH,
+            None,
+            accepted_range,
+            name,
+            values,
+        )
+    } else {
+        parse_length_value(context, property, value, accepted_range)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
+}
+
+pub(crate) fn parse_length_percentage_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_length_range: NumericRange,
+    accepted_percentage_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_LENGTH,
+            Some(VALUE_TYPE_LENGTH),
+            accepted_length_range,
+            name,
+            values,
+        )
+        .or_else(|| {
+            parse_calculated_numeric_value_with_ranges(
+                context,
+                property,
+                VALUE_TYPE_PERCENTAGE,
+                None,
+                accepted_percentage_range,
+                name,
+                values,
+            )
+        })
+    } else {
+        parse_length_percentage_value(
+            context,
+            property,
+            value,
+            accepted_length_range,
+            accepted_percentage_range,
+        )
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
+}
+
+pub(crate) fn parse_number_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_NUMBER,
+            None,
+            accepted_range,
+            name,
+            values,
+        )
+    } else {
+        parse_number_value(value, accepted_range)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
 }
 
 fn parse_resolution_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
@@ -653,7 +756,10 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
         ComponentKind::Function { name, values } => {
             if is_arbitrary_substitution_function(name) {
                 Some(&SUBSTITUTION_NOT_PORTED)
-            } else if math_function_from_name(name).is_some() || is_color_function_name(name) {
+            } else if math_function_from_name(name).is_some()
+                || is_color_function_name(name)
+                || is_position_shape_function_name(name)
+            {
                 unported_function_reason(values)
             } else {
                 // NB: C++ numeric grammars can accept functions such as
@@ -767,6 +873,31 @@ fn parse_calculated_numeric_value(
 ) -> Option<StyleValueData> {
     let property_percentages_resolve_as = property_percentages_resolve_to(property);
     let percentages_resolve_as = (property_percentages_resolve_as == Some(value_type)).then_some(value_type);
+    let range = if value_type == VALUE_TYPE_OPACITY_VALUE {
+        NumericRange::INFINITE
+    } else {
+        accepted_range(property, value_type)
+    };
+    parse_calculated_numeric_value_with_ranges(
+        context,
+        property,
+        value_type,
+        percentages_resolve_as,
+        range,
+        name,
+        values,
+    )
+}
+
+fn parse_calculated_numeric_value_with_ranges(
+    context: &ParseContext,
+    property: u16,
+    value_type: u8,
+    percentages_resolve_as: Option<u8>,
+    range: NumericRange,
+    name: &[u16],
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
     let root = match parse_a_calc_function_node(
         name,
         values,
@@ -824,7 +955,7 @@ fn parse_calculated_numeric_value(
     }
     let (range_value_type, range) = opacity_resolved_type
         .map(|value_type| (value_type, NumericRange::INFINITE))
-        .unwrap_or_else(|| (value_type, accepted_range(property, value_type)));
+        .unwrap_or((value_type, range));
     let calculated = StyleValueData::Calculated {
         rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(root),
         resolve_as_is_number: percentages_resolve_as == Some(VALUE_TYPE_NUMBER),
@@ -1270,6 +1401,17 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if let Some(reason) = unported_function_reason(values) {
         return ParseOutcome::NotHandled(reason);
     }
+    if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    let position_outcome = parse_position_property(context, property_id, values);
+    if !matches!(position_outcome, ParseOutcome::NotHandled(_)) {
+        return position_outcome;
+    }
+    let geometry_outcome = parse_geometry_property(context, property_id, values);
+    if !matches!(geometry_outcome, ParseOutcome::NotHandled(_)) {
+        return geometry_outcome;
+    }
     if property_id == property_id::DISPLAY {
         return parse_display_keyword(values);
     }
@@ -1444,6 +1586,7 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
+            normalize_svg_path_data: None,
             random_function_index: std::ptr::null_mut(),
         }
     }
@@ -1481,6 +1624,10 @@ mod tests {
             panic!("unported value should not be authoritative");
         };
         assert_eq!(reason.label, "property:not-ported");
+        assert!(matches!(
+            parse_css_value(&context(), u16::MAX, &values),
+            ParseOutcome::NotHandled(_)
+        ));
     }
 
     #[test]

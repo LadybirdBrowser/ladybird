@@ -7,5 +7,6 @@
 pub(crate) mod calc_parser;
 pub(crate) mod color_parser;
 pub(crate) mod component_value;
+pub(crate) mod positions_shapes_parser;
 pub(crate) mod token_stream;
 pub(crate) mod value_parser;
