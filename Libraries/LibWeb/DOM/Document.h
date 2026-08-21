@@ -1434,7 +1434,7 @@ private:
     void process_pending_top_layer_layout_changes();
 
     void update_active_element();
-    void collect_paintable_boxes_with_auto_content_visibility();
+    void collect_boxes_with_auto_content_visibility();
     bool needs_style_update_after_layout();
     bool any_anchor_names_are_registered() const;
     PartialRelayoutResult try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
@@ -1820,10 +1820,10 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_accumulated_visual_contexts_update { false };
-    Vector<Layout::RustFFI::PaintableSlotId> m_paintable_boxes_needing_visual_context_value_update;
+    Vector<Layout::RustFFI::PaintableSlotId> m_boxes_needing_visual_context_value_update;
 
     bool m_needs_full_scrollable_overflow_recalculation { false };
-    Vector<Layout::RustFFI::PaintableSlotId> m_paintable_boxes_needing_scrollable_overflow_recalculation;
+    Vector<Layout::RustFFI::PaintableSlotId> m_boxes_needing_scrollable_overflow_recalculation;
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     // The previous recording's list, retained so cached per-paintable item ranges can be spliced into

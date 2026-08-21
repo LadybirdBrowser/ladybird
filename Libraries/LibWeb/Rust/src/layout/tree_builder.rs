@@ -74,7 +74,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
     pub is_svg_element: unsafe extern "C" fn(*mut c_void) -> bool,
-    pub clear_stale_layout_and_paint_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub display_contents_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiDisplayContentsFacts,
     pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub clear_stale_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiStaleSubtreeClearScope),
@@ -756,7 +756,7 @@ unsafe fn update_layout_tree_for_svg_switch_children(
             if child != rendered_child {
                 // SAFETY: The builder and `child` remain live throughout the call.
                 unsafe {
-                    (host.callbacks.clear_stale_layout_and_paint_node)(host.callbacks.builder, child);
+                    (host.callbacks.clear_stale_layout_node)(host.callbacks.builder, child);
                 }
             }
             child = host.next_sibling(child);

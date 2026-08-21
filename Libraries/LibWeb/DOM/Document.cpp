@@ -1796,7 +1796,7 @@ static void relayout_subtree(Layout::Box& subtree_root)
     Layout::LayoutRustBridge bridge;
     // Absolutely positioned boundaries re-resolve their own size and position by replaying
     // their layout from saved inputs; SVG root boundaries keep the frozen geometry saved at
-    // the previous commit. The commit sink resolves the paintable to splice out in either
+    // the previous commit. The commit sink resolves the committed row to splice out in either
     // path.
     if (subtree_root.is_absolutely_positioned()) {
         VERIFY(subtree_root.containing_block());
@@ -1849,16 +1849,16 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
 
     set_needs_accumulated_visual_contexts_update(true);
 
-    // Selection state lives on paintable fragments, which the commit has rebuilt.
+    // Selection state lives on committed fragments, which the commit has rebuilt.
     if (auto range = get_selection()->range())
         paint_state().recompute_selection_states(*this, *range);
 
     if (layout_tree_changed == LayoutTreeChanged::Yes) {
-        // Broadcast the current viewport rect to any new paintables, so they know whether
+        // Broadcast the current viewport rect to any new committed boxes, so they know whether
         // they're visible or not. If necessary, re-collect the content-visibility:auto set.
         inform_all_viewport_clients_about_the_current_viewport_rect();
         if (m_may_have_content_visibility_auto_style)
-            collect_paintable_boxes_with_auto_content_visibility();
+            collect_boxes_with_auto_content_visibility();
     }
 
     m_document->set_needs_repaint();
@@ -2094,7 +2094,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
 
     for (auto* rebuilt_root : rebuilt_subtree_roots) {
         // Every rebuilt subtree must lie inside a boundary for its dirt to be confined.
-        // The rebuilt box itself may qualify with its paintable still pending; boundaries
+        // The rebuilt box itself may qualify with its committed row still pending; boundaries
         // above it were not replaced and must have one.
         Layout::Box* containing_boundary = nullptr;
         if (auto* rebuilt_box = as_if<Layout::Box>(*rebuilt_root); rebuilt_box && rebuilt_box->is_partial_relayout_boundary())
@@ -2122,7 +2122,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     layout_node_arena().sync_enrolled_content_for_layout();
     for (auto* root : partial_relayout_roots) {
         relayout_subtree(*root);
-        // NB: The subtree commit reset the root's descendant paintables, and the subtree's
+        // NB: The subtree commit reset the root's descendant rows, and the subtree's
         //     new size may change ancestor scrollable overflow; scheduling the root covers both.
         schedule_scrollable_overflow_recalculation(*root);
     }
@@ -2285,9 +2285,9 @@ void Document::update_layout(UpdateLayoutReason reason)
 }
 
 // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
-void Document::collect_paintable_boxes_with_auto_content_visibility()
+void Document::collect_boxes_with_auto_content_visibility()
 {
-    Vector<Layout::RustFFI::PaintableSlotId> paintables_with_auto_content_visibility;
+    Vector<Layout::RustFFI::PaintableSlotId> boxes_with_auto_content_visibility;
     unsafe_layout_node()->for_each_in_inclusive_subtree([&](Layout::Node& node) {
         switch (node.kind()) {
         case Layout::RustFFI::NodeKind::SVGMaskBox:
@@ -2300,10 +2300,10 @@ void Document::collect_paintable_boxes_with_auto_content_visibility()
         auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
         if (Painting::has_committed_box(node) && node.dom_node() && node.dom_node()->is_element()
             && node_with_style && node_with_style->content_visibility() == CSS::ContentVisibility::Auto)
-            paintables_with_auto_content_visibility.append(Painting::committed_row_slot(node));
+            boxes_with_auto_content_visibility.append(Painting::committed_row_slot(node));
         return TraversalDecision::Continue;
     });
-    paint_state().set_paintable_boxes_with_auto_content_visibility(move(paintables_with_auto_content_visibility));
+    paint_state().set_boxes_with_auto_content_visibility(move(boxes_with_auto_content_visibility));
 }
 
 void Document::clear_devtools_layout_inspection_data()
@@ -2501,13 +2501,13 @@ static void rebuild_sticky_insets(Layout::Node const& root)
 void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
 {
     // For every box that will be re-measured, the overflow data it had before, so the diff below
-    // can tell what actually changed; an empty value means the box's paintable was reset by a
+    // can tell what actually changed; an empty value means the box's committed row was reset by a
     // subtree layout commit and the old data is unknown.
     HashMap<Layout::Box const*, Optional<Painting::OverflowData>> old_overflow_data_by_box;
 
-    auto pending_paintables = move(m_paintable_boxes_needing_scrollable_overflow_recalculation);
+    auto pending_boxes = move(m_boxes_needing_scrollable_overflow_recalculation);
     auto needs_full_recalculation = exchange(m_needs_full_scrollable_overflow_recalculation, false);
-    if (pending_paintables.is_empty() && !needs_full_recalculation)
+    if (pending_boxes.is_empty() && !needs_full_recalculation)
         return;
     if (!has_committed_viewport_box())
         return;
@@ -2526,7 +2526,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit) {
         VERIFY(needs_full_recalculation);
 
-        // A full-root commit reset every surviving paintable, including its overflow data and
+        // A full-root commit reset every surviving row, including its overflow data and
         // paint cache. There is therefore no old overflow to preserve or diff. Ordinary boxes are
         // measured recursively when their overflow contributes to one of these roots, so they do
         // not need separate eager measurement.
@@ -2556,7 +2556,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         });
         Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
     } else {
-        for (auto const& paintable_slot : pending_paintables) {
+        for (auto const& paintable_slot : pending_boxes) {
             auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
             if (!layout_node)
                 continue;
@@ -2615,7 +2615,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // Cached paint commands and hit-test items capture scrollbar geometry and per-direction
         // scrollability derived from the overflow rect, so they cannot be reused once it changes.
         // This must also run for the after-layout-commit path: a subtree relayout re-measures a
-        // surviving ancestor's overflow without resetting the ancestor's paintable.
+        // surviving ancestor's overflow without resetting the ancestor's committed row.
         Painting::invalidate_paint_cache(*box);
         any_overflow_changed = true;
         any_has_scrollable_overflow_flipped |= has_scrollable_overflow_flipped;
@@ -2637,7 +2637,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // which changes without a flip; the constraints capture the scroll ancestor's scrollable
         // overflow size though, so they have to be refreshed. When a full visual context rebuild is
         // already pending it recaptures constraints anyway, and skipping the refresh then also avoids
-        // touching scroll nodes whose paintables a subtree relayout may have replaced.
+        // touching scroll nodes whose committed rows a subtree relayout may have replaced.
         paint_state().refresh_sticky_constraints(*this);
     }
     set_needs_to_record_display_list();
@@ -2649,15 +2649,15 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     // NB: Called during paint property resolution.
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
-        m_paintable_boxes_needing_visual_context_value_update.clear_with_capacity();
+        m_boxes_needing_visual_context_value_update.clear_with_capacity();
         if (has_committed_viewport_box()) {
             rebuild_sticky_insets(*m_layout_root);
             paint_state().assign_accumulated_visual_contexts(*this);
         }
-    } else if (!m_paintable_boxes_needing_visual_context_value_update.is_empty()) {
-        auto paintable_boxes = move(m_paintable_boxes_needing_visual_context_value_update);
+    } else if (!m_boxes_needing_visual_context_value_update.is_empty()) {
+        auto boxes = move(m_boxes_needing_visual_context_value_update);
         if (has_committed_viewport_box()) {
-            for (auto const& paintable_slot : paintable_boxes) {
+            for (auto const& paintable_slot : boxes) {
                 auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
                 if (!layout_node)
                     continue;
@@ -5725,7 +5725,7 @@ void Document::destroy()
     run_unloading_cleanup_steps();
 
     // AD-HOC: Destruction does not go through did_stop_being_active_document_in_navigable(),
-    //         but stale per-node and root layout/paintable pointers can still keep the old
+    //         but stale per-node and root layout pointers can still keep the old
     //         layout tree alive until GC runs.
     clear_layout_nodes_for_inactive_document();
     tear_down_layout_tree();
@@ -8929,14 +8929,14 @@ void Document::schedule_accumulated_visual_context_value_update(Layout::Node con
 
     // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document that never paints).
     static constexpr size_t max_pending_visual_context_value_updates = 1024;
-    if (m_paintable_boxes_needing_visual_context_value_update.size() >= max_pending_visual_context_value_updates) {
-        m_paintable_boxes_needing_visual_context_value_update.clear();
+    if (m_boxes_needing_visual_context_value_update.size() >= max_pending_visual_context_value_updates) {
+        m_boxes_needing_visual_context_value_update.clear();
         set_needs_accumulated_visual_contexts_update(true);
         return;
     }
 
     if (Painting::has_committed_box(layout_node)) {
-        m_paintable_boxes_needing_visual_context_value_update.append(Painting::committed_row_slot(layout_node));
+        m_boxes_needing_visual_context_value_update.append(Painting::committed_row_slot(layout_node));
         set_needs_repaint(InvalidateDisplayList::No);
     }
 }
@@ -8973,14 +8973,14 @@ void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& la
     // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document that never
     //     updates layout).
     static constexpr size_t max_pending_scrollable_overflow_recalculations = 1024;
-    if (m_paintable_boxes_needing_scrollable_overflow_recalculation.size() >= max_pending_scrollable_overflow_recalculations) {
-        m_paintable_boxes_needing_scrollable_overflow_recalculation.clear();
+    if (m_boxes_needing_scrollable_overflow_recalculation.size() >= max_pending_scrollable_overflow_recalculations) {
+        m_boxes_needing_scrollable_overflow_recalculation.clear();
         m_needs_full_scrollable_overflow_recalculation = true;
         return;
     }
 
     if (Painting::has_committed_box(layout_node))
-        m_paintable_boxes_needing_scrollable_overflow_recalculation.append(Painting::committed_row_slot(layout_node));
+        m_boxes_needing_scrollable_overflow_recalculation.append(Painting::committed_row_slot(layout_node));
 }
 
 void Document::schedule_scrollable_overflow_recalculation(Element& element)

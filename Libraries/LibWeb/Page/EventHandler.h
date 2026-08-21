@@ -173,7 +173,7 @@ private:
     void handle_gamepad_updated(SDL_JoystickID);
     void handle_gamepad_disconnected(SDL_JoystickID);
 
-    bool paint_root() const;
+    bool has_committed_root_box() const;
     Unicode::Segmenter& word_segmenter();
 
     GC::Ref<HTML::LocalNavigable> m_navigable;

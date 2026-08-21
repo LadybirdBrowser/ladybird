@@ -440,8 +440,8 @@ void EventLoop::update_the_rendering()
             // 3. For each element element with 'auto' used value of 'content-visibility':
             auto* document_element = document->document_element();
             if (document_element) {
-                for (auto paintable_slot : document->paint_state().paintable_boxes_with_auto_content_visibility()) {
-                    auto* layout_node = Painting::layout_node_for_committed_slot(document->layout_node_arena(), paintable_slot);
+                for (auto box_slot : document->paint_state().boxes_with_auto_content_visibility()) {
+                    auto* layout_node = Painting::layout_node_for_committed_slot(document->layout_node_arena(), box_slot);
                     if (!layout_node)
                         continue;
                     auto* element = as_if<DOM::Element>(layout_node->dom_node());

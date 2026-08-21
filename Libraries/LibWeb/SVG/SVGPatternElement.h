@@ -54,7 +54,7 @@ public:
     GC::Ptr<SVGPatternElement const> pattern_content_element() const;
 
     struct PaintGeometry {
-        Layout::NodeWithStyle const* pattern_paintable;
+        Layout::NodeWithStyle const* pattern_layout_node;
         Gfx::FloatRect tile_rect;
         Gfx::FloatSize content_scale;
         Painting::TransformData tile_content_transform;

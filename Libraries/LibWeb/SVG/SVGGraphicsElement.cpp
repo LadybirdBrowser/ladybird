@@ -56,7 +56,7 @@ Optional<SVGGraphicsElement::PaintServer> SVGGraphicsElement::svg_paint_computed
         if (!geometry.has_value())
             return {};
         return PaintServer { PatternPaintServer {
-            .pattern_paintable = geometry->pattern_paintable,
+            .pattern_layout_node = geometry->pattern_layout_node,
             .tile_rect = geometry->tile_rect,
             .content_scale = geometry->content_scale,
             .tile_content_transform = geometry->tile_content_transform,
