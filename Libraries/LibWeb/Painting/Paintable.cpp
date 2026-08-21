@@ -179,6 +179,14 @@ GC::Ptr<DOM::Node> event_dispatch_dom_node_for(Paintable const& paintable)
     return static_cast<Layout::Node*>(layout_node_shell)->dom_node();
 }
 
+RefPtr<Paintable> paintable_for_slot(void* arena_handle, Layout::RustFFI::PaintableSlotId slot)
+{
+    auto* layout_node_shell = Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena_handle, slot);
+    if (!layout_node_shell)
+        return nullptr;
+    return static_cast<Layout::Node*>(layout_node_shell)->paintable();
+}
+
 DOM::Node* HitTestResult::dom_node()
 {
     if (dom_node_override)
@@ -370,7 +378,8 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
             cursor_rect.set_y(cursor_rect.y() - 1);
         cursor_rect.set_height(1);
     }
-    for (auto* ancestor = static_cast<Paintable*>(result.owner_paintable); ancestor;) {
+    auto owner = paintable_for_slot(layout_node->arena_handle(), result.owner_paintable);
+    for (auto* ancestor = owner.ptr(); ancestor;) {
         if (ancestor->has_scrollable_overflow()) {
             if (scroll_block_direction == ScrollBlockDirection::No) {
                 auto snapport = ancestor->scroll_snapport_rect();

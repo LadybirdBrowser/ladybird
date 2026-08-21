@@ -131,8 +131,10 @@ Optional<PaintableWithLines::CaretPaint> PaintableWithLines::resolve_caret_paint
         auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
             rust_arena().handle(), text_slots.data(), text_slots.size(), cursor_position->offset(),
             cursor_position->affinity() == TextAffinity::Downstream);
-        if (result.found && result.owner_paintable == static_cast<void const*>(static_cast<Paintable const*>(this))) {
-            if (result.nearest_self_painting_inline != static_cast<void const*>(static_cast<Paintable const*>(owner)))
+        if (result.found && result.owner_paintable.index == rust_slot().index) {
+            auto owner_slot = owner ? owner->rust_slot()
+                                    : Layout::RustFFI::PaintableSlotId { Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX };
+            if (result.nearest_self_painting_inline.index != owner_slot.index)
                 return {};
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);
             if (!style_source || !layout_node_is_visible(*style_source))
