@@ -1303,6 +1303,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut coordinating_list_rows = Vec::new();
     let mut percentages_resolve_to_rows = Vec::new();
     let mut unitless_length_quirk_rows = Vec::new();
+    let mut hashless_hex_color_quirk_rows = Vec::new();
     for name in &property_names {
         let mut accepted_keywords = std::collections::BTreeSet::new();
         let mut keyword_aliases = Vec::new();
@@ -1404,6 +1405,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
                 .and_then(|value| value.as_array().cloned())
                 .is_some_and(|quirks| quirks.iter().any(|quirk| quirk.as_str() == Some("unitless-length"))),
         );
+        hashless_hex_color_quirk_rows.push(
+            property_field(name, "quirks")
+                .and_then(|value| value.as_array().cloned())
+                .is_some_and(|quirks| quirks.iter().any(|quirk| quirk.as_str() == Some("hashless-hex-color"))),
+        );
     }
     output.push_str(&format!(
         "pub(crate) static PROPERTY_NAMES: [&str; {}] = {:?};\n",
@@ -1464,6 +1470,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_HAS_UNITLESS_LENGTH_QUIRK: [bool; {}] = {:?};\n\n",
         unitless_length_quirk_rows.len(),
         unitless_length_quirk_rows
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_HAS_HASHLESS_HEX_COLOR_QUIRK: [bool; {}] = {:?};\n\n",
+        hashless_hex_color_quirk_rows.len(),
+        hashless_hex_color_quirk_rows
     ));
     output.push_str(&format!(
         "pub const FIRST_SHORTHAND_PROPERTY_ID: u16 = {};\n",

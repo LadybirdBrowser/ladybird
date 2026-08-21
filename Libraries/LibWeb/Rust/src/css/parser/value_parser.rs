@@ -17,12 +17,14 @@ use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
+use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::token_stream::TokenStream;
 use crate::css::property_metadata::{
     FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
     property_accepts_only_keywords, property_custom_ident_blacklist, property_has_coordinating_list_multiplicity,
-    property_has_unitless_length_quirk, property_id, property_is_shorthand, property_numeric_ranges,
-    property_percentages_resolve_to, property_resolve_legacy_value_alias,
+    property_has_hashless_hex_color_quirk, property_has_unitless_length_quirk, property_id, property_is_shorthand,
+    property_numeric_ranges, property_percentages_resolve_to, property_resolve_legacy_value_alias,
 };
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
@@ -59,6 +61,7 @@ const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
 
 // NB: Keep these in the order of the C++ ValueType enum.
 const VALUE_TYPE_ANGLE: u8 = 2;
+const VALUE_TYPE_COLOR: u8 = 6;
 const VALUE_TYPE_CUSTOM_IDENT: u8 = 10;
 const VALUE_TYPE_DASHED_IDENT: u8 = 11;
 const VALUE_TYPE_FLEX: u8 = 15;
@@ -300,7 +303,7 @@ fn round_to_nearest_integer(value: f64) -> i32 {
     (value + 0.5).floor().clamp(i32::MIN as f64, i32::MAX as f64) as i32
 }
 
-fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
+pub(crate) fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
     value.len() == expected.len()
         && value
             .iter()
@@ -650,7 +653,7 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
         ComponentKind::Function { name, values } => {
             if is_arbitrary_substitution_function(name) {
                 Some(&SUBSTITUTION_NOT_PORTED)
-            } else if math_function_from_name(name).is_some() {
+            } else if math_function_from_name(name).is_some() || is_color_function_name(name) {
                 unported_function_reason(values)
             } else {
                 // NB: C++ numeric grammars can accept functions such as
@@ -772,6 +775,7 @@ fn parse_calculated_numeric_value(
             property,
             random_function_index: context.random_function_index,
             intern_utf16_fly_string: context.intern_utf16_fly_string,
+            allowed_color_channels: 0,
             allow_random_functions: context_allows_random_functions(context),
         },
     ) {
@@ -1189,6 +1193,23 @@ fn parse_display_keyword(values: &[ComponentValue]) -> ParseOutcome {
     ParseOutcome::Parsed(Arc::new(StyleValueData::Display { raw: display.encoded() }))
 }
 
+fn context_allows_quirky_color(context: &ParseContext, property: u16) -> bool {
+    if !context.in_quirks_mode || !property_has_hashless_hex_color_quirk(property) {
+        return false;
+    }
+    let value_contexts = if context.value_context_count == 0 {
+        &[]
+    } else if context.value_contexts.is_null() {
+        return false;
+    } else {
+        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+    };
+    value_contexts.iter().all(|value_context| {
+        value_context.kind == FfiValueParsingContextKind::Property
+            && property_has_hashless_hex_color_quirk(value_context.value)
+    })
+}
+
 pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
     let value_contexts = if context.value_context_count == 0 {
         &[]
@@ -1215,6 +1236,29 @@ pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
         .any(|value_context| value_context.kind == FfiValueParsingContextKind::Property)
 }
 
+fn parse_color_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
+        || property_is_shorthand(property)
+        || !property_accepted_value_types(property).contains(&VALUE_TYPE_COLOR)
+    {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    let mut stream = TokenStream::new(values);
+    let Some(color) = parse_color_value(
+        context,
+        property,
+        &mut stream,
+        context_allows_quirky_color(context, property),
+    ) else {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    };
+    stream.discard_whitespace();
+    if stream.has_next_token() {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    ParseOutcome::Parsed(Arc::new(color))
+}
+
 /// Parse a property value using the grammars which have been ported to Rust.
 ///
 /// `Invalid` is reserved for grammars which Rust handles completely. Until a
@@ -1228,6 +1272,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     }
     if property_id == property_id::DISPLAY {
         return parse_display_keyword(values);
+    }
+    let color_outcome = parse_color_property(context, property_id, values);
+    if !matches!(color_outcome, ParseOutcome::NotHandled(_)) {
+        return color_outcome;
     }
     let special_text_outcome = parse_special_text_property(context, property_id, values);
     if !matches!(special_text_outcome, ParseOutcome::NotHandled(_)) {
@@ -1449,13 +1497,35 @@ mod tests {
 
     #[test]
     fn leaves_mixed_and_special_grammars_with_cpp() {
-        assert!(matches!(parse(property_id::COLOR, "red"), ParseOutcome::NotHandled(_)));
         assert!(matches!(
             parse(property_id::ALIGN_ITEMS, "normal"),
             ParseOutcome::NotHandled(_)
         ));
         assert!(matches!(
             parse(property_id::FONT_FAMILY, "\"Ladybird Sans\""),
+            ParseOutcome::NotHandled(_)
+        ));
+    }
+
+    #[test]
+    fn parses_color_properties() {
+        for (property, source) in [
+            (property_id::COLOR, "red"),
+            (property_id::BACKGROUND_COLOR, "rgb(1 2 3 / 50%)"),
+            (property_id::BORDER_TOP_COLOR, "color(display-p3 1 0 0)"),
+            (property_id::TEXT_DECORATION_COLOR, "color-mix(in oklch, red, blue)"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+
+        let mut quirks_context = context();
+        quirks_context.in_quirks_mode = true;
+        assert!(matches!(
+            parse_with_context(&quirks_context, property_id::BACKGROUND_COLOR, "123"),
+            ParseOutcome::Parsed(_)
+        ));
+        assert!(matches!(
+            parse(property_id::BACKGROUND_COLOR, "123"),
             ParseOutcome::NotHandled(_)
         ));
     }
@@ -1811,6 +1881,42 @@ mod tests {
         };
         assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
         assert_eq!(random_function_index, 1);
+    }
+
+    #[test]
+    fn leaves_random_in_canvas_colors_with_cpp() {
+        let mut random_function_index = 0;
+        let value_contexts = [
+            FfiValueParsingContext {
+                kind: FfiValueParsingContextKind::Special,
+                value: 0,
+                secondary_value: 0,
+                name: std::ptr::null(),
+                name_length: 0,
+                allowed_channels: 0,
+            },
+            FfiValueParsingContext {
+                kind: FfiValueParsingContextKind::Property,
+                value: property_id::COLOR,
+                secondary_value: 0,
+                name: FfiUtf16View::default(),
+                allowed_channels: 0,
+            },
+        ];
+        let mut canvas_context = context();
+        canvas_context.value_contexts = value_contexts.as_ptr();
+        canvas_context.value_context_count = value_contexts.len();
+        canvas_context.random_function_index = &mut random_function_index;
+
+        assert!(matches!(
+            parse_with_context(
+                &canvas_context,
+                property_id::COLOR,
+                "rgb(random(30, 10) random(60, 10) random(90, 10))"
+            ),
+            ParseOutcome::NotHandled(_)
+        ));
+        assert_eq!(random_function_index, 0);
     }
 
     #[test]

@@ -64,6 +64,10 @@ pub(crate) fn property_has_unitless_length_quirk(property_id: u16) -> bool {
     PROPERTY_HAS_UNITLESS_LENGTH_QUIRK[property_index(property_id)]
 }
 
+pub(crate) fn property_has_hashless_hex_color_quirk(property_id: u16) -> bool {
+    PROPERTY_HAS_HASHLESS_HEX_COLOR_QUIRK[property_index(property_id)]
+}
+
 /// How much of the computation a property needs, mirroring the C++
 /// requires-computation levels: 0 = never, 1 = with the cascaded value,
 /// 2 = with any non-inherited value, 3 = always.
