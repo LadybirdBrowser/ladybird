@@ -848,16 +848,13 @@ inline fn load_primitive_string_utf16_code_unit(
 
     let short_string_info = string.utf16_short_string_byte_count_and_flag;
     if short_string_info lacks UTF16_SHORT_STRING_FLAG {
-        let encoded_length = utf16_data.length_in_code_units;
-        let signed_length: i64 = alias(encoded_length);
-        if signed_length < 0 {
-            let length = encoded_length << 1 >> 1;
-            guard length > alias(index) else out_of_bounds;
+        let length = utf16_data.length_in_code_units;
+        guard length > index else out_of_bounds;
+        if utf16_data.flags has UTF16_STRING_DATA_HAS_UTF16_STORAGE {
             let utf16_storage: Sequence<u16> = alias(utf16_data.string_storage);
             let code_unit: u32 = alias(utf16_storage[index]);
             code_unit
         } else {
-            guard encoded_length > alias(index) else out_of_bounds;
             let code_unit: u32 = alias(utf16_data.string_storage[index]);
             code_unit
         }

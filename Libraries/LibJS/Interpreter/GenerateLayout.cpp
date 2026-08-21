@@ -421,9 +421,12 @@ int main()
 
     // Utf16StringData layout
     outln("\n# Utf16StringData layout");
-    EMIT_OFFSET(UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS, AK::Detail::Utf16StringData, m_length_in_code_units);
+    EMIT_OFFSET(UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS, AK::Detail::Utf16StringData, m_header.length_in_code_units);
+    EMIT_OFFSET(UTF16_STRING_DATA_FLAGS, AK::Detail::Utf16StringData, m_header.flags);
     outln("const UTF16_STRING_DATA_STRING_STORAGE = {}", AK::Detail::Utf16StringData::offset_of_string_storage());
-    outln("field Utf16StringData.length_in_code_units u64 UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS nullable scalar");
+    outln("const UTF16_STRING_DATA_HAS_UTF16_STORAGE = {}", static_cast<u32>(AK::Detail::Utf16StringData::HasUtf16Storage));
+    outln("field Utf16StringData.length_in_code_units u32 UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS nullable scalar");
+    outln("field Utf16StringData.flags u32 UTF16_STRING_DATA_FLAGS nullable scalar");
     outln("field Utf16StringData.string_storage Sequence<u8> UTF16_STRING_DATA_STRING_STORAGE embedded scalar");
 
     // Environment layout
