@@ -26,7 +26,7 @@ inline Vector<StyleValueFFI::RetainedRequestUrlModifier> retain_url_modifiers_fo
     Vector<StyleValueFFI::RetainedRequestUrlModifier> modifiers;
     modifiers.ensure_capacity(url.request_url_modifiers().size());
     for (auto const& modifier : url.request_url_modifiers()) {
-        StyleValueFFI::RetainedRequestUrlModifier ffi_modifier { to_underlying(modifier.type()), 0, { 0, nullptr } };
+        StyleValueFFI::RetainedRequestUrlModifier ffi_modifier { to_underlying(modifier.type()), 0, { 0 } };
         modifier.value().visit(
             [&](CrossOriginModifierValue value) { ffi_modifier.enum_value = to_underlying(value); },
             [&](ReferrerPolicyModifierValue value) { ffi_modifier.enum_value = to_underlying(value); },

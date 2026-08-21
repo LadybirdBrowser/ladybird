@@ -1026,7 +1026,7 @@ TEST_CASE(rust_counter_definition_handles_retain_value_data)
 {
     auto value = IntegerStyleValue::create(2);
     StyleValueFFI::RetainedCounterDefinition definition {
-        { Utf16FlyString::from_utf8("item"sv).to_raw_leaked(), nullptr },
+        { Utf16FlyString::from_utf8("item"sv).to_raw_leaked() },
         false,
         { StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) },
     };
@@ -1270,7 +1270,7 @@ TEST_CASE(rust_image_set_handles_retain_option_data)
         { create_test_image("candidate.png"sv) },
         { StyleValueFFI::rust_style_value_create_resolution(1, 0) },
         false,
-        { 0, nullptr },
+        { 0 },
     };
     auto image_set = StyleValue::adopt_rust_style_value_data(
         StyleValueFFI::rust_style_value_create_image_set(&option, 1));

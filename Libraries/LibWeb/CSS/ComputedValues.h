@@ -1743,7 +1743,7 @@ public:
         {
             static_assert(sizeof(Utf16FlyString) == sizeof(size_t));
             static_assert(alignof(Utf16FlyString) == alignof(size_t));
-            return { reinterpret_cast<Utf16FlyString const*>(color_schemes.raw_pointer), color_schemes.length };
+            return { reinterpret_cast<Utf16FlyString const*>(color_schemes.pointer), color_schemes.length };
         }
 
         bool operator==(InheritedUIValues const& other) const
@@ -2022,7 +2022,7 @@ public:
         {
             static_assert(sizeof(Utf16FlyString) == sizeof(size_t));
             static_assert(alignof(Utf16FlyString) == alignof(size_t));
-            return { reinterpret_cast<Utf16FlyString const*>(values.raw_pointer), values.length };
+            return { reinterpret_cast<Utf16FlyString const*>(values.pointer), values.length };
         }
         static Vector<Utf16FlyString> materialize_fly_strings(ComputedValuesFFI::RetainedUtf16FlyStringList const& values)
         {

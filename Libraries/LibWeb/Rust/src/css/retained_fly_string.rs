@@ -11,26 +11,15 @@
 //! the same arrangement `display.rs` uses for `FfiDisplay`.
 
 use crate::css::style_value::retained_list_partial_eq;
-use std::ffi::c_void;
-use std::sync::Arc;
-
-struct FlyStringStorage {
-    raw: usize,
-}
-
-impl Drop for FlyStringStorage {
-    fn drop(&mut self) {
-        crate::css::ffi_stats::release_utf16_fly_string(self.raw);
-    }
-}
-
-/// A retained AK::Utf16FlyString. Rust clones share one storage reference, so
-/// copying style values and computed payloads never crosses into C++.
+/// A retained `AK::Utf16FlyString` with the same one-word representation.
 #[repr(C)]
 pub struct RetainedUtf16FlyString {
     raw: usize,
-    storage: *const c_void,
+    _not_send_or_sync: std::marker::PhantomData<*const ()>,
 }
+
+const _: () = assert!(size_of::<RetainedUtf16FlyString>() == size_of::<usize>());
+const _: () = assert!(align_of::<RetainedUtf16FlyString>() == align_of::<usize>());
 
 impl RetainedUtf16FlyString {
     /// The raw one-word representation; fly strings are interned, so equal raw
@@ -39,12 +28,16 @@ impl RetainedUtf16FlyString {
         self.raw
     }
 
+    pub(crate) fn raw_word(&self) -> &usize {
+        &self.raw
+    }
+
     /// The no-string sentinel; holds no reference. No real fly string uses the
     /// zero raw representation.
     pub(crate) fn none() -> Self {
         Self {
             raw: 0,
-            storage: std::ptr::null(),
+            _not_send_or_sync: std::marker::PhantomData,
         }
     }
 
@@ -55,7 +48,7 @@ impl RetainedUtf16FlyString {
         }
         Self {
             raw,
-            storage: Arc::into_raw(Arc::new(FlyStringStorage { raw })).cast(),
+            _not_send_or_sync: std::marker::PhantomData,
         }
     }
 }
@@ -65,11 +58,11 @@ impl Clone for RetainedUtf16FlyString {
         if self.raw == 0 {
             return Self::none();
         }
-        // SAFETY: Every non-zero value owns one Arc strong reference.
-        unsafe { Arc::increment_strong_count(self.storage.cast::<FlyStringStorage>()) };
+        // SAFETY: Every non-zero value owns one reference to a valid fly string.
+        unsafe { ak::reference_utf16_string(self.raw) };
         Self {
             raw: self.raw,
-            storage: self.storage,
+            _not_send_or_sync: std::marker::PhantomData,
         }
     }
 }
@@ -79,8 +72,8 @@ impl Drop for RetainedUtf16FlyString {
         if self.raw == 0 {
             return;
         }
-        // SAFETY: Every non-zero value owns one Arc strong reference.
-        unsafe { Arc::decrement_strong_count(self.storage.cast::<FlyStringStorage>()) };
+        // SAFETY: Every non-zero value owns one reference to a valid fly string.
+        unsafe { ak::release_utf16_string_with(self.raw, crate::css::ffi_stats::release_utf16_fly_string) };
     }
 }
 
@@ -106,25 +99,14 @@ impl std::fmt::Debug for RetainedUtf16FlyString {
 pub struct RetainedUtf16FlyStringList {
     pointer: *mut RetainedUtf16FlyString,
     length: usize,
-    raw_pointer: *mut usize,
 }
 
 impl RetainedUtf16FlyStringList {
     pub(crate) fn from_retained_strings(strings: Vec<RetainedUtf16FlyString>) -> Self {
-        let raw_slice = strings
-            .iter()
-            .map(RetainedUtf16FlyString::raw)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        let raw_pointer = Box::into_raw(raw_slice) as *mut usize;
         let slice = strings.into_boxed_slice();
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
-        Self {
-            pointer,
-            length,
-            raw_pointer,
-        }
+        Self { pointer, length }
     }
 
     /// Takes ownership of one leaked reference to each string.
@@ -135,19 +117,9 @@ impl RetainedUtf16FlyStringList {
         let slice: Box<[RetainedUtf16FlyString]> = (0..length)
             .map(|i| unsafe { RetainedUtf16FlyString::from_leaked_raw(*strings.add(i)) })
             .collect();
-        let raw_slice = slice
-            .iter()
-            .map(RetainedUtf16FlyString::raw)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        let raw_pointer = Box::into_raw(raw_slice) as *mut usize;
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
-        Self {
-            pointer,
-            length,
-            raw_pointer,
-        }
+        Self { pointer, length }
     }
 
     pub(crate) fn clone_retained(&self) -> Self {
@@ -164,10 +136,11 @@ impl RetainedUtf16FlyStringList {
     /// The list viewed as raw fly-string words; fly strings are interned, so
     /// equal raws mean equal strings.
     pub(crate) fn raws(&self) -> &[usize] {
-        if self.raw_pointer.is_null() {
+        if self.pointer.is_null() {
             return &[];
         }
-        unsafe { std::slice::from_raw_parts(self.raw_pointer, self.length) }
+        // SAFETY: `RetainedUtf16FlyString` is represented by its single raw word.
+        unsafe { std::slice::from_raw_parts(self.pointer.cast::<usize>(), self.length) }
     }
 }
 
@@ -181,9 +154,6 @@ impl Drop for RetainedUtf16FlyStringList {
     fn drop(&mut self) {
         if !self.pointer.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.pointer, self.length)) });
-        }
-        if !self.raw_pointer.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.raw_pointer, self.length)) });
         }
     }
 }

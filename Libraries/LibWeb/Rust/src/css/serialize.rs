@@ -36,32 +36,6 @@ impl SerializationMode {
     }
 }
 
-unsafe extern "C" {
-    /// Reads the contents of a retained Utf16FlyString. Short strings are decoded into
-    /// `short_buffer`, which must hold at least 16 bytes; long strings return a pointer into
-    /// the refcounted heap data the retained reference keeps alive.
-    fn ladybird_utf16_fly_string_view(raw: usize, short_buffer: *mut u8) -> FfiFlyStringView;
-}
-
-#[repr(C)]
-pub(crate) struct FfiFlyStringView {
-    data: *const c_void,
-    length: usize,
-    is_ascii: bool,
-}
-
-impl FfiFlyStringView {
-    /// The empty view, used by the cargo-test bridge stub.
-    #[cfg(test)]
-    pub(crate) fn empty() -> Self {
-        Self {
-            data: std::ptr::null(),
-            length: 0,
-            is_ascii: true,
-        }
-    }
-}
-
 /// The decoded storage of a fly string: ASCII bytes or UTF-16 code units.
 pub(crate) enum StringUnits<'a> {
     Ascii(&'a [u8]),
@@ -70,22 +44,10 @@ pub(crate) enum StringUnits<'a> {
 
 /// Calls `f` with a view of the fly string's contents.
 pub(crate) fn with_fly_string_units<R>(string: &RetainedUtf16FlyString, f: impl FnOnce(StringUnits) -> R) -> R {
-    if string.raw() == 0 {
-        return f(StringUnits::Ascii(&[]));
-    }
-    let mut short_buffer = [0u8; 16];
-    // SAFETY: The retained reference keeps the fly string alive; the buffer outlives the view.
-    let view = unsafe { ladybird_utf16_fly_string_view(string.raw(), short_buffer.as_mut_ptr()) };
-    if view.length == 0 {
-        return f(StringUnits::Ascii(&[]));
-    }
-    let units = if view.is_ascii {
-        // SAFETY: `data` points either at `short_buffer` or at heap storage kept alive by the
-        // retained reference for the duration of this call.
-        StringUnits::Ascii(unsafe { std::slice::from_raw_parts(view.data.cast::<u8>(), view.length) })
-    } else {
-        // SAFETY: Non-ASCII storage is never short, so `data` is stable heap storage.
-        StringUnits::Utf16(unsafe { std::slice::from_raw_parts(view.data.cast::<u16>(), view.length) })
+    // SAFETY: The retained owner remains borrowed for the returned view's lifetime.
+    let units = match unsafe { ak::utf16_string_units(string.raw_word()) } {
+        ak::Utf16StringUnits::Ascii(bytes) => StringUnits::Ascii(bytes),
+        ak::Utf16StringUnits::Utf16(units) => StringUnits::Utf16(units),
     };
     f(units)
 }
@@ -255,24 +217,13 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
 }
 
 pub(crate) fn fly_string_raw_to_string(raw: usize) -> String {
-    if raw == 0 {
-        return String::new();
-    }
-    let mut short_buffer = [0u8; 16];
     // SAFETY: Callers hold a retained fly-string owner while converting the raw value.
-    let view = unsafe { ladybird_utf16_fly_string_view(raw, short_buffer.as_mut_ptr()) };
-    if view.length == 0 {
-        return String::new();
-    }
-    if view.is_ascii {
-        // SAFETY: The view points to ASCII bytes that remain live for this call.
-        let bytes = unsafe { std::slice::from_raw_parts(view.data.cast::<u8>(), view.length) };
-        // SAFETY: ASCII is valid UTF-8.
-        unsafe { String::from_utf8_unchecked(bytes.to_vec()) }
-    } else {
-        // SAFETY: The view points to UTF-16 units that remain live for this call.
-        let units = unsafe { std::slice::from_raw_parts(view.data.cast::<u16>(), view.length) };
-        String::from_utf16_lossy(units)
+    match unsafe { ak::utf16_string_units(&raw) } {
+        ak::Utf16StringUnits::Ascii(bytes) => {
+            // SAFETY: ASCII is valid UTF-8.
+            unsafe { String::from_utf8_unchecked(bytes.to_vec()) }
+        }
+        ak::Utf16StringUnits::Utf16(units) => String::from_utf16_lossy(units),
     }
 }
 

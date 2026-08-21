@@ -60,9 +60,9 @@ private:
             auto implicit_start_name = implicit_grid_line_name(name, "-start"sv);
             auto implicit_end_name = implicit_grid_line_name(name, "-end"sv);
             areas.unchecked_append({
-                { name.to_raw_leaked(), nullptr },
-                { implicit_start_name.to_raw_leaked(), nullptr },
-                { implicit_end_name.to_raw_leaked(), nullptr },
+                { name.to_raw_leaked() },
+                { implicit_start_name.to_raw_leaked() },
+                { implicit_end_name.to_raw_leaked() },
                 area.row_start,
                 area.row_end,
                 area.column_start,
