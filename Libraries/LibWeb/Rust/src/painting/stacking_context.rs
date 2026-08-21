@@ -47,16 +47,18 @@ pub(crate) fn build_stacking_context_tree(
 
     let mut index_in_tree_order = 1;
     let mut stack: Vec<PaintableSlotId> = Vec::new();
-    let mut child = paintables.first_child(root);
+    let mut child = crate::painting::paint_order::first_paint_child(layout_arena, paintables, root);
     while let Some(first) = child {
         stack.push(first);
         child = None;
         while let Some(current) = stack.pop() {
             visit(layout_arena, paintables, &mut tree, current, &mut index_in_tree_order);
-            if let Some(next) = paintables.next_sibling(current) {
+            if let Some(next) = crate::painting::paint_order::next_paint_sibling(layout_arena, paintables, current) {
                 stack.push(next);
             }
-            if let Some(first_child) = paintables.first_child(current) {
+            if let Some(first_child) =
+                crate::painting::paint_order::first_paint_child(layout_arena, paintables, current)
+            {
                 stack.push(first_child);
             }
         }
@@ -74,7 +76,7 @@ fn visit(
     index_in_tree_order: &mut usize,
 ) {
     let data = paintables.data_ref(paintable);
-    let mut ancestor = paintables.parent(paintable);
+    let mut ancestor = crate::painting::paint_order::paint_parent(layout_arena, paintables, paintable);
     let mut parent_context = NO_STACKING_CONTEXT;
     while let Some(candidate) = ancestor {
         let context = paintables.data_ref(candidate).stacking_context;
@@ -82,7 +84,7 @@ fn visit(
             parent_context = context;
             break;
         }
-        ancestor = paintables.parent(candidate);
+        ancestor = crate::painting::paint_order::paint_parent(layout_arena, paintables, candidate);
     }
     // We should always reach the viewport's stacking context.
     assert_ne!(

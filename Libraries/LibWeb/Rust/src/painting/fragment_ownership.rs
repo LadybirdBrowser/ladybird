@@ -121,12 +121,12 @@ pub(crate) fn assign_fragment_ownership(
     // whenever that tree is rebuilt.
     let mut stack = vec![viewport];
     while let Some(current) = stack.pop() {
-        if let Some(next) = paintables.next_sibling(current)
+        if let Some(next) = crate::painting::paint_order::next_paint_sibling(layout_arena, paintables, current)
             && current != viewport
         {
             stack.push(next);
         }
-        if let Some(first_child) = paintables.first_child(current) {
+        if let Some(first_child) = crate::painting::paint_order::first_paint_child(layout_arena, paintables, current) {
             stack.push(first_child);
         }
         let data = paintables.data_ref(current);
