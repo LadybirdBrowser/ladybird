@@ -28,12 +28,10 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
-#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
-#include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
@@ -45,8 +43,6 @@ struct GridInspectorOverlayOptions;
 class HitTestDisplayList;
 class Paintable;
 class PaintableWithLines;
-class ResizeHandle;
-class Scrollbar;
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();

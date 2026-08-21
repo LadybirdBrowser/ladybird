@@ -33,7 +33,7 @@ RefPtr<Scrollbar> ChromeWidgetRegistry::scrollbar(Layout::RustFFI::PaintableSlot
     return direction == ScrollDirection::Horizontal ? entry->value.horizontal_scrollbar : entry->value.vertical_scrollbar;
 }
 
-NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::ensure_scrollbar(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
+NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::get_or_create_scrollbar(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
 {
     auto& entry = m_entries.ensure(slot.index);
     auto& scrollbar = direction == ScrollDirection::Horizontal ? entry.horizontal_scrollbar : entry.vertical_scrollbar;
@@ -50,7 +50,7 @@ RefPtr<ResizeHandle> ChromeWidgetRegistry::resize_handle(Layout::RustFFI::Painta
     return entry->value.resize_handle;
 }
 
-NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::ensure_resize_handle(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::get_or_create_resize_handle(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
 {
     auto& entry = m_entries.ensure(slot.index);
     if (!entry.resize_handle)
