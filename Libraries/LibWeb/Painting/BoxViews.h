@@ -1,0 +1,102 @@
+/*
+ * Copyright (c) 2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <LibWeb/Painting/Paintable.h>
+
+namespace Web::Painting {
+
+WEB_API bool has_committed_box(Layout::Node const&);
+
+WEB_API CSSPixelRect absolute_rect(Layout::Node const&);
+WEB_API CSSPixelRect absolute_padding_box_rect(Layout::Node const&);
+WEB_API CSSPixelRect absolute_border_box_rect(Layout::Node const&);
+WEB_API CSSPixelPoint absolute_position(Layout::Node const&);
+WEB_API CSSPixels absolute_x(Layout::Node const&);
+WEB_API CSSPixels absolute_y(Layout::Node const&);
+WEB_API CSSPixelPoint offset(Layout::Node const&);
+WEB_API CSSPixelSize content_size(Layout::Node const&);
+WEB_API CSSPixels content_width(Layout::Node const&);
+WEB_API CSSPixels content_height(Layout::Node const&);
+WEB_API CSSPixels border_box_width(Layout::Node const&);
+WEB_API CSSPixels border_box_height(Layout::Node const&);
+WEB_API BoxModelMetrics box_model(Layout::Node const&);
+WEB_API Optional<CSS::BorderData> outline_data(Layout::Node const&, CSS::ComputedValues const&);
+WEB_API CSSPixels outline_offset(Layout::Node const&);
+WEB_API CSSPixelRect transform_reference_box(Layout::Node const&);
+WEB_API Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const&);
+WEB_API bool has_scrollable_overflow(Layout::Node const&);
+WEB_API Optional<Paintable::OverflowData> overflow_data(Layout::Node const&);
+WEB_API Optional<Paintable::CachedOverflowData> cached_overflow_data(Layout::Node const&);
+
+WEB_API bool is_visible(Layout::Node const&);
+WEB_API bool visible_for_hit_testing(Layout::Node const&);
+WEB_API bool has_stacking_context(Layout::Node const&);
+WEB_API Optional<int> effective_z_index(Layout::Node const&);
+WEB_API CSS::Display display(Layout::Node const&);
+WEB_API bool is_positioned(Layout::Node const&);
+WEB_API bool is_fixed_position(Layout::Node const&);
+WEB_API bool is_sticky_position(Layout::Node const&);
+WEB_API bool is_absolutely_positioned(Layout::Node const&);
+WEB_API bool is_floating(Layout::Node const&);
+WEB_API bool is_inline(Layout::Node const&);
+WEB_API bool has_css_transform(Layout::Node const&);
+WEB_API bool has_non_invertible_css_transform(Layout::Node const&);
+WEB_API bool uses_collapsing_borders_model(Layout::Node const&);
+WEB_API SelectionState selection_state(Layout::Node const&);
+WEB_API CSS::StyleRecordID style_record_identity(Layout::Node const&);
+WEB_API StringView class_name(Layout::Node const&);
+WEB_API String debug_description(Layout::Node const&);
+WEB_API bool is_navigable_container_viewport_paintable(Layout::Node const&);
+WEB_API bool is_viewport_paintable(Layout::Node const&);
+WEB_API bool is_paintable_with_lines(Layout::Node const&);
+WEB_API bool is_inline_paintable(Layout::Node const&);
+WEB_API bool is_svg_paintable(Layout::Node const&);
+WEB_API bool is_svg_svg_paintable(Layout::Node const&);
+WEB_API bool is_svg_path_paintable(Layout::Node const&);
+WEB_API bool is_svg_foreign_object_paintable(Layout::Node const&);
+
+WEB_API CSSPixelRect transform_rect_to_viewport(Layout::Node const&, CSSPixelRect const&, AccumulatedVisualContextTree::IncludeVisualViewportTransform = AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes);
+WEB_API Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const&, CSSPixelPoint);
+WEB_API Optional<CSSPixelPoint> transform_point_to_local_for_descendants(Layout::Node const&, CSSPixelPoint);
+WEB_API CSSPixelPoint inverse_transform_point(Layout::Node const&, CSSPixelPoint);
+WEB_API CSSPixelPoint transform_to_local_coordinates(Layout::Node const&, CSSPixelPoint);
+
+WEB_API bool has_accumulated_visual_context(Layout::Node const&);
+WEB_API VisualContextIndex accumulated_visual_context_index(Layout::Node const&);
+WEB_API VisualContextIndex accumulated_visual_context_for_descendants_index(Layout::Node const&);
+WEB_API Optional<VisualContextIndex> fixed_background_visual_context(Layout::Node const&);
+WEB_API VisualContextIndex enclosing_scroll_node_index(Layout::Node const&);
+WEB_API VisualContextIndex own_scroll_node_index(Layout::Node const&);
+
+WEB_API Gfx::Path const* committed_svg_path(Layout::Node const&);
+WEB_API CSSPixelSize svg_viewport_size(Layout::Node const&);
+WEB_API Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const&);
+WEB_API Optional<UsedGridTrackList> used_values_for_grid_template_columns(Layout::Node const&);
+WEB_API Optional<UsedGridTrackList> used_values_for_grid_template_rows(Layout::Node const&);
+WEB_API Optional<String> grid_layout_json(Layout::Node const&, UniqueNodeID);
+WEB_API Optional<String> flex_layout_json(Layout::Node const&, UniqueNodeID);
+
+WEB_API CSSPixelPoint box_type_agnostic_position(Layout::Node const&);
+WEB_API bool should_paint_cursor(Layout::Node const&);
+WEB_API Paintable::SelectionStyle selection_style(Layout::Node const&);
+WEB_API Paintable::SelectionStyle selection_style_for_node(Layout::Node const&, GC::Ptr<DOM::Node const>);
+
+WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
+WEB_API void invalidate_paint_cache(Layout::Node const&);
+WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
+WEB_API void invalidate_stacking_context(Layout::Node const&);
+WEB_API void clear_overflow_data(Layout::Node const&);
+WEB_API void clear_cached_overflow_data(Layout::Node const&);
+WEB_API void set_sticky_insets(Layout::Node const&, OwnPtr<StickyInsets>);
+WEB_API StickyInsets sticky_insets(Layout::Node const&);
+WEB_API bool has_sticky_insets(Layout::Node const&);
+
+WEB_API void inline_piece_border_box_rects(Layout::Node const&, Vector<CSSPixelRect>&);
+WEB_API CSSPixelPoint cumulative_scroll_compensation(Layout::Node const&);
+
+}

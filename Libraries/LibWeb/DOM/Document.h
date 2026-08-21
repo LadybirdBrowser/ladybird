@@ -515,6 +515,9 @@ public:
     RefPtr<Painting::ViewportPaintable const> unsafe_paintable() const;
     RefPtr<Painting::ViewportPaintable> unsafe_paintable();
 
+    Painting::AccumulatedVisualContextTree const& visual_context_tree() const;
+    Painting::ScrollStateSnapshot const& scroll_state_snapshot() const;
+
     GC::Ref<NodeList> get_elements_by_name(Utf16View);
 
     GC::Ref<HTMLCollection> applets();

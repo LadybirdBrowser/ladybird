@@ -6903,6 +6903,16 @@ RefPtr<Painting::ViewportPaintable> Document::unsafe_paintable()
     return as<Painting::ViewportPaintable>(*paintable);
 }
 
+Painting::AccumulatedVisualContextTree const& Document::visual_context_tree() const
+{
+    return paintable()->visual_context_tree();
+}
+
+Painting::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
+{
+    return paintable()->scroll_state_snapshot();
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
 void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry)
 {
