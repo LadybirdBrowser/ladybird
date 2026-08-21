@@ -1515,28 +1515,31 @@ void WebContentClient::did_request_restore_window(u64 page_id)
     }
 }
 
-void WebContentClient::did_request_reposition_window(u64 page_id, Gfx::IntPoint position)
+void WebContentClient::did_request_reposition_window(u64 page_id, Gfx::IntPoint position, u64 completion_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_reposition_window)
             view->on_reposition_window(position);
     }
+    async_did_complete_window_rect_request(page_id, completion_id);
 }
 
-void WebContentClient::did_request_resize_window(u64 page_id, Gfx::IntSize size)
+void WebContentClient::did_request_resize_window(u64 page_id, Gfx::IntSize size, u64 completion_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_resize_window)
             view->on_resize_window(size);
     }
+    async_did_complete_window_rect_request(page_id, completion_id);
 }
 
-void WebContentClient::did_request_maximize_window(u64 page_id)
+void WebContentClient::did_request_maximize_window(u64 page_id, u64 completion_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_maximize_window)
             view->on_maximize_window();
     }
+    async_did_complete_window_rect_request(page_id, completion_id);
 }
 
 void WebContentClient::did_request_minimize_window(u64 page_id)

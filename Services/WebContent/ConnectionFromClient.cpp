@@ -2286,10 +2286,10 @@ void ConnectionFromClient::set_window_size(u64 page_id, Web::DevicePixelSize siz
         page->set_window_size(size);
 }
 
-void ConnectionFromClient::did_update_window_rect(u64 page_id)
+void ConnectionFromClient::did_complete_window_rect_request(u64 page_id, u64 completion_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().did_update_window_rect();
+        page->page().did_complete_window_rect_request(completion_id);
 }
 
 void ConnectionFromClient::handle_file_return(u64, i32 error, Optional<IPC::File> file, i32 request_id)

@@ -111,8 +111,6 @@ public:
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
-    void did_update_window_rect();
-
     void set_system_visibility_state(Web::HTML::VisibilityState);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);

@@ -171,10 +171,10 @@ private:
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
     virtual void page_did_request_refresh() override;
-    virtual void page_did_request_resize_window(Gfx::IntSize) override;
-    virtual void page_did_request_reposition_window(Gfx::IntPoint) override;
+    virtual void page_did_request_resize_window(Gfx::IntSize, u64 completion_id) override;
+    virtual void page_did_request_reposition_window(Gfx::IntPoint, u64 completion_id) override;
     virtual void page_did_request_restore_window() override;
-    virtual void page_did_request_maximize_window() override;
+    virtual void page_did_request_maximize_window(u64 completion_id) override;
     virtual void page_did_request_minimize_window() override;
     virtual void page_did_request_fullscreen_window() override;
     virtual void page_did_request_exit_fullscreen() override;

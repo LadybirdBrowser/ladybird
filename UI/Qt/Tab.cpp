@@ -1006,17 +1006,14 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_reposition_window = [this](auto const& position) {
         m_window->move(position.x(), position.y());
-        view().did_update_window_rect();
     };
 
     view().on_resize_window = [this](auto const& size) {
         m_window->resize(size.width(), size.height());
-        view().did_update_window_rect();
     };
 
     view().on_maximize_window = [this]() {
         m_window->showMaximized();
-        view().did_update_window_rect();
     };
 
     view().on_minimize_window = [this]() {

@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <LibGC/RootVector.h>
@@ -119,6 +120,7 @@ private:
     void iconify_the_window(GC::Ref<GC::Function<void()>>);
     void restore_the_window(GC::Ref<GC::Function<void()>>);
     void wait_for_visibility_state(GC::Ref<GC::Function<void()>>, Web::HTML::VisibilityState);
+    u64 register_window_rect_request();
 
     using OnNavigationComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
     void wait_for_navigation_to_complete(OnNavigationComplete);
@@ -161,7 +163,8 @@ private:
     // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
     GC::Ptr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
-    size_t m_pending_window_rect_requests { 0 };
+    HashTable<u64> m_pending_window_rect_requests;
+    u64 m_next_window_rect_request_id { 1 };
 
     size_t m_script_execution_id_counter { 0 };
     Optional<size_t> m_current_script_execution_id;
