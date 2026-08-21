@@ -335,6 +335,7 @@ public:
     // plan back into elements needs this, and it is maintained at exactly the two points the
     // identity itself is.
     void register_style_node(StyleNodeID style_node_id, DOM::Element&);
+    void ensure_style_node_slot(StyleNodeID);
     void unregister_style_node(StyleNodeID style_node_id);
     [[nodiscard]] GC::Ptr<DOM::Element> element_for_style_node(StyleNodeID style_node_id) const;
     void prepare_elements_for_style_computation();
