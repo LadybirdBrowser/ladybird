@@ -867,6 +867,7 @@ set(SOURCES
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListResourceTransaction.cpp
     Painting/DisplayListResourceStorage.cpp
+    Painting/DocumentPaintState.cpp
     Painting/HitTestDisplayList.cpp
     Painting/InlinePaintable.cpp
     Painting/Paintable.cpp

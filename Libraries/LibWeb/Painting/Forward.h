@@ -11,6 +11,7 @@
 namespace Web::Painting {
 
 class AccumulatedVisualContextTree;
+class DocumentPaintState;
 class HitTestDisplayList;
 class ScrollStateSnapshot;
 enum class CaretLineDirection : u8;

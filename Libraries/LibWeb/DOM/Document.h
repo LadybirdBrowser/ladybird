@@ -515,6 +515,8 @@ public:
     RefPtr<Painting::ViewportPaintable const> unsafe_paintable() const;
     RefPtr<Painting::ViewportPaintable> unsafe_paintable();
 
+    Painting::DocumentPaintState& paint_state();
+    Painting::DocumentPaintState const& paint_state() const;
     Painting::AccumulatedVisualContextTree const& visual_context_tree() const;
     Painting::ScrollStateSnapshot const& scroll_state_snapshot() const;
 
@@ -1432,6 +1434,7 @@ private:
     virtual void finalize() override final;
 
     void clear_layout_and_paintable_nodes_for_inactive_document();
+    void set_layout_root(Layout::Viewport&);
     void tear_down_layout_tree();
     void process_pending_top_layer_layout_changes();
 
@@ -1508,6 +1511,7 @@ private:
     GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;
+    OwnPtr<Painting::DocumentPaintState> m_paint_state;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
     RefPtr<Layout::Viewport> m_layout_root;
     bool m_may_have_content_visibility_auto_style { false };
