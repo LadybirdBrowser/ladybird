@@ -2504,7 +2504,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     // current offset clamps it against the new rect.
     auto clamp_scroll_offset = [](Painting::Paintable& paintable) {
         if (!Painting::scroll_offset(paintable.layout_node()).is_zero())
-            paintable.set_scroll_offset(Painting::scroll_offset(paintable.layout_node()));
+            Painting::set_scroll_offset(paintable.layout_node(), Painting::scroll_offset(paintable.layout_node()));
     };
 
     if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit) {

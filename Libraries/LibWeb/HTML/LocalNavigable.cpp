@@ -3918,18 +3918,18 @@ bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID s
         return false;
     document->update_layout(DOM::UpdateLayoutReason::ElementScroll);
     Optional<CSS::PseudoElement> pseudo_element = pseudo_element_from_async_scroll_node_stable_id(stable_node_id);
-    RefPtr<Painting::Paintable> paintable;
+    Layout::Node* layout_node = nullptr;
     if (pseudo_element.has_value()) {
         auto synthetic_pseudo_element = element->get_synthetic_pseudo_element(*pseudo_element);
         if (!synthetic_pseudo_element.has_value() || !synthetic_pseudo_element->layout_node())
             return false;
-        paintable = synthetic_pseudo_element->layout_node()->paintable();
+        layout_node = synthetic_pseudo_element->layout_node();
     } else {
-        paintable = element->paintable_box();
+        layout_node = element->layout_node();
     }
-    if (!paintable)
+    if (!layout_node)
         return false;
-    return paintable->set_scroll_offset(scroll_offset) == Painting::ScrollHandled::Yes;
+    return Painting::set_scroll_offset(*layout_node, scroll_offset) == Painting::ScrollHandled::Yes;
 }
 
 static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)

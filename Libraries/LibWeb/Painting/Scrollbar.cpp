@@ -150,7 +150,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 
     auto new_scroll_offset = Painting::scroll_offset(paintable_box->layout_node());
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
-    paintable_box->set_scroll_offset_from_user_input(new_scroll_offset);
+    Painting::set_scroll_offset_from_user_input(paintable_box->layout_node(), new_scroll_offset);
     return true;
 }
 

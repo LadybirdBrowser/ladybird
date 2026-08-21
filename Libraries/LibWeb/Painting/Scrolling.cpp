@@ -7,12 +7,18 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Scrolling.h>
 
 namespace Web::Painting {
@@ -186,6 +192,167 @@ RefPtr<Paintable const> nearest_scrollable_ancestor(Layout::Node const& node)
             return nullptr;
     }
     return nullptr;
+}
+
+static GC::Ptr<DOM::EventTarget> scroll_event_target(Layout::Node& node)
+{
+    if (node.generated_for_pseudo_element().has_value())
+        return node.pseudo_element_generator();
+    return node.dom_node();
+}
+
+ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
+{
+    if (!has_committed_box(node))
+        return ScrollHandled::No;
+
+    if (!Painting::scrollable_overflow_rect(node).has_value())
+        return ScrollHandled::No;
+
+    offset = clamp_scroll_offset(node, offset);
+
+    if (scroll_offset(node) == offset)
+        return ScrollHandled::No;
+
+    if (node.is_viewport()) {
+        auto navigable = node.document().navigable();
+        VERIFY(navigable);
+        navigable->perform_scroll_of_viewport_scrolling_box(offset);
+        return ScrollHandled::Yes;
+    }
+
+    node.document().set_needs_to_refresh_scroll_state(true);
+
+    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
+        node.pseudo_element_generator()->set_scroll_offset(*pseudo_element, offset);
+    } else if (auto* element = as_if<DOM::Element>(node.dom_node())) {
+        element->set_scroll_offset({}, offset);
+    } else {
+        return ScrollHandled::No;
+    }
+
+    // https://drafts.csswg.org/cssom-view-1/#scrolling-events
+    // Whenever an element gets scrolled (whether in response to user interaction or by an API),
+    // the user agent must run these steps:
+
+    // 1. Let doc be the element’s node document.
+    auto& document = node.document();
+
+    // FIXME: 2. If the element is a snap container, run the steps to update snapchanging targets for the element with
+    //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
+    //           target in the inline axis as newInlineTarget.
+
+    auto event_target = scroll_event_target(node);
+    if (!event_target)
+        return ScrollHandled::Yes;
+
+    // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
+    // 4. Append (element, "scroll") to doc’s pending scroll events.
+    if (!document.append_pending_scroll_event({ *event_target, HTML::EventNames::scroll }))
+        return ScrollHandled::Yes;
+
+    set_needs_repaint(node, InvalidateDisplayList::No);
+    return ScrollHandled::Yes;
+}
+
+ScrollHandled scroll_by(Layout::Node& node, double delta_x, double delta_y)
+{
+    if (!has_committed_box(node))
+        return ScrollHandled::No;
+    return set_scroll_offset_from_user_input(node, scroll_offset(node).translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)));
+}
+
+ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoint offset)
+{
+    if (!has_committed_box(node))
+        return ScrollHandled::No;
+
+    auto scroll_handled = set_scroll_offset(node, offset);
+    auto navigable = node.document().navigable();
+    if (!navigable)
+        return scroll_handled;
+
+    if (scroll_handled == ScrollHandled::Yes) {
+        if (auto event_target = scroll_event_target(node))
+            navigable->queue_scrollend_event_after_user_scroll(*event_target);
+    } else {
+        // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
+        navigable->defer_user_scroll_settlement();
+    }
+    return scroll_handled;
+}
+
+static void scroll_into_view(Layout::Node& node, CSSPixelRect rect)
+{
+    if (!has_committed_box(node))
+        return;
+
+    auto snapport = scroll_snapport_rect(node);
+    auto current_offset = scroll_offset(node);
+
+    // Both rect and snapport are in layout coordinate space (not scroll-adjusted).
+    auto content_rect = rect.translated(-snapport.x(), -snapport.y());
+    auto new_offset = current_offset;
+
+    if (content_rect.right() > current_offset.x() + snapport.width())
+        new_offset.set_x(content_rect.right() - snapport.width());
+    else if (content_rect.left() < current_offset.x())
+        new_offset.set_x(content_rect.left());
+
+    if (content_rect.bottom() > current_offset.y() + snapport.height())
+        new_offset.set_y(content_rect.bottom() - snapport.height());
+    else if (content_rect.top() < current_offset.y())
+        new_offset.set_y(content_rect.top());
+
+    set_scroll_offset(node, new_offset);
+}
+
+void scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
+{
+    auto text_slots = Layout::TextOffsetMapping { text }.slot_ids();
+    if (text_slots.is_empty())
+        return;
+
+    auto const* layout_node = text.unsafe_layout_node();
+    auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
+        layout_node->arena_handle(), text_slots.data(), text_slots.size(), offset,
+        affinity == TextAffinity::Downstream);
+    if (!result.found)
+        return;
+    auto const* style_source_pointer = static_cast<Layout::NodeWithStyle const*>(result.style_source);
+    if (!style_source_pointer)
+        return;
+    auto const& style_source = *style_source_pointer;
+
+    auto cursor_rect = from_ffi_css_pixel_rect(result.rect);
+    if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
+        if (style_source.inline_axis_is_reverse())
+            cursor_rect.set_x(cursor_rect.x() - 1);
+        cursor_rect.set_width(1);
+    } else {
+        if (style_source.inline_axis_is_reverse())
+            cursor_rect.set_y(cursor_rect.y() - 1);
+        cursor_rect.set_height(1);
+    }
+    auto owner = paintable_for_slot(layout_node->arena_handle(), result.owner_paintable);
+    for (auto* ancestor = owner.ptr(); ancestor;) {
+        if (Painting::has_scrollable_overflow(ancestor->layout_node())) {
+            if (scroll_block_direction == ScrollBlockDirection::No) {
+                auto snapport = scroll_snapport_rect(ancestor->layout_node());
+                if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
+                    cursor_rect.set_y(snapport.y() + scroll_offset(ancestor->layout_node()).y());
+                    cursor_rect.set_height(snapport.height());
+                } else {
+                    cursor_rect.set_x(snapport.x() + scroll_offset(ancestor->layout_node()).x());
+                    cursor_rect.set_width(snapport.width());
+                }
+            }
+            scroll_into_view(ancestor->layout_node(), cursor_rect);
+            return;
+        }
+        auto* containing_block_box = ancestor->layout_node().containing_block();
+        ancestor = containing_block_box ? containing_block_box->paintable_ptr() : nullptr;
+    }
 }
 
 }

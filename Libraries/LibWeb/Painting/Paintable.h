@@ -164,9 +164,6 @@ public:
     DOM::Document const& document() const;
     DOM::Document& document();
 
-    static void scroll_text_offset_into_view(DOM::Text const&, size_t offset, TextAffinity = TextAffinity::Downstream, ScrollBlockDirection = ScrollBlockDirection::Yes);
-    void scroll_ancestor_to_offset_into_view(size_t offset);
-
     friend class Layout::Node;
 
     virtual void reset_for_relayout();
@@ -178,11 +175,6 @@ public:
     Optional<CSSPixelRect> get_mask_area() const;
     Optional<Gfx::MaskKind> get_mask_type() const;
     Optional<CSSPixelRect> get_clip_area() const;
-
-    ScrollHandled set_scroll_offset(CSSPixelPoint);
-    ScrollHandled set_scroll_offset_from_user_input(CSSPixelPoint);
-    ScrollHandled scroll_by(double delta_x, double delta_y);
-    void scroll_into_view(CSSPixelRect);
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y);
 

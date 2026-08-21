@@ -199,7 +199,7 @@ void AutoScrollHandler::perform_tick()
     int scroll_y = m_fractional_delta.y().to_int();
     m_fractional_delta -= CSSPixelPoint { scroll_x, scroll_y };
 
-    if (paintable_box->scroll_by(scroll_x, scroll_y) == Painting::ScrollHandled::No)
+    if (Painting::scroll_by(paintable_box->layout_node(), scroll_x, scroll_y) == Painting::ScrollHandled::No)
         return;
 
     m_navigable->event_handler().apply_mouse_selection(constrained(m_mouse_position, *scrollport));

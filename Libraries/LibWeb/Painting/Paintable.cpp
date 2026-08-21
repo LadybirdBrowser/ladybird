@@ -27,10 +27,8 @@
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -41,7 +39,6 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -115,60 +112,6 @@ RefPtr<Paintable> HitTestResult::paintable() const
 RefPtr<Paintable> CaretPosition::paintable() const
 {
     return paintable_for_slot(arena->handle(), box);
-}
-
-void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
-{
-    auto text_slots = Layout::TextOffsetMapping { text }.slot_ids();
-    if (text_slots.is_empty())
-        return;
-
-    auto const* layout_node = text.unsafe_layout_node();
-    auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
-        layout_node->arena_handle(), text_slots.data(), text_slots.size(), offset,
-        affinity == TextAffinity::Downstream);
-    if (!result.found)
-        return;
-    auto const* style_source_pointer = static_cast<Layout::NodeWithStyle const*>(result.style_source);
-    if (!style_source_pointer)
-        return;
-    auto const& style_source = *style_source_pointer;
-
-    auto cursor_rect = from_ffi_css_pixel_rect(result.rect);
-    if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-        if (style_source.inline_axis_is_reverse())
-            cursor_rect.set_x(cursor_rect.x() - 1);
-        cursor_rect.set_width(1);
-    } else {
-        if (style_source.inline_axis_is_reverse())
-            cursor_rect.set_y(cursor_rect.y() - 1);
-        cursor_rect.set_height(1);
-    }
-    auto owner = paintable_for_slot(layout_node->arena_handle(), result.owner_paintable);
-    for (auto* ancestor = owner.ptr(); ancestor;) {
-        if (Painting::has_scrollable_overflow(ancestor->layout_node())) {
-            if (scroll_block_direction == ScrollBlockDirection::No) {
-                auto snapport = scroll_snapport_rect(ancestor->layout_node());
-                if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-                    cursor_rect.set_y(snapport.y() + scroll_offset(ancestor->layout_node()).y());
-                    cursor_rect.set_height(snapport.height());
-                } else {
-                    cursor_rect.set_x(snapport.x() + scroll_offset(ancestor->layout_node()).x());
-                    cursor_rect.set_width(snapport.width());
-                }
-            }
-            ancestor->scroll_into_view(cursor_rect);
-            return;
-        }
-        auto* containing_block_box = ancestor->layout_node().containing_block();
-        ancestor = containing_block_box ? containing_block_box->paintable_ptr() : nullptr;
-    }
-}
-
-void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
-{
-    if (auto const* text = as_if<DOM::Text>(dom_node().ptr()))
-        scroll_text_offset_into_view(*text, offset);
 }
 
 static bool g_paint_viewport_scrollbars = true;
@@ -441,110 +384,6 @@ void Paintable::reset_for_relayout()
     Painting::invalidate_stacking_context(layout_node());
 }
 
-ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
-{
-    if (!Painting::scrollable_overflow_rect(layout_node()).has_value())
-        return ScrollHandled::No;
-
-    offset = clamp_scroll_offset(layout_node(), offset);
-
-    if (scroll_offset(layout_node()) == offset)
-        return ScrollHandled::No;
-
-    if (is_viewport_paintable()) {
-        auto navigable = document().navigable();
-        VERIFY(navigable);
-        navigable->perform_scroll_of_viewport_scrolling_box(offset);
-        return ScrollHandled::Yes;
-    }
-
-    document().set_needs_to_refresh_scroll_state(true);
-
-    auto& node = layout_node();
-    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
-        node.pseudo_element_generator()->set_scroll_offset(*pseudo_element, offset);
-    } else if (auto* element = as_if<DOM::Element>(*dom_node())) {
-        element->set_scroll_offset({}, offset);
-    } else {
-        return ScrollHandled::No;
-    }
-
-    // https://drafts.csswg.org/cssom-view-1/#scrolling-events
-    // Whenever an element gets scrolled (whether in response to user interaction or by an API),
-    // the user agent must run these steps:
-
-    // 1. Let doc be the element’s node document.
-    auto& document = layout_node().document();
-
-    // FIXME: 2. If the element is a snap container, run the steps to update snapchanging targets for the element with
-    //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
-    //           target in the inline axis as newInlineTarget.
-
-    auto event_target = scroll_event_target();
-    if (!event_target)
-        return ScrollHandled::Yes;
-
-    // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
-    // 4. Append (element, "scroll") to doc’s pending scroll events.
-    if (!document.append_pending_scroll_event({ *event_target, HTML::EventNames::scroll }))
-        return ScrollHandled::Yes;
-
-    Painting::set_needs_repaint(layout_node(), InvalidateDisplayList::No);
-    return ScrollHandled::Yes;
-}
-
-ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
-{
-    return set_scroll_offset_from_user_input(scroll_offset(layout_node()).translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)));
-}
-
-ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
-{
-    auto scroll_handled = set_scroll_offset(offset);
-    auto navigable = document().navigable();
-    if (!navigable)
-        return scroll_handled;
-
-    if (scroll_handled == ScrollHandled::Yes) {
-        if (auto event_target = scroll_event_target())
-            navigable->queue_scrollend_event_after_user_scroll(*event_target);
-    } else {
-        // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
-        navigable->defer_user_scroll_settlement();
-    }
-    return scroll_handled;
-}
-
-GC::Ptr<DOM::EventTarget> Paintable::scroll_event_target()
-{
-    auto& node = layout_node();
-    if (node.generated_for_pseudo_element().has_value())
-        return node.pseudo_element_generator();
-    return dom_node();
-}
-
-void Paintable::scroll_into_view(CSSPixelRect rect)
-{
-    auto snapport = scroll_snapport_rect(layout_node());
-    auto current_offset = scroll_offset(layout_node());
-
-    // Both rect and snapport are in layout coordinate space (not scroll-adjusted).
-    auto content_rect = rect.translated(-snapport.x(), -snapport.y());
-    auto new_offset = current_offset;
-
-    if (content_rect.right() > current_offset.x() + snapport.width())
-        new_offset.set_x(content_rect.right() - snapport.width());
-    else if (content_rect.left() < current_offset.x())
-        new_offset.set_x(content_rect.left());
-
-    if (content_rect.bottom() > current_offset.y() + snapport.height())
-        new_offset.set_y(content_rect.bottom() - snapport.height());
-    else if (content_rect.top() < current_offset.y())
-        new_offset.set_y(content_rect.top());
-
-    set_scroll_offset(new_offset);
-}
-
 Optional<CSSPixelRect> Paintable::absolute_resizer_rect(ChromeMetrics const& metrics) const
 {
     if (!has_resizer())
@@ -744,7 +583,7 @@ bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, 
     if (wheel_delta_x == 0 && wheel_delta_y == 0)
         return false;
 
-    return scroll_by(wheel_delta_x, wheel_delta_y) == ScrollHandled::Yes;
+    return scroll_by(layout_node(), wheel_delta_x, wheel_delta_y) == ScrollHandled::Yes;
 }
 
 bool Paintable::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& metrics) const
