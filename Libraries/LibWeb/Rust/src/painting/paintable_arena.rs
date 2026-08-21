@@ -270,15 +270,15 @@ impl PaintableArena {
         chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK].get_mut()
     }
 
-    pub fn invalidate_paint_cache(&self, id: PaintableSlotId) {
+    pub(crate) fn invalidate_paint_cache(&self, layout_arena: &LayoutNodeArena, id: PaintableSlotId) {
         if !self.is_live(id) {
             return;
         }
         self.paint_caches[id.slot_index() as usize].clear();
-        let mut ancestor = self.data_ref(id).parent;
-        while !ancestor.is_invalid() {
-            self.paint_caches[ancestor.slot_index() as usize].clear_descendant_subtrees();
-            ancestor = self.data_ref(ancestor).parent;
+        let mut ancestor = crate::painting::paint_order::paint_parent(layout_arena, self, id);
+        while let Some(current) = ancestor {
+            self.paint_caches[current.slot_index() as usize].clear_descendant_subtrees();
+            ancestor = crate::painting::paint_order::paint_parent(layout_arena, self, current);
         }
     }
 
@@ -286,10 +286,10 @@ impl PaintableArena {
         if !self.is_live(id) {
             return;
         }
-        self.invalidate_paint_cache(id);
+        self.invalidate_paint_cache(layout_arena, id);
         let mut stack = vec![id];
         while let Some(current) = stack.pop() {
-            let mut child = self.first_child(current);
+            let mut child = crate::painting::paint_order::first_paint_child(layout_arena, self, current);
             while let Some(child_slot) = child {
                 let child_layout_node = self.data_ref(child_slot).layout_node;
                 let child_flags = layout_arena.node_flags_if_live(child_layout_node);
@@ -297,17 +297,17 @@ impl PaintableArena {
                     self.paint_caches[child_slot.slot_index() as usize].clear();
                     stack.push(child_slot);
                 }
-                child = self.next_sibling(child_slot);
+                child = crate::painting::paint_order::next_paint_sibling(layout_arena, self, child_slot);
             }
         }
         if self.data_ref(id).kind == PaintableKind::InlinePaintable {
-            let mut ancestor = self.parent(id);
+            let mut ancestor = crate::painting::paint_order::paint_parent(layout_arena, self, id);
             while let Some(current) = ancestor {
-                self.invalidate_paint_cache(current);
+                self.invalidate_paint_cache(layout_arena, current);
                 if self.data_ref(current).kind.has_lines() {
                     break;
                 }
-                ancestor = self.parent(current);
+                ancestor = crate::painting::paint_order::paint_parent(layout_arena, self, current);
             }
         }
     }
@@ -322,11 +322,11 @@ impl PaintableArena {
         }
 
         let mut stack = Vec::new();
-        if let Some(first_child) = self.first_child(root) {
+        if let Some(first_child) = crate::painting::paint_order::first_paint_child(layout_arena, self, root) {
             stack.push(first_child);
         }
         while let Some(current) = stack.pop() {
-            if let Some(next_sibling) = self.next_sibling(current) {
+            if let Some(next_sibling) = crate::painting::paint_order::next_paint_sibling(layout_arena, self, current) {
                 stack.push(next_sibling);
             }
 
@@ -338,14 +338,14 @@ impl PaintableArena {
             if data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable {
                 self.paint_caches[current.slot_index() as usize].clear();
             }
-            if let Some(first_child) = self.first_child(current) {
+            if let Some(first_child) = crate::painting::paint_order::first_paint_child(layout_arena, self, current) {
                 stack.push(first_child);
             }
         }
-        let mut ancestor = root;
-        while !ancestor.is_invalid() {
-            self.paint_caches[ancestor.slot_index() as usize].clear_descendant_subtrees();
-            ancestor = self.data_ref(ancestor).parent;
+        let mut ancestor = Some(root);
+        while let Some(current) = ancestor {
+            self.paint_caches[current.slot_index() as usize].clear_descendant_subtrees();
+            ancestor = crate::painting::paint_order::paint_parent(layout_arena, self, current);
         }
     }
 
