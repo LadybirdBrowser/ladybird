@@ -15,7 +15,8 @@
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::HTML {
 
@@ -59,8 +60,8 @@ void CanvasRenderingContext2D::did_draw_hook()
     // NB: Invalidate the cached DrawCanvas command so that if another change causes the display list to be recorded, it
     // contains the new content generation and damages the canvas. Don't request a display list recording here: the new
     // content reaches the compositor through the canvas surface registry when the canvas is presented.
-    if (auto paintable = m_element->unsafe_paintable())
-        paintable->invalidate_paint_cache();
+    if (auto const* layout_node = m_element->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+        Painting::invalidate_paint_cache(*layout_node);
     m_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 

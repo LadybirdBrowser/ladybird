@@ -6,7 +6,9 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -54,7 +56,7 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
     auto position = paintable_box->transform_to_local_coordinates(visual_viewport_position);
     if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
         return MouseAction::None;
-    paintable_box->set_needs_repaint();
+    Painting::set_needs_repaint(paintable_box->layout_node());
 
     if (type == UIEvents::EventNames::pointerup) {
         release_thumb_grab();
@@ -81,7 +83,7 @@ MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
 {
     release_thumb_grab();
     if (auto paintable_box = paintable())
-        paintable_box->set_needs_repaint();
+        Painting::set_needs_repaint(paintable_box->layout_node());
     return MouseAction::None;
 }
 
@@ -97,7 +99,7 @@ void Scrollbar::mouse_enter()
         return;
     m_hovered = true;
     if (auto paintable_box = paintable())
-        paintable_box->set_needs_repaint();
+        Painting::set_needs_repaint(paintable_box->layout_node());
 }
 
 void Scrollbar::mouse_leave()
@@ -106,7 +108,7 @@ void Scrollbar::mouse_leave()
         return;
     m_hovered = false;
     if (auto paintable_box = paintable())
-        paintable_box->set_needs_repaint();
+        Painting::set_needs_repaint(paintable_box->layout_node());
 }
 
 bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)

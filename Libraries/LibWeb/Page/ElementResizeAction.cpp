@@ -9,8 +9,8 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/ElementResizeAction.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
-#include <LibWeb/Painting/Paintable.h>
 
 // https://drafts.csswg.org/css-ui#resize
 
@@ -21,8 +21,8 @@ static Optional<CSSPixelSize> containing_block_padding_box_size(Layout::Node con
     auto parent_box = layout_node.containing_block();
     if (!parent_box)
         return {};
-    if (auto paintable = parent_box->paintable(); auto const* paintable_box = paintable.ptr())
-        return paintable_box->absolute_padding_box_rect().size();
+    if (Painting::has_committed_box(*parent_box))
+        return Painting::absolute_padding_box_rect(*parent_box).size();
     return {};
 }
 
@@ -30,9 +30,9 @@ ElementResizeAction::ElementResizeAction(GC::Ref<DOM::Element> element, CSSPixel
     : m_element(element)
     , m_pointer_down_origin(pointer_down_origin)
 {
-    auto paintable_box = element->paintable_box();
-    if (paintable_box)
-        m_initial_border_box_size = paintable_box->absolute_border_box_rect().size();
+    auto const* layout_node = element->layout_node();
+    if (layout_node && Painting::has_committed_box(*layout_node))
+        m_initial_border_box_size = Painting::absolute_border_box_rect(*layout_node).size();
 }
 
 void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
@@ -41,10 +41,10 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
     if (!element || !element->is_connected())
         return;
 
-    auto paintable_box = element->paintable_box();
-    if (!paintable_box)
+    auto const* layout_node_pointer = element->layout_node();
+    if (!layout_node_pointer || !Painting::has_committed_box(*layout_node_pointer))
         return;
-    auto const& layout_node = paintable_box->layout_node();
+    auto const& layout_node = *layout_node_pointer;
     auto resize = layout_node.resize();
     if (resize == CSS::Resize::None)
         return;
@@ -88,7 +88,7 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
         }
     }
     if (layout_node.box_sizing() == CSS::BoxSizing::ContentBox) {
-        auto const& metrics = paintable_box->box_model();
+        auto const metrics = Painting::box_model(layout_node);
         css_width -= metrics.padding.left + metrics.padding.right + layout_node.border_left().width + layout_node.border_right().width;
         css_height -= metrics.padding.top + metrics.padding.bottom + layout_node.border_top().width + layout_node.border_bottom().width;
     }

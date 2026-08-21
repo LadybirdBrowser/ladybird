@@ -538,7 +538,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
         .content_size_changed = [](void*, void* paintable_pointer, RustFFI::FfiCssPixelSize old_size, RustFFI::FfiCssPixelSize new_size) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
             Painting::invalidate_descendant_styles_for_container_query_size_change(
-                paintable,
+                paintable.dom_node(),
                 { CSSPixels::from_raw(old_size.width), CSSPixels::from_raw(old_size.height) },
                 { CSSPixels::from_raw(new_size.width), CSSPixels::from_raw(new_size.height) }); },
         .finish_node = [](void*, void* node_pointer, void* paintable_pointer) {

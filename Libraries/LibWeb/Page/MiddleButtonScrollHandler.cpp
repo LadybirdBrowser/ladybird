@@ -7,8 +7,10 @@
 #include <AK/Math.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
@@ -24,16 +26,18 @@ MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CS
     , m_origin(origin)
     , m_mouse_position(origin)
 {
-    if (auto paintable = m_container_element->document().paintable())
-        paintable->set_needs_repaint();
+    auto const* layout_node = m_container_element->document().layout_node();
+    if (layout_node && Painting::has_committed_box(*layout_node))
+        Painting::set_needs_repaint(*layout_node);
 }
 
 MiddleButtonScrollHandler::~MiddleButtonScrollHandler()
 {
     if (!m_container_element->document().layout_is_up_to_date())
         return;
-    if (auto paintable = m_container_element->document().paintable())
-        paintable->set_needs_repaint();
+    auto const* layout_node = m_container_element->document().layout_node();
+    if (layout_node && Painting::has_committed_box(*layout_node))
+        Painting::set_needs_repaint(*layout_node);
 }
 
 void MiddleButtonScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const

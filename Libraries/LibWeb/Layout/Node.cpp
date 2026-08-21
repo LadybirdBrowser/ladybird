@@ -30,6 +30,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
@@ -255,8 +256,8 @@ Box* Node::containing_block()
 
 static void invalidate_paint_caches(Node& node)
 {
-    if (auto paintable = node.paintable())
-        paintable->invalidate_paint_cache();
+    if (Painting::has_committed_box(node))
+        Painting::invalidate_paint_cache(node);
 }
 
 void Node::pin_style_record_for_detachment()
@@ -620,8 +621,8 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 {
     VERIFY(m_owner);
 
-    if (auto paintable = m_owner->paintable())
-        paintable->set_needs_repaint();
+    if (Painting::has_committed_box(*m_owner))
+        Painting::set_needs_repaint(*m_owner);
 }
 
 NodeWithStyle::~NodeWithStyle()

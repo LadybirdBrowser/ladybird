@@ -581,9 +581,9 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
                     return;
                 m_cursor_blink_state = !m_cursor_blink_state;
                 layout_text_node->set_needs_repaint();
-            } else if (node->unsafe_paintable()) {
+            } else if (auto const* layout_node = node->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
                 m_cursor_blink_state = !m_cursor_blink_state;
-                node->set_needs_repaint();
+                Painting::set_needs_repaint(*layout_node);
             }
         }));
     }
@@ -2467,7 +2467,7 @@ static void rebuild_sticky_insets(Layout::Node const& root)
         auto nearest_scrollable_ancestor = box_paintable->nearest_scrollable_ancestor();
         CSSPixelSize scrollport_size;
         if (nearest_scrollable_ancestor)
-            scrollport_size = nearest_scrollable_ancestor->absolute_rect().size();
+            scrollport_size = Painting::absolute_rect(nearest_scrollable_ancestor->layout_node()).size();
 
         if (!inset.top().is_auto())
             sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
@@ -2477,7 +2477,7 @@ static void rebuild_sticky_insets(Layout::Node const& root)
             sticky_insets->bottom = inset.bottom().to_px_or_zero(scrollport_size.height());
         if (!inset.left().is_auto())
             sticky_insets->left = inset.left().to_px_or_zero(scrollport_size.width());
-        box_paintable->set_sticky_insets(move(sticky_insets));
+        Painting::set_sticky_insets(layout_node, move(sticky_insets));
         return TraversalDecision::Continue;
     });
 }
@@ -2524,13 +2524,12 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     }
 
     auto record_and_clear_overflow_data = [&](Layout::Box const& box) {
-        auto box_paintable = box.paintable_box();
-        if (!box_paintable)
+        if (!Painting::has_committed_box(box))
             return true;
         if (old_overflow_data_by_box.contains(&box))
             return false;
-        old_overflow_data_by_box.set(&box, box_paintable->overflow_data());
-        const_cast<Painting::Paintable&>(*box_paintable).clear_overflow_data();
+        old_overflow_data_by_box.set(&box, Painting::overflow_data(box));
+        Painting::clear_overflow_data(box);
         return true;
     };
 
@@ -2548,8 +2547,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
             auto const* box = as_if<Layout::Box>(paintable->layout_node());
             if (!box)
                 continue;
-            auto box_paintable = box->paintable_box();
-            bool was_reset_by_subtree_layout_commit = box_paintable && !box_paintable->overflow_data().has_value();
+            bool was_reset_by_subtree_layout_commit = Painting::has_committed_box(*box) && !Painting::overflow_data(*box).has_value();
             if (was_reset_by_subtree_layout_commit) {
                 box->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& subtree_box) {
                     record_and_clear_overflow_data(subtree_box);
@@ -2557,8 +2555,8 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
                 });
             }
             for (auto const* containing_block = box->containing_block(); containing_block; containing_block = containing_block->containing_block()) {
-                if (auto containing_block_paintable = containing_block->paintable_box())
-                    const_cast<Painting::Paintable&>(*containing_block_paintable).clear_cached_overflow_data();
+                if (Painting::has_committed_box(*containing_block))
+                    Painting::clear_cached_overflow_data(*containing_block);
                 if (!record_and_clear_overflow_data(*containing_block))
                     break;
             }
@@ -2586,23 +2584,24 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     bool any_overflow_changed = false;
     bool any_has_scrollable_overflow_flipped = false;
     for (auto const& [box, old_overflow_data] : old_overflow_data_by_box) {
-        auto box_paintable = box->paintable_box();
-        if (!box_paintable || !box_paintable->overflow_data().has_value())
+        if (!Painting::has_committed_box(*box))
+            continue;
+        auto new_overflow_data = Painting::overflow_data(*box);
+        if (!new_overflow_data.has_value())
             continue;
         // A box with no prior overflow data was just created or reset by the layout commit, so
         // its paint cache is already clean.
         if (!old_overflow_data.has_value())
             continue;
-        auto const& new_overflow_data = *box_paintable->overflow_data();
-        bool rect_changed = old_overflow_data->scrollable_overflow_rect != new_overflow_data.scrollable_overflow_rect;
-        bool has_scrollable_overflow_flipped = old_overflow_data->has_scrollable_overflow != new_overflow_data.has_scrollable_overflow;
+        bool rect_changed = old_overflow_data->scrollable_overflow_rect != new_overflow_data->scrollable_overflow_rect;
+        bool has_scrollable_overflow_flipped = old_overflow_data->has_scrollable_overflow != new_overflow_data->has_scrollable_overflow;
         if (!rect_changed && !has_scrollable_overflow_flipped)
             continue;
         // Cached paint commands and hit-test items capture scrollbar geometry and per-direction
         // scrollability derived from the overflow rect, so they cannot be reused once it changes.
         // This must also run for the after-layout-commit path: a subtree relayout re-measures a
         // surviving ancestor's overflow without resetting the ancestor's paintable.
-        box_paintable->invalidate_paint_cache();
+        Painting::invalidate_paint_cache(*box);
         any_overflow_changed = true;
         any_has_scrollable_overflow_flipped |= has_scrollable_overflow_flipped;
     }
@@ -2633,7 +2632,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
 void Document::ensure_scrollable_overflow_is_measured(Layout::Box const& box) const
 {
     auto paintable = box.paintable_box();
-    if (!paintable || paintable->overflow_data().has_value() || paintable->cached_overflow_data().has_value())
+    if (!paintable || Painting::overflow_data(box).has_value() || Painting::cached_overflow_data(box).has_value())
         return;
     Painting::rust_measure_scrollable_overflow(*paintable);
 }
@@ -2851,14 +2850,14 @@ void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElem
     if (m_highlighted_node == node && m_highlighted_pseudo_element == pseudo_element)
         return;
 
-    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->paintable())
-        layout_node->paintable()->set_needs_repaint();
+    if (auto layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+        Painting::set_needs_repaint(*layout_node);
 
     m_highlighted_node = node;
     m_highlighted_pseudo_element = pseudo_element;
 
-    if (auto layout_node = highlighted_layout_node(); layout_node && layout_node->paintable())
-        layout_node->paintable()->set_needs_repaint();
+    if (auto layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+        Painting::set_needs_repaint(*layout_node);
 }
 
 void Document::set_grid_highlighted_node(GC::Ptr<Node> node, Painting::GridInspectorOverlayOptions options)
@@ -5262,8 +5261,9 @@ void Document::set_page_showing(bool page_showing)
 void Document::invalidate_stacking_context_tree()
 {
     // NB: Called during stacking context invalidation.
-    if (auto paintable_box = this->unsafe_paintable_box())
-        paintable_box->invalidate_stacking_context();
+    auto const* layout_node = this->unsafe_layout_node();
+    if (layout_node && Painting::has_committed_box(*layout_node))
+        Painting::invalidate_stacking_context(*layout_node);
 }
 
 void Document::check_favicon_after_loading_link_resource()
@@ -8969,8 +8969,8 @@ void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& la
 
     if (auto const* box = as_if<Layout::Box>(layout_node)) {
         for (auto const* containing_box = box; containing_box; containing_box = containing_box->containing_block()) {
-            if (auto paintable = containing_box->paintable_box())
-                const_cast<Painting::Paintable&>(*paintable).clear_cached_overflow_data();
+            if (Painting::has_committed_box(*containing_box))
+                Painting::clear_cached_overflow_data(*containing_box);
         }
     }
 
@@ -9558,7 +9558,7 @@ Utf16String Document::dump_display_list()
     if (!display_list)
         return "No display list"_utf16;
 
-    HashMap<size_t, RefPtr<Painting::Paintable const>> context_id_to_paintable;
+    HashMap<size_t, Layout::Node const*> context_id_to_layout_node;
     auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(viewport_paintable->rust_arena().handle(), viewport_paintable->rust_slot());
     Vector<Layout::RustFFI::FfiPaintTreeDumpEntry> entries;
     entries.resize(entry_count);
@@ -9567,11 +9567,10 @@ Utf16String Document::dump_display_list()
         if (!entry.layout_node_shell)
             continue;
         auto& layout_node = *static_cast<Layout::Node*>(entry.layout_node_shell);
-        auto paintable = layout_node.paintable();
-        if (!paintable)
+        if (!Painting::has_committed_box(layout_node))
             continue;
-        auto visual_context_index = paintable->accumulated_visual_context_index();
-        (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable);
+        auto visual_context_index = Painting::accumulated_visual_context_index(layout_node);
+        (void)context_id_to_layout_node.try_set(visual_context_index.value(), &layout_node);
     }
 
     StringBuilder builder;
@@ -9600,8 +9599,8 @@ Utf16String Document::dump_display_list()
         builder.append_repeated(' ', indent * 2);
         builder.appendff("[{}] ", node_index);
         visual_context_tree.dump(Painting::VisualContextIndex(node_index), builder);
-        if (auto it = context_id_to_paintable.find(node_index); it != context_id_to_paintable.end())
-            builder.appendff(" ({})", it->value->debug_description());
+        if (auto it = context_id_to_layout_node.find(node_index); it != context_id_to_layout_node.end())
+            builder.appendff(" ({})", Painting::debug_description(*it->value));
         builder.append('\n');
         for (auto child_node_index : children.get(node_index).value_or({}))
             dump_context(child_node_index, indent + 1);

@@ -32,7 +32,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -1905,11 +1905,12 @@ void LocalTraversableNavigable::process_screenshot_requests()
             auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
             if (dom_node)
                 dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            if (!dom_node || !dom_node->paintable_box()) {
+            auto const* layout_node = dom_node ? dom_node->layout_node() : nullptr;
+            if (!layout_node || !Painting::has_committed_box(*layout_node)) {
                 client.page_did_take_screenshot({});
                 continue;
             }
-            auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
+            auto rect = page().enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
             auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
             if (bitmap_or_error.is_error()) {
                 client.page_did_take_screenshot({});
@@ -1923,7 +1924,9 @@ void LocalTraversableNavigable::process_screenshot_requests()
             });
         } else {
             active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto scrollable_overflow_rect = active_document()->layout_node()->paintable_box()->scrollable_overflow_rect();
+            auto const* layout_node = active_document()->layout_node();
+            VERIFY(layout_node && Painting::has_committed_box(*layout_node));
+            auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
             auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
             auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
             if (bitmap_or_error.is_error()) {

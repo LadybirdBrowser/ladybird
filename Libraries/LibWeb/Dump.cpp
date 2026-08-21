@@ -50,8 +50,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/InlinePaintable.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web {
@@ -208,20 +207,20 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     }
 
     auto dump_position = [&] {
-        if (auto paintable = layout_node.paintable(); auto const* paintable_box = paintable.ptr())
-            builder.appendff("at {}", paintable_box->absolute_rect().location());
+        if (Painting::has_committed_box(layout_node))
+            builder.appendff("at {}", Painting::absolute_rect(layout_node).location());
         else
             builder.appendff("(not painted)");
     };
     auto dump_box_model = [&] {
-        if (auto paintable = layout_node.paintable(); auto const* paintable_box = paintable.ptr()) {
-            auto const& box_model = paintable_box->box_model();
+        if (Painting::has_committed_box(layout_node)) {
+            auto const box_model = Painting::box_model(layout_node);
             // Dump the horizontal box properties
             builder.appendff(" [{}+{}+{} {} {}+{}+{}]",
                 box_model.margin.left,
                 box_model.border.left,
                 box_model.padding.left,
-                paintable_box->content_width(),
+                Painting::content_width(layout_node),
                 box_model.padding.right,
                 box_model.border.right,
                 box_model.margin.right);
@@ -231,7 +230,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 box_model.margin.top,
                 box_model.border.top,
                 box_model.padding.top,
-                paintable_box->content_height(),
+                Painting::content_height(layout_node),
                 box_model.padding.bottom,
                 box_model.border.bottom,
                 box_model.margin.bottom);
@@ -312,8 +311,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
         // SVG content geometry below is in this viewport's user units; the transform shown here is
         // what maps it into the viewport's content box.
-        if (auto const* box_paintable = box.paintable_box().ptr()) {
-            if (auto viewport_transform = box_paintable->svg_viewport_transform(); viewport_transform.has_value())
+        if (Painting::has_committed_box(box)) {
+            if (auto viewport_transform = Painting::svg_viewport_transform(box); viewport_transform.has_value())
                 builder.appendff(" viewport-transform={}", *viewport_transform);
         }
 
@@ -371,21 +370,24 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     };
 
     if (auto const* block_container = as_if<Layout::BlockContainer>(layout_node);
-        block_container && block_container->children_are_inline() && block_container->paintable_with_lines()) {
-        auto paintable_with_lines = block_container->paintable_with_lines();
+        block_container && block_container->children_are_inline() && Painting::is_paintable_with_lines(layout_node)) {
+        auto paintable = layout_node.paintable();
+        VERIFY(paintable);
         Layout::RustFFI::layout_arena_paintable_dump_block_fragments(
-            paintable_with_lines->rust_arena().handle(),
-            paintable_with_lines->rust_slot(),
+            layout_node.arena_handle(),
+            paintable->rust_slot(),
             indent,
             interactive,
             &builder,
             append_dumped_fragments);
     }
 
-    if (auto const* inline_paintable = as_if<Painting::InlinePaintable>(layout_node.paintable().ptr())) {
+    if (Painting::is_inline_paintable(layout_node)) {
+        auto paintable = layout_node.paintable();
+        VERIFY(paintable);
         Layout::RustFFI::layout_arena_paintable_dump_inline_piece_fragments(
-            inline_paintable->rust_arena().handle(),
-            inline_paintable->rust_slot(),
+            layout_node.arena_handle(),
+            paintable->rust_slot(),
             indent,
             interactive,
             &builder,
@@ -526,17 +528,17 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         for (int i = 0; i < entry_indent; ++i)
             builder.append("  "sv);
 
-        if (is<Painting::PaintableWithLines>(*entry_paintable))
+        if (Painting::is_paintable_with_lines(layout_node))
             builder.append(paintable_with_lines_color_on);
         else
             builder.append(paintable_box_color_on);
 
-        builder.appendff("{}{} ({})", entry_paintable->class_name(), color_off, layout_node.debug_description());
+        builder.appendff("{}{} ({})", Painting::class_name(layout_node), color_off, layout_node.debug_description());
 
-        builder.appendff(" {}", entry_paintable->absolute_border_box_rect());
+        builder.appendff(" {}", Painting::absolute_border_box_rect(layout_node));
 
-        if (entry_paintable->has_scrollable_overflow())
-            builder.appendff(" overflow: {}", entry_paintable->scrollable_overflow_rect());
+        if (Painting::has_scrollable_overflow(layout_node))
+            builder.appendff(" overflow: {}", Painting::scrollable_overflow_rect(layout_node));
 
         if (!entry_paintable->scroll_offset().is_zero())
             builder.appendff(" scroll-offset: {}", entry_paintable->scroll_offset());

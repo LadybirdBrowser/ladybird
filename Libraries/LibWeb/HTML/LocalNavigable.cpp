@@ -76,6 +76,7 @@
 #include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -3668,13 +3669,13 @@ CSSPixelPoint LocalNavigable::to_top_level_position(CSSPixelPoint a_position)
             break;
         if (!ancestor->container())
             return {};
-        auto paintable = ancestor->container()->paintable();
-        if (!paintable)
+        auto const* layout_node = ancestor->container()->layout_node();
+        if (!layout_node || !Painting::has_committed_box(*layout_node))
             return {};
 
-        auto point = paintable->absolute_position();
+        auto point = Painting::absolute_position(*layout_node);
         point.translate_by(position);
-        position = paintable->transform_rect_to_viewport({ point, { 0, 0 } }).location();
+        position = Painting::transform_rect_to_viewport(*layout_node, { point, { 0, 0 } }).location();
 
         auto parent = ancestor->parent();
         ancestor = parent ? &as<LocalNavigable>(*parent) : nullptr;

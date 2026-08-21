@@ -74,6 +74,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -928,17 +929,16 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
     };
 
     auto serialize_layout = [&](Web::Layout::Node const* layout_node) {
-        auto paintable = layout_node ? layout_node->paintable() : nullptr;
-        if (!layout_node || !layout_node->is_box() || !paintable) {
+        if (!layout_node || !layout_node->is_box() || !Web::Painting::has_committed_box(*layout_node)) {
             return JsonObject {};
         }
 
-        auto const& box_model = paintable->box_model();
+        auto const box_model = Web::Painting::box_model(*layout_node);
 
         JsonObject serialized;
 
-        serialized.set("width"sv, paintable->content_width().to_double());
-        serialized.set("height"sv, paintable->content_height().to_double());
+        serialized.set("width"sv, Web::Painting::content_width(*layout_node).to_double());
+        serialized.set("height"sv, Web::Painting::content_height(*layout_node).to_double());
 
         serialized.set("padding-top"sv, box_model.padding.top.to_double());
         serialized.set("padding-right"sv, box_model.padding.right.to_double());
@@ -1014,11 +1014,11 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, WebView::DOMNodePropert
 
 static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
 {
-    auto paintable_box = node.paintable_box();
-    if (!paintable_box)
+    auto const* layout_node = node.layout_node();
+    if (!layout_node || !Web::Painting::has_committed_box(*layout_node))
         return {};
 
-    auto serialized_layout = paintable_box->flex_layout_json(node.unique_id());
+    auto serialized_layout = Web::Painting::flex_layout_json(*layout_node, node.unique_id());
     if (!serialized_layout.has_value())
         return {};
 
@@ -1029,11 +1029,11 @@ static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
 
 static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
 {
-    auto paintable_box = node.paintable_box();
-    if (!paintable_box)
+    auto const* layout_node = node.layout_node();
+    if (!layout_node || !Web::Painting::has_committed_box(*layout_node))
         return {};
 
-    auto serialized_layout = paintable_box->grid_layout_json(node.unique_id());
+    auto serialized_layout = Web::Painting::grid_layout_json(*layout_node, node.unique_id());
     if (!serialized_layout.has_value())
         return {};
 

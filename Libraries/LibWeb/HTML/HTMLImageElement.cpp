@@ -47,8 +47,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -373,8 +372,8 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementWidth);
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto paintable_box = this->paintable_box())
-        return paintable_box->content_width().to_int();
+    if (auto const* layout_node = this->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+        return Painting::content_width(*layout_node).to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto width_attr = get_attribute(HTML::AttributeNames::width); width_attr.has_value()) {
@@ -404,8 +403,8 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementHeight);
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto paintable_box = this->paintable_box())
-        return paintable_box->content_height().to_int();
+    if (auto const* layout_node = this->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+        return Painting::content_height(*layout_node).to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto height_attr = get_attribute(HTML::AttributeNames::height); height_attr.has_value()) {
@@ -482,15 +481,11 @@ int HTMLImageElement::x() const
     // so resolve it before reading the enclosing scroll node below.
     const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
-    auto paintable_box = this->paintable_box();
-    if (!paintable_box)
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
-    CSSPixels scroll_offset_x = 0;
-    if (auto idx = paintable_box->enclosing_scroll_node_index(); idx.value())
-        scroll_offset_x = paintable_box->document().paintable()->cumulative_scroll_offset_for_node(idx).x();
-
-    return (paintable_box->absolute_border_box_rect().x() - scroll_offset_x).to_int();
+    return (Painting::absolute_border_box_rect(*layout_node).x() - Painting::cumulative_scroll_compensation(*layout_node).x()).to_int();
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-y
@@ -504,15 +499,11 @@ int HTMLImageElement::y() const
     // so resolve it before reading the enclosing scroll node below.
     const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
-    auto paintable_box = this->paintable_box();
-    if (!paintable_box)
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
-    CSSPixels scroll_offset_y = 0;
-    if (auto idx = paintable_box->enclosing_scroll_node_index(); idx.value())
-        scroll_offset_y = paintable_box->document().paintable()->cumulative_scroll_offset_for_node(idx).y();
-
-    return (paintable_box->absolute_border_box_rect().y() - scroll_offset_y).to_int();
+    return (Painting::absolute_border_box_rect(*layout_node).y() - Painting::cumulative_scroll_compensation(*layout_node).y()).to_int();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-complete
