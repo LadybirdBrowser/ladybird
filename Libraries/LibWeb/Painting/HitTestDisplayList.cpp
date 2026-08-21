@@ -541,7 +541,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
         auto debug_rect = Layout::RustFFI::layout_arena_paintable_fragment_caret_range_rect(
             item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index, index_in_node);
         return CaretPosition {
-            .paintable = item.paintable,
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
             .boundary = { const_cast<DOM::Node&>(*fragment_dom_node), static_cast<WebIDL::UnsignedLong>(index_in_node) },
             .affinity = affinity,
             .debug_rect = from_ffi_css_pixel_rect(debug_rect),
@@ -553,7 +554,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
             return {};
         // An empty line has a single caret position regardless of where on the line the point is.
         return CaretPosition {
-            .paintable = item.paintable,
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
             .boundary = { const_cast<DOM::Node&>(*dom_node), static_cast<WebIDL::UnsignedLong>(item.caret_offset) },
             .debug_rect = item.caret_rect,
         };
@@ -563,7 +565,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
         if (!dom_node)
             return {};
         return CaretPosition {
-            .paintable = item.paintable,
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
             .boundary = { *dom_node, 0 },
             .debug_rect = item.caret_rect,
         };
@@ -587,7 +590,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
             VERIFY_NOT_REACHED();
         }();
         return CaretPosition {
-            .paintable = item.paintable,
+            .box = item.paintable->rust_slot(),
+            .arena = *m_arena,
             .boundary = point_is_before_box ? before_boundary : after_boundary,
             .secondary_boundary = point_is_before_box ? after_boundary : before_boundary,
             .debug_rect = item.caret_rect,
@@ -607,7 +611,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Ite
         return {};
 
     return CaretPosition {
-        .paintable = item.paintable,
+        .box = item.paintable->rust_slot(),
+        .arena = *m_arena,
         .boundary = { const_cast<DOM::Node&>(*dom_node), 0 },
         .debug_rect = item.caret_rect,
     };

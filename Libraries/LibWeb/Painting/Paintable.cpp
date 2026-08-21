@@ -192,6 +192,11 @@ RefPtr<Paintable> HitTestResult::paintable() const
     return paintable_for_slot(arena->handle(), box);
 }
 
+RefPtr<Paintable> CaretPosition::paintable() const
+{
+    return paintable_for_slot(arena->handle(), box);
+}
+
 CSSPixelPoint Paintable::box_type_agnostic_position() const
 {
     return absolute_position();
