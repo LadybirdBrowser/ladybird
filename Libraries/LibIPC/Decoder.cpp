@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
 #include <AK/JsonValue.h>
@@ -174,10 +175,13 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     if (auto valid = TRY(decoder.decode<bool>()); !valid)
         return Core::AnonymousBuffer {};
 
-    // NOTE: We don't use decode_size() here since AnonymousBuffer is backed by
-    // shared memory, not heap allocation. The MAX_DECODED_SIZE limit doesn't
-    // apply because the memory is already allocated by the sender.
-    auto size = static_cast<size_t>(TRY(decoder.decode<u32>()));
+    // We don't use decode_size() here since AnonymousBuffer is backed by shared memory, not heap allocation. The
+    // MAX_DECODED_SIZE limit doesn't apply because the memory is already allocated by the sender.
+    auto encoded_size = TRY(decoder.decode<u64>());
+    if (!AK::is_within_range<size_t>(encoded_size))
+        return Error::from_string_literal("Anonymous buffer size does not fit on this platform");
+
+    auto size = static_cast<size_t>(encoded_size);
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);

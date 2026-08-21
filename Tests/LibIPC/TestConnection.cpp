@@ -8,12 +8,16 @@
 #include <AK/ByteReader.h>
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibIPC/Connection.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
 #include <LibIPC/Transport.h>
@@ -96,6 +100,28 @@ private:
     }
 };
 
+}
+
+TEST_CASE(anonymous_buffer_size_uses_64_bits)
+{
+    constexpr size_t buffer_size = 4096;
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(buffer_size));
+
+    IPC::MessageBuffer message_buffer;
+    IPC::Encoder encoder { message_buffer };
+    MUST(encoder.encode(buffer));
+    EXPECT_EQ(message_buffer.data().size(), sizeof(bool) + sizeof(u64));
+
+    auto data = message_buffer.take_data();
+    FixedMemoryStream stream { data.span() };
+
+    Queue<IPC::Attachment> attachments;
+    for (auto& attachment : message_buffer.take_attachments())
+        attachments.enqueue(move(attachment));
+
+    IPC::Decoder decoder { stream, attachments };
+    auto decoded_buffer = MUST(decoder.decode<Core::AnonymousBuffer>());
+    EXPECT_EQ(decoded_buffer.size(), buffer_size);
 }
 
 // Regression test for #9582. wait_for_specific_endpoint_message_impl is reachable from any sync IPC call, including
