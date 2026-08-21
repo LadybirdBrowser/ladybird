@@ -1554,6 +1554,13 @@ impl StyleEngine {
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
     ) {
+        if anchor.input_is_on_the_anchor {
+            self.counters.bump(Counter::RelationalAnchorsConsidered);
+            let region = ImpactRegion::follow(witness, site.path, &self.tree);
+            self.add_narrowed_region(region, site, regions);
+            return;
+        }
+
         // The input is a step away from the witness, so no walk from it finds the anchors: the
         // step can leave the anchor's subtree, which puts the changed element above the anchor
         // rather than below it. What the query still says is what a witness of it must carry, and
@@ -1648,6 +1655,7 @@ impl StyleEngine {
                 program,
                 RelativeAnchor {
                     input_is_on_the_witness: true,
+                    input_is_on_the_anchor: false,
                     ..anchor
                 },
                 site,
