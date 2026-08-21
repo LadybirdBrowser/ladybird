@@ -792,27 +792,34 @@ pub(crate) fn build_visual_context_tree(
             }
             let child_contexts =
                 builder.build_paintable_box(pending.paintable, pending.inherited, pending.may_be_root_element);
-            let mut child = builder.paintables.data_ref(pending.paintable).last_child;
-            while !child.is_invalid() {
+            let mut children = Vec::new();
+            crate::painting::paint_order::for_each_paint_child(
+                builder.layout_arena,
+                builder.paintables,
+                pending.paintable,
+                |child| children.push(child),
+            );
+            for child in children.into_iter().rev() {
                 stack.push(PendingPaintable {
                     paintable: child,
                     inherited: child_contexts,
                     may_be_root_element: false,
                 });
-                child = builder.paintables.data_ref(child).prev_sibling;
             }
         }
     }
 
     let mut pending: Vec<PendingPaintable> = Vec::new();
-    let mut child = paintables.data_ref(viewport).last_child;
-    while !child.is_invalid() {
+    let mut viewport_children = Vec::new();
+    crate::painting::paint_order::for_each_paint_child(layout_arena, paintables, viewport, |child| {
+        viewport_children.push(child);
+    });
+    for child in viewport_children.into_iter().rev() {
         pending.push(PendingPaintable {
             paintable: child,
             inherited: viewport_contexts,
             may_be_root_element: true,
         });
-        child = paintables.data_ref(child).prev_sibling;
     }
     build_deferring_anchor_positioned(
         &mut builder,
@@ -822,18 +829,20 @@ pub(crate) fn build_visual_context_tree(
         &mut deferred_awaiting_build,
     );
 
-    let anchor_is_awaiting_build =
-        |builder: &Builder<'_>, slot: PaintableSlotId, awaiting: &HashSet<PaintableSlotId>| {
-            let anchor_node = builder.default_scroll_shift_anchor(slot);
-            let mut paintable = builder.paintables.paintable_of_node(anchor_node);
-            while !paintable.is_invalid() {
-                if awaiting.contains(&paintable) {
-                    return true;
-                }
-                paintable = builder.paintables.data_ref(paintable).parent;
+    let anchor_is_awaiting_build = |builder: &Builder<'_>,
+                                    slot: PaintableSlotId,
+                                    awaiting: &HashSet<PaintableSlotId>| {
+        let anchor_node = builder.default_scroll_shift_anchor(slot);
+        let paintable = builder.paintables.paintable_of_node(anchor_node);
+        let mut paintable = (!paintable.is_invalid()).then_some(paintable);
+        while let Some(current) = paintable {
+            if awaiting.contains(&current) {
+                return true;
             }
-            false
-        };
+            paintable = crate::painting::paint_order::paint_parent(builder.layout_arena, builder.paintables, current);
+        }
+        false
+    };
 
     while !deferred_anchor_positioned.is_empty() {
         let entries = std::mem::take(&mut deferred_anchor_positioned);

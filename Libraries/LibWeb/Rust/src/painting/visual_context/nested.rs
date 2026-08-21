@@ -84,10 +84,10 @@ impl NestedBuilder<'_> {
             .paintable_indices
             .insert(slot.index, (own_state, state_for_descendants));
 
-        let mut child = self.paintables.first_child(slot);
+        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, slot);
         while let Some(current) = child {
             self.build_subtree(current, state_for_descendants, true);
-            child = self.paintables.next_sibling(current);
+            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, self.paintables, current);
         }
     }
 }
