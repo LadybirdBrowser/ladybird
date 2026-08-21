@@ -283,6 +283,13 @@ pub struct RetainedPropertyIdList {
 retained_list!(RetainedPropertyIdList, u16);
 
 impl RetainedPropertyIdList {
+    pub(crate) fn from_property_ids(property_ids: Vec<u16>) -> Self {
+        let slice = property_ids.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice).cast::<u16>();
+        Self { pointer, length }
+    }
+
     pub(crate) fn as_slice(&self) -> &[u16] {
         if self.pointer.is_null() {
             return &[];
