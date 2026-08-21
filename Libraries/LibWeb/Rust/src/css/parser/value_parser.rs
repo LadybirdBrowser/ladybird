@@ -19,6 +19,7 @@ use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property};
 use crate::css::parser::positions_shapes_parser::{
     is_position_shape_function_name, parse_anchor_fit_property, parse_geometry_property, parse_position_property,
 };
@@ -552,6 +553,72 @@ pub(crate) fn parse_angle_value(
     })
 }
 
+pub(crate) fn parse_angle_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_ANGLE,
+            None,
+            accepted_range,
+            name,
+            values,
+        )
+    } else {
+        parse_angle_value(context, value, accepted_range)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
+}
+
+pub(crate) fn parse_angle_percentage_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_angle_range: NumericRange,
+    accepted_percentage_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_ANGLE,
+            Some(VALUE_TYPE_ANGLE),
+            accepted_angle_range,
+            name,
+            values,
+        )
+        .or_else(|| {
+            parse_calculated_numeric_value_with_ranges(
+                context,
+                property,
+                VALUE_TYPE_PERCENTAGE,
+                None,
+                accepted_percentage_range,
+                name,
+                values,
+            )
+        })
+    } else {
+        parse_angle_percentage_value(context, value, accepted_angle_range, accepted_percentage_range)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
+}
+
 fn parse_angle_percentage_value(
     context: &ParseContext,
     value: &ComponentValue,
@@ -715,8 +782,35 @@ pub(crate) fn parse_number_from_stream(
     Some(parsed)
 }
 
-fn parse_resolution_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
+pub(crate) fn parse_resolution_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
     parse_dimension_value(value, VALUE_TYPE_RESOLUTION, accepted_range)
+}
+
+pub(crate) fn parse_resolution_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_RESOLUTION,
+            None,
+            accepted_range,
+            name,
+            values,
+        )
+    } else {
+        parse_resolution_value(value, accepted_range)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
 }
 
 fn parse_time_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
@@ -767,6 +861,7 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
                 || is_color_function_name(name)
                 || is_position_shape_function_name(name)
                 || is_transform_effect_function_name(name)
+                || is_image_function_name(name)
             {
                 unported_function_reason(values)
             } else {
@@ -1416,6 +1511,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if !matches!(transform_effect_outcome, ParseOutcome::NotHandled(_)) {
         return transform_effect_outcome;
     }
+    let image_outcome = parse_image_property(context, property_id, values);
+    if !matches!(image_outcome, ParseOutcome::NotHandled(_)) {
+        return image_outcome;
+    }
     let position_outcome = parse_position_property(context, property_id, values);
     if !matches!(position_outcome, ParseOutcome::NotHandled(_)) {
         return position_outcome;
@@ -1788,7 +1887,7 @@ mod tests {
         assert!(parse_url_value(&context(), &duplicate).is_none());
         assert!(matches!(
             parse(property_id::MASK_IMAGE, "url(mask.png)"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(_)
         ));
     }
 

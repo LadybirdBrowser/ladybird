@@ -716,6 +716,19 @@ impl RetainedCounterDefinition {
 }
 
 impl RetainedImageSetOption {
+    pub(crate) fn from_retained_values(
+        image: RetainedStyleValueData,
+        resolution: RetainedStyleValueData,
+        type_string: Option<RetainedUtf16FlyString>,
+    ) -> Self {
+        Self {
+            image,
+            resolution,
+            has_type: type_string.is_some(),
+            type_string: type_string.unwrap_or_else(RetainedUtf16FlyString::none),
+        }
+    }
+
     pub(crate) fn values(&self) -> [&RetainedStyleValueData; 2] {
         [&self.image, &self.resolution]
     }

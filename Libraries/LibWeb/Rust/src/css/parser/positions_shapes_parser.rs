@@ -58,6 +58,10 @@ fn position(edge_x: StyleValueData, edge_y: StyleValueData) -> StyleValueData {
     }
 }
 
+pub(crate) fn center_position() -> StyleValueData {
+    position(edge(Some(EDGE_CENTER), None), edge(Some(EDGE_CENTER), None))
+}
+
 fn parse_position_edge(tokens: &mut TokenStream<'_>) -> Option<u8> {
     tokens.discard_whitespace();
     let identifier = tokens.next_token().ident()?;
@@ -197,6 +201,40 @@ fn alternative_5(context: &ParseContext, property: u16, tokens: &mut TokenStream
         return None;
     }
     Some(position(edge(Some(first.0), first.1), edge(Some(second.0), second.1)))
+}
+
+pub(crate) fn parse_position_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    background_position: bool,
+) -> Option<StyleValueData> {
+    let mut candidate = tokens.clone();
+    if let Some(parsed) = alternative_4(context, property, &mut candidate) {
+        *tokens = candidate;
+        return Some(parsed);
+    }
+    if background_position {
+        let mut candidate = tokens.clone();
+        if let Some(parsed) = alternative_5(context, property, &mut candidate) {
+            *tokens = candidate;
+            return Some(parsed);
+        }
+    }
+    let mut candidate = tokens.clone();
+    if let Some(parsed) = alternative_3(context, property, &mut candidate) {
+        *tokens = candidate;
+        return Some(parsed);
+    }
+    let mut candidate = tokens.clone();
+    if let Some(parsed) = alternative_2(&mut candidate) {
+        *tokens = candidate;
+        return Some(parsed);
+    }
+    let mut candidate = tokens.clone();
+    let parsed = alternative_1(context, property, &mut candidate)?;
+    *tokens = candidate;
+    Some(parsed)
 }
 
 fn parse_position_value(
@@ -663,7 +701,11 @@ fn radial_size(components: Vec<RadialComponent>) -> Option<StyleValueData> {
     })
 }
 
-fn parse_radial_size(context: &ParseContext, property: u16, tokens: &mut TokenStream<'_>) -> Option<StyleValueData> {
+pub(crate) fn parse_radial_size(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+) -> Option<StyleValueData> {
     let mut components = Vec::new();
     while components.len() < 2 {
         tokens.discard_whitespace();
