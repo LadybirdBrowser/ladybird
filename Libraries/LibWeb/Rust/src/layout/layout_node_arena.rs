@@ -396,7 +396,11 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn free(&mut self, id: NodeSlotId, generation: u32) {
+    pub(crate) fn free(
+        &mut self,
+        id: NodeSlotId,
+        generation: u32,
+    ) -> Option<crate::painting::paintable_arena::PaintableRowReset> {
         self.assert_owner_thread();
 
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
@@ -410,14 +414,21 @@ impl LayoutNodeArena {
         self.paintables
             .borrow()
             .clear_descendant_subtree_caches_from_layout_node(self, id);
-        let metadata = self.metadata_mut(index);
-        assert!(metadata.occupied, "layout node arena freed an unused slot");
-        assert_eq!(
-            metadata.generation, id_generation,
-            "layout node arena freed a stale slot generation"
-        );
-        metadata.occupied = false;
-        let should_reuse = metadata.generation != u8::MAX;
+        let should_reuse = {
+            let metadata = self.metadata_mut(index);
+            assert!(metadata.occupied, "layout node arena freed an unused slot");
+            assert_eq!(
+                metadata.generation, id_generation,
+                "layout node arena freed a stale slot generation"
+            );
+            metadata.generation != u8::MAX
+        };
+
+        let paintable_row_reset = self.paintables.get_mut().prepare_layout_node_freed_reset(index);
+        if let Some(reset) = paintable_row_reset {
+            self.paintables.get_mut().layout_node_freed(reset);
+        }
+        self.metadata_mut(index).occupied = false;
 
         if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
             *slot = IntrinsicSizeCacheSlot::default();
@@ -448,7 +459,6 @@ impl LayoutNodeArena {
         }
         self.fc_run_cache_store.remove_entry(index);
         self.raw_table_column_spans.remove(&id);
-        self.paintables.get_mut().layout_node_freed(index);
         let data = self.data_mut(index);
         debug_assert!(
             data.parent.is_invalid()
@@ -467,6 +477,7 @@ impl LayoutNodeArena {
         if should_reuse {
             self.free_list.push(index);
         }
+        paintable_row_reset
     }
 
     pub(crate) fn data(&self, id: NodeSlotId) -> *mut NodeData {
@@ -1683,7 +1694,10 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.free(id, generation);
+        let paintable_row_reset = unsafe { &mut *arena.cast::<LayoutNodeArena>() }.free(id, generation);
+        if let Some(reset) = paintable_row_reset {
+            reset.invoke_callback();
+        }
     });
 }
 

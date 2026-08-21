@@ -612,8 +612,14 @@ Layout::NodeArena& Document::layout_node_arena()
 {
     // Created on first layout node so documents that never build a layout tree (e.g. temporary
     // fragment-parsing documents) skip the Rust arena round-trip entirely.
-    if (!m_layout_node_arena)
+    if (!m_layout_node_arena) {
         m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
+        Layout::RustFFI::layout_arena_set_chrome_state_callback(
+            m_layout_node_arena->handle(), m_chrome_widget_registry.ptr(),
+            [](void* context, Layout::RustFFI::PaintableSlotId slot, u8) {
+                static_cast<Painting::ChromeWidgetRegistry*>(context)->drop_widgets_for_slot(slot);
+            });
+    }
     return *m_layout_node_arena;
 }
 
@@ -632,6 +638,8 @@ void Document::record_layout_tree_build(u64 rebuilt_subtree_root_count, bool esc
 
 void Document::finalize()
 {
+    if (m_layout_node_arena)
+        Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
     CSS::ComputedValuesFFI::rust_custom_property_registry_destroy(m_rust_custom_property_registry);
     Base::finalize();
     HTML::main_thread_event_loop().unregister_document({}, *this);

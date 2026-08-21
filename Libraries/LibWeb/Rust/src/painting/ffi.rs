@@ -23,6 +23,35 @@ unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
+    arena: *mut c_void,
+    context: *mut c_void,
+    callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, u8),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena
+            .paintables()
+            .borrow_mut()
+            .set_chrome_state_callback(context, callback);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.paintables().borrow_mut().clear_chrome_state_callback();
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_row_for_node(
     arena: *mut c_void,
     layout_node: NodeSlotId,
@@ -46,10 +75,14 @@ pub unsafe extern "C" fn layout_arena_paintable_shell_destroyed(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena
-            .paintables()
-            .borrow_mut()
-            .shell_destroyed(arena, slot, generation, shell);
+        let reset = {
+            let paintables = arena.paintables().borrow();
+            paintables.prepare_shell_destroyed_reset(slot, generation, shell)
+        };
+        if let Some(reset) = reset {
+            reset.invoke_callback();
+            arena.paintables().borrow_mut().shell_destroyed(arena, reset);
+        }
     });
 }
 
@@ -64,7 +97,14 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().node_cleared(arena, layout_node, slot);
+        let reset = {
+            let paintables = arena.paintables().borrow();
+            paintables.prepare_node_cleared_reset(layout_node, slot)
+        };
+        if let Some(reset) = reset {
+            reset.invoke_callback();
+            arena.paintables().borrow_mut().node_cleared(arena, reset);
+        }
     });
 }
 
