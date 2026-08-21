@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new AudioContext();
+        const reply = new Promise(resolve => context.audioWorklet.port.onmessage = event => resolve(event.data));
+
+        await context.audioWorklet.addModule("AudioWorklet-global-port.js");
+        context.audioWorklet.port.postMessage("from context");
+
+        println(await reply);
+        await context.close();
+    });
+</script>
