@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="webgl-helpers.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 8;
+
+        const gl = canvas.getContext("webgl2");
+
+        // Verify a non-zero destination offset with a byte-sized element type.
+        gl.clearColor(1, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        const pixels = new Uint8Array(64);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels, 32);
+
+        println(`readPixels error: ${errorName(gl, gl.getError())}`);
+        println(`at offset 0: ${pixels.slice(0, 4)}`);
+        println(`at offset 32: ${pixels.slice(32, 36)}`);
+
+        // Verify that destination offsets are measured in elements rather than bytes.
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+        const renderbuffer = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA32UI, 1, 1);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, renderbuffer);
+
+        gl.clearBufferuiv(gl.COLOR, 0, new Uint32Array([255, 0, 0, 255]));
+
+        const uint32Pixels = new Uint32Array(16);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA_INTEGER, gl.UNSIGNED_INT, uint32Pixels, 8);
+
+        println(`Uint32Array readPixels error: ${errorName(gl, gl.getError())}`);
+        println(`Uint32Array at offset 0: ${uint32Pixels.slice(0, 4)}`);
+        println(`Uint32Array at offset 8: ${uint32Pixels.slice(8, 12)}`);
+    });
+</script>

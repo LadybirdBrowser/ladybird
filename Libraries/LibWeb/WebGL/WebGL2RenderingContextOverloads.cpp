@@ -13,6 +13,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <AK/Checked.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -408,24 +409,48 @@ void WebGL2RenderingContextOverloads::uniform_matrix4fv(GC::Ptr<WebGLUniformLoca
     m_context->uniform_matrix4fv(location_handle, span.size() / matrix_size, transpose, span.data());
 }
 
-void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant pixels)
+// https://registry.khronos.org/webgl/specs/latest/1.0/index.html#5.14.12
+void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height,
+    WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::NullableArrayBufferViewVariant pixels)
 {
-    m_context->make_current();
-
     if (pixels.has<Empty>()) {
         set_error(GL_INVALID_VALUE);
         return;
     }
 
     WebIDL::ArrayBufferView view { pixels.downcast<WebIDL::ArrayBufferViewVariant>() };
-    auto validated_view_or_error = WebIDL::validate_array_buffer_view(view);
+    read_pixels(x, y, width, height, format, type, view, 0);
+}
+
+// https://registry.khronos.org/webgl/specs/latest/2.0/#4.7.10
+void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height,
+    WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::ArrayBufferView dst_data, WebIDL::UnsignedLongLong dst_offset)
+{
+    m_context->make_current();
+
+    // If a WebGLBuffer is bound to the PIXEL_PACK_BUFFER target, generates an INVALID_OPERATION error.
+    if (m_pixel_pack_buffer_binding) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    // If pixel store parameter constraints are not met, generates an INVALID_OPERATION error.
+    auto validated_view_or_error = WebIDL::validate_array_buffer_view(dst_data);
     if (validated_view_or_error.is_error()) {
         set_error(GL_INVALID_OPERATION);
         return;
     }
     auto validated_view = validated_view_or_error.release_value();
 
-    auto bytes_or_error = ByteBuffer::create_uninitialized(validated_view.byte_length);
+    // If dstData doesn't have enough space for the read operation starting at dstOffset, generate INVALID_OPERATION.
+    Checked<size_t> dst_byte_offset = dst_offset;
+    dst_byte_offset *= validated_view.element_size;
+    if (dst_byte_offset.has_overflow() || dst_byte_offset.value() > validated_view.byte_length) {
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    auto bytes_or_error = ByteBuffer::create_uninitialized(validated_view.byte_length - dst_byte_offset.value());
     if (bytes_or_error.is_error()) {
         set_error(GL_OUT_OF_MEMORY);
         return;
@@ -436,15 +461,18 @@ void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y
     if (bytes_read == 0)
         return;
     VERIFY(bytes_read > 0);
-    if (view.write_checked(ReadonlyBytes { bytes.data(), static_cast<size_t>(bytes_read) }).is_error()) [[unlikely]]
+
+    if (dst_data.write_checked({ bytes.data(), static_cast<size_t>(bytes_read) }, dst_byte_offset.value()).is_error()) [[unlikely]]
         set_error(GL_INVALID_OPERATION);
 }
 
+// https://registry.khronos.org/webgl/specs/latest/2.0/#4.7.10
 void WebGL2RenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height,
     WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, WebIDL::LongLong offset)
 {
     m_context->make_current();
 
+    // If no WebGLBuffer is bound to the PIXEL_PACK_BUFFER target, generates an INVALID_OPERATION error.
     if (!m_pixel_pack_buffer_binding) {
         set_error(GL_INVALID_OPERATION);
         return;
