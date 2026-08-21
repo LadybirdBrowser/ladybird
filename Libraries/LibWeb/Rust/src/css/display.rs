@@ -6,7 +6,9 @@
 
 //! The CSS `display` value and its predicates, mirroring `Web::CSS::Display`.
 
-use crate::css::css_enums::{display_box, display_inside, display_internal, display_outside};
+use crate::css::css_enums::{
+    display_box, display_inside, display_internal, display_outside, keyword, keyword_to_display_internal,
+};
 
 const DISPLAY_BOX_CONTENTS: u8 = display_box::CONTENTS;
 const DISPLAY_BOX_NONE: u8 = display_box::NONE;
@@ -142,6 +144,40 @@ impl FfiDisplay {
             internal: 0,
             box_value: DISPLAY_BOX_CONTENTS,
         }
+    }
+
+    pub(crate) fn from_single_keyword(value: u16) -> Option<Self> {
+        // NB: Mirror parse_single_component_display() in the C++ property parser.
+        let display = match value {
+            keyword::NONE => Self::none(),
+            keyword::CONTENTS => Self::contents(),
+            keyword::BLOCK | keyword::FLOW => Self::block(),
+            keyword::FLOW_ROOT => Self::flow_root(),
+            keyword::INLINE => Self::inline(),
+            keyword::INLINE_BLOCK => Self::inline_block(),
+            keyword::RUN_IN => Self::outside_and_inside(display_outside::RUN_IN, display_inside::FLOW, false),
+            keyword::LIST_ITEM => Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, true),
+            keyword::FLEX | keyword::_WEBKIT_FLEX => {
+                Self::outside_and_inside(display_outside::BLOCK, display_inside::FLEX, false)
+            }
+            keyword::INLINE_FLEX | keyword::_WEBKIT_INLINE_FLEX => {
+                Self::outside_and_inside(display_outside::INLINE, display_inside::FLEX, false)
+            }
+            keyword::GRID => Self::outside_and_inside(display_outside::BLOCK, display_inside::GRID, false),
+            keyword::INLINE_GRID => Self::outside_and_inside(display_outside::INLINE, display_inside::GRID, false),
+            keyword::RUBY => Self::outside_and_inside(display_outside::INLINE, display_inside::RUBY, false),
+            keyword::TABLE => Self::table(),
+            keyword::INLINE_TABLE => Self::inline_table(),
+            keyword::MATH => Self::outside_and_inside(display_outside::INLINE, display_inside::MATH, false),
+            keyword::_WEBKIT_BOX => {
+                Self::outside_and_inside(display_outside::BLOCK, display_inside::_WEBKIT_BOX, false)
+            }
+            keyword::_WEBKIT_INLINE_BOX => {
+                Self::outside_and_inside(display_outside::INLINE, display_inside::_WEBKIT_BOX, false)
+            }
+            _ => Self::internal(keyword_to_display_internal(value)?),
+        };
+        Some(display)
     }
 
     pub fn is_outside_and_inside(&self) -> bool {
@@ -369,5 +405,27 @@ mod tests {
         // Box-tag values answer no outside/inside predicate.
         assert!(!FfiDisplay::none().is_flow_inside());
         assert!(!FfiDisplay::none().is_block_outside());
+    }
+
+    #[test]
+    fn creates_single_keyword_display_values() {
+        assert_eq!(FfiDisplay::from_single_keyword(keyword::NONE), Some(FfiDisplay::none()));
+        assert_eq!(
+            FfiDisplay::from_single_keyword(keyword::FLOW),
+            Some(FfiDisplay::block())
+        );
+        assert_eq!(
+            FfiDisplay::from_single_keyword(keyword::_WEBKIT_FLEX),
+            Some(FfiDisplay::outside_and_inside(
+                display_outside::BLOCK,
+                display_inside::FLEX,
+                false
+            ))
+        );
+        assert_eq!(
+            FfiDisplay::from_single_keyword(keyword::TABLE_ROW),
+            Some(FfiDisplay::internal(display_internal::TABLE_ROW))
+        );
+        assert_eq!(FfiDisplay::from_single_keyword(keyword::AUTO), None);
     }
 }
