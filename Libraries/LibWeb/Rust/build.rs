@@ -1715,6 +1715,29 @@ fn generate_transform_functions(manifest_dir: &Path, out_dir: &Path) -> Result<(
         }
         output.push_str(&format!("    &[{}],\n", codes.join(", ")));
     }
+    output.push_str("];\n\n");
+
+    output.push_str(&format!(
+        "#[allow(dead_code)]\npub(crate) static TRANSFORM_FUNCTION_PARAMETER_REQUIRED: [&[bool]; {}] = [\n",
+        functions.len()
+    ));
+    for (name, function) in functions {
+        let parameters = function
+            .get("parameters")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| format!("transform function {name} has no parameters array"))?;
+        let required = parameters
+            .iter()
+            .map(|parameter| {
+                parameter
+                    .get("required")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        output.push_str(&format!("    &[{}],\n", required.join(", ")));
+    }
     output.push_str("];\n");
     std::fs::write(out_dir.join("transform_functions_generated.rs"), output)?;
     Ok(())

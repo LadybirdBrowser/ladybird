@@ -23,6 +23,9 @@ use crate::css::parser::positions_shapes_parser::{
     is_position_shape_function_name, parse_anchor_fit_property, parse_geometry_property, parse_position_property,
 };
 use crate::css::parser::token_stream::TokenStream;
+use crate::css::parser::transforms_effects_parser::{
+    is_transform_effect_function_name, parse_transform_effect_property,
+};
 use crate::css::property_metadata::{
     FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
     property_accepts_only_keywords, property_custom_ident_blacklist, property_has_coordinating_list_multiplicity,
@@ -63,16 +66,16 @@ const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
 };
 
 // NB: Keep these in the order of the C++ ValueType enum.
-const VALUE_TYPE_ANGLE: u8 = 2;
+pub(crate) const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_COLOR: u8 = 6;
 const VALUE_TYPE_CUSTOM_IDENT: u8 = 10;
 const VALUE_TYPE_DASHED_IDENT: u8 = 11;
 const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_FREQUENCY: u8 = 21;
 const VALUE_TYPE_IMAGE: u8 = 23;
-const VALUE_TYPE_INTEGER: u8 = 24;
+pub(crate) const VALUE_TYPE_INTEGER: u8 = 24;
 pub(crate) const VALUE_TYPE_LENGTH: u8 = 25;
-const VALUE_TYPE_NUMBER: u8 = 27;
+pub(crate) const VALUE_TYPE_NUMBER: u8 = 27;
 const VALUE_TYPE_OPACITY_VALUE: u8 = 28;
 pub(crate) const VALUE_TYPE_PERCENTAGE: u8 = 31;
 const VALUE_TYPE_RATIO: u8 = 33;
@@ -271,6 +274,10 @@ pub(crate) struct NumericRange {
 }
 
 impl NumericRange {
+    pub(crate) const fn new(min: f64, max: f64) -> Self {
+        Self { min, max }
+    }
+
     pub(crate) const INFINITE: Self = Self {
         min: f32::MIN as f64,
         max: f32::MAX as f64,
@@ -378,7 +385,7 @@ fn single_modifier_argument(values: &[ComponentValue]) -> Option<&ComponentValue
     single_non_whitespace_value(values)
 }
 
-fn parse_url_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     let (url, url_type, modifiers) = match &value.kind {
         ComponentKind::Token(ParserTokenKind::Url(url)) => (url.as_ref(), 0, Vec::new()),
         ComponentKind::Function { name, values }
@@ -451,7 +458,7 @@ fn number_token(value: &ComponentValue) -> Option<(f64, CssNumberType)> {
     Some((clamp_to_single_precision_range(*value), *number_type))
 }
 
-fn parse_integer_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
+pub(crate) fn parse_integer_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
     let (value, number_type) = number_token(value)?;
     if number_type == CssNumberType::Number {
         return None;
@@ -462,14 +469,14 @@ fn parse_integer_value(value: &ComponentValue, accepted_range: NumericRange) -> 
         .then_some(StyleValueData::Integer { value })
 }
 
-fn parse_number_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
+pub(crate) fn parse_number_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
     let (value, _) = number_token(value)?;
     accepted_range
         .contains(value)
         .then_some(StyleValueData::Number { value })
 }
 
-fn parse_percentage_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
+pub(crate) fn parse_percentage_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
     let ComponentKind::Token(ParserTokenKind::Percentage { value, .. }) = &value.kind else {
         return None;
     };
@@ -479,7 +486,7 @@ fn parse_percentage_value(value: &ComponentValue, accepted_range: NumericRange) 
         .then_some(StyleValueData::Percentage { value })
 }
 
-fn parse_number_percentage_value(
+pub(crate) fn parse_number_percentage_value(
     value: &ComponentValue,
     accepted_number_range: NumericRange,
     accepted_percentage_range: NumericRange,
@@ -526,7 +533,7 @@ fn parse_dimension_value(
     }
 }
 
-fn parse_angle_value(
+pub(crate) fn parse_angle_value(
     context: &ParseContext,
     value: &ComponentValue,
     accepted_range: NumericRange,
@@ -572,7 +579,7 @@ fn parse_frequency_percentage_value(
         .or_else(|| parse_percentage_value(value, accepted_percentage_range))
 }
 
-fn parse_length_value(
+pub(crate) fn parse_length_value(
     context: &ParseContext,
     property: u16,
     value: &ComponentValue,
@@ -759,6 +766,7 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
             } else if math_function_from_name(name).is_some()
                 || is_color_function_name(name)
                 || is_position_shape_function_name(name)
+                || is_transform_effect_function_name(name)
             {
                 unported_function_reason(values)
             } else {
@@ -889,7 +897,7 @@ fn parse_calculated_numeric_value(
     )
 }
 
-fn parse_calculated_numeric_value_with_ranges(
+pub(crate) fn parse_calculated_numeric_value_with_ranges(
     context: &ParseContext,
     property: u16,
     value_type: u8,
@@ -1403,6 +1411,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     }
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    let transform_effect_outcome = parse_transform_effect_property(context, property_id, values);
+    if !matches!(transform_effect_outcome, ParseOutcome::NotHandled(_)) {
+        return transform_effect_outcome;
     }
     let position_outcome = parse_position_property(context, property_id, values);
     if !matches!(position_outcome, ParseOutcome::NotHandled(_)) {
