@@ -17,6 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/DirectiveState.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -83,6 +84,8 @@ struct SessionHistoryEntryDescriptor {
     Utf16String navigation_api_id;
     ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
     SessionHistoryEntryScrollPositionData scroll_position_data;
+    CrossProcessId directive_state_id;
+    Optional<String> directive_state_value;
 };
 
 struct PendingSessionHistoryEntryDescriptor {
@@ -94,6 +97,8 @@ struct PendingSessionHistoryEntryDescriptor {
     Utf16String navigation_api_id;
     ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
     SessionHistoryEntryScrollPositionData scroll_position_data;
+    CrossProcessId directive_state_id;
+    Optional<String> directive_state_value;
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
@@ -105,9 +110,9 @@ struct SessionHistoryNestedHistoryDescriptor {
 // https://html.spec.whatwg.org/multipage/history.html#session-history-entry
 class WEB_API SessionHistoryEntry final : public RefCounted<SessionHistoryEntry> {
 public:
-    static NonnullRefPtr<SessionHistoryEntry> create();
+    static NonnullRefPtr<SessionHistoryEntry> create(NonnullRefPtr<DirectiveState>);
 
-    SessionHistoryEntry();
+    explicit SessionHistoryEntry(NonnullRefPtr<DirectiveState>);
     ~SessionHistoryEntry();
 
     enum class Pending {
@@ -147,6 +152,9 @@ public:
     [[nodiscard]] SessionHistoryEntryScrollPositionData const& scroll_position_data() const { return m_scroll_position_data; }
     void set_scroll_position_data(SessionHistoryEntryScrollPositionData scroll_position_data) { m_scroll_position_data = move(scroll_position_data); }
 
+    [[nodiscard]] NonnullRefPtr<DirectiveState> const& directive_state() const { return m_directive_state; }
+    void set_directive_state(NonnullRefPtr<DirectiveState> directive_state) { m_directive_state = move(directive_state); }
+
 private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-step
     // step, a non-negative integer or "pending", initially "pending".
@@ -182,6 +190,10 @@ private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-scroll-position
     // scroll position data, which is scroll position data for the document's restorable scrollable regions
     SessionHistoryEntryScrollPositionData m_scroll_position_data;
+
+    // https://wicg.github.io/scroll-to-text-fragment/#the-fragment-directive
+    // directive state, a directive state, initially a new directive state.
+    NonnullRefPtr<DirectiveState> m_directive_state;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-other
     // FIXME: persisted user state, which is implementation-defined, initially null

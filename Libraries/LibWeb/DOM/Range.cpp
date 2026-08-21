@@ -31,6 +31,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -1183,6 +1184,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         return Geometry::DOMRectList::create({});
 
     start_container()->document().update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
+    start_container()->document().update_paint_and_hit_testing_properties_if_needed();
     Vector<GC::Root<Geometry::DOMRect>> rects;
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
@@ -1273,8 +1275,11 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             Layout::RustFFI::layout_arena_text_range_rects(
                 mapping.primary()->arena_handle(), text_slots.data(), text_slots.size(),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
-                &rects, [](void* context, Layout::RustFFI::FfiCssPixelRect ffi_rect) {
-                    auto rect = Painting::from_ffi_css_pixel_rect(ffi_rect);
+                &rects, [](void* context, void* paintable_with_lines, Layout::RustFFI::FfiCssPixelRect ffi_rect) {
+                    auto absolute_rect = Painting::from_ffi_css_pixel_rect(ffi_rect);
+                    auto* paintable = static_cast<Painting::PaintableWithLines*>(paintable_with_lines);
+                    VERIFY(paintable);
+                    auto rect = paintable->transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
                     static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));
                 });
         }

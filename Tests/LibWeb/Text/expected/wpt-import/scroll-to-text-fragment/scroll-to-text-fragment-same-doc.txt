@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	Activated for same-document window.location setter
+Fail	Activated for same-document window.location.replace

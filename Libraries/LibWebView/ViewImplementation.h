@@ -93,7 +93,9 @@ public:
     CanonicalTraversable const& traversable() const { return m_top_level_traversable; }
 
     void set_url(Badge<WebContentClient>, URL::URL url) { set_url(move(url)); }
+    void set_text_fragment_indication_visibility(Badge<WebContentClient>, bool);
     URL::URL const& url() const { return m_url; }
+    URL::URL const& displayed_url() const { return m_displayed_url; }
 
     void set_title(Badge<WebContentClient>, Utf16String title);
     Utf16String const& title() const { return m_title; }
@@ -494,6 +496,7 @@ protected:
     u64 page_id() const;
 
     void set_url(URL::URL);
+    void update_displayed_url();
     void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&, bool is_redirect);
     bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
     void did_finish_navigation(URL::URL const&);
@@ -600,6 +603,7 @@ protected:
     IsPrivate m_is_private { IsPrivate::No };
 
     URL::URL m_url;
+    URL::URL m_displayed_url;
     Utf16String m_title;
     Optional<String> m_favicon_hash;
     bool m_is_showing_crash_page { false };
@@ -688,6 +692,7 @@ protected:
     bool m_can_undo { false };
     bool m_can_redo { false };
     bool m_is_loading { false };
+    bool m_text_fragment_indication_is_visible { false };
     struct OngoingTopLevelNavigation {
         struct Load {
             Optional<Utf16String> navigation_id;

@@ -141,12 +141,15 @@ void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history
 void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     Bindings::NavigationHistoryBehavior history_handling, Optional<HTML::NavigationSourceSnapshot> source_snapshot)
 {
+    auto const user_involvement = source_snapshot.has_value()
+        ? source_snapshot->user_involvement
+        : HTML::UserNavigationInvolvement::BrowserUI;
     (void)top_level_traversable()->navigate({
         .url = url,
         .source_document = *top_level_traversable()->active_document(),
         .document_resource = move(document_resource),
         .history_handling = history_handling,
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
+        .user_involvement = user_involvement,
         .cross_process_source_snapshot = move(source_snapshot),
         .history_handling_already_determined = true,
     });

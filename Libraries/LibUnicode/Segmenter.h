@@ -52,6 +52,10 @@ public:
     virtual Optional<size_t> previous_boundary(size_t index, Inclusive = Inclusive::No) = 0;
     virtual Optional<size_t> next_boundary(size_t index, Inclusive = Inclusive::No) = 0;
 
+    // https://wicg.github.io/scroll-to-text-fragment/#word-boundaries
+    // A word boundary is defined in UAX29 in UAX29#Word_Boundaries.
+    bool is_boundary(size_t index) { return next_boundary(index, Inclusive::Yes) == index; }
+
     using SegmentationCallback = Function<IterationDecision(size_t)>;
     virtual void for_each_boundary(String, SegmentationCallback) = 0;
     virtual void for_each_boundary(Utf16View const&, SegmentationCallback) = 0;

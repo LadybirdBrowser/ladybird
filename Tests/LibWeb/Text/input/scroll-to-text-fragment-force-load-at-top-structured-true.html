@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async () => {
+        const server = new HTTPTestServer(httpTestServer().baseURL);
+        const targetURL = await server.createEcho("GET", "/scroll-to-text-fragment-force-load-at-top-structured-true", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Document-Policy": "force-load-at-top=?1",
+            },
+            body: `<!DOCTYPE html>
+                <div style="height: 2000px"></div>
+                <div id="target">target</div>
+                <script>
+                    addEventListener("load", () => {
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            internals.signalTestIsDone(\`Scrolled with force-load-at-top=?1: \${scrollY !== 0}\\n\`);
+                        }));
+                    });
+                <\/script>`,
+        });
+        location.href = `${targetURL}#target`;
+    });
+</script>

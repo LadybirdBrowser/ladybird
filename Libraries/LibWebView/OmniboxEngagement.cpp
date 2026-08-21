@@ -55,7 +55,7 @@ String normalize_omnibox_destination(StringView destination, OmniboxDestinationK
         url = URL::Parser::basic_parse(MUST(String::formatted("https://{}", destination)));
     if (!url.has_value())
         return MUST(String::from_utf8(destination.trim_whitespace()));
-    return url->serialize(URL::ExcludeFragment::Yes);
+    return url->serialize();
 }
 
 }

@@ -1,0 +1,2 @@
+Scrolled before parser completion: true
+Ready state: loading

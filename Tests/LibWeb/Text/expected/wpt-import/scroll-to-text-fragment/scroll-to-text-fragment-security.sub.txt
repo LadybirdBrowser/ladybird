@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	Test that a text fragment directive requires a user activation (user_activation=true).
+Fail	Test that a text fragment directive requires a user activation (user_activation=false).
+Fail	Test that a text fragment directive is not activated when there is a window opener (noopener=true).
+Fail	Test that a text fragment directive is not activated when there is a window opener (noopener=false).
+Fail	Test that a text fragment directive is not activated within an iframe.
