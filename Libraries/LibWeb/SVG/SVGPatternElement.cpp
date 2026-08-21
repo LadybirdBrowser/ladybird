@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -241,8 +242,7 @@ Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geom
     if (!pattern_box)
         return {};
 
-    auto pattern_paintable = pattern_box->paintable_box();
-    if (!pattern_paintable)
+    if (!Painting::has_committed_box(*pattern_box))
         return {};
 
     float tile_x = 0;
@@ -327,7 +327,7 @@ Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geom
     }
 
     return PaintGeometry {
-        .pattern_paintable = pattern_paintable,
+        .pattern_paintable = pattern_box,
         .tile_rect = tile_rect,
         .content_scale = content_scale,
         .tile_content_transform = tile_content_transform,

@@ -80,7 +80,7 @@ public:
     }
 
     struct PatternPaintServer {
-        Painting::Paintable const* pattern_paintable;
+        Layout::NodeWithStyle const* pattern_paintable;
         Gfx::FloatRect tile_rect;
         Gfx::FloatSize content_scale;
         Painting::TransformData tile_content_transform;

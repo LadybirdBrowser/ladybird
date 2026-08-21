@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGDescElement.h>
@@ -407,8 +408,9 @@ Gfx::Size<double> SVGElement::viewport_size_for_percentage_resolution()
         if (!viewport_element.is_connected())
             return {};
 
-        if (auto const* svg_paintable = viewport_element.paintable().ptr(); svg_paintable && svg_paintable->is_svg_svg_paintable())
-            return svg_paintable->svg_viewport_size().to_type<double>();
+        auto const* layout_node = viewport_element.layout_node();
+        if (layout_node && Painting::has_committed_box(*layout_node) && Painting::is_svg_svg_paintable(*layout_node))
+            return Painting::svg_viewport_size(*layout_node).to_type<double>();
 
         return {};
     };

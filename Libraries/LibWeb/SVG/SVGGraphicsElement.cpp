@@ -17,8 +17,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -382,7 +382,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
     //        calculate this from SVG geometry without a full layout tree (at least for simple cases).
     //        See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
-    if (!layout_node())
+    auto const* self_layout_node = layout_node();
+    if (!self_layout_node)
         return Geometry::DOMRect::create();
     auto owner_svg_element = this->owner_svg_element();
 
@@ -392,11 +393,10 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
     if (!owner_svg_element) {
         if (!is<SVGSVGElement>(*this))
             return Geometry::DOMRect::create();
-        auto self_paintable = paintable_box();
-        if (!self_paintable)
+        if (!Painting::has_committed_box(*self_layout_node))
             return Geometry::DOMRect::create();
         Gfx::FloatRect united_rect;
-        for (auto const* child = self_paintable->layout_node().first_child_ptr(); child; child = child->next_sibling_ptr()) {
+        for (auto const* child = self_layout_node->first_child_ptr(); child; child = child->next_sibling_ptr()) {
             switch (child->kind()) {
             case Layout::RustFFI::NodeKind::SVGMaskBox:
             case Layout::RustFFI::NodeKind::SVGClipBox:
@@ -405,10 +405,9 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
             default:
                 break;
             }
-            auto const* child_paintable = child->paintable_ptr();
-            if (!child_paintable)
+            if (!Painting::has_committed_box(*child))
                 continue;
-            auto child_rect = child_paintable->layout_node().used_svg_element_transform().map(child_paintable->absolute_rect().to_type<float>());
+            auto child_rect = as<Layout::NodeWithStyle>(*child).used_svg_element_transform().map(Painting::absolute_rect(*child).to_type<float>());
             united_rect.unite(child_rect);
         }
         if (united_rect.is_empty())
@@ -416,8 +415,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
         return Geometry::DOMRect::create(united_rect);
     }
 
-    auto self_paintable = paintable_box();
-    if (!owner_svg_element->paintable_box() || !self_paintable) {
+    auto const* owner_layout_node = owner_svg_element->layout_node();
+    if (!owner_layout_node || !Painting::has_committed_box(*owner_layout_node) || !Painting::has_committed_box(*self_layout_node)) {
         // Throw only for non-rendered *graphics* elements where geometry isn't computable
         // (e.g. elements inside <marker>, <pattern>, etc.).
         if (is<SVGSVGElement>(*this))
@@ -429,10 +428,10 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
 
     // A path-like element's bounding box covers its geometry alone; the committed content rect is
     // inflated by the visible stroke width, so take the unstroked path bounds directly.
-    if (auto const* committed_path = self_paintable->committed_svg_path())
+    if (auto const* committed_path = Painting::committed_svg_path(*self_layout_node))
         return Geometry::DOMRect::create(committed_path->bounding_box());
 
-    auto rect = self_paintable->absolute_rect().to_type<float>();
+    auto rect = Painting::absolute_rect(*self_layout_node).to_type<float>();
     // An element with a non-positive geometry dimension is not rendered and
     // therefore contributes an empty bounding box, regardless of its
     // positioning rectangle's origin.
@@ -461,11 +460,11 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     // 2. If the current element is a non-rendered element, and the UA is not able to resolve the style of the element,
     //    then return null.
     //
-    // NB: We currently require a paintable connected to the document's visual-context tree to compute this matrix.
+    // NB: We currently require committed box data connected to the document's visual-context tree to compute this matrix.
     //     This also excludes geometry in resource-only subtrees such as masks, clip paths, and patterns.
-    auto paintable = this->paintable();
+    auto const* layout_node = this->layout_node();
     auto viewport_paintable = document().paintable();
-    if (!paintable || !viewport_paintable)
+    if (!layout_node || !Painting::has_committed_box(*layout_node) || !viewport_paintable)
         return {};
 
     // 3. Let ctm be a matrix that transforms the coordinate space of the current element (including its transform
@@ -474,16 +473,16 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     // NB: An SVG viewport's current user coordinate system is the space produced by its viewBox transform, which is the
     //     coordinate system recorded for its descendants. Other graphics elements use their own accumulated context so
     //     their transform property is included exactly once.
-    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    if (!paintable->has_accumulated_visual_context())
+    auto const& visual_context_tree = document().visual_context_tree();
+    if (!Painting::has_accumulated_visual_context(*layout_node))
         return {};
 
-    auto visual_context_index = paintable->svg_viewport_transform().has_value()
-        ? paintable->accumulated_visual_context_for_descendants_index()
-        : paintable->accumulated_visual_context_index();
+    auto visual_context_index = Painting::svg_viewport_transform(*layout_node).has_value()
+        ? Painting::accumulated_visual_context_for_descendants_index(*layout_node)
+        : Painting::accumulated_visual_context_index(*layout_node);
     auto ctm = visual_context_tree.accumulated_matrix(
         visual_context_index,
-        viewport_paintable->scroll_state_snapshot(),
+        document().scroll_state_snapshot(),
         Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 
     // NB: Accumulated visual-context matrices operate in device-pixel space. Conjugate the matrix by the device scale
