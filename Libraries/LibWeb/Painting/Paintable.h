@@ -402,7 +402,7 @@ public:
     Optional<CachedOverflowData> cached_overflow_data() const;
     void clear_cached_overflow_data();
 
-    virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y);
 

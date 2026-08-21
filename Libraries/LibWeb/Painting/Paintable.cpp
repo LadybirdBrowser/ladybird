@@ -1427,14 +1427,7 @@ bool Paintable::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics 
 void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
-        invalidate_paint_cache();
-
-        // Recurse into anonymous child nodes so we properly invalidate nested contents of e.g. <button>s.
-        for_each_child_of_type<Paintable>([&](auto& child) {
-            if (child.layout_node().is_anonymous())
-                child.set_needs_repaint(should_invalidate_display_list);
-            return IterationDecision::Continue;
-        });
+        Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(rust_arena().handle(), rust_slot());
 
         // The root element paints the body's propagated background, so a body repaint must also refresh the
         // root's cached background. A root repaint can conversely flip whether propagation applies, changing

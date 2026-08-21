@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, LayoutNodeArena};
 use crate::painting::paintable_data::*;
 use std::cell::Cell;
@@ -274,6 +274,36 @@ impl PaintableArena {
         while !ancestor.is_invalid() {
             self.paint_caches[ancestor.slot_index() as usize].clear_descendant_subtrees();
             ancestor = self.data_ref(ancestor).parent;
+        }
+    }
+
+    pub(crate) fn invalidate_for_repaint(&self, layout_arena: &LayoutNodeArena, id: PaintableSlotId) {
+        if !self.is_live(id) {
+            return;
+        }
+        self.invalidate_paint_cache(id);
+        let mut stack = vec![id];
+        while let Some(current) = stack.pop() {
+            let mut child = self.first_child(current);
+            while let Some(child_slot) = child {
+                let child_layout_node = self.data_ref(child_slot).layout_node;
+                let child_flags = layout_arena.node_flags_if_live(child_layout_node);
+                if child_flags & NodeFlag::Anonymous as u32 != 0 {
+                    self.paint_caches[child_slot.slot_index() as usize].clear();
+                    stack.push(child_slot);
+                }
+                child = self.next_sibling(child_slot);
+            }
+        }
+        if self.data_ref(id).kind == PaintableKind::InlinePaintable {
+            let mut ancestor = self.parent(id);
+            while let Some(current) = ancestor {
+                self.invalidate_paint_cache(current);
+                if self.data_ref(current).kind.has_lines() {
+                    break;
+                }
+                ancestor = self.parent(current);
+            }
         }
     }
 

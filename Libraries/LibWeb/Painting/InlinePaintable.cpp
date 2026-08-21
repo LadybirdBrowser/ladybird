@@ -92,19 +92,4 @@ Optional<PaintableWithLines::CaretPaint> InlinePaintable::resolve_empty_editable
     };
 }
 
-void InlinePaintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
-{
-    Paintable::set_needs_repaint(should_invalidate_display_list);
-
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
-        // This box's glyphs are recorded in an ancestor's foreground commands: the containing
-        // block's, or a self-painting inline ancestor's.
-        for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-            ancestor->invalidate_paint_cache();
-            if (is<PaintableWithLines>(*ancestor))
-                break;
-        }
-    }
-}
-
 }
