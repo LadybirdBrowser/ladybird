@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        httpTestServer()
+            .createEcho("GET", "/worker-synchronous-xhr-send", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "text/plain",
+                },
+                body: "hello over http",
+            })
+            .then(url => {
+                const worker = new Worker("worker-synchronous-XHR-send.js");
+                worker.onmessage = event => {
+                    println(event.data);
+                    done();
+                };
+                worker.postMessage(url);
+            });
+    });
+</script>
