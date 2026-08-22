@@ -10,7 +10,6 @@ use super::*;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::host::FfiVisualContextHostCallbacks;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use libgfx_rust::{
@@ -22,13 +21,13 @@ use std::collections::HashSet;
 // Content below a viewport node records in the viewport's user units scaled by the device pixel
 // ratio, mirroring how ordinary content records in CSS pixels scaled by it; the node folds the
 // viewport box's position in its own recorded space together with the viewBox transform.
-pub fn compute_svg_viewport_transform_data(
-    paintables: &PaintableArena,
+pub(crate) fn compute_svg_viewport_transform_data(
+    layout_arena: &LayoutNodeArena,
     slot: NodeSlotId,
     viewbox_transform: AffineTransform,
     pixel_ratio: f64,
 ) -> TransformData {
-    let location = paintable_geometry::absolute_rect(paintables, slot).location();
+    let location = paintable_geometry::absolute_rect(layout_arena, slot).location();
     let matrix = translated_then_multiplied(
         FloatPoint {
             x: location.x.to_float(),
@@ -47,10 +46,10 @@ pub fn compute_svg_viewport_transform_data(
 }
 
 pub(crate) fn svg_viewport_transform_of(
-    paintables: &crate::painting::paintable_arena::PaintableArena,
+    layout_arena: &crate::layout::LayoutNodeArena,
     slot: NodeSlotId,
 ) -> Option<AffineTransform> {
-    let t = crate::painting::paintable_geometry::committed_svg_viewport_transform(paintables, slot)?;
+    let t = crate::painting::paintable_geometry::committed_svg_viewport_transform(layout_arena, slot)?;
     Some(AffineTransform {
         values: [t.a, t.b, t.c, t.d, t.e, t.f],
     })
@@ -84,7 +83,6 @@ impl BoxFacts {
 
     pub(crate) fn gather(
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiVisualContextHostCallbacks,
         slot: NodeSlotId,
         pixel_ratio: f64,
@@ -112,15 +110,13 @@ impl BoxFacts {
             },
         };
         if let Some((transform, transform_is_invertible)) =
-            super::node_values::compute_transform(layout_arena, paintables, callbacks, slot, pixel_ratio)
+            super::node_values::compute_transform(layout_arena, callbacks, slot, pixel_ratio)
         {
             facts.transform = Some(transform);
             facts.transform_is_invertible = transform_is_invertible;
         }
-        facts.perspective =
-            super::node_values::compute_perspective_data(layout_arena, paintables, callbacks, slot, pixel_ratio);
-        facts.effects =
-            super::node_values::compute_effects_data(layout_arena, paintables, callbacks, slot).map(std::rc::Rc::new);
+        facts.perspective = super::node_values::compute_perspective_data(layout_arena, callbacks, slot, pixel_ratio);
+        facts.effects = super::node_values::compute_effects_data(layout_arena, callbacks, slot).map(std::rc::Rc::new);
         facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
         let node = slot;
         facts.establishes_or_extends_3d_rendering_context =
@@ -129,14 +125,13 @@ impl BoxFacts {
             crate::painting::style_queries::establishes_positioning_containing_blocks(layout_arena, node);
         facts.establishes_absolute_containing_block = establishes_absolute;
         facts.establishes_fixed_containing_block = establishes_fixed;
-        facts.clip_path =
-            super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, paintables, slot, pixel_ratio).map(
-                |(path, bounding_rect, fill_rule, bounds_are_empty)| {
-                    (std::rc::Rc::new(path), bounding_rect, fill_rule, bounds_are_empty)
-                },
-            );
+        facts.clip_path = super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, slot, pixel_ratio).map(
+            |(path, bounding_rect, fill_rule, bounds_are_empty)| {
+                (std::rc::Rc::new(path), bounding_rect, fill_rule, bounds_are_empty)
+            },
+        );
         let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
-        facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, paintables, callbacks, slot, true)
+        facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, callbacks, slot, true)
             .into_iter()
             .map(|layer| MaskData {
                 rect: converter.enclosing_device_rect(layer.area),
@@ -144,10 +139,10 @@ impl BoxFacts {
                 origin: layer.origin,
             })
             .collect();
-        facts.css_clip = super::node_values::compute_css_clip_data(layout_arena, paintables, slot, pixel_ratio);
+        facts.css_clip = super::node_values::compute_css_clip_data(layout_arena, slot, pixel_ratio);
         facts.may_have_clip = super::node_values::may_have_clip(layout_arena, slot);
         facts.overflow_clip = if facts.may_have_clip {
-            super::node_values::compute_clip_data(layout_arena, paintables, slot, pixel_ratio)
+            super::node_values::compute_clip_data(layout_arena, slot, pixel_ratio)
         } else {
             None
         };
@@ -220,7 +215,6 @@ struct DescendantVisualContexts {
 
 struct Builder<'a> {
     layout_arena: &'a LayoutNodeArena,
-    paintables: &'a PaintableArena,
     callbacks: &'a FfiVisualContextHostCallbacks,
     tree: VisualContextTree,
     scroll_state: ScrollState,
@@ -247,7 +241,7 @@ impl Builder<'_> {
         if let VisualContextData::Scroll(scroll) = &mut self.tree.nodes[node_index].data {
             scroll.state_slot = slot;
         }
-        let data = self.paintables.data_ref(paintable);
+        let data = self.layout_arena.paintable_data(paintable);
         if data.kind != crate::painting::paintable_data::PaintableKind::ViewportPaintable
             && let Some(style) = self.layout_arena.node_style_if_live(paintable)
         {
@@ -269,7 +263,7 @@ impl Builder<'_> {
         if let VisualContextData::Scroll(scroll) = &mut self.tree.nodes[node_index].data {
             scroll.state_slot = slot;
         }
-        precompute_sticky_constraints(self.paintables, &mut self.scroll_state, slot, paintable);
+        precompute_sticky_constraints(self.layout_arena, &mut self.scroll_state, slot, paintable);
     }
 
     fn build_paintable_box(
@@ -281,14 +275,13 @@ impl Builder<'_> {
         let first_visual_context_node_index = self.tree.nodes.len();
         let facts = BoxFacts::gather(
             self.layout_arena,
-            self.paintables,
             self.callbacks,
             slot,
             self.pixel_ratio,
             self.may_have_default_scroll_shift_anchor,
         );
         let (is_fixed, is_absolute, is_sticky, has_sticky_insets, layout_node) = {
-            let data = self.paintables.data_ref(slot);
+            let data = self.layout_arena.paintable_data(slot);
             (
                 data.has_flag(PaintableFlag::FixedPosition),
                 data.has_flag(PaintableFlag::AbsolutelyPositioned),
@@ -297,7 +290,7 @@ impl Builder<'_> {
                 slot,
             )
         };
-        self.paintables.update_data(slot, |data| {
+        self.layout_arena.update_paintable_data(slot, |data| {
             data.enclosing_scroll_node_index = 0;
             data.own_scroll_node_index = 0;
             data.fixed_background_visual_context = 0;
@@ -322,7 +315,7 @@ impl Builder<'_> {
             nearest_scroll_nodes_for_descendants.stopping_at_fixed_position_ancestors
         };
         if !is_fixed && !is_sticky {
-            self.paintables.update_data(slot, |data| {
+            self.layout_arena.update_paintable_data(slot, |data| {
                 data.enclosing_scroll_node_index = nearest_ancestor_scroll_node_index;
             });
         }
@@ -359,8 +352,8 @@ impl Builder<'_> {
                 if anchor_node.is_invalid() {
                     break;
                 }
-                if !self.paintables.paintable_row_is_populated(box_node)
-                    || !self.paintables.paintable_row_is_populated(anchor_node)
+                if !self.layout_arena.paintable_row_is_populated(box_node)
+                    || !self.layout_arena.paintable_row_is_populated(anchor_node)
                 {
                     break;
                 }
@@ -370,12 +363,14 @@ impl Builder<'_> {
                     compensate_horizontal_scroll && box_flags & NodeFlag::CompensatesForHorizontalScroll as u32 != 0;
                 compensate_vertical_scroll =
                     compensate_vertical_scroll && box_flags & NodeFlag::CompensatesForVerticalScroll as u32 != 0;
-                let anchor_scroll_slot = self
-                    .tree
-                    .scroll_state_slot_for_node(self.paintables.data_ref(anchor_node).enclosing_scroll_node_index);
+                let anchor_scroll_slot = self.tree.scroll_state_slot_for_node(
+                    self.layout_arena
+                        .paintable_data(anchor_node)
+                        .enclosing_scroll_node_index,
+                );
                 let base_scroll_slot = self
                     .tree
-                    .scroll_state_slot_for_node(self.paintables.data_ref(box_node).enclosing_scroll_node_index);
+                    .scroll_state_slot_for_node(self.layout_arena.paintable_data(box_node).enclosing_scroll_node_index);
                 let shared_scroll_slot = common_ancestor_slot_along_scroll_parent_chain(
                     &self.scroll_state,
                     anchor_scroll_slot,
@@ -443,7 +438,7 @@ impl Builder<'_> {
             );
             own_state = sticky_scroll_node_index;
             self.register_sticky_node(sticky_scroll_node_index, slot, nearest_ancestor_scroll_node_index);
-            self.paintables.update_data(slot, |data| {
+            self.layout_arena.update_paintable_data(slot, |data| {
                 data.enclosing_scroll_node_index = sticky_scroll_node_index;
                 data.own_scroll_node_index = sticky_scroll_node_index;
             });
@@ -467,7 +462,7 @@ impl Builder<'_> {
         if let Some(mut transform) = transform_data {
             transform.flattens_inherited_transform = flattens_inherited_transform;
             transform.sorting_context_root_index = inherited.sorting_context_root;
-            self.paintables.update_data(slot, |data| {
+            self.layout_arena.update_paintable_data(slot, |data| {
                 data.set_flag(
                     PaintableFlag::HasNonInvertibleCssTransform,
                     !facts.transform_is_invertible,
@@ -476,7 +471,7 @@ impl Builder<'_> {
             own_state = self.tree.append(VisualContextData::Transform(transform), own_state);
             appended_transform_node = true;
         } else {
-            self.paintables.update_data(slot, |data| {
+            self.layout_arena.update_paintable_data(slot, |data| {
                 data.set_flag(PaintableFlag::HasNonInvertibleCssTransform, false);
             });
         }
@@ -584,7 +579,7 @@ impl Builder<'_> {
             append_to_own_and_positioned_descendant_contexts!(VisualContextData::Mask(*mask_layer));
         }
 
-        self.paintables.update_data(slot, |data| {
+        self.layout_arena.update_paintable_data(slot, |data| {
             data.has_accumulated_visual_context = true;
             data.accumulated_visual_context_index = own_state;
         });
@@ -610,7 +605,7 @@ impl Builder<'_> {
                 }
                 index = self.tree.nodes[index].parent_index;
             }
-            self.paintables.update_data(slot, |data| {
+            self.layout_arena.update_paintable_data(slot, |data| {
                 data.fixed_background_visual_context = fixed_background_context;
                 data.has_fixed_background_visual_context = true;
             });
@@ -635,7 +630,7 @@ impl Builder<'_> {
                 .append(VisualContextData::Clip(overflow_clip), state_for_descendants);
         }
 
-        if paintable_geometry::has_scrollable_overflow(&self.paintables.data_ref(slot)) {
+        if paintable_geometry::has_scrollable_overflow(&self.layout_arena.paintable_data(slot)) {
             let parent_index = if creates_sticky_scroll_node {
                 sticky_scroll_node_index
             } else {
@@ -650,8 +645,8 @@ impl Builder<'_> {
             );
             state_for_descendants = scroll_node_index;
             self.register_scroll_node(scroll_node_index, slot, parent_index);
-            self.paintables
-                .update_data(slot, |data| data.own_scroll_node_index = scroll_node_index);
+            self.layout_arena
+                .update_paintable_data(slot, |data| data.own_scroll_node_index = scroll_node_index);
             nearest_scroll_nodes_for_descendants = NearestScrollNodeIndices {
                 stopping_at_fixed_position_ancestors: scroll_node_index,
                 continuing_through_fixed_position_ancestors: scroll_node_index,
@@ -662,9 +657,9 @@ impl Builder<'_> {
         // out in the box's own coordinate space, not the viewport's user units, so they hang
         // above the viewport transform node.
         let state_for_positioned_descendants = state_for_descendants;
-        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.paintables, slot) {
+        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.layout_arena, slot) {
             let mut viewport_transform_data =
-                compute_svg_viewport_transform_data(self.paintables, slot, svg_viewport_transform, self.pixel_ratio);
+                compute_svg_viewport_transform_data(self.layout_arena, slot, svg_viewport_transform, self.pixel_ratio);
             viewport_transform_data.flattens_inherited_transform = descendants_flatten_inherited_transform;
             descendants_flatten_inherited_transform = false;
             state_for_descendants = self.tree.append(
@@ -673,7 +668,7 @@ impl Builder<'_> {
             );
         }
 
-        self.paintables.update_data(slot, |data| {
+        self.layout_arena.update_paintable_data(slot, |data| {
             data.accumulated_visual_context_for_descendants_index = state_for_descendants;
             data.visual_context_nodes_begin = first_visual_context_node_index;
             data.visual_context_nodes_end = self.tree.nodes.len();
@@ -722,14 +717,12 @@ struct PendingPaintable {
 
 pub(crate) fn build_visual_context_tree(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     viewport: NodeSlotId,
 ) -> (VisualContextTree, ScrollState, Vec<NodeSlotId>) {
     let inputs = callbacks.tree_inputs();
     let mut builder = Builder {
         layout_arena,
-        paintables,
         callbacks,
         tree: VisualContextTree::create(super::node_values::visual_viewport_transform_data(&inputs)),
         scroll_state: ScrollState::default(),
@@ -739,7 +732,7 @@ pub(crate) fn build_visual_context_tree(
         may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
     };
 
-    paintables.update_data(viewport, |data| data.enclosing_scroll_node_index = 0);
+    layout_arena.update_paintable_data(viewport, |data| data.enclosing_scroll_node_index = 0);
     let viewport_state_for_descendants = builder.tree.append(
         VisualContextData::Scroll(ScrollData {
             is_sticky: false,
@@ -748,7 +741,7 @@ pub(crate) fn build_visual_context_tree(
         VISUAL_VIEWPORT_NODE_INDEX,
     );
     builder.register_scroll_node(viewport_state_for_descendants, viewport, 0);
-    paintables.update_data(viewport, |data| {
+    layout_arena.update_paintable_data(viewport, |data| {
         data.own_scroll_node_index = viewport_state_for_descendants;
         data.has_accumulated_visual_context = true;
         data.accumulated_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
@@ -795,12 +788,9 @@ pub(crate) fn build_visual_context_tree(
             let child_contexts =
                 builder.build_paintable_box(pending.paintable, pending.inherited, pending.may_be_root_element);
             let mut children = Vec::new();
-            crate::painting::paint_order::for_each_paint_child(
-                builder.layout_arena,
-                builder.paintables,
-                pending.paintable,
-                |child| children.push(child),
-            );
+            crate::painting::paint_order::for_each_paint_child(builder.layout_arena, pending.paintable, |child| {
+                children.push(child);
+            });
             for child in children.into_iter().rev() {
                 stack.push(PendingPaintable {
                     paintable: child,
@@ -813,7 +803,7 @@ pub(crate) fn build_visual_context_tree(
 
     let mut pending: Vec<PendingPaintable> = Vec::new();
     let mut viewport_children = Vec::new();
-    crate::painting::paint_order::for_each_paint_child(layout_arena, paintables, viewport, |child| {
+    crate::painting::paint_order::for_each_paint_child(layout_arena, viewport, |child| {
         viewport_children.push(child);
     });
     for child in viewport_children.into_iter().rev() {
@@ -834,14 +824,14 @@ pub(crate) fn build_visual_context_tree(
     let anchor_is_awaiting_build = |builder: &Builder<'_>, slot: NodeSlotId, awaiting: &HashSet<NodeSlotId>| {
         let anchor_node = builder.default_scroll_shift_anchor(slot);
         let mut paintable = builder
-            .paintables
+            .layout_arena
             .paintable_row_is_populated(anchor_node)
             .then_some(anchor_node);
         while let Some(current) = paintable {
             if awaiting.contains(&current) {
                 return true;
             }
-            paintable = crate::painting::paint_order::paint_parent(builder.layout_arena, builder.paintables, current);
+            paintable = crate::painting::paint_order::paint_parent(builder.layout_arena, current);
         }
         false
     };
@@ -893,30 +883,28 @@ pub(crate) fn build_visual_context_tree(
 // Returns false if the box's node structure no longer matches; the caller must then do a full rebuild.
 pub(crate) fn update_visual_context_values(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     tree: &mut VisualContextTree,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> bool {
     let (begin, end) = {
-        let data = paintables.data_ref(slot);
+        let data = layout_arena.paintable_data(slot);
         (data.visual_context_nodes_begin, data.visual_context_nodes_end)
     };
     if end > tree.nodes.len() {
         return false;
     }
     let transform_with_invertibility =
-        super::node_values::compute_transform(layout_arena, paintables, callbacks, slot, pixel_ratio);
+        super::node_values::compute_transform(layout_arena, callbacks, slot, pixel_ratio);
     let transform = transform_with_invertibility.map(|(transform, _)| transform);
     let transform_is_invertible = transform_with_invertibility.is_some_and(|(_, invertible)| invertible);
-    let effects = super::node_values::compute_effects_data(layout_arena, paintables, callbacks, slot);
-    let perspective =
-        super::node_values::compute_perspective_data(layout_arena, paintables, callbacks, slot, pixel_ratio);
-    let svg_viewport_transform_data = svg_viewport_transform_of(paintables, slot)
-        .map(|transform| compute_svg_viewport_transform_data(paintables, slot, transform, pixel_ratio));
+    let effects = super::node_values::compute_effects_data(layout_arena, callbacks, slot);
+    let perspective = super::node_values::compute_perspective_data(layout_arena, callbacks, slot, pixel_ratio);
+    let svg_viewport_transform_data = svg_viewport_transform_of(layout_arena, slot)
+        .map(|transform| compute_svg_viewport_transform_data(layout_arena, slot, transform, pixel_ratio));
 
-    paintables.update_data(slot, |data| {
+    layout_arena.update_paintable_data(slot, |data| {
         data.set_flag(
             PaintableFlag::HasNonInvertibleCssTransform,
             transform.is_some() && !transform_is_invertible,

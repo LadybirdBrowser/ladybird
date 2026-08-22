@@ -230,7 +230,7 @@ pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, pain
     if recorder.draw_svg_geometry_for_clip_path {
         return;
     }
-    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.paintables, paintable)
+    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.layout_arena, paintable)
     else {
         return;
     };
@@ -303,7 +303,7 @@ fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPa
 }
 
 pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
-    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.paintables, paintable)
+    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.layout_arena, paintable)
     else {
         return;
     };
@@ -459,7 +459,7 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: N
     // The image rect is in the viewport's user units; a fraction of a unit can span many device
     // pixels, so the positioning math stays in float and only the overflow clip quantizes.
     let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
-    let css_rect = absolute_rect(recorder.paintables, paintable);
+    let css_rect = absolute_rect(recorder.layout_arena, paintable);
     let image_rect = FloatRect::new(
         css_rect.x.to_float() * device_scale,
         css_rect.y.to_float() * device_scale,

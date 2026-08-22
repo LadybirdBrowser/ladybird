@@ -17,7 +17,6 @@ use crate::painting::hit_test::*;
 use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::masks::MaskLayerSet;
@@ -59,7 +58,6 @@ fn to_paint_phase(phase: StackingContextPaintPhase) -> PaintPhase {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     paint_state: &crate::painting::paint_state::PaintState,
     host: &FfiHitTestHostCallbacks,
     paint_host: &FfiPaintHostCallbacks,
@@ -89,7 +87,6 @@ pub(crate) fn record_display_list(
         item_cache_source.filter(|source| source.visual_context_tree_version == visual_context_tree_version);
     let mut recorder = PaintRecorder {
         layout_arena,
-        paintables,
         paint_state,
         stacking_contexts,
         host,
@@ -114,8 +111,8 @@ pub(crate) fn record_display_list(
         spliced_capture_count: 0,
         uncacheable_paint_generation: 0,
         list: HitTestList::default(),
-        base_paint_facts_cache: vec![None; paintables.slot_count()],
-        paintable_facts_cache: vec![None; paintables.slot_count()],
+        base_paint_facts_cache: vec![None; layout_arena.paintable_row_count()],
+        paintable_facts_cache: vec![None; layout_arena.paintable_row_count()],
         text_node_facts_cache: HashMap::new(),
         font_resource_id_cache: HashMap::new(),
         text_control_selection_cache: HashMap::new(),
@@ -206,7 +203,7 @@ impl PaintRecorder<'_> {
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
-        if let Some(svg_filter_bounds) = self.paintables.side(paintable).svg_filter_bounds.get() {
+        if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(paintable).svg_filter_bounds.get() {
             let device_rect = self
                 .converter
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
@@ -265,7 +262,8 @@ impl PaintRecorder<'_> {
 
         // Draw the background and borders for block-level children (step 4)
         self.paint_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
-        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.paintables, paintable).is_some()
+        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.layout_arena, paintable)
+            .is_some()
         {
             self.paint_node(paintable, PaintPhase::TableCollapsedBorder);
         }
@@ -293,7 +291,7 @@ impl PaintRecorder<'_> {
         for &descendant in
             &stacking_contexts.nodes[index as usize].positioned_descendants_and_stacking_contexts_with_stack_level_0
         {
-            if !self.paintables.paintable_row_is_populated(descendant) {
+            if !self.layout_arena.paintable_row_is_populated(descendant) {
                 continue;
             }
             let child_context = self.data(descendant).stacking_context;
@@ -334,7 +332,8 @@ impl PaintRecorder<'_> {
         if !self.is_pure_inline_box(paintable) {
             self.paint_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
         }
-        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.paintables, paintable).is_some()
+        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.layout_arena, paintable)
+            .is_some()
         {
             self.paint_node(paintable, PaintPhase::TableCollapsedBorder);
         }
@@ -381,10 +380,9 @@ impl PaintRecorder<'_> {
     }
 
     fn paint_descendants(&mut self, paintable: NodeSlotId, phase: StackingContextPaintPhase) {
-        let paintables = self.paintables;
-        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintables, child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
             if self.append_cached_descendant_subtree(child, phase) {
                 continue;
             }
@@ -486,7 +484,10 @@ impl PaintRecorder<'_> {
         let Some(item_source) = self.item_cache_source.as_ref() else {
             return false;
         };
-        let Some(cached) = self.paintables.paint_caches[paintable.slot_index() as usize].descendant_subtree(phase)
+        let Some(cached) = self
+            .layout_arena
+            .paintable_paint_cache(paintable)
+            .descendant_subtree(phase)
         else {
             return false;
         };
@@ -548,16 +549,18 @@ impl PaintRecorder<'_> {
         hit_test_start: usize,
         hit_test_count: usize,
     ) {
-        self.paintables.paint_caches[paintable.slot_index() as usize].set_descendant_subtree(
-            phase,
-            crate::painting::record::cache::CachedDescendantSubtree {
-                source_display_list_id: self.display_list_id,
-                command_range,
-                source_hit_test_display_list_id: self.hit_test_list_generation,
-                hit_test_start: hit_test_start as u32,
-                hit_test_count: hit_test_count as u32,
-            },
-        );
+        self.layout_arena
+            .paintable_paint_cache(paintable)
+            .set_descendant_subtree(
+                phase,
+                crate::painting::record::cache::CachedDescendantSubtree {
+                    source_display_list_id: self.display_list_id,
+                    command_range,
+                    source_hit_test_display_list_id: self.hit_test_list_generation,
+                    hit_test_start: hit_test_start as u32,
+                    hit_test_count: hit_test_count as u32,
+                },
+            );
     }
 
     fn paint_svg_box(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
@@ -566,7 +569,7 @@ impl PaintRecorder<'_> {
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
-        if let Some(svg_filter_bounds) = self.paintables.side(svg_box).svg_filter_bounds.get() {
+        if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(svg_box).svg_filter_bounds.get() {
             let device_rect = self
                 .converter
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
@@ -597,10 +600,9 @@ impl PaintRecorder<'_> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let paintables = self.paintables;
-        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintables, child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
             // A child that establishes a stacking context is painted by that context.
             if self.has_stacking_context(child) {
                 continue;
@@ -660,7 +662,7 @@ impl PaintRecorder<'_> {
             if let Some((source, start, count)) = cached_items {
                 // Copies a validated range of items recorded by one (paintable, phase) from the retained previous
                 // list into this one. Items are copied, never inspected: source ranges belonging to relaid-out
-                // paintables may hold dangling fragment pointers, but only ranges whose owners kept a valid cache
+                // Paintable rows may hold dangling fragment pointers, but only ranges whose owners kept a valid cache
                 // entry (and therefore were not relaid out) are ever passed here.
                 let destination_start = self.list.items.len();
                 for index in start..start + count {
@@ -754,7 +756,7 @@ impl PaintRecorder<'_> {
         phase_has_empty_effective_clip: bool,
     ) -> Option<(Rc<RecordingOutput>, crate::painting::record::cache::CachedCommands)> {
         let source = self.command_cache_source.as_ref()?;
-        let cache = self.paintables.paint_caches.get(paintable.slot_index() as usize)?;
+        let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
         let entry = cache.commands(phase)?;
         if entry.source_display_list_id != source.id
             || entry.captured_under_empty_effective_clip != phase_has_empty_effective_clip
@@ -772,7 +774,7 @@ impl PaintRecorder<'_> {
         for_descendants_index: usize,
     ) -> Option<(Rc<Vec<HitTestItem>>, usize, usize)> {
         let source = self.item_cache_source.as_ref()?;
-        let cache = self.paintables.paint_caches.get(paintable.slot_index() as usize)?;
+        let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
         let entry = cache.hit_test_items(phase)?;
         if entry.source_hit_test_display_list_id != source.id
             || entry.recorded_context_index != own_index
@@ -791,7 +793,7 @@ impl PaintRecorder<'_> {
         recorded_context_index: usize,
         captured_under_empty_effective_clip: bool,
     ) {
-        let cache = &self.paintables.paint_caches[paintable.slot_index() as usize];
+        let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.set_commands(
             phase,
             crate::painting::record::cache::CachedCommands {
@@ -812,7 +814,7 @@ impl PaintRecorder<'_> {
         recorded_context_index: usize,
         recorded_context_for_descendants_index: usize,
     ) {
-        let cache = &self.paintables.paint_caches[paintable.slot_index() as usize];
+        let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.set_hit_test_items(
             phase,
             crate::painting::record::cache::CachedHitTestItems {

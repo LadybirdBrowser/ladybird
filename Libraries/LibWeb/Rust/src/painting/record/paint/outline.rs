@@ -22,7 +22,7 @@ pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: N
         recorder.inputs.outline_auto_color,
     );
     let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
-    let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
+    let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
     let border_radii = recorder.border_radii(paintable);
     paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
     let facts = recorder.paint_host.outline_facts(recorder.layout_node_shell(paintable));
@@ -104,7 +104,7 @@ fn paint_focused_area_outline(
     // SAFETY: The host hands out a heap-allocated Gfx::Path the receiver owns.
     let path = unsafe { libgfx_rust::path::OwnedPath::adopt(facts.focused_area_path) };
     let converter = recorder.converter;
-    let image_rect = paintable_geometry::absolute_rect(recorder.paintables, paintable);
+    let image_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
     let scale = recorder.inputs.device_pixels_per_css_pixel as f32;
     let device_origin = converter.rounded_device_point(image_rect.location());
     let transformed = path.copy_transformed([scale, 0.0, 0.0, scale, device_origin.x as f32, device_origin.y as f32]);

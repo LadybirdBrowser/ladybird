@@ -8,56 +8,48 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::paintable_geometry;
 
 pub(crate) fn containing_block_paintable_of_node(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     node: NodeSlotId,
 ) -> Option<NodeSlotId> {
-    if paintables.paintable_row_is_populated(node) {
-        let block = paintables.data_ref(node).containing_block;
-        return paintables.paintable_row_is_populated(block).then_some(block);
+    if layout_arena.paintable_row_is_populated(node) {
+        let block = layout_arena.paintable_data(node).containing_block;
+        return layout_arena.paintable_row_is_populated(block).then_some(block);
     }
     let block = layout_arena.node_containing_block_if_live(node)?;
-    paintables.paintable_row_is_populated(block).then_some(block)
+    layout_arena.paintable_row_is_populated(block).then_some(block)
 }
 
 pub(crate) fn containing_block_paintable(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     fragment: &FragmentRecord,
 ) -> Option<NodeSlotId> {
-    containing_block_paintable_of_node(layout_arena, paintables, fragment.layout_node)
+    containing_block_paintable_of_node(layout_arena, fragment.layout_node)
 }
 
-pub(crate) fn absolute_rect(
-    layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
-    fragment: &FragmentRecord,
-) -> CssPixelRect {
+pub(crate) fn absolute_rect(layout_arena: &LayoutNodeArena, fragment: &FragmentRecord) -> CssPixelRect {
     let mut rect = CssPixelRect::from_location_and_size(fragment.offset.into(), fragment.size.into());
-    if let Some(block) = containing_block_paintable(layout_arena, paintables, fragment) {
-        rect = rect.translated_by(paintable_geometry::absolute_position(paintables, block));
+    if let Some(block) = containing_block_paintable(layout_arena, fragment) {
+        rect = rect.translated_by(paintable_geometry::absolute_position(layout_arena, block));
     }
     rect
 }
 
 pub(crate) fn absolute_line_box_rect(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     owner: NodeSlotId,
     fragment: &FragmentRecord,
 ) -> CssPixelRect {
-    let lines = &paintables.side(owner).lines;
+    let lines = &layout_arena.paintable_side_data(owner).lines;
     let Some(line) = lines.get(fragment.line_index as usize) else {
         return CssPixelRect::default();
     };
     let mut rect = CssPixelRect::from(line.rect);
-    if let Some(block) = containing_block_paintable(layout_arena, paintables, fragment) {
-        rect = rect.translated_by(paintable_geometry::absolute_position(paintables, block));
+    if let Some(block) = containing_block_paintable(layout_arena, fragment) {
+        rect = rect.translated_by(paintable_geometry::absolute_position(layout_arena, block));
     }
     rect
 }
@@ -86,7 +78,6 @@ pub struct SelectionOffsets {
 
 pub(crate) fn range_rect(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     fragment: &FragmentRecord,
     selection_state: u8,
     start_offset_in_code_units: usize,
@@ -99,7 +90,7 @@ pub(crate) fn range_rect(
         start_offset_in_code_units,
         end_offset_in_code_units,
     ) {
-        Some(offsets) => rect_for_selection_offsets(layout_arena, paintables, fragment, offsets, || {
+        Some(offsets) => rect_for_selection_offsets(layout_arena, fragment, offsets, || {
             first_available_font(layout_arena, fragment)
         }),
         None => CssPixelRect::default(),
@@ -164,15 +155,14 @@ pub(crate) fn compute_selection_offsets(
 
 pub(crate) fn for_each_fragment_of_nodes(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     node_slots: &[NodeSlotId],
     mut callback: impl FnMut(NodeSlotId, u32, &FragmentRecord) -> bool,
 ) {
     for &node in node_slots {
-        let Some(block) = containing_block_paintable_of_node(layout_arena, paintables, node) else {
+        let Some(block) = containing_block_paintable_of_node(layout_arena, node) else {
             continue;
         };
-        for (index, fragment) in paintables.side(block).fragments.iter().enumerate() {
+        for (index, fragment) in layout_arena.paintable_side_data(block).fragments.iter().enumerate() {
             if fragment.layout_node != node {
                 continue;
             }
@@ -261,13 +251,12 @@ fn for_each_cluster_in_glyph_run(
 
 pub(crate) fn rect_for_selection_offsets(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     fragment: &FragmentRecord,
     offsets: SelectionOffsets,
     first_available_font: impl FnOnce() -> Option<*const std::ffi::c_void>,
 ) -> CssPixelRect {
     let horizontal = is_horizontal(fragment);
-    let mut rect = absolute_rect(layout_arena, paintables, fragment);
+    let mut rect = absolute_rect(layout_arena, fragment);
     let length = fragment.length_in_code_units;
 
     let font_raw = match &fragment.glyph_run {
@@ -358,7 +347,6 @@ pub(crate) fn rect_for_selection_offsets(
 
 pub(crate) fn whole_range_rect(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     fragment: &FragmentRecord,
     first_available_font: impl FnOnce() -> Option<*const std::ffi::c_void>,
 ) -> CssPixelRect {
@@ -366,7 +354,7 @@ pub(crate) fn whole_range_rect(
         start: 0,
         end: fragment.length_in_code_units,
     };
-    rect_for_selection_offsets(layout_arena, paintables, fragment, offsets, first_available_font)
+    rect_for_selection_offsets(layout_arena, fragment, offsets, first_available_font)
 }
 
 pub(crate) fn is_block_level_box(layout_arena: &LayoutNodeArena, fragment: &FragmentRecord) -> bool {
@@ -437,7 +425,6 @@ impl GraphemeEdgeTracker {
 
 pub(crate) fn index_in_node_for_point(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     fragment: &FragmentRecord,
     position: crate::css::css_pixels::CssPixelPoint,
 ) -> usize {
@@ -448,7 +435,7 @@ pub(crate) fn index_in_node_for_point(
         return 0;
     }
 
-    let rect = absolute_rect(layout_arena, paintables, fragment);
+    let rect = absolute_rect(layout_arena, fragment);
     let relative_inline_offset = if is_horizontal(fragment) {
         (position.x - rect.x).to_float()
     } else {

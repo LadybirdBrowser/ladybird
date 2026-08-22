@@ -47,7 +47,6 @@ impl PaintRecorder<'_> {
     fn mask_layer_presence(&mut self, paintable: NodeSlotId, set: MaskLayerSet) -> Vec<MaskLayerPresence> {
         crate::painting::visual_context::node_values::mask_layer_presence(
             self.layout_arena,
-            self.paintables,
             self.visual_context_host,
             paintable,
             set == MaskLayerSet::CssAndSvg,
@@ -164,14 +163,14 @@ impl PaintRecorder<'_> {
     pub(crate) fn prerecord_nested_display_lists(&mut self) {
         let masked_paintables = self.paint_state.visual_context.paintables_with_mask_nodes.clone();
         for paintable in masked_paintables {
-            if !self.paintables.paintable_row_is_populated(paintable) {
+            if !self.layout_arena.paintable_row_is_populated(paintable) {
                 continue;
             }
             self.record_mask_entry(paintable, MaskLayerSet::CssAndSvg);
         }
 
         for node in self.layout_arena.svg_pattern_referencing_nodes() {
-            if !self.paintables.paintable_row_is_populated(node) {
+            if !self.layout_arena.paintable_row_is_populated(node) {
                 continue;
             }
             if self.layout_node_is_inside_svg_resource_box(node) {
@@ -196,9 +195,9 @@ impl PaintRecorder<'_> {
             return;
         }
         crate::painting::record::paint::svg::record_pattern_paint_styles(self, root);
-        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, root);
+        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, root);
         while let Some(paintable) = child {
-            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, self.paintables, paintable);
+            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintable);
             self.prerecord_nested_display_lists_for_svg_subtree(paintable);
         }
     }
@@ -231,7 +230,7 @@ impl PaintRecorder<'_> {
         let mut child = arena.node_first_child_if_live(paintable);
         while let Some(node) = child {
             if arena.node_kind_if_live(node) == Some(kind) {
-                return self.paintables.paintable_row_is_populated(node).then_some(node);
+                return self.layout_arena.paintable_row_is_populated(node).then_some(node);
             }
             child = arena.node_next_sibling_if_live(node);
         }
@@ -240,7 +239,7 @@ impl PaintRecorder<'_> {
 
     fn target_user_space_object_bounding_box(&self, target: NodeSlotId) -> CssPixelRect {
         if self.data(target).kind == PaintableKind::SVGPathPaintable
-            && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(self.paintables, target)
+            && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(self.layout_arena, target)
         {
             let [x, y, width, height] = path.bounding_box();
             return CssPixelRect::new(
@@ -250,7 +249,7 @@ impl PaintRecorder<'_> {
                 CssPixels::nearest_value_for_f32(height),
             );
         }
-        absolute_border_box_rect(self.paintables, target)
+        absolute_border_box_rect(self.layout_arena, target)
     }
 
     fn object_bounding_box_content_units_transform(&self, target: NodeSlotId) -> AffineTransform {
@@ -382,7 +381,6 @@ impl PaintRecorder<'_> {
     ) -> DisplayListResourceId {
         let (tree, assignments) = build_nested_svg_visual_context_tree(
             self.layout_arena,
-            self.paintables,
             self.visual_context_host,
             root,
             root_transform,

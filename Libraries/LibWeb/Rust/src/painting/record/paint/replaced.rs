@@ -140,7 +140,7 @@ pub(crate) fn get_replaced_box_painting_area(
     if content_size.is_empty() {
         return IntRect::default();
     }
-    let paintable_rect = absolute_rect(recorder.paintables, paintable);
+    let paintable_rect = absolute_rect(recorder.layout_arena, paintable);
     if paintable_rect.is_empty() {
         return IntRect::default();
     }
@@ -237,7 +237,7 @@ fn replaced_style(recorder: &PaintRecorder<'_>, paintable: NodeSlotId) -> (u8, u
 pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
-    let image_rect = absolute_rect(recorder.paintables, paintable);
+    let image_rect = absolute_rect(recorder.layout_arena, paintable);
     let image_rect_device_pixels = recorder.converter.rounded_device_rect(image_rect);
     if facts.has_decoded_image_data {
         let radii = border_radii_shrunk_for_borders(recorder, paintable);
@@ -300,7 +300,7 @@ pub(crate) fn paint_canvas_foreground(recorder: &mut PaintRecorder<'_>, paintabl
     let (_, image_rendering) = replaced_style(recorder, paintable);
     let canvas_rect = recorder
         .converter
-        .rounded_device_rect(absolute_rect(recorder.paintables, paintable));
+        .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
     let radii = border_radii_shrunk_for_borders(recorder, paintable);
     let corner_clip = begin_corner_clip(recorder, canvas_rect, &radii, libgfx_rust::CornerClip::Outside);
     if facts.has_canvas_content {
@@ -325,7 +325,7 @@ pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable
     recorder.recorder.save();
     let video_rect = recorder
         .converter
-        .rounded_device_rect(absolute_rect(recorder.paintables, paintable));
+        .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
     recorder.recorder.add_clip_rect_int(video_rect);
     let radii = border_radii_shrunk_for_borders(recorder, paintable);
     let corner_clip = begin_corner_clip(recorder, video_rect, &radii, libgfx_rust::CornerClip::Outside);
@@ -391,7 +391,7 @@ pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable
 
 pub(crate) fn paint_navigable_container_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
-    let absolute_rect = absolute_rect(recorder.paintables, paintable);
+    let absolute_rect = absolute_rect(recorder.layout_arena, paintable);
     let clip_rect = recorder.converter.rounded_device_rect(absolute_rect);
     let radii = border_radii_shrunk_for_borders(recorder, paintable);
     let corner_clip = begin_corner_clip(recorder, clip_rect, &radii, libgfx_rust::CornerClip::Outside);

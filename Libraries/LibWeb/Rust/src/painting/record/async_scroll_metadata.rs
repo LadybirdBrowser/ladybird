@@ -53,7 +53,7 @@ impl PaintRecorder<'_> {
 
     fn nearest_scrollable_ancestor(&mut self, paintable: NodeSlotId) -> Option<NodeSlotId> {
         let mut candidate = self.data(paintable).containing_block;
-        while !candidate.is_invalid() && self.paintables.paintable_row_is_populated(candidate) {
+        while !candidate.is_invalid() && self.layout_arena.paintable_row_is_populated(candidate) {
             if self.could_be_scrolled_by_wheel_event(candidate) {
                 return Some(candidate);
             }
@@ -66,10 +66,10 @@ impl PaintRecorder<'_> {
     }
 
     fn minimum_scroll_offset(&self, paintable: NodeSlotId) -> CssPixelPoint {
-        let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.paintables, paintable) else {
+        let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.layout_arena, paintable) else {
             return CssPixelPoint::default();
         };
-        let scrollport = paintable_geometry::absolute_padding_box_rect(self.paintables, paintable);
+        let scrollport = paintable_geometry::absolute_padding_box_rect(self.layout_arena, paintable);
         let zero = CssPixels::from_raw(0);
         CssPixelPoint::new(
             (overflow.left() - scrollport.left()).min(zero),
@@ -78,10 +78,10 @@ impl PaintRecorder<'_> {
     }
 
     fn maximum_scroll_offset(&self, paintable: NodeSlotId) -> CssPixelPoint {
-        let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.paintables, paintable) else {
+        let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.layout_arena, paintable) else {
             return CssPixelPoint::default();
         };
-        let scrollport = paintable_geometry::absolute_padding_box_rect(self.paintables, paintable);
+        let scrollport = paintable_geometry::absolute_padding_box_rect(self.layout_arena, paintable);
         let zero = CssPixels::from_raw(0);
         CssPixelPoint::new(
             (overflow.right() - scrollport.right()).max(zero),
@@ -108,7 +108,7 @@ impl PaintRecorder<'_> {
 
             let raw_containing_block = self.data(current).containing_block;
             let mut containing_block = (!raw_containing_block.is_invalid()
-                && self.paintables.paintable_row_is_populated(raw_containing_block))
+                && self.layout_arena.paintable_row_is_populated(raw_containing_block))
             .then_some(raw_containing_block);
             if let Some(block) = containing_block
                 && self.data(block).has_flag(PaintableFlag::FixedPosition)
@@ -158,7 +158,7 @@ impl PaintRecorder<'_> {
         }
         let scale = self.inputs.device_pixels_per_css_pixel;
         let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.paintables, paintable),
+            paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable),
             scale,
         );
         if rect.is_empty() {
@@ -201,7 +201,7 @@ impl PaintRecorder<'_> {
             return;
         }
         let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.paintables, paintable),
+            paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable),
             self.inputs.device_pixels_per_css_pixel,
         );
         if rect.is_empty() {
@@ -215,7 +215,7 @@ impl PaintRecorder<'_> {
 
     fn record_main_thread_wheel_event_region(&mut self, paintable: NodeSlotId) {
         let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.paintables, paintable),
+            paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable),
             self.inputs.device_pixels_per_css_pixel,
         );
         if rect.is_empty() {
@@ -247,7 +247,7 @@ impl PaintRecorder<'_> {
         } else {
             self.converter
                 .rounded_device_rect(paintable_geometry::absolute_padding_box_rect(
-                    self.paintables,
+                    self.layout_arena,
                     paintable,
                 ))
         };

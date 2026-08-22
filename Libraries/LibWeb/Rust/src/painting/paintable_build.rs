@@ -9,9 +9,9 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::{
-    FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, FragmentLink, LineData, Node, NodeFacts,
+    FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, FragmentLink, LayoutNodeArena, LineData,
+    Node, NodeFacts,
 };
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
 use std::cell::RefCell;
 
@@ -66,14 +66,14 @@ pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> 
 }
 
 fn committed_offset_delta(
-    arena: &PaintableArena,
+    arena: &LayoutNodeArena,
     offsets_before_commit: &std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
     slot: NodeSlotId,
 ) -> FfiCssPixelPoint {
     let Some(offset_before_commit) = offsets_before_commit.get(&slot) else {
         return FfiCssPixelPoint::default();
     };
-    let offset = arena.data_ref(slot).offset;
+    let offset = arena.paintable_data(slot).offset;
     FfiCssPixelPoint {
         x: offset.x - offset_before_commit.x,
         y: offset.y - offset_before_commit.y,
@@ -81,17 +81,17 @@ fn committed_offset_delta(
 }
 
 fn reused_subtree_absolute_position_delta(
-    arena: &PaintableArena,
+    arena: &LayoutNodeArena,
     offsets_before_commit: &std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
     root: NodeSlotId,
 ) -> FfiCssPixelPoint {
     let mut delta = committed_offset_delta(arena, offsets_before_commit, root);
-    if crate::painting::paintable_geometry::is_svg_paintable(arena.data_ref(root).kind) {
+    if crate::painting::paintable_geometry::is_svg_paintable(arena.paintable_data(root).kind) {
         return delta;
     }
-    let mut block = arena.data_ref(root).containing_block;
+    let mut block = arena.paintable_data(root).containing_block;
     while !block.is_invalid() && arena.paintable_row_is_populated(block) {
-        let block_data = arena.data_ref(block);
+        let block_data = arena.paintable_data(block);
         if block_data.kind == PaintableKind::SVGSVGPaintable
             || crate::painting::paintable_geometry::is_svg_paintable(block_data.kind)
         {
@@ -110,7 +110,6 @@ fn reused_subtree_absolute_position_delta(
 
 pub(crate) struct PaintableCommit<'a> {
     callbacks: &'a FfiLayoutFcCallbacks,
-    arena: &'a RefCell<PaintableArena>,
     offsets_before_commit: RefCell<std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>>,
     reused_subtree_roots: RefCell<Vec<NodeSlotId>>,
     committed_navigable_container_viewports: RefCell<Vec<NodeSlotId>>,
@@ -120,15 +119,18 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn new(callbacks: &'a FfiLayoutFcCallbacks) -> Self {
         Self {
             callbacks,
-            arena: callbacks.arena().paintables(),
             offsets_before_commit: RefCell::new(std::collections::HashMap::new()),
             reused_subtree_roots: RefCell::new(Vec::new()),
             committed_navigable_container_viewports: RefCell::new(Vec::new()),
         }
     }
 
+    fn arena(&self) -> &'a LayoutNodeArena {
+        self.callbacks.arena()
+    }
+
     pub(crate) fn discard_absolute_rects_memoized_during_commit(&self) {
-        self.arena.borrow().clear_absolute_rect_memo();
+        self.arena().clear_absolute_rect_memo();
     }
 
     pub(crate) fn translate_reused_subtrees(&self) {
@@ -136,33 +138,32 @@ impl<'a> PaintableCommit<'a> {
         if roots.is_empty() {
             return;
         }
-        let arena = self.arena.borrow();
-        let layout_arena = self.callbacks.arena();
+        let arena = self.arena();
         let offsets_before_commit = self.offsets_before_commit.borrow();
         for &root in roots.iter() {
-            let delta = reused_subtree_absolute_position_delta(&arena, &offsets_before_commit, root);
+            let delta = reused_subtree_absolute_position_delta(arena, &offsets_before_commit, root);
             if delta == FfiCssPixelPoint::default() {
                 continue;
             }
-            crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, &arena, root, |slot| {
-                arena.update_data(slot, |data| {
+            crate::painting::paint_order::for_each_in_paint_subtree(arena, root, |slot| {
+                arena.update_paintable_data(slot, |data| {
                     if data.has_overflow {
                         data.overflow.rect.x += delta.x;
                         data.overflow.rect.y += delta.y;
                     }
                 });
-                arena.invalidate_paint_cache(layout_arena, slot);
+                arena.invalidate_paint_cache(slot);
             });
         }
     }
 
     pub(crate) fn begin_commit(&self, root: Node) {
-        let arena = self.arena.borrow();
+        let arena = self.arena();
         arena.clear_absolute_rect_memo();
         if self.callbacks.node_data(root).kind == NodeKind::Viewport {
             return;
         }
-        arena.clear_descendant_subtree_caches_from_layout_node(self.callbacks.arena(), root);
+        arena.clear_descendant_subtree_caches_from_layout_node(root);
     }
 
     pub(crate) fn prepare_node(
@@ -176,19 +177,17 @@ impl<'a> PaintableCommit<'a> {
         let expected_kind = paintable_kind_for_node(&facts, data.kind);
         let wants_paintable = (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
             && expected_kind != PaintableKind::None;
-        let row_existed_before_this_commit = self.arena.borrow().paintable_row_is_populated(node);
+        let row_existed_before_this_commit = self.arena().paintable_row_is_populated(node);
         if !wants_paintable {
-            self.callbacks.arena().clear_committed_fragment_link(node);
+            self.arena().clear_committed_fragment_link(node);
             if row_existed_before_this_commit {
-                let reset = {
-                    let arena = self.arena.borrow();
-                    arena.invalidate_paint_cache(self.callbacks.arena(), node);
-                    arena
-                        .prepare_node_cleared_reset(node)
-                        .expect("live row for node could not be cleared")
-                };
+                let arena = self.arena();
+                arena.invalidate_paint_cache(node);
+                let reset = arena
+                    .prepare_paintable_row_cleared_reset(node)
+                    .expect("live row for node could not be cleared");
                 reset.invoke_callback();
-                self.arena.borrow_mut().node_cleared(self.callbacks.arena(), reset);
+                arena.paintable_row_cleared(reset);
             }
             return PreparedPaintable {
                 has_paintable_row: false,
@@ -203,10 +202,9 @@ impl<'a> PaintableCommit<'a> {
                 row_existed_before_this_commit,
                 "a kept subtree root has no committed row"
             );
-            let arena = self.arena.borrow();
             self.offsets_before_commit
                 .borrow_mut()
-                .insert(node, arena.data_ref(node).offset);
+                .insert(node, self.arena().paintable_data(node).offset);
             self.reused_subtree_roots.borrow_mut().push(node);
             return PreparedPaintable {
                 has_paintable_row: true,
@@ -214,7 +212,7 @@ impl<'a> PaintableCommit<'a> {
             };
         }
         if !has_used_values {
-            self.callbacks.arena().clear_committed_fragment_link(node);
+            self.arena().clear_committed_fragment_link(node);
         }
         let style = self.callbacks.computed_values_view_if_styled(node);
         let (position, floating, has_z_index, display) = match style {
@@ -235,35 +233,24 @@ impl<'a> PaintableCommit<'a> {
             ),
         };
         let is_item = data.flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
-        let slot = if row_existed_before_this_commit {
-            let arena = self.arena.borrow();
+        let arena = self.arena();
+        if row_existed_before_this_commit {
             self.offsets_before_commit
                 .borrow_mut()
-                .insert(node, arena.data_ref(node).offset);
-            let notification = arena.prepare_recommit_notification(node);
-            drop(arena);
+                .insert(node, arena.paintable_data(node).offset);
+            let notification = arena.prepare_paintable_row_recommit_notification(node);
             notification.invoke_callback();
-            self.arena.borrow_mut().begin_row_recommit(node);
-            node
+            arena.begin_paintable_row_recommit(node);
         } else {
-            let mut arena = self.arena.borrow_mut();
-            let slot = arena.row_for_node(node);
+            arena.populate_paintable_row(node);
             if expected_kind == PaintableKind::ViewportPaintable {
-                self.callbacks
-                    .arena()
-                    .paint_state()
-                    .borrow_mut()
-                    .reset_visual_context_state();
+                arena.paint_state().borrow_mut().reset_visual_context_state();
             }
-            drop(arena);
-            let arena = self.arena.borrow();
-            arena.update_data(slot, |paintable| {
+            arena.update_paintable_data(node, |paintable| {
                 paintable.kind = expected_kind;
             });
-            slot
-        };
-        let arena = self.arena.borrow();
-        arena.update_data(slot, |paintable| {
+        }
+        arena.update_paintable_data(node, |paintable| {
             // Flex and grid items with a z-index other than auto behave as if positioned.
             paintable.set_flag(
                 PaintableFlag::Positioned,
@@ -322,7 +309,7 @@ impl<'a> PaintableCommit<'a> {
         };
         let mut content_size_change = None;
         {
-            let arena = self.arena.borrow();
+            let arena = self.arena();
             let (old_identity, old_content_size) = arena.with_committed_fragment_link(node, |old_link| {
                 old_link.map_or((0, FfiCssPixelSize::default()), |old_link| {
                     (
@@ -346,7 +333,7 @@ impl<'a> PaintableCommit<'a> {
                 );
                 content_size_change = Some((previous_content_size_for_diff, new_content_size));
             }
-            arena.update_data(node, |data| {
+            arena.update_paintable_data(node, |data| {
                 if old_identity != fragment.identity {
                     data.cached_overflow = FfiOverflowData::default();
                     data.has_cached_overflow = false;
@@ -360,17 +347,12 @@ impl<'a> PaintableCommit<'a> {
     }
 
     pub(crate) fn set_line_data(&self, slot: NodeSlotId, line_data: &LineData, content_inline_size: CssPixels) -> bool {
-        let lines_and_fragments = {
-            let arena = self.arena.borrow();
-            if !arena.data_ref(slot).kind.has_lines() {
-                return false;
-            }
-            self.build_line_records(line_data, content_inline_size)
-        };
-        let (lines, fragments, pieces) = lines_and_fragments;
+        if !self.arena().paintable_data(slot).kind.has_lines() {
+            return false;
+        }
+        let (lines, fragments, pieces) = self.build_line_records(line_data, content_inline_size);
         let has_pieces = !pieces.is_empty();
-        let mut arena = self.arena.borrow_mut();
-        let side = arena.side_mut(slot);
+        let mut side = self.arena().paintable_side_data_mut(slot);
         side.lines = lines;
         side.fragments = fragments;
         side.inline_box_pieces = pieces;
@@ -556,7 +538,7 @@ impl<'a> PaintableCommit<'a> {
     }
 
     pub(crate) fn stamp_containing_block(&self, node: Node) {
-        let arena = self.arena.borrow();
+        let arena = self.arena();
         if !arena.paintable_row_is_populated(node) {
             return;
         }
@@ -566,13 +548,13 @@ impl<'a> PaintableCommit<'a> {
         } else {
             NodeSlotId::INVALID
         };
-        arena.update_data(node, |data| data.containing_block = containing_block);
+        arena.update_paintable_data(node, |data| data.containing_block = containing_block);
     }
 
     pub(crate) fn assign_inline_box_geometry(&self, slot: NodeSlotId) {
-        let mut arena = self.arena.borrow_mut();
+        let arena = self.arena();
         let mut piece_indices_by_node: Vec<(NodeSlotId, Vec<u32>)> = Vec::new();
-        for (piece_index, piece) in arena.side(slot).inline_box_pieces.iter().enumerate() {
+        for (piece_index, piece) in arena.paintable_side_data(slot).inline_box_pieces.iter().enumerate() {
             if piece.node.is_invalid() {
                 continue;
             }
@@ -583,12 +565,12 @@ impl<'a> PaintableCommit<'a> {
         }
         for (piece_node, piece_indices) in piece_indices_by_node {
             if !arena.paintable_row_is_populated(piece_node)
-                || arena.data_ref(piece_node).kind != PaintableKind::InlinePaintable
+                || arena.paintable_data(piece_node).kind != PaintableKind::InlinePaintable
             {
                 continue;
             }
-            let padding_widths = crate::painting::paintable_geometry::committed_padding(&arena, piece_node);
-            let border_widths = crate::painting::paintable_geometry::committed_border(&arena, piece_node);
+            let padding_widths = crate::painting::paintable_geometry::committed_padding(arena, piece_node);
+            let border_widths = crate::painting::paintable_geometry::committed_border(arena, piece_node);
             let mut content_union: Option<CssPixelRect> = None;
             let mut padding_union: Option<CssPixelRect> = None;
             let mut border_union: Option<CssPixelRect> = None;
@@ -607,7 +589,7 @@ impl<'a> PaintableCommit<'a> {
                 }
             };
             for piece_index in &piece_indices {
-                let piece = arena.side(slot).inline_box_pieces[*piece_index as usize];
+                let piece = arena.paintable_side_data(slot).inline_box_pieces[*piece_index as usize];
                 let border_rect = CssPixelRect::from(piece.border_box_rect);
                 if piece.is_geometry_only_placeholder {
                     let content_rect = border_rect;
@@ -639,14 +621,14 @@ impl<'a> PaintableCommit<'a> {
             };
             let padding_union = padding_union.expect("padding union set alongside content union");
             let border_union = border_union.expect("border union set alongside content union");
-            arena.update_data(piece_node, |data| {
+            arena.update_paintable_data(piece_node, |data| {
                 data.offset = content_union.location().into();
                 data.content_size = content_union.size().into();
                 data.local_padding_box_union = padding_union.translated(-content_union.x, -content_union.y).into();
                 data.local_border_box_union = border_union.translated(-content_union.x, -content_union.y).into();
             });
             // This box has at most one piece per line, so its piece indices are ordered by line.
-            arena.side_mut(piece_node).piece_indices = piece_indices;
+            arena.paintable_side_data_mut(piece_node).piece_indices = piece_indices;
         }
     }
 }

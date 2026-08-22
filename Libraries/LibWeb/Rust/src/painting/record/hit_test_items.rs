@@ -47,10 +47,9 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: NodeSlotId) {
-        let paintables = self.paintables;
-        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, paintables, child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
             self.record_hit_test_items(child, PaintPhase::Background);
             self.record_foreign_object_descendant_hit_test_items(child);
             self.record_hit_test_items(child, PaintPhase::Foreground);
@@ -86,7 +85,7 @@ impl<'a> PaintRecorder<'a> {
             if self.is_anonymous(paintable) && !self.is_generated_for_pseudo_element(paintable) {
                 return;
             }
-            let rect = paintable_geometry::absolute_border_box_rect(self.paintables, paintable);
+            let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
             let radii = self.border_radii(paintable);
             let context = self.data(paintable).accumulated_visual_context_index;
             self.append_box(paintable, paintable, rect, context, radii);
@@ -109,9 +108,9 @@ impl<'a> PaintRecorder<'a> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let fragment_count = self.paintables.side(paintable).fragments.len();
+        let fragment_count = self.layout_arena.paintable_side_data(paintable).fragments.len();
         if fragment_count == 0
-            && crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, paintable).is_none()
+            && crate::painting::paint_order::first_paint_child(self.layout_arena, paintable).is_none()
         {
             if self.is_visible(paintable) && self.visible_for_hit_testing(paintable) {
                 self.record_empty_editable_hit_test_item(paintable);
@@ -120,7 +119,7 @@ impl<'a> PaintRecorder<'a> {
         }
         let context = self.data(paintable).accumulated_visual_context_for_descendants_index;
         // Fragments inside self-painting inline boxes are recorded during that box's paint.
-        let filter = fragment_ownership::effective_filter(self.paintables, paintable);
+        let filter = fragment_ownership::effective_filter(self.layout_arena, paintable);
         filter.for_each_owned_fragment_index(fragment_count, |index| {
             if self.fragment_is_block_level_box(paintable, index) {
                 return;
@@ -131,12 +130,11 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn record_empty_line_caret_items(&mut self, paintable: NodeSlotId, context: usize) {
-        let targets =
-            crate::painting::visual_lines::empty_line_caret_targets(self.layout_arena, self.paintables, paintable);
+        let targets = crate::painting::visual_lines::empty_line_caret_targets(self.layout_arena, paintable);
         for target in targets {
             self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
         }
-        if !self.paintables.side(paintable).fragments.is_empty() {
+        if !self.layout_arena.paintable_side_data(paintable).fragments.is_empty() {
             for target in self.host.line_break_caret_targets(self.layout_node_shell(paintable)) {
                 let rect = CssPixelRect::from(target.rect);
                 let caret_node = paintable;
@@ -169,8 +167,8 @@ impl<'a> PaintRecorder<'a> {
                 return;
             };
             let context = self.data(paintable).accumulated_visual_context_for_descendants_index;
-            let fragment_count = self.paintables.side(root).fragments.len();
-            let filter = fragment_ownership::effective_filter(self.paintables, paintable);
+            let fragment_count = self.layout_arena.paintable_side_data(root).fragments.len();
+            let filter = fragment_ownership::effective_filter(self.layout_arena, paintable);
             // Hit-test precedence follows paint order: this box's own text loses to the box itself
             // (re-recorded so its z-order matches this box's paint order), while nested content
             // (e.g. a link inside this box) wins over it.
@@ -180,7 +178,7 @@ impl<'a> PaintRecorder<'a> {
                 if self.fragment_is_block_level_box(root, index) {
                     return;
                 }
-                let fragment_node = self.paintables.side(root).fragments[index].layout_node;
+                let fragment_node = self.layout_arena.paintable_side_data(root).fragments[index].layout_node;
                 if fragment_ownership::nearest_fragmented_inline_ancestor(self.layout_arena, fragment_node)
                     == Some(own_layout_node)
                 {
@@ -206,37 +204,36 @@ impl<'a> PaintRecorder<'a> {
 
     fn inline_root(&self, paintable: NodeSlotId) -> Option<NodeSlotId> {
         let block = self.data(paintable).containing_block;
-        if block.is_invalid() || !self.paintables.paintable_row_is_populated(block) {
+        if block.is_invalid() || !self.layout_arena.paintable_row_is_populated(block) {
             return None;
         }
         self.data(block).kind.has_lines().then_some(block)
     }
 
     fn piece_of(&self, root: NodeSlotId, piece_index: u32) -> InlineBoxPieceRecord {
-        self.paintables.side(root).inline_box_pieces[piece_index as usize]
+        self.layout_arena.paintable_side_data(root).inline_box_pieces[piece_index as usize]
     }
 
     fn inline_has_content(&self, paintable: NodeSlotId) -> bool {
         let has_content_pieces = self.inline_root(paintable).is_some_and(|root| {
-            self.paintables
-                .side(paintable)
+            self.layout_arena
+                .paintable_side_data(paintable)
                 .piece_indices
                 .iter()
                 .any(|piece_index| !self.piece_of(root, *piece_index).is_geometry_only_placeholder)
         });
-        has_content_pieces
-            || crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, paintable).is_some()
+        has_content_pieces || crate::painting::paint_order::first_paint_child(self.layout_arena, paintable).is_some()
     }
 
     fn append_piece_boxes(&mut self, paintable: NodeSlotId) {
         let Some(root) = self.inline_root(paintable) else {
             return;
         };
-        let root_position = paintable_geometry::absolute_position(self.paintables, root);
-        let paintables = self.paintables;
+        let root_position = paintable_geometry::absolute_position(self.layout_arena, root);
+        let layout_arena = self.layout_arena;
         let context = self.data(paintable).accumulated_visual_context_index;
-        for piece_index in &paintables.side(paintable).piece_indices {
-            let piece = &paintables.side(root).inline_box_pieces[*piece_index as usize];
+        for piece_index in &layout_arena.paintable_side_data(paintable).piece_indices {
+            let piece = &layout_arena.paintable_side_data(root).inline_box_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
             }
@@ -250,7 +247,7 @@ impl<'a> PaintRecorder<'a> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let Some(path) = paintable_geometry::committed_svg_path(self.paintables, paintable) else {
+        let Some(path) = paintable_geometry::committed_svg_path(self.layout_arena, paintable) else {
             return;
         };
         if !self.visibility_is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
@@ -284,17 +281,19 @@ impl<'a> PaintRecorder<'a> {
         if self.is_anonymous(paintable) || !self.paintable_facts(paintable).is_editable_or_editing_host {
             return;
         }
-        let rect = paintable_geometry::absolute_border_box_rect(self.paintables, paintable);
+        let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
         let context = self.data(paintable).accumulated_visual_context_index;
         self.append_empty_editable(paintable, rect, context);
     }
 
-    fn fragment(&self, owner: NodeSlotId, index: usize) -> &'a FragmentRecord {
-        &self.paintables.side(owner).fragments[index]
+    fn fragment(&self, owner: NodeSlotId, index: usize) -> std::cell::Ref<'a, FragmentRecord> {
+        std::cell::Ref::map(self.layout_arena.paintable_side_data(owner), |side_data| {
+            &side_data.fragments[index]
+        })
     }
 
     fn fragment_is_block_level_box(&self, owner: NodeSlotId, index: usize) -> bool {
-        text_fragment::is_block_level_box(self.layout_arena, self.fragment(owner, index))
+        text_fragment::is_block_level_box(self.layout_arena, &self.fragment(owner, index))
     }
 
     fn text_fragment_is_hit_testable(&mut self, fragment: &FragmentRecord) -> bool {
@@ -329,14 +328,14 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn containing_block_margin_rect(&self, containing_block: NodeSlotId) -> Option<CssPixelRect> {
-        if containing_block.is_invalid() || !self.paintables.paintable_row_is_populated(containing_block) {
+        if containing_block.is_invalid() || !self.layout_arena.paintable_row_is_populated(containing_block) {
             return None;
         }
-        let absolute = paintable_geometry::absolute_rect(self.paintables, containing_block);
-        let margin = paintable_geometry::committed_margin(self.paintables, containing_block);
-        let border = paintable_geometry::committed_border(self.paintables, containing_block);
-        let padding = paintable_geometry::committed_padding(self.paintables, containing_block);
-        let content_size = paintable_geometry::committed_content_size(self.paintables, containing_block);
+        let absolute = paintable_geometry::absolute_rect(self.layout_arena, containing_block);
+        let margin = paintable_geometry::committed_margin(self.layout_arena, containing_block);
+        let border = paintable_geometry::committed_border(self.layout_arena, containing_block);
+        let padding = paintable_geometry::committed_padding(self.layout_arena, containing_block);
+        let content_size = paintable_geometry::committed_content_size(self.layout_arena, containing_block);
         let top = margin.top + border.top + padding.top;
         let right = margin.right + border.right + padding.right;
         let bottom = margin.bottom + border.bottom + padding.bottom;
@@ -354,7 +353,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn margin_rect_for_fragment(&self, fragment: &FragmentRecord) -> Option<CssPixelRect> {
-        let block = text_fragment::containing_block_paintable(self.layout_arena, self.paintables, fragment)?;
+        let block = text_fragment::containing_block_paintable(self.layout_arena, fragment)?;
         self.containing_block_margin_rect(block)
     }
 
@@ -389,16 +388,20 @@ impl<'a> PaintRecorder<'a> {
 
     fn absolute_containing_line_box_rect(&self, paintable: NodeSlotId) -> Option<CssPixelRect> {
         let containing_line_box_index =
-            paintable_geometry::committed_containing_line_box_index(self.paintables, paintable)?;
+            paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable)?;
         let block = self.data(paintable).containing_block;
         if block.is_invalid()
-            || !self.paintables.paintable_row_is_populated(block)
+            || !self.layout_arena.paintable_row_is_populated(block)
             || !self.data(block).kind.has_lines()
         {
             return None;
         }
-        let line = self.paintables.side(block).lines.get(containing_line_box_index)?;
-        Some(CssPixelRect::from(line.rect).translated_by(paintable_geometry::absolute_position(self.paintables, block)))
+        let side_data = self.layout_arena.paintable_side_data(block);
+        let line = side_data.lines.get(containing_line_box_index)?;
+        Some(
+            CssPixelRect::from(line.rect)
+                .translated_by(paintable_geometry::absolute_position(self.layout_arena, block)),
+        )
     }
 
     fn append_box(
@@ -410,7 +413,7 @@ impl<'a> PaintRecorder<'a> {
         border_radii: BorderRadii,
     ) {
         let (caret_line_index, caret_line_rect) =
-            match paintable_geometry::committed_containing_line_box_index(self.paintables, paintable_box) {
+            match paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable_box) {
                 Some(containing_line_box_index) => (
                     Some(containing_line_box_index),
                     self.absolute_containing_line_box_rect(paintable_box),
@@ -482,24 +485,18 @@ impl<'a> PaintRecorder<'a> {
 
     fn append_text_fragment(&mut self, owner: NodeSlotId, fragment_index: u32, context: usize) {
         let fragment = self.fragment(owner, fragment_index as usize);
-        if !self.text_fragment_is_hit_testable(fragment) {
+        if !self.text_fragment_is_hit_testable(&fragment) {
             return;
         }
         let layout_arena = self.layout_arena;
-        let paintables = self.paintables;
-        let first_available_font = || text_fragment::first_available_font(layout_arena, fragment);
+        let first_available_font = || text_fragment::first_available_font(layout_arena, &fragment);
         let item = HitTestItem {
             text_fragment_index: Some(fragment_index),
-            rect: text_fragment::absolute_rect(layout_arena, paintables, fragment),
-            caret_rect: text_fragment::whole_range_rect(layout_arena, paintables, fragment, first_available_font),
+            rect: text_fragment::absolute_rect(layout_arena, &fragment),
+            caret_rect: text_fragment::whole_range_rect(layout_arena, &fragment, first_available_font),
             caret_line_index: Some(fragment.line_index as usize),
-            caret_line_rect: Some(text_fragment::absolute_line_box_rect(
-                layout_arena,
-                paintables,
-                owner,
-                fragment,
-            )),
-            block_container_margin_rect: self.margin_rect_for_fragment(fragment),
+            caret_line_rect: Some(text_fragment::absolute_line_box_rect(layout_arena, owner, &fragment)),
+            block_container_margin_rect: self.margin_rect_for_fragment(&fragment),
             containing_block: layout_arena
                 .node_containing_block_if_live(fragment.layout_node)
                 .unwrap_or(NodeSlotId::INVALID),
@@ -519,7 +516,7 @@ impl<'a> PaintRecorder<'a> {
         context: usize,
     ) {
         let fragment = self.fragment(owner, sibling_fragment_index as usize);
-        if !self.text_fragment_is_hit_testable(fragment) {
+        if !self.text_fragment_is_hit_testable(&fragment) {
             return;
         }
         // Empty lines are only reachable through caret lines, never through regular hit testing,
@@ -531,7 +528,7 @@ impl<'a> PaintRecorder<'a> {
             caret_rect: line_rect,
             caret_line_index: Some(line_box_index),
             caret_line_rect: Some(line_rect),
-            block_container_margin_rect: self.margin_rect_for_fragment(fragment),
+            block_container_margin_rect: self.margin_rect_for_fragment(&fragment),
             containing_block: self
                 .layout_arena
                 .node_containing_block_if_live(fragment.layout_node)

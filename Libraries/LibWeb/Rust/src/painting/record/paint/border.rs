@@ -1139,7 +1139,7 @@ pub(crate) fn paint_box_borders_from_style(
         return;
     };
     let zero = CssPixels::from_raw(0);
-    let border = crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable);
+    let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
     let borders_data = BordersDataDevicePixels {
         top: if border.top == zero {
             default_side
@@ -1200,7 +1200,8 @@ pub(crate) fn paint_box_borders_from_style(
             style.border_left_width()
         },
     ];
-    let border_box_rect = crate::painting::paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
+    let border_box_rect =
+        crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
     let border_radii = recorder.border_radii(paintable);
     paint_box_borders(
         recorder,

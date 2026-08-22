@@ -152,14 +152,17 @@ pub(crate) fn paint_base_with(
         paint_backdrop_filter(recorder, paintable, &facts);
         paint_background(recorder, paintable);
         let border_box_rect =
-            crate::painting::paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
+            crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
         let padding_box_rect =
-            crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.paintables, paintable);
+            crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
         let border_radii = recorder.border_radii(paintable);
         shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
     }
     if phase == PaintPhase::Border
-        && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(recorder.paintables, paintable)
+        && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(
+            recorder.layout_arena,
+            paintable,
+        )
         && !facts.empty_cells_property_applies
     {
         border::paint_box_borders_from_style(recorder, paintable, &facts);
@@ -187,7 +190,7 @@ pub(crate) fn paint_backdrop_filter(
         recorder
             .converter
             .rounded_device_rect(crate::painting::paintable_geometry::absolute_border_box_rect(
-                recorder.paintables,
+                recorder.layout_arena,
                 paintable,
             ));
     let border_radii = recorder.border_radii(paintable);

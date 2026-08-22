@@ -18,17 +18,17 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     let root = {
         let block = recorder.data(paintable).containing_block;
         if block.is_invalid()
-            || !recorder.paintables.paintable_row_is_populated(block)
+            || !recorder.layout_arena.paintable_row_is_populated(block)
             || !recorder.data(block).kind.has_lines()
         {
             return;
         }
         block
     };
-    let root_position = paintable_geometry::absolute_position(recorder.paintables, root);
-    let paintables = recorder.paintables;
-    let piece_indices = &paintables.side(paintable).piece_indices;
-    let root_pieces = &paintables.side(root).inline_box_pieces;
+    let root_position = paintable_geometry::absolute_position(recorder.layout_arena, root);
+    let layout_arena = recorder.layout_arena;
+    let piece_indices = &layout_arena.paintable_side_data(paintable).piece_indices;
+    let root_pieces = &layout_arena.paintable_side_data(root).inline_box_pieces;
     let facts = recorder.base_paint_facts(paintable);
     let data = recorder.data(paintable);
 
@@ -60,7 +60,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
             let padding_box_rect = piece.shrunken_by_present_edges(
                 border_box_rect,
-                crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable),
+                crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable),
             );
             let border_radii = recorder.piece_border_radii(paintable, piece);
             if !background_is_propagated_to_root {
@@ -105,7 +105,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                 },
             )
         };
-        let border = crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable);
+        let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
         for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {

@@ -7,20 +7,17 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::fragment_ownership;
-use crate::painting::paintable_arena::PaintableArena;
 
-pub(crate) fn paint_parent(
-    layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
-    slot: NodeSlotId,
-) -> Option<NodeSlotId> {
-    if !paintables.paintable_row_is_populated(slot) || paintables.data_ref(slot).kind.forms_unconnected_subtree() {
+pub(crate) fn paint_parent(layout_arena: &LayoutNodeArena, slot: NodeSlotId) -> Option<NodeSlotId> {
+    if !layout_arena.paintable_row_is_populated(slot)
+        || layout_arena.paintable_data(slot).kind.forms_unconnected_subtree()
+    {
         return None;
     }
 
     let mut ancestor = layout_arena.node_parent_if_live(slot);
     while let Some(node) = ancestor {
-        if paintables.paintable_row_is_populated(node) {
+        if layout_arena.paintable_row_is_populated(node) {
             return Some(node);
         }
         if !fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
@@ -33,15 +30,14 @@ pub(crate) fn paint_parent(
 
 fn first_paintable_in_layout_siblings(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     first_node: Option<NodeSlotId>,
 ) -> Option<NodeSlotId> {
     let mut pending_siblings = Vec::new();
     let mut current = first_node;
     while let Some(node) = current {
         let next_sibling = layout_arena.node_next_sibling_if_live(node);
-        if paintables.paintable_row_is_populated(node) {
-            if !paintables.data_ref(node).kind.forms_unconnected_subtree() {
+        if layout_arena.paintable_row_is_populated(node) {
+            if !layout_arena.paintable_data(node).kind.forms_unconnected_subtree() {
                 return Some(node);
             }
         } else if fragment_ownership::node_is_fragmented_inline(layout_arena, node)
@@ -58,35 +54,29 @@ fn first_paintable_in_layout_siblings(
     None
 }
 
-pub(crate) fn first_paint_child(
-    layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
-    slot: NodeSlotId,
-) -> Option<NodeSlotId> {
-    if !paintables.paintable_row_is_populated(slot) {
+pub(crate) fn first_paint_child(layout_arena: &LayoutNodeArena, slot: NodeSlotId) -> Option<NodeSlotId> {
+    if !layout_arena.paintable_row_is_populated(slot) {
         return None;
     }
-    first_paintable_in_layout_siblings(layout_arena, paintables, layout_arena.node_first_child_if_live(slot))
+    first_paintable_in_layout_siblings(layout_arena, layout_arena.node_first_child_if_live(slot))
 }
 
-pub(crate) fn next_paint_sibling(
-    layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
-    slot: NodeSlotId,
-) -> Option<NodeSlotId> {
-    if !paintables.paintable_row_is_populated(slot) || paintables.data_ref(slot).kind.forms_unconnected_subtree() {
+pub(crate) fn next_paint_sibling(layout_arena: &LayoutNodeArena, slot: NodeSlotId) -> Option<NodeSlotId> {
+    if !layout_arena.paintable_row_is_populated(slot)
+        || layout_arena.paintable_data(slot).kind.forms_unconnected_subtree()
+    {
         return None;
     }
 
     let mut node = slot;
     loop {
         if let Some(sibling) =
-            first_paintable_in_layout_siblings(layout_arena, paintables, layout_arena.node_next_sibling_if_live(node))
+            first_paintable_in_layout_siblings(layout_arena, layout_arena.node_next_sibling_if_live(node))
         {
             return Some(sibling);
         }
         let parent = layout_arena.node_parent_if_live(node)?;
-        if paintables.paintable_row_is_populated(parent)
+        if layout_arena.paintable_row_is_populated(parent)
             || !fragment_ownership::node_is_fragmented_inline(layout_arena, parent)
         {
             return None;
@@ -97,36 +87,29 @@ pub(crate) fn next_paint_sibling(
 
 pub(crate) fn for_each_paint_child(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     slot: NodeSlotId,
     mut callback: impl FnMut(NodeSlotId),
 ) {
-    let mut child = first_paint_child(layout_arena, paintables, slot);
+    let mut child = first_paint_child(layout_arena, slot);
     while let Some(current) = child {
-        child = next_paint_sibling(layout_arena, paintables, current);
+        child = next_paint_sibling(layout_arena, current);
         callback(current);
     }
 }
 
 pub(crate) fn for_each_in_paint_subtree(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     root: NodeSlotId,
     mut callback: impl FnMut(NodeSlotId),
 ) {
-    fn visit(
-        layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
-        slot: NodeSlotId,
-        callback: &mut impl FnMut(NodeSlotId),
-    ) {
+    fn visit(layout_arena: &LayoutNodeArena, slot: NodeSlotId, callback: &mut impl FnMut(NodeSlotId)) {
         callback(slot);
-        for_each_paint_child(layout_arena, paintables, slot, |child| {
-            visit(layout_arena, paintables, child, callback);
+        for_each_paint_child(layout_arena, slot, |child| {
+            visit(layout_arena, child, callback);
         });
     }
 
-    if paintables.paintable_row_is_populated(root) {
-        visit(layout_arena, paintables, root, &mut callback);
+    if layout_arena.paintable_row_is_populated(root) {
+        visit(layout_arena, root, &mut callback);
     }
 }

@@ -99,7 +99,7 @@ fn anchor_for_decorating_box(
     if decorating_node == text_parent {
         return (fragment.baseline, true);
     }
-    let side = recorder.paintables.side(block);
+    let side = recorder.layout_arena.paintable_side_data(block);
     for piece in &side.inline_box_pieces {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
@@ -125,7 +125,7 @@ pub(crate) fn decoration_sets_for_span(
         return sets;
     }
     let arena = recorder.layout_arena;
-    let fragment = &recorder.paintables.side(block).fragments[span.fragment_index as usize];
+    let fragment = &recorder.layout_arena.paintable_side_data(block).fragments[span.fragment_index as usize];
     let text_node = fragment.layout_node;
     if !arena
         .node_kind_if_live(text_node)
@@ -288,7 +288,7 @@ fn compute_skip_ink_segments(
     line_thickness: i32,
     font_size: f32,
 ) -> Vec<DecorationSegment> {
-    let fragment = &recorder.paintables.side(block).fragments[fragment_index as usize];
+    let fragment = &recorder.layout_arena.paintable_side_data(block).fragments[fragment_index as usize];
     let Some(run) = &fragment.glyph_run else {
         return vec![DecorationSegment {
             start_x: span_start_x,
@@ -298,8 +298,7 @@ fn compute_skip_ink_segments(
     // The text blob is drawn at baseline_start on the canvas. Compute that same origin so we can convert between
     // device-pixel coordinates and blob-local coordinates.
     let scale = recorder.inputs.device_pixels_per_css_pixel;
-    let fragment_absolute_rect =
-        crate::painting::text_fragment::absolute_rect(recorder.layout_arena, recorder.paintables, fragment);
+    let fragment_absolute_rect = crate::painting::text_fragment::absolute_rect(recorder.layout_arena, fragment);
     let blob_origin_x = fragment_absolute_rect.x.to_float() * scale as f32;
     let blob_origin_y = (fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) * scale as f32;
 
