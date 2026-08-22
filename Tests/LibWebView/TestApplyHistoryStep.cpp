@@ -167,7 +167,7 @@ struct TestTraversable {
         initialize_navigable_entry_identities();
 
         auto replacement_entry = entry(0, "https://b.example/"sv);
-        VERIFY(history.finalize_cross_document_navigation({}, pending_entry(move(replacement_entry)), initial_entry.navigation_api_key).has_value());
+        VERIFY(history.finalize_cross_document_navigation(traversable, pending_entry(move(replacement_entry)), Web::HTML::HistoryHandlingBehavior::Replace).has_value());
     }
 
     WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})
