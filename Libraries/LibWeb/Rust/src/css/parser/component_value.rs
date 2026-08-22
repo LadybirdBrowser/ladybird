@@ -25,6 +25,8 @@ pub(crate) enum ComponentKind {
 pub(crate) struct ComponentValue {
     pub kind: ComponentKind,
     pub original_source_text: Box<[u16]>,
+    pub opening_source_length: usize,
+    pub closing_source_length: usize,
     pub start_position: SourcePosition,
     pub end_position: SourcePosition,
 }
@@ -34,6 +36,8 @@ impl ComponentValue {
         Self {
             kind: ComponentKind::Token(ParserTokenKind::EndOfFile),
             original_source_text: Box::new([]),
+            opening_source_length: 0,
+            closing_source_length: 0,
             start_position: SourcePosition::default(),
             end_position: SourcePosition::default(),
         }
@@ -133,6 +137,8 @@ pub(crate) fn consume_a_component_value(
     let token = tokens.get(*position).ok_or(())?.clone();
     *position += 1;
     let mut original_source_text = token.source.to_vec();
+    let opening_source_length = original_source_text.len();
+    let mut closing_source_length = 0;
     let start_position = token.start_position;
     let mut end_position = token.end_position;
     let kind = match token.kind {
@@ -146,6 +152,7 @@ pub(crate) fn consume_a_component_value(
                 let closing = &tokens[*position];
                 *position += 1;
                 closing.source.append_to(&mut original_source_text);
+                closing_source_length = closing.source.len();
                 end_position = closing.end_position;
             }
             ComponentKind::Function {
@@ -168,6 +175,7 @@ pub(crate) fn consume_a_component_value(
                 let closing = &tokens[*position];
                 *position += 1;
                 closing.source.append_to(&mut original_source_text);
+                closing_source_length = closing.source.len();
                 end_position = closing.end_position;
             }
             ComponentKind::SimpleBlock {
@@ -180,6 +188,8 @@ pub(crate) fn consume_a_component_value(
     Ok(ComponentValue {
         kind,
         original_source_text: original_source_text.into_boxed_slice(),
+        opening_source_length,
+        closing_source_length,
         start_position,
         end_position,
     })

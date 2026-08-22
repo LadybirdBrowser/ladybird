@@ -58,6 +58,9 @@ struct Declaration {
     Optional<Utf16String> original_value_text = {};
     Optional<Utf16String> original_full_text = {};
     Optional<SourcePosition> source_position = {};
+    Utf16String value_text;
+    Optional<PropertyID> parsed_property_id;
+    RefPtr<StyleValue const> parsed_value;
 };
 
 struct SubstitutionFunctionsPresence {

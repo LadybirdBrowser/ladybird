@@ -2120,6 +2120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[
             manifest_dir.join("src/css/parser/value_parser.rs"),
             manifest_dir.join("src/css/parser/syntax.rs"),
+            manifest_dir.join("src/css/parser/syntax_parser.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
         ],
         &out_dir,
