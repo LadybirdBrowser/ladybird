@@ -13,6 +13,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeCrossDocumentNavigation
 {
     TRY(encoder.encode(parameters.navigable_id));
     TRY(encoder.encode(parameters.pending_document_state_id));
+    TRY(encoder.encode(parameters.navigation_id));
     TRY(encoder.encode(parameters.history_handling));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
@@ -24,6 +25,7 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
     return Web::FinalizeCrossDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .pending_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .navigation_id = TRY(decoder.decode<Optional<Utf16String>>()),
         .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
@@ -41,6 +43,23 @@ ErrorOr<Web::CrossDocumentNavigationFinalization> IPC::decode(Decoder& decoder)
 {
     return Web::CrossDocumentNavigationFinalization {
         .history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReconstructedChildNavigation const& navigation)
+{
+    TRY(encoder.encode(navigation.target_entry));
+    TRY(encoder.encode(navigation.navigation_id));
+    return {};
+}
+
+template<>
+ErrorOr<Web::ReconstructedChildNavigation> IPC::decode(Decoder& decoder)
+{
+    return Web::ReconstructedChildNavigation {
+        .target_entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>()),
+        .navigation_id = TRY(decoder.decode<Utf16String>()),
     };
 }
 

@@ -135,6 +135,10 @@ public:
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
     void run_iframe_load_event_steps(Web::HTML::CrossProcessId);
+    void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
+    void create_navigation_params(Web::HTML::NavigationPopulationRequest);
+    void cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
+    void populate_navigation(Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult);
     void set_remote_child_frame_compositor_context(Web::HTML::CrossProcessId, Optional<Web::Compositor::CompositorContextId>);
     void cancel_download(u64 download_id);
     void clear_pending_dom_mutations();
@@ -152,9 +156,10 @@ private:
 
     // ^PageClient
     virtual bool is_connection_open() const override;
-    virtual Web::NavigationProcessDecision decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget, Optional<Web::HTML::CrossProcessId> frame_id) const override;
-    virtual void request_new_process_for_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> const&) override;
-    virtual void request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> const&) override;
+    virtual void request_navigation_start(Web::HTML::LocalNavigable&, URL::URL const& current_url, Web::NavigationTarget, Web::HTML::NavigationStartRequest) override;
+    virtual void request_navigation_population(Web::HTML::LocalNavigable&, URL::URL const& current_url, Web::NavigationTarget, Web::HTML::NavigationPopulationRequest) override;
+    virtual void navigation_params_creation_finished(Web::HTML::LocalNavigable&, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
+    virtual void navigation_population_failed(Web::HTML::CrossProcessId, Utf16String const&) override;
     virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect) override;
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;

@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -86,6 +87,7 @@ Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossP
 void CanonicalTraversable::remove(CanonicalNavigable& navigable)
 {
     VERIFY(&navigable != this);
+    navigable.clear_ongoing_navigation();
     remove_from_index(navigable);
 
     auto* parent = navigable.parent();
@@ -355,6 +357,7 @@ struct CanonicalTraversable::HistoryOperation {
     // Delta and Navigation API traversals resolve their canonical target when their queue position is reached.
     Optional<i32> resolved_step;
     bool was_initiated_by_browser { false };
+    bool owns_navigation_transaction { false };
     bool check_for_cancelation { false };
     Function<void()> on_browser_traversal_ready;
     Function<void(Web::HTML::HistoryStepResult)> pending_unload_cancelation;
@@ -870,6 +873,28 @@ CanonicalTraversable::HistoryOperation* CanonicalTraversable::find_history_opera
     return operation->value.ptr();
 }
 
+bool CanonicalTraversable::navigation_transaction_matches(HistoryOperation const& operation, WebContentClient const& client, u64 page_id, Optional<Web::HTML::CrossProcessId> reply_navigable_id) const
+{
+    if (!operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>())
+        return true;
+
+    auto const& parameters = operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
+    if (reply_navigable_id.has_value() && *reply_navigable_id != parameters.navigable_id)
+        return true;
+    auto navigable = find(parameters.navigable_id);
+    if (!navigable.has_value())
+        return false;
+
+    // A javascript: navigation clears the spec's ongoing-navigation value before finalization and therefore has no
+    // UI-owned population transaction. It must still come from the process hosting the active document.
+    if (!parameters.navigation_id.has_value()) {
+        auto endpoint = history_job_endpoint_for(*navigable);
+        return endpoint.client.ptr() == &client && endpoint.page_id == page_id;
+    }
+
+    return navigable->navigation_transaction_matches(*parameters.navigation_id, client, page_id);
+}
+
 void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, HistoryJobEndpoint endpoint, Optional<u64> initiation_id)
 {
     VERIFY(endpoint.client);
@@ -1257,22 +1282,45 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
                                                          },
         operation.initiation_id);
 
+    if (operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
+        operation.owns_navigation_transaction = navigation_transaction_matches(
+            operation, *operation.initiating_client, operation.initiating_page_id);
+        if (!operation.owns_navigation_transaction) {
+            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+            return;
+        }
+    }
+
     VERIFY(operation.initiation_id.has_value());
-    Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry;
+    Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation;
     if (operation.parameters.has<Web::NavigableCreationHistoryOperationParameters>()) {
         auto const& parameters = operation.parameters.get<Web::NavigableCreationHistoryOperationParameters>();
         auto child_navigable = find(parameters.navigable_id);
         auto current_step = m_session_history.current_step();
         if (child_navigable.has_value() && current_step.has_value()) {
             if (auto const* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
+                auto uuid = Web::Crypto::generate_random_uuid();
+                auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
+                auto ongoing_navigation = CanonicalNavigable::OngoingNavigation {
+                    .url = target_entry->url,
+                    .navigation_id = navigation_id,
+                    .has_started = true,
+                    .is_uncommitted = true,
+                    .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
+                };
+                child_navigable->set_ongoing_navigation(move(ongoing_navigation));
+                child_navigable->set_navigation_host(*operation.initiating_client, operation.initiating_page_id);
                 child_navigable->set_active_session_history_entry(*target_entry);
-                creation_target_entry = *target_entry;
+                reconstructed_child_navigation = Web::ReconstructedChildNavigation {
+                    .target_entry = *target_entry,
+                    .navigation_id = move(navigation_id),
+                };
             }
         }
     }
     operation.initiating_client->async_history_operation_started(
         operation.initiating_page_id, operation.operation_id, *operation.initiation_id,
-        move(creation_target_entry));
+        move(reconstructed_child_navigation));
 }
 
 void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HistoryOperationReadyResult result)
@@ -1282,6 +1330,10 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
         return;
     if (!operation->was_initiated_by(source_client, source_page_id))
         return;
+    if (!navigation_transaction_matches(*operation, source_client, source_page_id)) {
+        finish_history_operation(operation_id, Web::HTML::HistoryStepResult::Applied, {});
+        return;
+    }
 
     if (result.has<Web::HTML::HistoryStepResult>()) {
         finish_history_operation(operation_id, result.get<Web::HTML::HistoryStepResult>(), {});
@@ -1444,6 +1496,12 @@ void CanonicalTraversable::finish_history_operation(u64 operation_id, Web::HTML:
         m_pending_browser_history_traversal.clear();
     }
 
+    if (taken_operation.owns_navigation_transaction) {
+        auto const& parameters = taken_operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
+        if (auto navigable = find(parameters.navigable_id); navigable.has_value())
+            navigable->did_finish_navigation_transaction(parameters.navigation_id, result);
+    }
+
     if (committed_step.has_value()) {
         if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
             if (auto const* current_entry = m_session_history.current_entry())
@@ -1515,6 +1573,9 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
         if (!endpoint.has_value() || endpoint->client.ptr() != &source_client || endpoint->page_id != source_page_id)
             return;
 
+        if (!navigation_transaction_matches(*operation, source_client, source_page_id, navigable_id))
+            disposition = Web::HTML::ChangingNavigableHistoryStepJobDisposition::Stale;
+
         switch (pending_job.value()->phase) {
         case HistoryOperation::PendingChangingJob::Phase::RedispatchedAfterReady:
             if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
@@ -1577,9 +1638,12 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
         if (activated_navigable_state.has_value()) {
             auto navigable = find(navigable_id);
             if (navigable.has_value()) {
+                auto navigation_id = operation->parameters.visit(
+                    [](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) { return parameters.navigation_id; },
+                    [](auto const&) { return Optional<Utf16String> {}; });
                 activated_navigable_state->active_session_history_entry_identity = Web::HTML::session_history_entry_identity(pending_job.value()->job.target_entry);
                 auto active_document_url = activated_navigable_state->active_document_url;
-                navigable->did_commit_navigation(activated_navigable_state.release_value());
+                navigable->did_commit_navigation(activated_navigable_state.release_value(), navigation_id);
 
                 if (navigable_id == id()) {
                     if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {

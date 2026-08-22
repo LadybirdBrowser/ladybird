@@ -122,9 +122,6 @@ public:
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
     void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
-    void load(URL::URL const&, HTML::DocumentResource,
-        Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto,
-        Optional<HTML::NavigationSourceSnapshot> = {});
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
 
@@ -461,12 +458,7 @@ enum class NavigationTarget : u8 {
     IFrame,
 };
 
-enum class NavigationProcessDecision : u8 {
-    Local,
-    Remote,
-};
-
-class PageClient : public JS::Cell {
+class WEB_API PageClient : public JS::Cell {
     GC_CELL(PageClient, JS::Cell);
 
 public:
@@ -477,17 +469,10 @@ public:
     virtual bool has_focus() const { return true; }
     virtual void set_has_focus([[maybe_unused]] bool has_focus) { }
     virtual bool has_active_devtools_client() const { return false; }
-    // In Ladybird, Remote currently implies replacing the WebContent process.
-    virtual NavigationProcessDecision decide_navigation_process(
-        [[maybe_unused]] URL::URL const& current_url,
-        [[maybe_unused]] URL::URL const& target_url,
-        [[maybe_unused]] NavigationTarget target = NavigationTarget::TopLevel,
-        [[maybe_unused]] Optional<HTML::CrossProcessId> frame_id = {}) const
-    {
-        return NavigationProcessDecision::Local;
-    }
-    virtual void request_new_process_for_navigation(URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
-    virtual void request_new_process_for_child_frame_navigation(HTML::CrossProcessId, URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
+    virtual void request_navigation_start(HTML::LocalNavigable&, URL::URL const& current_url, NavigationTarget, HTML::NavigationStartRequest);
+    virtual void request_navigation_population(HTML::LocalNavigable&, URL::URL const& current_url, NavigationTarget, HTML::NavigationPopulationRequest);
+    virtual void navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult);
+    virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, CSSPixelRect) { }
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }

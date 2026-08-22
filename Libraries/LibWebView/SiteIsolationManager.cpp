@@ -64,36 +64,6 @@ bool SiteIsolationManager::child_frame_navigation_requires_process_swap(Canonica
     return navigation_requires_process_swap(current_url, target_url, Web::NavigationTarget::IFrame);
 }
 
-Web::NavigationProcessDecision SiteIsolationManager::decide_navigation_process(WebContentClient& parent_client, u64 page_id, Optional<Web::HTML::CrossProcessId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
-{
-    Optional<CanonicalNavigable&> child_frame;
-    if (target == Web::NavigationTarget::IFrame && frame_id.has_value())
-        child_frame = parent_client.child_frame(page_id, *frame_id);
-
-    auto requires_process_swap = child_frame.has_value()
-        ? child_frame_navigation_requires_process_swap(*child_frame, current_url, target_url)
-        : navigation_requires_process_swap(current_url, target_url, target);
-
-    auto decision = requires_process_swap
-        ? Web::NavigationProcessDecision::Remote
-        : Web::NavigationProcessDecision::Local;
-
-    if (child_frame.has_value()) {
-        auto target_locality = decision == Web::NavigationProcessDecision::Local
-            ? CanonicalNavigable::HostLocality::Local
-            : CanonicalNavigable::HostLocality::Remote;
-        child_frame->ongoing_navigation() = CanonicalNavigable::OngoingNavigation {
-            .url = target_url,
-            .target_locality = target_locality,
-        };
-
-        if (target_locality == CanonicalNavigable::HostLocality::Local)
-            transition_child_frame_to_local(*child_frame);
-    }
-
-    return decision;
-}
-
 Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager::remote_child_frame_input_target_at(WebContentClient& client, u64 page_id, Web::DevicePixelPoint position) const
 {
     auto* host = client.navigable_for_page(page_id);

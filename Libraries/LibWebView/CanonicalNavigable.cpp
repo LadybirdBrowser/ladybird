@@ -21,7 +21,10 @@ CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<We
 {
 }
 
-CanonicalNavigable::~CanonicalNavigable() = default;
+CanonicalNavigable::~CanonicalNavigable()
+{
+    clear_ongoing_navigation();
+}
 
 WebContentClient& CanonicalNavigable::reporting_client() const
 {
@@ -250,13 +253,31 @@ bool CanonicalNavigable::active_document_is(Web::HTML::SessionHistoryEntryDescri
         && m_active_session_history_entry_identity->document_state_id == entry.document_state.id;
 }
 
-void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state)
+void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id)
 {
+    auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
+        || !navigation_id.has_value()
+        || navigation_id == m_ongoing_navigation->navigation_id;
+
     set_replicated_state(move(replicated_state));
 
+    // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
+    // state for the committed document without changing the newer navigation's transaction.
+    if (!commits_ongoing_navigation)
+        return;
+
     // A top-level record also tracks the load and survives until the load finishes or is canceled.
-    if (!is_top_level_traversable())
-        m_ongoing_navigation.clear();
+    if (!is_top_level_traversable()) {
+        clear_ongoing_navigation();
+        return;
+    }
+
+    if (m_ongoing_navigation.has_value()) {
+        m_ongoing_navigation->loader = nullptr;
+        m_ongoing_navigation->phase = OngoingNavigation::Phase::Committed;
+        m_ongoing_navigation->is_uncommitted = false;
+        m_ongoing_navigation->uses_replacement_process = false;
+    }
 }
 
 CanonicalNavigable::OngoingNavigation& CanonicalNavigable::ensure_ongoing_navigation()
@@ -266,11 +287,89 @@ CanonicalNavigable::OngoingNavigation& CanonicalNavigable::ensure_ongoing_naviga
     return *m_ongoing_navigation;
 }
 
-bool CanonicalNavigable::has_matching_ongoing_navigation(URL::URL const& url, HostLocality target_locality) const
+void CanonicalNavigable::set_ongoing_navigation(OngoingNavigation ongoing_navigation)
+{
+    clear_ongoing_navigation();
+    m_ongoing_navigation = move(ongoing_navigation);
+}
+
+void CanonicalNavigable::clear_ongoing_navigation()
+{
+    m_ongoing_navigation.clear();
+}
+
+void CanonicalNavigable::set_navigation_population_worker(WebContentClient& client, u64 page_id)
+{
+    auto& ongoing_navigation = ensure_ongoing_navigation();
+    VERIFY(!ongoing_navigation.population_worker_client);
+    ongoing_navigation.population_worker_client = client;
+    ongoing_navigation.population_worker_page_id = page_id;
+}
+
+bool CanonicalNavigable::navigation_population_matches(WebContentClient const& client, u64 page_id, Utf16String const& navigation_id) const
 {
     return m_ongoing_navigation.has_value()
-        && m_ongoing_navigation->target_locality == target_locality
-        && m_ongoing_navigation->url == url;
+        && m_ongoing_navigation->navigation_id == navigation_id
+        && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
+        && m_ongoing_navigation->population_worker_client.ptr() == &client
+        && m_ongoing_navigation->population_worker_page_id == page_id;
+}
+
+void CanonicalNavigable::did_finish_navigation_params_creation()
+{
+    VERIFY(m_ongoing_navigation.has_value());
+    m_ongoing_navigation->population_worker_client = {};
+    m_ongoing_navigation->population_worker_page_id = 0;
+}
+
+void CanonicalNavigable::set_navigation_host(WebContentClient& client, u64 page_id)
+{
+    auto& ongoing_navigation = ensure_ongoing_navigation();
+    ongoing_navigation.host_client = client;
+    ongoing_navigation.host_page_id = page_id;
+}
+
+bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client, u64 page_id) const
+{
+    return m_ongoing_navigation.has_value()
+        && m_ongoing_navigation->host_client.ptr() == &client
+        && m_ongoing_navigation->host_page_id == page_id;
+}
+
+bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentClient const& client, u64 page_id) const
+{
+    return m_ongoing_navigation.has_value()
+        && m_ongoing_navigation->navigation_id == navigation_id
+        && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
+        && navigation_host_matches(client, page_id);
+}
+
+bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClient& client)
+{
+    if (!m_ongoing_navigation.has_value())
+        return false;
+
+    auto depends_on_client = m_ongoing_navigation->population_worker_client.ptr() == &client
+        || m_ongoing_navigation->host_client.ptr() == &client;
+    if (!depends_on_client)
+        return false;
+
+    clear_ongoing_navigation();
+    return true;
+}
+
+void CanonicalNavigable::did_finish_navigation_transaction(Optional<Utf16String> const& navigation_id, Web::HTML::HistoryStepResult result)
+{
+    if (!navigation_id.has_value()
+        || !m_ongoing_navigation.has_value()
+        || m_ongoing_navigation->navigation_id != navigation_id) {
+        return;
+    }
+
+    if (result != Web::HTML::HistoryStepResult::Applied
+        || m_ongoing_navigation->phase != OngoingNavigation::Phase::Committed) {
+        clear_ongoing_navigation();
+    }
 }
 
 bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
