@@ -73,14 +73,15 @@ public:
 
     void reset_cached_intrinsic_sizes()
     {
-        auto& epoch = node_data().intrinsic_cache_epoch;
-        if (epoch != NumericLimits<u16>::max())
-            ++epoch;
+        if (++node_data().intrinsic_cache_epoch == 0) [[unlikely]]
+            drop_cached_intrinsic_sizes();
     }
 
     Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::Box);
 
 private:
+    void drop_cached_intrinsic_sizes();
+
     CSS::SizeWithAspectRatio compute_auto_content_box_size() const;
 
     virtual bool is_box() const final { return true; }

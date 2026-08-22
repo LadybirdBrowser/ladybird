@@ -19,6 +19,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
@@ -35,6 +36,11 @@ Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle styl
 
 Box::~Box()
 {
+}
+
+void Box::drop_cached_intrinsic_sizes()
+{
+    node_arena().drop_intrinsic_size_cache(node_data());
 }
 
 void Box::set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_horizontal_scroll, bool compensates_for_vertical_scroll)
