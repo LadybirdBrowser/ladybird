@@ -1539,7 +1539,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         layout_geometry_effects
     ));
     output.push_str(&format!(
-        "#[cfg(test)]\npub(crate) static PROPERTY_INITIAL_VALUES: [&str; {}] = {:?};\n",
+        "pub(crate) static PROPERTY_INITIAL_VALUES: [&str; {}] = {:?};\n",
         initial_values.len(),
         initial_values
     ));

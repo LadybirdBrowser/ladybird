@@ -177,6 +177,10 @@ impl TextSink {
         }
     }
 
+    fn content_equals_ascii_case_insensitive(&self, other: &TextSink) -> bool {
+        self.is_ascii && other.is_ascii && self.ascii.eq_ignore_ascii_case(&other.ascii)
+    }
+
     fn into_string(self) -> String {
         if self.is_ascii {
             // SAFETY: The ASCII representation contains only valid UTF-8.
@@ -3068,8 +3072,8 @@ fn serialize_shorthand(
     values: &crate::css::style_value::RetainedStyleValueDataList,
     mode: SerializationMode,
 ) -> bool {
-    use crate::css::property_metadata::{POSITIONAL_VALUE_LIST_SHORTHANDS, property_id};
-    use crate::css::style_compute::{expand_shorthands_with, initial_value_data, value_is_css_wide_keyword};
+    use crate::css::property_metadata::{POSITIONAL_VALUE_LIST_SHORTHANDS, property_id, property_initial_value};
+    use crate::css::style_compute::{expand_shorthands_with, value_is_css_wide_keyword};
 
     // If all the longhands are the same CSS-wide keyword, just return that once.
     let mut built_in_keyword: Option<u16> = None;
@@ -3108,13 +3112,11 @@ fn serialize_shorthand(
         values.as_slice().get(index)?.optional_data()
     };
     let property_is_shorthand = |id: u16| !crate::css::property_metadata::longhands_for_shorthand(id).is_empty();
-    // SAFETY: The initial-value table holds live retained style value data for every longhand;
-    // shorthand initial values are not in the table, so those callers decline.
-    let initial = |id: u16| -> Option<&StyleValueData> {
+    let initial_source = |id: u16| -> Option<&'static str> {
         if property_is_shorthand(id) {
             return None;
         }
-        Some(unsafe { &*initial_value_data(id) })
+        Some(property_initial_value(id))
     };
     let sub_sink = |value: &StyleValueData| -> Option<TextSink> {
         let mut serialized = TextSink::new();
@@ -3138,13 +3140,17 @@ fn serialize_shorthand(
             let Some(value) = value.optional_data() else {
                 return false;
             };
-            let Some(initial_value) = initial(sub_properties[index]) else {
+            let Some(initial_source) = initial_source(sub_properties[index]) else {
                 return false;
             };
-            let (Some(value_sink), Some(initial_sink)) = (sub_sink(value), sub_sink(initial_value)) else {
+            let Some(value_sink) = sub_sink(value) else {
                 return false;
             };
-            if value_sink.content_equals(&initial_sink) {
+            let mut initial_sink = TextSink::new();
+            initial_sink.push_ascii(initial_source);
+            if value_sink.content_equals(&initial_sink)
+                || value_sink.content_equals_ascii_case_insensitive(&initial_sink)
+            {
                 continue;
             }
             if first {
@@ -3312,10 +3318,15 @@ fn serialize_shorthand(
         if !serialize_style_value(sink, name, mode) {
             return false;
         }
-        let Some(container_type_initial) = initial(property_id::CONTAINER_TYPE) else {
+        let Some(container_type_initial) = initial_source(property_id::CONTAINER_TYPE) else {
             return false;
         };
-        if container_type != container_type_initial {
+        let Some(container_type_sink) = sub_sink(container_type) else {
+            return false;
+        };
+        let mut container_type_initial_sink = TextSink::new();
+        container_type_initial_sink.push_ascii(container_type_initial);
+        if !container_type_sink.content_equals(&container_type_initial_sink) {
             sink.push_ascii(" / ");
             if !serialize_style_value(sink, container_type, mode) {
                 return false;
@@ -3362,10 +3373,15 @@ fn serialize_shorthand(
             property_id::TEXT_DECORATION_STYLE,
             property_id::TEXT_DECORATION_COLOR,
         ] {
-            let (Some(value), Some(initial_value)) = (longhand(id), initial(id)) else {
+            let (Some(value), Some(initial_source)) = (longhand(id), initial_source(id)) else {
                 return false;
             };
-            if value != initial_value {
+            let Some(value_sink) = sub_sink(value) else {
+                return false;
+            };
+            let mut initial_sink = TextSink::new();
+            initial_sink.push_ascii(initial_source);
+            if !value_sink.content_equals(&initial_sink) {
                 if sink.len() != 0 {
                     sink.push_ascii(" ");
                 }

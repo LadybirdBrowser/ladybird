@@ -112,7 +112,6 @@ pub fn property_may_affect_layout_geometry(property_id: u16) -> bool {
     PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY[longhand_index(property_id)]
 }
 
-#[cfg(test)]
 pub(crate) fn property_initial_value(property_id: u16) -> &'static str {
     PROPERTY_INITIAL_VALUES[longhand_index(property_id)]
 }
@@ -233,6 +232,10 @@ pub fn longhands_for_shorthand(property_id: u16) -> &'static [u16] {
         return &[];
     }
     SHORTHAND_EXPANSIONS[(property_id - FIRST_SHORTHAND_PROPERTY_ID) as usize]
+}
+
+pub(crate) fn property_is_positional_value_list_shorthand(property_id: u16) -> bool {
+    POSITIONAL_VALUE_LIST_SHORTHANDS.binary_search(&property_id).is_ok()
 }
 
 fn property_index(property_id: u16) -> usize {
