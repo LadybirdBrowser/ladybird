@@ -17,6 +17,13 @@ namespace Core::Platform {
 
 static auto user_hz = sysconf(_SC_CLK_TCK);
 
+static constexpr bool task_is_unavailable(kern_return_t result)
+{
+    // A dead task port fails in the MIG client. If task termination races the request, task_info() instead sees an
+    // inactive task and returns KERN_INVALID_ARGUMENT.
+    return result == MACH_SEND_INVALID_DEST || result == KERN_INVALID_ARGUMENT;
+}
+
 ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
 {
     host_cpu_load_info_data_t cpu_info {};
@@ -39,10 +46,22 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     statistics.total_time_scheduled = total_cpu_ticks;
 
     for (auto& process : statistics.processes) {
+        // A newly spawned process may be added to the process manager before its task port is delivered to the browser
+        // event loop. Skip it for this sample; the port will be available on the next update.
+        if (!MACH_PORT_VALID(process->child_task_port.port())) {
+            process->reset_cpu_time();
+            continue;
+        }
+
         mach_task_basic_info_data_t basic_info {};
         count = MACH_TASK_BASIC_INFO_COUNT;
         res = task_info(process->child_task_port.port(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic_info), &count);
         if (res != KERN_SUCCESS) {
+            if (task_is_unavailable(res)) {
+                process->reset_cpu_time();
+                continue;
+            }
+
             dbgln("Failed to get task info for pid {}: {}", process->pid, mach_error_string(res));
             return Core::mach_error_to_error(res);
         }
@@ -53,6 +72,11 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
         count = TASK_THREAD_TIMES_INFO_COUNT;
         res = task_info(process->child_task_port.port(), TASK_THREAD_TIMES_INFO, reinterpret_cast<task_info_t>(&time_info), &count);
         if (res != KERN_SUCCESS) {
+            if (task_is_unavailable(res)) {
+                process->reset_cpu_time();
+                continue;
+            }
+
             dbgln("Failed to get thread times info for pid {}: {}", process->pid, mach_error_string(res));
             return Core::mach_error_to_error(res);
         }
@@ -66,8 +90,9 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
         process->time_spent_in_process = time_in_process.to_microseconds();
 
         process->cpu_percent = 0.0f;
-        if (time_diff_process > AK::Duration::zero())
+        if (process->has_cpu_time_baseline && time_diff_process > AK::Duration::zero())
             process->cpu_percent = 100.0f * static_cast<float>(time_diff_process.to_microseconds()) / total_cpu_micro_diff;
+        process->has_cpu_time_baseline = true;
     }
 
     return {};
