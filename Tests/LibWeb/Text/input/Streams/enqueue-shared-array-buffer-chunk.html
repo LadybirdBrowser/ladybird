@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A stream chunk is whatever the author enqueued, and enqueue() takes an 'any' — so no buffer-source conversion
+    // ever gets the chance to reject an SAB. The read loop that drains the stream has to cope with one — reading it as
+    // a snapshot, rather than through a pointer into memory another agent may be writing to. These read back through
+    // Response, which is what drives that loop.
+    asyncTest(async done => {
+        const buffer = new SharedArrayBuffer(5);
+        new Uint8Array(buffer).set([0x68, 0x65, 0x6c, 0x6c, 0x6f]); // "hello"
+
+        const streamOf = view =>
+            new ReadableStream({
+                start(controller) {
+                    controller.enqueue(view);
+                    controller.close();
+                },
+            });
+
+        println(`whole shared buffer: ${await new Response(streamOf(new Uint8Array(buffer))).text()}`);
+
+        // A view at a non-zero byteOffset: Reading the wrong window of the buffer would go unnoticed above — where the
+        // view starts at 0.
+        println(`shared view at offset 1, length 3: ${await new Response(streamOf(new Uint8Array(buffer, 1, 3))).text()}`);
+
+        done();
+    });
+</script>

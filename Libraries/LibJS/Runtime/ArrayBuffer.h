@@ -391,7 +391,14 @@ public:
         if (count == 0)
             return callback({});
 
-        if (contiguous_bytes_from(offset, count) == count)
+        // AD-HOC: Never hand out a pointer into a Shared Data Block. Another agent may write to those bytes at any
+        //         time — and a consumer is free to keep reading through the pointer after this call returns. Snapshot
+        //         the bytes instead — so the consumer sees one well-defined set of them. That's also what the specs ask
+        //         for: operations that read a possibly-shared buffer in bulk (WebIDL "get a copy of the buffer source",
+        //         the uint8array-base64 proposal's GetUint8ArrayBytes) are all defined as copying it out byte-by-byte.
+        auto must_snapshot_shared_bytes = is_shared == Shared::Yes;
+
+        if (!must_snapshot_shared_bytes && contiguous_bytes_from(offset, count) == count)
             return callback({ data_at(offset), count });
 
         auto storage = MUST(copy_to_byte_buffer(offset, count));
