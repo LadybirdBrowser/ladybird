@@ -90,9 +90,9 @@ static ValueParserFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
-static bool rust_value_parser_enabled()
+static bool use_cpp_value_parser()
 {
-    static bool const enabled = Core::Environment::get("LIBWEB_RUST_VALUE_PARSER"sv).value_or("1"sv) != "0"sv;
+    static bool const enabled = Core::Environment::get("LIBWEB_USE_CPP_VALUE_PARSER"sv).value_or("0"sv) == "1"sv;
     return enabled;
 }
 
@@ -470,7 +470,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    if (!rust_value_parser_enabled())
+    if (use_cpp_value_parser())
         return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
 
     ensure_parse_fallback_statistics_dumper();
@@ -618,7 +618,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 
 Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(FontDescriptorKind kind, TokenStream<ComponentValue>& tokens)
 {
-    if (!rust_value_parser_enabled())
+    if (use_cpp_value_parser())
         return {};
 
     Utf16StringBuilder builder;
