@@ -187,11 +187,15 @@ public:
     void clear_indexed_database_object_store(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
     void delete_indexed_database_record(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete);
 
-    ByteString selected_text();
-    ByteString cut_selected_text();
-    Optional<String> selected_text_with_whitespace_collapsed();
-    Optional<DictionaryLookup> selected_text_for_dictionary_lookup();
+    NonnullRefPtr<Core::Promise<ByteString>> selected_text();
+    NonnullRefPtr<Core::Promise<ByteString>> cut_selected_text();
+    NonnullRefPtr<Core::Promise<Optional<String>>> selected_text_with_whitespace_collapsed();
+    NonnullRefPtr<Core::Promise<Optional<DictionaryLookup>>> selected_text_for_dictionary_lookup();
     bool look_up_selected_text_at(Gfx::IntPoint widget_position);
+    void did_receive_selected_text(Badge<WebContentClient>, u64 request_id, ByteString selection);
+    void did_receive_selected_text_for_lookup(Badge<WebContentClient>, u64 request_id, Optional<DictionaryLookup> lookup);
+    void did_select_word_for_dictionary_lookup(Badge<WebContentClient>, u64 request_id, bool selected);
+    void did_cut_selected_text(Badge<WebContentClient>, u64 request_id, ByteString selection);
     void select_all();
     void undo();
     void redo();
@@ -557,6 +561,9 @@ protected:
     void complete_external_url_request();
     void process_next_external_url_request();
     void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
+    void request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete);
+    NonnullRefPtr<Core::Promise<bool>> select_word_for_dictionary_lookup(Gfx::IntPoint widget_position);
+    void reject_pending_selection_requests();
     enum class PromptForPath : u8 {
         No,
         Yes,
@@ -602,6 +609,7 @@ protected:
     RefPtr<Menu> m_selected_text_link_context_menu;
     RefPtr<Menu> m_image_context_menu;
     RefPtr<Menu> m_media_context_menu;
+    u64 m_context_menu_request_id { 0 };
 
     RefPtr<Menu> m_bookmarks_bar_context_menu;
     RefPtr<Menu> m_bookmark_context_menu;
@@ -620,6 +628,12 @@ protected:
 
     RefPtr<Action> m_search_selected_text_action;
     Optional<String> m_search_text;
+
+    u64 m_next_selection_request_id { 1 };
+    HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_selected_text_requests;
+    HashMap<u64, NonnullRefPtr<Core::Promise<Optional<DictionaryLookup>>>> m_pending_selected_text_for_lookup_requests;
+    HashMap<u64, NonnullRefPtr<Core::Promise<bool>>> m_pending_select_word_for_dictionary_lookup_requests;
+    HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_cut_selected_text_requests;
 
     RefPtr<Action> m_take_visible_screenshot_action;
     RefPtr<Action> m_take_full_screenshot_action;

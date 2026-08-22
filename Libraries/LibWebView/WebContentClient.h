@@ -183,6 +183,10 @@ private:
     virtual void did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, Optional<Core::AnonymousBuffer>) override;
+    virtual void did_get_selected_text(u64 page_id, u64 request_id, ByteString selection) override;
+    virtual void did_get_selected_text_for_lookup(u64 page_id, u64 request_id, Optional<DictionaryLookup> lookup) override;
+    virtual void did_select_word_for_dictionary_lookup(u64 page_id, u64 request_id, bool selected) override;
+    virtual void did_cut_selected_text(u64 page_id, u64 request_id, ByteString selection) override;
     virtual void did_execute_js_console_input(u64 page_id, JsonValue) override;
     virtual void did_output_js_console_message(u64 page_id, ConsoleOutput) override;
     virtual void did_start_network_request(u64 page_id, u64 request_id, URL::URL, ByteString method, Vector<HTTP::Header>, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority) override;
