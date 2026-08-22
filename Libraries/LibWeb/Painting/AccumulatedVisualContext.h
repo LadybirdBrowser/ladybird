@@ -191,6 +191,7 @@ public:
     AccumulatedVisualContextNode& node_at(VisualContextIndex index) { return m_nodes[index.value()]; }
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
     bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
+    size_t node_count() const { return m_nodes.size(); }
 
     SortingContexts resolve_sorting_contexts() const;
     Optional<float> plane_depth_at_point_for_hit_test(VisualContextIndex plane_node_index, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
