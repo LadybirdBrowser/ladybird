@@ -115,7 +115,9 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: Painta
 }
 
 fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId, input: &FfiFlexOverlayInput) {
-    let Some(flex_layout_data) = recorder.paintables.side(paintable).flex_layout_data.clone() else {
+    let Some(flex_layout_data) =
+        crate::painting::paintable_geometry::committed_flex_layout_data(recorder.paintables, paintable)
+    else {
         return;
     };
     let content_rect = paintable_geometry::absolute_rect(recorder.paintables, paintable);
@@ -245,7 +247,9 @@ fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlot
 }
 
 fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId, input: &FfiGridOverlayInput) {
-    let Some(grid_layout_data) = recorder.paintables.side(paintable).grid_layout_data.clone() else {
+    let Some(grid_layout_data) =
+        crate::painting::paintable_geometry::committed_grid_layout_data(recorder.paintables, paintable)
+    else {
         return;
     };
     let content_rect = paintable_geometry::absolute_rect(recorder.paintables, paintable);

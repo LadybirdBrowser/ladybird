@@ -251,7 +251,7 @@ impl<'a> PaintRecorder<'a> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let Some(path) = self.paintables.side(paintable).computed_svg_path.clone() else {
+        let Some(path) = paintable_geometry::committed_svg_path(self.paintables, paintable) else {
             return;
         };
         if !self.visibility_is_visible(paintable) || !self.visible_for_hit_testing(paintable) {

@@ -157,11 +157,8 @@ fn to_device_edge(recorder: &PaintRecorder<'_>, edge: CollapsedBorderEdge) -> De
 pub(crate) fn paint_table_borders(recorder: &mut PaintRecorder<'_>, table_paintable: PaintableSlotId) {
     // Painting according to the collapsing border model:
     // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
-    let Some(borders) = recorder
-        .paintables
-        .side(table_paintable)
-        .collapsed_table_borders
-        .clone()
+    let Some(borders) =
+        crate::painting::paintable_geometry::committed_collapsed_table_borders(recorder.paintables, table_paintable)
     else {
         return;
     };

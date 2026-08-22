@@ -230,7 +230,8 @@ pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, pain
     if recorder.draw_svg_geometry_for_clip_path {
         return;
     }
-    let Some(computed_path) = recorder.paintables.side(paintable).computed_svg_path.clone() else {
+    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.paintables, paintable)
+    else {
         return;
     };
     if !recorder.is_visible(paintable) {
@@ -302,7 +303,8 @@ fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPa
 }
 
 pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId, phase: PaintPhase) {
-    let Some(computed_path) = recorder.paintables.side(paintable).computed_svg_path.clone() else {
+    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.paintables, paintable)
+    else {
         return;
     };
     let (facts, dash_array) = svg_paint_facts(recorder, paintable);
