@@ -267,7 +267,8 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             request.mode(),
             request.credentials_mode(),
             request.integrity_metadata(),
-            on_preloaded_response_available);
+            on_preloaded_response_available,
+            fetch_params->task_destination());
 
         // 4. If foundPreloadedResource is true and fetchParams’s preloaded response candidate is null, then set
         //    fetchParams’s preloaded response candidate to "pending".
@@ -621,6 +622,13 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         }
         pending_response->when_loaded([&realm, &fetch_params, request, response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_response) mutable {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
+
+            // AD-HOC: From here on, response processing captures fetchParams's task destination as it schedules work
+            //         (the fully-read in step 22, and fetch response handover's tasks, body pipe and body read). Record
+            //         that the response has arrived (a network response was recorded as its headers came in) — so
+            //         consume_a_preloaded_resource() re-targets an in-flight preload's fetch only til then.
+            fetch_params.controller()->set_response_arrived();
+
             if (response_was_null)
                 response = resolved_response;
             // 14. If response is not a network error and response is not a filtered response, then:
@@ -2324,12 +2332,16 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
     stream->set_up_with_byte_reading_support(realm, pull_algorithm, cancel_algorithm);
 
-    auto on_headers_received = GC::create_function(GC::Heap::the(), [pending_response, stream, request, fetched_data_receiver](Requests::Request* request_server_request, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CameFromCache) {
+    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, fetched_data_receiver](Requests::Request* request_server_request, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CameFromCache) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
             return;
         }
+
+        // AD-HOC: From here on, the response's body delivery is scheduled against the event loop (see
+        //         FetchedDataReceiver::queue_delivery_task()); record that, for consume_a_preloaded_resource().
+        fetch_params.controller()->set_response_arrived();
 
         auto response = Infrastructure::Response::create();
         response->set_status(status_code.value_or(200));

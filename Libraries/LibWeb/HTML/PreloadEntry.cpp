@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/PreloadEntry.h>
@@ -25,6 +26,7 @@ void PreloadEntry::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(response);
     visitor.visit(on_response_available);
+    visitor.visit(controller);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#create-a-preload-key
@@ -59,7 +61,8 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
-    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available)
+    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
+    Fetch::Infrastructure::TaskDestination const& consumer_task_destination)
 {
     // 1. Let key be a preload key whose URL is url, destination is destination, mode is mode, and credentials mode is
     //    credentialsMode.
@@ -89,12 +92,34 @@ bool consume_a_preloaded_resource(
     //           then return false.
     (void)integrity_metadata;
 
+    // AD-HOC: A consumer on a parallel queue (a sync XHR send(), whose event loop is paused while it's blocked) can't
+    //         park on an in-flight entry whose fetch's response has already arrived: Its delivery and processing are
+    //         already queued against the event loop, beyond the reach of step 9's re-targeting — so they can't hand
+    //         the response over. Return false, so the consumer fetches on its own (as Blink/WebKit have every sync
+    //         request do; see step 9), and leave the entry in the map: The preload completes once the loop resumes.
+    if (!entry->response && consumer_task_destination.has<NonnullRefPtr<ParallelQueue>>() && entry->controller
+        && entry->controller->response_arrived()) {
+        return false;
+    }
+
     // 8. Remove preloads[key].
     preloads.remove(it);
 
     // 9. If entry's response is null, then set entry's on response available to onResponseAvailable.
     if (!entry->response) {
         entry->on_response_available = on_response_available;
+
+        // AD-HOC: A consumer on a parallel queue has its event loop paused while it waits (sync XHR send()) — so the
+        //         preload's fetch, whose response is otherwise handed over thru event-loop tasks, could never deliver.
+        //         Move it onto a parallel queue of its own: fetch response handover then reads its body and runs its
+        //         algorithms without the event loop, as it does for the consumer. Gecko too lets a sync XHR consume an
+        //         in-flight preload (XMLHttpRequestMainThread::FindPreload, FetchPreloader::AsyncConsume); Blink never
+        //         reuses a resource for a sync request (Resource::CanReuse), and WebKit's sync load bypasses its cache
+        //         and preloads (DocumentThreadableLoader::loadRequest).
+        if (consumer_task_destination.has<NonnullRefPtr<ParallelQueue>>() && entry->controller) {
+            if (auto fetch_params = entry->controller->fetch_params())
+                fetch_params->set_task_destination(ParallelQueue::create());
+        }
     }
     // 10. Otherwise, call onResponseAvailable with entry's response.
     else {

@@ -59,6 +59,14 @@ public:
     void terminate();
 
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }
+    [[nodiscard]] GC::Ptr<FetchParams> fetch_params() const { return m_fetch_params; }
+
+    // AD-HOC: Whether this fetch's response has arrived: as headers from the network, or at main fetch. From then on,
+    //         its body delivery is queued as event-loop tasks, and its response processing captures its task
+    //         destination as it was then — so re-targeting the fetch no longer reaches either.
+    //         consume_a_preloaded_resource() checks this before re-targeting an in-flight preload's fetch.
+    void set_response_arrived() { m_response_arrived = true; }
+    [[nodiscard]] bool response_arrived() const { return m_response_arrived; }
     [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
     void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
 
@@ -105,6 +113,7 @@ private:
     GC::Ptr<GC::Function<void()>> m_next_manual_redirect_steps;
 
     GC::Ptr<FetchParams> m_fetch_params;
+    bool m_response_arrived { false };
     // NB: Assumes one waiting consumer for a pending preloaded response.
     // Widen this if preload handoff ever supports multiple consumers.
     GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;
