@@ -910,6 +910,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             return target->document().style_computer().build_computed_values(*style, element, element.style_scope());
         }();
         if (animated_properties_after_update && !animated_properties_after_update->values().is_empty()
+            && target->document().is_in_style_stabilization_epoch()
             && (target->document().style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation)) {
             target->document().style_computer().record_transition_stabilization_baseline(element);
         }
