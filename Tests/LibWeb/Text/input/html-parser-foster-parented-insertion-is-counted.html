@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // Liveness canary for internals.parserNonAppendInsertions().
+    const before = internals.parserNonAppendInsertions();
+    document.write("<table><b>fostered</b></table>");
+    const nonAppendInsertions = internals.parserNonAppendInsertions() - before;
+
+    test(() => {
+        if (nonAppendInsertions > 0)
+            println("a foster-parented insertion computed an explicit offset");
+        else
+            println(`FAIL: expected a foster-parented insertion to compute an explicit offset, got ${nonAppendInsertions}`);
+    });
+</script>
