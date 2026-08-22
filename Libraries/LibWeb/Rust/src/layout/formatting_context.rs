@@ -995,12 +995,12 @@ impl FfiLayoutFcCallbacks {
         self.arena().saved_abspos_layout_inputs(data)
     }
 
-    pub(crate) fn saved_committed_fragment(&self, node: Node) -> Option<crate::layout::FragmentLink> {
-        self.arena().saved_committed_fragment(self.arena().data(node))
+    pub(crate) fn committed_fragment_link(&self, node: Node) -> Option<crate::layout::FragmentLink> {
+        self.arena().committed_fragment_link(self.arena().data(node))
     }
 
-    pub(crate) fn set_saved_committed_fragment(&self, node: Node, fragment: crate::layout::FragmentLink) {
-        self.arena().set_saved_committed_fragment(self.arena().data(node), fragment);
+    pub(crate) fn set_committed_fragment_link(&self, node: Node, link: crate::layout::FragmentLink) {
+        self.arena().set_committed_fragment_link(self.arena().data(node), link);
     }
 
     pub(crate) fn set_saved_abspos_layout_inputs(&self, node: Node, inputs: Option<crate::layout::AbsposLayoutInputs>) {
@@ -2156,7 +2156,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
         let sink = unsafe { &*sink };
 
         let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
-        let root_used = used_values_from_saved_committed_fragment(&callbacks, root)
+        let root_used = used_values_from_committed_fragment_link(&callbacks, root)
             .expect("partial relayout root must have committed geometry");
         entry_records.register(root, root_used.clone());
         let entry_fragments = std::rc::Rc::new(RunFragmentBuilder::new_entry_accumulator(root));

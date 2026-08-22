@@ -30,11 +30,6 @@ fn commit_subtree(
     debug_assert!(!reuses_committed_subtree || entry.is_some());
     if let Some(link) = entry {
         callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
-        // SVG roots are the only non-abspos partial relayout boundaries; save their committed
-        // geometry so a later subtree pass can seed itself without reading the old paintable.
-        if callbacks.node_data(node).kind == NodeKind::SVGSVGBox {
-            callbacks.set_saved_committed_fragment(node, link.clone());
-        }
     }
     let prepared = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree);
     let paintable_slot = prepared.slot;
@@ -43,6 +38,7 @@ fn commit_subtree(
     if let Some(link) = entry
         && !paintable_slot.is_invalid()
     {
+        callbacks.set_committed_fragment_link(node, link.clone());
         let fragment = &link.fragment;
         let content_size_change = paintables.set_box_metrics(paintable_slot, link, reuses_committed_subtree);
         if prepared.row_existed_before_this_commit

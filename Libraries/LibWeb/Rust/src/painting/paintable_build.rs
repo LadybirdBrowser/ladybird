@@ -178,7 +178,7 @@ impl<'a> PaintableCommit<'a> {
             && expected_kind != PaintableKind::None;
         let existing_slot = self.arena.borrow().paintable_of_node(node);
         if !wants_paintable {
-            self.callbacks.arena().clear_saved_committed_fragment(node);
+            self.callbacks.arena().clear_committed_fragment_link(node);
             if !existing_slot.is_invalid() {
                 let reset = {
                     let arena = self.arena.borrow();
@@ -214,6 +214,9 @@ impl<'a> PaintableCommit<'a> {
                 slot: existing_slot,
                 row_existed_before_this_commit: true,
             };
+        }
+        if !has_used_values {
+            self.callbacks.arena().clear_committed_fragment_link(node);
         }
         let style = self.callbacks.computed_values_view_if_styled(node);
         let (position, floating, has_z_index, display) = match style {

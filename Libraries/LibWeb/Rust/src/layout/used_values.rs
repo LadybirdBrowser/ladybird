@@ -803,11 +803,11 @@ pub(crate) fn create_used_values(
     std::rc::Rc::new(used)
 }
 
-pub(crate) fn used_values_from_saved_committed_fragment(
+pub(crate) fn used_values_from_committed_fragment_link(
     callbacks: &FfiLayoutFcCallbacks,
     node: Node,
 ) -> Option<std::rc::Rc<UsedValues>> {
-    let link = callbacks.saved_committed_fragment(node)?;
+    let link = callbacks.committed_fragment_link(node)?;
     let fragment = &link.fragment;
 
     // Skip normal node initialization: resolving computed sizes requires

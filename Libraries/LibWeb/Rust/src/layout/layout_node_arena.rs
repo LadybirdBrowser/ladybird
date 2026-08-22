@@ -159,9 +159,9 @@ struct SavedAbsposLayoutInputsSlot {
 }
 
 #[derive(Default)]
-struct SavedCommittedFragmentSlot {
+struct CommittedFragmentLinkSlot {
     generation: u8,
-    fragment: Option<Box<crate::layout::FragmentLink>>,
+    link: Option<Box<crate::layout::FragmentLink>>,
 }
 
 #[derive(Default)]
@@ -262,7 +262,7 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
-    saved_committed_fragments: RefCell<Vec<SavedCommittedFragmentSlot>>,
+    committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
@@ -286,7 +286,7 @@ impl LayoutNodeArena {
             live_count: 0,
             intrinsic_size_caches: RefCell::new(Vec::new()),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
-            saved_committed_fragments: RefCell::new(Vec::new()),
+            committed_fragment_links: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
@@ -436,8 +436,8 @@ impl LayoutNodeArena {
         if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
             *slot = SavedAbsposLayoutInputsSlot::default();
         }
-        if let Some(slot) = self.saved_committed_fragments.get_mut().get_mut(index as usize) {
-            *slot = SavedCommittedFragmentSlot::default();
+        if let Some(slot) = self.committed_fragment_links.get_mut().get_mut(index as usize) {
+            *slot = CommittedFragmentLinkSlot::default();
         }
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
             *slot = TextContentSlot::default();
@@ -1074,41 +1074,41 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn saved_committed_fragment(&self, data: *const NodeData) -> Option<crate::layout::FragmentLink> {
+    pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<crate::layout::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
-        let slots = self.saved_committed_fragments.borrow();
-        let fragment = slots
+        let slots = self.committed_fragment_links.borrow();
+        let link = slots
             .get(index as usize)
             .filter(|slot| slot.generation == metadata.generation)
-            .and_then(|slot| slot.fragment.as_deref().cloned());
+            .and_then(|slot| slot.link.as_deref().cloned());
 
         // SAFETY: slot_for_data() established that data points to a live slot
         // in this arena.
         let flags = unsafe { (&raw const (*data).flags).read() };
         assert_eq!(
-            flags & NodeFlag::HasSavedCommittedGeometry as u32 != 0,
-            fragment.is_some(),
-            "saved committed fragment presence flag disagrees with the arena side table"
+            flags & NodeFlag::HasCommittedFragmentLink as u32 != 0,
+            link.is_some(),
+            "committed fragment link presence flag disagrees with the arena side table"
         );
-        fragment
+        link
     }
 
-    pub(crate) fn set_saved_committed_fragment(&self, data: *mut NodeData, fragment: crate::layout::FragmentLink) {
+    pub(crate) fn set_committed_fragment_link(&self, data: *mut NodeData, link: crate::layout::FragmentLink) {
         let (index, metadata) = self.slot_for_data(data);
-        let mut slots = self.saved_committed_fragments.borrow_mut();
+        let mut slots = self.committed_fragment_links.borrow_mut();
         if slots.len() <= index as usize {
-            slots.resize_with(index as usize + 1, SavedCommittedFragmentSlot::default);
+            slots.resize_with(index as usize + 1, CommittedFragmentLinkSlot::default);
         }
         let slot = &mut slots[index as usize];
         if slot.generation != metadata.generation {
-            *slot = SavedCommittedFragmentSlot {
+            *slot = CommittedFragmentLinkSlot {
                 generation: metadata.generation,
-                fragment: Some(Box::new(fragment)),
+                link: Some(Box::new(link)),
             };
-        } else if let Some(saved_fragment) = &mut slot.fragment {
-            **saved_fragment = fragment;
+        } else if let Some(retained_link) = &mut slot.link {
+            **retained_link = link;
         } else {
-            slot.fragment = Some(Box::new(fragment));
+            slot.link = Some(Box::new(link));
         }
         drop(slots);
 
@@ -1117,18 +1117,18 @@ impl LayoutNodeArena {
         // arena's owner thread.
         unsafe {
             let flags = &raw mut (*data).flags;
-            flags.write(flags.read() | NodeFlag::HasSavedCommittedGeometry as u32);
+            flags.write(flags.read() | NodeFlag::HasCommittedFragmentLink as u32);
         }
     }
 
-    pub(crate) fn take_saved_committed_fragment(&self, data: *mut NodeData) -> Option<crate::layout::FragmentLink> {
+    pub(crate) fn take_committed_fragment_link(&self, data: *mut NodeData) -> Option<crate::layout::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
-        let mut slots = self.saved_committed_fragments.borrow_mut();
-        let fragment = slots
+        let mut slots = self.committed_fragment_links.borrow_mut();
+        let link = slots
             .get_mut(index as usize)
             .filter(|slot| slot.generation == metadata.generation)
-            .and_then(|slot| slot.fragment.take())
-            .map(|fragment| *fragment);
+            .and_then(|slot| slot.link.take())
+            .map(|link| *link);
         drop(slots);
 
         // SAFETY: slot_for_data() established that data points to a live slot
@@ -1137,17 +1137,17 @@ impl LayoutNodeArena {
         unsafe {
             let flags = &raw mut (*data).flags;
             assert_eq!(
-                flags.read() & NodeFlag::HasSavedCommittedGeometry as u32 != 0,
-                fragment.is_some(),
-                "saved committed fragment presence flag disagrees with the arena side table"
+                flags.read() & NodeFlag::HasCommittedFragmentLink as u32 != 0,
+                link.is_some(),
+                "committed fragment link presence flag disagrees with the arena side table"
             );
-            flags.write(flags.read() & !(NodeFlag::HasSavedCommittedGeometry as u32));
+            flags.write(flags.read() & !(NodeFlag::HasCommittedFragmentLink as u32));
         }
-        fragment
+        link
     }
 
-    pub(crate) fn clear_saved_committed_fragment(&self, id: NodeSlotId) {
-        drop(self.take_saved_committed_fragment(self.data(id)));
+    pub(crate) fn clear_committed_fragment_link(&self, id: NodeSlotId) {
+        drop(self.take_committed_fragment_link(self.data(id)));
     }
 
     pub(crate) fn set_text_content(
@@ -2034,11 +2034,11 @@ mod tests {
     }
 
     #[test]
-    fn clearing_a_committed_box_evicts_its_saved_fragment() {
+    fn clearing_a_committed_box_evicts_its_fragment_link() {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate();
-        arena.set_saved_committed_fragment(allocation.data, test_fragment_link(allocation.slot));
-        assert!(arena.saved_committed_fragment(allocation.data).is_some());
+        arena.set_committed_fragment_link(allocation.data, test_fragment_link(allocation.slot));
+        assert!(arena.committed_fragment_link(allocation.data).is_some());
 
         // SAFETY: arena is a live handle on this thread, and allocation names
         // a live slot in it.
@@ -2049,28 +2049,28 @@ mod tests {
             );
         }
 
-        assert!(arena.saved_committed_fragment(allocation.data).is_none());
+        assert!(arena.committed_fragment_link(allocation.data).is_none());
         arena.free(allocation.slot, allocation.generation);
     }
 
     #[test]
-    fn saved_committed_fragments_move_between_slots() {
+    fn committed_fragment_links_move_between_slots() {
         let mut arena = LayoutNodeArena::new();
         let old = arena.allocate();
         let new = arena.allocate();
         let link = test_fragment_link(old.slot);
         let retained_fragment = link.fragment.clone();
-        arena.set_saved_committed_fragment(old.data, link);
+        arena.set_committed_fragment_link(old.data, link);
 
         let moved = arena
-            .take_saved_committed_fragment(old.data)
+            .take_committed_fragment_link(old.data)
             .expect("old slot must retain its committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_saved_committed_fragment(new.data, moved);
+        arena.set_committed_fragment_link(new.data, moved);
 
-        assert!(arena.saved_committed_fragment(old.data).is_none());
+        assert!(arena.committed_fragment_link(old.data).is_none());
         let moved = arena
-            .saved_committed_fragment(new.data)
+            .committed_fragment_link(new.data)
             .expect("new slot must receive the committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.free(old.slot, old.generation);

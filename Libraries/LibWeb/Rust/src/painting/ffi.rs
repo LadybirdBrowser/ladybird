@@ -70,7 +70,7 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: Pa
 pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_void, layout_node: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.clear_saved_committed_fragment(layout_node);
+        arena.clear_committed_fragment_link(layout_node);
         let reset = {
             let paintables = arena.paintables().borrow();
             let slot = paintables.paintable_of_node(layout_node);
