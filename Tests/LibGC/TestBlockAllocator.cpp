@@ -6,6 +6,7 @@
 
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/HeapBlock.h>
+#include <LibGC/HeapRegion.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(all_blocks_share_one_reserved_region)
@@ -19,6 +20,8 @@ TEST_CASE(all_blocks_share_one_reserved_region)
     auto region_start = GC::BlockAllocator::heap_region_start();
     auto region_end = GC::BlockAllocator::heap_region_end();
     EXPECT(region_start < region_end);
+    EXPECT_EQ(region_start, js_heap_region_base);
+    EXPECT_EQ(region_start % GC::HEAP_REGION_SIZE, 0u);
 
     auto first_address = reinterpret_cast<FlatPtr>(first_block);
     auto second_address = reinterpret_cast<FlatPtr>(second_block);
