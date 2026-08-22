@@ -5,7 +5,6 @@ initial margin-top: 20px
 initial border-top-left-radius: 20px 40px
 initial font-size: 20px
 viewport fallback width: 80px
-used no C++ longhand fallback: true
 resized width: 140px
 resized height: 75px
 resized margin-left: 60px

@@ -15,9 +15,6 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor-size
 class AnchorSizeStyleValue final : public StyleValueWithDefaultOperators<AnchorSizeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<AnchorSizeStyleValue const> create(Optional<Utf16FlyString> const& anchor_name,
-        Optional<AnchorSize> const& anchor_size,
-        ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorSizeStyleValue() override = default;
 
     Optional<Utf16FlyString> anchor_name() const
@@ -44,11 +41,6 @@ private:
         : StyleValueWithDefaultOperators(Type::AnchorSize, data)
     {
     }
-
-    AnchorSizeStyleValue(
-        Optional<Utf16FlyString> const& anchor_name,
-        Optional<AnchorSize> const& anchor_size,
-        ValueComparingRefPtr<StyleValue const> const& fallback_value);
 };
 
 }

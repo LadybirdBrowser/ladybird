@@ -18,9 +18,6 @@ String serialize_parsing_error(ParsingError const& error)
         [](UnknownRuleError const& error) {
             return MUST(String::formatted("Unknown rule '{}'.", error.rule_name));
         },
-        [](UnknownMediaFeatureError const& error) {
-            return MUST(String::formatted("Unknown media feature '{}'.", error.media_feature_name));
-        },
         [](InvalidPropertyError const& error) {
             return MUST(String::formatted("Property '{}' in {} rule has invalid value `{}`.", error.property_name, error.rule_name, error.value_string));
         },

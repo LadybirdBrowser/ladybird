@@ -1,4 +1,3 @@
-substitution request counters removed: true
 shared environment value parses: 1
 shared value: 7px
 later transaction value parses: 0

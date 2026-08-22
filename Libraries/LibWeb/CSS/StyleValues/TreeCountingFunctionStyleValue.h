@@ -22,10 +22,6 @@ public:
         Integer
     };
 
-    static ValueComparingNonnullRefPtr<TreeCountingFunctionStyleValue const> create(TreeCountingFunction function, ComputedType computed_type)
-    {
-        return adopt_ref(*new (nothrow) TreeCountingFunctionStyleValue(function, computed_type));
-    }
     virtual ~TreeCountingFunctionStyleValue() override = default;
 
     size_t resolve(DOM::AbstractElement const&) const;
@@ -39,11 +35,6 @@ private:
 
     TreeCountingFunction function() const { return static_cast<TreeCountingFunction>(m_value->tree_counting_function.function); }
     ComputedType computed_type() const { return static_cast<ComputedType>(m_value->tree_counting_function.computed_type); }
-
-    TreeCountingFunctionStyleValue(TreeCountingFunction function, ComputedType computed_type)
-        : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction, StyleValueFFI::rust_style_value_create_tree_counting_function(to_underlying(function), to_underlying(computed_type)))
-    {
-    }
 
     explicit TreeCountingFunctionStyleValue(StyleValueFFI::StyleValueData const* data)
         : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction, data)

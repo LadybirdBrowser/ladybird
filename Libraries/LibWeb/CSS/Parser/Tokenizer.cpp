@@ -1291,9 +1291,10 @@ size_t Tokenizer::current_byte_offset() const
     return m_utf8_iterator.ptr() - m_utf8_view.bytes();
 }
 
-String Tokenizer::input_since(size_t offset) const
+Utf16String Tokenizer::input_since(size_t offset) const
 {
-    return MUST(m_decoded_input.substring_from_byte_offset_with_shared_superstring(offset, current_byte_offset() - offset));
+    auto input = MUST(m_decoded_input.substring_from_byte_offset_with_shared_superstring(offset, current_byte_offset() - offset));
+    return Utf16String::from_utf8_without_validation(input);
 }
 
 }

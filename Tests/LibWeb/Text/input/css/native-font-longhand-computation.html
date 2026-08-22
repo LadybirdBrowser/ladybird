@@ -59,12 +59,10 @@
         const anchorStyle = getComputedStyle(anchorTarget);
         println(`deferred anchor left: ${anchorStyle.left}`);
         println(`deferred anchor top: ${anchorStyle.top}`);
-        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
 
         internals.resetStyleFfiCounters();
         target.style.fontSize = "16px";
         internals.updateStyle();
         println(`partial font-size: ${getComputedStyle(target).fontSize}`);
-        println(`partial restyle used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

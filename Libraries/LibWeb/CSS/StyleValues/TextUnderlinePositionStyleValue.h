@@ -12,10 +12,6 @@ namespace Web::CSS {
 
 class TextUnderlinePositionStyleValue : public StyleValueWithDefaultOperators<TextUnderlinePositionStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<TextUnderlinePositionStyleValue const> create(TextUnderlinePositionHorizontal horizontal, TextUnderlinePositionVertical vertical)
-    {
-        return adopt_ref(*new (nothrow) TextUnderlinePositionStyleValue(horizontal, vertical));
-    }
     virtual ~TextUnderlinePositionStyleValue() override = default;
 
     TextUnderlinePositionHorizontal horizontal() const { return static_cast<TextUnderlinePositionHorizontal>(m_value->text_underline_position.horizontal); }
@@ -26,11 +22,6 @@ private:
 
     explicit TextUnderlinePositionStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::TextUnderlinePosition, data)
-    {
-    }
-
-    explicit TextUnderlinePositionStyleValue(TextUnderlinePositionHorizontal horizontal, TextUnderlinePositionVertical vertical)
-        : StyleValueWithDefaultOperators(Type::TextUnderlinePosition, StyleValueFFI::rust_style_value_create_text_underline_position(to_underlying(horizontal), to_underlying(vertical)))
     {
     }
 };

@@ -9,59 +9,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/HostDefined.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/HTML/Window.h>
 
 namespace Web {
-
-GC::Ref<JS::Realm> internal_css_realm()
-{
-    static auto& realm = *new GC::Root<JS::Realm>;
-    static auto& principal_realm = *new GC::Root<JS::Realm>;
-    static auto& window = *new GC::Root<HTML::Window>;
-    static auto& execution_context = *new OwnPtr<JS::ExecutionContext>;
-    if (!realm) {
-        auto& vm = Bindings::main_thread_vm();
-        auto depth = vm.execution_context_stack().size();
-        principal_realm = Bindings::create_a_principal_javascript_realm();
-        while (vm.execution_context_stack().size() > depth)
-            vm.pop_execution_context();
-
-        GC::Ptr<Bindings::PlatformObject> global_object;
-        execution_context = Bindings::create_a_new_javascript_realm(
-            vm,
-            [&](JS::Realm& new_realm) -> GC::Ref<JS::Object> {
-                window = HTML::Window::create();
-                // initialize_host_defined_realm() asks for the global object
-                // before HostDefined is installed. Cache the wrapper after
-                // installing HostDefined below, matching Window realm setup.
-                global_object = Bindings::create_global_object_wrapper(new_realm, GC::Ref { *window });
-                return global_object.as_nonnull();
-            },
-            [&](JS::Realm&) -> GC::Ref<JS::Object> {
-                return global_object.as_nonnull();
-            });
-
-        realm = *execution_context->realm;
-        auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
-        auto wrapper_world = GC::Heap::the().allocate<Bindings::WrapperWorld>(Bindings::WrapperWorld::Type::Internal);
-        realm->set_host_defined(make<Bindings::HostDefined>(intrinsics, wrapper_world, *principal_realm));
-        Bindings::cache_global_object_wrapper(*realm);
-    }
-    return *realm;
-}
 
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, GC::Ptr<CSS::MediaList> media_list)
 {

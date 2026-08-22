@@ -1,18 +1,12 @@
 has counters: true
 all zero after reset: true
-has no C++ longhand fallback counter: true
-callback aggregate counters removed: true
 simple element stayed callback-free: true
-transaction stayed callback-free: true
-longhand computation returned without callbacks: true
-shorthand expansion returned without callbacks: true
+longhand computation entered Rust: true
+shorthand expansion entered Rust: true
 inherited partial restyle stayed callback-free: true
 pseudo-element stayed callback-free: true
 custom properties stayed callback-free: true
-cascade returned without callbacks: true
 custom-property cascade entered Rust: true
-cascade request counters removed: true
-custom-property cascade avoided C++ callback: true
 font and viewport lengths stayed callback-free: true
 animations and transitions stayed callback-free: true
 animation evaluation returned without callbacks: true

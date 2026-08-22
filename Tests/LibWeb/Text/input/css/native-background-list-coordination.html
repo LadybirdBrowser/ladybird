@@ -31,7 +31,6 @@
         ]) {
             println(`${property}: ${computedStyle.getPropertyValue(property)}`);
         }
-        println(`initial update used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
 
         internals.resetStyleFfiCounters();
         target.style.backgroundPosition = "20px 30px";
@@ -39,6 +38,5 @@
 
         println(`partial background-position-x: ${computedStyle.getPropertyValue("background-position-x")}`);
         println(`partial background-position-y: ${computedStyle.getPropertyValue("background-position-y")}`);
-        println(`partial update used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

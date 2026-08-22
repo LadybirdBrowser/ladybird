@@ -30,6 +30,5 @@
         ]) {
             println(`${property}: ${computedStyle.getPropertyValue(property)}`);
         }
-        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

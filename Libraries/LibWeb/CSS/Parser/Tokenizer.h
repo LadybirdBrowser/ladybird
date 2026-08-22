@@ -12,16 +12,12 @@
 #include <AK/Types.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
+#include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS::Parser {
-
-enum class TokenizerInput {
-    DecodedText,
-    EncodedBytes,
-};
 
 class U32Twin {
 public:
@@ -77,7 +73,7 @@ private:
     [[nodiscard]] Vector<Token> tokenize();
 
     size_t current_byte_offset() const;
-    String input_since(size_t offset) const;
+    Utf16String input_since(size_t offset) const;
 
     [[nodiscard]] u32 next_code_point();
     [[nodiscard]] u32 peek_code_point(size_t offset = 0) const;

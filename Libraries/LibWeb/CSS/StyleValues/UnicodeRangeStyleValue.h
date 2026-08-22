@@ -13,11 +13,7 @@ namespace Web::CSS {
 
 class UnicodeRangeStyleValue final : public StyleValueWithDefaultOperators<UnicodeRangeStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<UnicodeRangeStyleValue const> create(Gfx::UnicodeRange unicode_range)
-    {
-        return adopt_ref(*new (nothrow) UnicodeRangeStyleValue(unicode_range));
-    }
-    virtual ~UnicodeRangeStyleValue() override;
+    virtual ~UnicodeRangeStyleValue() override = default;
 
     Gfx::UnicodeRange unicode_range() const { return Gfx::UnicodeRange(m_value->unicode_range.min_code_point, m_value->unicode_range.max_code_point); }
 
@@ -28,8 +24,6 @@ private:
         : StyleValueWithDefaultOperators(Type::UnicodeRange, data)
     {
     }
-
-    UnicodeRangeStyleValue(Gfx::UnicodeRange);
 };
 
 }

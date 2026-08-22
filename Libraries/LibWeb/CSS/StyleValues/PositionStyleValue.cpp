@@ -10,7 +10,6 @@
 #include "PositionStyleValue.h"
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PercentageOr.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 
@@ -24,13 +23,6 @@ ValueComparingNonnullRefPtr<PositionStyleValue const> PositionStyleValue::create
     return adopt_ref(*new (nothrow) PositionStyleValue(
         EdgeStyleValue::create(PositionEdge::Center, {}),
         EdgeStyleValue::create(PositionEdge::Center, {})));
-}
-
-ValueComparingNonnullRefPtr<PositionStyleValue const> PositionStyleValue::create_computed_center()
-{
-    return adopt_ref(*new (nothrow) PositionStyleValue(
-        EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 })),
-        EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage { 50 }))));
 }
 
 bool PositionStyleValue::is_center(SerializationMode mode) const

@@ -8,6 +8,7 @@
     --supports-trailing: if(supports((width: 1px) trailing): supports-valid; else: supports-fallback);
     --media-valid: if(media((width >= 0px)): media-valid; else: media-fallback);
     --media-trailing: if(media((width >= 0px) trailing): media-valid; else: media-fallback);
+    --not-supports-trailing: if(not supports((width: 1px)) else: invalid; else: not-supports-fallback);
 }
 #d { --bar: var(--missing, fallback ); }
 </style>
@@ -21,6 +22,7 @@
         println(getComputedStyle(document.getElementById("c")).getPropertyValue("--supports-trailing"));
         println(getComputedStyle(document.getElementById("c")).getPropertyValue("--media-valid"));
         println(getComputedStyle(document.getElementById("c")).getPropertyValue("--media-trailing"));
+        println(getComputedStyle(document.getElementById("c")).getPropertyValue("--not-supports-trailing"));
         println(JSON.stringify(getComputedStyle(document.getElementById("d")).getPropertyValue("--bar")));
     });
 </script>

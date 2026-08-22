@@ -19,7 +19,7 @@ namespace Web::CSS::Parser {
 // U+FFFD REPLACEMENT CHARACTER (�)
 static constexpr u32 REPLACEMENT_CHARACTER = 0xFFFD;
 
-static String decode_and_filter_code_points(StringView input, StringView encoding, TokenizerInput tokenizer_input)
+Utf16String RustTokenizer::normalize_input(StringView input, StringView encoding, TokenizerInput tokenizer_input)
 {
     // https://www.w3.org/TR/css-syntax-3/#css-filter-code-points
     auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
@@ -263,8 +263,6 @@ Vector<Token> RustTokenizer::tokenize(Utf16View filtered_input)
         Vector<Token> tokens;
     };
 
-    auto filtered_input = decode_and_filter_code_points(input, encoding, tokenizer_input);
-    auto filtered_input_bytes = filtered_input.bytes();
     CallbackContext context;
     context.tokens.ensure_capacity((filtered_input.length_in_code_units() / 2) + 1);
     FFI::rust_css_tokenize(

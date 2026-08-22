@@ -2,4 +2,3 @@ corner-top-left-shape: round
 corner-top-right-shape: squircle
 corner-bottom-right-shape: scoop
 corner-bottom-left-shape: squircle
-used no C++ longhand fallback: true

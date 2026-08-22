@@ -27,11 +27,6 @@
         }
         internals.updateStyle();
 
-        const counters = internals.styleFfiCounters();
-        println(`substitution request counters removed: ${
-            !("cascadeNativeSubstitutionRequests" in counters)
-            && !("cascadeCppResolutionRequests" in counters)
-        }`);
         println(`shared environment value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
         println(`shared value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 

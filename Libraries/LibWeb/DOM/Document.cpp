@@ -246,6 +246,15 @@
 
 namespace Web::DOM {
 
+static CSS::ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
+{
+    return {
+        .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
+        .utf16 = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
+        .length = view.length_in_code_units(),
+    };
+}
+
 void Document::register_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType type) const
 {
     VERIFY(type != HTMLCollectionAttributeInvalidationType::Count);
@@ -9868,8 +9877,7 @@ void Document::sync_custom_property_registrations_to_rust()
             .syntax = ffi_utf16_view(syntax),
             .inherits = registration->inherit,
             .has_initial_value = initial_value.has_value(),
-            .initial_value = initial_value.has_value() ? initial_value->bytes().data() : nullptr,
-            .initial_value_length = initial_value.has_value() ? initial_value->bytes().size() : 0,
+            .initial_value = initial_value.has_value() ? ffi_utf16_view(*initial_value) : CSS::ComputedValuesFFI::FfiUtf16View {},
         });
     }
     auto document_url = url().serialize();

@@ -29,6 +29,5 @@
         ];
         println(`all image values computed: ${properties.every(property => computedStyle.getPropertyValue(property) !== "")}`);
         println(`inline image value computed: ${getComputedStyle(inlineTarget).listStyleImage !== ""}`);
-        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

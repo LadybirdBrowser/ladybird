@@ -123,16 +123,6 @@ ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeList
     return adopt_ref(*new (nothrow) GridTrackSizeListStyleValue(grid_track_size_list));
 }
 
-ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::make_auto()
-{
-    return adopt_ref(*new (nothrow) GridTrackSizeListStyleValue(CSS::GridTrackSizeList()));
-}
-
-ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::make_none()
-{
-    return adopt_ref(*new (nothrow) GridTrackSizeListStyleValue(CSS::GridTrackSizeList()));
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> GridTrackSizeListStyleValue::absolutized(ComputationContext const& context) const
 {
     // NB: Materialize the track list once; each call rebuilds the whole recursive list.

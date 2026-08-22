@@ -31,10 +31,6 @@
         println(`fallback outside cycle used: ${computed.backgroundColor}`);
 
         const nativeCounters = internals.styleFfiCounters();
-        println(`native request counters removed: ${
-            !("cascadeNativeSubstitutionRequests" in nativeCounters)
-            && !("cascadeCppResolutionRequests" in nativeCounters)
-        }`);
 
         CSS.registerProperty({
             name: "--registered-native-fallback",
@@ -64,9 +60,5 @@
         println(`registered universal initial: ${getComputedStyle(registered).marginLeft}`);
 
         const registeredCounters = internals.styleFfiCounters();
-        println(`registered request counters removed: ${
-            !("cascadeNativeSubstitutionRequests" in registeredCounters)
-            && !("cascadeCppResolutionRequests" in registeredCounters)
-        }`);
     });
 </script>
