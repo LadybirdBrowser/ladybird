@@ -866,19 +866,8 @@ void WebContentClient::did_cancel_loading(u64 page_id, Optional<Utf16String> nav
 {
     m_history_recorded_urls_for_current_load.remove(page_id);
 
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->did_cancel_navigation(navigation_id))
-            return;
-
-        auto const& client_url = view->url();
-        if (view->on_load_finish)
-            view->on_load_finish(client_url);
-
-        for (auto const& [id, listener] : view->m_navigation_listeners) {
-            if (listener.on_load_finish)
-                listener.on_load_finish(client_url);
-        }
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_cancel_loading(navigation_id);
 }
 
 Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentClient::did_start_download_without_request(u64 page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size)
