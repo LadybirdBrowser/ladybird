@@ -22,6 +22,7 @@ struct SameDocumentNavigationEntry {
 };
 
 WEB_API SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistoryEntry const&);
+WEB_API SessionHistoryEntryIdentity session_history_entry_identity(SameDocumentNavigationEntry const&);
 
 }
 

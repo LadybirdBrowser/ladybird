@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Export.h>
@@ -122,6 +123,22 @@ public:
     bool current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
     bool active_document_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
 
+    // AD-HOC: A synchronous same-document entry is script-addressable in WebContent before its queued spec
+    // finalization runs. Keep its canonical staging state on the corresponding tree node until that queue position.
+    struct PendingSameDocumentSessionHistoryEntry {
+        Web::HTML::CrossProcessId operation_id;
+        Web::HTML::SameDocumentNavigationEntry entry;
+    };
+
+    void stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry);
+    Optional<Web::HTML::SameDocumentNavigationEntry> take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const&);
+    bool update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&, Function<void(Web::HTML::SameDocumentNavigationEntry&)> const&);
+    bool has_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&) const;
+    void remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id);
+    Vector<PendingSameDocumentSessionHistoryEntry> take_pending_same_document_session_history_entries();
+    void append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry>);
+    Vector<PendingSameDocumentSessionHistoryEntry> const& pending_same_document_session_history_entries() const { return m_pending_same_document_session_history_entries; }
+
     void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id);
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
@@ -151,6 +168,7 @@ private:
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
+    Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };
