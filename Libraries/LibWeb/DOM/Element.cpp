@@ -826,9 +826,10 @@ bool is_valid_element_local_name(Utf16View const& name)
     auto first_code_point = *name.begin();
     if (is_ascii_alpha(first_code_point)) {
         // 1. If name contains ASCII whitespace, U+0000 NULL, U+002F (/), or U+003E (>), then return false.
-        constexpr Array<u32, 8> INVALID_CHARACTERS { '\t', '\n', '\f', '\r', ' ', '\0', '/', '>' };
-        if (name.contains_any_of(INVALID_CHARACTERS))
-            return false;
+        for (auto code_point : name) {
+            if (first_is_one_of(code_point, u'\t', u'\n', u'\f', u'\r', u' ', u'\0', u'/', u'>'))
+                return false;
+        }
 
         // 2. Return true.
         return true;
