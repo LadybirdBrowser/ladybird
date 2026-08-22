@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Endian.h>
+#include <AK/FixedArray.h>
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Stream.h>
@@ -31,6 +32,7 @@ public:
 
     virtual DecoderErrorOr<void> seek(i64 offset, AK::SeekMode) = 0;
     virtual DecoderErrorOr<size_t> read_into(Bytes) = 0;
+    virtual DecoderErrorOr<FixedArray<u8>> read_bytes(size_t size) = 0;
     virtual size_t position() const = 0;
     virtual size_t size() const = 0;
 

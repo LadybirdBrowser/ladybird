@@ -57,6 +57,19 @@ public:
         return to_read;
     }
 
+    virtual DecoderErrorOr<FixedArray<u8>> read_bytes(size_t size) override
+    {
+        if (size == 0)
+            return FixedArray<u8>();
+
+        if (m_position >= m_data.size() || size > m_data.size() - m_position)
+            return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of buffer"sv);
+
+        auto buffer = DECODER_TRY_ALLOC(FixedArray<u8>::create(m_data.slice(m_position, size)));
+        m_position += size;
+        return buffer;
+    }
+
     virtual size_t position() const override { return m_position; }
     virtual size_t size() const override { return m_data.size(); }
 

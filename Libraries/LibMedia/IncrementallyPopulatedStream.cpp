@@ -14,6 +14,8 @@ static constexpr u64 PRECEDING_DATA_SIZE = 1 * KiB;
 static constexpr u64 FORWARD_REQUEST_THRESHOLD = 1 * MiB;
 static constexpr AK::Duration CURSOR_ACTIVE_TIME = AK::Duration::from_milliseconds(50);
 
+static constexpr size_t UNKNOWN_SIZE_READ_CHUNK_SIZE = 64 * KiB;
+
 NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create_empty()
 {
     return adopt_ref(*new IncrementallyPopulatedStream());
@@ -367,6 +369,32 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::Cursor::read_into(Bytes byt
     auto read_count = TRY(m_stream->read_at(*this, m_position, bytes));
     m_position += read_count;
     return read_count;
+}
+
+DecoderErrorOr<FixedArray<u8>> IncrementallyPopulatedStream::Cursor::read_bytes(size_t size)
+{
+    if (size == 0)
+        return FixedArray<u8>();
+
+    auto expected_size = m_stream->expected_size();
+    if (expected_size.has_value()) {
+        if (m_position >= expected_size.value() || size > expected_size.value() - m_position)
+            return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Not enough data to read the requested bytes"sv);
+
+        auto buffer = DECODER_TRY_ALLOC(FixedArray<u8>::create(size));
+        TRY(read_until_filled(buffer.span()));
+        return buffer;
+    }
+
+    // If the size is unknown, grow a buffer in chunks before copying it out.
+    ByteBuffer buffer;
+    while (buffer.size() < size) {
+        auto filled_size = buffer.size();
+        auto chunk_size = min(size - filled_size, UNKNOWN_SIZE_READ_CHUNK_SIZE);
+        DECODER_TRY_ALLOC(buffer.try_resize(filled_size + chunk_size));
+        TRY(read_until_filled(buffer.span().slice(filled_size, chunk_size)));
+    }
+    return DECODER_TRY_ALLOC(FixedArray<u8>::create(buffer.span()));
 }
 
 void IncrementallyPopulatedStream::Cursor::abort()
