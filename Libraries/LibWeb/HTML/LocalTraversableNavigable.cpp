@@ -793,7 +793,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
             // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
             // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
-            auto target_snapshot_params = navigable->snapshot_target_snapshot_params();
+            auto target_snapshot_params = snapshot_target_snapshot_params(*navigable);
 
             // 3. Let potentiallyTargetSpecificSourceSnapshotParams be sourceSnapshotParams.
             auto potentially_target_specific_source_snapshot_params = source_snapshot_params;

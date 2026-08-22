@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
+#include <LibWeb/HTML/TargetSnapshotParams.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -50,15 +51,6 @@
 namespace Web::HTML {
 
 struct PopulateSessionHistoryEntryDocumentOutput;
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
-struct TargetSnapshotParams {
-    // sandboxing flags: a sandboxing flag set
-    SandboxingFlagSet sandboxing_flags {};
-
-    // iframe element referrer policy: a referrer policy
-    ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
-};
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
 class WEB_API LocalNavigable : public Navigable {
@@ -244,8 +236,6 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
-
-    [[nodiscard]] TargetSnapshotParams snapshot_target_snapshot_params();
 
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }
