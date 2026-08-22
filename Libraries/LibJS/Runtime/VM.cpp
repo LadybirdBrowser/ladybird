@@ -16,6 +16,7 @@
 #include <AK/Time.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGC/BlockAllocator.h>
 #include <LibGC/Heap.h>
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Bytecode/Executable.h>
@@ -88,6 +89,8 @@ VM::VM(ErrorMessages error_messages)
     MUST(GC::PrimitiveStorage::the().ensure_cage());
     m_primitive_storage_cage_base = js_primitive_storage_cage_base;
     VERIFY(m_primitive_storage_cage_base != 0);
+    m_heap_region_base = GC::BlockAllocator::heap_region_start();
+    VERIFY(m_heap_region_base != 0);
 
     m_heap.register_sweep_callback([] {
         Bytecode::StaticPropertyLookupCache::sweep_all();

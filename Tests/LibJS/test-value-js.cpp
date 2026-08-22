@@ -40,42 +40,6 @@ TEST_NULLPTR_INPUT(Accessor);
 
 #undef TEST_NULLPTR_INPUT
 
-TEST_CASE(valid_pointer_in_gives_same_pointer_out)
-{
-    if (sizeof(void*) < sizeof(double))
-        return;
-
-#define EXPECT_POINTER_TO_SURVIVE(input)                                           \
-    {                                                                              \
-        JS::Value value(reinterpret_cast<Object*>(static_cast<u64>(input)));       \
-        EXPECT(value.is_object());                                                 \
-        EXPECT(!value.is_null());                                                  \
-        auto extracted_pointer = JS::Value::extract_pointer_bits(value.encoded()); \
-        EXPECT_EQ(static_cast<u64>(input), extracted_pointer);                     \
-    }
-
-    EXPECT_POINTER_TO_SURVIVE(0x1);
-    EXPECT_POINTER_TO_SURVIVE(0x10);
-    EXPECT_POINTER_TO_SURVIVE(0x100);
-    EXPECT_POINTER_TO_SURVIVE(0x00007fffffffffff);
-    EXPECT_POINTER_TO_SURVIVE(0x0000700000000000);
-    EXPECT_POINTER_TO_SURVIVE(0x0000100000000000);
-
-#if ARCH(X86_64)
-    // On x86-64, the top 16 bits of pointers are equal to bit 47.
-    EXPECT_POINTER_TO_SURVIVE(0xffff800000000000);
-    EXPECT_POINTER_TO_SURVIVE(0xffff800000000001);
-    EXPECT_POINTER_TO_SURVIVE(0xffff800000000010);
-#elif ARCH(AARCH64)
-    // ... but they should contain zeroes on AArch64.
-    EXPECT_POINTER_TO_SURVIVE(0x0000800000000000);
-    EXPECT_POINTER_TO_SURVIVE(0x0000800000000001);
-    EXPECT_POINTER_TO_SURVIVE(0x0000800000000010);
-#endif
-
-#undef EXPECT_POINTER_TO_SURVIVE
-}
-
 TEST_CASE(non_canon_nans)
 {
 #define EXPECT_TO_BE_NAN(input)                \

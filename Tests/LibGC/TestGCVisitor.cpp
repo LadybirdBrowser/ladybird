@@ -53,7 +53,7 @@ public:
     static TestNanBox from_cell(GC::Cell* cell)
     {
         TestNanBox box;
-        box.m_value.encoded = GC::SHIFTED_IS_CELL_PATTERN | (bit_cast<u64>(cell) & 0x0000FFFFFFFFFFFFULL);
+        box.m_value.encoded = GC::SHIFTED_IS_CELL_PATTERN | GC::NanBoxedValue::encode_pointer_bits(cell);
         return box;
     }
 

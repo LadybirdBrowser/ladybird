@@ -9,11 +9,12 @@
 #include <AK/BitCast.h>
 #include <AK/Types.h>
 #include <LibGC/Cell.h>
+#include <LibGC/HeapRegion.h>
 
 namespace GC {
 
 static_assert(sizeof(double) == 8);
-static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
+static_assert(sizeof(void*) == sizeof(u64));
 // To make our Value representation compact we can use the fact that IEEE
 // doubles have a lot (2^52 - 2) of NaN bit patterns. The canonical form being
 // just 0x7FF8000000000000 i.e. sign = 0 exponent is all ones and the top most
@@ -44,40 +45,30 @@ static constexpr u64 BASE_TAG = 0x7FF8;
 // and make stack scanning easier we use the sign bit (top most bit) of 1 to
 // signify that it is a pointer backed type.
 static constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
-// On all current 64-bit systems this code runs pointer actually only use the
-// lowest 6 bytes which fits neatly into our NaN payload with the top two bytes
-// left over for marking it as a NaN and tagging the type.
-// Note that we do need to take care when extracting the pointer value but this
-// is explained in the extract_pointer method.
+// The payload stores an offset from the process-wide heap region base. The
+// region is aligned to its size so masking the offset keeps the decoded
+// pointer inside the region.
 
 static constexpr u64 IS_CELL_PATTERN = 0xFFF8ULL;
 static constexpr u64 TAG_SHIFT = 48;
 static constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
+static_assert((HEAP_REGION_OFFSET_MASK & TAG_EXTRACTION) == 0);
 static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
 
 class GC_API NanBoxedValue {
 public:
     bool is_cell() const { return (m_value.tag & IS_CELL_PATTERN) == IS_CELL_PATTERN; }
 
-    static constexpr FlatPtr extract_pointer_bits(u64 encoded)
+    static FlatPtr encode_pointer_bits(void const* pointer)
     {
-#ifdef AK_ARCH_32_BIT
-        // For 32-bit system the pointer fully fits so we can just return it directly.
-        static_assert(sizeof(void*) == sizeof(u32));
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff);
-#elif ARCH(X86_64) || ARCH(RISCV64)
-        // For x86_64 and riscv64 the top 16 bits should be sign extending the "real" top bit (47th).
-        // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
-        return static_cast<FlatPtr>((static_cast<i64>(encoded << 16)) >> 16);
-#elif ARCH(AARCH64) || ARCH(PPC64) || ARCH(PPC64LE)
-        // For AArch64 the top 16 bits of the pointer should be zero.
-        // For PPC64: all 64 bits can be used for pointers, however on Linux only
-        //            the lower 43 bits are used for user-space addresses, so
-        //            masking off the top 16 bits should match the rest of LibGC.
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
-#else
-#    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
-#endif
+        auto pointer_bits = reinterpret_cast<FlatPtr>(pointer);
+        ASSERT((pointer_bits & ~HEAP_REGION_OFFSET_MASK) == js_heap_region_base);
+        return pointer_bits & HEAP_REGION_OFFSET_MASK;
+    }
+
+    static FlatPtr extract_pointer_bits(u64 encoded)
+    {
+        return js_heap_region_base + (encoded & HEAP_REGION_OFFSET_MASK);
     }
 
     template<typename PointerType>

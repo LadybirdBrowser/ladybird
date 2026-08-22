@@ -875,9 +875,10 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             }
         }
         Operation::Move(U32) => &const { plain(&[GprOut, GprInOrImm]) },
-        Operation::ExtractTag | Operation::UnboxObject | Operation::BoxInt32 { clean: true } => {
+        Operation::ExtractTag | Operation::BoxInt32 { clean: true } => {
             &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]) }
         }
+        Operation::UnboxObject => &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[X9]) },
         Operation::UnboxInt32 | Operation::BoxInt32 { clean: false } => &const { plain(&[GprOut, GprIn]) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(Add | Subtract | Or),

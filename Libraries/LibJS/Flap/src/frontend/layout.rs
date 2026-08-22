@@ -63,12 +63,14 @@ define_known_layout_constants! {
     NullValue => "NULL_VALUE";
     ShiftedIsCellPattern => "SHIFTED_IS_CELL_PATTERN";
     VmRunningExecutionContext => "VM_RUNNING_EXECUTION_CONTEXT";
+    VmHeapRegionBase => "VM_HEAP_REGION_BASE";
     VmBreakpointController => "VM_BREAKPOINT_CONTROLLER";
     ExecutionContextExecutable => "EXECUTION_CONTEXT_EXECUTABLE";
     ExecutionContextProgramCounter => "EXECUTION_CONTEXT_PROGRAM_COUNTER";
     ExecutableBytecodeData => "EXECUTABLE_BYTECODE_DATA";
     SizeOfExecutionContext => "SIZEOF_EXECUTION_CONTEXT";
     CanonicalNanBits => "CANON_NAN_BITS";
+    HeapRegionOffsetMask => "HEAP_REGION_OFFSET_MASK";
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
