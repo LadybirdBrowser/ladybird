@@ -22,14 +22,16 @@ namespace Web {
 
 struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
-    HTML::CrossProcessId pending_document_state_id;
+    HTML::PendingSessionHistoryEntryDescriptor history_entry;
     Optional<Utf16String> navigation_id;
     HTML::HistoryHandlingBehavior history_handling;
     HTML::UserNavigationInvolvement user_involvement;
 };
 
-struct CrossDocumentNavigationFinalization {
-    HTML::PendingSessionHistoryEntryDescriptor history_entry;
+struct CrossDocumentNavigationFinalizationHostState {
+    bool pending_document_is_in_auxiliary_browsing_context_with_opener { false };
+    Optional<URL::Origin> pending_document_origin;
+    Optional<URL::Origin> active_document_origin;
 };
 
 struct ReconstructedChildNavigation {
@@ -42,7 +44,7 @@ using HistoryOperationReadyResult = Variant<
     HTML::HistoryStepResult,
     HTML::CrossProcessId,
     HTML::SameDocumentNavigationEntry,
-    CrossDocumentNavigationFinalization>;
+    CrossDocumentNavigationFinalizationHostState>;
 
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
@@ -138,9 +140,9 @@ template<>
 WEB_API ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::CrossDocumentNavigationFinalization const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::CrossDocumentNavigationFinalizationHostState const&);
 template<>
-WEB_API ErrorOr<Web::CrossDocumentNavigationFinalization> decode(Decoder&);
+WEB_API ErrorOr<Web::CrossDocumentNavigationFinalizationHostState> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);

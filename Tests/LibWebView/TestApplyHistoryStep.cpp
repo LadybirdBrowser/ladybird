@@ -52,20 +52,6 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url)
     };
 }
 
-static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(Web::HTML::SessionHistoryEntryDescriptor entry)
-{
-    return {
-        .url = move(entry.url),
-        .document_state = move(entry.document_state),
-        .classic_history_api_state = move(entry.classic_history_api_state),
-        .navigation_api_state = move(entry.navigation_api_state),
-        .navigation_api_key = move(entry.navigation_api_key),
-        .navigation_api_id = move(entry.navigation_api_id),
-        .scroll_restoration_mode = entry.scroll_restoration_mode,
-        .scroll_position_data = move(entry.scroll_position_data),
-    };
-}
-
 namespace {
 
 class FakeJobRunner {
@@ -167,7 +153,14 @@ struct TestTraversable {
         initialize_navigable_entry_identities();
 
         auto replacement_entry = entry(0, "https://b.example/"sv);
-        VERIFY(history.finalize_cross_document_navigation(traversable, pending_entry(move(replacement_entry)), Web::HTML::HistoryHandlingBehavior::Replace).has_value());
+        auto current_entry = history.current_entry();
+        VERIFY(current_entry);
+        auto entry_to_replace = Web::HTML::SessionHistoryEntryIdentity {
+            .document_state_id = current_entry->document_state.id,
+            .navigation_api_id = current_entry->navigation_api_id,
+        };
+        replacement_entry.step = current_entry->step;
+        VERIFY(history.append_or_replace_session_history_entry(traversable, replacement_entry, entry_to_replace));
     }
 
     WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})

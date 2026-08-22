@@ -3545,8 +3545,7 @@ bool LocalNavigable::allowed_by_sandboxing_to_navigate(LocalNavigable const& tar
     return !has_flag(source_snapshot_params.sandboxing_flags, SandboxingFlagSet::SandboxedNavigation);
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
+static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3560,64 +3559,44 @@ static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_docum
         return {};
     }
 
-    // 1. FIXME: Assert: this is running on navigable's traversable navigable's session history traversal queue.
-
-    // 2. Set navigable's is delaying load events to false.
+    // The UI process has reached this navigation's position on the session history traversal queue. Perform the
+    // parts of finalization that need the live navigable and Document, then return the facts needed to continue the
+    // algorithm there.
+    //
     // AD-HOC: Without this guard, decrementing the navigable's delay counter triggers schedule_load_event_delay_check
     //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
     //         history traversal activates the new document. The guard is cleared when the new document becomes ready
     //         for post-load tasks (via set_ready_for_post_load_tasks).
-    if (auto container_doc = navigable->container_document(); container_doc && pending_document)
-        navigable->set_navigation_load_event_guard(*container_doc);
+    if (auto container_document = navigable->container_document(); container_document && pending_document)
+        navigable->set_navigation_load_event_guard(*container_document);
 
     navigable->set_delaying_load_events(false);
 
-    // 3. If historyEntry's document is null, then return.
-    // NOTE: pending_document corresponds to historyEntry's document — it is the document produced by
-    //       populate_session_history_entry_document, threaded here explicitly instead of being stored on the entry.
     if (!pending_document) {
-        // AD-HOC: Notify the UI that this navigation will never produce a document (e.g. an unhandled non-fetch
-        //         scheme like mailto:), so that it does not consider the page to be loading forever.
-        if (navigable->is_top_level_traversable())
-            navigable->active_browsing_context()->page().client().page_did_cancel_loading(expected_ongoing_navigation_id, history_entry->url());
-
         // AD-HOC: Clear the ongoing navigation, like the "navigation must be a replace" and download cases do.
         //         No history step will be applied for this navigation, so nothing else clears it, and a stale
         //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
         if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() == expected_ongoing_navigation_id)
             navigable->set_ongoing_navigation({});
 
-        return {};
+        return Web::CrossDocumentNavigationFinalizationHostState {};
     }
 
-    // 4. If all of the following are true:
-    //    - navigable's parent is null;
-    //    - historyEntry's document's browsing context is not an auxiliary browsing context whose opener browsing context is non-null; and
-    //    - historyEntry's document's origin is not navigable's active document's origin
-    //    then set historyEntry's document state's navigable target name to the empty string.
-    if (navigable->parent() == nullptr
-        && !(pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context() != nullptr)
-        && pending_document->origin() != navigable->active_document()->origin()) {
-        history_entry->document_state()->set_navigable_target_name(Utf16String {});
-    }
-
-    // Step 5 continues in the UI process, which owns navigable's canonical session history entries and received
-    // historyHandling with this operation.
-
-    return Web::CrossDocumentNavigationFinalization {
-        .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
+    return Web::CrossDocumentNavigationFinalizationHostState {
+        .pending_document_is_in_auxiliary_browsing_context_with_opener = pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context() != nullptr,
+        .pending_document_origin = pending_document->origin(),
+        .active_document_origin = navigable->active_document()->origin(),
     };
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
-    // 6. Let traversable be navigable's traversable navigable.
     auto traversable = navigable->traversable_navigable();
     traversable->request_history_operation(
         FinalizeCrossDocumentNavigationHistoryOperationParameters {
             .navigable_id = navigable->id(),
-            .pending_document_state_id = history_entry->document_state()->cross_process_id(),
+            .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
             .navigation_id = expected_ongoing_navigation_id,
             .history_handling = history_handling,
             .user_involvement = user_involvement,
@@ -3628,13 +3607,13 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64, Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
-                auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_entry, pending_document, expected_ongoing_navigation_id);
-                if (!finalization.has_value()) {
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64, Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+                auto host_state = prepare_to_finalize_a_cross_document_navigation(navigable, pending_document, expected_ongoing_navigation_id);
+                if (!host_state.has_value()) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }
-                ready->function()(finalization.release_value());
+                ready->function()(host_state.release_value());
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
