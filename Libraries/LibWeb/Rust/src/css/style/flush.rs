@@ -1012,6 +1012,9 @@ impl StyleEngine {
                 let reuse_active_batch_matching_traversal =
                     transaction_reaches_no_selector && self.batch_matching_traversal.is_some();
                 if !reuse_active_batch_matching_traversal {
+                    // The active traversal's plan and answers describe the facts this selector-reaching transaction
+                    // retires — so the traversal goes with them.
+                    self.discard_batch_matching_traversal();
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch);
                 }
                 let retained_answer_dispatch = retained_answer_patch

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<!-- Restyling a select rewrites the inline style of its user-agent shadow children, and the [style*=] rule makes the
+     style attribute one whose value texts selectors demand. Both land as staged style-engine input in the middle of the
+     same style update — whose traversal still borrows a view of the primary fact rows. -->
+<style>
+    [style*="margin"] {
+        color: rgb(1, 2, 3);
+    }
+</style>
+<select><option>one</option></select>
