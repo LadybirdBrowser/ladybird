@@ -86,7 +86,6 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ScrollSnap.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -1137,23 +1136,11 @@ void LocalNavigable::set_ongoing_navigation(Variant<Empty, Traversal, Utf16Strin
     if (navigation_api_abort_behavior == NavigationAPIAbortBehavior::Abort)
         inform_the_navigation_api_about_aborting_navigation();
 
-    // AD-HOC: A traversal is re-stamping a navigation that is parked while the UI process
-    //         dispatches population. Defer it like the guard in begin_navigation does, so the
-    //         traversal finishing re-runs it even when the dispatch arrives after the traversal
-    //         has already ended.
+    // A UI-approved traversal supersedes any older navigation parked while the UI process
+    // coordinates population. Do not let that navigation resume after the traversal finishes.
     if (ongoing_navigation.has<Traversal>() && m_ongoing_navigation.has<Utf16String>()) {
-        auto index = m_pending_navigations.find_first_index_if([&](auto const& pending) {
-            return pending.population_navigation_id == m_ongoing_navigation.get<Utf16String>();
-        });
-        if (index.has_value()) {
-            auto& pending = m_pending_navigations[*index];
-            if (pending.navigation.has_value()) {
-                pending.population_navigation_id.clear();
-                pending.continue_steps = nullptr;
-            } else {
-                m_pending_navigations.remove(*index);
-            }
-        }
+        if (take_navigation_parked_for_population(m_ongoing_navigation.get<Utf16String>()).has_value())
+            set_delaying_load_events(false);
     }
 
     // 3. Set navigable's ongoing navigation to newValue.
@@ -2699,14 +2686,6 @@ WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 
-// Test-only: armed via Internals.clobberNextNavigationWithATraversal(). Consumed by the next call to begin_navigation,
-// which simulates a concurrent session-history traversal interrupting the unload check.
-static bool s_clobber_next_navigation_with_a_traversal = false;
-void LocalNavigable::clobber_next_navigation_with_a_traversal_for_testing()
-{
-    s_clobber_next_navigation_with_a_traversal = true;
-}
-
 void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavigation navigation, NavigationPopulationRequest population_request)
 {
     auto& params = navigation.params;
@@ -2718,8 +2697,6 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         return;
     }
     if (ongoing_navigation() != navigation_id) {
-        if (ongoing_navigation().has<Traversal>())
-            queue_pending_navigation(move(navigation), PendingNavigationBehavior::Append);
         set_delaying_load_events(false);
         return;
     }
@@ -2857,11 +2834,17 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     auto initiator_base_url_snapshot = navigation.initiator_base_url_snapshot;
 
     // 7. Let navigationId be the result of generating a random UUID.
-    auto uuid = Crypto::generate_random_uuid();
-    auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
+    // NB: Generating the ID is the responsibility of whichever process requested the navigation. A load
+    //     requested by the UI process carries the ID the UI generated when it recorded the navigation.
+    auto navigation_id = params.navigation_id.value_or_lazy_evaluated([] {
+        auto uuid = Crypto::generate_random_uuid();
+        return Utf16String::from_ascii_without_validation(uuid.bytes());
+    });
 
-    // FIXME: 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
-    //           Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
+    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
+    //    Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
+    // NB: A navigation requested by the UI process was queued by the IPC message that delivered it here,
+    //     while a navigation begun within this process continues in its own agent.
 
     // 9. If navigable's active document's unload counter is greater than 0,
     //    then invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
@@ -3097,16 +3080,6 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
                 set_delaying_load_events(false);
                 completion_steps->function()(false);
                 return;
-            }
-
-            // Test-only (Internals.clobberNextNavigationWithATraversal): re-stamp our ongoing navigation with a
-            // synthetic traversal now, and clear it on a later turn (which drains deferred navigations).
-            if (s_clobber_next_navigation_with_a_traversal) {
-                s_clobber_next_navigation_with_a_traversal = false;
-                set_ongoing_navigation(Traversal::Tag, NavigationAPIAbortBehavior::Preserve);
-                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this] {
-                    set_ongoing_navigation(Empty {}, NavigationAPIAbortBehavior::Preserve);
-                }));
             }
 
             if (ongoing_navigation() != navigation_id) {

@@ -161,10 +161,6 @@ public:
     void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
 
-    // Test-only (Internals.clobberNextNavigationWithATraversal): make the next navigation's unload check be interrupted
-    // by a synthetic session-history traversal that re-stamps the ongoing navigation.
-    static void clobber_next_navigation_with_a_traversal_for_testing();
-
     void populate_session_history_entry_document(
         URL::URL url,
         DocumentResource document_resource,
@@ -210,6 +206,9 @@ public:
         Optional<Vector<XHR::FormDataEntry>> form_data_entry_list = {};
         ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
         UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
+        // NB: A load requested by the UI process carries the ID the UI generated when it recorded the
+        //     navigation; otherwise step 7 of the navigate algorithm generates one.
+        Optional<Utf16String> navigation_id = {};
         GC::Ptr<DOM::Element> source_element = nullptr;
         InitialInsertion initial_insertion = InitialInsertion::No;
 

@@ -659,15 +659,13 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     }
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
-    // NB: Same-document traversals are synchronous in browser engines, but the specification routes them through
-    //     the traversal queue. If a later cross-document navigation has already claimed the navigable by the time
-    //     this queued same-document traversal reaches its bookkeeping step, do not replace that navigation's ID
-    //     with "traversal". The queued traversal is stale reconciliation at that point, and must not cancel the
-    //     newer navigation.
+    // The UI process is the canonical coordinator for navigation starts and history operations. Only it can prove
+    // that a navigation was admitted after this traversal; the presence of a local navigation ID does not establish
+    // that ordering. A proven-newer navigation owns the visible outcome, so abandon the traversal without committing
+    // its canonical target step.
     if (job.navigation_type == Bindings::NavigationType::Traverse
-        && navigable->ongoing_navigation().has<Utf16String>()
-        && claimed_target_entry->document_state()->document_id() == navigable->active_document_id()) {
-        on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
+        && job.superseded_by_newer_navigation) {
+        on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
         return false;
     }
 
@@ -1523,7 +1521,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, bool superseded_by_newer_navigation, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.navigation_type = navigation_type;
@@ -1586,6 +1584,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
             .user_involvement = user_involvement,
             .navigation_type = navigation_type,
             .navigation_api_abort_behavior = navigation_api_abort_behavior,
+            .superseded_by_newer_navigation = superseded_by_newer_navigation,
         },
         source_snapshot_params, pending_document,
         GC::create_function(heap(), [this, operation_id, navigable_id, navigation_api_abort_behavior, on_complete](LocalChangingNavigableHistoryStepJobResult result) {

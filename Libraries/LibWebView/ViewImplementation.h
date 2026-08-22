@@ -471,9 +471,9 @@ protected:
     void did_resume_history_traversal(u64 operation_id);
     void did_apply_top_level_history_traversal_step(u64 operation_id);
     void did_finish_history_traversal(u64 operation_id, Web::HTML::HistoryStepResult);
-    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
-    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
-    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, u64 sequence_number, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, u64 sequence_number, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, u64 sequence_number, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 
