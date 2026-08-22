@@ -59,6 +59,14 @@ public:
     void terminate();
 
     void set_fetch_params(Badge<FetchParams>, GC::Ref<FetchParams> fetch_params) { m_fetch_params = fetch_params; }
+    [[nodiscard]] GC::Ptr<FetchParams> fetch_params() const { return m_fetch_params; }
+
+    // AD-HOC: Whether this fetch's in-parallel response processing has begun. That processing captures the fetch
+    //         params' task destination as it schedules work — so once it's begun, changing the task destination no
+    //         longer reaches the scheduled work. consume_a_preloaded_resource() reads this to decide whether an
+    //         in-flight preload's fetch can still be re-targeted for a consumer whose event loop is paused.
+    void set_response_processing_started() { m_response_processing_started = true; }
+    [[nodiscard]] bool response_processing_started() const { return m_response_processing_started; }
     [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
     void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
 
@@ -103,6 +111,7 @@ private:
     GC::Ptr<GC::Function<void()>> m_next_manual_redirect_steps;
 
     GC::Ptr<FetchParams> m_fetch_params;
+    bool m_response_processing_started { false };
     // NB: Assumes one waiting consumer for a pending preloaded response.
     // Widen this if preload handoff ever supports multiple consumers.
     GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;

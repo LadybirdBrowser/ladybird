@@ -951,6 +951,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
 
     m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     controller_holder->set_controller(*m_fetch_controller);
+    entry->controller = m_fetch_controller;
 
     // 12. Let commit be the following steps given a Document document:
     auto commit = GC::Function<void(DOM::Document&)>::create(GC::Heap::the(), [entry, report_timing, key = move(key)](DOM::Document& document) {
