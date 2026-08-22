@@ -19,6 +19,7 @@ use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::fonts_parser::{parse_font_descriptor, parse_font_property};
 use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property};
 use crate::css::parser::positions_shapes_parser::{
     is_position_shape_function_name, parse_anchor_fit_property, parse_geometry_property, parse_position_property,
@@ -150,6 +151,8 @@ pub struct ParseContext {
     pub document_base_url_length: usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+    pub font_format_is_supported: Option<unsafe extern "C" fn(*const u16, usize) -> bool>,
+    pub font_tech_is_supported: Option<unsafe extern "C" fn(u8) -> bool>,
     pub random_function_index: *mut usize,
 }
 
@@ -330,7 +333,7 @@ fn is_css_wide_keyword(keyword: u16) -> bool {
     )
 }
 
-fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> bool {
+pub(crate) fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> bool {
     if keyword_from_ascii_case_insensitive(identifier).is_some_and(is_css_wide_keyword)
         || equals_ascii_case_insensitive(identifier, b"default")
     {
@@ -347,7 +350,7 @@ pub(crate) fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Optio
     Some(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
 }
 
-fn string_style_value(context: &ParseContext, string: &[u16]) -> Option<StyleValueData> {
+pub(crate) fn string_style_value(context: &ParseContext, string: &[u16]) -> Option<StyleValueData> {
     Some(StyleValueData::String {
         string: retain_fly_string(context, string)?,
         is_valid_animation_name_custom_ident: is_valid_custom_ident(string, &["none"]),
@@ -435,7 +438,7 @@ pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) ->
     })
 }
 
-fn value_list(values: Vec<StyleValueData>, separator: u8, collapsible: bool) -> StyleValueData {
+pub(crate) fn value_list(values: Vec<StyleValueData>, separator: u8, collapsible: bool) -> StyleValueData {
     StyleValueData::ValueList {
         values: RetainedStyleValueDataList::from_retained_values(
             values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
@@ -777,6 +780,33 @@ pub(crate) fn parse_number_from_stream(
         )
     } else {
         parse_number_value(value, accepted_range)
+    }?;
+    tokens.discard_a_token();
+    Some(parsed)
+}
+
+pub(crate) fn parse_integer_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    accepted_range: NumericRange,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    let value = tokens.next_token();
+    let parsed = if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_INTEGER,
+            None,
+            accepted_range,
+            name,
+            values,
+        )
+    } else {
+        parse_integer_value(value, accepted_range)
     }?;
     tokens.discard_a_token();
     Some(parsed)
@@ -1501,6 +1531,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if let Some(value) = parse_builtin_value(values) {
         return ParseOutcome::Parsed(Arc::new(value));
     }
+    let font_outcome = parse_font_property(context, property_id, values);
+    if !matches!(font_outcome, ParseOutcome::NotHandled(_)) {
+        return font_outcome;
+    }
     if let Some(reason) = unported_function_reason(values) {
         return ParseOutcome::NotHandled(reason);
     }
@@ -1560,6 +1594,15 @@ pub enum FfiParseStatus {
     Parsed,
     Invalid,
     NotHandled,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+pub enum FfiFontDescriptorKind {
+    FamilyName,
+    SourceList,
+    UnicodeRangeList,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -1658,6 +1701,42 @@ pub unsafe extern "C" fn rust_parse_css_value(
     })
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_font_descriptor(
+    context: *const ParseContext,
+    kind: FfiFontDescriptorKind,
+    source: FfiUtf16View,
+    out_status: *mut FfiParseStatus,
+) -> *const c_void {
+    crate::abort_on_panic(|| {
+        if context.is_null() || out_status.is_null() {
+            return std::ptr::null();
+        }
+        let Some(source) = (unsafe { source.units() }) else {
+            unsafe { *out_status = FfiParseStatus::NotHandled };
+            return std::ptr::null();
+        };
+        let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
+            Ok(values) => parse_font_descriptor(unsafe { &*context }, kind, &values),
+            Err(()) => ParseOutcome::Invalid,
+        };
+        match outcome {
+            ParseOutcome::Parsed(value) => {
+                unsafe { *out_status = FfiParseStatus::Parsed };
+                Arc::into_raw(value).cast()
+            }
+            ParseOutcome::Invalid => {
+                unsafe { *out_status = FfiParseStatus::Invalid };
+                std::ptr::null()
+            }
+            ParseOutcome::NotHandled(_) => {
+                unsafe { *out_status = FfiParseStatus::NotHandled };
+                std::ptr::null()
+            }
+        }
+    })
+}
+
 /// Prints the per-property Rust parse and C++ fallback counts accumulated by
 /// this process. C++ calls this at process exit when statistics are enabled.
 #[unsafe(no_mangle)]
@@ -1690,6 +1769,16 @@ mod tests {
         0
     }
 
+    fn utf16(source: &str) -> Vec<u16> {
+        source.encode_utf16().collect()
+    }
+
+    fn retained_utf16(source: &RetainedReadableString) -> Vec<u16> {
+        let mut result = Vec::new();
+        source.as_units().append_to(&mut result);
+        result
+    }
+
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -1702,6 +1791,8 @@ mod tests {
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
             normalize_svg_path_data: None,
+            font_format_is_supported: None,
+            font_tech_is_supported: None,
             random_function_index: std::ptr::null_mut(),
         }
     }
@@ -1765,7 +1856,7 @@ mod tests {
         ));
         assert!(matches!(
             parse(property_id::FONT_FAMILY, "\"Ladybird Sans\""),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(_)
         ));
     }
 

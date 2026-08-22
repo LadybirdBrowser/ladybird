@@ -578,6 +578,13 @@ pub struct RetainedByteList {
 retained_list!(RetainedByteList, u8);
 
 impl RetainedByteList {
+    pub(crate) fn from_bytes(bytes: Vec<u8>) -> Self {
+        let slice = bytes.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice).cast::<u8>();
+        Self { pointer, length }
+    }
+
     pub(crate) fn as_slice(&self) -> &[u8] {
         if self.pointer.is_null() {
             return &[];

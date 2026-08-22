@@ -10,14 +10,12 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS::Parser {
@@ -278,8 +276,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     return StyleValueList::create(StyleValueVector { crop.release_nonnull(), cross.release_nonnull() }, StyleValueList::Separator::Space);
                 }
                 case DescriptorMetadata::ValueType::FamilyName:
-                    return parse_family_name_value(tokens);
+                    if (auto rust_value = parse_font_descriptor_value_in_rust(FontDescriptorKind::FamilyName, tokens); rust_value.has_value())
+                        return rust_value.release_value();
+                    return parse_font_descriptor_value_in_cpp(FontDescriptorKind::FamilyName, tokens);
                 case DescriptorMetadata::ValueType::FontSrcList: {
+                    if (auto rust_value = parse_font_descriptor_value_in_rust(FontDescriptorKind::SourceList, tokens); rust_value.has_value())
+                        return rust_value.release_value();
                     // "If a component value is parsed correctly and is of a font format or font tech that the UA
                     // supports, add it to the list of supported sources. If parsing a component value results in a
                     // parsing error or its format or tech are unsupported, do not add it to the list of supported
@@ -289,16 +291,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     // These parsing rules allow for graceful fallback of fonts for user agents which don’t support a
                     // particular font tech or font format."
                     // https://drafts.csswg.org/css-fonts-4/#font-face-src-parsing
-                    auto source_lists = parse_a_comma_separated_list_of_component_values(tokens);
-                    StyleValueVector valid_sources;
-                    for (auto const& source_list : source_lists) {
-                        TokenStream source_tokens { source_list };
-                        if (auto font_source = parse_font_source_value(source_tokens); font_source && !source_tokens.has_next_token())
-                            valid_sources.append(font_source.release_nonnull());
-                    }
-                    if (valid_sources.is_empty())
-                        return nullptr;
-                    return StyleValueList::create(move(valid_sources), StyleValueList::Separator::Comma);
+                    return parse_font_descriptor_value_in_cpp(FontDescriptorKind::SourceList, tokens);
                 }
                 case DescriptorMetadata::ValueType::FontWeightAbsolutePair: {
                     // <font-weight-absolute>{1,2}
@@ -417,9 +410,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     return StyleValueList::create(move(symbols), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
                 }
                 case DescriptorMetadata::ValueType::UnicodeRangeTokens: {
-                    return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<StyleValue const> {
-                        return parse_unicode_range_value(tokens);
-                    });
+                    if (auto rust_value = parse_font_descriptor_value_in_rust(FontDescriptorKind::UnicodeRangeList, tokens); rust_value.has_value())
+                        return rust_value.release_value();
+                    return parse_font_descriptor_value_in_cpp(FontDescriptorKind::UnicodeRangeList, tokens);
                 }
                 }
                 return nullptr;

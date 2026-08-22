@@ -915,6 +915,8 @@ mod tests {
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
             normalize_svg_path_data: None,
+            font_format_is_supported: None,
+            font_tech_is_supported: None,
             random_function_index: std::ptr::null_mut(),
         }
     }

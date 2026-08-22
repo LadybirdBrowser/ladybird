@@ -414,6 +414,13 @@ private:
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_cpp(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text);
+    enum class FontDescriptorKind : u8 {
+        FamilyName,
+        SourceList,
+        UnicodeRangeList,
+    };
+    Optional<RefPtr<StyleValue const>> parse_font_descriptor_value_in_rust(FontDescriptorKind, TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_font_descriptor_value_in_cpp(FontDescriptorKind, TokenStream<ComponentValue>&);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_descriptor_value(AtRuleID, DescriptorNameAndID const&, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_positional_value_list_shorthand(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
