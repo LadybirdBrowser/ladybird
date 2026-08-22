@@ -167,6 +167,9 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     view.m_client_state.page_index = m_initial_page_id;
     view.traversable().set_id(m_root_navigable_id);
     m_views.set(m_initial_page_id, view);
+
+    if (m_initial_top_level_history_entry_awaiting_view.has_value())
+        view.did_create_top_level_traversable({}, m_initial_top_level_history_entry_awaiting_view.release_value());
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -1747,6 +1750,17 @@ void WebContentClient::did_change_screen_wake_lock_state(u64 page_id, Web::Scree
 
 void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
 {
+    if (page_id == m_initial_page_id && navigable_id == m_root_navigable_id) {
+        if (m_did_create_initial_top_level_traversable)
+            return;
+        m_did_create_initial_top_level_traversable = true;
+
+        if (m_views.is_empty()) {
+            m_initial_top_level_history_entry_awaiting_view = move(initial_history_entry);
+            return;
+        }
+    }
+
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value() || !navigable->is_top_level_traversable())
         return;
