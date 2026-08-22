@@ -1527,9 +1527,9 @@ fn update_principal_node_after_entry(
                 }
                 // SAFETY: data() returned pointers to live slots.
                 if unsafe { (*old_data).kind == NodeKind::SVGSVGBox && (*new_data).kind == NodeKind::SVGSVGBox }
-                    && let Some(geometry) = arena.saved_committed_geometry(old_data)
+                    && let Some(fragment) = arena.take_saved_committed_fragment(old_data)
                 {
-                    arena.set_saved_committed_geometry(new_data, geometry);
+                    arena.set_saved_committed_fragment(new_data, fragment);
                 }
             }
             unsafe {

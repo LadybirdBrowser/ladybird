@@ -178,7 +178,7 @@ impl<'a> PaintableCommit<'a> {
             && expected_kind != PaintableKind::None;
         let existing_slot = self.arena.borrow().paintable_of_node(node);
         if !wants_paintable {
-            self.callbacks.arena().clear_saved_committed_geometry(node);
+            self.callbacks.arena().clear_saved_committed_fragment(node);
             if !existing_slot.is_invalid() {
                 let reset = {
                     let arena = self.arena.borrow();
