@@ -26,6 +26,11 @@ GC::Ref<CompositionEvent> CompositionEvent::create(Utf16FlyString const& event_n
     return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, 0);
 }
 
+GC::Ref<CompositionEvent> CompositionEvent::create(Utf16FlyString const& event_name, CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<CompositionEvent>(event_name, event_init, time_stamp);
+}
+
 CompositionEvent::CompositionEvent(FlyString const& event_name, CompositionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : UIEvent(event_name, event_init, time_stamp)
     , m_data(event_init.data)
