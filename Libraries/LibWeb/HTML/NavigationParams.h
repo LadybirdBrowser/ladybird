@@ -163,6 +163,9 @@ protected:
     void visit_edges(Visitor& visitor) override;
 };
 
+using NavigationParamsNullOrError = Optional<Utf16String>;
+using NavigationParamsVariant = Variant<NavigationParamsNullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
+
 bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, LocalNavigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
 
 }

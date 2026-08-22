@@ -23,7 +23,12 @@ namespace Web::Fetch::Fetching {
 
 GC_DEFINE_ALLOCATOR(FetchedDataReceiver);
 
-FetchedDataReceiver::FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream, RefPtr<HTTP::MemoryCache> http_cache)
+FetchedDataReceiver::FetchedDataReceiver(GC::Ref<Streams::ReadableStream> stream)
+    : FetchedDataReceiver(nullptr, stream, {})
+{
+}
+
+FetchedDataReceiver::FetchedDataReceiver(GC::Ptr<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream, RefPtr<HTTP::MemoryCache> http_cache)
     : m_fetch_params(fetch_params)
     , m_stream(stream)
     , m_http_cache(move(http_cache))
@@ -149,13 +154,14 @@ void FetchedDataReceiver::enqueue_into_stream(JS::Realm& realm, ReadonlyBytes by
         auto throw_completion = WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error());
         // 2. If stream is errored, then terminate fetchParams’s controller.
         Streams::readable_byte_stream_controller_error(*controller, throw_completion.value());
-        m_fetch_params->controller()->terminate();
+        if (m_fetch_params)
+            m_fetch_params->controller()->terminate();
     }
 }
 
 void FetchedDataReceiver::close_stream(JS::Realm& realm)
 {
-    if (m_http_cache) {
+    if (m_http_cache && m_fetch_params) {
         auto request = m_fetch_params->request();
         if (m_stream->is_readable() && !m_fetch_params->is_canceled()
             && m_response && request->cache_mode() != HTTP::CacheMode::NoStore) {
