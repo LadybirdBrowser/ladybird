@@ -27,15 +27,15 @@ class ThreadedClient final : public AtomicRefCounted<ThreadedClient> {
     AK_MAKE_NONMOVABLE(ThreadedClient);
 
 public:
-    static ErrorOr<NonnullRefPtr<ThreadedClient>> create(NonnullOwnPtr<IPC::Transport>);
+    static ErrorOr<NonnullRefPtr<ThreadedClient>> create(IPC::TransportHandle);
     ~ThreadedClient();
 
     Core::AnonymousBuffer compile(Core::AnonymousBuffer const&);
 
 private:
-    explicit ThreadedClient(NonnullOwnPtr<IPC::Transport>);
+    explicit ThreadedClient(IPC::TransportHandle);
 
-    intptr_t thread_main(NonnullOwnPtr<IPC::Transport>);
+    intptr_t thread_main(IPC::TransportHandle const&);
 
     NonnullRefPtr<Threading::Thread> m_thread;
 

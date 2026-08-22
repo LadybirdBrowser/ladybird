@@ -16,7 +16,7 @@ namespace WasmCompilerClient {
 class CompilerState {
 public:
     void install_compiler_callback();
-    void replace_connection(IPC::TransportHandle const&);
+    void replace_connection(IPC::TransportHandle);
 
 private:
     RefPtr<ThreadedClient> m_client;

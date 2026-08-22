@@ -63,7 +63,7 @@ public:
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
 #if defined(HAVE_WASM_COMPILER_SERVICE)
-    Function<void(IPC::TransportHandle const&)> on_wasm_compiler_connection;
+    Function<void(IPC::TransportHandle)> on_wasm_compiler_connection;
 #endif
 
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }

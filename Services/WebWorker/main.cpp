@@ -121,8 +121,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     WasmCompilerClient::compiler_state().install_compiler_callback();
 
-    client->on_wasm_compiler_connection = [](auto const& handle) {
-        WasmCompilerClient::compiler_state().replace_connection(handle);
+    client->on_wasm_compiler_connection = [](auto handle) {
+        WasmCompilerClient::compiler_state().replace_connection(move(handle));
     };
 #endif
 
