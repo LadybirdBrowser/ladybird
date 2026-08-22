@@ -262,7 +262,6 @@ WEB_API NumericRangesByValueType property_accepted_ranges_by_value_type(Property
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
-Vector<Utf16View> property_custom_ident_blacklist(PropertyID);
 
 // These perform range-checking, but are also safe to call with properties that don't accept that type. (They'll just return false.)
 bool property_accepts_angle(PropertyID, Angle const&);
@@ -932,40 +931,6 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
     case PropertyID::{title_casify(name)}:
         return ValueType::{title_casify(resolved_type)};
 """)
-
-    out.write("""
-    default:
-        return {};
-    }
-}
-
-Vector<Utf16View> property_custom_ident_blacklist(PropertyID property_id)
-{
-    switch (property_id) {
-""")
-
-    for name, value in properties.items():
-        if is_legacy_alias(value):
-            continue
-        valid_types = value.get("valid-types")
-        if not valid_types:
-            continue
-        for valid_type in valid_types:
-            type_and_parameters = valid_type.split(" ")
-            if type_and_parameters[0] != "custom-ident" or len(type_and_parameters) == 1:
-                continue
-            if len(type_and_parameters) != 2:
-                raise ValueError(f"Bad custom-ident parameters: {valid_type}")
-            parameters_string = type_and_parameters[1]
-            if not (parameters_string.startswith("![") and parameters_string.endswith("]")):
-                raise ValueError(f"Bad custom-ident parameters: {parameters_string}")
-            blacklisted_keywords = parameters_string[2:-1].split(",")
-
-            out.write(f"""
-    case PropertyID::{title_casify(name)}:
-        return Vector<Utf16View> {{ """)
-            out.writelines(f'"{keyword}"sv, ' for keyword in blacklisted_keywords)
-            out.write("};\n")
 
     out.write("""
     default:

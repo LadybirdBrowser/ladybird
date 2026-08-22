@@ -5,7 +5,7 @@
  */
 
 #include <AK/Debug.h>
-#include <LibWeb/CSS/Parser/Tokenizer.h>
+#include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 
 namespace Web::CSS {
@@ -33,7 +33,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             false);
     };
 
-    auto tokens = CSS::Parser::Tokenizer::tokenize(text, "utf-8"sv);
+    auto tokens = CSS::Parser::RustTokenizer::tokenize(text, "utf-8"sv);
     for (auto const& token : tokens) {
         if (token.is(Parser::Token::Type::EndOfFile))
             break;
