@@ -5792,7 +5792,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(AbstractO
     }
 
     auto expanded_value_tokens = TokenStream { result };
-    auto parsed_value = parse_css_value(property.id(), expanded_value_tokens);
+    auto parsed_value = parse_css_value(property.id(), expanded_value_tokens, {}, ValueIsSubstituted::Yes);
     if (parsed_value.is_error())
         return GuaranteedInvalidStyleValue::create();
 

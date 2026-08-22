@@ -412,7 +412,11 @@ private:
     RefPtr<ConicGradientStyleValue const> parse_conic_gradient_function(TokenStream<ComponentValue>&);
     RefPtr<RadialGradientStyleValue const> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
-    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
+    enum class ValueIsSubstituted : u8 {
+        No,
+        Yes,
+    };
+    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {}, ValueIsSubstituted = ValueIsSubstituted::No);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_cpp(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text);
     enum class FontDescriptorKind : u8 {
         FamilyName,

@@ -1717,6 +1717,7 @@ mod tests {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
+            is_substituted_value: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),

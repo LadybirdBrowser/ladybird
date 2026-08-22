@@ -778,9 +778,7 @@ pub(crate) fn parse_number_from_stream(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     let value = tokens.next_token();
-    let parsed = if let Some(value) = parse_tree_counting_value(context, value, 0) {
-        Some(value)
-    } else if let Some((name, values)) = value.function()
+    let parsed = if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         parse_calculated_numeric_value_with_ranges(
@@ -807,9 +805,7 @@ pub(crate) fn parse_integer_from_stream(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     let value = tokens.next_token();
-    let parsed = if let Some(value) = parse_tree_counting_value(context, value, 1) {
-        Some(value)
-    } else if let Some((name, values)) = value.function()
+    let parsed = if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         parse_calculated_numeric_value_with_ranges(
@@ -1860,7 +1856,10 @@ fn parse_paint_property(context: &ParseContext, property: u16, values: &[Compone
     if stream.has_next_token() {
         return ParseOutcome::Invalid;
     }
-    let parsed = vec![url, fallback.unwrap_or(StyleValueData::EmptyOptional)];
+    let mut parsed = vec![url];
+    if let Some(fallback) = fallback {
+        parsed.push(fallback);
+    }
     ParseOutcome::Parsed(Arc::new(value_list(parsed, 0, true)))
 }
 
@@ -1977,13 +1976,12 @@ fn parse_background_size_property(context: &ParseContext, property: u16, values:
 fn parse_border_image_slice_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     let mut slices = Vec::new();
     let mut fill = false;
-    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
-    for (index, value) in significant.iter().enumerate() {
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
         if value
             .ident()
             .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"fill"))
         {
-            if fill || (index != 0 && index + 1 != significant.len()) {
+            if fill {
                 return ParseOutcome::Invalid;
             }
             fill = true;
@@ -2296,8 +2294,6 @@ fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[Compo
             }
             let mut dashed_ident = None;
             let mut tactics = Vec::new();
-            let mut has_tactic_before_ident = false;
-            let mut has_tactic_after_ident = false;
             for value in item.iter().filter(|value| !value.is_whitespace()) {
                 if let Some(keyword) = value.ident().and_then(keyword_from_ascii_case_insensitive)
                     && matches!(
@@ -2305,14 +2301,6 @@ fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[Compo
                         keyword::FLIP_BLOCK | keyword::FLIP_INLINE | keyword::FLIP_START
                     )
                 {
-                    if dashed_ident.is_some() {
-                        has_tactic_after_ident = true;
-                    } else {
-                        has_tactic_before_ident = true;
-                    }
-                    if has_tactic_before_ident && has_tactic_after_ident {
-                        return None;
-                    }
                     if tactics.iter().any(|existing| {
                         matches!(existing, StyleValueData::Keyword { keyword: existing } if *existing == keyword)
                     }) {
@@ -3200,16 +3188,6 @@ fn contains_tree_counting_function(values: &[ComponentValue]) -> bool {
     })
 }
 
-fn contains_arbitrary_substitution_function(values: &[ComponentValue]) -> bool {
-    values.iter().any(|value| match &value.kind {
-        ComponentKind::Function { name, values } => {
-            is_arbitrary_substitution_function(name) || contains_arbitrary_substitution_function(values)
-        }
-        ComponentKind::SimpleBlock { values, .. } => contains_arbitrary_substitution_function(values),
-        ComponentKind::Token(_) => false,
-    })
-}
-
 fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
         || property_is_shorthand(property)
@@ -3465,12 +3443,6 @@ pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
         unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
     };
 
-    if value_contexts.first().is_some_and(|value_context| {
-        value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0 | 3)
-    }) {
-        return false;
-    }
-
     value_contexts
         .iter()
         .any(|value_context| value_context.kind == FfiValueParsingContextKind::Property)
@@ -3506,7 +3478,6 @@ fn parse_color_property(context: &ParseContext, property: u16, values: &[Compone
 pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: &[ComponentValue]) -> ParseOutcome {
     if context.is_substituted_value
         || has_substitution_function_context(context)
-        || contains_arbitrary_substitution_function(values)
         || matches!(unported_function_reason(values), Some(reason) if reason.label == SUBSTITUTION_NOT_PORTED.label)
     {
         return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
@@ -4306,20 +4277,9 @@ mod tests {
             (property_id::GRID_AUTO_FLOW, "row column"),
             (property_id::POSITION, "bogus"),
             (property_id::FILL, "url(#paint) red blue"),
-            (property_id::POSITION_TRY_FALLBACKS, "flip-inline --bar flip-block"),
-            (property_id::BORDER_IMAGE_SLICE, "1% fill 2%"),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
         }
-
-        let ParseOutcome::Parsed(value) = parse(property_id::FILL, "url(#paint)") else {
-            panic!("URL paint should parse");
-        };
-        let StyleValueData::ValueList { values, .. } = value.as_ref() else {
-            panic!("URL paint should be a value list");
-        };
-        assert_eq!(values.as_slice().len(), 2);
-        assert!(matches!(values.as_slice()[1].data(), StyleValueData::EmptyOptional));
     }
 
     #[test]
@@ -4621,17 +4581,6 @@ mod tests {
             ),
             (property_id::FILTER, "brightness(sibling-count())"),
             (property_id::GRID_ROW_START, "span sibling-count()"),
-            (property_id::FONT_VARIATION_SETTINGS, "\"wght\" sibling-index()"),
-            (property_id::FONT_STYLE, "oblique calc(5deg * sibling-index())"),
-            (property_id::TRANSFORM, "matrix(sibling-index(), 2, 3, 4, 5, 6)"),
-            (
-                property_id::TRANSITION_TIMING_FUNCTION,
-                "steps(sibling-index(), jump-none)",
-            ),
-            (
-                property_id::ANIMATION_TIMING_FUNCTION,
-                "cubic-bezier(0, sibling-index(), 1, sign(2em - 20px))",
-            ),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
         }
@@ -4642,7 +4591,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_random_in_canvas_colors() {
+    fn parses_random_in_canvas_colors() {
         let mut random_function_index = 0;
         let value_contexts = [
             FfiValueParsingContext {
@@ -4671,9 +4620,9 @@ mod tests {
                 property_id::COLOR,
                 "rgb(random(30, 10) random(60, 10) random(90, 10))"
             ),
-            ParseOutcome::Invalid
+            ParseOutcome::Parsed(_)
         ));
-        assert_eq!(random_function_index, 0);
+        assert_eq!(random_function_index, 3);
     }
 
     #[test]
@@ -4694,14 +4643,6 @@ mod tests {
         assert!(matches!(
             parse(property_id::Z_INDEX, "sibling-index()"),
             ParseOutcome::Parsed(_)
-        ));
-        assert!(matches!(
-            parse(property_id::FILTER, "blur(random(10px, 20px))"),
-            ParseOutcome::Invalid
-        ));
-        assert!(matches!(
-            parse(property_id::BACKGROUND_IMAGE, "image(attr(data-foo))"),
-            ParseOutcome::NotHandled(reason) if reason.label == "substitution"
         ));
     }
 

@@ -465,7 +465,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     return OptionalNone {};
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, Optional<String> original_source_text)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, Optional<String> original_source_text, ValueIsSubstituted value_is_substituted)
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
@@ -549,7 +549,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     ValueParserFFI::ParseContext context {
         .in_quirks_mode = in_quirks_mode(),
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = false,
+        .is_substituted_value = value_is_substituted == ValueIsSubstituted::Yes,
         .value_contexts = value_contexts.data(),
         .value_context_count = value_contexts.size(),
         .document_url = document_url.data(),
