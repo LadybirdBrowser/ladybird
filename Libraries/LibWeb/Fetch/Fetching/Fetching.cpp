@@ -915,8 +915,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     auto algorithms = fetch_params.algorithms();
 
-    // AD-HOC: A parallel-queue task destination together with a process-response-consume-body algorithm is, today,
-    //         exactly a sync XHR send() (https://xhr.spec.whatwg.org/#the-send()-method, step 12). While such a send()
+    // AD-HOC: A parallel-queue task destination together with a process-response-consume-body algorithm is, today, a
+    //         sync XHR send() (https://xhr.spec.whatwg.org/#the-send()-method, step 12) — or a preload fetch that
+    //         "consume a preloaded resource" re-targeted onto a parallel queue for one. While such a send()
     //         is blocked, the HTML event loop is paused — and per https://html.spec.whatwg.org/multipage/#pause, it
     //         must not run tasks or perform microtask checkpoints for the duration. The identity-TransformStream pipe
     //         in step 7 and Body::fully_read() in step 8.4 below only make progress via event-loop microtasks (promise
@@ -928,6 +929,17 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //         (which the pipe's flush algorithm would otherwise have run) followed by processBody directly when the
     //         read completes — just as if they had been enqueued to the parallel queue.
     bool read_body_in_parallel = fetch_params.task_destination().has<NonnullRefPtr<HTML::ParallelQueue>>() && algorithms->process_response_consume_body();
+
+    // AD-HOC: That direct read runs processResponseEndOfBody and processBody itself — instead of queueing them. But
+    //         processResponse in step 4 above, and processResponseEndOfBody's task in step 3, are queued either way —
+    //         onto a parallel queue backed by the event loop's task queue (ParallelQueue::enqueue). So they'd sit
+    //         frozen for as long as send() keeps the event loop paused — and run only once it resumes: after the body
+    //         they precede had already been consumed. No current callers set either algorithm — which is what makes the
+    //         direct read correct. Assert it — so adding one fails here, instead of silently reordering the algorithms.
+    if (read_body_in_parallel) {
+        VERIFY(!algorithms->process_response());
+        VERIFY(!algorithms->process_response_end_of_body());
+    }
 
     // 6. If internalResponse’s body is null, then run processResponseEndOfBody.
     if (!internal_response->body()) {
