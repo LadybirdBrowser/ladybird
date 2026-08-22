@@ -43,8 +43,9 @@
 //! These are the registers an `is_call=true` instruction kills (in addition
 //! to any explicitly listed clobbers). Pinned registers survive calls
 //! because they live in callee-saved slots. AArch64 pins its values base,
-//! x21 (ip cache), and x22-x24 (tag constants); x86-64 pins values and the
-//! shifted Int32 tag, and derives exec_ctx from values.
+//! x21 (ip cache), and x22-x23 (tag constants), plus x24 for the heap region
+//! base; x86-64 pins values and the heap region base, and derives exec_ctx
+//! from values.
 //!
 //! - x86_64: rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11, xmm0-xmm5
 //! - aarch64: x0-x17, d0-d7
@@ -875,11 +876,13 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             }
         }
         Operation::Move(U32) => &const { plain(&[GprOut, GprInOrImm]) },
-        Operation::ExtractTag | Operation::BoxInt32 { clean: true } => {
-            &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]) }
+        Operation::ExtractTag => &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]) },
+        Operation::BoxInt32 { clean: true } => {
+            &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[]) }
         }
-        Operation::UnboxObject => &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[X9]) },
-        Operation::UnboxInt32 | Operation::BoxInt32 { clean: false } => &const { plain(&[GprOut, GprIn]) },
+        Operation::UnboxObject => &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[]) },
+        Operation::UnboxInt32 => &const { plain(&[GprOut, GprIn]) },
+        Operation::BoxInt32 { clean: false } => &const { plain(&[GprOut, GprIn]).scratches(&[R11], &[]) },
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(Add | Subtract | Or),
             width: U64,
@@ -1081,13 +1084,17 @@ mod tests {
     }
 
     #[test]
-    fn direct_value_operations_have_no_scratch_registers() {
+    fn direct_value_operations_declare_their_scratch_registers() {
         for operation in [
             Operation::BoxInt32 { clean: false },
             Operation::BoxInt32 { clean: true },
-            Operation::ToggleBit,
-            Operation::ClearBit,
         ] {
+            let info = lookup_operation(operation);
+            assert_eq!(info.x86_64.trailing_scratch_registers, &[R11]);
+            assert!(info.aarch64.trailing_scratch_registers.is_empty());
+        }
+
+        for operation in [Operation::ToggleBit, Operation::ClearBit] {
             let info = lookup_operation(operation);
             assert!(info.x86_64.trailing_scratch_registers.is_empty());
             assert!(info.aarch64.trailing_scratch_registers.is_empty());

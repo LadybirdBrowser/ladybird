@@ -821,7 +821,7 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
     // Pinned: x19(dispatch), x20(vm), x21(ip), x26(pb), x27(values), x28(exec_ctx)
     // x21 = ip (instruction pointer = pb + pc), the primary dispatch register.
     // x25 is only used when DSL code writes to pc directly (rare).
-    // x22 = INT32_TAG, x23 = BOOLEAN_TAG, x24 = NAN_BASE_TAG (pinned constants).
+    // x22 = INT32_TAG, x23 = BOOLEAN_TAG, x24 = heap region base.
     // d8 is pinned to hold CANON_NAN_BITS (callee-saved FP register).
     let frame_size = frame_size_for_format(fmt);
     w!(out, "    stp x29, x30, [sp, #-{frame_size}]!");
@@ -852,10 +852,12 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
     let runtime = runtime(program);
     let interp_ctx = runtime[KnownLayoutConstant::VmRunningExecutionContext];
     let canon_nan = runtime[KnownLayoutConstant::CanonicalNanBits];
+    let heap_region_base = runtime[KnownLayoutConstant::VmHeapRegionBase];
     w!(out, "    mov x26, x0              // pb = bytecode base");
     w!(out, "    mov x27, x2              // values = values array");
     // Store VM* in x20 (callee-saved) for C++ calls, pin exec_ctx in x28
     w!(out, "    mov x20, x3              // vm = VM*");
+    emit_ldr64(out, "x24", "x3", heap_region_base);
     emit_ldr64(out, "x28", "x3", interp_ctx);
     w!(out, "    // x28 = exec_ctx");
     let vm_breakpoint_controller = runtime[KnownLayoutConstant::VmBreakpointController];
@@ -874,13 +876,11 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
     // Pin frequently-compared tag constants in callee-saved registers.
     let int32_tag = runtime[KnownLayoutConstant::Int32Tag];
     let boolean_tag = runtime[KnownLayoutConstant::BooleanTag];
-    let nan_base_tag = runtime[KnownLayoutConstant::NanBaseTag];
     emit_mov_imm(out, registers::X22, int32_tag);
     w!(out, "    // x22 = INT32_TAG");
     emit_mov_imm(out, registers::X23, boolean_tag);
     w!(out, "    // x23 = BOOLEAN_TAG");
-    emit_mov_imm(out, registers::X24, nan_base_tag);
-    w!(out, "    // x24 = NAN_BASE_TAG");
+    w!(out, "    // x24 = heap region base");
 
     // Dispatch to first instruction (x21 = pb + entry_point)
     w!(out, "    add x21, x26, w1, uxtw   // x21 = pb + entry_point");
@@ -1227,6 +1227,7 @@ mod tests {
                 &crate::frontend::layout::LayoutConstants::from_values([
                     ("VM_RUNNING_EXECUTION_CONTEXT".into(), 8),
                     ("VM_BREAKPOINT_CONTROLLER".into(), 16),
+                    ("VM_HEAP_REGION_BASE".into(), 24),
                     ("CANON_NAN_BITS".into(), 0x7ff8_0000_0000_0000u64 as i64),
                     ("INT32_TAG".into(), 0xfffau64 as i64),
                     ("BOOLEAN_TAG".into(), 0xfffbu64 as i64),
