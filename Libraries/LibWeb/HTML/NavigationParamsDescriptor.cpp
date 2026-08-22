@@ -188,7 +188,12 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
         return {};
 
-    auto request = ResourceLoader::the().request_client()->adopt_request(handle.request_server_client_id, handle.request_server_request_id);
+    // Preserve the original RequestServer identity while WebContent decides whether this response will become a
+    // document or a download. A download is adopted by the UI process using that identity.
+    auto request = ResourceLoader::the().request_client()->adopt_request(
+        handle.request_server_client_id,
+        handle.request_server_request_id,
+        Requests::RequestClient::TransferLease::Yes);
     if (!request)
         return {};
 
@@ -229,8 +234,8 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
         });
 
     response.set_request_server_request({
-        .client_id = request->request_server_client_id(),
-        .request_id = request->id(),
+        .client_id = handle.request_server_client_id,
+        .request_id = handle.request_server_request_id,
         .request = request,
     });
     return body;

@@ -423,8 +423,8 @@ void LocalTraversableNavigable::continue_navigation_at_population(NavigationPopu
         output,
         GC::create_function(navigable->heap(), [navigable, history_entry, history_handling = request.history_handling, navigation_id = request.navigation_id, user_involvement = request.user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
             if (output && output->download_handled) {
-                if (navigable->is_top_level_traversable())
-                    navigable->active_browsing_context()->page().client().page_did_cancel_loading(navigation_id, history_entry->url());
+                // NB: The UI process ended the recorded load and its transaction when the download adopted this
+                //     population's response body.
                 navigable->set_ongoing_navigation({});
                 navigable->set_delaying_load_events(false);
                 return;
@@ -830,9 +830,6 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 || target_entry->document_state()->document_id() != navigable->active_document_id()
                 || target_entry->document_state()->reload_pending());
         if (needs_population) {
-            if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
-                navigable->page().client().page_did_start_loading({}, target_entry->url(), false);
-
             // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
             // 2. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.

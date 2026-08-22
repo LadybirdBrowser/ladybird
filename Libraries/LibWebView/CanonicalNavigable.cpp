@@ -312,6 +312,10 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
         || !navigation_id.has_value()
         || navigation_id == m_ongoing_navigation->navigation_id;
 
+    auto previous_active_document_state_id = m_active_session_history_entry_identity.has_value()
+        ? Optional<Web::HTML::CrossProcessId> { m_active_session_history_entry_identity->document_state_id }
+        : Optional<Web::HTML::CrossProcessId> {};
+
     set_replicated_state(move(replicated_state));
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
@@ -319,18 +323,21 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
     if (!commits_ongoing_navigation)
         return;
 
-    // A top-level record also tracks the load and survives until the load finishes or is canceled.
-    if (!is_top_level_traversable()) {
-        clear_ongoing_navigation();
-        return;
+    // The activated document's load becomes the view's tracked load. A same-document activation leaves the
+    // active document's load running, so its tracked load stays in place.
+    if (is_top_level_traversable()) {
+        auto active_document_changed = !previous_active_document_state_id.has_value()
+            || !m_active_session_history_entry_identity.has_value()
+            || m_active_session_history_entry_identity->document_state_id != *previous_active_document_state_id;
+        if (active_document_changed) {
+            m_active_document_load = ActiveDocumentLoad {
+                .navigation_id = m_ongoing_navigation.has_value() ? m_ongoing_navigation->navigation_id : Optional<Utf16String> {},
+                .url = m_ongoing_navigation.has_value() ? m_ongoing_navigation->url : Optional<URL::URL> {},
+            };
+        }
     }
 
-    if (m_ongoing_navigation.has_value()) {
-        m_ongoing_navigation->loader = nullptr;
-        m_ongoing_navigation->phase = OngoingNavigation::Phase::Committed;
-        m_ongoing_navigation->is_uncommitted = false;
-        m_ongoing_navigation->uses_replacement_process = false;
-    }
+    clear_ongoing_navigation();
 }
 
 CanonicalNavigable::OngoingNavigation& CanonicalNavigable::ensure_ongoing_navigation()
@@ -413,23 +420,31 @@ bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClie
 
 void CanonicalNavigable::did_finish_navigation_transaction(Optional<Utf16String> const& navigation_id, Web::HTML::HistoryStepResult result)
 {
-    if (!navigation_id.has_value()
-        || !m_ongoing_navigation.has_value()
-        || m_ongoing_navigation->navigation_id != navigation_id) {
+    if (!navigation_id.has_value())
         return;
-    }
+
+    // A transaction still live at its operation's completion never activated its document.
+    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->navigation_id == navigation_id)
+        clear_ongoing_navigation();
 
     if (result != Web::HTML::HistoryStepResult::Applied
-        || m_ongoing_navigation->phase != OngoingNavigation::Phase::Committed) {
-        clear_ongoing_navigation();
+        && m_active_document_load.has_value()
+        && m_active_document_load->navigation_id == navigation_id) {
+        m_active_document_load.clear();
     }
 }
 
 bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
 {
-    if (!m_ongoing_navigation.has_value())
-        return !navigation_id.has_value();
-    return m_ongoing_navigation->has_started && navigation_id == m_ongoing_navigation->navigation_id;
+    // A live transaction owns the view's loading state, so completion signals must name it.
+    if (m_ongoing_navigation.has_value())
+        return m_ongoing_navigation->has_started && navigation_id == m_ongoing_navigation->navigation_id;
+
+    // Otherwise completion signals concern the active document's tracked load.
+    if (m_active_document_load.has_value())
+        return navigation_id == m_active_document_load->navigation_id;
+
+    return !navigation_id.has_value();
 }
 
 }
