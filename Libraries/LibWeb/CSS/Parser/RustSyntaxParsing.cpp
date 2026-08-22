@@ -234,6 +234,8 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     RefPtr<StyleValue const> parsed_value;
     Vector<ComponentValue> values;
     if (declaration.is_property) {
+        if (declaration.value_count > 0)
+            values = component_values(data, declaration.values_start, declaration.value_count);
         if (declaration.property_id != NumericLimits<u16>::max())
             parsed_property_id = static_cast<PropertyID>(declaration.property_id);
         if (declaration.parse_status == FfiParseStatus::Parsed) {
