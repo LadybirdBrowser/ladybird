@@ -1,0 +1,19 @@
+offsetWidth preserved the transition start style: true
+clientWidth preserved the transition start style: true
+clientHeight preserved the transition start style: true
+getBoundingClientRect preserved the transition start style: true
+offsetWidth preserved the inline transition start style: true
+clientWidth preserved the inline transition start style: true
+clientHeight preserved the inline transition start style: true
+getBoundingClientRect preserved the inline transition start style: true
+offsetWidth preserved the transition start style before a style attribute change: true
+offsetWidth froze a deferred transition start style: true
+offsetWidth advanced the deferred transition start style: true
+computed style consumed a deferred boundary followed by inline style: true
+offsetWidth preserved the boundary across a later inline mutation: true
+offsetWidth preserved the boundary across a later tree mutation: true
+pseudo-element CSSOM reads did not lose the deferred boundary: true
+style element insertion did not transition from the pre-boundary style: true
+insertRule did not transition from the pre-boundary style: true
+rule declaration edit did not transition from the pre-boundary style: true
+link load did not transition from the pre-boundary style: true

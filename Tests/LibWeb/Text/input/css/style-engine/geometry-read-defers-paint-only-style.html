@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        width: 100px;
+        height: 10px;
+    }
+    #target.paint-only {
+        background-color: red;
+    }
+    #target.layout {
+        width: 200px;
+        height: 20px;
+    }
+    #target.transformed {
+        transform: translateX(10px);
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        target.getBoundingClientRect();
+
+        target.style.outlineColor = "blue";
+        getComputedStyle(target).outlineColor;
+
+        internals.resetStyleInvalidationCounters();
+        target.className = "paint-only";
+        const paintOnlyRect = target.getBoundingClientRect();
+        const paintOnlyOffsetWidth = target.offsetWidth;
+        const paintOnlyClientHeight = target.clientHeight;
+        let counters = internals.getStyleInvalidationCounters();
+        println(`paint-only geometry: ${paintOnlyRect.width}`);
+        println(`paint-only offset width: ${paintOnlyOffsetWidth}`);
+        println(`paint-only client height: ${paintOnlyClientHeight}`);
+        println(`inline style setup preserves geometry deferral: ${counters.styleStabilizationEpochs === 0}`);
+        println(`paint-only style deferred: ${counters.styleStabilizationEpochs === 0}`);
+        println(`deferred style is observable: ${getComputedStyle(target).backgroundColor}`);
+
+        target.className = "";
+        target.getBoundingClientRect();
+        internals.resetStyleInvalidationCounters();
+        target.className = "layout";
+        const layoutOffsetWidth = target.offsetWidth;
+        const layoutOffsetHeight = target.offsetHeight;
+        counters = internals.getStyleInvalidationCounters();
+        println(`layout offset size: ${layoutOffsetWidth}x${layoutOffsetHeight}`);
+        println(`layout style settled: ${counters.styleStabilizationEpochs === 1}`);
+
+        target.className = "";
+        target.getBoundingClientRect();
+        internals.resetStyleInvalidationCounters();
+        target.className = "transformed";
+        const transformedRect = target.getBoundingClientRect();
+        counters = internals.getStyleInvalidationCounters();
+        println(`transformed geometry: ${transformedRect.x}`);
+        println(`visual geometry style settled: ${counters.styleStabilizationEpochs === 1}`);
+    });
+</script>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function createFrame(css) {
+        return new Promise(resolve => {
+            const frame = document.createElement("iframe");
+            frame.onload = () => resolve(frame);
+            frame.srcdoc = `
+                <style>
+                    #target {
+                        width: 10px;
+                        height: 10px;
+                        background-color: rgb(0, 0, 0);
+                    }
+                    #target.from {
+                        background-color: rgb(255, 0, 0);
+                    }
+                    ${css}
+                </style>
+                <div id="target"></div>`;
+            document.body.appendChild(frame);
+        });
+    }
+
+    promiseTest(async () => {
+        const cases = [
+            ["offsetWidth", target => target.offsetWidth],
+            ["clientWidth", target => target.clientWidth],
+            ["clientHeight", target => target.clientHeight],
+            ["getBoundingClientRect", target => target.getBoundingClientRect()],
+        ];
+        for (const [name, flushStyle] of cases) {
+            const frame = await createFrame(`
+                #target.to {
+                    background-color: rgb(0, 0, 255);
+                    transition: background-color 1000s linear;
+                }`);
+            const target = frame.contentDocument.getElementById("target");
+            target.offsetWidth;
+            target.classList.add("from");
+            flushStyle(target);
+            target.classList.replace("from", "to");
+
+            const transition = target.getAnimations()[0];
+            if (transition)
+                transition.currentTime = 0;
+            println(`${name} preserved the transition start style: ${transition !== undefined
+                && frame.contentWindow.getComputedStyle(target).backgroundColor === "rgb(255, 0, 0)"}`);
+        }
+
+        for (const [name, flushStyle] of cases) {
+            const frame = await createFrame("");
+            const target = frame.contentDocument.getElementById("target");
+            target.offsetWidth;
+            target.style.backgroundColor = "rgb(255, 0, 0)";
+            flushStyle(target);
+            target.style.transition = "background-color 1000s linear";
+            target.style.backgroundColor = "rgb(0, 0, 255)";
+
+            const transition = target.getAnimations()[0];
+            if (transition)
+                transition.currentTime = 0;
+            println(`${name} preserved the inline transition start style: ${transition !== undefined
+                && frame.contentWindow.getComputedStyle(target).backgroundColor === "rgb(255, 0, 0)"}`);
+        }
+
+        const frame = await createFrame("");
+        const target = frame.contentDocument.getElementById("target");
+        target.offsetWidth;
+        target.style.backgroundColor = "rgb(255, 0, 0)";
+        target.offsetWidth;
+        target.setAttribute("style", `
+            background-color: rgb(0, 0, 255);
+            transition: background-color 1000s linear;
+        `);
+
+        const transition = target.getAnimations()[0];
+        if (transition)
+            transition.currentTime = 0;
+        println(`offsetWidth preserved the transition start style before a style attribute change: ${transition !== undefined
+            && frame.contentWindow.getComputedStyle(target).backgroundColor === "rgb(255, 0, 0)"}`);
+
+        const deferredFrame = await createFrame(`
+            #target.green {
+                background-color: rgb(0, 128, 0);
+            }`);
+        const deferredTarget = deferredFrame.contentDocument.getElementById("target");
+        deferredTarget.offsetWidth;
+        deferredTarget.classList.add("from");
+        deferredTarget.offsetWidth;
+        deferredTarget.classList.replace("from", "green");
+        deferredTarget.style.transition = "background-color 1000s linear";
+        deferredTarget.style.backgroundColor = "rgb(0, 0, 255)";
+
+        const deferredTransition = deferredTarget.getAnimations()[0];
+        if (deferredTransition)
+            deferredTransition.currentTime = 0;
+        println(`offsetWidth froze a deferred transition start style: ${deferredTransition !== undefined
+            && deferredFrame.contentWindow.getComputedStyle(deferredTarget).backgroundColor === "rgb(255, 0, 0)"}`);
+
+        const advancedFrame = await createFrame(`
+            #target.green {
+                background-color: rgb(0, 128, 0);
+            }`);
+        const advancedTarget = advancedFrame.contentDocument.getElementById("target");
+        advancedTarget.offsetWidth;
+        advancedTarget.className = "from";
+        advancedTarget.offsetWidth;
+        advancedTarget.className = "green";
+        advancedTarget.offsetWidth;
+        advancedTarget.style.transition = "background-color 1000s linear";
+        advancedTarget.style.backgroundColor = "rgb(0, 0, 255)";
+
+        const advancedTransition = advancedTarget.getAnimations()[0];
+        if (advancedTransition)
+            advancedTransition.currentTime = 0;
+        println(`offsetWidth advanced the deferred transition start style: ${advancedTransition !== undefined
+            && advancedFrame.contentWindow.getComputedStyle(advancedTarget).backgroundColor === "rgb(0, 128, 0)"}`);
+
+        const inlineMutationFrame = await createFrame("");
+        const inlineMutationTarget = inlineMutationFrame.contentDocument.getElementById("target");
+        inlineMutationTarget.offsetWidth;
+        inlineMutationTarget.className = "from";
+        inlineMutationTarget.offsetWidth;
+        inlineMutationTarget.style.backgroundColor = "rgb(0, 128, 0)";
+        println(`computed style consumed a deferred boundary followed by inline style: ${inlineMutationFrame.contentWindow.getComputedStyle(inlineMutationTarget).backgroundColor === "rgb(0, 128, 0)"}`);
+
+        const laterInlineFrame = await createFrame("");
+        const laterInlineTarget = laterInlineFrame.contentDocument.getElementById("target");
+        laterInlineTarget.offsetWidth;
+        laterInlineTarget.className = "from";
+        laterInlineTarget.offsetWidth;
+        laterInlineTarget.style.backgroundColor = "rgb(0, 128, 0)";
+        laterInlineTarget.style.transition = "background-color 1000s linear";
+        laterInlineTarget.style.backgroundColor = "rgb(0, 0, 255)";
+
+        const laterInlineTransition = laterInlineTarget.getAnimations()[0];
+        if (laterInlineTransition)
+            laterInlineTransition.currentTime = 0;
+        println(`offsetWidth preserved the boundary across a later inline mutation: ${laterInlineTransition !== undefined
+            && laterInlineFrame.contentWindow.getComputedStyle(laterInlineTarget).backgroundColor === "rgb(255, 0, 0)"}`);
+
+        const laterTreeFrame = await createFrame(`
+            .green + #target {
+                background-color: rgb(0, 128, 0);
+            }`);
+        const laterTreeTarget = laterTreeFrame.contentDocument.getElementById("target");
+        laterTreeTarget.offsetWidth;
+        laterTreeTarget.className = "from";
+        laterTreeTarget.offsetWidth;
+        const greenContainer = laterTreeFrame.contentDocument.createElement("div");
+        greenContainer.className = "green";
+        laterTreeTarget.parentNode.insertBefore(greenContainer, laterTreeTarget);
+        laterTreeTarget.style.transition = "background-color 1000s linear";
+        laterTreeTarget.style.backgroundColor = "rgb(0, 0, 255)";
+
+        const laterTreeTransition = laterTreeTarget.getAnimations()[0];
+        if (laterTreeTransition)
+            laterTreeTransition.currentTime = 0;
+        println(`offsetWidth preserved the boundary across a later tree mutation: ${laterTreeTransition !== undefined
+            && laterTreeFrame.contentWindow.getComputedStyle(laterTreeTarget).backgroundColor === "rgb(255, 0, 0)"}`);
+
+        const pseudoReadFrame = await createFrame("");
+        const pseudoReadTarget = pseudoReadFrame.contentDocument.getElementById("target");
+        pseudoReadTarget.offsetWidth;
+        pseudoReadTarget.className = "from";
+        pseudoReadTarget.offsetWidth;
+        pseudoReadFrame.contentWindow.getComputedStyle(pseudoReadTarget, "::backdrop").color;
+        pseudoReadTarget.style.transition = "background-color 1000s linear";
+        pseudoReadTarget.style.backgroundColor = "rgb(0, 0, 255)";
+
+        const pseudoReadTransition = pseudoReadTarget.getAnimations()[0];
+        if (pseudoReadTransition)
+            pseudoReadTransition.currentTime = 0;
+        println(`pseudo-element CSSOM reads did not lose the deferred boundary: ${pseudoReadTransition !== undefined
+            && pseudoReadFrame.contentWindow.getComputedStyle(pseudoReadTarget).backgroundColor === "rgb(255, 0, 0)"}`);
+
+        for (const [name, installTransition] of [
+            ["style element insertion", target => {
+                const style = target.ownerDocument.createElement("style");
+                style.textContent = "#target { transition: background-color 1000s linear; }";
+                target.ownerDocument.head.appendChild(style);
+            }],
+            ["insertRule", target => {
+                target.ownerDocument.styleSheets[0].insertRule("#target { transition: background-color 1000s linear; }");
+            }],
+            ["rule declaration edit", target => {
+                target.ownerDocument.styleSheets[0].cssRules[0].style.transition = "background-color 1000s linear";
+            }],
+            ["link load", async target => {
+                const link = target.ownerDocument.createElement("link");
+                link.rel = "stylesheet";
+                link.href = "data:text/css,%23target%20%7B%20transition%3A%20background-color%201000s%20linear%3B%20%7D";
+                const loaded = new Promise(resolve => link.onload = resolve);
+                target.ownerDocument.head.appendChild(link);
+                await loaded;
+            }],
+        ]) {
+            const stylesheetFrame = await createFrame("");
+            const stylesheetTarget = stylesheetFrame.contentDocument.getElementById("target");
+            stylesheetTarget.offsetWidth;
+            stylesheetTarget.className = "from";
+            stylesheetTarget.offsetWidth;
+            await installTransition(stylesheetTarget);
+            println(`${name} did not transition from the pre-boundary style: ${stylesheetTarget.getAnimations().length === 0}`);
+        }
+    });
+</script>

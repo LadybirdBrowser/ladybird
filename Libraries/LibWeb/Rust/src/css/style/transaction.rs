@@ -469,6 +469,45 @@ impl NormalizationJournal {
         &self.markers
     }
 
+    /// The normalized view of the fine-grained inputs which are still pending.
+    pub(super) fn inputs(&self) -> impl Iterator<Item = NormalizedInput> + '_ {
+        self.entries
+            .iter()
+            .map(|(&key, &(old, new))| NormalizedInput { key, old, new })
+    }
+
+    /// Fold a newer journal into this one without counting its already-recorded inputs a second
+    /// time. This retains the original value before either journal and the final value after both.
+    pub(super) fn absorb_newer(&mut self, newer: &mut Self, memory: &mut MemoryController, counters: &mut Counters) {
+        debug_assert!(self.markers.is_empty());
+        debug_assert!(newer.markers.is_empty());
+        let newer_entries = std::mem::take(&mut newer.entries);
+        memory.release(MemoryCategory::NormalizationJournal, u64::from(newer.charged_bytes));
+        newer.charged_bytes = 0;
+        newer.covered = [false; INPUT_KIND_COUNT];
+
+        for (key, (old, new)) in newer_entries {
+            if self.covered[key.kind().index()] {
+                continue;
+            }
+            if let Some(entry) = self.entries.get_mut(&key) {
+                if entry.0 == new {
+                    self.entries.remove(&key);
+                    counters.bump(Counter::JournalCancellations);
+                } else {
+                    entry.1 = new;
+                }
+                continue;
+            }
+            if old == new || !self.make_room_for_one(key.kind(), memory, counters) {
+                continue;
+            }
+            self.entries.insert(key, (old, new));
+            self.settle(memory, counters);
+        }
+        self.settle(memory, counters);
+    }
+
     #[must_use]
     pub fn contains_only_element_style_inputs(&self) -> bool {
         self.markers.is_empty()
@@ -909,6 +948,48 @@ mod tests {
                     inherited_style_groups: 0b101,
                 },
             }]
+        );
+        transaction.release(&mut fixture.memory);
+    }
+
+    #[test]
+    fn absorbing_a_newer_journal_accepts_non_local_inputs() {
+        let mut fixture = JournalFixture::new();
+        fixture.class(1, 10, false, true);
+
+        let mut newer = NormalizationJournal::new();
+        newer.record(
+            InputKey::ElementStyleInput(StyleNodeID::element(1)),
+            InputValue::ElementStyleInput {
+                reaction: 0,
+                inherited_style_groups: 0,
+            },
+            InputValue::ElementStyleInput {
+                reaction: STYLE_REACTION_RECOMPUTE_STYLE,
+                inherited_style_groups: 0,
+            },
+            &mut fixture.memory,
+            &mut fixture.counters,
+        );
+
+        fixture
+            .journal
+            .absorb_newer(&mut newer, &mut fixture.memory, &mut fixture.counters);
+        assert!(newer.is_empty());
+
+        let transaction = fixture.take();
+        assert_eq!(transaction.inputs.len(), 2);
+        assert!(
+            transaction
+                .inputs
+                .iter()
+                .any(|input| matches!(input.key, InputKey::LocalFeature(..)))
+        );
+        assert!(
+            transaction
+                .inputs
+                .iter()
+                .any(|input| matches!(input.key, InputKey::ElementStyleInput(..)))
         );
         transaction.release(&mut fixture.memory);
     }

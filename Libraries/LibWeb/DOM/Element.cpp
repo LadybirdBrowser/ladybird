@@ -1605,6 +1605,19 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
         style_computer.cache_computed_style_invalidation(style_record_delta, element_folds_transform_into_layout, result);
     }
 
+    // An SVG currentColor stroke stores its resolved color alongside the fact that it came from
+    // currentColor. A color-only change can therefore alter the visible stroke width and the SVG
+    // container bounds without changing the stroke longhand itself.
+    if (is<SVG::SVGGraphicsElement>(abstract_element.element())
+        && old_computed_values.color() != new_computed_values.color()) {
+        auto stroke_uses_current_color = [](CSS::ComputedValues const& computed_values) {
+            auto stroke = computed_values.stroke();
+            return stroke.has_value() && stroke->color_is_currentcolor();
+        };
+        if (stroke_uses_current_color(old_computed_values) || stroke_uses_current_color(new_computed_values))
+            result.invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
+    }
+
     // The table fixup algorithm needs an authored box's display from before box type
     // transformation. A flex or grid item can therefore keep the same blockified display while
     // changing whether it needs anonymous table wrappers. Generated pseudo-element boxes are
@@ -5721,6 +5734,9 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
         if (m_inline_style && m_inline_style->is_updating())
             return;
+        // The new declaration block has not replaced the old one yet, so this is the last point at
+        // which a deferred geometry-read boundary can commit its before-change style.
+        document().flush_deferred_style_change_event();
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
         m_inline_style->set_declarations_from_text(value_or_empty);

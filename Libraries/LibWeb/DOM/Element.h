@@ -550,6 +550,7 @@ public:
     // asking republishes nothing, and answering "maybe" costs the scan the element used to pay
     // unconditionally.
     void set_is_style_query_container() { m_is_style_query_container = true; }
+    bool is_style_query_container() const { return m_is_style_query_container; }
     bool is_size_query_container() const { return m_is_size_query_container; }
     void set_is_size_query_container() { m_is_size_query_container = true; }
     void invalidate_descendant_styles_depending_on_style_container_query();

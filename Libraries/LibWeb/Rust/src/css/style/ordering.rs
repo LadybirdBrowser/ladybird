@@ -1154,6 +1154,7 @@ impl StyleEngine {
 
     /// Normalize the pending inputs without advancing the committed snapshot.
     pub(super) fn drain_transaction(&mut self) -> StyleTransaction {
+        self.merge_deferred_geometry_transaction();
         self.initial_tree_bulk_load_is_pending = false;
         self.finalize_staged_sheet_rule_replacements();
         // A diagnostic or retained planning snapshot may still hold this exact immutable routing

@@ -12,7 +12,7 @@
             document.body.appendChild(makeElement("a", { attributes: { href: `https://example.com/page${i}` } }));
         }
         document.body.appendChild(makeElement("a", { id: "same-doc", attributes: { href: "#target" } }));
-        document.body.offsetWidth;
+        internals.updateStyle();
 
         const printCounters = label => {
             const counters = internals.getStyleInvalidationCounters();
@@ -22,17 +22,17 @@
         // Without any :local-link rule, a URL change should produce no invalidation work at all.
         resetStyleCounters();
         history.pushState({}, "", "#initial");
-        document.body.offsetWidth;
+        internals.updateStyle();
         printCounters("no :local-link rule");
 
         const documentStyle = addStyle(document.head, `a:local-link { color: rgb(0, 128, 0); }`);
-        document.body.offsetWidth;
+        internals.updateStyle();
 
         // With a :local-link rule, navigating to the targeted fragment must restyle only the matching anchor, the
         // other 50 anchors and the rest of the document are untouched.
         resetStyleCounters();
         history.pushState({}, "", "#target");
-        document.body.offsetWidth;
+        internals.updateStyle();
         printCounters(":local-link rule, anchor flips");
 
         // A :local-link rule that lives only inside a shadow root must still trigger invalidation for shadow
@@ -43,11 +43,11 @@
         const shadowRoot = host.attachShadow({ mode: "open" });
         addStyle(shadowRoot, `a:local-link { color: rgb(0, 0, 128); }`);
         shadowRoot.appendChild(makeElement("a", { id: "shadow-anchor", attributes: { href: "#shadow-target" } }));
-        document.body.offsetWidth;
+        internals.updateStyle();
 
         resetStyleCounters();
         history.pushState({}, "", "#shadow-target");
-        document.body.offsetWidth;
+        internals.updateStyle();
         printCounters("shadow-only :local-link rule, shadow anchor flips");
     });
 </script>

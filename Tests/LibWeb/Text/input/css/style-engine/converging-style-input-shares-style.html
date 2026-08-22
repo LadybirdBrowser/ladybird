@@ -21,12 +21,12 @@
 <script>
     test(() => {
         const items = document.querySelectorAll("span");
-        document.body.offsetWidth;
+        internals.updateStyle();
 
         internals.resetStyleInvalidationCounters();
         for (const item of items)
             item.className = "new";
-        document.body.offsetWidth;
+        internals.updateStyle();
 
         const counters = internals.getStyleInvalidationCounters();
         println(`shared converging style: ${counters.elementStyleSharedComputations >= 1}`);

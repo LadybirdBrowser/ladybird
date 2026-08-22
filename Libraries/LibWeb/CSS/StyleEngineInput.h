@@ -16,6 +16,13 @@ namespace Web::CSS {
 
 class StyleEngine;
 
+// Whether declaring this property can provide the parameters for a CSS transition.
+WEB_API bool property_defines_a_css_transition(PropertyID);
+
+// Settle a style-change boundary deferred by a geometry read before mutating a rule's declaration
+// block. Constructed sheets can have copies in multiple document engines.
+WEB_API void flush_deferred_style_change_events_for_rule(CSSRule&);
+
 // Translates DOM and CSSOM mutations into StyleEngine's typed semantic inputs.
 //
 // These are recording calls, not evaluation: each one appends to the batch that crosses into the

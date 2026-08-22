@@ -55,6 +55,9 @@ public:
 
     float visible_stroke_width() const
     {
+        // NB: CSS geometry-effect metadata relies on this reading only stroke color and width.
+        //     If SVG bounds begin accounting for caps, joins, miter limits, or stroke opacity,
+        //     mark those properties as affecting layout geometry as well.
         if (auto color = stroke_color(); color.has_value() && color->alpha() > 0)
             return stroke_width().value_or(0);
         return 0;
