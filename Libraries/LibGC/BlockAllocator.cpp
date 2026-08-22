@@ -14,6 +14,7 @@
 #include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/HeapBlock.h>
+#include <LibGC/HeapRegion.h>
 #include <LibThreading/Thread.h>
 #include <sys/mman.h>
 
@@ -29,6 +30,10 @@
 #    include <sched.h>
 #    include <unistd.h>
 #endif
+
+extern "C" {
+GC_API FlatPtr js_heap_region_base = 0;
+}
 
 namespace GC {
 
@@ -46,18 +51,37 @@ static_assert(BLOCKS_PER_CHUNK == 128);
 
 class HeapRegion {
 public:
-    static constexpr size_t size = 4ull * TiB;
+    static constexpr size_t size = HEAP_REGION_SIZE;
 
     HeapRegion()
     {
         static_assert(sizeof(FlatPtr) >= sizeof(u64));
         Checked<size_t> reservation_size = size;
-        reservation_size += HeapBlock::BLOCK_SIZE;
+        reservation_size += size;
         VERIFY(!reservation_size.has_overflow());
 
         auto* reservation = MUST(Core::System::reserve_address_space(reservation_size.value()));
-        m_base = reinterpret_cast<u8*>(align_up_to(reinterpret_cast<FlatPtr>(reservation), HeapBlock::BLOCK_SIZE));
-        VERIFY(reinterpret_cast<FlatPtr>(m_base) % HeapBlock::BLOCK_SIZE == 0);
+        auto reservation_start = reinterpret_cast<FlatPtr>(reservation);
+        auto aligned_start = align_up_to(reservation_start, size);
+        auto reservation_end = reservation_start + reservation_size.value();
+        auto head_size = aligned_start - reservation_start;
+        auto tail_size = reservation_end - (aligned_start + size);
+
+#if !defined(AK_OS_WINDOWS)
+        if (head_size != 0)
+            MUST(Core::System::release_address_space(reservation, head_size));
+        if (tail_size != 0)
+            MUST(Core::System::release_address_space(reinterpret_cast<void*>(aligned_start + size), tail_size));
+#else
+        // VirtualFree with MEM_RELEASE can only release the complete
+        // reservation, so keep the inaccessible head and tail on Windows.
+        (void)head_size;
+        (void)tail_size;
+#endif
+
+        m_base = reinterpret_cast<u8*>(aligned_start);
+        VERIFY(reinterpret_cast<FlatPtr>(m_base) % size == 0);
+        js_heap_region_base = reinterpret_cast<FlatPtr>(m_base);
     }
 
     void* allocate_chunk()
