@@ -124,7 +124,11 @@
             "cascadeSourceSlotCallbacks",
         ].every(name => !(name in customPropertyCounters))}`);
         println(`custom-property cascade entered Rust: ${customPropertyCounters.cascadeCustomPropertyEntries > 0}`);
-        println(`cascade resolution entered Rust: ${customPropertyCounters.cascadeResolutionEntries > 0}`);
+        println(`cascade request counters removed: ${[
+            "cascadeResolutionEntries",
+            "cascadeNativeSubstitutionRequests",
+            "cascadeCppResolutionRequests",
+        ].every(name => !(name in customPropertyCounters))}`);
         println(`custom-property cascade avoided C++ callback: ${!("cascadeCustomPropertyBatchCallbacks" in customPropertyCounters)}`);
 
         const relativeLengths = document.createElement("div");

@@ -1,13 +1,10 @@
-shared environment parse requests: 50
+substitution request counters removed: true
 shared environment value parses: 1
 shared value: 7px
-later transaction parse requests: 1
 later transaction value parses: 0
 later transaction value: 7px
-registration change parse requests: 50
 registration change value parses: 1
 registration change value: 7px
-different environment parse requests: 1
 different environment value parses: 1
 changed value: 9px
 unchanged neighbour: 7px
