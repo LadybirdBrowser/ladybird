@@ -1288,8 +1288,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
     VERIFY(!operation->is_browser_traversal());
     auto const& request = operation->parameters;
     auto result_matches_request = request.visit(
-        [&](Web::PushHistoryOperationParameters const&) { return result.has<Web::CrossDocumentNavigationFinalization>(); },
-        [&](Web::ReplaceHistoryOperationParameters const&) { return result.has<Web::CrossDocumentNavigationFinalization>(); },
+        [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&) { return result.has<Web::CrossDocumentNavigationFinalization>(); },
         [&](Web::NavigableCreationHistoryOperationParameters const&) { return result.has<Web::HTML::CrossProcessId>(); },
         [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&) { return result.has<Web::HTML::SameDocumentNavigationEntry>(); },
         [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) { return false; },
@@ -1323,17 +1322,14 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
     };
 
     request.visit(
-        [&](Web::PushHistoryOperationParameters const& parameters) {
+        [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) {
             auto target_step = finalize_cross_document_navigation(parameters.navigable_id, parameters.pending_document_state_id);
             if (!target_step.has_value())
                 return;
-            apply_history_step(*operation, *target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Push);
-        },
-        [&](Web::ReplaceHistoryOperationParameters const& parameters) {
-            auto target_step = finalize_cross_document_navigation(parameters.navigable_id, parameters.pending_document_state_id);
-            if (!target_step.has_value())
-                return;
-            apply_history_step(*operation, *target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Replace);
+            auto navigation_type = parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Push
+                ? Web::Bindings::NavigationType::Push
+                : Web::Bindings::NavigationType::Replace;
+            apply_history_step(*operation, *target_step, false, {}, parameters.user_involvement, navigation_type);
         },
         [&](Web::ReloadHistoryOperationParameters const& parameters) {
             auto current_step = m_session_history.current_step();
