@@ -39,6 +39,59 @@ bool CanonicalNavigable::is_hosted_by(WebContentClient const& client, u64 page_i
     return m_reporting_client.ptr() == &client && m_reporting_page_id == page_id;
 }
 
+void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry entry)
+{
+    m_pending_same_document_session_history_entries.append({ operation_id, move(entry) });
+}
+
+Optional<Web::HTML::SameDocumentNavigationEntry> CanonicalNavigable::take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity)
+{
+    for (size_t i = 0; i < m_pending_same_document_session_history_entries.size(); ++i) {
+        auto const& pending_entry = m_pending_same_document_session_history_entries[i];
+        if (pending_entry.operation_id == operation_id
+            && Web::HTML::session_history_entry_identity(pending_entry.entry) == entry_identity)
+            return m_pending_same_document_session_history_entries.take(i).entry;
+    }
+    return {};
+}
+
+bool CanonicalNavigable::update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Function<void(Web::HTML::SameDocumentNavigationEntry&)> const& update_entry)
+{
+    for (auto& pending_entry : m_pending_same_document_session_history_entries.in_reverse()) {
+        if (Web::HTML::session_history_entry_identity(pending_entry.entry) != entry_identity)
+            continue;
+        update_entry(pending_entry.entry);
+        return true;
+    }
+    return false;
+}
+
+bool CanonicalNavigable::has_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const& entry_identity) const
+{
+    for (auto const& pending_entry : m_pending_same_document_session_history_entries) {
+        if (Web::HTML::session_history_entry_identity(pending_entry.entry) == entry_identity)
+            return true;
+    }
+    return false;
+}
+
+void CanonicalNavigable::remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id)
+{
+    m_pending_same_document_session_history_entries.remove_all_matching([&](auto const& pending_entry) {
+        return pending_entry.operation_id == operation_id;
+    });
+}
+
+Vector<CanonicalNavigable::PendingSameDocumentSessionHistoryEntry> CanonicalNavigable::take_pending_same_document_session_history_entries()
+{
+    return move(m_pending_same_document_session_history_entries);
+}
+
+void CanonicalNavigable::append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry> entries)
+{
+    m_pending_same_document_session_history_entries.extend(move(entries));
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
 CanonicalTraversable& CanonicalNavigable::top_level_traversable()
 {

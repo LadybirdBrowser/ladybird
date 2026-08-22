@@ -1103,7 +1103,7 @@ void Window::set_name(Utf16View name)
     auto active_session_history_entry = navigable->active_session_history_entry();
     active_session_history_entry->document_state()->set_navigable_target_name(navigable_target_name);
     navigable->page().client().page_did_update_session_history_entry_document_state_navigable_target_name(
-        navigable->id(), active_session_history_entry->navigation_api_key(), navigable_target_name);
+        navigable->id(), session_history_entry_identity(*active_session_history_entry), navigable_target_name);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status

@@ -283,16 +283,45 @@ bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId>
     return update_nested_session_history_entries_by_navigation_api_key(m_entries, *nested_history_id, navigation_api_key, update_entry);
 }
 
-bool TraversableSessionHistory::update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
+template<typename UpdateEntry>
+static bool update_session_history_entry_by_identity(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, UpdateEntry const& update_entry)
 {
     auto did_update = false;
-    update_entry(nested_history_id, persisted_state.navigation_api_key, [&](auto& entry) {
-        if (entry.document_state.id != persisted_state.document_state_id)
-            return;
-        entry.scroll_position_data = persisted_state.scroll_position_data;
-        did_update = true;
-    });
+    for (auto& entry : entries) {
+        if (Web::HTML::session_history_entry_identity(entry) == entry_identity) {
+            update_entry(entry);
+            did_update = true;
+        }
+    }
     return did_update;
+}
+
+template<typename UpdateEntry>
+static bool update_nested_session_history_entries_by_identity(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, UpdateEntry const& update_entry)
+{
+    auto did_update = false;
+    for (auto& entry : entries) {
+        for (auto& nested_history : entry.document_state.nested_histories) {
+            if (nested_history.id == navigable_id)
+                did_update |= update_session_history_entry_by_identity(nested_history.entries, entry_identity, update_entry);
+            did_update |= update_nested_session_history_entries_by_identity(nested_history.entries, navigable_id, entry_identity, update_entry);
+        }
+    }
+    return did_update;
+}
+
+bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Function<void(Entry&)> const& update_entry)
+{
+    if (!nested_history_id.has_value())
+        return update_session_history_entry_by_identity(m_entries, entry_identity, update_entry);
+    return update_nested_session_history_entries_by_identity(m_entries, *nested_history_id, entry_identity, update_entry);
+}
+
+bool TraversableSessionHistory::update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
+{
+    return update_entry(nested_history_id, persisted_state.entry_identity, [&](auto& entry) {
+        entry.scroll_position_data = persisted_state.scroll_position_data;
+    });
 }
 
 template<typename UpdateDocumentState>
@@ -362,6 +391,11 @@ static bool update_session_history_document_state_by_id(Vector<TraversableSessio
             did_update |= update_session_history_document_state_by_id(nested_history.entries, document_state_id, update_document_state);
     }
     return did_update;
+}
+
+bool TraversableSessionHistory::update_document_state(Web::HTML::CrossProcessId document_state_id, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state)
+{
+    return update_session_history_document_state_by_id(m_entries, document_state_id, update_document_state);
 }
 
 Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
@@ -491,104 +525,6 @@ static bool append_or_replace_entry(Vector<TraversableSessionHistory::Entry>& en
     replacement_entry.step = existing_entry->step;
     *existing_entry = move(replacement_entry);
     return true;
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
-Optional<i32> TraversableSessionHistory::finalize_same_document_navigation(CanonicalNavigable const& target_navigable, Web::HTML::SameDocumentNavigationEntry target_entry, Optional<Web::HTML::SessionHistoryEntryIdentity> entry_to_replace)
-{
-    // 1. Assert: this is running on traversable's session history traversal queue.
-    if (!m_current_used_step_index.has_value())
-        return {};
-
-    auto current_step = m_used_steps[*m_current_used_step_index];
-    auto nested_history_id = target_navigable.is_top_level_traversable() ? Optional<Web::HTML::CrossProcessId> {} : target_navigable.id();
-
-    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
-    // NB: The process hosting targetNavigable performs this object identity check at this queue position before
-    //     returning targetEntry to the UI process.
-
-    // 3. Let targetStep be null.
-    Optional<i32> target_step;
-
-    // 4. Let targetEntries be the result of getting session history entries for targetNavigable.
-    auto* target_entries = nested_history_id.has_value() ? nested_session_history_entries_for_navigable(m_entries, *nested_history_id) : &m_entries;
-    if (!target_entries)
-        return {};
-
-    // Rebuild targetEntry using the document state held by canonical history.
-    auto target_document_state = target_entries->find_if([&](auto const& entry) {
-        return entry.document_state.id == target_entry.document_state_id;
-    });
-    if (target_document_state == target_entries->end())
-        return {};
-
-    auto canonical_target_entry = Entry {
-        .step = 0,
-        .url = move(target_entry.url),
-        .document_state = target_document_state->document_state,
-        .classic_history_api_state = move(target_entry.classic_history_api_state),
-        .navigation_api_state = move(target_entry.navigation_api_state),
-        .navigation_api_key = move(target_entry.navigation_api_key),
-        .navigation_api_id = move(target_entry.navigation_api_id),
-        .scroll_restoration_mode = target_entry.scroll_restoration_mode,
-        .scroll_position_data = move(target_entry.scroll_position_data),
-    };
-
-    // Mutate a copy so the spec's clear-then-append sequence is atomic in the UI-process mirror. A stale nested
-    // navigable can disappear from the canonical entry tree when forward history is cleared.
-    auto updated_entries = m_entries;
-
-    // 5. If entryToReplace is null:
-    bool did_update = false;
-    if (!entry_to_replace.has_value()) {
-        // 1. Clear the forward session history of traversable.
-        clear_forward_session_history_entries(updated_entries, current_step);
-
-        // 2. Set targetStep to traversable's current session history step + 1.
-        target_step = current_step + 1;
-
-        // 3. Set targetEntry's step to targetStep.
-        canonical_target_entry.step = *target_step;
-
-        // 4. Append targetEntry to targetEntries.
-        did_update = update_session_history_entries_for_navigable(updated_entries, nested_history_id, [&](auto& entries) {
-            return append_or_replace_entry(entries, canonical_target_entry, {});
-        });
-    }
-    // Otherwise:
-    else {
-        // 1. Replace entryToReplace with targetEntry in targetEntries.
-        auto canonical_entry_to_replace = target_entries->find_if([&](auto const& entry) {
-            return Web::HTML::session_history_entry_identity(entry) == *entry_to_replace;
-        });
-        if (canonical_entry_to_replace == target_entries->end())
-            return {};
-
-        // 2. Set targetEntry's step to entryToReplace's step.
-        canonical_target_entry.step = canonical_entry_to_replace->step;
-
-        did_update = update_session_history_entries_for_navigable(updated_entries, nested_history_id, [&](auto& entries) {
-            return append_or_replace_entry(entries, canonical_target_entry, entry_to_replace);
-        });
-
-        // 3. Set targetStep to traversable's current session history step.
-        target_step = current_step;
-    }
-
-    if (!did_update)
-        return {};
-
-    auto updated_used_steps = get_all_used_history_steps(updated_entries);
-    auto updated_current_used_step_index = updated_used_steps.find_first_index(current_step);
-    if (!updated_current_used_step_index.has_value())
-        return {};
-
-    m_entries = move(updated_entries);
-    m_used_steps = move(updated_used_steps);
-    m_current_used_step_index = *updated_current_used_step_index;
-
-    // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    return target_step;
 }
 
 bool TraversableSessionHistory::clear_the_forward_session_history()

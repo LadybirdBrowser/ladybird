@@ -43,7 +43,6 @@ using HistoryOperationReadyResult = Variant<
     Empty,
     HTML::HistoryStepResult,
     HTML::CrossProcessId,
-    HTML::SameDocumentNavigationEntry,
     CrossDocumentNavigationFinalizationHostState>;
 
 struct ReloadHistoryOperationParameters {
