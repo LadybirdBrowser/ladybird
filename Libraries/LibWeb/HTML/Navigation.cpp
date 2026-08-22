@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -58,7 +59,7 @@ static void report_navigation_api_state_update(DOM::Document& document, SessionH
         return;
 
     auto traversable = navigable->traversable_navigable();
-    traversable->page().client().page_did_update_session_history_entry_navigation_api_state(navigable->id(), entry.navigation_api_key(), entry.navigation_api_state());
+    traversable->page().client().page_did_update_session_history_entry_navigation_api_state(navigable->id(), session_history_entry_identity(entry), entry.navigation_api_state());
 }
 
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
@@ -700,7 +701,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     auto traversable = navigable->traversable_navigable();
 
     // 11. Let sourceSnapshotParams be the result of snapshotting source snapshot params given document.
-    auto source_snapshot_params = document.snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(&document);
 
     // 12. Append the following session history traversal steps to traversable:
     // NB: The UI process owns the session history traversal queue, resolves the key against the canonical session
@@ -764,15 +765,6 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         },
         {
             .source_snapshot_params = source_snapshot_params,
-            .pre_steps = GC::create_function(heap(), [key, navigable](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
-                // 3. If targetSHE is navigable's active session history entry:
-                // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
-                if (auto active_entry = navigable->active_session_history_entry(); active_entry && active_entry->navigation_api_key() == key) {
-                    ready->function()(HistoryStepResult::NoMatchingEntry);
-                    return;
-                }
-                ready->function()(Empty {});
-            }),
             .on_complete = on_complete,
         });
 
@@ -1343,8 +1335,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                     .user_involvement = user_involvement_for_resume,
                 },
                 {
-                    .navigation_api_abort_behavior = LocalNavigable::NavigationAPIAbortBehavior::Preserve,
-                    .pre_steps = GC::create_function(heap(), [this, event](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                    .pre_steps = GC::create_function(heap(), [this, event](Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                         // NB: This operation can start after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
                         if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {

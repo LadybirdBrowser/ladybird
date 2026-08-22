@@ -73,6 +73,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/ScrollOptions.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
@@ -1071,7 +1072,7 @@ void Window::set_name(Utf16View name)
     auto active_session_history_entry = navigable->active_session_history_entry();
     active_session_history_entry->document_state()->set_navigable_target_name(navigable_target_name);
     navigable->page().client().page_did_update_session_history_entry_document_state_navigable_target_name(
-        navigable->id(), active_session_history_entry->navigation_api_key(), navigable_target_name);
+        navigable->id(), session_history_entry_identity(*active_session_history_entry), navigable_target_name);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
@@ -1099,7 +1100,7 @@ void Window::close()
     auto browsing_context = traversable->active_browsing_context();
 
     // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
-    auto source_snapshot_params = traversable->active_document()->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(traversable->active_document());
 
     auto& incumbent_global_object = HTML::incumbent_window();
 

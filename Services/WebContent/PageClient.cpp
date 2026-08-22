@@ -43,6 +43,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -237,19 +238,90 @@ Web::HTML::CrossProcessId PageClient::allocate_navigable_id()
     return allocate_cross_process_id();
 }
 
-Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<Web::HTML::CrossProcessId> frame_id) const
+void PageClient::request_navigation_start(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, URL::URL const& url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
 {
-    return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
+    client().async_did_request_navigation_start(m_id, navigable.id(), current_url, target, url, move(navigation_id), move(start_request));
 }
 
-void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
+void PageClient::request_navigation_population(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
 {
-    client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling, source_snapshot);
+    client().async_did_request_navigation_population(m_id, navigable.id(), current_url, target, move(request));
 }
 
-void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
+void PageClient::navigation_params_creation_finished(Web::HTML::LocalNavigable& navigable, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
-    client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling, source_snapshot);
+    client().async_did_finish_navigation_params_creation(m_id, navigable.id(), request.navigation_id, move(result));
+}
+
+void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+}
+
+void PageClient::populate_navigation(Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
+{
+    page().top_level_traversable()->continue_navigation_at_population(move(request), move(result));
+}
+
+void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest request)
+{
+    auto navigable_id = request.navigable_id;
+    auto navigation_id = request.navigation_id;
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document) {
+        client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
+        return;
+    }
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != navigable_id)
+            continue;
+        if (!navigable->resume_navigation_params_creation(navigation_id, move(request)))
+            client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
+        return;
+    }
+
+    client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
+}
+
+void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document)
+        return;
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != navigable_id)
+            continue;
+        navigable->resume_navigation_params_creation(navigation_id, {});
+        return;
+    }
+}
+
+void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document) {
+        client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+        return;
+    }
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != navigable_id)
+            continue;
+        navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
+            // The UI process retained the pending entry at admission; a passed check only needs the signal.
+            if (!should_continue) {
+                navigable->resume_navigation_params_creation(navigation_id, {});
+                client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+                return;
+            }
+            client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id);
+        }));
+        return;
+    }
+
+    client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
 }
 
 void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
@@ -555,16 +627,6 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
     client().async_did_request_external_url(m_id, url, initiator_origin, has_transient_activation);
 }
 
-void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, bool is_redirect)
-{
-    client().async_did_start_loading(m_id, navigation_id, url, is_redirect);
-}
-
-void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const&)
-{
-    client().async_did_cancel_loading(m_id, navigation_id);
-}
-
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 {
     initialize_js_console(document);
@@ -594,9 +656,9 @@ void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation
     client().async_did_finish_loading(m_id, navigation_id, url);
 }
 
-Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+Optional<u64> PageClient::page_did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
 {
-    auto response = client().send_sync<Messages::WebContentClient::DidStartDownload>(m_id, url, suggested_filename, total_size, request_server_client_id, request_server_request_id, move(initial_data));
+    auto response = client().send_sync<Messages::WebContentClient::DidStartDownload>(m_id, navigable_id, navigation_id, url, suggested_filename, total_size, request_server_client_id, request_server_request_id, move(initial_data));
     return response->download_id();
 }
 
@@ -1147,19 +1209,19 @@ void PageClient::send_current_needs_beforeunload_check()
     client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
 }
 
-void PageClient::page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord const& navigation_api_state)
+void PageClient::page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::StorageSerializationRecord const& navigation_api_state)
 {
-    client().async_did_update_session_history_entry_navigation_api_state(m_id, navigable_id, navigation_api_key, navigation_api_state);
+    client().async_did_update_session_history_entry_navigation_api_state(m_id, navigable_id, entry_identity, navigation_api_state);
 }
 
-void PageClient::page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
+void PageClient::page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
 {
-    client().async_did_update_session_history_entry_scroll_restoration_mode(m_id, navigable_id, navigation_api_key, scroll_restoration_mode);
+    client().async_did_update_session_history_entry_scroll_restoration_mode(m_id, navigable_id, entry_identity, scroll_restoration_mode);
 }
 
-void PageClient::page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Utf16String const& navigable_target_name)
+void PageClient::page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Utf16String const& navigable_target_name)
 {
-    client().async_did_update_session_history_entry_document_state_navigable_target_name(m_id, navigable_id, navigation_api_key, navigable_target_name);
+    client().async_did_update_session_history_entry_document_state_navigable_target_name(m_id, navigable_id, entry_identity, navigable_target_name);
 }
 
 void PageClient::page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending)
@@ -1167,9 +1229,9 @@ void PageClient::page_did_set_session_history_entry_document_state_reload_pendin
     client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
 }
 
-void PageClient::page_did_request_history_operation(u64 initiation_id, Web::HistoryOperationParameters parameters)
+void PageClient::page_did_request_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
 {
-    client().async_request_history_operation(m_id, initiation_id, move(parameters));
+    client().async_request_history_operation(m_id, operation_id, move(parameters));
 }
 
 String PageClient::page_did_request_ui_process_session_history_for_testing()

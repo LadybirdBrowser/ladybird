@@ -16,6 +16,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibRequests/Request.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/Error.h>
@@ -25,6 +26,7 @@
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/NavigationLoader.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
@@ -86,6 +88,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
 
 WebContentClient::~WebContentClient()
 {
+    cancel_navigation_transactions();
     WorkerProcessManager::the().remove_web_content_owner(*this);
     clients().remove(this);
 
@@ -107,6 +110,7 @@ Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(W
 
 void WebContentClient::die()
 {
+    cancel_navigation_transactions();
     fail_renderer_owned_downloads();
 }
 
@@ -167,6 +171,9 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     view.m_client_state.page_index = m_initial_page_id;
     view.traversable().set_id(m_root_navigable_id);
     m_views.set(m_initial_page_id, view);
+
+    if (m_initial_top_level_history_entry_awaiting_view.has_value())
+        view.did_create_top_level_traversable({}, m_initial_top_level_history_entry_awaiting_view.release_value());
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -488,54 +495,345 @@ void WebContentClient::did_present_bitmap(u64 page_id, Gfx::IntRect rect, Gfx::I
     }
 }
 
-void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot)
+void WebContentClient::cancel_navigation_transactions()
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->create_new_process_for_cross_site_navigation(url, move(document_resource), history_handling, move(source_snapshot));
+    ViewImplementation::for_each_view([this](ViewImplementation& view) {
+        view.traversable().for_each_in_inclusive_subtree([this](CanonicalNavigable& navigable) {
+            navigable.cancel_navigation_transaction_for_client(*this);
+            return IterationDecision::Continue;
+        });
+        return IterationDecision::Continue;
+    });
 }
 
-Messages::WebContentClient::DecideNavigationProcessResponse WebContentClient::decide_navigation_process(u64 page_id, Optional<Web::HTML::CrossProcessId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget target)
+void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
 {
-    return SiteIsolationManager::the().decide_navigation_process(*this, page_id, move(frame_id), move(current_url), move(target_url), target);
+    auto* target_navigable = navigable_for_page(page_id);
+    if (target == Web::NavigationTarget::IFrame) {
+        auto child_frame = this->child_frame(page_id, navigable_id);
+        target_navigable = child_frame.has_value() ? &*child_frame : nullptr;
+    }
+
+    if (!target_navigable
+        || target_navigable->id() != navigable_id
+        || (start_request.has_value() && start_request->navigable_id != navigable_id)) {
+        async_cancel_navigation_params_creation(page_id, navigable_id, navigation_id);
+        return;
+    }
+
+    // A javascript: navigation runs synchronously in the requesting process and never populates an entry; its
+    // admission carries no request to retain and just begins the recorded load.
+    if (!start_request.has_value()) {
+        if (target_navigable->is_top_level_traversable()) {
+            if (auto view = view_for_page_id(page_id); view.has_value())
+                begin_top_level_load(*view, page_id, move(navigation_id), url);
+        }
+        return;
+    }
+
+    auto sequence_number = target_navigable->top_level_traversable().allocate_navigation_or_traversal_sequence_number();
+    if (auto const& ongoing_navigation = target_navigable->ongoing_navigation(); ongoing_navigation.has_value()
+        && ongoing_navigation->sequence_number != 0
+        && ongoing_navigation->navigation_id == navigation_id) {
+        // A UI-initiated top-level load records its transaction, under a navigation ID the UI
+        // generated, before WebContent enters navigate(). Keep its original admission order now
+        // that WebContent has started the navigation.
+        sequence_number = ongoing_navigation->sequence_number;
+    }
+
+    target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+        .url = move(url),
+        .current_url = move(current_url),
+        .target = target,
+        .navigation_id = navigation_id,
+        .start_request = move(start_request),
+        .sequence_number = sequence_number,
+        .is_uncommitted = target_navigable->is_top_level_traversable(),
+        .phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck,
+    });
+    target_navigable->set_navigation_population_worker(*this, page_id);
+    async_run_navigation_unload_check(page_id, navigable_id, move(navigation_id));
 }
 
-void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot)
+void WebContentClient::did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
-    auto child_frame = this->child_frame(page_id, frame_id);
-    if (!child_frame.has_value())
-        return;
-    if (!child_frame->has_matching_pending_navigation(url, CanonicalNavigable::HostLocality::Remote))
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
         return;
 
-    auto current_step = child_frame->top_level_traversable().session_history().current_step();
+    auto& ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation.has_value()
+        || ongoing_navigation->navigation_id != navigation_id
+        || ongoing_navigation->phase != CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck
+        || ongoing_navigation->population_worker_client.ptr() != this
+        || ongoing_navigation->population_worker_page_id != page_id
+        || !ongoing_navigation->start_request.has_value()) {
+        return;
+    }
+
+    auto population_request = Web::HTML::create_navigation_population_request(
+        ongoing_navigation->start_request.release_value(),
+        Application::the().allocate_ui_process_cross_process_id());
+    ongoing_navigation->loader = NavigationLoader::create(m_is_private, move(population_request));
+    ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
+    async_create_navigation_params(page_id, ongoing_navigation->loader->request());
+
+    // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
+    // load here.
+    if (navigable->is_top_level_traversable()) {
+        if (auto view = view_for_page_id(page_id); view.has_value())
+            begin_top_level_load(*view, page_id, move(navigation_id), ongoing_navigation->loader->request().history_entry.url);
+    }
+}
+
+void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
+{
+    auto const& target_url = request.history_entry.url;
+
+    auto* target_navigable = navigable_for_page(page_id);
+    Optional<CanonicalNavigable&> child_frame;
+    if (target == Web::NavigationTarget::IFrame) {
+        child_frame = this->child_frame(page_id, navigable_id);
+        target_navigable = child_frame.has_value() ? &*child_frame : nullptr;
+    }
+
+    if (!target_navigable
+        || target_navigable->id() != navigable_id
+        || request.navigable_id != navigable_id) {
+        async_cancel_navigation_params_creation(page_id, navigable_id, request.navigation_id);
+        return;
+    }
+
+    if (auto const& ongoing_navigation = target_navigable->ongoing_navigation(); ongoing_navigation.has_value()
+        && ongoing_navigation->navigation_id == request.navigation_id
+        && ongoing_navigation->loader) {
+        async_cancel_navigation_params_creation(page_id, navigable_id, request.navigation_id);
+        return;
+    }
+
+    // A reconstructed child navigation was admitted in the populating phase without a request of its own;
+    // only the process hosting the child's document may deliver its population request.
+    auto continues_reconstructed_child_navigation = target_navigable->ongoing_navigation().has_value()
+        && target_navigable->ongoing_navigation()->navigation_id == request.navigation_id
+        && target_navigable->ongoing_navigation()->phase == CanonicalNavigable::OngoingNavigation::Phase::Populating
+        && !target_navigable->ongoing_navigation()->loader
+        && target_navigable->navigation_host_matches(*this, page_id);
+    if (continues_reconstructed_child_navigation) {
+        auto& ongoing_navigation = *target_navigable->ongoing_navigation();
+        ongoing_navigation.url = target_url;
+        ongoing_navigation.current_url = move(current_url);
+        ongoing_navigation.target = target;
+        ongoing_navigation.phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
+        ongoing_navigation.loader = NavigationLoader::create(m_is_private, move(request));
+    } else {
+        target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+            .url = target_url,
+            .current_url = move(current_url),
+            .target = target,
+            .navigation_id = request.navigation_id,
+            .sequence_number = target_navigable->top_level_traversable().allocate_navigation_or_traversal_sequence_number(),
+            .is_uncommitted = target_navigable->is_top_level_traversable(),
+            .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
+            .loader = NavigationLoader::create(m_is_private, move(request)),
+        });
+    }
+
+    // The UI process owns the in-parallel population work. Dispatch the document-dependent
+    // steps through step 4 to the process with the live source document. The response URL then
+    // determines which process receives the task queued by step 5.
+    if (!target_navigable->ongoing_navigation()->population_worker_client)
+        target_navigable->set_navigation_population_worker(*this, page_id);
+    async_create_navigation_params(page_id, target_navigable->ongoing_navigation()->loader->request());
+
+    // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
+    // load here.
+    if (target_navigable->is_top_level_traversable()) {
+        if (auto view = view_for_page_id(page_id); view.has_value())
+            begin_top_level_load(*view, page_id, target_navigable->ongoing_navigation()->navigation_id, target_navigable->ongoing_navigation()->loader->request().history_entry.url);
+    }
+}
+
+void WebContentClient::did_finish_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult> result)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value()) {
+        if (result.has_value())
+            NavigationLoader::discard(m_is_private, *result);
+        return;
+    }
+
+    if (!navigable->navigation_population_matches(*this, page_id, navigation_id)) {
+        if (result.has_value())
+            NavigationLoader::discard(m_is_private, *result);
+        return;
+    }
+
+    auto end_recorded_load_for_canceled_navigation = [&] {
+        if (!navigable->is_top_level_traversable())
+            return;
+        if (auto view = view_for_page_id(page_id); view.has_value())
+            view->did_cancel_loading(navigation_id);
+    };
+
+    if (!result.has_value()) {
+        end_recorded_load_for_canceled_navigation();
+        navigable->clear_ongoing_navigation();
+        return;
+    }
+
+    auto& ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation.has_value()
+        || !ongoing_navigation->loader
+        || !ongoing_navigation->current_url.has_value()) {
+        NavigationLoader::discard(m_is_private, *result);
+        end_recorded_load_for_canceled_navigation();
+        navigable->clear_ongoing_navigation();
+        return;
+    }
+
+    // Steps 1-4 have produced final navigation params. Keep the pending entry in
+    // sync with redirects before choosing the process that will run step 5.
+    navigable->did_finish_navigation_params_creation();
+    ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingResponseBody;
+    ongoing_navigation->loader->did_finish_navigation_params_creation(result.release_value());
+    ongoing_navigation->url = ongoing_navigation->loader->request().history_entry.url;
+
+    RefPtr self = this;
+    ongoing_navigation->loader->acquire_response_body([self, page_id, navigable_id, navigation_id = move(navigation_id)](bool succeeded) mutable {
+        auto cancel_navigation = [&](CanonicalNavigable& navigable) {
+            if (navigable.is_top_level_traversable()) {
+                if (auto view = self->view_for_page_id(page_id); view.has_value())
+                    view->did_cancel_loading(navigation_id);
+            }
+            navigable.clear_ongoing_navigation();
+        };
+        if (!succeeded) {
+            if (auto navigable = self->hosted_navigable_for_page(page_id, navigable_id); navigable.has_value())
+                cancel_navigation(*navigable);
+            return;
+        }
+        if (self->continue_navigation_population_in_selected_process(page_id, navigable_id, navigation_id))
+            return;
+        if (auto navigable = self->hosted_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
+            auto const& ongoing_navigation = navigable->ongoing_navigation();
+            if (ongoing_navigation.has_value() && ongoing_navigation->navigation_id == navigation_id)
+                cancel_navigation(*navigable);
+        }
+    });
+}
+
+void WebContentClient::did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+    auto population_failure = navigable->navigation_transaction_matches(navigation_id, *this, page_id);
+    auto awaiting_unload_check = navigable->ongoing_navigation().has_value()
+        && navigable->ongoing_navigation()->navigation_id == navigation_id
+        && navigable->ongoing_navigation()->phase == CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck
+        && navigable->ongoing_navigation()->population_worker_client.ptr() == this
+        && navigable->ongoing_navigation()->population_worker_page_id == page_id;
+    // A javascript: navigation is admitted without population state and can take over a still-live transaction
+    // record, so its failure matches by the started navigation id alone. Only a failed population handoff owns
+    // the loader's response body; the record it took over may still be feeding the active document.
+    if (!population_failure && !awaiting_unload_check && !navigable->matches_ongoing_navigation(navigation_id))
+        return;
+
+    auto& ongoing_navigation = *navigable->ongoing_navigation();
+    if (population_failure && ongoing_navigation.loader)
+        ongoing_navigation.loader->reclaim_response_body_after_failed_handoff();
+    m_history_recorded_urls_for_current_load.remove(page_id);
+    if (navigable->is_top_level_traversable()) {
+        if (auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable()); view.has_value()) {
+            view->did_cancel_loading(navigation_id);
+            return;
+        }
+    }
+    navigable->clear_ongoing_navigation();
+}
+
+bool WebContentClient::continue_navigation_population_in_selected_process(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return false;
+
+    auto& ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation.has_value()
+        || ongoing_navigation->navigation_id != navigation_id
+        || ongoing_navigation->phase != CanonicalNavigable::OngoingNavigation::Phase::AwaitingResponseBody
+        || !ongoing_navigation->loader) {
+        return false;
+    }
+
+    auto const& result = ongoing_navigation->loader->result();
+    auto const& current_url = *ongoing_navigation->current_url;
+    auto const& target_url = *ongoing_navigation->url;
+
+    // Step 6 of https://html.spec.whatwg.org/multipage/browsing-the-web.html#process-a-navigate-response
+    // A 204 or 205 response does not load a document, so keep the active document's process as the host.
+    auto creates_a_document = true;
+    if (result.navigation_params.has<Web::HTML::NavigationParamsDescriptor>()) {
+        auto status = result.navigation_params.get<Web::HTML::NavigationParamsDescriptor>().response.status;
+        creates_a_document = status != 204 && status != 205;
+    }
+
+    auto requires_process_swap = false;
+    if (creates_a_document) {
+        if (navigable->is_top_level_traversable()) {
+            requires_process_swap = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target_url, ongoing_navigation->target.value_or(Web::NavigationTarget::TopLevel));
+        } else {
+            requires_process_swap = SiteIsolationManager::the().child_frame_navigation_requires_process_swap(*navigable, current_url, target_url);
+        }
+    }
+
+    ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
+
+    if (!requires_process_swap) {
+        navigable->set_navigation_host(*this, page_id);
+        async_populate_navigation(page_id, ongoing_navigation->loader->request(), ongoing_navigation->loader->take_result());
+        return true;
+    }
+
+    if (navigable->is_top_level_traversable()) {
+        if (auto view = view_for_page_id(page_id); view.has_value()) {
+            return view->create_new_process_for_cross_site_navigation(navigation_id);
+        } else {
+            navigable->clear_ongoing_navigation();
+            return false;
+        }
+    }
+
+    auto current_step = navigable->top_level_traversable().session_history().current_step();
     VERIFY(current_step.has_value());
-    auto const* current_entry = child_frame->top_level_traversable().session_history().get_the_target_history_entry(*child_frame, *current_step);
+    auto const* current_entry = navigable->top_level_traversable().session_history().get_the_target_history_entry(*navigable, *current_step);
     VERIFY(current_entry);
 
-    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, frame_id, current_entry->document_state.id);
+    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, navigable_id, current_entry->document_state.id);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
-        child_frame->clear_pending_navigation();
-        return;
+        navigable->clear_ongoing_navigation();
+        return false;
     }
 
     auto remote_process = remote_process_or_error.release_value();
     auto remote_page_id = remote_process.page_id;
     auto remote_client = move(remote_process.client);
-    child_frame->record_pending_navigation(url, CanonicalNavigable::HostLocality::Remote, remote_page_id);
-    remote_client->register_embedded_page(remote_page_id, *child_frame);
-    remote_client->async_set_page_parent_context(remote_page_id, Web::Compositor::compositor_context_id_for_page(page_id));
-    if (child_frame->viewport_rect().has_value()) {
+    navigable->set_navigation_host(*remote_client, remote_page_id);
+    remote_client->register_embedded_page(remote_page_id, *navigable);
+    remote_client->async_set_page_parent_context(remote_page_id, Web::Compositor::compositor_context_id_for_page(navigable->reporting_page_id()));
+    if (navigable->viewport_rect().has_value()) {
         remote_client->async_set_viewport(
             remote_page_id,
-            child_frame->viewport_rect()->size(),
-            child_frame->device_pixel_ratio(),
+            navigable->viewport_rect()->size(),
+            navigable->device_pixel_ratio(),
             Web::ViewportIsFullscreen::No);
     }
     remote_client->async_set_system_visibility_state(remote_page_id, Web::HTML::VisibilityState::Visible);
-    remote_client->async_load_url_with_document_resource(remote_page_id, url, move(document_resource), history_handling, move(source_snapshot));
+    remote_client->async_populate_navigation(remote_page_id, ongoing_navigation->loader->request(), ongoing_navigation->loader->take_result());
 
-    SiteIsolationManager::the().transition_child_frame_to_remote(*this, page_id, frame_id, move(remote_client), remote_page_id);
+    SiteIsolationManager::the().transition_child_frame_to_remote(navigable->reporting_client(), navigable->reporting_page_id(), navigable_id, move(remote_client), remote_page_id);
+    return true;
 }
 
 void WebContentClient::did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)
@@ -581,55 +879,30 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
-void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, bool is_redirect)
+void WebContentClient::begin_top_level_load(ViewImplementation& view, u64 page_id, Optional<Utf16String> navigation_id, URL::URL const& url)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
 
     m_history_recorded_urls_for_current_load.remove(page_id);
 
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (is_redirect) {
-            view->m_history_visit_transition_for_current_load = HistoryVisitTransition::Redirect;
-        } else {
-            view->m_history_visit_transition_for_current_load = view->m_history_visit_transition_for_next_load;
-            view->m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
-        }
-        view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
-        view->m_should_suppress_history_for_next_load = false;
-        view->did_start_navigation(move(navigation_id), url, is_redirect);
+    view.m_history_visit_transition_for_current_load = view.m_history_visit_transition_for_next_load;
+    view.m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
+    view.m_should_suppress_history_for_current_load = view.m_should_suppress_history_for_next_load;
+    view.m_should_suppress_history_for_next_load = false;
+    view.did_start_navigation(move(navigation_id), url);
 
-        view->set_url({}, url);
-        view->set_title({}, Utf16String::from_utf8(url.serialize()));
-        view->set_favicon({}, {});
-        view->set_editing_history_state({}, false, false);
+    view.set_url({}, url);
+    view.set_title({}, Utf16String::from_utf8(url.serialize()));
+    view.set_favicon({}, {});
+    view.set_editing_history_state({}, false, false);
 
-        if (view->on_load_start)
-            view->on_load_start();
+    if (view.on_load_start)
+        view.on_load_start();
 
-        for (auto const& [id, listener] : view->m_navigation_listeners) {
-            if (listener.on_load_start)
-                listener.on_load_start(url);
-        }
-    }
-}
-
-void WebContentClient::did_cancel_loading(u64 page_id, Optional<Utf16String> navigation_id)
-{
-    m_history_recorded_urls_for_current_load.remove(page_id);
-
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->did_cancel_navigation(navigation_id))
-            return;
-
-        auto const& client_url = view->url();
-        if (view->on_load_finish)
-            view->on_load_finish(client_url);
-
-        for (auto const& [id, listener] : view->m_navigation_listeners) {
-            if (listener.on_load_finish)
-                listener.on_load_finish(client_url);
-        }
+    for (auto const& [id, listener] : view.m_navigation_listeners) {
+        if (listener.on_load_start)
+            listener.on_load_start(url);
     }
 }
 
@@ -659,8 +932,31 @@ Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentCli
     return { download_id };
 }
 
-Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start_download(u64, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start_download(u64 page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
 {
+    // A download taking over an in-flight population's response body ends that navigation without a document;
+    // the reporting process ends its side when its population output says the download was handled. The body
+    // identifiers preserve the original RequestServer transfer lease, so only the process and navigation that
+    // received that response may claim it, and only while its population is in flight.
+    bool matches_in_flight_navigation = false;
+    if (auto navigable = hosted_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
+        auto const& ongoing_navigation = navigable->ongoing_navigation();
+        if (ongoing_navigation.has_value()
+            && ongoing_navigation->navigation_id == navigation_id
+            && ongoing_navigation->phase == CanonicalNavigable::OngoingNavigation::Phase::Populating
+            && ongoing_navigation->loader
+            && ongoing_navigation->loader->response_body_matches(request_server_client_id, request_server_request_id)) {
+            if (navigable->is_top_level_traversable()) {
+                if (auto view = view_for_page_id(page_id); view.has_value())
+                    view->did_cancel_loading(ongoing_navigation->navigation_id);
+            }
+            matches_in_flight_navigation = true;
+            navigable->clear_ongoing_navigation();
+        }
+    }
+    if (!matches_in_flight_navigation)
+        return { Optional<u64> {} };
+
     auto destination = choose_download_destination_or_report_error(url, suggested_filename);
     if (!destination.has_value())
         return { Optional<u64> {} };
@@ -1743,6 +2039,17 @@ void WebContentClient::did_change_screen_wake_lock_state(u64 page_id, Web::Scree
 
 void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
 {
+    if (page_id == m_initial_page_id && navigable_id == m_root_navigable_id) {
+        if (m_did_create_initial_top_level_traversable)
+            return;
+        m_did_create_initial_top_level_traversable = true;
+
+        if (m_views.is_empty()) {
+            m_initial_top_level_history_entry_awaiting_view = move(initial_history_entry);
+            return;
+        }
+    }
+
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value() || !navigable->is_top_level_traversable())
         return;
@@ -1753,28 +2060,28 @@ void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::
     view->did_create_top_level_traversable({}, move(initial_history_entry));
 }
 
-void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
+void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->top_level_traversable().update_session_history_entry_navigation_api_state(*navigable, navigation_api_key, move(navigation_api_state));
+    navigable->top_level_traversable().update_session_history_entry_navigation_api_state(*navigable, entry_identity, move(navigation_api_state));
 }
 
-void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
+void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, navigation_api_key, scroll_restoration_mode);
+    navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, entry_identity, scroll_restoration_mode);
 }
 
-void WebContentClient::did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Utf16String navigable_target_name)
+void WebContentClient::did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->top_level_traversable().update_session_history_entry_document_state_navigable_target_name(*navigable, navigation_api_key, move(navigable_target_name));
+    navigable->top_level_traversable().update_session_history_entry_document_state_navigable_target_name(*navigable, entry_identity, move(navigable_target_name));
 }
 
 void WebContentClient::did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending)
@@ -1804,39 +2111,39 @@ void WebContentClient::did_reset_session_history_for_testing(u64 page_id, Web::H
         view->did_reset_session_history_for_testing({}, move(active_entry));
 }
 
-void WebContentClient::request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters)
+void WebContentClient::request_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->request_history_operation({}, initiation_id, move(parameters));
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->request_history_operation({}, *this, page_id, operation_id, move(parameters));
 }
 
-void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult result)
+void WebContentClient::history_operation_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_operation_ready({}, operation_id, move(result));
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_receive_history_operation_ready({}, *this, page_id, operation_id, move(result));
 }
 
-void WebContentClient::history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result)
+void WebContentClient::history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_step_unload_cancelation_result({}, operation_id, result);
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_receive_history_step_unload_cancelation_result({}, *this, page_id, operation_id, result);
 }
 
-void WebContentClient::changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+void WebContentClient::changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_receive_changing_navigable_history_job_ready({}, *this, page_id, operation_id, navigable_id, disposition);
 }
 
-void WebContentClient::changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void WebContentClient::changing_navigable_continuation_applied(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_receive_changing_navigable_continuation_applied({}, *this, page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
 }
 
-void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_receive_nonchanging_navigable_history_state_updated({}, *this, page_id, operation_id, navigable_id);
 }
 

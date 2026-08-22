@@ -1,0 +1,4 @@
+scroll restoration after update: manual
+target name after update: updated-name
+scroll restoration after traversal round trip: manual
+target name after traversal round trip: updated-name

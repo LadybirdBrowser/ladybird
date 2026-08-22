@@ -19,7 +19,12 @@
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
@@ -62,25 +67,25 @@ endpoint WebContentServer
     update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
 
-    load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling) =|
-    load_url_with_document_resource(u64 page_id, URL::URL url,
-        Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource,
-        Web::Bindings::NavigationHistoryBehavior history_handling,
-        Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) =|
+    load_url(u64 page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id) =|
+    populate_navigation(u64 page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result) =|
     load_html(u64 page_id, ByteString html) =|
     load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|
     stop_loading(u64 page_id) =|
     cancel_download(u64 page_id, u64 download_id) =|
     run_iframe_load_event_steps(u64 page_id, Web::HTML::CrossProcessId frame_id) =|
+    run_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
+    create_navigation_params(u64 page_id, Web::HTML::NavigationPopulationRequest request) =|
+    cancel_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
     set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
     set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id) =|
-    history_operation_started(u64 page_id, u64 operation_id, u64 initiation_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry) =|
-    run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
-    run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, Optional<u64> initiation_id) =|
-    apply_changing_navigable_continuation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api) =|
-    update_nonchanging_navigable_history_state(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) =|
-    complete_history_operation(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count, Optional<u64> initiation_id) =|
+    history_operation_started(u64 page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) =|
+    run_history_step_unload_cancelation_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
+    run_changing_navigable_history_job(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, bool superseded_by_newer_navigation) =|
+    apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api) =|
+    update_nonchanging_navigable_history_state(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) =|
+    complete_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) =|
     reset_session_history_for_testing(u64 page_id) =|
 
     set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) =|

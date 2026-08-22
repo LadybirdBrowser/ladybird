@@ -411,11 +411,6 @@ void Internals::commit_text()
     page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false, true);
 }
 
-void Internals::clobber_next_navigation_with_a_traversal()
-{
-    HTML::LocalNavigable::clobber_next_navigation_with_a_traversal_for_testing();
-}
-
 UIEvents::MouseButton Internals::button_from_unsigned_short(WebIDL::UnsignedShort button)
 {
     switch (button) {
@@ -1020,10 +1015,9 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
     traversable->request_history_operation(
         FlushSessionHistoryTraversalQueueOperationParameters { .traversable_id = traversable->id() },
         {
-            .pre_steps = GC::create_function(heap(), [&realm, promise](u64, Optional<HTML::SessionHistoryEntryDescriptor>, GC::Ref<HTML::LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+            .on_complete = GC::create_function(heap(), [&realm, promise](Web::HTML::HistoryStepResult) {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::resolve_promise(promise);
-                ready->function()(Web::HTML::HistoryStepResult::Applied);
             }),
         });
     return promise;

@@ -12,7 +12,6 @@
 #include <AK/Vector.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
-#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWebView/Export.h>
@@ -59,12 +58,14 @@ public:
     [[nodiscard]] ErrorOr<void> restore_from_ui_snapshot(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id);
     void mark_current_entry_reload_pending();
     bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry);
+    bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryIdentity const&, Function<void(Entry&)> const& update_entry);
     bool update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const&);
     bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
+    bool update_document_state(Web::HTML::CrossProcessId document_state_id, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
     Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
-    Optional<i32> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
-    Optional<i32> finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::PendingSessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
+    [[nodiscard]] bool clear_the_forward_session_history();
+    bool append_or_replace_session_history_entry(CanonicalNavigable const&, Entry const&, Optional<Web::HTML::SessionHistoryEntryIdentity> const& entry_to_replace);
     Vector<Entry> entries() const;
     Vector<i32> used_steps() const;
 

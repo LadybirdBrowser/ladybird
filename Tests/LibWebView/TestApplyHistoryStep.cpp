@@ -52,20 +52,6 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url)
     };
 }
 
-static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(Web::HTML::SessionHistoryEntryDescriptor entry)
-{
-    return {
-        .url = move(entry.url),
-        .document_state = move(entry.document_state),
-        .classic_history_api_state = move(entry.classic_history_api_state),
-        .navigation_api_state = move(entry.navigation_api_state),
-        .navigation_api_key = move(entry.navigation_api_key),
-        .navigation_api_id = move(entry.navigation_api_id),
-        .scroll_restoration_mode = entry.scroll_restoration_mode,
-        .scroll_position_data = move(entry.scroll_position_data),
-    };
-}
-
 namespace {
 
 class FakeJobRunner {
@@ -96,7 +82,7 @@ public:
     {
         return {
             .run_unload_cancelation_job = [this](WebView::ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) { unload_cancelation_jobs.append({ move(job.target_entry), move(job.navigables_crossing_documents), move(on_complete) }); },
-            .select_changing_navigable_history_step_job_endpoint = [this](ChangingNavigableHistoryStepJob const& job) {
+            .select_changing_navigable_history_step_job_endpoint = [this](ChangingNavigableHistoryStepJob& job) {
                 selected_changing_job_endpoints.append(job.navigable_id);
                 return true; },
             .run_changing_navigable_history_step_job = [this](ChangingNavigableHistoryStepJob job, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete) { changing_jobs.append({ move(job), move(on_complete) }); },
@@ -167,7 +153,14 @@ struct TestTraversable {
         initialize_navigable_entry_identities();
 
         auto replacement_entry = entry(0, "https://b.example/"sv);
-        VERIFY(history.finalize_cross_document_navigation({}, pending_entry(move(replacement_entry)), initial_entry.navigation_api_key).has_value());
+        auto current_entry = history.current_entry();
+        VERIFY(current_entry);
+        auto entry_to_replace = Web::HTML::SessionHistoryEntryIdentity {
+            .document_state_id = current_entry->document_state.id,
+            .navigation_api_id = current_entry->navigation_api_id,
+        };
+        replacement_entry.step = current_entry->step;
+        VERIFY(history.append_or_replace_session_history_entry(traversable, replacement_entry, entry_to_replace));
     }
 
     WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})

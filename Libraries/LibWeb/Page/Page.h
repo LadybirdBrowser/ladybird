@@ -121,10 +121,7 @@ public:
     void set_focused_navigable(HTML::LocalNavigable&);
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
-    void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
-    void load(URL::URL const&, HTML::DocumentResource,
-        Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto,
-        Optional<HTML::NavigationSourceSnapshot> = {});
+    void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto, Optional<Utf16String> navigation_id = {});
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
 
@@ -461,12 +458,7 @@ enum class NavigationTarget : u8 {
     IFrame,
 };
 
-enum class NavigationProcessDecision : u8 {
-    Local,
-    Remote,
-};
-
-class PageClient : public JS::Cell {
+class WEB_API PageClient : public JS::Cell {
     GC_CELL(PageClient, JS::Cell);
 
 public:
@@ -477,17 +469,10 @@ public:
     virtual bool has_focus() const { return true; }
     virtual void set_has_focus([[maybe_unused]] bool has_focus) { }
     virtual bool has_active_devtools_client() const { return false; }
-    // In Ladybird, Remote currently implies replacing the WebContent process.
-    virtual NavigationProcessDecision decide_navigation_process(
-        [[maybe_unused]] URL::URL const& current_url,
-        [[maybe_unused]] URL::URL const& target_url,
-        [[maybe_unused]] NavigationTarget target = NavigationTarget::TopLevel,
-        [[maybe_unused]] Optional<HTML::CrossProcessId> frame_id = {}) const
-    {
-        return NavigationProcessDecision::Local;
-    }
-    virtual void request_new_process_for_navigation(URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
-    virtual void request_new_process_for_child_frame_navigation(HTML::CrossProcessId, URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
+    virtual void request_navigation_start(HTML::LocalNavigable&, URL::URL const& current_url, NavigationTarget, URL::URL const& url, Utf16String navigation_id, Optional<HTML::NavigationStartRequest>);
+    virtual void request_navigation_population(HTML::LocalNavigable&, URL::URL const& current_url, NavigationTarget, HTML::NavigationPopulationRequest);
+    virtual void navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult);
+    virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, CSSPixelRect) { }
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }
@@ -528,16 +513,13 @@ public:
     virtual void page_did_request_minimize_window() { }
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
-    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, bool is_redirect)
-    {
-        (void)is_redirect;
-    }
-    virtual void page_did_cancel_loading(Optional<Utf16String> const&, URL::URL const&) { }
     virtual void page_did_create_new_document(Web::DOM::Document&) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
     virtual void page_did_finish_loading(Optional<Utf16String> const&, URL::URL const&) { }
-    virtual Optional<u64> page_did_start_download(URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+    virtual Optional<u64> page_did_start_download(HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
     {
+        (void)navigable_id;
+        (void)navigation_id;
         (void)suggested_filename;
         (void)total_size;
         (void)request_server_client_id;
@@ -612,16 +594,16 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual void page_did_create_top_level_traversable([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryDescriptor const& initial_history_entry) { }
-    virtual void page_did_update_session_history_entry_navigation_api_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] HTML::StorageSerializationRecord const& navigation_api_state) { }
-    virtual void page_did_update_session_history_entry_scroll_restoration_mode([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] HTML::ScrollRestorationMode scroll_restoration_mode) { }
-    virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] Utf16String const& navigable_target_name) { }
+    virtual void page_did_update_session_history_entry_navigation_api_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] HTML::StorageSerializationRecord const& navigation_api_state) { }
+    virtual void page_did_update_session_history_entry_scroll_restoration_mode([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] HTML::ScrollRestorationMode scroll_restoration_mode) { }
+    virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] Utf16String const& navigable_target_name) { }
     virtual void page_did_set_session_history_entry_document_state_reload_pending([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] bool reload_pending) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() { return false; }
     virtual bool page_did_request_restore_session_history_snapshot_for_testing() { return false; }
     virtual bool page_did_request_register_session_store_tab_for_testing() { return false; }
     virtual String page_did_request_session_store_tab_state_for_testing() { return "{}"_string; }
-    virtual void page_did_request_history_operation([[maybe_unused]] u64 initiation_id, [[maybe_unused]] HistoryOperationParameters parameters) { }
+    virtual void page_did_request_history_operation([[maybe_unused]] HTML::CrossProcessId operation_id, [[maybe_unused]] HistoryOperationParameters parameters) { }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;

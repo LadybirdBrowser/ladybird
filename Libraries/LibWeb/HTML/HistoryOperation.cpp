@@ -9,57 +9,61 @@
 #include <LibWeb/HTML/HistoryOperation.h>
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::PushHistoryOperationParameters const& parameters)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));
-    TRY(encoder.encode(parameters.pending_document_state_id));
+    TRY(encoder.encode(parameters.history_entry));
+    TRY(encoder.encode(parameters.navigation_id));
+    TRY(encoder.encode(parameters.history_handling));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
 }
 
 template<>
-ErrorOr<Web::PushHistoryOperationParameters> IPC::decode(Decoder& decoder)
+ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
-    return Web::PushHistoryOperationParameters {
+    return Web::FinalizeCrossDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .pending_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
-    };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReplaceHistoryOperationParameters const& parameters)
-{
-    TRY(encoder.encode(parameters.navigable_id));
-    TRY(encoder.encode(parameters.pending_document_state_id));
-    TRY(encoder.encode(parameters.user_involvement));
-    return {};
-}
-
-template<>
-ErrorOr<Web::ReplaceHistoryOperationParameters> IPC::decode(Decoder& decoder)
-{
-    return Web::ReplaceHistoryOperationParameters {
-        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .pending_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
-    };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::CrossDocumentNavigationFinalization const& finalization)
-{
-    TRY(encoder.encode(finalization.history_entry));
-    TRY(encoder.encode(finalization.entry_to_replace_navigation_api_key));
-    return {};
-}
-
-template<>
-ErrorOr<Web::CrossDocumentNavigationFinalization> IPC::decode(Decoder& decoder)
-{
-    return Web::CrossDocumentNavigationFinalization {
         .history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
-        .entry_to_replace_navigation_api_key = TRY(decoder.decode<Optional<Utf16String>>()),
+        .navigation_id = TRY(decoder.decode<Optional<Utf16String>>()),
+        .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::CrossDocumentNavigationFinalizationHostState const& state)
+{
+    TRY(encoder.encode(state.pending_document_is_in_auxiliary_browsing_context_with_opener));
+    TRY(encoder.encode(state.pending_document_origin));
+    TRY(encoder.encode(state.active_document_origin));
+    return {};
+}
+
+template<>
+ErrorOr<Web::CrossDocumentNavigationFinalizationHostState> IPC::decode(Decoder& decoder)
+{
+    return Web::CrossDocumentNavigationFinalizationHostState {
+        .pending_document_is_in_auxiliary_browsing_context_with_opener = TRY(decoder.decode<bool>()),
+        .pending_document_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
+        .active_document_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReconstructedChildNavigation const& navigation)
+{
+    TRY(encoder.encode(navigation.target_entry));
+    TRY(encoder.encode(navigation.navigation_id));
+    return {};
+}
+
+template<>
+ErrorOr<Web::ReconstructedChildNavigation> IPC::decode(Decoder& decoder)
+{
+    return Web::ReconstructedChildNavigation {
+        .target_entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>()),
+        .navigation_id = TRY(decoder.decode<Utf16String>()),
     };
 }
 
@@ -222,7 +226,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeSameDocumentNavigationH
 {
     TRY(encoder.encode(parameters.navigable_id));
     TRY(encoder.encode(parameters.target_entry));
-    TRY(encoder.encode(parameters.entry_to_replace_navigation_api_key));
+    TRY(encoder.encode(parameters.entry_to_replace));
     TRY(encoder.encode(parameters.previous_entry_persisted_state));
     TRY(encoder.encode(parameters.history_handling));
     TRY(encoder.encode(parameters.user_involvement));
@@ -235,7 +239,7 @@ ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> IPC::deco
     return Web::FinalizeSameDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .target_entry = TRY(decoder.decode<Web::HTML::SameDocumentNavigationEntry>()),
-        .entry_to_replace_navigation_api_key = TRY(decoder.decode<Optional<Utf16String>>()),
+        .entry_to_replace = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryEntryIdentity>>()),
         .previous_entry_persisted_state = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryEntryPersistedState>>()),
         .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
@@ -252,20 +256,6 @@ template<>
 ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
     return Web::CloseTopLevelTraversableHistoryOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-    };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::ResetSessionHistoryForTestingOperationParameters const& parameters)
-{
-    return encoder.encode(parameters.traversable_id);
-}
-
-template<>
-ErrorOr<Web::ResetSessionHistoryForTestingOperationParameters> IPC::decode(Decoder& decoder)
-{
-    return Web::ResetSessionHistoryForTestingOperationParameters {
         .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
     };
 }

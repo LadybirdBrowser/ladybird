@@ -125,16 +125,16 @@ void NavigableContainer::create_new_child_navigable()
         {
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry](u64, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+            .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry](Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
                 if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }
 
                 // 1-6. Append nestedHistory to parentDocState's nested histories.
-                if (creation_target_entry.has_value()) {
+                if (reconstructed_child_navigation.has_value()) {
                     VERIFY(navigable->traversable_navigable()->route_child_created_during_history_reconstruction(
-                        *parent_navigable, *navigable, *history_entry, creation_target_entry.release_value()));
+                        *parent_navigable, *navigable, reconstructed_child_navigation.release_value()));
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }

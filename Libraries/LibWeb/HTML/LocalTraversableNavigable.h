@@ -55,7 +55,7 @@ public:
     void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
 
     using OnHistoryOperationReady = GC::Function<void(Web::HistoryOperationReadyResult)>;
-    using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>)>;
+    using OnHistoryOperationPreSteps = GC::Function<void(Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable {};
@@ -63,26 +63,31 @@ public:
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
-        Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
         GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
+
+        // In-flight job parking: claims and continuations held between a changing job and its continuation or the
+        // operation's completion. Operations initiated elsewhere (browser UI, another process) carry only this
+        // part; their record is created by the first job that references them.
+        HashMap<CrossProcessId, LocalNavigable::NavigationAPIAbortBehavior> claimed_navigables_awaiting_continuation {};
+        HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations {};
     };
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
-    void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
-    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
-    void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
+    void handle_ui_history_operation_started(CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady>);
+    void run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
+    void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, LocalNavigable::NavigationAPIAbortBehavior, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
+    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
-    void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count, Optional<u64> initiation_id);
+    void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count);
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
-    void restore_session_history_entry_from_ui_process(LocalNavigable&, SessionHistoryEntry&, SessionHistoryEntryDescriptor);
+    void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
     bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
-    bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry, SessionHistoryEntryDescriptor target_entry);
-    void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
+    bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, Web::ReconstructedChildNavigation);
+    void reset_session_history_for_testing();
 
     enum class PromptToUnload : bool {
         No,
@@ -136,6 +141,7 @@ private:
         UserNavigationInvolvement user_involvement;
         Optional<Bindings::NavigationType> navigation_type;
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
+        bool superseded_by_newer_navigation { false };
     };
     struct LocalChangingNavigableHistoryStepJobResult {
         ChangingNavigableHistoryStepJobDisposition disposition;
@@ -145,9 +151,6 @@ private:
     struct LocalApplyChangingNavigableHistoryStepContinuation {
         HistoryObjectLengthAndIndex history_object_length_and_index;
         Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
-        Optional<Bindings::NavigationType> navigation_type;
-        LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
-        UserNavigationInvolvement user_involvement;
     };
     bool run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob, GC::Ptr<SourceSnapshotParams>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete>);
     void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete);
@@ -157,19 +160,11 @@ private:
     // WebContent needs the canonical top-level entry count synchronously for is_script_closable().
     u64 m_session_history_entry_count { 1 };
 
-    // Per-operation state for UI-coordinated apply-history-step runs. An operation is in flight from
-    // history_operation_started until complete_history_operation.
-    struct UIHistoryOperationState {
-        Optional<u64> initiation_id;
-        Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior;
-        Optional<Bindings::NavigationType> navigation_type;
-        Optional<UserNavigationInvolvement> user_involvement;
-        HashTable<CrossProcessId> claimed_navigables_awaiting_continuation;
-        HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations;
-    };
-    HashMap<u64, UIHistoryOperationState> m_ui_history_operations;
-    u64 m_next_history_initiation_id { 1 };
-    HashMap<u64, HistoryOperationState> m_history_operation_states;
+    // One record per history operation this process participates in, keyed by the operation id minted by the
+    // operation's initiator. Records for operations requested here exist from the request until
+    // complete_history_operation; records for operations initiated elsewhere are created by the first UI job
+    // that references them.
+    HashMap<CrossProcessId, HistoryOperationState> m_history_operations;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     VisibilityState m_system_visibility_state { VisibilityState::Hidden };

@@ -22,6 +22,7 @@ class FetchedDataReceiver final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(FetchedDataReceiver);
 
 public:
+    explicit FetchedDataReceiver(GC::Ref<Streams::ReadableStream>);
     virtual ~FetchedDataReceiver() override;
 
     void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
@@ -36,14 +37,14 @@ public:
     void set_cached_response_body(Core::ImmutableBytes);
 
 private:
-    FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, RefPtr<HTTP::MemoryCache>);
+    FetchedDataReceiver(GC::Ptr<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, RefPtr<HTTP::MemoryCache>);
 
     virtual void visit_edges(Visitor& visitor) override;
 
     void enqueue_into_stream(JS::Realm&, ReadonlyBytes);
     void close_stream(JS::Realm&);
 
-    GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
+    GC::Ptr<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ptr<Fetch::Infrastructure::Response const> m_response;
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
 

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/Optional.h>
@@ -77,6 +78,7 @@ public:
     IsPrivate is_private() const { return m_is_private; }
 
     void assign_view(Badge<Application>, ViewImplementation&);
+    bool is_ready_for_view_assignment(Badge<Application>) const { return m_did_create_initial_top_level_traversable; }
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
 
@@ -93,6 +95,8 @@ public:
     CanonicalNavigable* embedded_page_host(u64 page_id);
     CanonicalNavigable* navigable_for_page(u64 page_id);
     Optional<CanonicalNavigable&> hosted_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
+
+    void begin_top_level_load(ViewImplementation&, u64 page_id, Optional<Utf16String> navigation_id, URL::URL const& url);
 
     Optional<CanonicalNavigable&> child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id);
 
@@ -112,6 +116,7 @@ public:
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_present_bitmap(u64 page_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
+    void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
@@ -124,14 +129,18 @@ private:
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
     void destroy_all_compositor_contexts();
     StorageJar* storage_jar_for_page(u64 page_id, Web::StorageAPI::StorageEndpointType);
+    void cancel_navigation_transactions();
+    bool continue_navigation_population_in_selected_process(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
 
     virtual void die() override;
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
-    virtual Messages::WebContentClient::DecideNavigationProcessResponse decide_navigation_process(u64 page_id, Optional<Web::HTML::CrossProcessId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget) override;
-    virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) override;
-    virtual void did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) override;
+    virtual void did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request) override;
+    virtual void did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
+    virtual void did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest) override;
+    virtual void did_finish_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult>) override;
+    virtual void did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
     virtual void did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) override;
@@ -149,10 +158,8 @@ private:
     virtual void did_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_middle_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_request_external_url(u64 page_id, URL::URL, URL::Origin, bool has_transient_activation) override;
-    virtual void did_start_loading(u64 page_id, Optional<Utf16String>, URL::URL, bool) override;
-    virtual void did_cancel_loading(u64 page_id, Optional<Utf16String>) override;
     virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
-    virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
+    virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(u64 page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual void did_receive_download_data(u64 page_id, u64 download_id, ByteBuffer data) override;
     virtual void did_finish_download(u64 page_id, u64 download_id) override;
     virtual void did_fail_download(u64 page_id, u64 download_id, String error) override;
@@ -255,18 +262,18 @@ private:
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState) override;
     virtual void did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry) override;
-    virtual void did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state) override;
-    virtual void did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;
-    virtual void did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Utf16String navigable_target_name) override;
+    virtual void did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state) override;
+    virtual void did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;
+    virtual void did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) override;
     virtual void did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
-    virtual void request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters) override;
-    virtual void history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult) override;
-    virtual void history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) override;
-    virtual void changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) override;
-    virtual void changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
-    virtual void nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void request_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters) override;
+    virtual void history_operation_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult) override;
+    virtual void history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result) override;
+    virtual void changing_navigable_history_job_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) override;
+    virtual void changing_navigable_continuation_applied(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
+    virtual void nonchanging_navigable_history_state_updated(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor) override;
     virtual Messages::WebContentClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(u64 page_id) override;
@@ -294,6 +301,8 @@ private:
     Optional<i32> m_compositor_connection_id;
     u64 m_initial_page_id { 0 };
     Web::HTML::CrossProcessId m_root_navigable_id;
+    bool m_did_create_initial_top_level_traversable { false };
+    Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry_awaiting_view;
 
     ProcessHandle m_process_handle;
     RefPtr<Core::Timer> m_detached_page_close_timer;

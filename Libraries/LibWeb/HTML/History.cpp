@@ -250,7 +250,7 @@ WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestor
     auto active_session_history_entry = navigable->active_session_history_entry();
     active_session_history_entry->set_scroll_restoration_mode(scroll_restoration == Bindings::ScrollRestoration::Auto ? ScrollRestorationMode::Auto : ScrollRestorationMode::Manual);
 
-    navigable->traversable_navigable()->page().client().page_did_update_session_history_entry_scroll_restoration_mode(navigable->id(), active_session_history_entry->navigation_api_key(), active_session_history_entry->scroll_restoration_mode());
+    navigable->traversable_navigable()->page().client().page_did_update_session_history_entry_scroll_restoration_mode(navigable->id(), session_history_entry_identity(*active_session_history_entry), active_session_history_entry->scroll_restoration_mode());
 
     return {};
 }

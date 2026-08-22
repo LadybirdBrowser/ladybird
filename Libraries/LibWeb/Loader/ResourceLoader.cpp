@@ -372,7 +372,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
     on_resource(load_result);
 }
 
-RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnCachedBodyAvailable> on_cached_body_available, GC::Root<OnComplete> on_complete, Requests::RequestClient::KeepAliveForTransfer keep_alive_for_transfer)
+RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnCachedBodyAvailable> on_cached_body_available, GC::Root<OnComplete> on_complete, Requests::RequestClient::TransferLease transfer_lease)
 {
     auto const& url = request.url().value();
 
@@ -440,7 +440,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         return nullptr;
     }
 
-    auto protocol_request = start_network_request(request, keep_alive_for_transfer);
+    auto protocol_request = start_network_request(request, transfer_lease);
     if (!protocol_request) {
         on_complete->function()(false, {}, "Failed to start network request"sv);
         return nullptr;
@@ -490,7 +490,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
     return protocol_request;
 }
 
-RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::KeepAliveForTransfer keep_alive_for_transfer)
+RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::TransferLease transfer_lease)
 {
     auto proxy = ProxyMappings::the().proxy_for_url(request.url().value());
 
@@ -500,7 +500,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy, keep_alive_for_transfer);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy, transfer_lease);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;
