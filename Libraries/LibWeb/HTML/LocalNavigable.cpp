@@ -535,10 +535,12 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         if (initial_data.has_value() && !initial_data->is_empty() && !response_body_will_be_transferred_in_full)
             initial_data_buffer = MUST(ByteBuffer::copy(*initial_data));
 
-        auto download_id = navigation_params->navigable->page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer));
+        auto download_id = navigation_params->navigable->page().client().page_did_start_download(navigation_params->navigable->id(), navigation_params->id, download_url, suggested_filename, response_content_length(*response->header_list()), request_server_request->client_id, request_server_request->request_id, move(initial_data_buffer));
         if (!download_id.has_value()) {
             if (navigation_params->fetch_controller)
                 navigation_params->fetch_controller->stop_fetch();
+            else
+                response->release_request_transfer_lease();
             return true;
         }
 
@@ -2534,9 +2536,6 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
         active_document()->abort_a_document_and_its_descendants();
     }));
 
-    if (is_top_level_traversable())
-        active_browsing_context()->page().client().page_did_start_loading(navigation_id, request.history_entry.url, false);
-
     auto received_navigation_params = GC::create_function(heap(), [this, request, navigation_id](GC::Ref<InternalNavigationResult> result) mutable {
         if (!active_window() || ongoing_navigation() != navigation_id) {
             stop_or_resume_response_body_delivery(result->navigation_params);
@@ -2932,7 +2931,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     // 20. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
         if (is_top_level_traversable())
-            active_browsing_context()->page().client().page_did_start_loading(navigation_id, url, false);
+            active_browsing_context()->page().client().request_navigation_start(*this, active_document.url(), NavigationTarget::TopLevel, url, navigation_id, {});
 
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
         VERIFY(active_window());
@@ -3035,7 +3034,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     park_navigation_for_population(navigation_id, move(navigation), continue_steps);
 
     auto target = is_top_level_traversable() ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
-    active_browsing_context()->page().client().request_navigation_start(*this, active_document.url(), target, move(start_request));
+    active_browsing_context()->page().client().request_navigation_start(*this, active_document.url(), target, url, navigation_id, move(start_request));
     return;
 }
 
@@ -3054,23 +3053,18 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
         return;
     }
 
-    auto target_url = active_document()->url();
-    auto const& pending = m_pending_navigations[*pending_index];
-    if (pending.navigation.has_value())
-        target_url = pending.navigation->params.url;
-
     // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
     traversable_navigable()->check_if_unloading_is_canceled(active_document()->inclusive_descendant_navigables(),
-        GC::create_function(heap(), [this, navigation_id, target_url = move(target_url), completion_steps](LocalTraversableNavigable::CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
+        GC::create_function(heap(), [this, navigation_id, completion_steps](LocalTraversableNavigable::CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
             if (has_been_destroyed() || !active_window()) {
                 completion_steps->function()(false);
                 return;
             }
 
             // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
+            // NB: The UI process learns of the canceled check from the population-failure report and ends the
+            //     recorded load itself.
             if (unload_prompt_canceled != LocalTraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue) {
-                if (is_top_level_traversable())
-                    active_browsing_context()->page().client().page_did_cancel_loading(navigation_id, target_url);
                 set_delaying_load_events(false);
                 completion_steps->function()(false);
                 return;
@@ -3323,11 +3317,11 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
     auto& vm = this->vm();
 
     // AD-HOC: These return paths do not run finalize_a_cross_document_navigation(). Clear a child navigable's
-    //         load-event delay and tell the UI that a recorded top-level load has ended.
+    //         load-event delay and tell the UI that the admitted navigation produced no document.
     auto finish_loading_without_navigation = [&] {
         set_delaying_load_events(false);
         if (is_top_level_traversable())
-            active_browsing_context()->page().client().page_did_cancel_loading(navigation_id, url);
+            active_browsing_context()->page().client().navigation_population_failed(id(), navigation_id);
     };
 
     // 1. Assert: historyHandling is "replace".

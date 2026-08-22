@@ -238,9 +238,9 @@ Web::HTML::CrossProcessId PageClient::allocate_navigable_id()
     return allocate_cross_process_id();
 }
 
-void PageClient::request_navigation_start(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, Web::HTML::NavigationStartRequest request)
+void PageClient::request_navigation_start(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, URL::URL const& url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
 {
-    client().async_did_request_navigation_start(m_id, navigable.id(), current_url, target, move(request));
+    client().async_did_request_navigation_start(m_id, navigable.id(), current_url, target, url, move(navigation_id), move(start_request));
 }
 
 void PageClient::request_navigation_population(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
@@ -302,20 +302,26 @@ void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable
 {
     auto active_document = page().top_level_traversable()->active_document();
     if (!active_document) {
-        client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id, false);
+        client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
         return;
     }
 
     for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
         if (navigable->id() != navigable_id)
             continue;
-        navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable_id, navigation_id](bool should_continue) {
-            client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id, should_continue);
+        navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
+            // The UI process retained the pending entry at admission; a passed check only needs the signal.
+            if (!should_continue) {
+                navigable->resume_navigation_params_creation(navigation_id, {});
+                client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+                return;
+            }
+            client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id);
         }));
         return;
     }
 
-    client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id, false);
+    client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
 }
 
 void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
@@ -621,16 +627,6 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
     client().async_did_request_external_url(m_id, url, initiator_origin, has_transient_activation);
 }
 
-void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, bool is_redirect)
-{
-    client().async_did_start_loading(m_id, navigation_id, url, is_redirect);
-}
-
-void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const&)
-{
-    client().async_did_cancel_loading(m_id, navigation_id);
-}
-
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 {
     initialize_js_console(document);
@@ -660,9 +656,9 @@ void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation
     client().async_did_finish_loading(m_id, navigation_id, url);
 }
 
-Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
+Optional<u64> PageClient::page_did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
 {
-    auto response = client().send_sync<Messages::WebContentClient::DidStartDownload>(m_id, url, suggested_filename, total_size, request_server_client_id, request_server_request_id, move(initial_data));
+    auto response = client().send_sync<Messages::WebContentClient::DidStartDownload>(m_id, navigable_id, navigation_id, url, suggested_filename, total_size, request_server_client_id, request_server_request_id, move(initial_data));
     return response->download_id();
 }
 

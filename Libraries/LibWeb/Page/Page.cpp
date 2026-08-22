@@ -1391,15 +1391,19 @@ void Page::set_viewport_is_fullscreen(ViewportIsFullscreen is_fullscreen)
     process_pending_fullscreen_operations();
 }
 
-void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, URL::URL const& current_url, NavigationTarget target, HTML::NavigationStartRequest request)
+void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, URL::URL const& current_url, NavigationTarget target, URL::URL const&, Utf16String navigation_id, Optional<HTML::NavigationStartRequest> start_request)
 {
-    auto navigation_id = request.navigation_id;
-    navigable.run_navigation_unload_check(navigation_id, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, current_url, target, request = move(request)](bool should_continue) mutable {
+    // A javascript: navigation runs synchronously in this process and never populates an entry; there is nothing
+    // for the embedder to retain.
+    if (!start_request.has_value())
+        return;
+
+    navigable.run_navigation_unload_check(navigation_id, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, current_url, target, navigation_id, start_request = start_request.release_value()](bool should_continue) mutable {
         if (!should_continue) {
-            navigable->resume_navigation_params_creation(request.navigation_id, {});
+            navigable->resume_navigation_params_creation(navigation_id, {});
             return;
         }
-        auto population_request = HTML::create_navigation_population_request(move(request), client->allocate_cross_process_id());
+        auto population_request = HTML::create_navigation_population_request(move(start_request), client->allocate_cross_process_id());
         client->request_navigation_population(navigable, current_url, target, move(population_request));
     }));
 }

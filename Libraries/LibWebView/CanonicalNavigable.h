@@ -55,12 +55,12 @@ public:
         Optional<URL::URL> current_url {};
         Optional<Web::NavigationTarget> target {};
         Optional<Utf16String> navigation_id {};
+        Optional<Web::HTML::NavigationStartRequest> start_request {};
         u64 sequence_number { 0 };
         bool has_started { false };
         bool uses_replacement_process { false };
         bool is_uncommitted { false };
         Phase phase { Phase::Started };
-        Optional<Web::HTML::NavigationStartRequest> start_request {};
         OwnPtr<NavigationLoader> loader {};
         WeakPtr<WebContentClient> population_worker_client {};
         u64 population_worker_page_id { 0 };

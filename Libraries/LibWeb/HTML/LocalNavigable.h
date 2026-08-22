@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/InitialInsertion.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>

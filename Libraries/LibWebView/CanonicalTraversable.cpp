@@ -1003,6 +1003,14 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     VERIFY(!operation.changing_job_endpoints.contains(job.navigable_id));
     operation.changing_job_endpoints.set(job.navigable_id, endpoint);
     add_history_operation_completion_endpoint(operation, endpoint);
+
+    // A reload's top-level job repopulates the view's document; begin the recorded load where the job is
+    // dispatched instead of having the job echo it back.
+    if (navigable->is_top_level_traversable()
+        && operation.parameters.has<Web::ReloadHistoryOperationParameters>()) {
+        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+            endpoint.client->begin_top_level_load(*view, endpoint.page_id, {}, job.target_entry.url);
+    }
     return true;
 }
 

@@ -58,6 +58,8 @@ void NavigationLoader::acquire_response_body(Function<void(bool)> completion_ste
         did_acquire(false);
         return;
     }
+    m_response_body_request_server_client_id = body_handle->request_server_client_id;
+    m_response_body_request_server_request_id = body_handle->request_server_request_id;
 
     request->set_body_delivery_paused(true);
     m_response_body_request = request;
@@ -82,6 +84,12 @@ Web::HTML::NavigationPopulationResult NavigationLoader::take_result()
     if (m_response_body_request)
         m_response_body_was_handed_off = true;
     return m_result.release_value();
+}
+
+bool NavigationLoader::response_body_matches(int request_server_client_id, u64 request_server_request_id) const
+{
+    return m_response_body_request_server_client_id == request_server_client_id
+        && m_response_body_request_server_request_id == request_server_request_id;
 }
 
 void NavigationLoader::reclaim_response_body_after_failed_handoff()

@@ -1995,7 +1995,7 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
         Application::the().stop_watching_geolocation_position(watch.value);
 }
 
-void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const& url, bool is_redirect)
+void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const& url)
 {
     auto& ongoing = m_top_level_traversable.ensure_ongoing_navigation();
     if (ongoing.sequence_number == 0)
@@ -2020,9 +2020,7 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_i
         started_from_crash_page = current_entry && current_entry->url == url;
     }
 
-    auto dump_reason = started_from_crash_page ? "did-start-navigation-from-crash-page"sv
-        : is_redirect                          ? "did-start-navigation-redirect"sv
-                                               : "did-start-navigation"sv;
+    auto dump_reason = started_from_crash_page ? "did-start-navigation-from-crash-page"sv : "did-start-navigation"sv;
 
     dump_session_history(dump_reason);
 }

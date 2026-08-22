@@ -96,6 +96,8 @@ public:
     CanonicalNavigable* navigable_for_page(u64 page_id);
     Optional<CanonicalNavigable&> hosted_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
 
+    void begin_top_level_load(ViewImplementation&, u64 page_id, Optional<Utf16String> navigation_id, URL::URL const& url);
+
     Optional<CanonicalNavigable&> child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id);
 
     bool has_views() const { return !m_views.is_empty(); }
@@ -134,8 +136,8 @@ private:
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
-    virtual void did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationStartRequest) override;
-    virtual void did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, bool should_continue) override;
+    virtual void did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request) override;
+    virtual void did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest) override;
     virtual void did_finish_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult>) override;
     virtual void did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
@@ -156,10 +158,8 @@ private:
     virtual void did_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_middle_click_link(u64 page_id, URL::URL, ByteString, unsigned) override;
     virtual void did_request_external_url(u64 page_id, URL::URL, URL::Origin, bool has_transient_activation) override;
-    virtual void did_start_loading(u64 page_id, Optional<Utf16String>, URL::URL, bool) override;
-    virtual void did_cancel_loading(u64 page_id, Optional<Utf16String>) override;
     virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
-    virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(u64 page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
+    virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(u64 page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual void did_receive_download_data(u64 page_id, u64 download_id, ByteBuffer data) override;
     virtual void did_finish_download(u64 page_id, u64 download_id) override;
     virtual void did_fail_download(u64 page_id, u64 download_id, String error) override;
