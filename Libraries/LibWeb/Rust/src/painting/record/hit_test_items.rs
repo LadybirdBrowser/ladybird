@@ -335,10 +335,13 @@ impl<'a> PaintRecorder<'a> {
         }
         let block = self.data(containing_block);
         let absolute = paintable_geometry::absolute_rect(self.paintables, containing_block);
-        let top = block.margin.top + block.border.top + block.padding.top;
-        let right = block.margin.right + block.border.right + block.padding.right;
-        let bottom = block.margin.bottom + block.border.bottom + block.padding.bottom;
-        let left = block.margin.left + block.border.left + block.padding.left;
+        let margin = paintable_geometry::committed_margin(self.paintables, containing_block);
+        let border = paintable_geometry::committed_border(self.paintables, containing_block);
+        let padding = paintable_geometry::committed_padding(self.paintables, containing_block);
+        let top = margin.top + border.top + padding.top;
+        let right = margin.right + border.right + padding.right;
+        let bottom = margin.bottom + border.bottom + padding.bottom;
+        let left = margin.left + border.left + padding.left;
         Some(CssPixelRect::new(
             absolute.x - left,
             absolute.y - top,

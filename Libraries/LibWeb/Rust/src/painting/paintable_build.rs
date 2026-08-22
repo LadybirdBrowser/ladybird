@@ -681,10 +681,8 @@ impl<'a> PaintableCommit<'a> {
             {
                 continue;
             }
-            let (padding_widths, border_widths) = {
-                let data = arena.data_ref(inline_paintable);
-                (data.padding, data.border)
-            };
+            let padding_widths = crate::painting::paintable_geometry::committed_padding(&arena, inline_paintable);
+            let border_widths = crate::painting::paintable_geometry::committed_border(&arena, inline_paintable);
             let mut content_union: Option<CssPixelRect> = None;
             let mut padding_union: Option<CssPixelRect> = None;
             let mut border_union: Option<CssPixelRect> = None;

@@ -158,7 +158,7 @@ pub(crate) fn paint_base_with(
         shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
     }
     if phase == PaintPhase::Border
-        && !recorder.data(paintable).uses_collapsing_borders_model
+        && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(recorder.paintables, paintable)
         && !facts.empty_cells_property_applies
     {
         border::paint_box_borders_from_style(recorder, paintable, &facts);

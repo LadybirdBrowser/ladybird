@@ -317,6 +317,56 @@ pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
     });
 }
 
+#[repr(C)]
+#[derive(Default)]
+pub struct FfiBoxModelMetrics {
+    pub margin: crate::painting::paintable_data::FfiPixelBox,
+    pub padding: crate::painting::paintable_data::FfiPixelBox,
+    pub border: crate::painting::paintable_data::FfiPixelBox,
+    pub inset: crate::painting::paintable_data::FfiPixelBox,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_box_model(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiBoxModelMetrics {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiBoxModelMetrics::default();
+        }
+        FfiBoxModelMetrics {
+            margin: crate::painting::paintable_geometry::committed_margin(&paintables, slot),
+            padding: crate::painting::paintable_geometry::committed_padding(&paintables, slot),
+            border: crate::painting::paintable_geometry::committed_border(&paintables, slot),
+            inset: crate::painting::paintable_geometry::committed_inset(&paintables, slot),
+        }
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_uses_collapsing_borders_model(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return false;
+        }
+        crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(&paintables, slot)
+    })
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
@@ -1292,13 +1342,15 @@ pub unsafe extern "C" fn layout_arena_inline_paintable_first_piece_position(
             return result;
         };
         let root_position = crate::painting::paintable_geometry::absolute_position(&paintables, root);
-        with_inline_pieces(&paintables, inline_paintable, |piece, data| {
+        let border_widths = crate::painting::paintable_geometry::committed_border(&paintables, inline_paintable);
+        let padding_widths = crate::painting::paintable_geometry::committed_padding(&paintables, inline_paintable);
+        with_inline_pieces(&paintables, inline_paintable, |piece, _data| {
             let border_rect = crate::css::css_pixels::CssPixelRect::from(piece.border_box_rect);
             let rect = if piece.is_geometry_only_placeholder {
                 border_rect
             } else {
-                let padding_rect = piece.shrunken_by_present_edges(border_rect, data.border);
-                piece.shrunken_by_present_edges(padding_rect, data.padding)
+                let padding_rect = piece.shrunken_by_present_edges(border_rect, border_widths);
+                piece.shrunken_by_present_edges(padding_rect, padding_widths)
             };
             result.has_value = true;
             result.x = rect.x + root_position.x;

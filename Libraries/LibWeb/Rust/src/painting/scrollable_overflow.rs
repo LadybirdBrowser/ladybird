@@ -404,12 +404,12 @@ pub(crate) fn measure_scrollable_overflow(
                 && !child_has_css_transform
                 && child_data.has_cached_overflow
             {
-                let border = child_data.border;
+                let border = crate::painting::paintable_geometry::committed_border(paintables, child_paintable);
                 let zero = CssPixels::from_raw(0);
                 let has_border =
                     border.top != zero || border.right != zero || border.bottom != zero || border.left != zero;
                 if !has_border {
-                    let padding = child_data.padding;
+                    let padding = crate::painting::paintable_geometry::committed_padding(paintables, child_paintable);
                     let content_box_relative_to_padding_box = CssPixelRect::new(
                         padding.left,
                         padding.top,
