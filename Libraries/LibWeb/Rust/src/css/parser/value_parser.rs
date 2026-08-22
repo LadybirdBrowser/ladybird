@@ -20,6 +20,9 @@ use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_par
 use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::math_functions::math_function_from_name;
+use crate::css::parser::arbitrary_substitution::{
+    SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence, declaration_value_is_valid,
+};
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
@@ -45,8 +48,8 @@ use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlySt
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
     RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
-    RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
-    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
+    RetainedPropertyIdList, RetainedReadableString, RetainedRequestUrlModifier, RetainedRequestUrlModifierList,
+    RetainedString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 use std::collections::BTreeMap;
 use std::ffi::c_void;
@@ -156,6 +159,7 @@ pub struct ParseContext {
     pub in_quirks_mode: bool,
     pub is_svg_presentation_attribute: bool,
     pub is_substituted_value: bool,
+    pub contains_attr_tainted_values: bool,
     pub value_contexts: *const FfiValueParsingContext,
     pub value_context_count: usize,
     pub document_url: *const u8,
@@ -779,7 +783,9 @@ pub(crate) fn parse_number_from_stream(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     let value = tokens.next_token();
-    let parsed = if let Some((name, values)) = value.function()
+    let parsed = if let Some(value) = parse_tree_counting_value(context, value, 0) {
+        Some(value)
+    } else if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         parse_calculated_numeric_value_with_ranges(
@@ -806,7 +812,9 @@ pub(crate) fn parse_integer_from_stream(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     let value = tokens.next_token();
-    let parsed = if let Some((name, values)) = value.function()
+    let parsed = if let Some(value) = parse_tree_counting_value(context, value, 1) {
+        Some(value)
+    } else if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         parse_calculated_numeric_value_with_ranges(
@@ -1087,13 +1095,17 @@ pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> 
     })
 }
 
-fn has_substitution_function_context(context: &ParseContext) -> bool {
+fn substitution_function_context_names(context: &ParseContext) -> Option<Vec<Vec<u16>>> {
     if context.value_context_count == 0 || context.value_contexts.is_null() {
-        return false;
+        return None;
     }
-    unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+    let contexts = unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) };
+    let names = contexts
         .iter()
-        .any(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
+        .filter(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
+        .map(|function_context| unsafe { function_context.name.to_utf16() })
+        .collect::<Option<Vec<_>>>()?;
+    (!names.is_empty()).then_some(names)
 }
 
 fn parse_calculated_numeric_value(
@@ -1857,10 +1869,7 @@ fn parse_paint_property(context: &ParseContext, property: u16, values: &[Compone
     if stream.has_next_token() {
         return ParseOutcome::Invalid;
     }
-    let mut parsed = vec![url];
-    if let Some(fallback) = fallback {
-        parsed.push(fallback);
-    }
+    let parsed = vec![url, fallback.unwrap_or(StyleValueData::EmptyOptional)];
     ParseOutcome::Parsed(Arc::new(value_list(parsed, 0, true)))
 }
 
@@ -1977,12 +1986,13 @@ fn parse_background_size_property(context: &ParseContext, property: u16, values:
 fn parse_border_image_slice_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     let mut slices = Vec::new();
     let mut fill = false;
-    for value in values.iter().filter(|value| !value.is_whitespace()) {
+    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    for (index, value) in significant.iter().enumerate() {
         if value
             .ident()
             .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"fill"))
         {
-            if fill {
+            if fill || (index != 0 && index + 1 != significant.len()) {
                 return ParseOutcome::Invalid;
             }
             fill = true;
@@ -2295,6 +2305,8 @@ fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[Compo
             }
             let mut dashed_ident = None;
             let mut tactics = Vec::new();
+            let mut has_tactic_before_ident = false;
+            let mut has_tactic_after_ident = false;
             for value in item.iter().filter(|value| !value.is_whitespace()) {
                 if let Some(keyword) = value.ident().and_then(keyword_from_ascii_case_insensitive)
                     && matches!(
@@ -2302,6 +2314,14 @@ fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[Compo
                         keyword::FLIP_BLOCK | keyword::FLIP_INLINE | keyword::FLIP_START
                     )
                 {
+                    if dashed_ident.is_some() {
+                        has_tactic_after_ident = true;
+                    } else {
+                        has_tactic_before_ident = true;
+                    }
+                    if has_tactic_before_ident && has_tactic_after_ident {
+                        return None;
+                    }
                     if tactics.iter().any(|existing| {
                         matches!(existing, StyleValueData::Keyword { keyword: existing } if *existing == keyword)
                     }) {
@@ -2829,16 +2849,6 @@ fn parse_counter_function(context: &ParseContext, value: &ComponentValue) -> Opt
 }
 
 fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
-    let non_whitespace_values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
-    if non_whitespace_values.len() > 1
-        && non_whitespace_values
-            .iter()
-            .all(|value| value.string().is_some_and(<[u16]>::is_empty))
-    {
-        // NB: Parser-synthesized StyleValueList tokens are reconstructed as separate empty strings for Rust,
-        //     while the C++ token stream retains the original single list value. Task 016 removes this fragment seam.
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
-    }
     if let Some(value) = single_non_whitespace_value(values)
         && let Some(keyword) = parse_specific_keyword(value, &[keyword::NONE, keyword::NORMAL])
     {
@@ -2906,11 +2916,11 @@ fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> 
         return ParseOutcome::Invalid;
     }
     ParseOutcome::Parsed(Arc::new(StyleValueData::Content {
-        content: RetainedStyleValueData::from_owned(value_list(content, 0, false)),
+        content: RetainedStyleValueData::from_owned(value_list(content, 0, true)),
         alt_text: if alt_text.is_empty() {
             RetainedStyleValueData::none()
         } else {
-            RetainedStyleValueData::from_owned(value_list(alt_text, 0, false))
+            RetainedStyleValueData::from_owned(value_list(alt_text, 0, true))
         },
     }))
 }
@@ -3443,6 +3453,12 @@ pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
     } else {
         unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
     };
+
+    if value_contexts.first().is_some_and(|value_context| {
+        value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0 | 3)
+    }) {
+        return false;
+    }
 
     value_contexts
         .iter()
@@ -4963,20 +4979,90 @@ fn parse_animation_transition_shorthand(
     ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, output)))
 }
 
-/// Parse a property value using the grammars which have been ported to Rust.
-///
-/// Longhand grammars are authoritative here. `NotHandled` is reserved for
-/// shorthands, substitution reparses, and property IDs outside the generated table.
-pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: &[ComponentValue]) -> ParseOutcome {
-    if context.is_substituted_value
-        || has_substitution_function_context(context)
-        || matches!(unported_function_reason(values), Some(reason) if reason.label == SUBSTITUTION_NOT_PORTED.label)
+fn trim_ascii_whitespace(code_units: &[u16]) -> &[u16] {
+    let is_ascii_whitespace = |unit: &u16| matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20);
+    let start = code_units
+        .iter()
+        .position(|unit| !is_ascii_whitespace(unit))
+        .unwrap_or(code_units.len());
+    let end = code_units
+        .iter()
+        .rposition(|unit| !is_ascii_whitespace(unit))
+        .map_or(start, |position| position + 1);
+    &code_units[start..end]
+}
+
+fn unresolved_value(
+    unresolved_source: &[u16],
+    comparison_source: &[u16],
+    presence: SubstitutionFunctionsPresence,
+) -> StyleValueData {
+    StyleValueData::Unresolved {
+        source_text: RetainedReadableString::from_utf16(trim_ascii_whitespace(unresolved_source)),
+        value_comparison_text: RetainedReadableString::from_utf16(comparison_source),
+        presence_attr: presence.attr,
+        presence_dashed_function: presence.dashed_function,
+        presence_env: presence.env,
+        presence_if: presence.if_,
+        presence_inherit: presence.inherit,
+        presence_var: presence.var,
+        contains_attr_tainted_values: false,
+        parsed_value: RetainedStyleValueData::none(),
+    }
+}
+
+fn parse_css_value_with_source(
+    context: &ParseContext,
+    property_id: u16,
+    values: &[ComponentValue],
+    unresolved_source: &[u16],
+    comparison_source: &[u16],
+) -> ParseOutcome {
+    if values
+        .iter()
+        .any(|value| matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
     {
-        return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+        return ParseOutcome::Invalid;
+    }
+
+    let mut substitution_presence = SubstitutionFunctionsPresence::default();
+    if collect_arbitrary_substitution_function_presence(values, &mut substitution_presence).is_err() {
+        return ParseOutcome::Invalid;
     }
     if let Some(value) = parse_builtin_value(values) {
         return ParseOutcome::Parsed(Arc::new(value));
     }
+    if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+        let declaration_values = values
+            .iter()
+            .position(|value| !value.is_whitespace())
+            .map_or(&values[values.len()..], |position| &values[position..]);
+        if !declaration_values.is_empty() && !declaration_value_is_valid(declaration_values) {
+            return ParseOutcome::Invalid;
+        }
+        return ParseOutcome::Parsed(Arc::new(unresolved_value(
+            unresolved_source,
+            comparison_source,
+            substitution_presence,
+        )));
+    }
+    let wrapped_values;
+    let values = if let Some(function_names) = substitution_function_context_names(context) {
+        let mut nested_values = values.to_vec();
+        for function_name in function_names.into_iter().rev() {
+            nested_values = vec![ComponentValue {
+                kind: ComponentKind::Function {
+                    name: function_name.into_boxed_slice(),
+                    values: nested_values.into_boxed_slice(),
+                },
+                original_source_text: Box::new([]),
+            }];
+        }
+        wrapped_values = nested_values;
+        &wrapped_values
+    } else {
+        values
+    };
     if property_is_shorthand(property_id) {
         let outcome = parse_grid_property(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled(_)) {
@@ -5228,6 +5314,16 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     }
 }
 
+/// Parse a property value using the grammars which have been ported to Rust.
+pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let source = values
+        .iter()
+        .flat_map(|value| value.original_source_text.iter())
+        .copied()
+        .collect::<Vec<_>>();
+    parse_css_value_with_source(context, property_id, values, &source, &[])
+}
+
 /// The result category returned through the value-parser FFI.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -5289,6 +5385,8 @@ pub unsafe extern "C" fn rust_parse_css_value(
     context: *const ParseContext,
     property_id: u16,
     source: FfiUtf16View,
+    unresolved_source: FfiUtf16View,
+    comparison_source: FfiUtf16View,
     out_status: *mut FfiParseStatus,
     out_reason: *mut *const u8,
 ) -> *const c_void {
@@ -5309,9 +5407,17 @@ pub unsafe extern "C" fn rust_parse_css_value(
         let Some(source) = (unsafe { source.units() }) else {
             return invalid_ffi_result();
         };
+        let Some(unresolved_source) = (unsafe { unresolved_source.to_utf16() }) else {
+            return invalid_ffi_result();
+        };
+        let Some(comparison_source) = (unsafe { comparison_source.to_utf16() }) else {
+            return invalid_ffi_result();
+        };
         let context = unsafe { &*context };
         let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
-            Ok(values) => parse_css_value(context, property_id, &values),
+            Ok(values) => {
+                parse_css_value_with_source(context, property_id, &values, &unresolved_source, &comparison_source)
+            }
             Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
         };
         record_outcome(property_id, &outcome);
@@ -5425,6 +5531,7 @@ mod tests {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
+            contains_attr_tainted_values: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),
@@ -5815,7 +5922,7 @@ mod tests {
         ));
         assert!(matches!(
             parse(property_id::COLOR_SCHEME, "var(--scheme)"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Unresolved { presence_var: true, .. })
         ));
     }
 
@@ -5828,6 +5935,7 @@ mod tests {
             ),
             (property_id::CONTENT, "open-quote url(marker.svg) close-quote"),
             (property_id::CONTENT, "counters(section, \".\", upper-roman)"),
+            (property_id::CONTENT, "\"\" \"\" \"\""),
             (property_id::CURSOR, "url(cursor.svg) 4 5, pointer"),
             (property_id::CURSOR, "crosshair"),
         ] {
@@ -6011,10 +6119,10 @@ mod tests {
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
         }
-        let ParseOutcome::NotHandled(reason) = parse(property_id::ANCHOR_NAME, "var(--anchor)") else {
-            panic!("substitution should remain with C++");
-        };
-        assert_eq!(reason.label, "substitution");
+        assert!(matches!(
+            parse(property_id::ANCHOR_NAME, "var(--anchor)"),
+            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Unresolved { presence_var: true, .. })
+        ));
     }
 
     #[test]
@@ -6111,9 +6219,20 @@ mod tests {
             (property_id::GRID_AUTO_FLOW, "row column"),
             (property_id::POSITION, "bogus"),
             (property_id::FILL, "url(#paint) red blue"),
+            (property_id::POSITION_TRY_FALLBACKS, "flip-inline --bar flip-block"),
+            (property_id::BORDER_IMAGE_SLICE, "1% fill 2%"),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
         }
+
+        let ParseOutcome::Parsed(value) = parse(property_id::FILL, "url(#paint)") else {
+            panic!("URL paint should parse");
+        };
+        let StyleValueData::ValueList { values, .. } = value.as_ref() else {
+            panic!("URL paint should be a value list");
+        };
+        assert_eq!(values.as_slice().len(), 2);
+        assert!(matches!(values.as_slice()[1].data(), StyleValueData::EmptyOptional));
     }
 
     #[test]
@@ -6415,6 +6534,17 @@ mod tests {
             ),
             (property_id::FILTER, "brightness(sibling-count())"),
             (property_id::GRID_ROW_START, "span sibling-count()"),
+            (property_id::FONT_VARIATION_SETTINGS, "\"wght\" sibling-index()"),
+            (property_id::FONT_STYLE, "oblique calc(5deg * sibling-index())"),
+            (property_id::TRANSFORM, "matrix(sibling-index(), 2, 3, 4, 5, 6)"),
+            (
+                property_id::TRANSITION_TIMING_FUNCTION,
+                "steps(sibling-index(), jump-none)",
+            ),
+            (
+                property_id::ANIMATION_TIMING_FUNCTION,
+                "cubic-bezier(0, sibling-index(), 1, sign(2em - 20px))",
+            ),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
         }
@@ -6425,7 +6555,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_random_in_canvas_colors() {
+    fn rejects_random_in_canvas_colors() {
         let mut random_function_index = 0;
         let value_contexts = [
             FfiValueParsingContext {
@@ -6454,30 +6584,127 @@ mod tests {
                 property_id::COLOR,
                 "rgb(random(30, 10) random(60, 10) random(90, 10))"
             ),
-            ParseOutcome::Parsed(_)
+            ParseOutcome::Invalid
         ));
-        assert_eq!(random_function_index, 3);
+        assert_eq!(random_function_index, 0);
     }
 
     #[test]
-    fn leaves_deferred_numeric_functions_with_cpp() {
-        for (property, source, expected_reason) in [
-            (property_id::OPACITY, "var(--opacity)", "substitution"),
+    fn parses_substitution_functions_as_unresolved_values() {
+        for (property, source, expected_attr, expected_var) in [
+            (property_id::OPACITY, "var(--opacity)", false, true),
             (
                 property_id::FONT_SIZE,
                 "attr(data-size type(<percentage>))",
-                "substitution",
+                true,
+                false,
             ),
+            (property_id::BACKGROUND_IMAGE, "image(attr(data-foo))", true, false),
         ] {
-            let ParseOutcome::NotHandled(reason) = parse(property, source) else {
-                panic!("deferred function should fall back: {source}");
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("substitution function should parse: {source}");
             };
-            assert_eq!(reason.label, expected_reason);
+            let StyleValueData::Unresolved {
+                source_text,
+                value_comparison_text,
+                presence_attr,
+                presence_var,
+                ..
+            } = &*value
+            else {
+                panic!("substitution function should produce an unresolved value: {source}");
+            };
+            assert_eq!(retained_utf16(source_text), utf16(source));
+            assert!(value_comparison_text.as_units().is_empty());
+            assert_eq!(*presence_attr, expected_attr);
+            assert_eq!(*presence_var, expected_var);
         }
         assert!(matches!(
             parse(property_id::Z_INDEX, "sibling-index()"),
             ParseOutcome::Parsed(_)
         ));
+        assert!(matches!(
+            parse(property_id::FILTER, "blur(random(10px, 20px))"),
+            ParseOutcome::Invalid
+        ));
+        for source in ["var()", "attr()", "env()", "inherit()", "if()", "--mix(, value)"] {
+            assert!(matches!(parse(property_id::WIDTH, source), ParseOutcome::Invalid));
+        }
+    }
+
+    #[test]
+    fn parses_custom_properties_as_unresolved_values() {
+        let source = utf16(" 10\\70 x ");
+        let comparison = utf16("10px");
+        let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
+        let ParseOutcome::Parsed(value) =
+            parse_css_value_with_source(&context(), property_id::CUSTOM, &values, &source, &comparison)
+        else {
+            panic!("custom property should parse");
+        };
+        let StyleValueData::Unresolved {
+            source_text,
+            value_comparison_text,
+            ..
+        } = &*value
+        else {
+            panic!("custom property should produce an unresolved value");
+        };
+        assert_eq!(retained_utf16(source_text), utf16("10\\70 x"));
+        assert_eq!(retained_utf16(value_comparison_text), comparison);
+        assert!(matches!(
+            parse(property_id::CUSTOM, "inherit"),
+            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Keyword { keyword: keyword::INHERIT })
+        ));
+        assert!(matches!(
+            parse(property_id::CUSTOM, "value; trailing"),
+            ParseOutcome::Invalid
+        ));
+    }
+
+    #[test]
+    fn restores_substitution_function_wrappers_from_context() {
+        assert!(matches!(
+            parse(property_id::TRANSFORM, "translateX(calc(-100px * -1))"),
+            ParseOutcome::Parsed(_)
+        ));
+        for (property, function_names, source) in [
+            (property_id::COLOR, vec![b"rgb".as_slice()], "1, 2, 3"),
+            (
+                property_id::TRANSFORM,
+                vec![b"translateX".as_slice(), b"calc".as_slice()],
+                "-100px * -1",
+            ),
+        ] {
+            let mut function_contexts = vec![FfiValueParsingContext {
+                kind: FfiValueParsingContextKind::Property,
+                value: property,
+                secondary_value: 0,
+                name: FfiUtf16View::default(),
+                allowed_channels: 0,
+            }];
+            function_contexts.extend(function_names.iter().map(|function_name| FfiValueParsingContext {
+                kind: FfiValueParsingContextKind::Function,
+                value: 0,
+                secondary_value: 0,
+                name: FfiUtf16View {
+                    ascii: function_name.as_ptr(),
+                    utf16: std::ptr::null(),
+                    length: function_name.len(),
+                },
+                allowed_channels: 0,
+            }));
+            let mut parse_context = context();
+            parse_context.value_contexts = function_contexts.as_ptr();
+            parse_context.value_context_count = function_contexts.len();
+            assert!(
+                matches!(
+                    parse_with_context(&parse_context, property, source),
+                    ParseOutcome::Parsed(_)
+                ),
+                "failed to restore {function_names:?} around {source}"
+            );
+        }
     }
 
     #[test]

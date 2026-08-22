@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
@@ -469,13 +470,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    if (!rust_value_parser_enabled() || property_id == PropertyID::Custom)
+    if (!rust_value_parser_enabled())
         return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
 
     ensure_parse_fallback_statistics_dumper();
 
     Utf16StringBuilder builder;
     bool contains_guaranteed_invalid_value = false;
+    bool contains_attr_tainted_values = false;
     {
         auto transaction = tokens.begin_transaction();
         while (tokens.has_next_token()) {
@@ -484,6 +486,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
                 contains_guaranteed_invalid_value = true;
                 break;
             }
+            contains_attr_tainted_values |= token.contains_attr_tainted_value();
 
             auto token_source = token.original_source_text();
             if (token_source.is_empty()) {
@@ -502,6 +505,15 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     if (contains_guaranteed_invalid_value)
         return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
     auto source = builder.to_string();
+    auto unresolved_source = source.trim_ascii_whitespace();
+    auto transaction = tokens.begin_transaction();
+    auto start_index = tokens.current_index();
+    while (tokens.has_next_token())
+        tokens.discard_a_token();
+    auto reconstructed_values = tokens.tokens_since(start_index);
+    auto comparison_source = serialize_a_series_of_component_values(reconstructed_values).trim_ascii_whitespace();
+    if (value_is_substituted == ValueIsSubstituted::Yes)
+        source = serialize_a_series_of_component_values(reconstructed_values);
 
     Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
     value_contexts.ensure_capacity(m_value_context.size());
@@ -550,6 +562,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .in_quirks_mode = in_quirks_mode(),
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
         .is_substituted_value = value_is_substituted == ValueIsSubstituted::Yes,
+        .contains_attr_tainted_values = contains_attr_tainted_values,
         .value_contexts = value_contexts.data(),
         .value_context_count = value_contexts.size(),
         .document_url = document_url.data(),
@@ -565,7 +578,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
-        &context, to_underlying(property_id), ffi_utf16_view(source), &status, &reason);
+        &context, to_underlying(property_id), ffi_utf16_view(source),
+        ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), &status, &reason);
 
     switch (status) {
     case ValueParserFFI::FfiParseStatus::Parsed: {
@@ -638,6 +652,7 @@ Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(F
         .in_quirks_mode = in_quirks_mode(),
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
         .is_substituted_value = false,
+        .contains_attr_tainted_values = false,
         .value_contexts = nullptr,
         .value_context_count = 0,
         .document_url = document_url.data(),

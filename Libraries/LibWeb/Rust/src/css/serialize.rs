@@ -15,6 +15,7 @@
 use std::ffi::c_void;
 
 use crate::css::css_enums::keyword;
+use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::{RetainedColorStopList, RetainedString, StyleValueData};
 
@@ -1111,7 +1112,14 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             true
         }
         StyleValueData::Unresolved { source_text, .. } => {
-            push_utf8_raw(sink, source_text.as_bytes());
+            match source_text.as_units() {
+                TokenizerInput::Ascii(units) => sink.push_ascii(unsafe { std::str::from_utf8_unchecked(units) }),
+                TokenizerInput::Utf16(units) => {
+                    for &code_unit in units {
+                        sink.push_code_unit(code_unit);
+                    }
+                }
+            }
             true
         }
         StyleValueData::BorderImageSlice {
@@ -2556,19 +2564,6 @@ fn push_units_raw(sink: &mut TextSink, units: &StringUnits) {
                 sink.push_code_unit(unit);
             }
         }
-    }
-}
-
-/// Appends UTF-8 bytes verbatim, with no escaping.
-fn push_utf8_raw(sink: &mut TextSink, bytes: &[u8]) {
-    // SAFETY: AK::String contents are guaranteed valid UTF-8.
-    let text = unsafe { std::str::from_utf8_unchecked(bytes) };
-    if text.is_ascii() {
-        sink.push_ascii(text);
-        return;
-    }
-    for unit in text.encode_utf16() {
-        sink.push_code_unit(unit);
     }
 }
 

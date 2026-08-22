@@ -23,9 +23,9 @@ use crate::css::style_value::{
 };
 
 use super::value_parser::{
-    FfiValueParsingContextKind, NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome,
-    equals_ascii_case_insensitive, parse_angle_from_stream, parse_angle_percentage_from_stream,
-    parse_length_percentage_from_stream, parse_resolution_from_stream, parse_url_value, retain_fly_string,
+    NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, equals_ascii_case_insensitive,
+    parse_angle_from_stream, parse_angle_percentage_from_stream, parse_length_percentage_from_stream,
+    parse_resolution_from_stream, parse_url_value, retain_fly_string,
 };
 
 fn retained(value: StyleValueData) -> RetainedStyleValueData {
@@ -98,6 +98,10 @@ fn parse_type(context: &ParseContext, value: &ComponentValue) -> Option<Retained
 }
 
 fn parse_image_set(context: &ParseContext, property: u16, arguments: &[ComponentValue]) -> Option<StyleValueData> {
+    // NB: Mirrors the C++ image-set parser's rejection of attr()-tainted options.
+    if context.contains_attr_tainted_values {
+        return None;
+    }
     let mut options = Vec::new();
     for option in arguments.split(ComponentValue::is_comma) {
         let mut tokens = TokenStream::new(option);
@@ -670,30 +674,6 @@ pub(crate) fn is_image_function_name(name: &[u16]) -> bool {
     .any(|expected| equals_ascii_case_insensitive(name, expected.as_bytes()))
 }
 
-fn has_function_context(context: &ParseContext) -> bool {
-    if context.value_context_count == 0 || context.value_contexts.is_null() {
-        return false;
-    }
-    unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
-        .iter()
-        .any(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
-}
-
-fn contains_comment_boundary(values: &[ComponentValue]) -> bool {
-    values.iter().any(|value| {
-        value
-            .original_source_text
-            .windows(2)
-            .any(|window| window == [u16::from(b'/'), u16::from(b'*')])
-            || match &value.kind {
-                ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => {
-                    contains_comment_boundary(values)
-                }
-                ComponentKind::Token(_) => false,
-            }
-    })
-}
-
 fn parse_image_or_none(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
     let mut tokens = TokenStream::new(values);
     tokens.discard_whitespace();
@@ -729,12 +709,6 @@ pub(crate) fn parse_image_property(context: &ParseContext, property: u16, values
     ) {
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     }
-    if has_function_context(context) || contains_comment_boundary(values) {
-        // NB: C++ can reparse a wrapper-less image-set or gradient fragment
-        //     while resolving substitutions, and retains attr-taint metadata
-        //     which is not exposed by the Rust tokenizer.
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
-    }
     let parsed = if matches!(property, property_id::BACKGROUND_IMAGE | property_id::MASK_IMAGE) {
         values
             .split(ComponentValue::is_comma)
@@ -760,6 +734,7 @@ mod tests {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
+            contains_attr_tainted_values: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),

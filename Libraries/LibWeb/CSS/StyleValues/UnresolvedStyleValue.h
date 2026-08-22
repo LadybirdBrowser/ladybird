@@ -25,8 +25,8 @@ public:
         Preserve,
     };
 
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text = {}, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text = {}, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
     Vector<Parser::ComponentValue> tokenize() const;
@@ -57,14 +57,23 @@ private:
     {
     }
 
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
-    UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
+    UnresolvedStyleValue(Utf16String source_text, Utf16String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
-    String comparison_text() const;
+    Utf16String comparison_text() const;
 
-    String source_text() const { return String::from_raw(m_value->unresolved.source_text.raw); }
-    String value_comparison_text() const { return String::from_raw(m_value->unresolved.value_comparison_text.raw); }
+    static Utf16String string_from_rust_data(StyleValueFFI::RetainedReadableString const& string)
+    {
+        if (string.raw != 0)
+            return Utf16String::from_raw(string.raw);
+        if (string.ascii_units)
+            return Utf16String::from_utf8_without_validation({ string.ascii_units, string.length });
+        return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(string.code_units), string.length });
+    }
+
+    Utf16String source_text() const { return string_from_rust_data(m_value->unresolved.source_text); }
+    Utf16String value_comparison_text() const { return string_from_rust_data(m_value->unresolved.value_comparison_text); }
 };
 
 }
