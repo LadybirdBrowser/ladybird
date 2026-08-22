@@ -7,7 +7,6 @@
 use super::*;
 use crate::layout::LayoutNodeArena;
 use crate::painting::host::FfiHitTestQueryCallbacks;
-use crate::painting::paintable_arena::PaintableArena;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TopmostItem {
@@ -24,7 +23,6 @@ impl HitTestList {
     fn item_contains(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         item: &HitTestItem,
         local: (f32, f32),
@@ -53,7 +51,7 @@ impl HitTestList {
             HitTestItemKind::EmptyLine => false,
             HitTestItemKind::EmptyEditable => item.rect.contains_point(local_point),
             HitTestItemKind::ChromeWidget => {
-                if !paintables.paintable_row_is_populated(item.paintable) {
+                if !layout_arena.paintable_row_is_populated(item.paintable) {
                     return false;
                 }
                 let node = item.paintable;
@@ -65,7 +63,6 @@ impl HitTestList {
     fn find_topmost_item_in_list(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         item_indices: &[usize],
         local: (f32, f32),
@@ -79,7 +76,7 @@ impl HitTestList {
             if search.caret_capable_only && !item.can_produce_caret_position {
                 continue;
             }
-            if !self.item_contains(layout_arena, paintables, callbacks, item, local) {
+            if !self.item_contains(layout_arena, callbacks, item, local) {
                 continue;
             }
             *search.index = Some(*item_index);
@@ -103,7 +100,6 @@ impl HitTestList {
     fn find_topmost(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         with_caret_item: bool,
@@ -129,7 +125,6 @@ impl HitTestList {
             {
                 self.find_topmost_item_in_list(
                     layout_arena,
-                    paintables,
                     callbacks,
                     candidate_list,
                     local,
@@ -141,7 +136,6 @@ impl HitTestList {
                 if with_caret_item {
                     self.find_topmost_item_in_list(
                         layout_arena,
-                        paintables,
                         callbacks,
                         candidate_list,
                         local,
@@ -179,7 +173,6 @@ impl HitTestList {
     fn topmost_item_by_plane_depth(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         topmost: TopmostItem,
@@ -203,7 +196,7 @@ impl HitTestList {
             {
                 for item_index in candidate_list {
                     if *item_index == winner.index
-                        || !self.item_contains(layout_arena, paintables, callbacks, &self.items[*item_index], local)
+                        || !self.item_contains(layout_arena, callbacks, &self.items[*item_index], local)
                     {
                         continue;
                     }
@@ -224,32 +217,29 @@ impl HitTestList {
     pub(crate) fn find_topmost_item(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Option<TopmostItem> {
-        let topmost = self.find_topmost(layout_arena, paintables, callbacks, point, false).0?;
+        let topmost = self.find_topmost(layout_arena, callbacks, point, false).0?;
         // Record order misranks content inside a 3D rendering context, whose planes paint depth sorted. A winner
         // on such a plane is re-resolved against every hit plane of its outermost context. Content outside the
         // context keeps record order, which stays correct because a context's items are recorded contiguously.
-        Some(self.topmost_item_by_plane_depth(layout_arena, paintables, callbacks, point, topmost))
+        Some(self.topmost_item_by_plane_depth(layout_arena, callbacks, point, topmost))
     }
 
     pub(crate) fn find_topmost_items_for_caret(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> (Option<TopmostItem>, Option<TopmostItem>) {
-        let (hit, caret) = self.find_topmost(layout_arena, paintables, callbacks, point, true);
+        let (hit, caret) = self.find_topmost(layout_arena, callbacks, point, true);
         (caret, hit)
     }
 
     pub(crate) fn hit_test_all(
         &self,
         layout_arena: &LayoutNodeArena,
-        paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Vec<usize> {
@@ -267,7 +257,7 @@ impl HitTestList {
                 .flatten()
             {
                 for item_index in candidate_list {
-                    if self.item_contains(layout_arena, paintables, callbacks, &self.items[*item_index], local) {
+                    if self.item_contains(layout_arena, callbacks, &self.items[*item_index], local) {
                         hit_item_indices.push(*item_index);
                     }
                 }

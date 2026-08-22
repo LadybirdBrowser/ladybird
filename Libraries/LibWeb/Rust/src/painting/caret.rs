@@ -7,7 +7,6 @@
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::text_fragment::{self, CaretMatch};
 
@@ -20,20 +19,12 @@ pub(crate) struct CaretRectResult {
 
 fn caret_rect_in_fragment(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     owner: NodeSlotId,
     fragment: &FragmentRecord,
     offset: usize,
 ) -> CaretRectResult {
     CaretRectResult {
-        rect: text_fragment::range_rect(
-            layout_arena,
-            paintables,
-            fragment,
-            SELECTION_STATE_START_AND_END,
-            offset,
-            offset,
-        ),
+        rect: text_fragment::range_rect(layout_arena, fragment, SELECTION_STATE_START_AND_END, offset, offset),
         style_source: text_fragment::style_source(layout_arena, fragment),
         owner,
         node: fragment.layout_node,
@@ -42,14 +33,13 @@ fn caret_rect_in_fragment(
 
 pub(crate) fn caret_rect_for_position(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     node_slots: &[NodeSlotId],
     offset: usize,
     affinity_is_downstream: bool,
 ) -> Option<CaretRectResult> {
     let mut fallback: Option<(NodeSlotId, u32)> = None;
     let mut direct: Option<(NodeSlotId, u32)> = None;
-    text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |block, index, fragment| {
+    text_fragment::for_each_fragment_of_nodes(layout_arena, node_slots, |block, index, fragment| {
         match text_fragment::caret_match(fragment, offset, affinity_is_downstream) {
             CaretMatch::None => true,
             CaretMatch::SoftWrapFallback => {
@@ -65,24 +55,17 @@ pub(crate) fn caret_rect_for_position(
         }
     });
     let (block, index) = direct.or(fallback)?;
-    let fragment = &paintables.side(block).fragments[index as usize];
-    Some(caret_rect_in_fragment(
-        layout_arena,
-        paintables,
-        block,
-        fragment,
-        offset,
-    ))
+    let fragment = &layout_arena.paintable_side_data(block).fragments[index as usize];
+    Some(caret_rect_in_fragment(layout_arena, block, fragment, offset))
 }
 
 pub(crate) fn caret_rect_in_dom_range(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     node_slots: &[NodeSlotId],
     offset: usize,
 ) -> Option<CssPixelRect> {
     let mut rect = None;
-    text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |_, _, fragment| {
+    text_fragment::for_each_fragment_of_nodes(layout_arena, node_slots, |_, _, fragment| {
         let dom_start = fragment.dom_start_offset_in_node;
         let dom_end = fragment.dom_end_offset_in_node;
         if offset < dom_start || offset > dom_end {
@@ -90,7 +73,6 @@ pub(crate) fn caret_rect_in_dom_range(
         }
         rect = Some(text_fragment::range_rect(
             layout_arena,
-            paintables,
             fragment,
             SELECTION_STATE_START_AND_END,
             offset,

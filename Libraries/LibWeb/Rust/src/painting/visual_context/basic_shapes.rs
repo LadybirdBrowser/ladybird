@@ -13,7 +13,6 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::normalize_border_radii_data;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::{paintable_geometry, style_queries};
 use libgfx_rust::WindingRule;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
@@ -439,7 +438,6 @@ fn svg_path_data_to_path(path_string: &crate::css::retained_fly_string::Retained
 
 pub(crate) fn compute_basic_shape_clip_path_data(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule, bool)> {
@@ -462,7 +460,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     };
 
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-    let masking_area = paintable_geometry::absolute_border_box_rect(paintables, slot);
+    let masking_area = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
     let reference_box = CssPixelRect::new(
         CssPixels::from_raw(0),
         CssPixels::from_raw(0),

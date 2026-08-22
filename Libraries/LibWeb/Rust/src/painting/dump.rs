@@ -9,7 +9,6 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::fragment_ownership;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::text_fragment;
 
@@ -71,7 +70,6 @@ fn push_indent(out: &mut Vec<u8>, indent: usize) {
 fn dump_fragment(
     out: &mut Vec<u8>,
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     fragment: &FragmentRecord,
     fragment_index: usize,
     indent: usize,
@@ -99,7 +97,7 @@ fn dump_fragment(
     out.extend_from_slice(b", length: ");
     push_usize(out, fragment.length_in_code_units);
     out.extend_from_slice(b", rect: [");
-    let rect = text_fragment::absolute_rect(layout_arena, paintables, fragment);
+    let rect = text_fragment::absolute_rect(layout_arena, fragment);
     push_css_pixels(out, rect.x);
     out.push(b',');
     push_css_pixels(out, rect.y);
@@ -130,27 +128,18 @@ fn dump_fragment(
 pub(crate) fn dump_block_fragments(
     out: &mut Vec<u8>,
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     block: NodeSlotId,
     indent: usize,
     interactive: bool,
 ) {
     let mut fragment_index = 0usize;
-    for fragment in &paintables.side(block).fragments {
+    for fragment in &layout_arena.paintable_side_data(block).fragments {
         if layout_arena.node_kind_if_live(fragment.layout_node).is_some()
             && fragment_ownership::nearest_fragmented_inline_ancestor(layout_arena, fragment.layout_node).is_some()
         {
             continue;
         }
-        dump_fragment(
-            out,
-            layout_arena,
-            paintables,
-            fragment,
-            fragment_index,
-            indent,
-            interactive,
-        );
+        dump_fragment(out, layout_arena, fragment, fragment_index, indent, interactive);
         fragment_index += 1;
     }
 }
@@ -158,16 +147,15 @@ pub(crate) fn dump_block_fragments(
 pub(crate) fn dump_inline_piece_fragments(
     out: &mut Vec<u8>,
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     inline_paintable: NodeSlotId,
     indent: usize,
     interactive: bool,
 ) {
-    let Some(root) = paintables.inline_pieces_root(inline_paintable) else {
+    let Some(root) = layout_arena.inline_pieces_root(inline_paintable) else {
         return;
     };
-    let root_side = paintables.side(root);
-    for piece_index in &paintables.side(inline_paintable).piece_indices {
+    let root_side = layout_arena.paintable_side_data(root);
+    for piece_index in &layout_arena.paintable_side_data(inline_paintable).piece_indices {
         let piece = &root_side.inline_box_pieces[*piece_index as usize];
         let mut fragment_index_within_piece = 0usize;
         for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {
@@ -181,7 +169,6 @@ pub(crate) fn dump_inline_piece_fragments(
             dump_fragment(
                 out,
                 layout_arena,
-                paintables,
                 fragment,
                 fragment_index_within_piece,
                 indent,

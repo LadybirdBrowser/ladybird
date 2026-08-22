@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextHostCallbacks;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::visual_context::build::{
     BoxFacts, compute_svg_viewport_transform_data, svg_viewport_transform_of,
 };
@@ -23,7 +22,6 @@ pub struct NestedAssignments {
 
 struct NestedBuilder<'a> {
     layout_arena: &'a LayoutNodeArena,
-    paintables: &'a PaintableArena,
     callbacks: &'a FfiVisualContextHostCallbacks,
     tree: VisualContextTree,
     assignments: NestedAssignments,
@@ -32,14 +30,7 @@ struct NestedBuilder<'a> {
 
 impl NestedBuilder<'_> {
     fn build_subtree(&mut self, slot: NodeSlotId, inherited_state: usize, include_element_transform: bool) {
-        let facts = BoxFacts::gather(
-            self.layout_arena,
-            self.paintables,
-            self.callbacks,
-            slot,
-            self.pixel_ratio,
-            false,
-        );
+        let facts = BoxFacts::gather(self.layout_arena, self.callbacks, slot, self.pixel_ratio, false);
         let mut own_state = inherited_state;
         if let Some(effects) = facts.effects_data() {
             own_state = self.tree.append(VisualContextData::Effects(effects), inherited_state);
@@ -70,9 +61,9 @@ impl NestedBuilder<'_> {
             state_for_descendants = self.tree.append(VisualContextData::Clip(clip), state_for_descendants);
         }
 
-        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.paintables, slot) {
+        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.layout_arena, slot) {
             let viewport_transform_data =
-                compute_svg_viewport_transform_data(self.paintables, slot, svg_viewport_transform, self.pixel_ratio);
+                compute_svg_viewport_transform_data(self.layout_arena, slot, svg_viewport_transform, self.pixel_ratio);
             state_for_descendants = self.tree.append(
                 VisualContextData::Transform(viewport_transform_data),
                 state_for_descendants,
@@ -83,17 +74,16 @@ impl NestedBuilder<'_> {
             .paintable_indices
             .insert(slot.index, (own_state, state_for_descendants));
 
-        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, slot);
+        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, slot);
         while let Some(current) = child {
             self.build_subtree(current, state_for_descendants, true);
-            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, self.paintables, current);
+            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, current);
         }
     }
 }
 
 pub(crate) fn build_nested_svg_visual_context_tree(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     root: NodeSlotId,
     root_transform: TransformData,
@@ -102,7 +92,6 @@ pub(crate) fn build_nested_svg_visual_context_tree(
 ) -> (VisualContextTree, NestedAssignments) {
     let mut builder = NestedBuilder {
         layout_arena,
-        paintables,
         callbacks,
         tree: VisualContextTree::create_with_content_root(root_transform),
         assignments: NestedAssignments::default(),

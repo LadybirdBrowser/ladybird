@@ -263,7 +263,7 @@ pub(crate) struct LayoutNodeArena {
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
     fc_run_cache_store: crate::layout::FcRunCacheArenaStore,
-    paintables: RefCell<crate::painting::paintable_arena::PaintableArena>,
+    pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
     owner_thread: thread::ThreadId,
@@ -287,7 +287,7 @@ impl LayoutNodeArena {
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             fc_run_cache_store: crate::layout::FcRunCacheArenaStore::default(),
-            paintables: RefCell::new(crate::painting::paintable_arena::PaintableArena::new()),
+            paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
@@ -394,7 +394,7 @@ impl LayoutNodeArena {
         &mut self,
         id: NodeSlotId,
         generation: u32,
-    ) -> Option<crate::painting::paintable_arena::PaintableRowReset> {
+    ) -> Option<crate::painting::paintable_rows::PaintableRowReset> {
         self.assert_owner_thread();
 
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
@@ -405,9 +405,7 @@ impl LayoutNodeArena {
             generation,
             "layout node arena slot ID and allocation generation disagree"
         );
-        self.paintables
-            .borrow()
-            .clear_descendant_subtree_caches_from_layout_node(self, id);
+        self.clear_descendant_subtree_caches_from_layout_node(id);
         let should_reuse = {
             let metadata = self.metadata_mut(index);
             assert!(metadata.occupied, "layout node arena freed an unused slot");
@@ -418,9 +416,9 @@ impl LayoutNodeArena {
             metadata.generation != u8::MAX
         };
 
-        let paintable_row_reset = self.paintables.get_mut().prepare_layout_node_freed_reset(index);
+        let paintable_row_reset = self.prepare_paintable_row_freed_reset(index);
         if let Some(reset) = paintable_row_reset {
-            self.paintables.get_mut().layout_node_freed(reset);
+            self.paintable_row_freed(reset);
         }
         self.metadata_mut(index).occupied = false;
 
@@ -430,7 +428,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
             *slot = SavedAbsposLayoutInputsSlot::default();
         }
-        self.paintables.get_mut().reset_committed_fragment_link_slot(index);
+        self.paintable_rows.reset_committed_fragment_link_slot(index);
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
             *slot = TextContentSlot::default();
         }
@@ -1069,8 +1067,7 @@ impl LayoutNodeArena {
     pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<crate::layout::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
-            .paintables
-            .borrow()
+            .paintable_rows
             .committed_fragment_link_cloned(index, metadata.generation);
 
         // SAFETY: slot_for_data() established that data points to a live slot
@@ -1086,8 +1083,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_committed_fragment_link(&self, data: *mut NodeData, link: crate::layout::FragmentLink) {
         let (index, metadata) = self.slot_for_data(data);
-        self.paintables
-            .borrow()
+        self.paintable_rows
             .set_committed_fragment_link(index, metadata.generation, link);
 
         // SAFETY: slot_for_data() established that data points to a live slot
@@ -1102,8 +1098,7 @@ impl LayoutNodeArena {
     pub(crate) fn take_committed_fragment_link(&self, data: *mut NodeData) -> Option<crate::layout::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
-            .paintables
-            .borrow()
+            .paintable_rows
             .take_committed_fragment_link(index, metadata.generation);
 
         // SAFETY: slot_for_data() established that data points to a live slot
@@ -1478,10 +1473,6 @@ impl LayoutNodeArena {
         }
 
         self.note_inline_layout_damage_at_and_above(parent);
-    }
-
-    pub(crate) fn paintables(&self) -> &RefCell<crate::painting::paintable_arena::PaintableArena> {
-        &self.paintables
     }
 
     pub(crate) fn paint_state(&self) -> &RefCell<crate::painting::paint_state::PaintState> {

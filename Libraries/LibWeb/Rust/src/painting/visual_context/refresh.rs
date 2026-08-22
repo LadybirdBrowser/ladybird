@@ -6,13 +6,13 @@
 
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot, StickyConstraints};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextHostCallbacks;
-use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_geometry;
 
 pub(crate) fn precompute_sticky_constraints(
-    paintables: &PaintableArena,
+    layout_arena: &LayoutNodeArena,
     scroll_state: &mut ScrollState,
     sticky_slot: ScrollStateSlot,
     paintable: NodeSlotId,
@@ -22,15 +22,15 @@ pub(crate) fn precompute_sticky_constraints(
         return;
     }
     let scroll_ancestor = scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable;
-    if !paintables.paintable_row_is_populated(scroll_ancestor) {
+    if !layout_arena.paintable_row_is_populated(scroll_ancestor) {
         return;
     }
-    let sticky_border_box_rect = paintable_geometry::absolute_border_box_rect(paintables, paintable);
-    let containing_block_of_sticky = paintables.data_ref(paintable).containing_block;
-    let scroll_ancestor_rect = paintable_geometry::absolute_rect(paintables, scroll_ancestor);
+    let sticky_border_box_rect = paintable_geometry::absolute_border_box_rect(layout_arena, paintable);
+    let containing_block_of_sticky = layout_arena.paintable_data(paintable).containing_block;
+    let scroll_ancestor_rect = paintable_geometry::absolute_rect(layout_arena, scroll_ancestor);
 
     let (containing_block_region, needs_parent_offset_adjustment) = if containing_block_of_sticky == scroll_ancestor {
-        let size = paintable_geometry::scrollable_overflow_rect(paintables, containing_block_of_sticky)
+        let size = paintable_geometry::scrollable_overflow_rect(layout_arena, containing_block_of_sticky)
             .expect("scroll ancestor has scrollable overflow")
             .size();
         (
@@ -38,12 +38,12 @@ pub(crate) fn precompute_sticky_constraints(
             false,
         )
     } else {
-        let region = paintable_geometry::absolute_border_box_rect(paintables, containing_block_of_sticky)
+        let region = paintable_geometry::absolute_border_box_rect(layout_arena, containing_block_of_sticky)
             .translated(-scroll_ancestor_rect.x, -scroll_ancestor_rect.y);
         (region, true)
     };
 
-    let insets = paintables.data_ref(paintable).sticky_insets;
+    let insets = layout_arena.paintable_data(paintable).sticky_insets;
     scroll_state.state_at_slot_mut(sticky_slot).sticky_constraints = Some(StickyConstraints {
         position_relative_to_scroll_ancestor: CssPixelPoint::new(
             sticky_border_box_rect.x - scroll_ancestor_rect.x,
@@ -57,24 +57,23 @@ pub(crate) fn precompute_sticky_constraints(
     });
 }
 
-pub(crate) fn refresh_sticky_constraints(paintables: &PaintableArena, scroll_state: &mut ScrollState) {
+pub(crate) fn refresh_sticky_constraints(layout_arena: &LayoutNodeArena, scroll_state: &mut ScrollState) {
     for slot in 0..scroll_state.slot_count() {
         let state = scroll_state.state_at_slot(slot);
         if !state.is_sticky {
             continue;
         }
-        // Skip entries whose paintables a subtree relayout has replaced; the pending visual
+        // Skip entries whose paintable rows a subtree relayout has replaced; the pending visual
         // context tree rebuild recreates those entries before anything reads them.
         let paintable = state.paintable;
-        if paintables.paintable_row_is_populated(paintable) {
-            precompute_sticky_constraints(paintables, scroll_state, slot, paintable);
+        if layout_arena.paintable_row_is_populated(paintable) {
+            precompute_sticky_constraints(layout_arena, scroll_state, slot, paintable);
         }
     }
 }
 
 pub(crate) fn refresh_scroll_state(
     layout_arena: &crate::layout::LayoutNodeArena,
-    paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     scroll_state: &mut ScrollState,
 ) {
@@ -95,7 +94,7 @@ pub(crate) fn refresh_scroll_state(
             continue;
         }
         let scroll_ancestor = scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable;
-        if !paintables.paintable_row_is_populated(scroll_ancestor) {
+        if !layout_arena.paintable_row_is_populated(scroll_ancestor) {
             continue;
         }
         let sticky_insets = sticky_data.insets;
@@ -158,7 +157,7 @@ pub(crate) fn refresh_scroll_state(
             continue;
         }
         let paintable = state.paintable;
-        if paintables.paintable_row_is_populated(paintable) {
+        if layout_arena.paintable_row_is_populated(paintable) {
             let node = paintable;
             let offset: CssPixelPoint = callbacks.scroll_offset(layout_arena.shell_if_live(node)).into();
             scroll_state.state_at_slot_mut(slot).own_offset = CssPixelPoint::new(-offset.x, -offset.y);

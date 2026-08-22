@@ -581,9 +581,9 @@ pub(crate) fn resolve_background_for_paint<'a>(
     if style_queries::node_is_root_element(layout_arena, node) {
         let root_background_source = recorder.paint_host.root_background_source();
         let background_rect =
-            crate::painting::paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
+            crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
         let border_radii =
-            crate::painting::visual_context::node_values::border_radii_data(style, recorder.paintables, paintable);
+            crate::painting::visual_context::node_values::border_radii_data(style, recorder.layout_arena, paintable);
 
         let own_color = libgfx_rust::Color(style.background().background_color);
         let body_style = root_background_source
@@ -636,7 +636,7 @@ pub(crate) fn resolve_background_for_paint<'a>(
 
         let mut canvas_rect = CssPixelRect::from(recorder.inputs.css_viewport_rect);
         if let Some(overflow_rect) =
-            crate::painting::paintable_geometry::scrollable_overflow_rect(recorder.paintables, paintable)
+            crate::painting::paintable_geometry::scrollable_overflow_rect(recorder.layout_arena, paintable)
         {
             canvas_rect.unite(overflow_rect);
         }
@@ -665,12 +665,12 @@ pub(crate) fn resolve_background_for_paint<'a>(
         || style.border_bottom_width() != zero
         || style.border_left_width() != zero;
     let background_rect = if has_css_borders {
-        crate::painting::paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable)
+        crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable)
     } else {
-        crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.paintables, paintable)
+        crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable)
     };
     let border_radii =
-        crate::painting::visual_context::node_values::border_radii_data(style, recorder.paintables, paintable);
+        crate::painting::visual_context::node_values::border_radii_data(style, recorder.layout_arena, paintable);
     let resolved_background = resolve_background_layers(
         recorder,
         paintable,
