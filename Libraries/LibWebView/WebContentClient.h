@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/Optional.h>
@@ -113,6 +114,7 @@ public:
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);
     void did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_present_bitmap(u64 page_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
+    void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
@@ -125,14 +127,18 @@ private:
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
     void destroy_all_compositor_contexts();
     StorageJar* storage_jar_for_page(u64 page_id, Web::StorageAPI::StorageEndpointType);
+    void cancel_navigation_transactions();
+    bool continue_navigation_population_in_selected_process(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
 
     virtual void die() override;
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
-    virtual Messages::WebContentClient::DecideNavigationProcessResponse decide_navigation_process(u64 page_id, Optional<Web::HTML::CrossProcessId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget) override;
-    virtual void did_request_new_process_for_navigation(u64 page_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) override;
-    virtual void did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) override;
+    virtual void did_request_navigation_start(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationStartRequest) override;
+    virtual void did_complete_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, bool should_continue) override;
+    virtual void did_request_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, URL::URL current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest) override;
+    virtual void did_finish_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult>) override;
+    virtual void did_fail_navigation_population(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
     virtual void did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) override;

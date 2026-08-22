@@ -645,15 +645,6 @@ Optional<i32> TraversableSessionHistory::finalize_cross_document_navigation(Cano
             return entry.document_state.id == entry_to_replace_identity->document_state_id
                 && entry.navigation_api_id == entry_to_replace_identity->navigation_api_id;
         });
-        // AD-HOC: A child can initialize the Navigation API after its initial about:blank entry was mirrored. Treat
-        // the sole unpopulated initial entry as the active entry when its live identity has changed since then.
-        if (entry_to_replace == target_entries->end()
-            && nested_history_id.has_value()
-            && target_entries->size() == 1
-            && target_entries->first().url == URL::about_blank()
-            && !target_entries->first().document_state.ever_populated) {
-            entry_to_replace = target_entries->begin();
-        }
         if (entry_to_replace == target_entries->end())
             return {};
         entry_to_replace_identity = Web::HTML::session_history_entry_identity(*entry_to_replace);

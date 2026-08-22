@@ -869,7 +869,7 @@ TEST_CASE(same_document_replacement_uses_the_captured_entry_to_replace)
     expect_entry(history, 1, 2, "https://example.com/forward"sv);
 }
 
-TEST_CASE(nested_finalization_replaces_initial_entry_after_its_key_changes)
+TEST_CASE(nested_finalization_rejects_a_changed_initial_entry_identity)
 {
     WebView::CanonicalTraversable traversable;
     traversable.set_id({ 9, 1 });
@@ -890,15 +890,14 @@ TEST_CASE(nested_finalization_replaces_initial_entry_after_its_key_changes)
     auto committed_entry = entry(0, "https://frame.example/"sv, 2, ""sv);
     committed_entry.navigation_api_key = Utf16String::from_utf8("live-initial"sv);
     auto target_step = history.finalize_cross_document_navigation(child, pending_entry(move(committed_entry)), Web::HTML::HistoryHandlingBehavior::Replace);
-    EXPECT(target_step.has_value());
-    EXPECT_EQ(*target_step, 0);
+    EXPECT(!target_step.has_value());
 
     auto entries = history.entries();
     auto const& nested_history = entries.first().document_state.nested_histories.first();
     auto const& nested_entries = nested_history.entries;
     EXPECT_EQ(nested_entries.size(), 1uz);
-    expect_nested_entry(nested_history, 0, 0, "https://frame.example/"sv);
-    EXPECT_EQ(nested_entries.first().navigation_api_key, Utf16String::from_utf8("live-initial"sv));
+    expect_nested_entry(nested_history, 0, 0, "about:blank"sv);
+    EXPECT_EQ(nested_entries.first().navigation_api_key, Utf16String::from_utf8("canonical-initial"sv));
 }
 
 TEST_CASE(nested_finalization_rejects_wrong_active_entry_for_populated_history)

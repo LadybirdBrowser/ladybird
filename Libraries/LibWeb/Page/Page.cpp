@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -135,21 +136,7 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
 
 void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling)
 {
-    (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
-}
-
-void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
-    Bindings::NavigationHistoryBehavior history_handling, Optional<HTML::NavigationSourceSnapshot> source_snapshot)
-{
-    (void)top_level_traversable()->navigate({
-        .url = url,
-        .source_document = *top_level_traversable()->active_document(),
-        .document_resource = move(document_resource),
-        .history_handling = history_handling,
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
-        .cross_process_source_snapshot = move(source_snapshot),
-        .history_handling_already_determined = true,
-    });
+    (void)top_level_traversable()->navigate({ .url = url, .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
 void Page::load_html(StringView html)
@@ -158,7 +145,6 @@ void Page::load_html(StringView html)
     heap().collect_garbage();
 
     (void)top_level_traversable()->navigate({ .url = URL::about_srcdoc(),
-        .source_document = *top_level_traversable()->active_document(),
         .document_resource = Utf16String::from_utf8(html),
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
@@ -178,7 +164,6 @@ void Page::load_html(StringView html, URL::URL const& url)
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, html_string.bytes()));
 
     HTML::LocalNavigable::NavigateParams params { .url = url,
-        .source_document = *document,
         .response = response,
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI };
 
@@ -1404,6 +1389,33 @@ void Page::set_viewport_is_fullscreen(ViewportIsFullscreen is_fullscreen)
     m_viewport_is_fullscreen = is_fullscreen;
     m_fullscreen_ipc_sent_to_ui = false;
     process_pending_fullscreen_operations();
+}
+
+void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, URL::URL const& current_url, NavigationTarget target, HTML::NavigationStartRequest request)
+{
+    auto navigation_id = request.navigation_id;
+    navigable.run_navigation_unload_check(navigation_id, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, current_url, target, request = move(request)](bool should_continue) mutable {
+        if (!should_continue) {
+            navigable->resume_navigation_params_creation(request.navigation_id, {});
+            return;
+        }
+        auto population_request = HTML::create_navigation_population_request(move(request), client->allocate_cross_process_id());
+        client->request_navigation_population(navigable, current_url, target, move(population_request));
+    }));
+}
+
+void PageClient::request_navigation_population(HTML::LocalNavigable& navigable, URL::URL const&, NavigationTarget, HTML::NavigationPopulationRequest request)
+{
+    navigable.resume_navigation_params_creation(request.navigation_id, move(request));
+}
+
+void PageClient::navigation_params_creation_finished(HTML::LocalNavigable& navigable, HTML::NavigationPopulationRequest request, HTML::NavigationPopulationResult result)
+{
+    HTML::apply_navigation_population_result(request, result);
+    auto traversable = navigable.traversable_navigable();
+    if (!traversable)
+        return;
+    traversable->continue_navigation_at_population(move(request), move(result));
 }
 
 }

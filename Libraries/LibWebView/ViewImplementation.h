@@ -104,7 +104,7 @@ public:
     String const& handle() const { return m_client_state.client_handle; }
     Optional<URL::URL> const& top_level_process_site_url() const { return m_client_state.site_url; }
 
-    void create_new_process_for_cross_site_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> = {});
+    bool create_new_process_for_cross_site_navigation(Utf16String const& navigation_id);
     void replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id, URL::URL const& target_url);
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
@@ -487,6 +487,7 @@ protected:
 
     void set_url(URL::URL);
     void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&, bool is_redirect);
+    void did_cancel_loading(Optional<Utf16String> const& navigation_id);
     bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
     void did_finish_navigation(URL::URL const&);
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;

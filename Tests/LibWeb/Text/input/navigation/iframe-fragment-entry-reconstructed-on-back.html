@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Traversing back to a page recreates its iframe and populates the canonical target entry while the child's
+    // initial about:blank remains active. A fragment in the target URL must therefore be fetched with the rest of
+    // the document rather than handled as a same-document fragment navigation.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        const childUrl = await server.createEcho("GET", "/fragment-reconstruct-child", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><span>child-content</span><script>
+                addEventListener("hashchange", () => {
+                    document.body.dataset.fragmentReady = "true";
+                    parent.postMessage("fragment-ready", "*");
+                }, { once: true });
+                addEventListener("load", () => {
+                    if (!location.hash)
+                        location.hash = "one";
+                });
+            <\/script></body>`,
+        });
+
+        const awayUrl = await server.createEcho("GET", "/fragment-reconstruct-away", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>away<script>addEventListener("pageshow", () => history.back(), { once: true });<\/script>`,
+        });
+
+        // The same driver runs on both visits to the middle page; the phase survives the
+        // cross-document round trip in sessionStorage.
+        const driver = `
+            let phase = +(sessionStorage.getItem("fragment-reconstruct-phase") || "0");
+            const inner = document.querySelector("iframe");
+            let middleLoaded = false;
+            let fragmentReady = false;
+            const maybeNavigateAway = () => {
+                if (middleLoaded && fragmentReady)
+                    location.href = "${awayUrl}";
+            };
+            addEventListener("message", event => {
+                if (event.data !== "fragment-ready")
+                    return;
+                fragmentReady = true;
+                maybeNavigateAway();
+            });
+            addEventListener("pageshow", () => {
+                phase++;
+                sessionStorage.setItem("fragment-reconstruct-phase", "" + phase);
+                if (phase === 1) {
+                    middleLoaded = true;
+                    fragmentReady = inner.contentDocument.body.dataset.fragmentReady === "true";
+                    maybeNavigateAway();
+                } else if (phase === 2) {
+                    const doc = inner.contentDocument;
+                    const span = doc && doc.querySelector("span");
+                    const content = span ? span.textContent : "<none>";
+                    sessionStorage.removeItem("fragment-reconstruct-phase");
+                    parent.postMessage("hash=" + inner.contentWindow.location.hash + " content=" + content, "*");
+                }
+            }, { once: true });
+        `;
+        const middleUrl = await server.createEcho("GET", "/fragment-reconstruct-middle", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><iframe src="${childUrl}"></iframe><script>${driver}<\/script></body>`,
+        });
+
+        const outer = document.createElement("iframe");
+        document.body.appendChild(outer);
+        const result = await new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.source === outer.contentWindow)
+                    resolve(event.data);
+            });
+            outer.src = middleUrl;
+        });
+        outer.remove();
+        println(result);
+        done();
+    });
+</script>

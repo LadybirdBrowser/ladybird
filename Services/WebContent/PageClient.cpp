@@ -43,6 +43,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -237,19 +238,84 @@ Web::HTML::CrossProcessId PageClient::allocate_navigable_id()
     return allocate_cross_process_id();
 }
 
-Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget target, Optional<Web::HTML::CrossProcessId> frame_id) const
+void PageClient::request_navigation_start(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, Web::HTML::NavigationStartRequest request)
 {
-    return client().decide_navigation_process(m_id, move(frame_id), current_url, target_url, target);
+    client().async_did_request_navigation_start(m_id, navigable.id(), current_url, target, move(request));
 }
 
-void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
+void PageClient::request_navigation_population(Web::HTML::LocalNavigable& navigable, URL::URL const& current_url, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
 {
-    client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling, source_snapshot);
+    client().async_did_request_navigation_population(m_id, navigable.id(), current_url, target, move(request));
 }
 
-void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
+void PageClient::navigation_params_creation_finished(Web::HTML::LocalNavigable& navigable, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
-    client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling, source_snapshot);
+    client().async_did_finish_navigation_params_creation(m_id, navigable.id(), request.navigation_id, move(result));
+}
+
+void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+}
+
+void PageClient::populate_navigation(Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
+{
+    page().top_level_traversable()->continue_navigation_at_population(move(request), move(result));
+}
+
+void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest request)
+{
+    auto navigable_id = request.navigable_id;
+    auto navigation_id = request.navigation_id;
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document) {
+        client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
+        return;
+    }
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != navigable_id)
+            continue;
+        if (!navigable->resume_navigation_params_creation(navigation_id, move(request)))
+            client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
+        return;
+    }
+
+    client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
+}
+
+void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document)
+        return;
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != navigable_id)
+            continue;
+        navigable->resume_navigation_params_creation(navigation_id, {});
+        return;
+    }
+}
+
+void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+{
+    auto active_document = page().top_level_traversable()->active_document();
+    if (!active_document) {
+        client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id, false);
+        return;
+    }
+
+    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
+        if (navigable->id() != navigable_id)
+            continue;
+        navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable_id, navigation_id](bool should_continue) {
+            client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id, should_continue);
+        }));
+        return;
+    }
+
+    client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id, false);
 }
 
 void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
