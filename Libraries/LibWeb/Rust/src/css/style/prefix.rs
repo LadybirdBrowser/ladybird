@@ -895,6 +895,41 @@ fn step_hash(step: PrefixStepID) -> u64 {
     (u64::from(step.0) ^ 0x9E37_79B9_7F4A_7C15).wrapping_mul(0x2545_F491_4F6C_DD1D)
 }
 
+fn apply_sorted_step_delta(
+    source: &[PrefixStepID],
+    additions: &[PrefixStepID],
+    removals: &[PrefixStepID],
+    result: &mut Vec<PrefixStepID>,
+) {
+    result.clear();
+    result.reserve(source.len() + additions.len());
+    let mut source_index = 0;
+    let mut addition_index = 0;
+    let mut removal_index = 0;
+    while source_index < source.len() || addition_index < additions.len() {
+        let step = match (source.get(source_index), additions.get(addition_index)) {
+            (Some(&source), Some(&addition)) => source.min(addition),
+            (Some(&source), None) => source,
+            (None, Some(&addition)) => addition,
+            (None, None) => unreachable!(),
+        };
+        while source.get(source_index) == Some(&step) {
+            source_index += 1;
+        }
+        while additions.get(addition_index) == Some(&step) {
+            addition_index += 1;
+        }
+        while removals.get(removal_index).is_some_and(|&removal| removal < step) {
+            removal_index += 1;
+        }
+        if removals.get(removal_index) == Some(&step) {
+            removal_index += 1;
+        } else {
+            result.push(step);
+        }
+    }
+}
+
 /// Content identity of a prefix state. The two digests are fast lookup keys only; interning still
 /// compares the complete persisting and expiring sets on a hit.
 fn state_content_key(
@@ -1047,6 +1082,7 @@ pub(super) struct PrefixStates {
     local_fact_interner: LocalFactInterner,
     transition_by_row: Vec<PrefixTransition>,
     transition_by_element: Column<PrefixTransition>,
+    transition_fully_evaluated_by_element: Column<bool>,
     entering_by_element: Column<EnteringStates>,
     local_facts_by_element: Column<u32>,
     /// Per-element positional truth retained only for automata that test it.
@@ -1529,6 +1565,7 @@ impl PrefixStates {
             local_fact_interner: LocalFactInterner::new(),
             transition_by_row: vec![UNKNOWN_TRANSITION; row_count],
             transition_by_element: Column::new(|| UNKNOWN_TRANSITION),
+            transition_fully_evaluated_by_element: Column::default(),
             entering_by_element: Column::new(|| UNKNOWN_ENTERING_STATES),
             local_facts_by_element: Column::default(),
             positional_bits_by_element: Column::default(),
@@ -1811,6 +1848,24 @@ impl PrefixStates {
         self.transition_by_element.insert(index, transition);
     }
 
+    fn transition_is_fully_evaluated(&self, node: StyleNodeID) -> bool {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return false;
+        };
+        self.transition_fully_evaluated_by_element
+            .get(index)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    fn set_transition_fully_evaluated(&mut self, node: StyleNodeID, fully_evaluated: bool) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        self.transition_fully_evaluated_by_element
+            .insert(index, fully_evaluated);
+    }
+
     fn set_entering(&mut self, node: StyleNodeID, entering: EnteringStates) {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return;
@@ -1863,6 +1918,9 @@ impl PrefixStates {
             return;
         };
         *transition = UNKNOWN_TRANSITION;
+        if let Some(fully_evaluated) = self.transition_fully_evaluated_by_element.get_mut(index) {
+            *fully_evaluated = false;
+        }
         if let Some(entering) = self.entering_by_element.get_mut(index) {
             *entering = UNKNOWN_ENTERING_STATES;
         }
@@ -2246,6 +2304,88 @@ impl PrefixStates {
         Some(state)
     }
 
+    fn apply_delta_to_unchanged_base_state(
+        &mut self,
+        source_state: u32,
+        base_state: u32,
+        delta: PrefixStateDeltaID,
+        arena: &PrefixDeltaArena,
+        downward: bool,
+        counters: &mut Counters,
+    ) -> u32 {
+        let mut additions = match downward {
+            true => std::mem::take(&mut self.new_descendant),
+            false => std::mem::take(&mut self.new_following),
+        };
+        let mut expiring = match downward {
+            true => std::mem::take(&mut self.new_child),
+            false => std::mem::take(&mut self.new_adjacent),
+        };
+        additions.clear();
+        expiring.clear();
+        let source_uses_base = source_state == base_state || self.states[source_state as usize].base == base_state;
+        let delta = arena.delta(delta);
+        let persisting_additions = arena.get(delta.persisting_additions);
+        let persisting_removals = arena.get(delta.persisting_removals);
+        if source_uses_base {
+            let source_additions = match source_state == base_state {
+                true => &[][..],
+                false => self.additions_in(source_state),
+            };
+            apply_sorted_step_delta(
+                source_additions,
+                persisting_additions,
+                persisting_removals,
+                &mut additions,
+            );
+        } else {
+            self.collect_persisting(source_state, &mut additions);
+            additions.retain(|&step| !self.persisting_state_contains_step(base_state, step));
+            if !persisting_removals.is_empty() {
+                additions.retain(|step| persisting_removals.binary_search(step).is_err());
+            }
+            additions.extend(
+                persisting_additions
+                    .iter()
+                    .copied()
+                    .filter(|&step| !self.persisting_state_contains_step(base_state, step)),
+            );
+            additions.sort_unstable();
+            additions.dedup();
+        }
+        apply_sorted_step_delta(
+            self.expiring_in(source_state),
+            arena.get(delta.expiring_additions),
+            arena.get(delta.expiring_removals),
+            &mut expiring,
+        );
+        let additions_hash = additions
+            .iter()
+            .fold(0_u64, |hash, &step| hash.wrapping_add(step_hash(step)));
+        let expiring_hash = expiring
+            .iter()
+            .fold(0_u32, |hash, &step| hash.wrapping_add(step_hash(step) as u32));
+        let state = self.intern_extended_state(
+            base_state,
+            &additions,
+            additions_hash,
+            &expiring,
+            expiring_hash,
+            counters,
+        );
+        match downward {
+            true => {
+                self.new_descendant = additions;
+                self.new_child = expiring;
+            }
+            false => {
+                self.new_following = additions;
+                self.new_adjacent = expiring;
+            }
+        }
+        state
+    }
+
     fn apply_local_match_delta(
         &mut self,
         old_result: PrefixResultID,
@@ -2282,11 +2422,16 @@ impl PrefixStates {
         local_facts: u32,
         positional_bits: u32,
         local_output_deltas: PrefixLocalOutputDeltas,
+        fully_evaluated_update: bool,
         delta_arena: &PrefixDeltaArena,
         counters: &mut Counters,
     ) -> Option<PrefixTransition> {
         let old_entering = self.entering_of(node)?;
-        if entering_deltas.parent.is_none() && entering_deltas.previous.is_none() {
+        let entering_unchanged = old_entering.parent == entering.parent && old_entering.previous == entering.previous;
+        if entering_deltas.parent.is_none()
+            && entering_deltas.previous.is_none()
+            && (!entering_unchanged || !self.transition_is_fully_evaluated(node))
+        {
             return None;
         }
         if self.local_facts_of(node) != Some(local_facts) {
@@ -2295,32 +2440,57 @@ impl PrefixStates {
         if local_output_deltas.result_changed && !local_output_deltas.result_delta_complete {
             return None;
         }
-        let (state, right) = if local_output_deltas.outputs_changed {
-            (
-                self.rebase_payload_with_local_delta(
-                    old.state,
-                    old_entering.parent,
-                    entering.parent,
-                    local_output_deltas.continuation,
-                    delta_arena,
-                    true,
-                    counters,
-                )?,
-                self.rebase_payload_with_local_delta(
-                    old.right,
-                    old_entering.previous,
-                    entering.previous,
-                    local_output_deltas.right,
-                    delta_arena,
-                    false,
-                    counters,
-                )?,
-            )
+        let (state, right) = if entering_deltas.parent.is_none() && entering_deltas.previous.is_none() {
+            if local_output_deltas.outputs_changed {
+                (
+                    self.apply_delta_to_unchanged_base_state(
+                        old.state,
+                        entering.parent,
+                        local_output_deltas.continuation,
+                        delta_arena,
+                        true,
+                        counters,
+                    ),
+                    self.apply_delta_to_unchanged_base_state(
+                        old.right,
+                        entering.previous,
+                        local_output_deltas.right,
+                        delta_arena,
+                        false,
+                        counters,
+                    ),
+                )
+            } else {
+                (old.state, old.right)
+            }
         } else {
-            (
-                self.rebase_unchanged_local_payload(old.state, old_entering.parent, entering.parent, counters)?,
-                self.rebase_unchanged_local_payload(old.right, old_entering.previous, entering.previous, counters)?,
-            )
+            if local_output_deltas.outputs_changed {
+                (
+                    self.rebase_payload_with_local_delta(
+                        old.state,
+                        old_entering.parent,
+                        entering.parent,
+                        local_output_deltas.continuation,
+                        delta_arena,
+                        true,
+                        counters,
+                    )?,
+                    self.rebase_payload_with_local_delta(
+                        old.right,
+                        old_entering.previous,
+                        entering.previous,
+                        local_output_deltas.right,
+                        delta_arena,
+                        false,
+                        counters,
+                    )?,
+                )
+            } else {
+                (
+                    self.rebase_unchanged_local_payload(old.state, old_entering.parent, entering.parent, counters)?,
+                    self.rebase_unchanged_local_payload(old.right, old_entering.previous, entering.previous, counters)?,
+                )
+            }
         };
         let result = match local_output_deltas.result_changed {
             true => self.apply_local_match_delta(old.result, local_output_deltas.matches, delta_arena, counters),
@@ -2345,6 +2515,7 @@ impl PrefixStates {
             self.transition_by_row[row.row as usize] = transition;
         }
         self.set_transition(node, transition);
+        self.set_transition_fully_evaluated(node, fully_evaluated_update);
         Some(transition)
     }
 
@@ -2560,6 +2731,7 @@ impl PrefixStates {
                     local_facts,
                     positional_bits,
                     local_output_deltas,
+                    selection.is_none(),
                     delta_arena,
                     counters,
                 ),
@@ -3532,6 +3704,7 @@ impl PrefixStates {
                 self.transitions,
                 self.transition_by_row,
                 self.transition_by_element,
+                self.transition_fully_evaluated_by_element,
                 self.entering_by_element,
                 self.local_facts_by_element,
                 self.positional_bits_by_element,
@@ -3683,6 +3856,7 @@ impl PrefixTransitionSurface<'_> {
                 // Retained coverage is ancestor-closed: a missing parent therefore proves that no
                 // descendant below it can hold a transition that this update would leave stale.
                 states.set_transition(node, transition);
+                states.set_transition_fully_evaluated(node, true);
             }
         }
     }
@@ -4229,6 +4403,7 @@ mod tests {
         );
         states.set_entering(node, EnteringStates { parent: 0, previous: 0 });
         states.set_positional_bits(node, 0b11);
+        states.set_transition_fully_evaluated(node, true);
         assert!(matches!(states.transition_of(node), PrefixTransitionLookup::Known(_)));
         states.forget_transition(node);
         assert_eq!(
@@ -4239,6 +4414,7 @@ mod tests {
             states.positional_bits_by_element[node.element_index().unwrap() as usize],
             0
         );
+        assert!(!states.transition_is_fully_evaluated(node));
         assert!(matches!(
             states.transition_of(node),
             PrefixTransitionLookup::Missing(PrefixTransitionGap::MissingTransition(gap)) if gap == node
@@ -4442,6 +4618,57 @@ mod tests {
         assert_eq!(states.states[rebased as usize].base, new_base);
         assert_eq!(states.additions_in(rebased), [retained_step, added_step]);
         assert_eq!(states.expiring_in(rebased), [added_expiring_step]);
+    }
+
+    #[test]
+    fn unchanged_base_delta_recovers_semantic_local_payload() {
+        let inherited_step = PrefixStepID(0);
+        let local_step = PrefixStepID(1);
+        let added_step = PrefixStepID(2);
+        let old_expiring_step = PrefixStepID(3);
+        let new_expiring_step = PrefixStepID(4);
+        let mut states = PrefixStates::new(0);
+        states.automaton_step_count = 5;
+        let mut counters = Counters::new();
+        let unrelated_base =
+            states.intern_extended_state(0, &[local_step], step_hash(local_step), &[], 0, &mut counters);
+        let canonical = states.intern_extended_state(
+            unrelated_base,
+            &[inherited_step],
+            step_hash(inherited_step),
+            &[old_expiring_step],
+            step_hash(old_expiring_step) as u32,
+            &mut counters,
+        );
+        let base = states.intern_extended_state(0, &[inherited_step], step_hash(inherited_step), &[], 0, &mut counters);
+        let source = states.intern_extended_state(
+            base,
+            &[local_step],
+            step_hash(local_step),
+            &[old_expiring_step],
+            step_hash(old_expiring_step) as u32,
+            &mut counters,
+        );
+        assert_eq!(source, canonical);
+        assert_ne!(states.states[source as usize].base, base);
+
+        let mut arena = PrefixDeltaArena::default();
+        arena.scratch[0].push(added_step);
+        arena.scratch[1].push(local_step);
+        arena.scratch[2].push(new_expiring_step);
+        arena.scratch[3].push(old_expiring_step);
+        let delta = arena.append_scratch_delta(0);
+        let updated = states.apply_delta_to_unchanged_base_state(source, base, delta, &arena, true, &mut counters);
+        let expected = states.intern_extended_state(
+            base,
+            &[added_step],
+            step_hash(added_step),
+            &[new_expiring_step],
+            step_hash(new_expiring_step) as u32,
+            &mut counters,
+        );
+
+        assert!(states.states_have_equal_contents(updated, expected));
     }
 
     #[test]
