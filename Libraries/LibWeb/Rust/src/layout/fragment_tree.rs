@@ -270,65 +270,29 @@ pub(crate) struct CompletedPassFragments {
     pub(crate) reused_subtree_roots: std::collections::HashSet<u32>,
 }
 
-pub(crate) struct CommitScopes<'tree> {
-    links_by_slot: std::collections::HashMap<u32, &'tree FragmentLink>,
-    open_scopes: Vec<&'tree [FragmentLink]>,
-    reused_subtree_roots: &'tree std::collections::HashSet<u32>,
-}
-
-impl<'tree> CommitScopes<'tree> {
-    pub(crate) fn for_pass(fragments: &'tree CompletedPassFragments) -> Self {
-        #[cfg(debug_assertions)]
-        assert_one_fragment_per_slot_in_whole_pass(&fragments.roots, &mut std::collections::HashSet::new());
-        let mut scopes = Self {
-            links_by_slot: std::collections::HashMap::new(),
-            open_scopes: Vec::new(),
-            reused_subtree_roots: &fragments.reused_subtree_roots,
-        };
-        scopes.open_scope(&fragments.roots);
-        scopes
-    }
-
-    pub(crate) fn link_for_slot(&self, slot: u32) -> Option<&'tree FragmentLink> {
-        self.links_by_slot.get(&slot).copied()
+impl CompletedPassFragments {
+    pub(crate) fn links_by_slot(&self) -> std::collections::HashMap<u32, &FragmentLink> {
+        fn insert_links<'tree>(
+            links: &'tree [FragmentLink],
+            links_by_slot: &mut std::collections::HashMap<u32, &'tree FragmentLink>,
+        ) {
+            for link in links {
+                let previous = links_by_slot.insert(link.fragment.node.slot_index(), link);
+                assert!(
+                    previous.is_none(),
+                    "two fragments claim slot {}",
+                    link.fragment.node.slot_index()
+                );
+                insert_links(&link.fragment.children, links_by_slot);
+            }
+        }
+        let mut links_by_slot = std::collections::HashMap::new();
+        insert_links(&self.roots, &mut links_by_slot);
+        links_by_slot
     }
 
     pub(crate) fn subtree_was_reused(&self, slot: u32) -> bool {
         self.reused_subtree_roots.contains(&slot)
-    }
-
-    pub(crate) fn open_scope(&mut self, links: &'tree [FragmentLink]) {
-        for link in links {
-            let previous = self.links_by_slot.insert(link.fragment.node.slot_index(), link);
-            assert!(
-                previous.is_none(),
-                "two open fragments claim slot {}",
-                link.fragment.node.slot_index()
-            );
-        }
-        self.open_scopes.push(links);
-    }
-
-    pub(crate) fn close_scope(&mut self) {
-        let links = self
-            .open_scopes
-            .pop()
-            .expect("a commit scope was closed without being opened");
-        for link in links {
-            self.links_by_slot.remove(&link.fragment.node.slot_index());
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-fn assert_one_fragment_per_slot_in_whole_pass(links: &[FragmentLink], seen: &mut std::collections::HashSet<u32>) {
-    for link in links {
-        assert!(
-            seen.insert(link.fragment.node.slot_index()),
-            "two fragments claim slot {}",
-            link.fragment.node.slot_index()
-        );
-        assert_one_fragment_per_slot_in_whole_pass(&link.fragment.children, seen);
     }
 }
 
