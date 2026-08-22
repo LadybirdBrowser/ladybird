@@ -1706,10 +1706,8 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
                 default_value = unparsed_default_value;
             } else {
                 auto tokens = unparsed_default_value->as_unresolved().values();
-                TokenStream default_value_token_stream { tokens };
-                auto parsed_value = parse_according_to_syntax_node(default_value_token_stream, *type);
-                default_value_token_stream.discard_whitespace();
-                if (!parsed_value || !default_value_token_stream.is_empty())
+                auto parsed_value = parse_with_a_syntax(tokens, *type);
+                if (parsed_value->is_guaranteed_invalid())
                     return {};
 
                 default_value = parsed_value;

@@ -374,11 +374,11 @@ pub(crate) fn string_style_value(context: &ParseContext, string: &[u16]) -> Opti
     })
 }
 
-fn parse_string_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+pub(crate) fn parse_string_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     string_style_value(context, value.string()?)
 }
 
-fn parse_custom_ident_value(
+pub(crate) fn parse_custom_ident_value(
     context: &ParseContext,
     value: &ComponentValue,
     blacklist: &[&str],
@@ -1055,6 +1055,60 @@ fn parse_single_numeric_value_type(
             }
         }
         VALUE_TYPE_PERCENTAGE => parse_percentage_value(value, accepted_range(property, VALUE_TYPE_PERCENTAGE)),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_syntax_numeric_value(
+    context: &ParseContext,
+    syntax_type: crate::css::parser::syntax::SyntaxType,
+    value: &ComponentValue,
+) -> Option<StyleValueData> {
+    use crate::css::parser::syntax::SyntaxType;
+
+    let value_type = match syntax_type {
+        SyntaxType::Angle => VALUE_TYPE_ANGLE,
+        SyntaxType::Integer => VALUE_TYPE_INTEGER,
+        SyntaxType::Length | SyntaxType::LengthPercentage => VALUE_TYPE_LENGTH,
+        SyntaxType::Number => VALUE_TYPE_NUMBER,
+        SyntaxType::Percentage => VALUE_TYPE_PERCENTAGE,
+        SyntaxType::Resolution => VALUE_TYPE_RESOLUTION,
+        SyntaxType::Time => VALUE_TYPE_TIME,
+        _ => return None,
+    };
+    if matches!(syntax_type, SyntaxType::Integer | SyntaxType::Number)
+        && let Some(value) = parse_tree_counting_value(context, value, u8::from(syntax_type == SyntaxType::Integer))
+    {
+        return Some(value);
+    }
+    if let Some((name, values)) = value.function()
+        && math_function_from_name(name).is_some()
+    {
+        return parse_calculated_numeric_value_with_ranges(
+            context,
+            property_id::CUSTOM,
+            value_type,
+            (syntax_type == SyntaxType::LengthPercentage).then_some(VALUE_TYPE_LENGTH),
+            NumericRange::INFINITE,
+            name,
+            values,
+        );
+    }
+    match syntax_type {
+        SyntaxType::Angle => parse_angle_value(context, value, NumericRange::INFINITE),
+        SyntaxType::Integer => parse_integer_value(value, NumericRange::INFINITE),
+        SyntaxType::Length => parse_length_value(context, property_id::CUSTOM, value, NumericRange::INFINITE),
+        SyntaxType::LengthPercentage => parse_length_percentage_value(
+            context,
+            property_id::CUSTOM,
+            value,
+            NumericRange::INFINITE,
+            NumericRange::INFINITE,
+        ),
+        SyntaxType::Number => parse_number_value(value, NumericRange::INFINITE),
+        SyntaxType::Percentage => parse_percentage_value(value, NumericRange::INFINITE),
+        SyntaxType::Resolution => parse_resolution_value(value, NumericRange::INFINITE),
+        SyntaxType::Time => parse_time_value(value, NumericRange::INFINITE),
         _ => None,
     }
 }
@@ -4992,7 +5046,7 @@ fn trim_ascii_whitespace(code_units: &[u16]) -> &[u16] {
     &code_units[start..end]
 }
 
-fn unresolved_value(
+pub(crate) fn unresolved_value(
     unresolved_source: &[u16],
     comparison_source: &[u16],
     presence: SubstitutionFunctionsPresence,

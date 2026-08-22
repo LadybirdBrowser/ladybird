@@ -2102,7 +2102,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     generate_ffi_header(
         value_parser_config,
-        &[manifest_dir.join("src/css/parser/value_parser.rs")],
+        &[
+            manifest_dir.join("src/css/parser/value_parser.rs"),
+            manifest_dir.join("src/css/parser/syntax.rs"),
+        ],
         &out_dir,
         Path::new("ValueParserRustFFI.h"),
     );

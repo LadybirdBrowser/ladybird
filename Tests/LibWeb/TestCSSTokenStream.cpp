@@ -43,6 +43,7 @@ TEST_CASE(basic)
     // Now, any further tokens should be EOF
     EXPECT(stream.next_token().is(Token::Type::EndOfFile));
     EXPECT(stream.consume_a_token().is(Token::Type::EndOfFile));
+    EXPECT(stream.remaining_tokens().is_empty());
 }
 
 TEST_CASE(marks)

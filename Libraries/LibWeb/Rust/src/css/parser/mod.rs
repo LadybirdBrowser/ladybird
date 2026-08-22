@@ -12,6 +12,7 @@ pub(crate) mod fonts_parser;
 pub(crate) mod grid_parser;
 pub(crate) mod images_gradients_parser;
 pub(crate) mod positions_shapes_parser;
+pub(crate) mod syntax;
 pub(crate) mod token_stream;
 pub(crate) mod transforms_effects_parser;
 pub(crate) mod value_parser;
