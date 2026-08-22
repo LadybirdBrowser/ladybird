@@ -28,8 +28,12 @@ namespace AK {
 // The data may or may not be heap-allocated, and may or may not be reference counted. As a memory optimization, if the
 // UTF-16 string is entirely ASCII, the string is stored as 8-bit bytes.
 class [[nodiscard]] Utf16String : public Detail::Utf16StringBase {
+    AK_MAKE_DEFAULT_COPYABLE(Utf16String);
+    AK_MAKE_DEFAULT_MOVABLE(Utf16String);
+
 public:
     using Utf16StringBase::Utf16StringBase;
+    ALWAYS_INLINE ~Utf16String() = default;
 
     explicit constexpr Utf16String(Utf16StringBase&& base)
         : Utf16StringBase(move(base))
