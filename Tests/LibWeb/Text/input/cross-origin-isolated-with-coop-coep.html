@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // A document served with COOP: same-origin and COEP: require-corp is cross-origin isolated.
+        println("crossOriginIsolated: " + self.crossOriginIsolated);
+        println("typeof SharedArrayBuffer: " + typeof SharedArrayBuffer);
+
+        // A SharedArrayBuffer can be serialized when cross-origin isolated.
+        let threw = false;
+        try {
+            new MessageChannel().port1.postMessage(new SharedArrayBuffer(8));
+        } catch (e) {
+            threw = true;
+        }
+        println("SharedArrayBuffer serialization threw: " + threw);
+    });
+</script>

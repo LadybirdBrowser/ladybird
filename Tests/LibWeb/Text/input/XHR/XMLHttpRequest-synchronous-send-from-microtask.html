@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A sync XHR send() performed from within a microtask (here, an async function resumed after an await) must not
+    // deadlock. While send() is blocked, the event loop is paused. So, the fetch — including reading the response body
+    // to completion — must be able to finish without running event-loop tasks, and without performing (non-reentrant)
+    // microtask checkpoints.
+    asyncTest(async done => {
+        await Promise.resolve();
+
+        // Execution has resumed inside a microtask.
+        const dataXhr = new XMLHttpRequest();
+        dataXhr.open("GET", "data:text/plain,hello", false);
+        dataXhr.send();
+        println(`data: status=${dataXhr.status} responseText=${dataXhr.responseText}`);
+
+        const url = await httpTestServer().createEcho("GET", "/xhr-synchronous-send-from-microtask", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/plain",
+            },
+            body: "hello over http",
+        });
+
+        // Execution has again resumed inside a microtask.
+        const httpXhr = new XMLHttpRequest();
+        httpXhr.open("GET", url, false);
+        httpXhr.send();
+        println(`http: status=${httpXhr.status} responseText=${httpXhr.responseText}`);
+
+        done();
+    });
+</script>

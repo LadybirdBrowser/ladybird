@@ -116,6 +116,10 @@ static inline void atomic_pause()
 {
 #if __has_builtin(__builtin_ia32_pause)
     __builtin_ia32_pause();
+#elif defined(__aarch64__)
+    // "isb" gives a real pipeline stall in a spin-wait loop; on many ARM64 cores, "yield" is effectively a NOP.
+    // (JSC, Rust's hint::spin_loop, and Folly all use "isb" here too.)
+    asm volatile("isb" ::: "memory");
 #elif __has_builtin(__builtin_arm_yield)
     __builtin_arm_yield();
 #endif
