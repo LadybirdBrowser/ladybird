@@ -566,6 +566,16 @@ Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab
     return tab;
 }
 
+void BrowserWindow::duplicate_tab(Tab& source_tab)
+{
+    auto history = source_tab.view().session_history_snapshot();
+    auto source_url = source_tab.view().url();
+    auto& duplicate = create_new_tab(Web::HTML::ActivateTab::Yes, TabLocation::after_tab(source_tab));
+
+    if (!history.has_value() || duplicate.view().restore_session_history_from_snapshot(history.release_value()).is_error())
+        duplicate.navigate(source_url);
+}
+
 Tab& BrowserWindow::new_child_tab(Web::HTML::ActivateTab activate_tab, Tab& parent, Optional<u64> page_index)
 {
     return create_new_tab(activate_tab, parent, page_index);
