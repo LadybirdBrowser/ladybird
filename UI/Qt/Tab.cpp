@@ -20,6 +20,7 @@
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/JavaScriptDialog.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -35,7 +36,6 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QImage>
-#include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
@@ -580,6 +580,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     m_view = new WebContentView(this, parent_client, page_index, AK::move(view_initial_state));
+    m_javascript_dialog = new JavaScriptDialog(m_view);
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
 
@@ -771,6 +772,18 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
     set_loading(view().is_loading());
 
+    view().on_load_finish = [this](auto const&) {
+        m_suppress_javascript_dialogs_until_navigation = false;
+    };
+
+    view().on_top_level_navigation_commit = [this] {
+        m_suppress_javascript_dialogs_until_navigation = false;
+    };
+
+    view().on_browser_history_traversal_complete = [this] {
+        m_suppress_javascript_dialogs_until_navigation = false;
+    };
+
     view().on_url_change = [this](auto const& url) {
         m_location_edit->set_url(url);
     };
@@ -805,57 +818,70 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         update_tab_icon();
     };
 
-    view().on_request_alert = [this](auto const& message) {
-        m_dialog = new QMessageBox(QMessageBox::Icon::Warning, "Ladybird", qstring_from_utf16_string(message), QMessageBox::StandardButton::Ok, &view());
+    auto javascript_dialog_title = [this] {
+        auto origin = view().url().origin();
+        if (!origin.is_opaque())
+            return qstring_from_ak_string(origin.serialize());
+        return qformatted("{}://", qstring_from_ak_string(view().url().scheme()));
+    };
 
-        QObject::connect(m_dialog, &QDialog::finished, this, [this]() {
+    view().on_request_alert = [this, javascript_dialog_title](auto const& message) {
+        if (m_suppress_javascript_dialogs_until_navigation) {
             view().alert_closed();
-            m_dialog = nullptr;
-        });
-
-        m_dialog->open();
+            return;
+        }
+        m_javascript_dialog->show_alert(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
-    view().on_request_confirm = [this](auto const& message) {
-        m_dialog = new QMessageBox(QMessageBox::Icon::Question, "Ladybird", qstring_from_utf16_string(message), QMessageBox::StandardButton::Ok | QMessageBox::StandardButton::Cancel, &view());
-
-        QObject::connect(m_dialog, &QDialog::finished, this, [this](auto result) {
-            view().confirm_closed(result == QMessageBox::StandardButton::Ok || result == QDialog::Accepted);
-            m_dialog = nullptr;
-        });
-
-        m_dialog->open();
+    view().on_request_confirm = [this, javascript_dialog_title](auto const& message) {
+        if (m_suppress_javascript_dialogs_until_navigation) {
+            view().confirm_closed(false);
+            return;
+        }
+        m_javascript_dialog->show_confirm(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
-    view().on_request_prompt = [this](auto const& message, auto const& default_) {
-        m_dialog = new QInputDialog(&view());
-
-        auto& dialog = static_cast<QInputDialog&>(*m_dialog);
-        dialog.setWindowTitle("Ladybird");
-        dialog.setLabelText(qstring_from_utf16_string(message));
-        dialog.setTextValue(qstring_from_utf16_string(default_));
-
-        QObject::connect(m_dialog, &QDialog::finished, this, [this](auto result) {
-            if (result == QDialog::Accepted) {
-                auto& dialog = static_cast<QInputDialog&>(*m_dialog);
-                view().prompt_closed(utf16_string_from_qstring(dialog.textValue()));
-            } else {
-                view().prompt_closed({});
-            }
-
-            m_dialog = nullptr;
-        });
-
-        m_dialog->open();
+    view().on_request_prompt = [this, javascript_dialog_title](auto const& message, auto const& default_) {
+        if (m_suppress_javascript_dialogs_until_navigation) {
+            view().prompt_closed({});
+            return;
+        }
+        m_javascript_dialog->show_prompt(javascript_dialog_title(), qstring_from_utf16_string(message), qstring_from_utf16_string(default_));
     };
 
     view().on_request_set_prompt_text = [this](auto const& message) {
-        if (m_dialog && is<QInputDialog>(*m_dialog))
-            static_cast<QInputDialog&>(*m_dialog).setTextValue(qstring_from_utf16_string(message));
+        m_javascript_dialog->set_prompt_text(qstring_from_utf16_string(message));
+    };
+
+    m_javascript_dialog->on_complete = [this](auto type, bool accepted, auto const& prompt_text) {
+        switch (type) {
+        case JavaScriptDialog::Type::Alert:
+            view().alert_closed();
+            break;
+        case JavaScriptDialog::Type::Confirm:
+            view().confirm_closed(accepted);
+            break;
+        case JavaScriptDialog::Type::Prompt:
+            if (accepted)
+                view().prompt_closed(utf16_string_from_qstring(prompt_text));
+            else
+                view().prompt_closed({});
+            break;
+        }
+    };
+
+    view().on_before_browser_initiated_navigation = [this] {
+        m_suppress_javascript_dialogs_until_navigation = true;
+        m_javascript_dialog->dismiss();
+    };
+
+    view().on_web_content_crashed = [this] {
+        m_suppress_javascript_dialogs_until_navigation = false;
+        m_javascript_dialog->reset();
     };
 
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
-        if (m_dialog || m_external_url_confirmation_dialog) {
+        if (m_javascript_dialog->is_open() || m_color_picker_dialog || m_external_url_confirmation_dialog) {
             on_complete(false);
             return;
         }
@@ -890,37 +916,35 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_request_accept_dialog = [this]() {
-        if (m_dialog)
-            m_dialog->accept();
+        m_javascript_dialog->accept();
     };
 
     view().on_request_dismiss_dialog = [this]() {
-        if (m_dialog)
-            m_dialog->reject();
+        m_javascript_dialog->dismiss();
     };
 
     view().on_request_color_picker = [this](Color current_color) {
-        m_dialog = new QColorDialog(QColor(current_color.red(), current_color.green(), current_color.blue()), &view());
+        m_color_picker_dialog = new QColorDialog(QColor(current_color.red(), current_color.green(), current_color.blue()), &view());
 
-        auto& dialog = static_cast<QColorDialog&>(*m_dialog);
+        auto& dialog = *m_color_picker_dialog;
         dialog.setWindowTitle("Ladybird");
         dialog.setOption(QColorDialog::ShowAlphaChannel, false);
         QObject::connect(&dialog, &QColorDialog::currentColorChanged, this, [this](QColor const& color) {
             view().color_picker_update(Color(color.red(), color.green(), color.blue()), Web::HTML::ColorPickerUpdateState::Update);
         });
 
-        QObject::connect(m_dialog, &QDialog::finished, this, [this](auto result) {
+        QObject::connect(m_color_picker_dialog, &QDialog::finished, this, [this](auto result) {
             if (result == QDialog::Accepted) {
-                auto& dialog = static_cast<QColorDialog&>(*m_dialog);
+                auto& dialog = *m_color_picker_dialog;
                 view().color_picker_update(Color(dialog.selectedColor().red(), dialog.selectedColor().green(), dialog.selectedColor().blue()), Web::HTML::ColorPickerUpdateState::Closed);
             } else {
                 view().color_picker_update({}, Web::HTML::ColorPickerUpdateState::Closed);
             }
 
-            m_dialog = nullptr;
+            m_color_picker_dialog = nullptr;
         });
 
-        m_dialog->open();
+        m_color_picker_dialog->open();
     };
 
     view().on_request_file_picker = [this](auto const& accepted_file_types, auto allow_multiple_files) {
@@ -1606,6 +1630,8 @@ void Tab::find_next()
 
 void Tab::request_close()
 {
+    m_javascript_dialog->dismiss();
+
     if (!view().needs_beforeunload_check()) {
         auto request_close = view().prepare_for_immediate_close();
         if (m_window->definitely_close_tab(tab_index()))

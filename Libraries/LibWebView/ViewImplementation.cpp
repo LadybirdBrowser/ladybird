@@ -324,6 +324,9 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
 void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
     set_loading_state(true);
     m_is_showing_crash_page = false;
     m_should_suppress_history_for_current_load = false;
@@ -411,6 +414,9 @@ void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate i
 
 void ViewImplementation::load_html(StringView html)
 {
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
     set_loading_state(true);
     clear_ongoing_top_level_navigation_load();
     m_last_stopped_load_url.clear();
@@ -445,6 +451,9 @@ void ViewImplementation::load_navigation_error_page(StringView text)
 
 void ViewImplementation::reload()
 {
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
 
     if (m_last_stopped_load_url.has_value()) {
@@ -496,6 +505,9 @@ void ViewImplementation::traverse_the_history_by_delta(
     CheckForCancelation check_for_cancelation,
     Function<void()> on_ready)
 {
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
     m_top_level_traversable.traverse_the_history_by_delta(delta, check_for_cancelation, move(on_ready));
 }
 
@@ -514,6 +526,9 @@ void ViewImplementation::traverse_the_history_to_step(
     CheckForCancelation check_for_cancelation,
     Function<void()> on_ready)
 {
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
     m_top_level_traversable.traverse_the_history_to_step(step, check_for_cancelation, move(on_ready));
 }
 
@@ -563,6 +578,8 @@ void ViewImplementation::did_finish_history_traversal(u64 operation_id, Web::HTM
 
     complete_webdriver_history_traversal(operation_id);
     update_navigation_action_state();
+    if (on_browser_history_traversal_complete)
+        on_browser_history_traversal_complete();
     dump_session_history(result == Web::HTML::HistoryStepResult::Applied
             ? "webcontent-history-step-applied"sv
             : "webcontent-history-step-canceled"sv);

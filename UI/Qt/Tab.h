@@ -27,12 +27,14 @@
 #include <QWidget>
 
 class QTimer;
+class QColorDialog;
 class QMessageBox;
 namespace Ladybird {
 
 class BrowserWindow;
 enum class ChromeIcon;
 class DownloadsPopover;
+class JavaScriptDialog;
 class PrivateSessionPopover;
 class WindowControlButton;
 
@@ -187,9 +189,11 @@ private:
     Optional<ChromeIcon> m_downloads_button_icon;
     QString m_downloads_button_tooltip;
 
-    QPointer<QDialog> m_dialog;
+    JavaScriptDialog* m_javascript_dialog { nullptr };
+    QPointer<QColorDialog> m_color_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
 
+    bool m_suppress_javascript_dialogs_until_navigation { false };
     bool m_already_requested_close { false };
 };
 

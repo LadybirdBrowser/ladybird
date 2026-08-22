@@ -374,6 +374,8 @@ public:
     Function<void()> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(bool)> on_loading_state_change;
+    Function<void()> on_top_level_navigation_commit;
+    Function<void()> on_browser_history_traversal_complete;
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(DictionaryLookup const&, Gfx::IntPoint)> on_request_dictionary_lookup;
     Function<void(Optional<Gfx::Bitmap const&>)> on_favicon_change;
@@ -387,6 +389,7 @@ public:
     Function<void(Utf16String const& message)> on_request_confirm;
     Function<void(Utf16String const& message, Utf16String const& default_)> on_request_prompt;
     Function<void(Utf16String const& message)> on_request_set_prompt_text;
+    Function<void()> on_before_browser_initiated_navigation;
     Function<void(URL::URL const&, URL::Origin const&, ExternalURLHandler const&, Function<void(bool)>)> on_request_external_url_confirmation;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
