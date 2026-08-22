@@ -77,6 +77,12 @@ static auto& main_thread_vm_ptr()
     return *vm;
 }
 
+static HTML::SimilarOriginWindowAgent*& main_thread_similar_origin_window_agent_ptr()
+{
+    static HTML::SimilarOriginWindowAgent* agent;
+    return agent;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#active-script
 HTML::Script* active_script()
 {
@@ -97,11 +103,14 @@ HTML::Script* active_script()
         });
 }
 
-static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, HTML::AgentType type)
+static NonnullOwnPtr<HTML::Agent> create_agent(GC::Heap& heap, HTML::AgentType type)
 {
     switch (type) {
-    case HTML::AgentType::SimilarOriginWindow:
-        return HTML::SimilarOriginWindowAgent::create(heap);
+    case HTML::AgentType::SimilarOriginWindow: {
+        auto agent = HTML::SimilarOriginWindowAgent::create(heap);
+        main_thread_similar_origin_window_agent_ptr() = agent.ptr();
+        return agent;
+    }
     case HTML::AgentType::DedicatedWorker:
     case HTML::AgentType::SharedWorker:
         return HTML::WorkerAgent::create(heap, JS::Agent::CanBlock::Yes);
@@ -111,6 +120,12 @@ static NonnullOwnPtr<JS::Agent> create_agent(GC::Heap& heap, HTML::AgentType typ
         break;
     }
     VERIFY_NOT_REACHED();
+}
+
+HTML::SimilarOriginWindowAgent& main_thread_similar_origin_window_agent()
+{
+    VERIFY(main_thread_similar_origin_window_agent_ptr());
+    return *main_thread_similar_origin_window_agent_ptr();
 }
 
 void initialize_main_thread_vm(HTML::AgentType type)

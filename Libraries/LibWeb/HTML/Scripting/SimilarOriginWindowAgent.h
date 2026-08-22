@@ -57,3 +57,9 @@ WEB_API SimilarOriginWindowAgent& relevant_similar_origin_window_agent(DOM::Node
 WEB_API SimilarOriginWindowAgent& relevant_similar_origin_window_agent(Window const&);
 
 }
+
+namespace Web::Bindings {
+
+WEB_API HTML::SimilarOriginWindowAgent& main_thread_similar_origin_window_agent();
+
+}

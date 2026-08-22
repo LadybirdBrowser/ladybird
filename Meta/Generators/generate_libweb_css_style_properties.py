@@ -121,7 +121,7 @@ GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const
         // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
 
         // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
-        auto& reactions_stack = HTML::relevant_similar_origin_window_agent(realm.global_object()).custom_element_reactions_stack;
+        auto& reactions_stack = Bindings::main_thread_similar_origin_window_agent().custom_element_reactions_stack;
         reactions_stack.element_queue_stack.append({});
 
         // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value,
