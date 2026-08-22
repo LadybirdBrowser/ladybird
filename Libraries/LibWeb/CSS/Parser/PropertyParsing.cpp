@@ -20,6 +20,7 @@
 #include <LibCore/Environment.h>
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -38,6 +39,7 @@
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
@@ -67,6 +69,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/DOM/Document.h>
@@ -104,6 +107,28 @@ static bool verify_rust_value_parser_enabled()
     return enabled;
 }
 
+static void verify_rust_value_parser_result(StringView subject, Utf16View source, RefPtr<StyleValue const> rust_value, RefPtr<StyleValue const> cpp_value)
+{
+    if (!rust_value && !cpp_value)
+        return;
+    if (!rust_value) {
+        warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH {} source='{}' rust=<invalid> cpp='{}'",
+            subject, source, cpp_value->to_string(SerializationMode::Normal));
+        return;
+    }
+    if (!cpp_value) {
+        warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH {} source='{}' rust='{}' cpp=<invalid>",
+            subject, source, rust_value->to_string(SerializationMode::Normal));
+        return;
+    }
+    auto rust_serialization = rust_value->to_string(SerializationMode::Normal);
+    auto cpp_serialization = cpp_value->to_string(SerializationMode::Normal);
+    if (rust_serialization != cpp_serialization) {
+        warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH {} source='{}' rust='{}' cpp='{}'",
+            subject, source, rust_serialization, cpp_serialization);
+    }
+}
+
 static size_t retain_utf16_fly_string(u16 const* code_units, size_t length)
 {
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
@@ -115,6 +140,16 @@ static size_t normalize_svg_path_data(u16 const* code_units, size_t length)
     if (path.instructions().is_empty())
         return 0;
     return Utf16String::from_utf8(path.serialize()).to_raw_leaked();
+}
+
+static bool rust_font_format_is_supported(u16 const* code_units, size_t length)
+{
+    return font_format_is_supported(Utf16View { reinterpret_cast<char16_t const*>(code_units), length });
+}
+
+static bool rust_font_tech_is_supported(u8 tech)
+{
+    return font_tech_is_supported(static_cast<FontTech>(tech));
 }
 
 static void dump_parse_fallback_statistics()
@@ -522,6 +557,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .document_base_url_length = document_base_url.size(),
         .intern_utf16_fly_string = retain_utf16_fly_string,
         .normalize_svg_path_data = normalize_svg_path_data,
+        .font_format_is_supported = rust_font_format_is_supported,
+        .font_tech_is_supported = rust_font_tech_is_supported,
         .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
@@ -536,17 +573,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (verify_rust_value_parser_enabled()) {
             auto transaction = tokens.begin_transaction();
             auto cpp_value = parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
-            auto rust_serialization = rust_value->to_string(SerializationMode::Normal);
-            if (cpp_value.is_error()) {
-                warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH property={} source='{}' rust='{}' cpp=<invalid>",
-                    string_from_property_id(property_id), source, rust_serialization);
-            } else {
-                auto cpp_serialization = cpp_value.value()->to_string(SerializationMode::Normal);
-                if (rust_serialization != cpp_serialization) {
-                    warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH property={} source='{}' rust='{}' cpp='{}'",
-                        string_from_property_id(property_id), source, rust_serialization, cpp_serialization);
-                }
-            }
+            verify_rust_value_parser_result(
+                MUST(String::formatted("property={}", string_from_property_id(property_id))), source, rust_value,
+                cpp_value.is_error() ? nullptr : cpp_value.value());
         }
 
         while (tokens.has_next_token())
@@ -558,10 +587,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         if (verify_rust_value_parser_enabled()) {
             auto transaction = tokens.begin_transaction();
             auto cpp_value = parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
-            if (!cpp_value.is_error()) {
-                warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH property={} source='{}' rust=<invalid> cpp='{}'",
-                    string_from_property_id(property_id), source, cpp_value.value()->to_string(SerializationMode::Normal));
-            }
+            verify_rust_value_parser_result(
+                MUST(String::formatted("property={}", string_from_property_id(property_id))), source, nullptr,
+                cpp_value.is_error() ? nullptr : cpp_value.value());
         }
         return ParseError::SyntaxError;
     }
@@ -569,6 +597,118 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         VERIFY(!parsed_value);
         VERIFY(reason);
         return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(FontDescriptorKind kind, TokenStream<ComponentValue>& tokens)
+{
+    if (!rust_value_parser_enabled())
+        return {};
+
+    Utf16StringBuilder builder;
+    {
+        auto transaction = tokens.begin_transaction();
+        while (tokens.has_next_token()) {
+            auto const& token = tokens.consume_a_token();
+            auto token_source = token.original_source_text();
+            if (token_source.is_empty()) {
+                builder.append("/**/"_utf16);
+                builder.append(token.to_string());
+                builder.append("/**/"_utf16);
+            } else {
+                builder.append(token_source);
+            }
+        }
+    }
+    auto source = builder.to_string();
+
+    ReadonlyBytes document_url;
+    ReadonlyBytes document_base_url;
+    if (m_document) {
+        if (!m_serialized_document_url.has_value())
+            m_serialized_document_url = m_document->url().serialize();
+        if (!m_serialized_document_base_url.has_value())
+            m_serialized_document_base_url = m_document->base_url().serialize();
+        document_url = m_serialized_document_url->bytes();
+        document_base_url = m_serialized_document_base_url->bytes();
+    }
+    ValueParserFFI::ParseContext context {
+        .in_quirks_mode = in_quirks_mode(),
+        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
+        .value_contexts = nullptr,
+        .value_context_count = 0,
+        .document_url = document_url.data(),
+        .document_url_length = document_url.size(),
+        .document_base_url = document_base_url.data(),
+        .document_base_url_length = document_base_url.size(),
+        .intern_utf16_fly_string = retain_utf16_fly_string,
+        .normalize_svg_path_data = normalize_svg_path_data,
+        .font_format_is_supported = rust_font_format_is_supported,
+        .font_tech_is_supported = rust_font_tech_is_supported,
+        .random_function_index = &m_random_function_index,
+    };
+    ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
+    auto const* parsed_value = ValueParserFFI::rust_parse_font_descriptor(
+        &context, static_cast<ValueParserFFI::FfiFontDescriptorKind>(kind), ffi_utf16_view(source), &status);
+    if (status == ValueParserFFI::FfiParseStatus::NotHandled)
+        return {};
+
+    RefPtr<StyleValue const> rust_value;
+    if (status == ValueParserFFI::FfiParseStatus::Parsed) {
+        VERIFY(parsed_value);
+        rust_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed_value));
+    } else {
+        VERIFY(status == ValueParserFFI::FfiParseStatus::Invalid);
+        VERIFY(!parsed_value);
+    }
+
+    if (verify_rust_value_parser_enabled()) {
+        auto transaction = tokens.begin_transaction();
+        auto cpp_value = parse_font_descriptor_value_in_cpp(kind, tokens);
+        StringView subject;
+        switch (kind) {
+        case FontDescriptorKind::FamilyName:
+            subject = "font-descriptor=family-name"sv;
+            break;
+        case FontDescriptorKind::SourceList:
+            subject = "font-descriptor=source-list"sv;
+            break;
+        case FontDescriptorKind::UnicodeRangeList:
+            subject = "font-descriptor=unicode-range-list"sv;
+            break;
+        }
+        verify_rust_value_parser_result(subject, source, rust_value, cpp_value);
+    }
+
+    if (!rust_value)
+        return RefPtr<StyleValue const> {};
+    while (tokens.has_next_token())
+        tokens.discard_a_token();
+    return rust_value;
+}
+
+RefPtr<StyleValue const> Parser::parse_font_descriptor_value_in_cpp(FontDescriptorKind kind, TokenStream<ComponentValue>& tokens)
+{
+    switch (kind) {
+    case FontDescriptorKind::FamilyName:
+        return parse_family_name_value(tokens);
+    case FontDescriptorKind::SourceList: {
+        auto source_lists = parse_a_comma_separated_list_of_component_values(tokens);
+        StyleValueVector valid_sources;
+        for (auto const& source_list : source_lists) {
+            TokenStream source_tokens { source_list };
+            if (auto font_source = parse_font_source_value(source_tokens); font_source && !source_tokens.has_next_token())
+                valid_sources.append(font_source.release_nonnull());
+        }
+        if (valid_sources.is_empty())
+            return nullptr;
+        return StyleValueList::create(move(valid_sources), StyleValueList::Separator::Comma);
+    }
+    case FontDescriptorKind::UnicodeRangeList:
+        return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<StyleValue const> {
+            return parse_unicode_range_value(tokens);
+        });
     }
     VERIFY_NOT_REACHED();
 }
