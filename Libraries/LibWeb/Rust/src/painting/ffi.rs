@@ -364,6 +364,53 @@ pub unsafe extern "C" fn layout_arena_paintable_content_size(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_size(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiCssPixelSize {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiCssPixelSize::default();
+        }
+        crate::painting::paintable_geometry::committed_svg_viewport_size(&paintables, slot)
+    })
+}
+
+#[repr(C)]
+pub struct FfiOptionalAffineTransform {
+    pub has_value: bool,
+    pub transform: crate::layout::FfiAffineTransform,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_transform(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiOptionalAffineTransform {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let transform = if paintables.is_live(slot) {
+            crate::painting::paintable_geometry::committed_svg_viewport_transform(&paintables, slot)
+        } else {
+            None
+        };
+        FfiOptionalAffineTransform {
+            has_value: transform.is_some(),
+            transform: transform.unwrap_or_default(),
+        }
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_box_model(
     arena: *mut c_void,
     slot: PaintableSlotId,

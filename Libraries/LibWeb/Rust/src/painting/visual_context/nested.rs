@@ -32,7 +32,6 @@ struct NestedBuilder<'a> {
 
 impl NestedBuilder<'_> {
     fn build_subtree(&mut self, slot: PaintableSlotId, inherited_state: usize, include_element_transform: bool) {
-        let data = self.paintables.data_ref(slot);
         let facts = BoxFacts::gather(
             self.layout_arena,
             self.paintables,
@@ -71,7 +70,7 @@ impl NestedBuilder<'_> {
             state_for_descendants = self.tree.append(VisualContextData::Clip(clip), state_for_descendants);
         }
 
-        if let Some(svg_viewport_transform) = svg_viewport_transform_of(&data) {
+        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.paintables, slot) {
             let viewport_transform_data =
                 compute_svg_viewport_transform_data(self.paintables, slot, svg_viewport_transform, self.pixel_ratio);
             state_for_descendants = self.tree.append(

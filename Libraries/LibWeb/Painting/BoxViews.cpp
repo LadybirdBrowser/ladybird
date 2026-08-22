@@ -67,8 +67,10 @@ static Gfx::FloatRect svg_svg_box_view_box_or_viewport_rect(Layout::Box const& s
 {
     if (auto view_box = as<SVG::SVGSVGElement>(*svg_svg_box.dom_node()).active_view_box(); view_box.has_value())
         return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
-    if (auto const* row = committed_row(svg_svg_box))
-        return { {}, { CSSPixels::from_raw(row->svg_viewport_size.width).to_float(), CSSPixels::from_raw(row->svg_viewport_size.height).to_float() } };
+    if (has_committed_box(svg_svg_box)) {
+        auto size = svg_viewport_size(svg_svg_box);
+        return { {}, { size.width().to_float(), size.height().to_float() } };
+    }
     return {};
 }
 
@@ -596,21 +598,16 @@ Gfx::Path const* committed_svg_path(Layout::Node const& node)
 
 CSSPixelSize svg_viewport_size(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    return {
-        CSSPixels::from_raw(row->svg_viewport_size.width),
-        CSSPixels::from_raw(row->svg_viewport_size.height),
-    };
+    auto size = Layout::RustFFI::layout_arena_paintable_svg_viewport_size(node.arena_handle(), committed_row_slot(node));
+    return { CSSPixels::from_raw(size.width), CSSPixels::from_raw(size.height) };
 }
 
 Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row || !row->has_svg_viewport_transform)
+    auto result = Layout::RustFFI::layout_arena_paintable_svg_viewport_transform(node.arena_handle(), committed_row_slot(node));
+    if (!result.has_value)
         return {};
-    auto const& transform = row->svg_viewport_transform;
+    auto const& transform = result.transform;
     return Gfx::AffineTransform { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
 }
 
