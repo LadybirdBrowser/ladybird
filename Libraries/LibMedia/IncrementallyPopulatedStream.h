@@ -61,6 +61,7 @@ public:
 
         virtual DecoderErrorOr<void> seek(i64 offset, AK::SeekMode mode) override;
         virtual DecoderErrorOr<size_t> read_into(Bytes bytes) override;
+        virtual DecoderErrorOr<FixedArray<u8>> read_bytes(size_t size) override;
 
         virtual size_t position() const override { return m_position; }
         virtual size_t size() const override { return m_stream->size(); }
