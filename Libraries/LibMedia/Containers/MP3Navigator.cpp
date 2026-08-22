@@ -6,9 +6,10 @@
 
 #include "MP3Navigator.h"
 
+#include <AK/Array.h>
 #include <AK/BinarySearch.h>
-#include <AK/Endian.h>
 #include <AK/IntegralMath.h>
+#include <LibMedia/BitReader.h>
 #include <LibSync/Mutex.h>
 
 namespace Media {
@@ -17,15 +18,6 @@ static bool read_exact(MediaStreamCursor& cursor, Bytes buffer)
 {
     auto result = cursor.read_into(buffer);
     return !result.is_error() && result.value() == buffer.size();
-}
-
-template<Integral T, Integral V>
-static bool read(MediaStreamCursor& cursor, V& value)
-{
-    T read_value = 0;
-    bool result = read_exact(cursor, { &read_value, sizeof(read_value) });
-    value = AK::convert_between_host_and_big_endian(read_value);
-    return result;
 }
 
 template<Integral T>
@@ -74,13 +66,14 @@ static constexpr u16 SAMPLING_RATES[4][4] = {
     { 44100, 48000, 32000, 0 }, // Version 1
 };
 
+static constexpr u8 SYNC_CODE_BIT_COUNT = 11;
+static constexpr u16 SYNC_CODE = 0b111'1111'1111;
+
 template<Unsigned T>
 static bool has_sync_code(T value)
 {
-    constexpr auto all_bits = static_cast<T>(-1);
-    constexpr auto shift = NumericLimits<T>::digits() - 11;
-    constexpr auto sync_code = static_cast<T>(all_bits << shift);
-    return (value & sync_code) == sync_code;
+    constexpr auto shift = NumericLimits<T>::digits() - SYNC_CODE_BIT_COUNT;
+    return (value >> shift) == SYNC_CODE;
 }
 
 static bool has_sync_code(ReadonlyBytes bytes, size_t start)
@@ -89,14 +82,6 @@ static bool has_sync_code(ReadonlyBytes bytes, size_t start)
         return false;
     auto value = static_cast<u16>((bytes[start] << 8) | bytes[start + 1]);
     return has_sync_code(value);
-}
-
-template<Unsigned T>
-static u8 read_field(T value, u8 offset, u8 size)
-{
-    constexpr auto bit_count = NumericLimits<T>::digits();
-    auto mask = (static_cast<T>(1) << size) - 1;
-    return (value >> (bit_count - offset - size)) & mask;
 }
 
 static constexpr u64 EXACT_MPEG_AUDIO_DURATION_TIMEBASE = 14'112'000;
@@ -108,19 +93,20 @@ struct FrameInfo {
 
 static bool parse_frame_header(MediaStreamCursor& cursor, FrameInfo& frame_info)
 {
-    u32 frame_header_data = 0;
-    if (!read<u32>(cursor, frame_header_data))
+    Array<u8, 4> frame_header_data;
+    if (!read_exact(cursor, frame_header_data))
         return false;
 
-    if (!has_sync_code(frame_header_data))
+    BitReader reader { frame_header_data };
+    if (reader.read_bits<u16>(SYNC_CODE_BIT_COUNT) != SYNC_CODE)
         return false;
 
-    u8 mpeg_version = read_field(frame_header_data, 11, 2);
+    auto mpeg_version = reader.read_bits<u8>(2);
     if (mpeg_version == 0b01)
         return false;
     auto is_mpeg_version_2 = mpeg_version != 0b11;
 
-    u8 layer_description = read_field(frame_header_data, 13, 2);
+    auto layer_description = reader.read_bits<u8>(2);
     if (layer_description == 0b00)
         return false;
     auto is_layer_i = layer_description == 0b11;
@@ -128,17 +114,18 @@ static bool parse_frame_header(MediaStreamCursor& cursor, FrameInfo& frame_info)
     auto layer_description_index = layer_description - 1;
     u16 frame_samples = SAMPLES_PER_FRAME[is_mpeg_version_2][layer_description_index];
 
-    u8 bitrate_description = read_field(frame_header_data, 16, 4);
+    [[maybe_unused]] auto protection_bit = reader.read_bits<u8>(1);
+    auto bitrate_description = reader.read_bits<u8>(4);
     i16 bitrate = BITRATES[is_mpeg_version_2][layer_description_index][bitrate_description];
     if (bitrate <= 0)
         return false;
 
-    u8 sampling_frequency_index = read_field(frame_header_data, 20, 2);
+    auto sampling_frequency_index = reader.read_bits<u8>(2);
     u16 sampling_frequency = SAMPLING_RATES[mpeg_version][sampling_frequency_index];
     if (sampling_frequency == 0)
         return false;
 
-    u8 padding_bit = read_field(frame_header_data, 22, 1);
+    auto padding_bit = reader.read_bit();
 
     constexpr size_t bytes_per_kb = 1000 / 8;
     size_t slot_size = is_layer_i ? 4 : 1;
