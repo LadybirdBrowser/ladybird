@@ -31,6 +31,7 @@ set(SOURCES
     HSTSStore.cpp
     Menu.cpp
     Mutation.cpp
+    NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp
     Plugins/ImageCodecPlugin.cpp
