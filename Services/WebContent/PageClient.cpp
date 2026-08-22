@@ -1233,9 +1233,9 @@ void PageClient::page_did_set_session_history_entry_document_state_reload_pendin
     client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
 }
 
-void PageClient::page_did_request_history_operation(u64 initiation_id, Web::HistoryOperationParameters parameters)
+void PageClient::page_did_request_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
 {
-    client().async_request_history_operation(m_id, initiation_id, move(parameters));
+    client().async_request_history_operation(m_id, operation_id, move(parameters));
 }
 
 String PageClient::page_did_request_ui_process_session_history_for_testing()
