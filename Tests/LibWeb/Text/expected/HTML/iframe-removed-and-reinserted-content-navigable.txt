@@ -1,0 +1,3 @@
+after re-insertion: contentWindow is null: false
+after re-insertion: contentWindow is a new window: true
+after pending tasks: contentWindow is null: false
