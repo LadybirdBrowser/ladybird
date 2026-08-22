@@ -121,30 +121,33 @@ ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
 Parser Parser::create(ParsingParams const& context, StringView input, StringView encoding)
 {
     auto source = RustTokenizer::normalize_input(input, encoding);
-    auto tokens = RustTokenizer::tokenize(source, "utf-8"sv);
-    return Parser { context, move(source), move(tokens) };
+    return Parser { context, move(source) };
 }
 
 Parser Parser::create(ParsingParams const& context, Utf16View input)
 {
-    auto tokens = Tokenizer::tokenize(input);
-    StringBuilder source;
-    for (auto const& token : tokens)
-        source.append(token.original_source_text());
-    return Parser { context, source.to_string_without_validation(), move(tokens) };
+    auto source = RustTokenizer::normalize_input(input);
+    return Parser { context, move(source) };
 }
 
-Parser::Parser(ParsingParams const& context, String source, Vector<Token> tokens)
+Parser::Parser(ParsingParams const& context, Utf16String source)
     : m_document(context.document)
     , m_parsing_mode(context.mode)
     , m_is_ua_style_sheet(context.is_ua_style_sheet)
     , m_source(move(source))
-    , m_tokens(move(tokens))
-    , m_token_stream(m_tokens)
     , m_value_context(move(context.value_context))
     , m_rule_context(move(context.rule_context))
     , m_declared_namespaces(move(context.declared_namespaces))
 {
+}
+
+TokenStream<Token>& Parser::token_stream()
+{
+    if (!m_token_stream) {
+        m_tokens = RustTokenizer::tokenize(m_source);
+        m_token_stream = make<TokenStream<Token>>(m_tokens);
+    }
+    return *m_token_stream;
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-stylesheet
@@ -256,7 +259,7 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
 
 RefPtr<Supports> Parser::parse_as_supports()
 {
-    return parse_a_supports(m_token_stream);
+    return parse_a_supports(token_stream());
 }
 
 template<typename T>
@@ -1719,7 +1722,7 @@ void Parser::consume_the_remnants_of_a_bad_declaration(TokenStream<T>& input, Ne
 CSSRule* Parser::parse_as_css_rule(bool nested)
 {
     auto nested_mode = nested ? Nested::Yes : Nested::No;
-    if (auto maybe_rule = parse_a_rule(m_token_stream, nested_mode); maybe_rule.has_value())
+    if (auto maybe_rule = parse_a_rule(token_stream(), nested_mode); maybe_rule.has_value())
         return convert_to_rule<CSSNestedDeclarations>(maybe_rule.value(), nested_mode).ptr();
     return {};
 }
@@ -1732,7 +1735,7 @@ GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
         VERIFY(last == RuleContext::AtKeyframes);
     };
 
-    auto maybe_rule = parse_a_rule(m_token_stream);
+    auto maybe_rule = parse_a_rule(token_stream());
     if (!maybe_rule.has_value() || !maybe_rule->has<QualifiedRule>())
         return {};
 
@@ -1741,7 +1744,7 @@ GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
 
 Vector<Percentage> Parser::parse_as_keyframe_selectors()
 {
-    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    auto component_values = parse_a_list_of_component_values(token_stream());
     auto tokens = TokenStream { component_values };
     return parse_keyframe_selectors(tokens);
 }
@@ -1766,7 +1769,7 @@ Optional<Rule> Parser::parse_a_rule(TokenStream<T>& input, Nested nested)
     //    Otherwise, if the next token from input is an <at-keyword-token>,
     //    consume an at-rule from input, and let rule be the return value.
     else if (input.next_token().is(Token::Type::AtKeyword)) {
-        rule = consume_an_at_rule(m_token_stream, nested).map([](auto&& it) { return Rule { it }; });
+        rule = consume_an_at_rule(input, nested).map([](auto&& it) { return Rule { it }; });
     }
     //    Otherwise, consume a qualified rule from input and let rule be the return value.
     //    If nothing or an invalid rule error was returned, return a syntax error.
@@ -1820,7 +1823,7 @@ Optional<Declaration> Parser::parse_a_declaration(TokenStream<T>& input)
 
 Optional<ComponentValue> Parser::parse_as_component_value()
 {
-    return parse_a_component_value(m_token_stream);
+    return parse_a_component_value(token_stream());
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-component-value
@@ -2377,12 +2380,12 @@ Utf16FlyString Parser::random_value_sharing_auto_name() const
 
 Vector<ComponentValue> Parser::parse_as_list_of_component_values()
 {
-    return parse_a_list_of_component_values(m_token_stream);
+    return parse_a_list_of_component_values(token_stream());
 }
 
 RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)
 {
-    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    auto component_values = parse_a_list_of_component_values(token_stream());
     auto tokens = TokenStream(component_values);
     auto parsed_value = parse_css_value(property_id, tokens);
     if (parsed_value.is_error())
@@ -2392,7 +2395,7 @@ RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)
 
 RefPtr<StyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, DescriptorNameAndID const& descriptor_name_and_id)
 {
-    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    auto component_values = parse_a_list_of_component_values(token_stream());
     auto tokens = TokenStream(component_values);
     auto parsed_value = parse_descriptor_value(at_rule_id, descriptor_name_and_id, tokens);
     if (parsed_value.is_error())
@@ -2402,7 +2405,7 @@ RefPtr<StyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, 
 
 RefPtr<StyleValue const> Parser::parse_as_type(ValueType value_type)
 {
-    auto component_values = parse_a_list_of_component_values(m_token_stream);
+    auto component_values = parse_a_list_of_component_values(token_stream());
     TokenStream tokens { component_values };
     auto parsed_value = parse_value(value_type, tokens);
 
@@ -2426,8 +2429,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
 
     // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
     //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
-    // NOTE: The sizes attribute has already been tokenized into m_token_stream by this point.
-    auto unparsed_sizes_list = parse_a_comma_separated_list_of_component_values(m_token_stream);
+    auto unparsed_sizes_list = parse_a_comma_separated_list_of_component_values(token_stream());
 
     // 2. Let size be null.
     RefPtr<StyleValue const> size;
@@ -2448,7 +2450,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
             log_parse_error();
             ErrorReporter::the().report(InvalidValueError {
                 .value_type = "sizes attribute"_utf16_fly_string,
-                .value_string = m_token_stream.dump_string(),
+                .value_string = token_stream().dump_string(),
                 .description = "Failed in step 3.1; all whitespace"_string,
             });
             continue;
@@ -2466,7 +2468,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
             log_parse_error();
             ErrorReporter::the().report(InvalidValueError {
                 .value_type = "sizes attribute"_utf16_fly_string,
-                .value_string = m_token_stream.dump_string(),
+                .value_string = token_stream().dump_string(),
                 .description = "Failed in step 3.2; couldn't parse {} as a <source-size-value>"_string,
             });
             continue;
@@ -2495,7 +2497,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
                 log_parse_error();
                 ErrorReporter::the().report(InvalidValueError {
                     .value_type = "sizes attribute"_utf16_fly_string,
-                    .value_string = m_token_stream.dump_string(),
+                    .value_string = token_stream().dump_string(),
                     .description = MUST(String::formatted("Failed in step 3.4.1; is unparsed size #{}, count {}", i, unparsed_sizes_list.size())),
                 });
             }

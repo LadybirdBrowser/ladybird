@@ -26,7 +26,7 @@ namespace Web::CSS::Parser {
 
 Vector<NonnullRefPtr<MediaQuery>> Parser::parse_as_media_query_list()
 {
-    return parse_a_media_query_list(m_token_stream);
+    return parse_a_media_query_list(token_stream());
 }
 
 template<typename T>

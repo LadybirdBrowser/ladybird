@@ -22,7 +22,6 @@
 #include <LibWeb/CSS/Parser/GeneratedValueTypesParsing.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
-#include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/Supports.h>
@@ -174,7 +173,8 @@ public:
 
 private:
     friend class RustSyntaxParser;
-    Parser(ParsingParams const&, String source, Vector<Token>);
+    Parser(ParsingParams const&, Utf16String source);
+    TokenStream<Token>& token_stream();
 
     // "Parse a stylesheet" is intended to be the normal parser entry point, for parsing stylesheets.
     struct ParsedStyleSheet {
@@ -408,7 +408,7 @@ private:
 
     Utf16String m_source;
     Vector<Token> m_tokens;
-    TokenStream<Token> m_token_stream;
+    OwnPtr<TokenStream<Token>> m_token_stream;
 
     Vector<ValueParsingContext> m_value_context;
     size_t m_random_function_index = 0;
