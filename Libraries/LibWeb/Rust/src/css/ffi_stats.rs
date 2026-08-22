@@ -41,9 +41,6 @@ define_ffi_ops! {
     // Entries: C++ -> Rust.
     CascadeBulkEntry => "cascadeBulkEntries",
     CascadeCustomPropertyEntry => "cascadeCustomPropertyEntries",
-    CascadeResolutionEntry => "cascadeResolutionEntries",
-    CascadeNativeSubstitutionRequest => "cascadeNativeSubstitutionRequests",
-    CascadeCppResolutionRequest => "cascadeCppResolutionRequests",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
     CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
     CustomPropertyStoreQueryEntry => "customPropertyStoreQueryEntries",

@@ -27,8 +27,11 @@
         }
         internals.updateStyle();
 
-        let counters = internals.styleFfiCounters();
-        println(`shared environment parse requests: ${counters.cascadeNativeSubstitutionRequests}`);
+        const counters = internals.styleFfiCounters();
+        println(`substitution request counters removed: ${
+            !("cascadeNativeSubstitutionRequests" in counters)
+            && !("cascadeCppResolutionRequests" in counters)
+        }`);
         println(`shared environment value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
         println(`shared value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
@@ -36,8 +39,6 @@
         internals.resetStyleInvalidationCounters();
         host.lastElementChild.style.zIndex = 100;
         internals.updateStyle();
-        counters = internals.styleFfiCounters();
-        println(`later transaction parse requests: ${counters.cascadeNativeSubstitutionRequests}`);
         println(`later transaction value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
         println(`later transaction value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
@@ -50,8 +51,6 @@
             initialValue: "0px",
         });
         internals.updateStyle();
-        counters = internals.styleFfiCounters();
-        println(`registration change parse requests: ${counters.cascadeNativeSubstitutionRequests}`);
         println(`registration change value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
         println(`registration change value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
@@ -59,8 +58,6 @@
         internals.resetStyleInvalidationCounters();
         host.firstElementChild.style.setProperty("--spacing", "9px");
         internals.updateStyle();
-        counters = internals.styleFfiCounters();
-        println(`different environment parse requests: ${counters.cascadeNativeSubstitutionRequests}`);
         println(`different environment value parses: ${internals.getStyleInvalidationCounters().substitutionValueParses}`);
         println(`changed value: ${getComputedStyle(host.firstElementChild).paddingLeft}`);
         println(`unchanged neighbour: ${getComputedStyle(host.lastElementChild).paddingLeft}`);

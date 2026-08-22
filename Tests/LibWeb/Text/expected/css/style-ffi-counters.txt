@@ -11,7 +11,7 @@ pseudo-element stayed callback-free: true
 custom properties stayed callback-free: true
 cascade returned without callbacks: true
 custom-property cascade entered Rust: true
-cascade resolution entered Rust: true
+cascade request counters removed: true
 custom-property cascade avoided C++ callback: true
 font and viewport lengths stayed callback-free: true
 animations and transitions stayed callback-free: true

@@ -155,6 +155,7 @@ pub struct FfiValueParsingContext {
 
 /// Parser state required by CSS value parsing.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct ParseContext {
     pub in_quirks_mode: bool,
     pub is_svg_presentation_attribute: bool,
@@ -5379,7 +5380,6 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
 }
 
 /// Parses a UTF-16 property value whose component-value source is already serialized.
-#[allow(dead_code)]
 pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
     let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
         Ok(values) => parse_css_value_with_source(context, property_id, &values, source, &[]),

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="style-engine/substituted-relative-url.css" />
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    const imageURL = new URL("../wpt-import/images/anim-gr.gif", document.location).href;
+
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        internals.dumpLayoutTree(document);
+        const state = await waitForImageAnimationState(imageURL, state => state.timerActive);
+        println(`timer active: ${state.timerActive}`);
+    });
+</script>

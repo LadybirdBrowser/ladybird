@@ -1,0 +1,6 @@
+#target {
+    --image: url("../../wpt-import/images/anim-gr.gif");
+    background-image: var(--image);
+    width: 1px;
+    height: 1px;
+}
