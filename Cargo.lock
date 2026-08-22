@@ -839,6 +839,7 @@ dependencies = [
  "liburl_rust",
  "libweb_html_tokenizer",
  "serde_json",
+ "smallvec",
 ]
 
 [[package]]

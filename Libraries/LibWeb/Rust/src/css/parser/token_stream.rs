@@ -132,7 +132,7 @@ impl Drop for StateTransaction<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::TokenStream;
-    use crate::css::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
+    use crate::css::css_tokenizer::{ParserString, ParserTokenKind, tokenize_for_parser};
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
     fn values(input: &str) -> Vec<crate::css::parser::component_value::ComponentValue> {
@@ -149,7 +149,11 @@ mod tests {
             let mut transaction = stream.begin_transaction();
             transaction.consume_a_token();
             transaction.discard_whitespace();
-            assert!(transaction.next_token().is(&ParserTokenKind::Ident(Box::new([]))));
+            assert!(
+                transaction
+                    .next_token()
+                    .is(&ParserTokenKind::Ident(ParserString::Owned(Box::new([]))))
+            );
         }
         assert_eq!(stream.current_index(), start);
     }

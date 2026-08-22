@@ -210,8 +210,11 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) EmptyOptionalStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Easing:
         return adopt_ref(*new (nothrow) EasingStyleValue(data));
-    case StyleValueFFI::StyleValueData::Tag::Keyword:
-        return adopt_ref(*new (nothrow) KeywordStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Keyword: {
+        auto keyword = static_cast<Keyword>(data->keyword.keyword);
+        StyleValueFFI::rust_style_value_release(data);
+        return KeywordStyleValue::create(keyword);
+    }
     case StyleValueFFI::StyleValueData::Tag::Number:
         return adopt_ref(*new (nothrow) NumberStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Integer:

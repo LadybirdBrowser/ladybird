@@ -176,8 +176,9 @@ static void set_ffi_token_value(ValueParserFFI::FfiParserToken& ffi_token, FfiPa
 
 using FfiParserTokens = Vector<ValueParserFFI::FfiParserToken, 8>;
 
-static void set_token_for_ffi(ValueParserFFI::FfiParserToken& ffi_token, FfiParserTokenValues& ffi_token_values, Token const& token)
+static void append_token_for_ffi(FfiParserTokens& ffi_tokens, FfiParserTokenValues& ffi_token_values, Token const& token)
 {
+    ValueParserFFI::FfiParserToken ffi_token {};
     ffi_token.token_type = to_underlying(token.type());
     switch (token.type()) {
     case Token::Type::Ident:
@@ -234,12 +235,6 @@ static void set_token_for_ffi(ValueParserFFI::FfiParserToken& ffi_token, FfiPars
     case Token::Type::CloseCurly:
         break;
     }
-}
-
-static void append_token_for_ffi(FfiParserTokens& ffi_tokens, FfiParserTokenValues& ffi_token_values, Token const& token)
-{
-    ValueParserFFI::FfiParserToken ffi_token {};
-    set_token_for_ffi(ffi_token, ffi_token_values, token);
     ffi_tokens.append(ffi_token);
 }
 
@@ -725,21 +720,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     u8 const* reason { nullptr };
     FfiParserTokens ffi_tokens;
     FfiParserTokenValues ffi_token_values;
-    ValueParserFFI::FfiParserToken single_ffi_token {};
-    auto const remaining_tokens = tokens.remaining_tokens();
-    ValueParserFFI::FfiParserToken const* ffi_token_data;
-    size_t ffi_token_count;
-    if (remaining_tokens.size() == 1 && remaining_tokens[0].is_token()) {
-        set_token_for_ffi(single_ffi_token, ffi_token_values, remaining_tokens[0].token());
-        ffi_token_data = &single_ffi_token;
-        ffi_token_count = 1;
-    } else {
-        append_component_values_for_ffi(ffi_tokens, ffi_token_values, remaining_tokens);
-        ffi_token_data = ffi_tokens.data();
-        ffi_token_count = ffi_tokens.size();
-    }
+    append_component_values_for_ffi(ffi_tokens, ffi_token_values, tokens.remaining_tokens());
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value_from_tokens(
-        &context, to_underlying(property_id), ffi_token_data, ffi_token_count,
+        &context, to_underlying(property_id), ffi_tokens.data(), ffi_tokens.size(),
         ffi_token_values.data(), ffi_token_values.size(),
         ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), &status, &reason);
 

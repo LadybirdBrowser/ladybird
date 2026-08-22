@@ -12,20 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/keywords_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/css_enums_generated.rs"));
 
 pub(crate) fn keyword_from_ascii_case_insensitive(identifier: &[u16]) -> Option<u16> {
-    use crate::css::ffi_support::ascii_lowercase;
-
-    keyword::SORTED_NAMES
-        .binary_search_by(|&(name, _)| {
-            for (&identifier_unit, name_byte) in identifier.iter().zip(name.bytes()) {
-                match u16::from(name_byte).cmp(&ascii_lowercase(identifier_unit)) {
-                    std::cmp::Ordering::Equal => {}
-                    ordering => return ordering,
-                }
-            }
-            name.len().cmp(&identifier.len())
-        })
-        .ok()
-        .map(|index| keyword::SORTED_NAMES[index].1)
+    keyword::from_ascii_case_insensitive(identifier)
 }
 
 #[cfg(test)]
