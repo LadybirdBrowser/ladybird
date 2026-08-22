@@ -136,7 +136,7 @@ mod tests {
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
     fn values(input: &str) -> Vec<crate::css::parser::component_value::ComponentValue> {
-        consume_a_list_of_component_values(&tokenize_for_parser(input.as_bytes())).unwrap()
+        consume_a_list_of_component_values(tokenize_for_parser(input.as_bytes())).unwrap()
     }
 
     #[test]

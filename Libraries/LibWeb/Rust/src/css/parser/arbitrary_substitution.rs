@@ -279,7 +279,7 @@ mod tests {
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
     fn collect(source: &str) -> Result<SubstitutionFunctionsPresence, ()> {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         let mut presence = SubstitutionFunctionsPresence::default();
         collect_arbitrary_substitution_function_presence(&values, &mut presence)?;
         Ok(presence)
@@ -341,14 +341,14 @@ mod tests {
     #[test]
     fn validates_complete_declaration_values() {
         for source in ["value", "function(value; !important)", "{ value; !important }"] {
-            let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+            let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
             assert!(
                 declaration_value_is_valid(&values),
                 "expected valid declaration value: {source}"
             );
         }
         for source in ["", "value; trailing", "value ! trailing", "url(bad\"url)"] {
-            let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+            let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
             assert!(
                 !declaration_value_is_valid(&values),
                 "expected invalid declaration value: {source}"

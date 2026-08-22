@@ -1734,17 +1734,17 @@ mod tests {
     }
 
     fn parse(property: u16, source: &str) -> ParseOutcome {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_position_property(&context(), property, &values)
     }
 
     fn parse_geometry(property: u16, source: &str) -> ParseOutcome {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_geometry_property(&context(), property, &values)
     }
 
     fn parse_anchor_fit(property: u16, source: &str) -> ParseOutcome {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_anchor_fit_property(&context(), property, &values)
     }
 

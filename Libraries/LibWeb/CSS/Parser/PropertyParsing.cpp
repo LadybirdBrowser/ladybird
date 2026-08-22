@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -151,6 +152,150 @@ static bool rust_font_format_is_supported(u16 const* code_units, size_t length)
 static bool rust_font_tech_is_supported(u8 tech)
 {
     return font_tech_is_supported(static_cast<FontTech>(tech));
+}
+
+static u8 number_type_for_ffi(Token const& token)
+{
+    if (token.is_integer_with_explicit_sign())
+        return to_underlying(Number::Type::IntegerWithExplicitSign);
+    if (token.is_integer())
+        return to_underlying(Number::Type::Integer);
+    return to_underlying(Number::Type::Number);
+}
+
+using FfiParserTokenValues = Vector<u16, 64>;
+
+static void set_ffi_token_value(ValueParserFFI::FfiParserToken& ffi_token, FfiParserTokenValues& ffi_token_values, Utf16View value)
+{
+    ffi_token.value_offset = ffi_token_values.size();
+    ffi_token.value_length = value.length_in_code_units();
+    ffi_token_values.ensure_capacity(ffi_token_values.size() + value.length_in_code_units());
+    for (size_t i = 0; i < value.length_in_code_units(); ++i)
+        ffi_token_values.unchecked_append(value.code_unit_at(i));
+}
+
+using FfiParserTokens = Vector<ValueParserFFI::FfiParserToken, 8>;
+
+static void set_token_for_ffi(ValueParserFFI::FfiParserToken& ffi_token, FfiParserTokenValues& ffi_token_values, Token const& token)
+{
+    ffi_token.token_type = to_underlying(token.type());
+    switch (token.type()) {
+    case Token::Type::Ident:
+        set_ffi_token_value(ffi_token, ffi_token_values, token.ident());
+        break;
+    case Token::Type::Function:
+        set_ffi_token_value(ffi_token, ffi_token_values, token.function());
+        break;
+    case Token::Type::AtKeyword:
+        set_ffi_token_value(ffi_token, ffi_token_values, token.at_keyword());
+        break;
+    case Token::Type::Hash:
+        ffi_token.hash_type = to_underlying(token.hash_type());
+        set_ffi_token_value(ffi_token, ffi_token_values, token.hash_value());
+        break;
+    case Token::Type::String:
+        set_ffi_token_value(ffi_token, ffi_token_values, token.string());
+        break;
+    case Token::Type::Url:
+        set_ffi_token_value(ffi_token, ffi_token_values, token.url());
+        break;
+    case Token::Type::Delim:
+        ffi_token.delim = token.delim();
+        break;
+    case Token::Type::Number:
+        ffi_token.number_type = number_type_for_ffi(token);
+        ffi_token.number_value = token.number_value();
+        break;
+    case Token::Type::Percentage:
+        ffi_token.number_type = number_type_for_ffi(token);
+        ffi_token.number_value = token.percentage();
+        break;
+    case Token::Type::Dimension:
+        ffi_token.number_type = number_type_for_ffi(token);
+        ffi_token.number_value = token.dimension_value();
+        set_ffi_token_value(ffi_token, ffi_token_values, token.dimension_unit());
+        break;
+    case Token::Type::Invalid:
+    case Token::Type::EndOfFile:
+        VERIFY_NOT_REACHED();
+    case Token::Type::BadString:
+    case Token::Type::BadUrl:
+    case Token::Type::Whitespace:
+    case Token::Type::CDO:
+    case Token::Type::CDC:
+    case Token::Type::Colon:
+    case Token::Type::Semicolon:
+    case Token::Type::Comma:
+    case Token::Type::OpenSquare:
+    case Token::Type::CloseSquare:
+    case Token::Type::OpenParen:
+    case Token::Type::CloseParen:
+    case Token::Type::OpenCurly:
+    case Token::Type::CloseCurly:
+        break;
+    }
+}
+
+static void append_token_for_ffi(FfiParserTokens& ffi_tokens, FfiParserTokenValues& ffi_token_values, Token const& token)
+{
+    ValueParserFFI::FfiParserToken ffi_token {};
+    set_token_for_ffi(ffi_token, ffi_token_values, token);
+    ffi_tokens.append(ffi_token);
+}
+
+static void append_component_values_for_ffi(FfiParserTokens& ffi_tokens, FfiParserTokenValues& ffi_token_values, ReadonlySpan<ComponentValue> values)
+{
+    for (auto const& value : values) {
+        if (value.is_token()) {
+            append_token_for_ffi(ffi_tokens, ffi_token_values, value.token());
+            continue;
+        }
+        if (value.is_function()) {
+            auto const& function = value.function();
+            ValueParserFFI::FfiParserToken function_token {};
+            function_token.token_type = to_underlying(Token::Type::Function);
+            set_ffi_token_value(function_token, ffi_token_values, function.name);
+            ffi_tokens.append(function_token);
+            append_component_values_for_ffi(ffi_tokens, ffi_token_values, function.value.span());
+            ValueParserFFI::FfiParserToken closing_token {};
+            closing_token.token_type = to_underlying(Token::Type::CloseParen);
+            ffi_tokens.append(closing_token);
+            continue;
+        }
+        VERIFY(value.is_block());
+        auto const& block = value.block();
+        ValueParserFFI::FfiParserToken opening_token {};
+        ValueParserFFI::FfiParserToken closing_token {};
+        if (block.is_square()) {
+            opening_token.token_type = to_underlying(Token::Type::OpenSquare);
+            closing_token.token_type = to_underlying(Token::Type::CloseSquare);
+        } else if (block.is_paren()) {
+            opening_token.token_type = to_underlying(Token::Type::OpenParen);
+            closing_token.token_type = to_underlying(Token::Type::CloseParen);
+        } else {
+            VERIFY(block.is_curly());
+            opening_token.token_type = to_underlying(Token::Type::OpenCurly);
+            closing_token.token_type = to_underlying(Token::Type::CloseCurly);
+        }
+        ffi_tokens.append(opening_token);
+        append_component_values_for_ffi(ffi_tokens, ffi_token_values, block.value.span());
+        ffi_tokens.append(closing_token);
+    }
+}
+
+static bool contains_arbitrary_substitution_function(ReadonlySpan<ComponentValue> values)
+{
+    for (auto const& value : values) {
+        if (value.is_function()) {
+            auto const& function = value.function();
+            if (to_arbitrary_substitution_function(function.name).has_value()
+                || contains_arbitrary_substitution_function(function.value.span()))
+                return true;
+        } else if (value.is_block() && contains_arbitrary_substitution_function(value.block().value.span())) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static void dump_parse_fallback_statistics()
@@ -487,12 +632,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
                 break;
             }
             contains_attr_tainted_values |= token.contains_attr_tainted_value();
-
             auto token_source = token.original_source_text();
             if (token_source.is_empty()) {
-                // NB: Tokenizer-produced component values retain their source text. Parser-synthesized values may
-                //     not, so serialize those values and surround them with discarded comments to prevent adjacent
-                //     tokens from merging when Rust tokenizes the reconstructed source.
                 builder.append("/**/"_utf16);
                 builder.append(token.to_string());
                 builder.append("/**/"_utf16);
@@ -506,46 +647,51 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
     auto source = builder.to_string();
     auto unresolved_source = source.trim_ascii_whitespace();
-    auto transaction = tokens.begin_transaction();
-    auto start_index = tokens.current_index();
-    while (tokens.has_next_token())
-        tokens.discard_a_token();
-    auto reconstructed_values = tokens.tokens_since(start_index);
-    auto comparison_source = serialize_a_series_of_component_values(reconstructed_values).trim_ascii_whitespace();
-    if (value_is_substituted == ValueIsSubstituted::Yes)
-        source = serialize_a_series_of_component_values(reconstructed_values);
+    auto comparison_source = serialize_a_series_of_component_values(tokens.remaining_tokens()).trim_ascii_whitespace();
 
     Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-    value_contexts.ensure_capacity(m_value_context.size());
-    for (auto const& value_context : m_value_context) {
-        ValueParserFFI::FfiValueParsingContext ffi_context {};
-        value_context.visit(
-            [&](PropertyID context_property_id) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                ffi_context.value = to_underlying(context_property_id);
-            },
-            [&](FunctionContext const& function_context) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                ffi_context.name = ffi_utf16_view(function_context.name);
-            },
-            [&](DescriptorContext const& descriptor_context) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                ffi_context.value = to_underlying(descriptor_context.at_rule);
-                ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
-            },
-            [&](SpecialContext special_context) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                ffi_context.value = to_underlying(special_context);
-            },
-            [&](RelativeColorParseContext const& relative_color_context) {
-                static_assert(relative_color_context.allowed_channels.size() <= 64);
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::RelativeColor;
-                for (size_t i = 0; i < relative_color_context.allowed_channels.size(); ++i) {
-                    if (relative_color_context.allowed_channels[i])
-                        ffi_context.allowed_channels |= static_cast<u64>(1) << i;
-                }
-            });
-        value_contexts.append(ffi_context);
+    ValueParserFFI::FfiValueParsingContext single_property_context {};
+    ValueParserFFI::FfiValueParsingContext const* value_context_data;
+    size_t value_context_count;
+    if (m_value_context.size() == 1 && m_value_context[0].has<PropertyID>()) {
+        single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+        single_property_context.value = to_underlying(m_value_context[0].get<PropertyID>());
+        value_context_data = &single_property_context;
+        value_context_count = 1;
+    } else {
+        value_contexts.ensure_capacity(m_value_context.size());
+        for (auto const& value_context : m_value_context) {
+            ValueParserFFI::FfiValueParsingContext ffi_context {};
+            value_context.visit(
+                [&](PropertyID context_property_id) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+                    ffi_context.value = to_underlying(context_property_id);
+                },
+                [&](FunctionContext const& function_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
+                    ffi_context.name = ffi_utf16_view(function_context.name);
+                },
+                [&](DescriptorContext const& descriptor_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
+                    ffi_context.value = to_underlying(descriptor_context.at_rule);
+                    ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
+                },
+                [&](SpecialContext special_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
+                    ffi_context.value = to_underlying(special_context);
+                },
+                [&](RelativeColorParseContext const& relative_color_context) {
+                    static_assert(relative_color_context.allowed_channels.size() <= 64);
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::RelativeColor;
+                    for (size_t i = 0; i < relative_color_context.allowed_channels.size(); ++i) {
+                        if (relative_color_context.allowed_channels[i])
+                            ffi_context.allowed_channels |= static_cast<u64>(1) << i;
+                    }
+                });
+            value_contexts.append(ffi_context);
+        }
+        value_context_data = value_contexts.data();
+        value_context_count = value_contexts.size();
     }
 
     ReadonlyBytes document_url;
@@ -563,8 +709,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
         .is_substituted_value = value_is_substituted == ValueIsSubstituted::Yes,
         .contains_attr_tainted_values = contains_attr_tainted_values,
-        .value_contexts = value_contexts.data(),
-        .value_context_count = value_contexts.size(),
+        .value_contexts = value_context_data,
+        .value_context_count = value_context_count,
         .document_url = document_url.data(),
         .document_url_length = document_url.size(),
         .document_base_url = document_base_url.data(),
@@ -577,8 +723,24 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
-    auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
-        &context, to_underlying(property_id), ffi_utf16_view(source),
+    FfiParserTokens ffi_tokens;
+    FfiParserTokenValues ffi_token_values;
+    ValueParserFFI::FfiParserToken single_ffi_token {};
+    auto const remaining_tokens = tokens.remaining_tokens();
+    ValueParserFFI::FfiParserToken const* ffi_token_data;
+    size_t ffi_token_count;
+    if (remaining_tokens.size() == 1 && remaining_tokens[0].is_token()) {
+        set_token_for_ffi(single_ffi_token, ffi_token_values, remaining_tokens[0].token());
+        ffi_token_data = &single_ffi_token;
+        ffi_token_count = 1;
+    } else {
+        append_component_values_for_ffi(ffi_tokens, ffi_token_values, remaining_tokens);
+        ffi_token_data = ffi_tokens.data();
+        ffi_token_count = ffi_tokens.size();
+    }
+    auto const* parsed_value = ValueParserFFI::rust_parse_css_value_from_tokens(
+        &context, to_underlying(property_id), ffi_token_data, ffi_token_count,
+        ffi_token_values.data(), ffi_token_values.size(),
         ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), &status, &reason);
 
     switch (status) {

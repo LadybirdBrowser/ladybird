@@ -16,7 +16,10 @@ use crate::css::css_enums::{
     symbols_type, text_underline_position_horizontal, text_underline_position_vertical,
 };
 use crate::css::css_pixels::CssPixels;
-use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_parser};
+use crate::css::css_tokenizer::{
+    CssHashType, CssNumberType, CssTokenType, ParserString, ParserToken, ParserTokenKind, TokenizerInput,
+    tokenize_for_parser, tokenize_for_parser_without_source,
+};
 use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::math_functions::math_function_from_name;
@@ -172,6 +175,17 @@ pub struct ParseContext {
     pub font_format_is_supported: Option<unsafe extern "C" fn(*const u16, usize) -> bool>,
     pub font_tech_is_supported: Option<unsafe extern "C" fn(u8) -> bool>,
     pub random_function_index: *mut usize,
+}
+
+#[repr(C)]
+pub struct FfiParserToken {
+    pub token_type: u8,
+    pub hash_type: u8,
+    pub number_type: u8,
+    pub number_value: f64,
+    pub delim: u32,
+    pub value_offset: usize,
+    pub value_length: usize,
 }
 
 pub(crate) enum ParseOutcome {
@@ -3598,7 +3612,7 @@ fn parse_positional_value_list_shorthand(
 
 fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<StyleValueData> {
     let initial = property_initial_value(property);
-    let values = consume_a_list_of_component_values(&tokenize_for_parser(initial.as_bytes())).ok()?;
+    let values = consume_a_list_of_component_values(tokenize_for_parser(initial.as_bytes())).ok()?;
     match parse_css_value(context, property, &values) {
         ParseOutcome::Parsed(value) => Some((*value).clone()),
         ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
@@ -4504,7 +4518,7 @@ fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
             let font_variant = match font_variant {
                 Some(value) => Some(value),
                 None => {
-                    let values = consume_a_list_of_component_values(&tokenize_for_parser(b"normal")).ok();
+                    let values = consume_a_list_of_component_values(tokenize_for_parser(b"normal")).ok();
                     match values
                         .as_deref()
                         .map(|values| parse_font_variant_shorthand(context, values))
@@ -5107,7 +5121,7 @@ fn parse_css_value_with_source(
         for function_name in function_names.into_iter().rev() {
             nested_values = vec![ComponentValue {
                 kind: ComponentKind::Function {
-                    name: function_name.into_boxed_slice(),
+                    name: function_name.into_boxed_slice().into(),
                     values: nested_values.into_boxed_slice(),
                 },
                 original_source_text: Box::new([]),
@@ -5379,9 +5393,13 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     parse_css_value_with_source(context, property_id, values, &source, &[])
 }
 
+fn component_values_from_source<'a>(source: impl Into<TokenizerInput<'a>>) -> Result<Vec<ComponentValue>, ()> {
+    consume_a_list_of_component_values(tokenize_for_parser_without_source(source))
+}
+
 /// Parses a UTF-16 property value whose component-value source is already serialized.
 pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
-    let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
+    let outcome = match component_values_from_source(source) {
         Ok(values) => parse_css_value_with_source(context, property_id, &values, source, &[]),
         Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
     };
@@ -5396,6 +5414,103 @@ pub enum FfiParseStatus {
     Parsed,
     Invalid,
     NotHandled,
+}
+
+unsafe fn ffi_parser_tokens<'a>(tokens: *const FfiParserToken, token_count: usize) -> Option<&'a [FfiParserToken]> {
+    if token_count == 0 {
+        return Some(&[]);
+    }
+    if tokens.is_null() {
+        return None;
+    }
+    Some(unsafe { std::slice::from_raw_parts(tokens, token_count) })
+}
+
+unsafe fn ffi_parser_token_values<'a>(values: *const u16, value_count: usize) -> Option<&'a [u16]> {
+    if value_count == 0 {
+        return Some(&[]);
+    }
+    if values.is_null() {
+        return None;
+    }
+    Some(unsafe { std::slice::from_raw_parts(values, value_count) })
+}
+
+fn parser_token_from_ffi(token: &FfiParserToken, token_values: &[u16]) -> Option<ParserToken> {
+    if token.token_type > CssTokenType::CloseCurly as u8
+        || token.hash_type > CssHashType::Unrestricted as u8
+        || token.number_type > CssNumberType::Integer as u8
+    {
+        return None;
+    }
+    // SAFETY: The FFI codes were range-checked above and all three enums use contiguous discriminants.
+    let token_type = unsafe { std::mem::transmute::<u32, CssTokenType>(u32::from(token.token_type)) };
+    let hash_type = unsafe { std::mem::transmute::<u32, CssHashType>(u32::from(token.hash_type)) };
+    let number_type = unsafe { std::mem::transmute::<u32, CssNumberType>(u32::from(token.number_type)) };
+    let value = if token.value_length == 0 {
+        ParserString::Owned(Box::new([]))
+    } else {
+        let end = token.value_offset.checked_add(token.value_length)?;
+        if end > token_values.len() {
+            return None;
+        }
+        // SAFETY: `token_values` remains alive for the entire parse call, and
+        // parsed component values do not escape that call.
+        unsafe { ParserString::from_raw_parts(token_values.as_ptr().add(token.value_offset), token.value_length) }
+    };
+    let kind = match token_type {
+        CssTokenType::Invalid | CssTokenType::EndOfFile => return None,
+        CssTokenType::Ident => ParserTokenKind::Ident(value),
+        CssTokenType::Function => ParserTokenKind::Function(value),
+        CssTokenType::AtKeyword => ParserTokenKind::AtKeyword(value),
+        CssTokenType::Hash => ParserTokenKind::Hash {
+            value,
+            is_id: hash_type == CssHashType::Id,
+        },
+        CssTokenType::String => ParserTokenKind::String(value),
+        CssTokenType::BadString => ParserTokenKind::BadString,
+        CssTokenType::Url => ParserTokenKind::Url(value),
+        CssTokenType::BadUrl => ParserTokenKind::BadUrl,
+        CssTokenType::Delim => ParserTokenKind::Delim(token.delim),
+        CssTokenType::Number => ParserTokenKind::Number {
+            value: token.number_value,
+            number_type,
+        },
+        CssTokenType::Percentage => ParserTokenKind::Percentage {
+            value: token.number_value,
+            number_type,
+        },
+        CssTokenType::Dimension => ParserTokenKind::Dimension {
+            value: token.number_value,
+            number_type,
+            unit: value,
+        },
+        CssTokenType::Whitespace => ParserTokenKind::Whitespace,
+        CssTokenType::CDO => ParserTokenKind::Cdo,
+        CssTokenType::CDC => ParserTokenKind::Cdc,
+        CssTokenType::Colon => ParserTokenKind::Colon,
+        CssTokenType::Semicolon => ParserTokenKind::Semicolon,
+        CssTokenType::Comma => ParserTokenKind::Comma,
+        CssTokenType::OpenSquare => ParserTokenKind::OpenSquare,
+        CssTokenType::CloseSquare => ParserTokenKind::CloseSquare,
+        CssTokenType::OpenParen => ParserTokenKind::OpenParen,
+        CssTokenType::CloseParen => ParserTokenKind::CloseParen,
+        CssTokenType::OpenCurly => ParserTokenKind::OpenCurly,
+        CssTokenType::CloseCurly => ParserTokenKind::CloseCurly,
+    };
+    Some(ParserToken {
+        kind,
+        source: crate::css::css_tokenizer::ParserSource::empty(),
+        start_position: Default::default(),
+        end_position: Default::default(),
+    })
+}
+
+fn parser_tokens_from_ffi(tokens: &[FfiParserToken], token_values: &[u16]) -> Option<Vec<ParserToken>> {
+    tokens
+        .iter()
+        .map(|token| parser_token_from_ffi(token, token_values))
+        .collect()
 }
 
 #[repr(u8)]
@@ -5479,11 +5594,130 @@ pub unsafe extern "C" fn rust_parse_css_value(
             return invalid_ffi_result();
         };
         let context = unsafe { &*context };
-        let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
+        let outcome = match component_values_from_source(source) {
             Ok(values) => {
                 parse_css_value_with_source(context, property_id, &values, &unresolved_source, &comparison_source)
             }
             Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
+        };
+        record_outcome(property_id, &outcome);
+
+        match outcome {
+            ParseOutcome::Parsed(value) => {
+                unsafe {
+                    *out_status = FfiParseStatus::Parsed;
+                    *out_reason = std::ptr::null();
+                }
+                Arc::into_raw(value).cast()
+            }
+            ParseOutcome::Invalid => {
+                unsafe {
+                    *out_status = FfiParseStatus::Invalid;
+                    *out_reason = std::ptr::null();
+                }
+                std::ptr::null()
+            }
+            ParseOutcome::NotHandled(reason) => {
+                unsafe {
+                    *out_status = FfiParseStatus::NotHandled;
+                    *out_reason = reason.c_label.as_ptr();
+                }
+                std::ptr::null()
+            }
+        }
+    })
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_css_value_from_tokens(
+    context: *const ParseContext,
+    property_id: u16,
+    tokens: *const FfiParserToken,
+    token_count: usize,
+    token_values: *const u16,
+    token_value_count: usize,
+    unresolved_source: FfiUtf16View,
+    comparison_source: FfiUtf16View,
+    out_status: *mut FfiParseStatus,
+    out_reason: *mut *const u8,
+) -> *const c_void {
+    crate::abort_on_panic(|| {
+        let invalid_ffi_result = || {
+            if !out_status.is_null() {
+                unsafe { *out_status = FfiParseStatus::NotHandled };
+            }
+            if !out_reason.is_null() {
+                unsafe { *out_reason = INVALID_FFI_INPUT.c_label.as_ptr() };
+            }
+            std::ptr::null()
+        };
+
+        if context.is_null() || out_status.is_null() || out_reason.is_null() {
+            return invalid_ffi_result();
+        }
+        let Some(tokens) = (unsafe { ffi_parser_tokens(tokens, token_count) }) else {
+            return invalid_ffi_result();
+        };
+        let Some(token_values) = (unsafe { ffi_parser_token_values(token_values, token_value_count) }) else {
+            return invalid_ffi_result();
+        };
+        let Some(unresolved_source) = (unsafe { unresolved_source.to_utf16() }) else {
+            return invalid_ffi_result();
+        };
+        let Some(comparison_source) = (unsafe { comparison_source.to_utf16() }) else {
+            return invalid_ffi_result();
+        };
+        let contains_nested_values = tokens.iter().any(|token| {
+            matches!(
+                token.token_type,
+                value if value == CssTokenType::Function as u8
+                    || value == CssTokenType::OpenSquare as u8
+                    || value == CssTokenType::OpenParen as u8
+                    || value == CssTokenType::OpenCurly as u8
+            )
+        });
+        let parse_values = |values: &[ComponentValue]| {
+            parse_css_value_with_source(
+                unsafe { &*context },
+                property_id,
+                values,
+                &unresolved_source,
+                &comparison_source,
+            )
+        };
+        let outcome = if tokens.is_empty() {
+            parse_values(&[])
+        } else if tokens.len() == 1 && !contains_nested_values {
+            let Some(token) = parser_token_from_ffi(&tokens[0], token_values) else {
+                return invalid_ffi_result();
+            };
+            let value = ComponentValue {
+                kind: ComponentKind::Token(token.kind),
+                original_source_text: token.source.to_vec().into_boxed_slice(),
+            };
+            parse_values(std::slice::from_ref(&value))
+        } else if contains_nested_values {
+            let Some(tokens) = parser_tokens_from_ffi(tokens, token_values) else {
+                return invalid_ffi_result();
+            };
+            match consume_a_list_of_component_values(tokens) {
+                Ok(values) => parse_values(&values),
+                Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
+            }
+        } else {
+            let Some(values) = tokens
+                .iter()
+                .map(|token| {
+                    parser_token_from_ffi(token, token_values).map(|token| ComponentValue {
+                        kind: ComponentKind::Token(token.kind),
+                        original_source_text: token.source.to_vec().into_boxed_slice(),
+                    })
+                })
+                .collect::<Option<Vec<_>>>()
+            else {
+                return invalid_ffi_result();
+            };
+            parse_values(&values)
         };
         record_outcome(property_id, &outcome);
 
@@ -5528,7 +5762,7 @@ pub unsafe extern "C" fn rust_parse_font_descriptor(
             unsafe { *out_status = FfiParseStatus::NotHandled };
             return std::ptr::null();
         };
-        let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
+        let outcome = match consume_a_list_of_component_values(tokenize_for_parser(source)) {
             Ok(values) => parse_font_descriptor(unsafe { &*context }, kind, &values),
             Err(()) => ParseOutcome::Invalid,
         };
@@ -5612,12 +5846,13 @@ mod tests {
     }
 
     fn parse(property: u16, source: &str) -> ParseOutcome {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let source = utf16(source);
+        let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
         parse_css_value(&context(), property, &values)
     }
 
     fn parse_with_context(context: &ParseContext, property: u16, source: &str) -> ParseOutcome {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_css_value(context, property, &values)
     }
 
@@ -5638,7 +5873,8 @@ mod tests {
     }
 
     fn component(source: &str) -> ComponentValue {
-        let mut values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let source = utf16(source);
+        let mut values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
         assert_eq!(values.len(), 1);
         values.remove(0)
     }
@@ -5655,7 +5891,7 @@ mod tests {
 
     #[test]
     fn unknown_properties_fall_back_to_cpp() {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(b"0.5")).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(b"0.5")).unwrap();
         assert!(matches!(
             parse_css_value(&context(), property_id::ALL, &values),
             ParseOutcome::Invalid
@@ -6556,7 +6792,7 @@ mod tests {
 
     #[test]
     fn parses_ratio_leaves() {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(b"16 / 9"))
+        let values = consume_a_list_of_component_values(tokenize_for_parser(b"16 / 9"))
             .unwrap()
             .into_iter()
             .filter(|value| !value.is_whitespace())
@@ -6797,7 +7033,7 @@ mod tests {
             ("revert", keyword::REVERT),
             ("revert-layer", keyword::REVERT_LAYER),
         ] {
-            let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+            let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
             let ParseOutcome::Parsed(value) = parse_css_value(&context(), property_id::WIDTH, &values) else {
                 panic!("CSS-wide keyword should parse");
             };
@@ -6807,7 +7043,7 @@ mod tests {
 
     #[test]
     fn does_not_parse_css_wide_keywords_as_partial_values() {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(b"inherit extra")).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(b"inherit extra")).unwrap();
         assert!(matches!(
             parse_css_value(&context(), property_id::ALL, &values),
             ParseOutcome::Invalid

@@ -717,7 +717,7 @@ mod tests {
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
     fn parse(source: &str, percentages_resolve_as: Option<u8>) -> Result<Arc<CalcNode>> {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         let (name, values) = values[0].function().unwrap();
         parse_a_calc_function_node(name, values, CalcParserContext::for_test(percentages_resolve_as))
     }
@@ -773,7 +773,7 @@ mod tests {
     #[test]
     fn parses_random_sharing_and_advances_the_function_index() {
         let values =
-            consume_a_list_of_component_values(&tokenize_for_parser(b"random(element-shared, 1px, 3px)")).unwrap();
+            consume_a_list_of_component_values(tokenize_for_parser(b"random(element-shared, 1px, 3px)")).unwrap();
         let (name, values) = values[0].function().unwrap();
         let mut random_function_index = 4;
         let context = CalcParserContext {

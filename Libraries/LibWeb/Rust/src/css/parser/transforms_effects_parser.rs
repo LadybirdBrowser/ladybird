@@ -846,7 +846,7 @@ mod tests {
     }
 
     fn parse(property: u16, source: &str) -> ParseOutcome {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_transform_effect_property(&context(), property, &values)
     }
 
