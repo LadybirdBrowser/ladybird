@@ -18,7 +18,7 @@ use crate::css::parser::value_parser::{
     FUNCTION_NOT_PORTED, NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, SUBSTITUTION_NOT_PORTED,
     VALUE_TYPE_FLEX, equals_ascii_case_insensitive, is_arbitrary_substitution_function, is_valid_custom_ident,
     parse_calculated_numeric_value_with_ranges, parse_flex_value, parse_integer_from_stream,
-    parse_length_percentage_from_stream, retain_fly_string,
+    parse_length_percentage_from_stream, parse_tree_counting_value, retain_fly_string,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{
@@ -680,6 +680,14 @@ fn parse_grid_track_placement(
             continue;
         }
         if parsed_integer.is_none()
+            && let Some(integer) = parse_tree_counting_value(context, tokens.next_token(), 1)
+        {
+            parsed_integer = Some(integer);
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
+            continue;
+        }
+        if parsed_integer.is_none()
             && let Some(integer) = parse_integer_from_stream(context, property, &mut tokens, NumericRange::INFINITE)
         {
             parsed_integer = Some(integer);
@@ -957,6 +965,7 @@ mod tests {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
+            is_substituted_value: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),
