@@ -2552,52 +2552,7 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, WebC
         dump_session_history("requested-history-operation-complete"sv);
     };
 
-    parameters.visit(
-        [&](Web::NavigationAPITraverseHistoryOperationParameters& parameters) {
-            // As with delta traversal, resolve the key only after earlier queued operations have completed.
-            RefPtr<WebContentClient> request_client = requesting_client;
-            m_top_level_traversable.append_history_queue_steps(
-                [this, request_client = move(request_client), requesting_page_id, operation_id, traversal_sequence_number = *traversal_sequence_number, parameters = move(parameters)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
-                    start_requested_history_traversal(*request_client, requesting_page_id, operation_id, traversal_sequence_number, move(parameters), move(promise));
-                });
-        },
-        [&](auto&) {
-            m_top_level_traversable.enqueue_history_operation(operation_id, move(parameters), requesting_client, requesting_page_id, traversal_sequence_number, move(requested_operation_completion));
-        });
-}
-
-void ViewImplementation::start_requested_history_traversal(WebContentClient& requesting_client, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 traversal_sequence_number, Web::NavigationAPITraverseHistoryOperationParameters parameters, NonnullRefPtr<Core::Promise<Empty>> promise)
-{
-    auto navigable = m_top_level_traversable.find(parameters.navigable_id);
-    Optional<i32> target_step;
-    if (navigable.has_value())
-        target_step = m_top_level_traversable.navigation_api_traversal_target(*navigable, parameters.key);
-    auto target = target_step.has_value()
-        ? m_top_level_traversable.session_history().traversal_target_for_step(*target_step)
-        : Optional<TraversableSessionHistory::TraversalTarget> {};
-    if (!target.has_value()) {
-        requesting_client.async_complete_history_operation(requesting_page_id, operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {}, m_top_level_traversable.session_history().size());
-        promise->resolve({});
-        return;
-    }
-    start_requested_history_traversal(requesting_client, requesting_page_id, operation_id, traversal_sequence_number, move(parameters), target.release_value(), move(promise));
-}
-
-void ViewImplementation::start_requested_history_traversal(WebContentClient& requesting_client, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 traversal_sequence_number, Web::HistoryOperationParameters parameters, TraversableSessionHistory::TraversalTarget target, NonnullRefPtr<Core::Promise<Empty>> promise)
-{
-    m_top_level_traversable.run_history_operation_at_queue_position(
-        operation_id,
-        move(parameters),
-        requesting_client,
-        requesting_page_id,
-        target.target_step,
-        traversal_sequence_number,
-        [this](Web::HTML::HistoryStepResult, Optional<i32> committed_step) {
-            if (committed_step.has_value())
-                update_navigation_action_state();
-            dump_session_history("requested-history-traversal-complete"sv);
-        },
-        move(promise));
+    m_top_level_traversable.enqueue_history_operation(operation_id, move(parameters), requesting_client, requesting_page_id, traversal_sequence_number, move(requested_operation_completion));
 }
 
 void ViewImplementation::did_receive_history_operation_ready(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
