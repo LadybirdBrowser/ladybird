@@ -7,6 +7,23 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
+
+namespace Web::HTML {
+
+NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams const& snapshot)
+{
+    return {
+        .has_transient_activation = snapshot.has_transient_activation,
+        .sandboxing_flags = snapshot.sandboxing_flags,
+        .allows_downloading = snapshot.allows_downloading,
+        .fetch_client = snapshot.fetch_client ? Optional<SerializedEnvironmentSettingsObject> { snapshot.fetch_client->serialize() } : Optional<SerializedEnvironmentSettingsObject> {},
+        .source_policy_container = snapshot.source_policy_container->serialize(),
+    };
+}
+
+}
 
 namespace IPC {
 
@@ -16,11 +33,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationSourceSnapshot const
     TRY(encoder.encode(snapshot.has_transient_activation));
     TRY(encoder.encode(snapshot.sandboxing_flags));
     TRY(encoder.encode(snapshot.allows_downloading));
+    TRY(encoder.encode(snapshot.fetch_client));
     TRY(encoder.encode(snapshot.source_policy_container));
-    TRY(encoder.encode(snapshot.initiator_origin_snapshot));
-    TRY(encoder.encode(snapshot.initiator_base_url_snapshot));
-    TRY(encoder.encode(snapshot.referrer));
-    TRY(encoder.encode(snapshot.referrer_policy));
     return {};
 }
 
@@ -31,11 +45,8 @@ ErrorOr<Web::HTML::NavigationSourceSnapshot> decode(Decoder& decoder)
         .has_transient_activation = TRY(decoder.decode<bool>()),
         .sandboxing_flags = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
         .allows_downloading = TRY(decoder.decode<bool>()),
+        .fetch_client = TRY(decoder.decode<Optional<Web::HTML::SerializedEnvironmentSettingsObject>>()),
         .source_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
-        .initiator_origin_snapshot = TRY(decoder.decode<URL::Origin>()),
-        .initiator_base_url_snapshot = TRY(decoder.decode<URL::URL>()),
-        .referrer = TRY(decoder.decode<URL::URL>()),
-        .referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
     };
 }
 

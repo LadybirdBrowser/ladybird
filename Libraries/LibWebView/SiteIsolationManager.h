@@ -29,7 +29,6 @@ public:
         Web::DevicePixelRect viewport_rect;
     };
 
-    Web::NavigationProcessDecision decide_navigation_process(WebContentClient&, u64 page_id, Optional<Web::HTML::CrossProcessId> frame_id, URL::URL current_url, URL::URL target_url, Web::NavigationTarget);
     [[nodiscard]] bool navigation_requires_process_swap(URL::URL const& current_url, URL::URL const& target_url, Web::NavigationTarget = Web::NavigationTarget::TopLevel) const;
     [[nodiscard]] bool child_frame_navigation_requires_process_swap(CanonicalNavigable const& child_frame, URL::URL const& current_url, URL::URL const& target_url) const;
 

@@ -23,12 +23,18 @@ namespace Web {
 struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::CrossProcessId pending_document_state_id;
+    Optional<Utf16String> navigation_id;
     HTML::HistoryHandlingBehavior history_handling;
     HTML::UserNavigationInvolvement user_involvement;
 };
 
 struct CrossDocumentNavigationFinalization {
     HTML::PendingSessionHistoryEntryDescriptor history_entry;
+};
+
+struct ReconstructedChildNavigation {
+    HTML::SessionHistoryEntryDescriptor target_entry;
+    Utf16String navigation_id;
 };
 
 using HistoryOperationReadyResult = Variant<
@@ -135,6 +141,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::CrossDocumentNavigationFinalization const&);
 template<>
 WEB_API ErrorOr<Web::CrossDocumentNavigationFinalization> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);
+template<>
+WEB_API ErrorOr<Web::ReconstructedChildNavigation> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);

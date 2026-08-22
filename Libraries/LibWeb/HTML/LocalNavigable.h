@@ -63,8 +63,8 @@ public:
 
     virtual ~LocalNavigable() override;
 
-    using NullOrError = Optional<Utf16String>;
-    using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
+    using NullOrError = NavigationParamsNullOrError;
+    using NavigationParamsVariant = HTML::NavigationParamsVariant;
 
     void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document);
     void set_id_for_session_history_reconstruction(CrossProcessId id) { set_id(id); }
@@ -157,6 +157,10 @@ public:
     Variant<Empty, Traversal, Utf16String> ongoing_navigation() const { return m_ongoing_navigation; }
     void set_ongoing_navigation(Variant<Empty, Traversal, Utf16String> ongoing_navigation, NavigationAPIAbortBehavior = NavigationAPIAbortBehavior::Abort);
 
+    bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
+    void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
+    void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
+
     // Test-only (Internals.clobberNextNavigationWithATraversal): make the next navigation's unload check be interrupted
     // by a synthetic session-history traversal that re-stamps the ongoing navigation.
     static void clobber_next_navigation_with_a_traversal_for_testing();
@@ -167,7 +171,6 @@ public:
         Fetch::Infrastructure::Request::ReferrerType request_referrer,
         ReferrerPolicy::ReferrerPolicy request_referrer_policy,
         Optional<URL::Origin> initiator_origin,
-        Optional<URL::Origin> cross_process_initiator_origin,
         Optional<URL::Origin> origin,
         Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
         Optional<URL::URL> about_base_url,
@@ -183,10 +186,22 @@ public:
         bool allow_POST,
         GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps);
 
+    void queue_navigation_and_traversal_task_for_session_history_entry_population(
+        URL::URL url,
+        bool source_allows_downloading,
+        Optional<URL::Origin> source_interface_origin,
+        UserNavigationInvolvement user_involvement,
+        Optional<Utf16String> navigation_id,
+        NavigationParamsVariant navigation_params,
+        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
+        GC::Ref<PopulateSessionHistoryEntryDocumentOutput> output,
+        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps);
+
+    void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant);
+
     struct NavigateParams {
         URL::URL url;
-        // FIXME: source_document should now be nullable, and default to nullptr.
-        GC::Ref<DOM::Document> source_document;
+        GC::Ptr<DOM::Document> source_document = nullptr;
         DocumentResource document_resource = Empty {};
         GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
         bool exceptions_enabled = false;
@@ -197,14 +212,6 @@ public:
         UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
         GC::Ptr<DOM::Element> source_element = nullptr;
         InitialInsertion initial_insertion = InitialInsertion::No;
-        // AD-HOC: Set when this navigation was started in another WebContent process and handed off to this one. The
-        //         source document only exists in the process where the navigation started, so this carries the state
-        //         the navigate algorithm would otherwise snapshot from it.
-        Optional<NavigationSourceSnapshot> cross_process_source_snapshot = {};
-        // AD-HOC: A cross-process continuation resumes after historyHandling has already been resolved in the
-        //         process where the navigation started.
-        bool history_handling_already_determined { false };
-        Optional<SessionHistoryEntryDescriptor> session_history_entry_to_restore = {};
 
         void visit_edges(Cell::Visitor& visitor);
     };
@@ -267,8 +274,8 @@ public:
     void inform_the_navigation_api_about_child_navigable_destruction();
 
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
-    void clear_pending_navigations() { m_pending_navigations.clear(); }
-    void route_initial_navigation_to_session_history_entry(SessionHistoryEntryDescriptor, GC::Ref<DOM::Document> source_document);
+    void clear_pending_navigations();
+    void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
 
     bool record_display_list_and_scroll_state(PaintConfig, Gfx::IntRect* damage_rect = nullptr);
     void paint_next_frame();
@@ -374,8 +381,33 @@ private:
         Replace
     };
 
-    void begin_navigation(NavigateParams);
-    void queue_pending_navigation(NavigateParams, PendingNavigationBehavior);
+    // Values produced by steps 1-6 of the navigate algorithm. Keep these when navigation is parked so resumption
+    // continues at step 7 instead of snapshotting a different document state.
+    struct PreparedNavigation {
+        NavigateParams params;
+        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+        GC::Ref<SourceSnapshotParams> source_snapshot_params;
+        URL::Origin initiator_origin_snapshot;
+        URL::URL initiator_base_url_snapshot;
+
+        void visit_edges(Cell::Visitor& visitor)
+        {
+            params.visit_edges(visitor);
+            visitor.visit(source_snapshot_params);
+        }
+    };
+
+    struct PendingNavigation {
+        Optional<PreparedNavigation> navigation;
+        Optional<Utf16String> population_navigation_id;
+        GC::Ptr<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps;
+    };
+
+    void begin_navigation(PreparedNavigation);
+    void continue_navigation_after_population_dispatch(PreparedNavigation, NavigationPopulationRequest);
+    void queue_pending_navigation(PreparedNavigation, PendingNavigationBehavior);
+    void park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation>, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps);
+    Optional<PendingNavigation> take_navigation_parked_for_population(Utf16String const& navigation_id);
     void process_pending_navigations();
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id);
     void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
@@ -495,7 +527,7 @@ private:
 
     bool m_has_session_history_entry_and_ready_for_navigation { false };
 
-    Vector<NavigateParams> m_pending_navigations;
+    Vector<PendingNavigation> m_pending_navigations;
 
     bool m_is_svg_page { false };
     bool m_needs_repaint { true };
@@ -593,7 +625,7 @@ WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
 WEB_API GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId);
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SessionHistoryEntryDescriptor> entry_to_restore = {});
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<StorageSerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }

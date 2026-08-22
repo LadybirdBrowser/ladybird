@@ -93,18 +93,19 @@ private:
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL, Web::Bindings::NavigationHistoryBehavior) override;
-    virtual void load_url_with_document_resource(u64 page_id, URL::URL,
-        Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior,
-        Optional<Web::HTML::NavigationSourceSnapshot>) override;
+    virtual void populate_navigation(u64 page_id, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
     virtual void load_html(u64 page_id, ByteString) override;
     virtual void load_html_with_url(u64 page_id, ByteString, URL::URL) override;
     virtual void reload(u64 page_id) override;
     virtual void stop_loading(u64 page_id) override;
     virtual void cancel_download(u64 page_id, u64 download_id) override;
     virtual void run_iframe_load_event_steps(u64 page_id, Web::HTML::CrossProcessId frame_id) override;
+    virtual void run_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
+    virtual void create_navigation_params(u64 page_id, Web::HTML::NavigationPopulationRequest) override;
+    virtual void cancel_navigation_params_creation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId>) override;
     virtual void set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId>) override;
-    virtual void history_operation_started(u64 page_id, u64 operation_id, u64 initiation_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry) override;
+    virtual void history_operation_started(u64 page_id, u64 operation_id, u64 initiation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) override;
     virtual void run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) override;
     virtual void run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, Optional<u64> initiation_id) override;
     virtual void apply_changing_navigable_continuation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api) override;

@@ -122,6 +122,7 @@ private:
     struct HistoryOperation;
     void session_history_changed();
     HistoryOperation* find_history_operation(u64 operation_id);
+    bool navigation_transaction_matches(HistoryOperation const&, WebContentClient const&, u64 page_id, Optional<Web::HTML::CrossProcessId> reply_navigable_id = {}) const;
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
     bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob const&);
     void dispatch_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);

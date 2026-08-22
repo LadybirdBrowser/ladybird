@@ -16,15 +16,19 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/NavigationLoader.h>
 
 namespace WebView {
 
@@ -38,13 +42,28 @@ public:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
     struct OngoingNavigation {
+        enum class Phase : u8 {
+            Started,
+            AwaitingUnloadCheck,
+            Populating,
+            AwaitingResponseBody,
+            Committed,
+        };
+
         Optional<URL::URL> url {};
+        Optional<URL::URL> current_url {};
+        Optional<Web::NavigationTarget> target {};
         Optional<Utf16String> navigation_id {};
         bool has_started { false };
         bool uses_replacement_process { false };
         bool is_uncommitted { false };
-        HostLocality target_locality { HostLocality::Local };
-        Optional<u64> remote_page_id {};
+        Phase phase { Phase::Started };
+        Optional<Web::HTML::NavigationStartRequest> start_request {};
+        OwnPtr<NavigationLoader> loader {};
+        WeakPtr<WebContentClient> population_worker_client {};
+        u64 population_worker_page_id { 0 };
+        WeakPtr<WebContentClient> host_client {};
+        u64 host_page_id { 0 };
     };
 
     CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id);
@@ -102,14 +121,22 @@ public:
     bool current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
     bool active_document_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
 
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState);
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id);
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
     OngoingNavigation& ensure_ongoing_navigation();
-    void clear_ongoing_navigation() { m_ongoing_navigation.clear(); }
+    void set_ongoing_navigation(OngoingNavigation);
+    void clear_ongoing_navigation();
+    void set_navigation_population_worker(WebContentClient&, u64 page_id);
+    bool navigation_population_matches(WebContentClient const&, u64 page_id, Utf16String const& navigation_id) const;
+    void did_finish_navigation_params_creation();
+    void set_navigation_host(WebContentClient&, u64 page_id);
+    bool navigation_host_matches(WebContentClient const&, u64 page_id) const;
+    bool navigation_transaction_matches(Utf16String const&, WebContentClient const&, u64 page_id) const;
+    bool cancel_navigation_transaction_for_client(WebContentClient&);
+    void did_finish_navigation_transaction(Optional<Utf16String> const&, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value() && m_ongoing_navigation->is_uncommitted; }
-    bool has_matching_ongoing_navigation(URL::URL const&, HostLocality) const;
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
 
 private:
