@@ -584,6 +584,29 @@ static char s_tab_group_observation_context;
     [current_window performClose:self];
 }
 
+- (void)duplicateCurrentTab:(id)sender
+{
+    auto* key_window = [NSApp keyWindow];
+    if (![key_window isKindOfClass:[Tab class]])
+        return;
+    auto* source_tab = (Tab*)key_window;
+
+    auto& source_view = [[source_tab web_view] view];
+    auto history = source_view.session_history_snapshot();
+    auto source_url = source_view.url();
+
+    auto* controller = [self createNewTab:Optional<URL::URL> { }
+                                  fromTab:source_tab
+                                isPrivate:[source_tab isPrivate]
+                              activateTab:Web::HTML::ActivateTab::Yes
+                              tabLocation:TabLocation::after_tab(source_tab)];
+    auto& duplicate_view = [[(Tab*)[controller window] web_view] view];
+
+    if (!history.has_value() || duplicate_view.restore_session_history_from_snapshot(history.release_value()).is_error())
+        [controller loadURL:source_url];
+    [controller focusWebView];
+}
+
 - (WebView::IsPrivate)keyWindowPrivacy
 {
     if (auto* key_window = [NSApp keyWindow]; [key_window isKindOfClass:[Tab class]])
@@ -697,6 +720,9 @@ static char s_tab_group_observation_context;
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"New Tab"
                                                 action:@selector(createNewTab:)
                                          keyEquivalent:@"t"]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Duplicate Tab"
+                                                action:@selector(duplicateCurrentTab:)
+                                         keyEquivalent:@""]];
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Reopen Closed Tab"
                                                 action:@selector(reopenClosedTab:)
                                          keyEquivalent:@"T"]];
@@ -856,7 +882,7 @@ static char s_tab_group_observation_context;
 {
     SEL action = [menu action];
 
-    if (action == @selector(closeCurrentTab:)) {
+    if (action == @selector(closeCurrentTab:) || action == @selector(duplicateCurrentTab:)) {
         return [[NSApp keyWindow] isKindOfClass:[Tab class]];
     }
     if (action == @selector(reopenClosedTab:)) {
