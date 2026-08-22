@@ -48,6 +48,11 @@ void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropr
 // https://w3c.github.io/webappsec-mixed-content/#categorize-settings-object
 ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC::Ptr<HTML::EnvironmentSettingsObject> settings)
 {
+    // AD-HOC: Fetch requests initiated by the browser UI have no client. Treat that as not restricting mixed content;
+    //         callers also rely on this result before inspecting the client's browsing context.
+    if (!settings)
+        return ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts;
+
     // 1. If settings’ origin is a potentially trustworthy origin, then return "Prohibits Mixed Security Contexts".
     if (SecureContexts::is_origin_potentially_trustworthy(settings->origin()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
         return ProhibitsMixedSecurityContexts::ProhibitsMixedSecurityContexts;
