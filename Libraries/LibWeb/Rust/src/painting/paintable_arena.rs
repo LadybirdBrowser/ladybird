@@ -528,15 +528,8 @@ impl PaintableArena {
             data.containing_block = PaintableSlotId::INVALID;
             data.offset = FfiCssPixelPoint::default();
             data.content_size = FfiCssPixelSize::default();
-            data.margin = FfiPixelBox::default();
-            data.border = FfiPixelBox::default();
-            data.padding = FfiPixelBox::default();
-            data.inset = FfiPixelBox::default();
             data.overflow = FfiOverflowData::default();
             data.has_overflow = false;
-            data.containing_line_box_index = 0;
-            data.has_containing_line_box_index = false;
-            data.uses_collapsing_borders_model = false;
             data.sticky_insets = FfiStickyInsets::default();
             data.has_sticky_insets = false;
             data.local_padding_box_union = FfiCssPixelRect::default();
@@ -549,8 +542,6 @@ impl PaintableArena {
             data.accumulated_visual_context_for_descendants_index = 0;
             data.fixed_background_visual_context = 0;
             data.has_fixed_background_visual_context = false;
-            data.svg_viewport_transform = crate::layout::FfiAffineTransform::default();
-            data.has_svg_viewport_transform = false;
         });
         self.paint_caches[id.slot_index() as usize].clear();
         self.side_mut(id).reset_for_relayout();

@@ -6,12 +6,8 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::{
-    FfiAffineTransform, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph, FlexLayoutData,
-    GridLayoutData, OwnedUsedGridTracks,
-};
+use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph};
 use std::cell::Cell;
-use std::rc::Rc;
 
 pub const INVALID_PAINTABLE_SLOT_INDEX: u32 = u32::MAX;
 pub const NO_STACKING_CONTEXT: u32 = u32::MAX;
@@ -189,17 +185,6 @@ pub struct PaintableData {
 
     pub offset: FfiCssPixelPoint,
     pub content_size: FfiCssPixelSize,
-    pub margin: FfiPixelBox,
-    pub padding: FfiPixelBox,
-    pub border: FfiPixelBox,
-    pub inset: FfiPixelBox,
-    pub layout_fragment_identity: u64,
-    pub containing_line_box_index: usize,
-    pub has_containing_line_box_index: bool,
-    pub uses_collapsing_borders_model: bool,
-    pub has_svg_viewport_transform: bool,
-    pub svg_viewport_transform: FfiAffineTransform,
-    pub svg_viewport_size: FfiCssPixelSize,
     pub local_padding_box_union: FfiCssPixelRect,
     pub local_border_box_union: FfiCssPixelRect,
 
@@ -236,17 +221,6 @@ impl Default for PaintableData {
             display: crate::css::display::FfiDisplay::none().encoded(),
             offset: FfiCssPixelPoint::default(),
             content_size: FfiCssPixelSize::default(),
-            margin: FfiPixelBox::default(),
-            border: FfiPixelBox::default(),
-            padding: FfiPixelBox::default(),
-            inset: FfiPixelBox::default(),
-            layout_fragment_identity: 0,
-            containing_line_box_index: 0,
-            has_containing_line_box_index: false,
-            uses_collapsing_borders_model: false,
-            has_svg_viewport_transform: false,
-            svg_viewport_transform: FfiAffineTransform::default(),
-            svg_viewport_size: FfiCssPixelSize::default(),
             local_padding_box_union: FfiCssPixelRect::default(),
             local_border_box_union: FfiCssPixelRect::default(),
             overflow: FfiOverflowData::default(),
@@ -377,16 +351,10 @@ pub struct PaintableSideData {
     pub(crate) fragments: Vec<FragmentRecord>,
     pub(crate) inline_box_pieces: Vec<InlineBoxPieceRecord>,
     pub(crate) piece_indices: Vec<u32>,
-    pub(crate) computed_svg_path: Option<Rc<libgfx_rust::path::OwnedPath>>,
-    pub(crate) computed_svg_path_identity: u64,
     pub(crate) svg_filter_bounds: Cell<Option<FfiCssPixelRect>>,
     // Only meaningful while is_self_painting(); assigned by the containing block's
     // assign_fragment_ownership().
     pub(crate) fragment_ownership: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,
-    pub(crate) grid_layout_data: Option<Rc<GridLayoutData>>,
-    pub(crate) flex_layout_data: Option<Rc<FlexLayoutData>>,
-    pub(crate) used_grid_tracks: Option<Rc<OwnedUsedGridTracks>>,
-    pub(crate) collapsed_table_borders: Option<Rc<crate::layout::OwnedCollapsedTableBorders>>,
 }
 
 impl PaintableSideData {
@@ -396,9 +364,5 @@ impl PaintableSideData {
         self.inline_box_pieces.clear();
         self.piece_indices.clear();
         self.fragment_ownership = None;
-        self.grid_layout_data = None;
-        self.flex_layout_data = None;
-        self.used_grid_tracks = None;
-        self.collapsed_table_borders = None;
     }
 }
