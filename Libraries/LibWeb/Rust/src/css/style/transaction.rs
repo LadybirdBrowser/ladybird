@@ -469,6 +469,13 @@ impl NormalizationJournal {
         &self.markers
     }
 
+    /// The normalized view of the fine-grained inputs which are still pending.
+    pub(super) fn inputs(&self) -> impl Iterator<Item = NormalizedInput> + '_ {
+        self.entries
+            .iter()
+            .map(|(&key, &(old, new))| NormalizedInput { key, old, new })
+    }
+
     #[must_use]
     pub fn contains_only_element_style_inputs(&self) -> bool {
         self.markers.is_empty()

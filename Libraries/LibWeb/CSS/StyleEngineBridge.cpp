@@ -596,6 +596,12 @@ bool StyleEngine::has_pending_transaction() const
     return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_impl);
 }
 
+bool StyleEngine::pending_transaction_may_affect_layout_geometry()
+{
+    submit_recorded_input();
+    return StyleEngineFFI::style_engine_pending_transaction_may_affect_layout_geometry(m_impl);
+}
+
 bool StyleEngine::read_matches(StyleNodeID node, Vector<RuleMatch>& matches, Optional<MatchPurpose> purpose)
 {
     matches.resize(max(m_element_match_capacity, 16u));

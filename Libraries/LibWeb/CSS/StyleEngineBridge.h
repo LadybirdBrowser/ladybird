@@ -189,6 +189,7 @@ public:
     void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
     [[nodiscard]] bool has_pending_transaction() const;
+    [[nodiscard]] bool pending_transaction_may_affect_layout_geometry();
 
     // Submits everything recorded since the last flush as one transaction and normalizes it.
     void flush();

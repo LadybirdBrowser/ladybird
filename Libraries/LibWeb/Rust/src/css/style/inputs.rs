@@ -705,6 +705,63 @@ impl StyleEngine {
             || self.sheet_rule_replacement.is_some()
     }
 
+    /// Whether settling the pending selector inputs can change geometry derived from the committed
+    /// layout. This is deliberately a proof of independence rather than a list of properties which
+    /// usually avoid layout: anything not explicitly known to preserve geometry remains observable.
+    #[must_use]
+    pub fn pending_transaction_may_affect_layout_geometry(&self) -> bool {
+        if self.journal.is_empty() {
+            return !self.tree_staging.is_empty()
+                || self.program_staging.is_dirty()
+                || self.sheet_rule_replacement.is_some()
+                || !self.deferred_element_style_inputs.is_empty()
+                || self.initial_tree_bulk_load_is_pending;
+        }
+        if !self.journal.markers().is_empty()
+            || !self.tree_staging.is_empty()
+            || self.program_staging.is_dirty()
+            || self.sheet_rule_replacement.is_some()
+            || !self.deferred_element_style_inputs.is_empty()
+            || self.initial_tree_bulk_load_is_pending
+        {
+            return true;
+        }
+
+        let route_liveness = self.routing.route_liveness(&self.program, &self.programs);
+        self.journal.inputs().any(|input| {
+            let mut keys = match input.key {
+                InputKey::LocalFeature(_, LocalFeatureKey::PartExposure | LocalFeatureKey::ArrivingFacts) => {
+                    return true;
+                }
+                InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) => {
+                    let mut keys = routing_keys_for_input(&input);
+                    for other in self.facts.attribute_name_keys(name) {
+                        if other != name {
+                            keys.push(RoutingKey::AttributeName(other));
+                        }
+                    }
+                    keys
+                }
+                InputKey::LocalFeature(..) | InputKey::State(..) => routing_keys_for_input(&input),
+                _ => return true,
+            };
+            keys.sort_unstable();
+            keys.dedup();
+            keys.into_iter().any(|key| {
+                self.routing.routes_for(key).iter().copied().any(|route| {
+                    if !route_liveness.contains(route.index()) {
+                        return false;
+                    }
+                    let rule = self.routing.rule_of(route);
+                    !self.program.declarations_are_complete_for(rule)
+                        || self.program.declared_properties_of(rule).iter().any(|declared| {
+                            crate::css::property_metadata::property_may_affect_layout_geometry(declared.property)
+                        })
+                })
+            })
+        })
+    }
+
     /// Record one member of a flat FFI batch without repeatedly settling the fact-store capacity.
     ///
     /// The bridge has already applied every tree delta before it publishes facts. It can therefore

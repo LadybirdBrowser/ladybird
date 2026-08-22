@@ -2051,8 +2051,45 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
 
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
 {
-    if (node.is_connected())
-        update_layout(reason);
+    if (!node.is_connected())
+        return;
+
+    auto const reads_layout_geometry = reason == UpdateLayoutReason::ElementGetClientRects
+        || reason == UpdateLayoutReason::ElementClientWidth
+        || reason == UpdateLayoutReason::ElementClientHeight
+        || reason == UpdateLayoutReason::HTMLElementOffsetWidth
+        || reason == UpdateLayoutReason::HTMLElementOffsetHeight;
+    if (reads_layout_geometry
+        && m_has_completed_style_update
+        && layout_is_up_to_date()
+        && !m_needs_media_rule_evaluation
+        && !m_needs_animated_style_update
+        && m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+        && m_elements_with_pending_top_layer_membership_change.is_empty()
+        && !m_top_layer_needs_layout_zone_rebuild) {
+        auto navigable = this->navigable();
+        auto container = navigable ? navigable->container() : nullptr;
+        auto embedding_document_is_clean = [&] {
+            if (!container || &container->document() == this)
+                return true;
+            auto& embedding_document = container->document();
+            return embedding_document.layout_is_up_to_date()
+                && !embedding_document.m_has_dirty_style_attributes
+                && !embedding_document.style_computer().style_engine().has_pending_transaction()
+                && !embedding_document.m_needs_media_rule_evaluation
+                && !embedding_document.m_needs_animated_style_update
+                && embedding_document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+                && embedding_document.m_elements_with_pending_top_layer_membership_change.is_empty()
+                && !embedding_document.m_top_layer_needs_layout_zone_rebuild;
+        };
+        if (embedding_document_is_clean()) {
+            synchronize_dirty_style_attributes();
+            if (!style_computer().style_engine().pending_transaction_may_affect_layout_geometry())
+                return;
+        }
+    }
+
+    update_layout(reason);
 }
 
 bool Document::needs_style_update_after_layout()

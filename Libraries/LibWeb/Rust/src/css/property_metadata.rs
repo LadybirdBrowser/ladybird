@@ -44,6 +44,18 @@ pub fn property_animation_type(property_id: u16) -> u8 {
     PROPERTY_ANIMATION_TYPES[longhand_index(property_id)]
 }
 
+/// Whether changing a property may invalidate geometry exposed by synchronous layout APIs.
+///
+/// Besides properties which directly affect layout, this includes properties which can change the
+/// accumulated visual context, scrollable overflow, or stacking-context structure. Value-aware
+/// callers can refine this conservative property-level answer when both sides are available.
+pub fn property_may_affect_layout_geometry(property_id: u16) -> bool {
+    if !(FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
+        return true;
+    }
+    PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY[longhand_index(property_id)]
+}
+
 pub(crate) fn pseudo_element_supports_property(pseudo_element: u8, property_id: u16) -> bool {
     if PSEUDO_ELEMENT_ALWAYS_ALLOWED_PROPERTIES
         .binary_search(&property_id)
@@ -97,6 +109,21 @@ pub extern "C" fn rust_property_metadata_requires_computation_level(property_id:
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_property_metadata_animation_type(property_id: u16) -> u8 {
     property_animation_type(property_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layout_geometry_effects_include_visual_geometry_metadata() {
+        assert!(!property_may_affect_layout_geometry(property_id::BACKGROUND_COLOR));
+        assert!(!property_may_affect_layout_geometry(property_id::COLOR));
+        assert!(property_may_affect_layout_geometry(property_id::WIDTH));
+        assert!(property_may_affect_layout_geometry(property_id::TRANSFORM));
+        assert!(property_may_affect_layout_geometry(property_id::OPACITY));
+        assert!(property_may_affect_layout_geometry(property_id::CUSTOM));
+    }
 }
 
 /// # Safety

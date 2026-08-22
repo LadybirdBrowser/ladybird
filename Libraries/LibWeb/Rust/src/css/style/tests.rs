@@ -16,6 +16,7 @@ use super::transaction::InputKind;
 use super::tree::PseudoElementKind;
 use super::tree::PseudoElementTarget;
 use super::*;
+use crate::css::property_metadata::property_id;
 
 #[test]
 fn dense_program_staging_freezes_before_until_release() {
@@ -40,6 +41,39 @@ fn dense_program_staging_freezes_before_until_release() {
     assert_eq!(staged.current(rule, || 50), 50);
     assert_eq!(staged.rows.capacity(), 0);
     assert_eq!(staged.touched.capacity(), 0);
+}
+
+#[test]
+fn pending_paint_only_local_inputs_preserve_layout_geometry() {
+    for property in [property_id::BACKGROUND_COLOR, property_id::COLOR] {
+        let (mut engine, nodes) = linear_document();
+        let paint_only = StyleAtomID(200);
+        let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), paint_only);
+        engine.set_rule_declared_properties(rule, &[(property, false)], true);
+        discard_transaction(&mut engine);
+
+        add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(paint_only));
+        assert!(!engine.pending_transaction_may_affect_layout_geometry());
+        assert!(engine.has_pending_transaction());
+    }
+}
+
+#[test]
+fn pending_layout_and_incomplete_local_inputs_may_change_geometry() {
+    for (property, declarations_are_complete) in [
+        (property_id::WIDTH, true),
+        (property_id::TRANSFORM, true),
+        (property_id::BACKGROUND_COLOR, false),
+    ] {
+        let (mut engine, nodes) = linear_document();
+        let target = StyleAtomID(200);
+        let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+        engine.set_rule_declared_properties(rule, &[(property, false)], declarations_are_complete);
+        discard_transaction(&mut engine);
+
+        add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+        assert!(engine.pending_transaction_may_affect_layout_geometry());
+    }
 }
 
 fn test_nth_position(argument: &str, of_type: bool) -> selector::NthPosition {
