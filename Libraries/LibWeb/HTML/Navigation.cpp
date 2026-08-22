@@ -1344,7 +1344,6 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                     .user_involvement = user_involvement_for_resume,
                 },
                 {
-                    .navigation_api_abort_behavior = LocalNavigable::NavigationAPIAbortBehavior::Preserve,
                     .pre_steps = GC::create_function(heap(), [this, event](Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                         // NB: This operation can start after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
