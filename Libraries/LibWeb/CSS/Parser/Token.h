@@ -16,6 +16,8 @@
 
 namespace Web::CSS::Parser {
 
+class RustSyntaxParser;
+
 inline static double clamp_to_single_precision(double value)
 {
     if (value > static_cast<double>(NumericLimits<float>::max()))
@@ -184,7 +186,7 @@ public:
     Utf16String const& original_source_text() const { return m_original_source_text; }
     SourcePosition const& start_position() const { return m_start_position; }
     SourcePosition const& end_position() const { return m_end_position; }
-    void set_position_range(Badge<Tokenizer, RustTokenizer>, SourcePosition start, SourcePosition end);
+    void set_position_range(Badge<Tokenizer, RustTokenizer, RustSyntaxParser>, SourcePosition start, SourcePosition end);
 
     bool operator==(Token const& other) const
     {

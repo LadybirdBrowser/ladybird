@@ -10,7 +10,6 @@
 #include <AK/Format.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
-#include <LibWeb/CSS/Parser/Tokenizer.h>
 
 namespace Web::CSS::Parser {
 
@@ -171,21 +170,10 @@ public:
 
     ReadonlySpan<T> tokens_since(size_t start) const
     {
-        if (start > m_index)
+        auto end = min(m_index, m_tokens.size());
+        if (start >= end)
             return {};
-        return m_tokens.slice(start, m_index - start);
-    }
-
-    void dump_all_tokens()
-    {
-        dbgln("Dumping all tokens:");
-        for (size_t i = 0; i < m_tokens.size(); ++i) {
-            auto& token = m_tokens[i];
-            if (i == m_index)
-                dbgln("-> {}", token.to_debug_string());
-            else
-                dbgln("   {}", token.to_debug_string());
-        }
+        return m_tokens.slice(start, end - start);
     }
 
     String dump_string()
@@ -206,10 +194,10 @@ private:
     T make_eof()
     {
         if constexpr (IsSame<T, Token>) {
-            return Tokenizer::create_eof_token();
+            return Token::create(Token::Type::EndOfFile);
         }
         if constexpr (IsSame<T, ComponentValue>) {
-            return ComponentValue(Tokenizer::create_eof_token());
+            return ComponentValue(Token::create(Token::Type::EndOfFile));
         }
     }
 

@@ -44,6 +44,9 @@ TEST_CASE(basic)
     EXPECT(stream.next_token().is(Token::Type::EndOfFile));
     EXPECT(stream.consume_a_token().is(Token::Type::EndOfFile));
     EXPECT(stream.remaining_tokens().is_empty());
+    EXPECT_EQ(stream.tokens_since(0).size(), 1u);
+    EXPECT(stream.tokens_since(1).is_empty());
+    EXPECT(stream.tokens_since(2).is_empty());
 }
 
 TEST_CASE(marks)
