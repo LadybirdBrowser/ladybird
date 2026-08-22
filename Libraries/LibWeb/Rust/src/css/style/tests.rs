@@ -4836,6 +4836,90 @@ fn selective_matching_completes_a_bounded_prefix_transition_window() {
 }
 
 #[test]
+fn positional_matching_completes_the_prefix_transition_cache() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = vec![0_u32; 2 * PREFIX_TRANSITION_CACHE_COMPLETION_BUDGET + 4];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    for index in 1..nodes.len() {
+        engine.record_tree_delta(
+            nodes[index],
+            None,
+            Some(relations(
+                Some(nodes[0].raw()),
+                (index > 1).then(|| nodes[index - 1].raw()),
+                None,
+            )),
+        );
+        set_atom_feature(&mut engine, nodes[index], LocalFeatureKey::TagName, StyleAtomID(100));
+        add_feature(&mut engine, nodes[index], LocalFeatureKey::Class(StyleAtomID(200)));
+    }
+    add_nth_target_rule(&mut engine, StyleAtomID(200), 2, 1);
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    assert_eq!(engine.match_element(nodes[1]).unwrap().len(), 1);
+    engine.end_cold_matching_batch();
+
+    let (scope_program, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert_eq!(dispatch.prefixes().positional_tests().len(), 1);
+    let caches = engine.prefix_caches.borrow();
+    let states = match caches.states.lookup(scope_program) {
+        Lookup::Known(states) => states,
+        Lookup::KnownAbsent | Lookup::Missing(_) => panic!("expected retained prefix states"),
+    };
+    assert!(
+        nodes.iter().all(|&node| states.has_transition(node)),
+        "a periodic positional automaton needs the old truth of every sibling"
+    );
+}
+
+#[test]
+fn a_prefix_arrival_diffs_against_the_retained_match_answer() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    add_nth_target_rule(&mut engine, target, 2, 1);
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    for &node in &nodes[1..] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(target));
+    }
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    for &node in &nodes[1..] {
+        let _ = engine.match_element(node).unwrap();
+    }
+    engine.end_cold_matching_batch();
+
+    let (scope_program, _) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    engine
+        .prefix_caches
+        .borrow_mut()
+        .states
+        .forget_transition(scope_program, nodes[3]);
+    remove_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+
+    let upqueries_before = engine.counters().get(Counter::PrefixConvergenceUpqueries);
+    let poisoned_before = engine.counters().get(Counter::RetainedPatchesPoisoned);
+    let signed_before = engine.counters().get(Counter::PlannedNodesWithSignedDelta);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(planned, vec![nodes[3].raw()]);
+    assert_eq!(
+        engine.counters().get(Counter::PrefixConvergenceUpqueries),
+        upqueries_before
+    );
+    assert_eq!(engine.counters().get(Counter::RetainedPatchesPoisoned), poisoned_before);
+    assert_eq!(
+        engine.counters().get(Counter::PlannedNodesWithSignedDelta) - signed_before,
+        1
+    );
+}
+
+#[test]
 fn a_prefix_upquery_retains_every_transition_on_its_ancestor_chain() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
@@ -5802,8 +5886,8 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
     let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
     assert_eq!(
         dispatch.prefixes().positional_tests().len(),
-        4,
-        "the step-free structural tests are admitted while the step-bearing rules stay routed"
+        6,
+        "plain step-bearing and step-free structural tests are admitted"
     );
 
     // A trailing arrival: the previously last child keeps its facts but loses

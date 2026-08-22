@@ -1306,13 +1306,7 @@ impl SelectorProgram {
             SelectorOp::Where(inner) => {
                 return self.visit_canonical_prefix_operand(inner, visit_feature, visit_structural_test);
             }
-            // Only step-free an+b tests are canonical: their truth flips at a bounded number
-            // of positions per mutation, so the convergence walk maintains them cheaply. A
-            // step-bearing test flips truth across a whole moved side at once, which
-            // fragments transition states per index and displaces retained answers out of
-            // Tier 3; it stays with the sequence router's moved-position narrowing until
-            // transitions are flat-priced.
-            SelectorOp::NthPosition(nth) if nth.of_selector.is_none() && nth.step == 0 => {
+            SelectorOp::NthPosition(nth) if nth.of_selector.is_none() => {
                 visit_structural_test(PrefixStructuralTest::Nth(nth));
                 return Some(());
             }

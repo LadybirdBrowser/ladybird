@@ -477,11 +477,12 @@ impl StyleEngine {
                     // The batch just matched every node it iterates here, so completing the
                     // transitions matching did not touch is the cheap tail of work already paid
                     // for: each one is a chain walk over memoized dependencies. A complete cache
-                    // is what lets a sibling-bearing automaton's convergence maintain itself
-                    // through later flushes instead of upquerying its way back to the planner:
-                    // the rightward walk cannot seed missing left context the way the downward
-                    // walk seeds through ancestors, so only sibling automata earn the uncapped
-                    // walk, and only when the pool can plausibly retain what the walk builds.
+                    // is what lets a sibling-bearing or positional automaton's convergence
+                    // maintain itself through later flushes instead of upquerying its way back to
+                    // the planner: a rightward walk cannot seed missing left context, and a
+                    // positional walk needs each affected sibling's old positional truth. These
+                    // automata earn the uncapped walk only when the pool can plausibly retain what
+                    // the walk builds.
                     // Completing a cache with no available Tier-3 headroom is work paid and thrown
                     // away after admission has already closed.
                     let headroom = self
@@ -493,7 +494,8 @@ impl StyleEngine {
                     #[cfg(not(test))]
                     let force_bounded = false;
                     let completion_budget = match !force_bounded
-                        && dispatch.prefixes().has_sibling_steps()
+                        && (dispatch.prefixes().has_sibling_steps()
+                            || !dispatch.prefixes().positional_tests().is_empty())
                         && headroom >= states.capacity_bytes()
                     {
                         true => usize::MAX,

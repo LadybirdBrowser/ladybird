@@ -2871,6 +2871,7 @@ impl StyleEngine {
                 }
                 let mut visited = Vec::new();
                 let mut changed_nodes = Vec::new();
+                let mut retained_prefix_matches = Vec::new();
                 let mut prefix_delta_arena = PrefixDeltaArena::default();
                 let old_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
                     .with_transaction_fact_view(view, TransactionFactSide::Before);
@@ -2897,11 +2898,13 @@ impl StyleEngine {
                 let workspace_bytes = |pending_node_capacity: usize,
                                        visited_capacity: usize,
                                        changed_node_capacity: usize,
+                                       retained_prefix_match_capacity: usize,
                                        delta_capacity_bytes: u64| {
                     (pending_node_capacity * size_of::<PendingPrefixNode>()) as u64
                         + (local_fact_changes.capacity() * size_of::<StyleNodeID>()) as u64
                         + visited_capacity.div_ceil(8) as u64
                         + (changed_node_capacity * size_of::<StyleNodeID>()) as u64
+                        + (retained_prefix_match_capacity * size_of::<EntryID>()) as u64
                         + selection_bytes
                         + delta_capacity_bytes
                 };
@@ -2909,6 +2912,7 @@ impl StyleEngine {
                     pending_nodes.capacity(),
                     visited.capacity(),
                     changed_nodes.capacity(),
+                    retained_prefix_matches.capacity(),
                     prefix_delta_arena.capacity_bytes(),
                 );
                 self.memory
@@ -3001,19 +3005,34 @@ impl StyleEngine {
                         };
                         self.counters.bump(Counter::PrefixConvergenceNodes);
                         if difference.arrived {
-                            self.counters.bump(Counter::PrefixConvergenceUpqueries);
-                            // NB: An arrival has no old state to diff against, so the retained
-                            //     answer must be re-derived cold. An exact node region alone does
-                            //     not force that once attributed regions cover the node, so poison
-                            //     its patch explicitly.
+                            let mut needs_region = true;
                             if self.selector_truth_changes_active
-                                && !regions.is_covered_by_full_subtree(ImpactRegion::Node(node), &self.tree)
+                                && let Lookup::Known(retained) = self.retained_match_answer(node)
+                                && matches!(self.retained_match_answers.cascade_input_lookup(node), Lookup::Known(_))
                             {
-                                self.selector_truth_changes
-                                    .refreshes
-                                    .push(SelectorTruthRefresh { node, rule: None });
+                                retained_prefix_matches.clear();
+                                retained_prefix_matches.extend(retained.iter().filter_map(|matched| {
+                                    let entry = self.programs.entry_id(matched.program, matched.entry);
+                                    dispatch.prefixes().contains_entry(entry).then_some(entry)
+                                }));
+                                retained_prefix_matches.sort_unstable();
+                                retained_prefix_matches.dedup();
+                                let new_matches = states.matches_in(difference.new_matches);
+                                needs_region = retained_prefix_matches.as_slice() != new_matches;
+                                record_match_set_difference(
+                                    &mut self.selector_truth_changes,
+                                    true,
+                                    node,
+                                    &retained_prefix_matches,
+                                    new_matches,
+                                    &dispatch,
+                                );
+                            } else {
+                                self.counters.bump(Counter::PrefixConvergenceUpqueries);
                             }
-                            regions.add(ImpactRegion::Node(node), &mut self.counters);
+                            if needs_region {
+                                regions.add(ImpactRegion::Node(node), &mut self.counters);
+                            }
                         } else if difference.matches_changed {
                             changed_nodes.push((node, difference.old_matches, difference.new_matches));
                         }
@@ -3081,6 +3100,7 @@ impl StyleEngine {
                             pending_prefix_nodes.capacity(),
                             visited.capacity(),
                             changed_nodes.capacity(),
+                            retained_prefix_matches.capacity(),
                             prefix_delta_arena.capacity_bytes(),
                         );
                         if current_bytes > charged_bytes {
