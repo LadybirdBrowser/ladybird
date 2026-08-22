@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_pixels::CssPixels;
-use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
 
@@ -21,8 +21,29 @@ pub(crate) fn is_svg_paintable(kind: PaintableKind) -> bool {
     )
 }
 
-pub fn content_size(data: &PaintableData) -> CssPixelSize {
-    data.content_size.into()
+pub(crate) fn committed_offset(arena: &PaintableArena, slot: PaintableSlotId) -> crate::layout::FfiCssPixelPoint {
+    let data = arena.data_ref(slot);
+    if data.kind == PaintableKind::InlinePaintable {
+        return data.offset;
+    }
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(crate::layout::FfiCssPixelPoint::default, |link| link.committed_offset)
+    })
+}
+
+pub(crate) fn committed_content_size(arena: &PaintableArena, slot: PaintableSlotId) -> crate::layout::FfiCssPixelSize {
+    let data = arena.data_ref(slot);
+    if data.kind == PaintableKind::InlinePaintable {
+        return data.content_size;
+    }
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(crate::layout::FfiCssPixelSize::default, |link| {
+            crate::layout::FfiCssPixelSize {
+                width: link.fragment.content_inline_size,
+                height: link.fragment.content_block_size,
+            }
+        })
+    })
 }
 
 pub(crate) fn committed_margin(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
@@ -80,7 +101,10 @@ pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelR
         return rect;
     }
     let data = arena.data_ref(slot);
-    let mut rect = CssPixelRect::from_location_and_size(data.offset.into(), data.content_size.into());
+    let mut rect = CssPixelRect::from_location_and_size(
+        committed_offset(arena, slot).into(),
+        committed_content_size(arena, slot).into(),
+    );
     if is_svg_paintable(data.kind) {
         arena.memoize_absolute_rect(slot, rect);
         return rect;
@@ -91,7 +115,7 @@ pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelR
         if block_data.kind == PaintableKind::SVGSVGPaintable || is_svg_paintable(block_data.kind) {
             break;
         }
-        rect = rect.translated_by(block_data.offset.into());
+        rect = rect.translated_by(committed_offset(arena, block).into());
         if block_data.kind == PaintableKind::SVGForeignObjectPaintable {
             break;
         }
@@ -112,11 +136,12 @@ pub fn absolute_padding_box_rect(arena: &PaintableArena, slot: PaintableSlotId) 
         return CssPixelRect::from(data.local_padding_box_union).translated_by(absolute.location());
     }
     let padding = committed_padding(arena, slot);
+    let content_size = committed_content_size(arena, slot);
     CssPixelRect::new(
         absolute.x - padding.left,
         absolute.y - padding.top,
-        data.content_size.width + padding.left + padding.right,
-        data.content_size.height + padding.top + padding.bottom,
+        content_size.width + padding.left + padding.right,
+        content_size.height + padding.top + padding.bottom,
     )
 }
 

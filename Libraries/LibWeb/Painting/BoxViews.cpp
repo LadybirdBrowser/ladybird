@@ -228,18 +228,14 @@ CSSPixels absolute_y(Layout::Node const& node)
 
 CSSPixelPoint offset(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    return { CSSPixels::from_raw(row->offset.x), CSSPixels::from_raw(row->offset.y) };
+    auto offset = Layout::RustFFI::layout_arena_paintable_offset(node.arena_handle(), committed_row_slot(node));
+    return { CSSPixels::from_raw(offset.x), CSSPixels::from_raw(offset.y) };
 }
 
 CSSPixelSize content_size(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    return { CSSPixels::from_raw(row->content_size.width), CSSPixels::from_raw(row->content_size.height) };
+    auto size = Layout::RustFFI::layout_arena_paintable_content_size(node.arena_handle(), committed_row_slot(node));
+    return { CSSPixels::from_raw(size.width), CSSPixels::from_raw(size.height) };
 }
 
 CSSPixels content_width(Layout::Node const& node)

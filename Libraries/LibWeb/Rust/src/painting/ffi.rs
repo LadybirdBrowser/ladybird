@@ -8,6 +8,7 @@ use crate::abort_on_panic;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::FfiCssPixelPoint;
 use crate::layout::FfiCssPixelRect;
+use crate::layout::FfiCssPixelSize;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::*;
@@ -324,6 +325,39 @@ pub struct FfiBoxModelMetrics {
     pub padding: crate::painting::paintable_data::FfiPixelBox,
     pub border: crate::painting::paintable_data::FfiPixelBox,
     pub inset: crate::painting::paintable_data::FfiPixelBox,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_offset(arena: *mut c_void, slot: PaintableSlotId) -> FfiCssPixelPoint {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiCssPixelPoint::default();
+        }
+        crate::painting::paintable_geometry::committed_offset(&paintables, slot)
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_content_size(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiCssPixelSize {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiCssPixelSize::default();
+        }
+        crate::painting::paintable_geometry::committed_content_size(&paintables, slot)
+    })
 }
 
 /// # Safety
