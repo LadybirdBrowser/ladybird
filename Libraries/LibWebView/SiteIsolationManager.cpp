@@ -82,7 +82,10 @@ Web::NavigationProcessDecision SiteIsolationManager::decide_navigation_process(W
         auto target_locality = decision == Web::NavigationProcessDecision::Local
             ? CanonicalNavigable::HostLocality::Local
             : CanonicalNavigable::HostLocality::Remote;
-        child_frame->record_pending_navigation(target_url, target_locality);
+        child_frame->ongoing_navigation() = CanonicalNavigable::OngoingNavigation {
+            .url = target_url,
+            .target_locality = target_locality,
+        };
 
         if (target_locality == CanonicalNavigable::HostLocality::Local)
             transition_child_frame_to_local(*child_frame);

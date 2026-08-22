@@ -14,6 +14,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Types.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibURL/URL.h>
@@ -35,10 +36,15 @@ public:
         Remote,
     };
 
-    struct PendingNavigation {
-        URL::URL target_url;
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
+    struct OngoingNavigation {
+        Optional<URL::URL> url {};
+        Optional<Utf16String> navigation_id {};
+        bool has_started { false };
+        bool uses_replacement_process { false };
+        bool is_uncommitted { false };
         HostLocality target_locality { HostLocality::Local };
-        Optional<u64> remote_page_id;
+        Optional<u64> remote_page_id {};
     };
 
     CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id);
@@ -98,9 +104,13 @@ public:
 
     void did_commit_navigation(Web::HTML::ReplicatedNavigableState);
 
-    void record_pending_navigation(URL::URL const&, HostLocality, Optional<u64> remote_page_id = {});
-    void clear_pending_navigation() { m_pending_navigation.clear(); }
-    bool has_matching_pending_navigation(URL::URL const&, HostLocality) const;
+    Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
+    Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
+    OngoingNavigation& ensure_ongoing_navigation();
+    void clear_ongoing_navigation() { m_ongoing_navigation.clear(); }
+    bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value() && m_ongoing_navigation->is_uncommitted; }
+    bool has_matching_ongoing_navigation(URL::URL const&, HostLocality) const;
+    bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
 
 private:
     Web::HTML::CrossProcessId m_id;
@@ -113,7 +123,7 @@ private:
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
-    Optional<PendingNavigation> m_pending_navigation;
+    Optional<OngoingNavigation> m_ongoing_navigation;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };
 

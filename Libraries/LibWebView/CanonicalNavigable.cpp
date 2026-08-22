@@ -253,23 +253,31 @@ bool CanonicalNavigable::active_document_is(Web::HTML::SessionHistoryEntryDescri
 void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state)
 {
     set_replicated_state(move(replicated_state));
-    m_pending_navigation.clear();
+
+    // A top-level record also tracks the load and survives until the load finishes or is canceled.
+    if (!is_top_level_traversable())
+        m_ongoing_navigation.clear();
 }
 
-void CanonicalNavigable::record_pending_navigation(URL::URL const& url, HostLocality target_locality, Optional<u64> remote_page_id)
+CanonicalNavigable::OngoingNavigation& CanonicalNavigable::ensure_ongoing_navigation()
 {
-    m_pending_navigation = PendingNavigation {
-        .target_url = url,
-        .target_locality = target_locality,
-        .remote_page_id = remote_page_id,
-    };
+    if (!m_ongoing_navigation.has_value())
+        m_ongoing_navigation = OngoingNavigation {};
+    return *m_ongoing_navigation;
 }
 
-bool CanonicalNavigable::has_matching_pending_navigation(URL::URL const& url, HostLocality target_locality) const
+bool CanonicalNavigable::has_matching_ongoing_navigation(URL::URL const& url, HostLocality target_locality) const
 {
-    return m_pending_navigation.has_value()
-        && m_pending_navigation->target_locality == target_locality
-        && m_pending_navigation->target_url == url;
+    return m_ongoing_navigation.has_value()
+        && m_ongoing_navigation->target_locality == target_locality
+        && m_ongoing_navigation->url == url;
+}
+
+bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
+{
+    if (!m_ongoing_navigation.has_value())
+        return !navigation_id.has_value();
+    return m_ongoing_navigation->has_started && navigation_id == m_ongoing_navigation->navigation_id;
 }
 
 }

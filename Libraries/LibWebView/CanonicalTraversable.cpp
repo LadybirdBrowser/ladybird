@@ -532,7 +532,7 @@ void CanonicalTraversable::start_pending_browser_history_traversal(u64 generatio
     VERIFY(view.has_value());
     auto canceled_replacement_process_navigation = false;
     auto canceled_uncommitted_navigation = m_pending_browser_history_traversal->check_for_cancelation == CheckForCancelation::Yes
-        && view->has_uncommitted_top_level_navigation();
+        && has_uncommitted_navigation();
     if (canceled_uncommitted_navigation)
         canceled_replacement_process_navigation = view->cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
@@ -588,7 +588,7 @@ void CanonicalTraversable::supersede_browser_history_traversal(HistoryOperation&
 
     auto view = ViewImplementation::find_view_for_traversable(*this);
     VERIFY(view.has_value());
-    if (view->has_uncommitted_top_level_navigation()) {
+    if (has_uncommitted_navigation()) {
         if (view->cancel_uncommitted_top_level_navigation_for_browser_traversal())
             set_current_session_history_entry_identity({});
     }
