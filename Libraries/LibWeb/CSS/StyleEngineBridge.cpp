@@ -559,11 +559,16 @@ bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<v
     auto transaction = take_style_transaction(root);
     for (auto const& reaction : transaction.reactions)
         reaction_nodes.append(StyleNodeID { reaction.style_node });
-    StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
+    discard_style_transaction_outputs();
     if (!transaction.is_scoped)
         return false;
     consume(reaction_nodes.span());
     return true;
+}
+
+void StyleEngine::discard_style_transaction_outputs()
+{
+    StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
 }
 
 StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)

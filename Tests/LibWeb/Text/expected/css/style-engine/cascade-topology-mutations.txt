@@ -1,5 +1,5 @@
 move a sheet after the one it overlaps: [item, first]
-move it back in front: [item, first]
+move it back in front: [first, item]
 adopt two overlapping sheets: [item]
 swap their order: WHOLE DOCUMENT
 unadopt both: [item]

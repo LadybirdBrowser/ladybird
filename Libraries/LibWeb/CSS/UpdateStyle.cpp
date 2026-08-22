@@ -486,6 +486,9 @@ static void update_style(DOM::Document& document)
     // complete document reaction batch. Only a transaction that cannot complete its answers falls
     // back to document invalidation.
     auto style_engine_transaction = take_style_engine_transaction(document);
+    ScopeGuard discard_style_engine_transaction_outputs = [&] {
+        document.style_computer().style_engine().discard_style_transaction_outputs();
+    };
 
     if (!style_engine_transaction.reactions.is_empty())
         document.note_style_stabilization_has_style_reactions();

@@ -5407,7 +5407,6 @@ fn reused_element_identity_does_not_inherit_a_prefix_transition() {
     let mut planned = Vec::new();
     assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
 
-    engine.tree.release_retired_identities(&mut engine.memory);
     let mut reused_raw = [0_u32; 1];
     engine.allocate_style_nodes(&mut reused_raw);
     assert_eq!(reused_raw[0], nodes[3].raw());
