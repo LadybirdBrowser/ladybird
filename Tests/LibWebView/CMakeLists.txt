@@ -70,6 +70,12 @@ if (BUILD_TESTING AND NOT WIN32)
     )
     set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120)
 
+    add_test(
+        NAME TestWebDriverErrorKeepAlive
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-error-keep-alive.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverErrorKeepAlive PROPERTIES TIMEOUT 120)
+
     add_test(NAME TestAutocomplete COMMAND $<TARGET_FILE:TestAutocomplete>)
     set_tests_properties(TestAutocomplete PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 

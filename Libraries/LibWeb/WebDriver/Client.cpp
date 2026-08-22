@@ -186,6 +186,13 @@ static JsonValue make_success_response(JsonValue value)
     return result;
 }
 
+static bool is_keep_alive_request(HTTP::HttpRequest const& request)
+{
+    if (auto it = request.headers().headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"sv); }); !it.is_end())
+        return it->value.trim_whitespace().equals_ignoring_ascii_case("keep-alive"sv);
+    return false;
+}
+
 Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
     : m_socket(move(socket))
 {
@@ -205,6 +212,9 @@ void Client::die()
     if (m_is_dying)
         return;
     m_is_dying = true;
+
+    // A dying connection will never service its queued requests, so drop them.
+    m_pending_requests.clear();
 
     // We defer removing this connection to avoid closing its socket while we are inside the on_ready_to_read callback.
     deferred_invoke([this] {
@@ -346,25 +356,25 @@ ErrorOr<Client::ResponsePromise, Client::WrappedError> Client::handle_request(HT
 void Client::handle_error(HTTP::HttpRequest const& request, WrappedError const& error)
 {
     error.visit(
-        [](AK::Error const& error) {
+        [&](AK::Error const& error) {
             warnln("Internal error: {}", error);
+            die();
         },
-        [](HTTP::HttpRequest::ParseError const& error) {
+        [&](HTTP::HttpRequest::ParseError const& error) {
             warnln("HTTP request parsing error: {}", HTTP::HttpRequest::parse_error_to_string(error));
+            die();
         },
         [&](WebDriver::Error const& error) {
-            if (send_error_response(request, error).is_error())
+            if (send_error_response(request, error).is_error()) {
                 warnln("Could not send error response");
+                die();
+            }
         });
-
-    die();
 }
 
 ErrorOr<void, Client::WrappedError> Client::send_success_response(HTTP::HttpRequest const& request, JsonValue result)
 {
-    bool keep_alive = false;
-    if (auto it = request.headers().headers().find_if([](auto& header) { return header.name.equals_ignoring_ascii_case("Connection"sv); }); !it.is_end())
-        keep_alive = it->value.trim_whitespace().equals_ignoring_ascii_case("keep-alive"sv);
+    auto keep_alive = is_keep_alive_request(request);
 
     result = make_success_response(move(result));
     auto content = result.serialized();
@@ -396,6 +406,7 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     // FIXME: Implement to spec.
     dbgln_if(WEBDRIVER_DEBUG, "Sending error response: {} {}: {}", error.http_status, error.error, error.message);
     auto reason = HTTP::reason_phrase_for_code(error.http_status);
+    auto keep_alive = is_keep_alive_request(request);
 
     JsonObject error_response;
     error_response.set("error"sv, error.error);
@@ -411,6 +422,8 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
 
     StringBuilder builder;
     builder.appendff("HTTP/1.1 {} {}\r\n", error.http_status, reason);
+    if (keep_alive)
+        builder.append("Connection: keep-alive\r\n"sv);
     builder.append("Cache-Control: no-cache\r\n"sv);
     builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
     builder.appendff("Content-Length: {}\r\n", content.byte_count());
@@ -418,6 +431,9 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     builder.append(content);
 
     TRY(m_socket->write_until_depleted(builder.string_view()));
+
+    if (!keep_alive)
+        die();
 
     log_response(request, error.http_status);
     return {};
