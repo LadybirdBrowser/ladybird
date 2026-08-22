@@ -5668,12 +5668,11 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
 
     auto value_or_empty = value.has_value() ? value->utf16_view() : u""sv;
 
-    // StyleEngine keys local features by interned atom, so the old and new sides are captured here,
-    // before the element's own copies are replaced.
-    auto old_style_engine_id = m_id;
-    auto old_style_engine_classes = m_classes;
-
     if (local_name == HTML::AttributeNames::id) {
+        // StyleEngine keys local features by interned atom, so capture the old side before the
+        // element's own copy is replaced.
+        auto old_style_engine_id = m_id;
+
         if (value_or_empty.is_empty())
             m_id = {};
         else
@@ -5685,6 +5684,8 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
                 old_id = Utf16FlyString::from_utf16(old_value->utf16_view());
             document().element_id_changed({}, *this, old_id);
         }
+
+        CSS::record_element_id_changed(*this, old_style_engine_id, m_id);
     } else if (local_name == HTML::AttributeNames::name) {
         m_has_name = !value_or_empty.is_empty();
         if (m_has_name) {
@@ -5696,6 +5697,12 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         if (is_connected())
             document().element_name_changed({}, *this);
     } else if (local_name == HTML::AttributeNames::class_) {
+        // Elements without a StyleEngine identity have no feature state to update. Avoid copying
+        // their class list just for record_element_class_list_changed() to reject the update.
+        Optional<Vector<Utf16FlyString>> old_style_engine_classes;
+        if (style_node_id().value() != 0)
+            old_style_engine_classes = m_classes;
+
         if (value_or_empty.is_empty()) {
             m_classes.clear();
         } else {
@@ -5707,6 +5714,9 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         }
         if (auto* rare_data = element_rare_data(); rare_data && rare_data->class_list)
             rare_data->class_list->associated_attribute_changed(value_or_empty);
+
+        if (old_style_engine_classes.has_value())
+            CSS::record_element_class_list_changed(*this, *old_style_engine_classes, m_classes);
     } else if (local_name == HTML::AttributeNames::style) {
         // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
         if (m_inline_style && m_inline_style->is_updating())
@@ -5783,14 +5793,6 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
     }
-
-    // Every attribute mutation publishes its own typed effects: a selector feature always, and for
-    // some names an element declaration or an attr() input as well. Routing sends each to its own
-    // consumers, so handling one never stands in for the others.
-    if (local_name == HTML::AttributeNames::id)
-        CSS::record_element_id_changed(*this, old_style_engine_id, m_id);
-    else if (local_name == HTML::AttributeNames::class_)
-        CSS::record_element_class_list_changed(*this, old_style_engine_classes, m_classes);
 }
 
 Optional<Utf16FlyString> Element::name() const
