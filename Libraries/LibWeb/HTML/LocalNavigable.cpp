@@ -66,6 +66,7 @@
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -1342,7 +1343,7 @@ GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(Utf16Vie
     auto& current_document = *active_document();
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given currentDocument.
-    auto source_snapshot_params = current_document.snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(current_document);
 
     // 3. Let subtreesToSearch be an implementation-defined choice of one of the following:
     //    - « currentNavigable's traversable navigable, currentNavigable »
@@ -2457,7 +2458,7 @@ WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
     auto& realm = HTML::relevant_realm(active_document);
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
-    auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(source_document);
 
     // 3. Let initiatorOriginSnapshot be sourceDocument's origin.
     auto initiator_origin_snapshot = source_document->origin();
@@ -2538,7 +2539,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     auto csp_navigation_type = params.form_data_entry_list.has_value() ? ContentSecurityPolicy::Directives::Directive::NavigationType::FormSubmission : ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
-    auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(source_document);
 
     // 3. Let initiatorOriginSnapshot be a new opaque origin.
     auto initiator_origin_snapshot = URL::Origin::create_opaque();
