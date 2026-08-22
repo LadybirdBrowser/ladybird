@@ -1264,6 +1264,45 @@ void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 s
     operation.algorithm->apply_the_history_step();
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step
+void CanonicalTraversable::apply_the_push_or_replace_history_step(HistoryOperation& operation, i32 step, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
+{
+    auto navigation_type = history_handling == Web::HTML::HistoryHandlingBehavior::Push
+        ? Web::Bindings::NavigationType::Push
+        : Web::Bindings::NavigationType::Replace;
+
+    // 1. Return the result of applying the history step step to traversable given false, null, null, userInvolvement, and historyHandling.
+    apply_history_step(operation, step, false, {}, user_involvement, navigation_type);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-reload-history-step
+void CanonicalTraversable::apply_the_reload_history_step(HistoryOperation& operation, Web::HTML::UserNavigationInvolvement user_involvement)
+{
+    // 1. Let step be traversable's current session history step.
+    auto step = m_session_history.current_step();
+    if (!step.has_value()) {
+        finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+        return;
+    }
+
+    // 2. Return the result of applying the history step step to traversable given true, null, null, userInvolvement, and "reload".
+    apply_history_step(operation, *step, true, {}, user_involvement, Web::Bindings::NavigationType::Reload);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-traverse-history-step
+void CanonicalTraversable::apply_the_traverse_history_step(HistoryOperation& operation, i32 step, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement)
+{
+    // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
+    apply_history_step(operation, step, true, initiator_to_check, user_involvement, Web::Bindings::NavigationType::Traverse, move(initiator_source_snapshot));
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#resume-applying-the-traverse-history-step
+void CanonicalTraversable::resume_applying_the_traverse_history_step(HistoryOperation& operation, i32 step, Web::HTML::UserNavigationInvolvement user_involvement)
+{
+    // Apply step to traversable given false, null, null, userInvolvement, and "traverse".
+    apply_history_step(operation, step, false, {}, user_involvement, Web::Bindings::NavigationType::Traverse);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
 void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryOperation& operation)
 {
@@ -1276,6 +1315,79 @@ void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryO
 
     // 2. Return the result of applying the history step step to traversable given false, null, null, "none", and null.
     apply_history_step(operation, *step, false, {}, Web::HTML::UserNavigationInvolvement::None, {});
+}
+
+// Direct operations have their complete input in canonical state, so they enter apply-the-history-step at their
+// queue position without a WebContent preparation round trip.
+static bool history_operation_is_direct(Web::HistoryOperationParameters const& parameters)
+{
+    return parameters.has<Web::ReloadHistoryOperationParameters>()
+        || parameters.has<Web::TraverseByDeltaHistoryOperationParameters>()
+        || parameters.has<Web::TraverseToStepHistoryOperationParameters>()
+        || parameters.has<Web::NavigableDestructionHistoryOperationParameters>();
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
+void CanonicalTraversable::traverse_the_history_by_a_delta_at_queue_position(HistoryOperation& operation, Web::TraverseByDeltaHistoryOperationParameters const& request)
+{
+    // Steps 1-3 of traverse the history by a delta were performed by the source process before it appended these
+    // session history traversal steps.
+
+    // 1. Let allSteps be the result of getting all used history steps for traversable.
+    auto all_steps = m_session_history.used_steps();
+
+    // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
+    auto current_step = m_session_history.current_step();
+    if (!current_step.has_value()) {
+        finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+        return;
+    }
+    auto current_step_index = all_steps.find_first_index(*current_step);
+    VERIFY(current_step_index.has_value());
+
+    // 3. Let targetStepIndex be currentStepIndex plus delta.
+    auto target_step_index = static_cast<i64>(*current_step_index) + static_cast<i64>(request.delta);
+
+    // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
+    if (target_step_index < 0 || static_cast<size_t>(target_step_index) >= all_steps.size()) {
+        finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+        return;
+    }
+
+    // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
+    //    initiatorToCheck, and userInvolvement.
+    apply_the_traverse_history_step(operation, all_steps[static_cast<size_t>(target_step_index)], request.initiator_source_snapshot, request.initiator_to_check, request.user_involvement);
+}
+
+void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operation)
+{
+    operation.parameters.visit(
+        [&](Web::ReloadHistoryOperationParameters const& parameters) {
+            auto current_step = m_session_history.current_step();
+            auto navigable = find(parameters.navigable_id);
+            auto const* target_entry = current_step.has_value() && navigable.has_value()
+                ? m_session_history.get_the_target_history_entry(*navigable, *current_step)
+                : nullptr;
+            if (!target_entry
+                || !set_session_history_entry_document_state_reload_pending(
+                    *navigable, target_entry->navigation_api_key, true)) {
+                finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+                return;
+            }
+            apply_the_reload_history_step(operation, parameters.user_involvement);
+        },
+        [&](Web::TraverseByDeltaHistoryOperationParameters const& request) {
+            traverse_the_history_by_a_delta_at_queue_position(operation, request);
+        },
+        [&](Web::TraverseToStepHistoryOperationParameters const& parameters) {
+            apply_the_traverse_history_step(operation, parameters.target_step, {}, {}, parameters.user_involvement);
+        },
+        [&](Web::NavigableDestructionHistoryOperationParameters const&) {
+            update_for_navigable_creation_or_destruction(operation);
+        },
+        [&](auto const&) {
+            VERIFY_NOT_REACHED();
+        });
 }
 
 void CanonicalTraversable::start_history_operation(HistoryOperation& operation, NonnullRefPtr<Core::Promise<Empty>>)
@@ -1310,6 +1422,11 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
             finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
             return;
         }
+    }
+
+    if (history_operation_is_direct(operation.parameters)) {
+        run_direct_history_operation(operation);
+        return;
     }
 
     Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation;
@@ -1477,18 +1594,16 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         target_step = *current_step;
     }
 
-    auto navigation_type = parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Push
-        ? Web::Bindings::NavigationType::Push
-        : Web::Bindings::NavigationType::Replace;
-
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    apply_history_step(operation, *target_step, false, {}, parameters.user_involvement, navigation_type);
+    apply_the_push_or_replace_history_step(operation, *target_step, parameters.history_handling, parameters.user_involvement);
 }
 
 void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
 {
     auto* operation = find_history_operation(operation_id);
     if (!operation || operation->algorithm)
+        return;
+    if (history_operation_is_direct(operation->parameters))
         return;
     if (!operation->was_initiated_by(source_client, source_page_id))
         return;
@@ -1501,16 +1616,6 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
         finish_history_operation(operation_id, result.get<Web::HTML::HistoryStepResult>(), {});
         return;
     }
-
-    auto apply_current_step = [&](bool check_for_cancelation, Web::HTML::UserNavigationInvolvement user_involvement,
-                                  Optional<Web::Bindings::NavigationType> navigation_type) {
-        auto step = m_session_history.current_step();
-        if (!step.has_value()) {
-            finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-            return;
-        }
-        apply_history_step(*operation, *step, check_for_cancelation, {}, user_involvement, navigation_type);
-    };
 
     VERIFY(!operation->is_browser_traversal());
     auto const& request = operation->parameters;
@@ -1532,33 +1637,21 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
             auto host_state = move(result.get<Web::CrossDocumentNavigationFinalizationHostState>());
             finalize_a_cross_document_navigation(*operation, move(host_state));
         },
-        [&](Web::ReloadHistoryOperationParameters const& parameters) {
-            auto current_step = m_session_history.current_step();
-            auto navigable = find(parameters.navigable_id);
-            auto const* target_entry = current_step.has_value() && navigable.has_value()
-                ? m_session_history.get_the_target_history_entry(*navigable, *current_step)
-                : nullptr;
-            if (!target_entry
-                || !set_session_history_entry_document_state_reload_pending(
-                    *navigable, target_entry->navigation_api_key, true)) {
-                finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-                return;
-            }
-            apply_current_step(true, parameters.user_involvement, Web::Bindings::NavigationType::Reload);
+        [&](Web::ReloadHistoryOperationParameters const&) {
+            VERIFY_NOT_REACHED();
         },
-        [&](Web::TraverseByDeltaHistoryOperationParameters const& parameters) {
-            VERIFY(operation->resolved_step.has_value());
-            apply_history_step(*operation, *operation->resolved_step, true, parameters.initiator_to_check, parameters.user_involvement, Web::Bindings::NavigationType::Traverse, parameters.initiator_source_snapshot);
+        [&](Web::TraverseByDeltaHistoryOperationParameters const&) {
+            VERIFY_NOT_REACHED();
         },
-        [&](Web::TraverseToStepHistoryOperationParameters const& parameters) {
-            apply_history_step(*operation, parameters.target_step, true, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse);
+        [&](Web::TraverseToStepHistoryOperationParameters const&) {
+            VERIFY_NOT_REACHED();
         },
         [&](Web::NavigationAPITraverseHistoryOperationParameters const& parameters) {
             VERIFY(operation->resolved_step.has_value());
-            apply_history_step(*operation, *operation->resolved_step, true, parameters.navigable_id, parameters.user_involvement, Web::Bindings::NavigationType::Traverse, parameters.initiator_source_snapshot);
+            apply_the_traverse_history_step(*operation, *operation->resolved_step, parameters.initiator_source_snapshot, parameters.navigable_id, parameters.user_involvement);
         },
         [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
-            apply_history_step(*operation, parameters.target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse);
+            resume_applying_the_traverse_history_step(*operation, parameters.target_step, parameters.user_involvement);
         },
         [&](Web::NavigableCreationHistoryOperationParameters const& parameters) {
             auto parent_document_state_id = result.get<Web::HTML::CrossProcessId>();
@@ -1573,7 +1666,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
             update_for_navigable_creation_or_destruction(*operation);
         },
         [&](Web::NavigableDestructionHistoryOperationParameters const&) {
-            update_for_navigable_creation_or_destruction(*operation);
+            VERIFY_NOT_REACHED();
         },
         [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters) {
             VERIFY(parameters.entry_to_replace.has_value() == (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace));
@@ -1604,10 +1697,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
                 .navigation_api_id = parameters.target_entry.navigation_api_id,
             });
 
-            auto navigation_type = parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace
-                ? Web::Bindings::NavigationType::Replace
-                : Web::Bindings::NavigationType::Push;
-            apply_history_step(*operation, *target_step, false, {}, parameters.user_involvement, navigation_type);
+            apply_the_push_or_replace_history_step(*operation, *target_step, parameters.history_handling, parameters.user_involvement);
         },
         [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) {
             // Close runs entirely in the requesting process at this queue position and must complete with proceed=false.
