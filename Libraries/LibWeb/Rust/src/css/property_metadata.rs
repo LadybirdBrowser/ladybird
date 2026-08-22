@@ -56,6 +56,10 @@ pub(crate) fn property_has_coordinating_list_multiplicity(property_id: u16) -> b
     PROPERTY_HAS_COORDINATING_LIST_MULTIPLICITY[property_index(property_id)]
 }
 
+pub(crate) fn property_maximum_value_count(property_id: u16) -> usize {
+    PROPERTY_MAXIMUM_VALUE_COUNTS[property_index(property_id)] as usize
+}
+
 pub(crate) fn property_percentages_resolve_to(property_id: u16) -> Option<u8> {
     PROPERTY_PERCENTAGES_RESOLVE_TO[property_index(property_id)]
 }
@@ -293,6 +297,8 @@ mod tests {
         assert!(property_has_coordinating_list_multiplicity(
             property_id::ANIMATION_DIRECTION
         ));
+        assert_eq!(property_maximum_value_count(property_id::BORDER_SPACING), 2);
+        assert_eq!(property_maximum_value_count(property_id::WIDTH), 1);
     }
 
     #[test]

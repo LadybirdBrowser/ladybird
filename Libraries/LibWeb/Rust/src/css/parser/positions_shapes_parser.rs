@@ -1638,15 +1638,22 @@ pub(crate) fn parse_geometry_property(
         }
         parse_shape_outside(context, property, values)
     } else if property == property_id::D {
-        let is_path = values
+        if let Some(value) = values
             .iter()
             .find(|value| !value.is_whitespace())
-            .and_then(ComponentValue::function)
-            .is_some_and(|(name, _)| equals_ascii_case_insensitive(name, b"path"));
-        if !is_path {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            .and_then(|value| keyword_value(value, &[keyword::NONE]))
+            .filter(|_| values.iter().filter(|value| !value.is_whitespace()).count() == 1)
+        {
+            Some(value)
+        } else {
+            parse_basic_shape(context, property, values).filter(|_| {
+                values
+                    .iter()
+                    .find(|value| !value.is_whitespace())
+                    .and_then(ComponentValue::function)
+                    .is_some_and(|(name, _)| equals_ascii_case_insensitive(name, b"path"))
+            })
         }
-        parse_basic_shape(context, property, values)
     } else if property_accepted_value_types(property).contains(&VALUE_TYPE_BASIC_SHAPE) {
         let is_known_shape = values
             .iter()

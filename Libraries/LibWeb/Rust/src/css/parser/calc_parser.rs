@@ -18,8 +18,9 @@ use crate::css::math_functions::{MathFunction, math_function_from_name};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::positions_shapes_parser::parse_anchor_function;
 use crate::css::parser::value_parser::{
-    ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, ParseContext, RESOLUTION_UNIT_NAMES, TIME_UNIT_NAMES,
-    context_allows_tree_counting_functions,
+    ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, NumericRange, ParseContext, RESOLUTION_UNIT_NAMES,
+    TIME_UNIT_NAMES, VALUE_TYPE_NUMBER, context_allows_tree_counting_functions,
+    parse_calculated_numeric_value_with_ranges,
 };
 use crate::css::property_metadata::property_name;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
@@ -588,14 +589,27 @@ fn parse_random_value_sharing(
         let [_, fixed] = values.as_slice() else {
             return Err(CalcParseError::Invalid);
         };
-        let ComponentKind::Token(ParserTokenKind::Number { value, .. }) = fixed.kind else {
-            return Err(CalcParseError::Invalid);
+        let fixed_value = match fixed.kind {
+            ComponentKind::Token(ParserTokenKind::Number { value, .. }) if (0.0..=0.999999).contains(&value) => {
+                StyleValueData::Number { value }
+            }
+            ComponentKind::Function { ref name, ref values } if math_function_from_name(name).is_some() => {
+                let parse_context = unsafe { context.parse_context.as_ref() }.ok_or(CalcParseError::NotHandled)?;
+                parse_calculated_numeric_value_with_ranges(
+                    parse_context,
+                    context.property,
+                    VALUE_TYPE_NUMBER,
+                    None,
+                    NumericRange::new(0.0, 0.999999),
+                    name,
+                    values,
+                )
+                .ok_or(CalcParseError::Invalid)?
+            }
+            _ => return Err(CalcParseError::Invalid),
         };
-        if !(0.0..=0.999999).contains(&value) {
-            return Err(CalcParseError::Invalid);
-        }
         return Ok(Some(StyleValueData::RandomValueSharing {
-            fixed_value: RetainedStyleValueData::from_owned(StyleValueData::Number { value }),
+            fixed_value: RetainedStyleValueData::from_owned(fixed_value),
             is_auto: false,
             has_name: false,
             name: RetainedUtf16FlyString::none(),

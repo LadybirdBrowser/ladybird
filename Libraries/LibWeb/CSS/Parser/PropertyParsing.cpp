@@ -469,7 +469,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
-    if (!rust_value_parser_enabled())
+    if (!rust_value_parser_enabled() || property_id == PropertyID::Custom)
         return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
 
     ensure_parse_fallback_statistics_dumper();
@@ -549,6 +549,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     ValueParserFFI::ParseContext context {
         .in_quirks_mode = in_quirks_mode(),
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
+        .is_substituted_value = false,
         .value_contexts = value_contexts.data(),
         .value_context_count = value_contexts.size(),
         .document_url = document_url.data(),
@@ -636,6 +637,7 @@ Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(F
     ValueParserFFI::ParseContext context {
         .in_quirks_mode = in_quirks_mode(),
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
+        .is_substituted_value = false,
         .value_contexts = nullptr,
         .value_context_count = 0,
         .document_url = document_url.data(),

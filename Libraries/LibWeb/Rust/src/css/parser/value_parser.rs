@@ -8,9 +8,12 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use crate::css::css_enums::{
-    keyword, keyword_from_ascii_case_insensitive, keyword_to_counter_style_name_keyword,
-    keyword_to_cross_origin_modifier_value, keyword_to_cursor_predefined, keyword_to_referrer_policy_modifier_value,
-    keyword_to_symbols_type, symbols_type,
+    background_box, display_inside, display_outside, keyword, keyword_from_ascii_case_insensitive,
+    keyword_to_background_box, keyword_to_counter_style_name_keyword, keyword_to_cross_origin_modifier_value,
+    keyword_to_cursor_predefined, keyword_to_display_inside, keyword_to_display_outside,
+    keyword_to_referrer_policy_modifier_value, keyword_to_symbols_type, keyword_to_text_decoration_line,
+    keyword_to_text_underline_position_horizontal, keyword_to_text_underline_position_vertical, repetition,
+    symbols_type, text_underline_position_horizontal, text_underline_position_vertical,
 };
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_parser};
@@ -34,7 +37,8 @@ use crate::css::property_metadata::{
     FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
     property_accepts_only_keywords, property_custom_ident_blacklist, property_has_coordinating_list_multiplicity,
     property_has_hashless_hex_color_quirk, property_has_unitless_length_quirk, property_id, property_is_shorthand,
-    property_numeric_ranges, property_percentages_resolve_to, property_resolve_legacy_value_alias,
+    property_maximum_value_count, property_numeric_ranges, property_percentages_resolve_to,
+    property_resolve_legacy_value_alias,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
@@ -64,6 +68,10 @@ const INVALID_FFI_INPUT: NotHandledReason = NotHandledReason {
 pub(crate) const SUBSTITUTION_NOT_PORTED: NotHandledReason = NotHandledReason {
     label: "substitution",
     c_label: b"substitution\0",
+};
+const SHORTHAND_NOT_PORTED: NotHandledReason = NotHandledReason {
+    label: "shorthand:not-ported",
+    c_label: b"shorthand:not-ported\0",
 };
 pub(crate) const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
     label: "function:not-ported",
@@ -146,6 +154,7 @@ pub struct FfiValueParsingContext {
 pub struct ParseContext {
     pub in_quirks_mode: bool,
     pub is_svg_presentation_attribute: bool,
+    pub is_substituted_value: bool,
     pub value_contexts: *const FfiValueParsingContext,
     pub value_context_count: usize,
     pub document_url: *const u8,
@@ -769,7 +778,9 @@ pub(crate) fn parse_number_from_stream(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     let value = tokens.next_token();
-    let parsed = if let Some((name, values)) = value.function()
+    let parsed = if let Some(value) = parse_tree_counting_value(context, value, 0) {
+        Some(value)
+    } else if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         parse_calculated_numeric_value_with_ranges(
@@ -796,7 +807,9 @@ pub(crate) fn parse_integer_from_stream(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     let value = tokens.next_token();
-    let parsed = if let Some((name, values)) = value.function()
+    let parsed = if let Some(value) = parse_tree_counting_value(context, value, 1) {
+        Some(value)
+    } else if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         parse_calculated_numeric_value_with_ranges(
@@ -871,6 +884,40 @@ fn parse_ratio_value(values: &[&ComponentValue]) -> Option<StyleValueData> {
     })
 }
 
+fn parse_ratio_value_with_context(
+    context: &ParseContext,
+    property: u16,
+    values: &[&ComponentValue],
+) -> Option<StyleValueData> {
+    let parse_component = |value: &ComponentValue| {
+        if let Some((name, arguments)) = value.function()
+            && math_function_from_name(name).is_some()
+        {
+            parse_calculated_numeric_value_with_ranges(
+                context,
+                property,
+                VALUE_TYPE_NUMBER,
+                None,
+                NumericRange::NON_NEGATIVE,
+                name,
+                arguments,
+            )
+        } else {
+            parse_number_value(value, NumericRange::NON_NEGATIVE)
+        }
+    };
+    let numerator = parse_component(values.first()?)?;
+    let denominator = match values {
+        [_] => StyleValueData::Number { value: 1.0 },
+        [_, slash, denominator] if slash.is_delim(b'/') => parse_component(denominator)?,
+        _ => return None,
+    };
+    Some(StyleValueData::Ratio {
+        numerator: RetainedStyleValueData::from_owned(numerator),
+        denominator: RetainedStyleValueData::from_owned(denominator),
+    })
+}
+
 fn parse_opacity_value(value: &ComponentValue) -> Option<StyleValueData> {
     let value = parse_number_percentage_value(value, NumericRange::INFINITE, NumericRange::INFINITE)?;
     Some(StyleValueData::OpacityValue {
@@ -891,6 +938,8 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
             if is_arbitrary_substitution_function(name) {
                 Some(&SUBSTITUTION_NOT_PORTED)
             } else if math_function_from_name(name).is_some()
+                || equals_ascii_case_insensitive(name, b"sibling-count")
+                || equals_ascii_case_insensitive(name, b"sibling-index")
                 || is_color_function_name(name)
                 || is_position_shape_function_name(name)
                 || is_transform_effect_function_name(name)
@@ -937,23 +986,10 @@ fn parse_single_numeric_value_type(
     value_type: u8,
     value: &ComponentValue,
 ) -> Option<StyleValueData> {
-    if let Some((name, values)) = value.function()
-        && values.iter().all(ComponentValue::is_whitespace)
-        && context_allows_tree_counting_functions(context)
+    if matches!(value_type, VALUE_TYPE_NUMBER | VALUE_TYPE_INTEGER)
+        && let Some(value) = parse_tree_counting_value(context, value, u8::from(value_type == VALUE_TYPE_INTEGER))
     {
-        let function = if equals_ascii_case_insensitive(name, b"sibling-count") {
-            0
-        } else if equals_ascii_case_insensitive(name, b"sibling-index") {
-            1
-        } else {
-            u8::MAX
-        };
-        if function != u8::MAX && matches!(value_type, VALUE_TYPE_NUMBER | VALUE_TYPE_INTEGER) {
-            return Some(StyleValueData::TreeCountingFunction {
-                function,
-                computed_type: u8::from(value_type == VALUE_TYPE_INTEGER),
-            });
-        }
+        return Some(value);
     }
     if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
@@ -1018,6 +1054,28 @@ fn parse_single_numeric_value_type(
     }
 }
 
+pub(crate) fn parse_tree_counting_value(
+    context: &ParseContext,
+    value: &ComponentValue,
+    computed_type: u8,
+) -> Option<StyleValueData> {
+    let (name, values) = value.function()?;
+    if !values.iter().all(ComponentValue::is_whitespace) || !context_allows_tree_counting_functions(context) {
+        return None;
+    }
+    let function = if equals_ascii_case_insensitive(name, b"sibling-count") {
+        0
+    } else if equals_ascii_case_insensitive(name, b"sibling-index") {
+        1
+    } else {
+        return None;
+    };
+    Some(StyleValueData::TreeCountingFunction {
+        function,
+        computed_type,
+    })
+}
+
 pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> bool {
     let contexts = if context.value_context_count == 0 {
         &[]
@@ -1030,6 +1088,15 @@ pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> 
         value_context.kind == FfiValueParsingContextKind::Descriptor
             || (value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0..=2))
     })
+}
+
+fn has_substitution_function_context(context: &ParseContext) -> bool {
+    if context.value_context_count == 0 || context.value_contexts.is_null() {
+        return false;
+    }
+    unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+        .iter()
+        .any(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
 }
 
 fn parse_calculated_numeric_value(
@@ -1242,6 +1309,1165 @@ fn parse_specific_keyword(value: &ComponentValue, accepted: &[u16]) -> Option<St
     accepted
         .contains(&keyword)
         .then_some(StyleValueData::Keyword { keyword })
+}
+
+fn keyword_sequence(values: &[ComponentValue]) -> Option<Vec<u16>> {
+    values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(|value| keyword_from_ascii_case_insensitive(value.ident()?))
+        .collect()
+}
+
+fn keyword_value_list(keywords: Vec<u16>) -> StyleValueData {
+    value_list(
+        keywords
+            .into_iter()
+            .map(|keyword| StyleValueData::Keyword { keyword })
+            .collect(),
+        0,
+        true,
+    )
+}
+
+fn parse_keyword_combination_property(property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let Some(mut keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    if keywords.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+
+    let parsed = match property {
+        property_id::CONTAIN => {
+            if keywords.len() == 1 && matches!(keywords[0], keyword::NONE | keyword::STRICT | keyword::CONTENT) {
+                StyleValueData::Keyword { keyword: keywords[0] }
+            } else {
+                let order = [
+                    keyword::SIZE,
+                    keyword::INLINE_SIZE,
+                    keyword::LAYOUT,
+                    keyword::STYLE,
+                    keyword::PAINT,
+                ];
+                let size_count = keywords
+                    .iter()
+                    .filter(|&&value| matches!(value, keyword::SIZE | keyword::INLINE_SIZE))
+                    .count();
+                if size_count > 1 || keywords.iter().any(|value| !order.contains(value)) {
+                    return ParseOutcome::Invalid;
+                }
+                let original_length = keywords.len();
+                keywords.sort_by_key(|value| order.iter().position(|candidate| candidate == value));
+                keywords.dedup();
+                if keywords.len() != original_length {
+                    return ParseOutcome::Invalid;
+                }
+                keyword_value_list(keywords)
+            }
+        }
+        property_id::CONTAINER_TYPE => {
+            if keywords == [keyword::NORMAL] {
+                StyleValueData::Keyword {
+                    keyword: keyword::NORMAL,
+                }
+            } else {
+                let order = [keyword::SIZE, keyword::INLINE_SIZE, keyword::SCROLL_STATE];
+                let size_count = keywords
+                    .iter()
+                    .filter(|&&value| matches!(value, keyword::SIZE | keyword::INLINE_SIZE))
+                    .count();
+                if size_count > 1 || keywords.iter().any(|value| !order.contains(value)) {
+                    return ParseOutcome::Invalid;
+                }
+                let original_length = keywords.len();
+                keywords.sort_by_key(|value| order.iter().position(|candidate| candidate == value));
+                keywords.dedup();
+                if keywords.len() != original_length {
+                    return ParseOutcome::Invalid;
+                }
+                keyword_value_list(keywords)
+            }
+        }
+        property_id::POSITION_VISIBILITY => {
+            if keywords == [keyword::ALWAYS] {
+                StyleValueData::Keyword {
+                    keyword: keyword::ALWAYS,
+                }
+            } else {
+                let order = [keyword::ANCHORS_VALID, keyword::ANCHORS_VISIBLE, keyword::NO_OVERFLOW];
+                if keywords.iter().any(|value| !order.contains(value)) {
+                    return ParseOutcome::Invalid;
+                }
+                let original_length = keywords.len();
+                keywords.sort_by_key(|value| order.iter().position(|candidate| candidate == value));
+                keywords.dedup();
+                if keywords.len() != original_length {
+                    return ParseOutcome::Invalid;
+                }
+                keyword_value_list(keywords)
+            }
+        }
+        property_id::TOUCH_ACTION => {
+            if keywords.len() == 1 && matches!(keywords[0], keyword::AUTO | keyword::NONE | keyword::MANIPULATION) {
+                StyleValueData::Keyword { keyword: keywords[0] }
+            } else {
+                let horizontal = [keyword::PAN_X, keyword::PAN_LEFT, keyword::PAN_RIGHT];
+                let vertical = [keyword::PAN_Y, keyword::PAN_UP, keyword::PAN_DOWN];
+                let horizontal_count = keywords.iter().filter(|value| horizontal.contains(value)).count();
+                let vertical_count = keywords.iter().filter(|value| vertical.contains(value)).count();
+                let pinch_count = keywords.iter().filter(|&&value| value == keyword::PINCH_ZOOM).count();
+                if horizontal_count > 1
+                    || vertical_count > 1
+                    || pinch_count > 1
+                    || keywords.iter().any(|value| {
+                        !horizontal.contains(value) && !vertical.contains(value) && *value != keyword::PINCH_ZOOM
+                    })
+                {
+                    return ParseOutcome::Invalid;
+                }
+                keywords.sort_by_key(|value| {
+                    if horizontal.contains(value) {
+                        0
+                    } else if vertical.contains(value) {
+                        1
+                    } else {
+                        2
+                    }
+                });
+                keyword_value_list(keywords)
+            }
+        }
+        property_id::WHITE_SPACE_TRIM => {
+            if keywords == [keyword::NONE] {
+                StyleValueData::Keyword { keyword: keyword::NONE }
+            } else {
+                let order = [keyword::DISCARD_BEFORE, keyword::DISCARD_AFTER, keyword::DISCARD_INNER];
+                if keywords.iter().any(|value| !order.contains(value)) {
+                    return ParseOutcome::Invalid;
+                }
+                let original_length = keywords.len();
+                keywords.sort_by_key(|value| order.iter().position(|candidate| candidate == value));
+                keywords.dedup();
+                if keywords.len() != original_length {
+                    return ParseOutcome::Invalid;
+                }
+                keyword_value_list(keywords)
+            }
+        }
+        property_id::TEXT_DECORATION_LINE => {
+            if keywords == [keyword::NONE] {
+                StyleValueData::Keyword { keyword: keyword::NONE }
+            } else {
+                if keywords
+                    .iter()
+                    .any(|&value| value == keyword::NONE || keyword_to_text_decoration_line(value).is_none())
+                    || (keywords.len() > 1
+                        && keywords
+                            .iter()
+                            .any(|&value| matches!(value, keyword::SPELLING_ERROR | keyword::GRAMMAR_ERROR)))
+                {
+                    return ParseOutcome::Invalid;
+                }
+                let original_length = keywords.len();
+                keywords.sort_by_key(|&value| keyword_to_text_decoration_line(value));
+                keywords.dedup();
+                if keywords.len() != original_length {
+                    return ParseOutcome::Invalid;
+                }
+                keyword_value_list(keywords)
+            }
+        }
+        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+    };
+    ParseOutcome::Parsed(Arc::new(parsed))
+}
+
+fn parse_paint_order_property(values: &[ComponentValue]) -> ParseOutcome {
+    let Some(keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    if keywords == [keyword::NORMAL] {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword {
+            keyword: keyword::NORMAL,
+        }));
+    }
+    if keywords.is_empty()
+        || keywords.len() > 3
+        || keywords
+            .iter()
+            .any(|value| !matches!(*value, keyword::FILL | keyword::STROKE | keyword::MARKERS))
+        || {
+            let mut unique = keywords.clone();
+            unique.sort_unstable();
+            unique.dedup();
+            unique.len() != keywords.len()
+        }
+    {
+        return ParseOutcome::Invalid;
+    }
+    let first = keywords[0];
+    if keywords.len() == 1
+        || keywords[1]
+            == if first == keyword::FILL {
+                keyword::STROKE
+            } else {
+                keyword::FILL
+            }
+    {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: first }));
+    }
+    ParseOutcome::Parsed(Arc::new(keyword_value_list(keywords[..2].to_vec())))
+}
+
+fn parse_scrollbar_gutter_property(values: &[ComponentValue]) -> ParseOutcome {
+    let Some(keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    let value = match keywords.as_slice() {
+        [keyword::AUTO] => 0,
+        [keyword::STABLE] => 1,
+        [keyword::STABLE, keyword::BOTH_EDGES] | [keyword::BOTH_EDGES, keyword::STABLE] => 2,
+        _ => return ParseOutcome::Invalid,
+    };
+    ParseOutcome::Parsed(Arc::new(StyleValueData::ScrollbarGutter { value }))
+}
+
+fn parse_aspect_ratio_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    let auto_at_start = non_whitespace
+        .first()
+        .is_some_and(|value| parse_specific_keyword(value, &[keyword::AUTO]).is_some());
+    let auto_at_end = non_whitespace
+        .last()
+        .is_some_and(|value| parse_specific_keyword(value, &[keyword::AUTO]).is_some());
+    let ratio_values = if auto_at_start {
+        &non_whitespace[1..]
+    } else if auto_at_end {
+        &non_whitespace[..non_whitespace.len() - 1]
+    } else {
+        non_whitespace.as_slice()
+    };
+    let ratio = (!ratio_values.is_empty())
+        .then(|| parse_ratio_value_with_context(context, property, ratio_values))
+        .flatten();
+    match (auto_at_start || auto_at_end, ratio) {
+        (true, Some(ratio)) => ParseOutcome::Parsed(Arc::new(value_list(
+            vec![StyleValueData::Keyword { keyword: keyword::AUTO }, ratio],
+            0,
+            true,
+        ))),
+        (true, None) if non_whitespace.len() == 1 => {
+            ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::AUTO }))
+        }
+        (false, Some(ratio)) => ParseOutcome::Parsed(Arc::new(ratio)),
+        _ => ParseOutcome::Invalid,
+    }
+}
+
+fn parse_math_depth_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let Some(value) = single_non_whitespace_value(values) else {
+        return ParseOutcome::Invalid;
+    };
+    if let Some(keyword) = parse_specific_keyword(value, &[keyword::AUTO_ADD]) {
+        return ParseOutcome::Parsed(Arc::new(keyword));
+    }
+    if let Some(integer) = parse_single_numeric_value_type(context, property, VALUE_TYPE_INTEGER, value) {
+        return ParseOutcome::Parsed(Arc::new(integer));
+    }
+    let Some((name, arguments)) = value.function() else {
+        return ParseOutcome::Invalid;
+    };
+    if !equals_ascii_case_insensitive(name, b"add") {
+        return ParseOutcome::Invalid;
+    }
+    let mut stream = TokenStream::new(arguments);
+    let Some(integer) = parse_integer_from_stream(context, property, &mut stream, NumericRange::INFINITE) else {
+        return ParseOutcome::Invalid;
+    };
+    stream.discard_whitespace();
+    if stream.has_next_token() {
+        return ParseOutcome::Invalid;
+    }
+    let Some(name) = retain_fly_string(context, &"add".encode_utf16().collect::<Vec<_>>()) else {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    };
+    ParseOutcome::Parsed(Arc::new(StyleValueData::Function {
+        name,
+        value: RetainedStyleValueData::from_owned(integer),
+    }))
+}
+
+fn parse_scrollbar_color_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if single_non_whitespace_value(values)
+        .is_some_and(|value| parse_specific_keyword(value, &[keyword::AUTO]).is_some())
+    {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::AUTO }));
+    }
+    let mut stream = TokenStream::new(values);
+    stream.discard_whitespace();
+    let Some(thumb_color) = parse_color_value(context, property, &mut stream, false) else {
+        return ParseOutcome::Invalid;
+    };
+    stream.discard_whitespace();
+    let Some(track_color) = parse_color_value(context, property, &mut stream, false) else {
+        return ParseOutcome::Invalid;
+    };
+    stream.discard_whitespace();
+    if stream.has_next_token() {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::ScrollbarColor {
+        thumb_color: RetainedStyleValueData::from_owned(thumb_color),
+        track_color: RetainedStyleValueData::from_owned(track_color),
+    }))
+}
+
+fn parse_stroke_dasharray_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if single_non_whitespace_value(values)
+        .is_some_and(|value| parse_specific_keyword(value, &[keyword::NONE]).is_some())
+    {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+    }
+    let mut stream = TokenStream::new(values);
+    let mut dashes = Vec::new();
+    while stream.has_next_token() {
+        stream.discard_whitespace();
+        let parsed =
+            parse_number_from_stream(context, property, &mut stream, NumericRange::NON_NEGATIVE).or_else(|| {
+                parse_length_percentage_from_stream(
+                    context,
+                    property,
+                    &mut stream,
+                    NumericRange::NON_NEGATIVE,
+                    NumericRange::NON_NEGATIVE,
+                )
+            });
+        let Some(parsed) = parsed else {
+            return ParseOutcome::Invalid;
+        };
+        dashes.push(parsed);
+        stream.discard_whitespace();
+        if stream.has_next_token() && stream.next_token().is_comma() {
+            stream.discard_a_token();
+        }
+    }
+    if dashes.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(value_list(dashes, 1, true)))
+}
+
+fn parse_text_indent_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let mut stream = TokenStream::new(values);
+    let mut length_percentage = None;
+    let mut hanging = false;
+    let mut each_line = false;
+    while stream.has_next_token() {
+        stream.discard_whitespace();
+        if length_percentage.is_none()
+            && let Some(parsed) = parse_length_percentage_from_stream(
+                context,
+                property,
+                &mut stream,
+                NumericRange::INFINITE,
+                NumericRange::INFINITE,
+            )
+        {
+            length_percentage = Some(parsed);
+            continue;
+        }
+        let Some(keyword) = keyword_from_ascii_case_insensitive(stream.next_token().ident().unwrap_or_default()) else {
+            return ParseOutcome::Invalid;
+        };
+        stream.discard_a_token();
+        match keyword {
+            keyword::HANGING if !hanging => hanging = true,
+            keyword::EACH_LINE if !each_line => each_line = true,
+            _ => return ParseOutcome::Invalid,
+        }
+    }
+    let Some(length_percentage) = length_percentage else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(StyleValueData::TextIndent {
+        length_percentage: RetainedStyleValueData::from_owned(length_percentage),
+        hanging,
+        each_line,
+    }))
+}
+
+fn parse_text_underline_position_property(values: &[ComponentValue]) -> ParseOutcome {
+    let Some(keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    if keywords == [keyword::AUTO] {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::TextUnderlinePosition {
+            horizontal: text_underline_position_horizontal::AUTO,
+            vertical: text_underline_position_vertical::AUTO,
+        }));
+    }
+    let mut horizontal = None;
+    let mut vertical = None;
+    for keyword in keywords {
+        if let Some(value) = keyword_to_text_underline_position_horizontal(keyword) {
+            if value == text_underline_position_horizontal::AUTO || horizontal.replace(value).is_some() {
+                return ParseOutcome::Invalid;
+            }
+        } else if let Some(value) = keyword_to_text_underline_position_vertical(keyword) {
+            if value == text_underline_position_vertical::AUTO || vertical.replace(value).is_some() {
+                return ParseOutcome::Invalid;
+            }
+        } else {
+            return ParseOutcome::Invalid;
+        }
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::TextUnderlinePosition {
+        horizontal: horizontal.unwrap_or(text_underline_position_horizontal::AUTO),
+        vertical: vertical.unwrap_or(text_underline_position_vertical::AUTO),
+    }))
+}
+
+fn parse_overflow_clip_margin_property(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    let mut stream = TokenStream::new(values);
+    let mut visual_box = None;
+    let mut length = None;
+    for _ in 0..2 {
+        stream.discard_whitespace();
+        if !stream.has_next_token() {
+            break;
+        }
+        if visual_box.is_none()
+            && let Some(keyword) = stream
+                .next_token()
+                .ident()
+                .and_then(keyword_from_ascii_case_insensitive)
+            && let Some(box_value) = keyword_to_background_box(keyword)
+            && matches!(
+                box_value,
+                background_box::CONTENT_BOX | background_box::PADDING_BOX | background_box::BORDER_BOX
+            )
+        {
+            visual_box = Some(box_value);
+            stream.discard_a_token();
+            continue;
+        }
+        if length.is_none()
+            && let Some(parsed) = parse_length_from_stream(context, property, &mut stream, NumericRange::NON_NEGATIVE)
+        {
+            length = Some(parsed);
+            continue;
+        }
+        return ParseOutcome::Invalid;
+    }
+    stream.discard_whitespace();
+    if stream.has_next_token() || (visual_box.is_none() && length.is_none()) {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::OverflowClipMargin {
+        has_visual_box: visual_box.is_some(),
+        visual_box: visual_box.unwrap_or(0),
+        offset: RetainedStyleValueData::from_owned(length.unwrap_or(StyleValueData::Length {
+            value: 0.0,
+            unit: px_length_unit(),
+        })),
+    }))
+}
+
+fn parse_grid_auto_flow_property(values: &[ComponentValue]) -> ParseOutcome {
+    let mut row = true;
+    let mut has_axis = false;
+    let mut dense = false;
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
+        let Some(identifier) = value.ident() else {
+            return ParseOutcome::Invalid;
+        };
+        if equals_ascii_case_insensitive(identifier, b"row") && !has_axis {
+            has_axis = true;
+        } else if equals_ascii_case_insensitive(identifier, b"column") && !has_axis {
+            has_axis = true;
+            row = false;
+        } else if equals_ascii_case_insensitive(identifier, b"dense") && !dense {
+            dense = true;
+        } else {
+            return ParseOutcome::Invalid;
+        }
+    }
+    if !has_axis && !dense {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::GridAutoFlow { row, dense }))
+}
+
+fn parse_alignment_property(property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let Some(keyword) = single_non_whitespace_value(values)
+        .and_then(ComponentValue::ident)
+        .and_then(keyword_from_ascii_case_insensitive)
+    else {
+        return ParseOutcome::Invalid;
+    };
+    if matches!(keyword, keyword::SAFE | keyword::UNSAFE)
+        || property_accepted_keywords(property).binary_search(&keyword).is_err()
+    {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }))
+}
+
+fn parse_paint_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if single_non_whitespace_value(values)
+        .and_then(ComponentValue::ident)
+        .and_then(keyword_from_ascii_case_insensitive)
+        .is_some_and(|keyword| keyword == keyword::NONE)
+    {
+        let keyword =
+            keyword_from_ascii_case_insensitive(single_non_whitespace_value(values).unwrap().ident().unwrap()).unwrap();
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }));
+    }
+    let mut stream = TokenStream::new(values);
+    if let Some(color) = parse_color_value(context, property, &mut stream, false) {
+        stream.discard_whitespace();
+        if !stream.has_next_token() {
+            return ParseOutcome::Parsed(Arc::new(color));
+        }
+    }
+
+    let mut stream = TokenStream::new(values);
+    stream.discard_whitespace();
+    let Some(url) = parse_url_value(context, stream.next_token()) else {
+        return ParseOutcome::Invalid;
+    };
+    stream.discard_a_token();
+    stream.discard_whitespace();
+    let fallback = if !stream.has_next_token() {
+        None
+    } else if stream
+        .next_token()
+        .ident()
+        .and_then(keyword_from_ascii_case_insensitive)
+        .is_some_and(|keyword| keyword == keyword::NONE)
+    {
+        stream.discard_a_token();
+        Some(StyleValueData::Keyword { keyword: keyword::NONE })
+    } else {
+        parse_color_value(context, property, &mut stream, false)
+    };
+    stream.discard_whitespace();
+    if stream.has_next_token() {
+        return ParseOutcome::Invalid;
+    }
+    let parsed = vec![url, fallback.unwrap_or(StyleValueData::EmptyOptional)];
+    ParseOutcome::Parsed(Arc::new(value_list(parsed, 0, true)))
+}
+
+fn parse_repeat_item(values: &[ComponentValue]) -> Option<StyleValueData> {
+    let identifiers = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(ComponentValue::ident)
+        .collect::<Option<Vec<_>>>()?;
+    let repetition = |identifier: &[u16]| {
+        repetition::NAMES
+            .iter()
+            .position(|name| equals_ascii_case_insensitive(identifier, name.as_bytes()))
+            .and_then(|value| u8::try_from(value).ok())
+    };
+    match identifiers.as_slice() {
+        [value] if equals_ascii_case_insensitive(value, b"repeat-x") => Some(StyleValueData::RepeatStyle {
+            repeat_x: repetition::REPEAT,
+            repeat_y: repetition::NO_REPEAT,
+        }),
+        [value] if equals_ascii_case_insensitive(value, b"repeat-y") => Some(StyleValueData::RepeatStyle {
+            repeat_x: repetition::NO_REPEAT,
+            repeat_y: repetition::REPEAT,
+        }),
+        [x] => {
+            let x = repetition(x)?;
+            Some(StyleValueData::RepeatStyle {
+                repeat_x: x,
+                repeat_y: x,
+            })
+        }
+        [x, y] => Some(StyleValueData::RepeatStyle {
+            repeat_x: repetition(x)?,
+            repeat_y: repetition(y)?,
+        }),
+        _ => None,
+    }
+}
+
+fn parse_repeat_property(values: &[ComponentValue]) -> ParseOutcome {
+    let parsed = values
+        .split(ComponentValue::is_comma)
+        .map(parse_repeat_item)
+        .collect::<Option<Vec<_>>>();
+    let Some(parsed) = parsed else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+}
+
+fn parse_background_size_item(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if non_whitespace.len() == 1
+        && let Some(keyword) = non_whitespace[0].ident().and_then(keyword_from_ascii_case_insensitive)
+        && matches!(keyword, keyword::COVER | keyword::CONTAIN)
+    {
+        return Some(StyleValueData::Keyword { keyword });
+    }
+    if non_whitespace.is_empty() || non_whitespace.len() > 2 {
+        return None;
+    }
+    let parse_size = |value: &ComponentValue| {
+        parse_specific_keyword(value, &[keyword::AUTO]).or_else(|| {
+            if let Some((name, arguments)) = value.function()
+                && math_function_from_name(name).is_some()
+            {
+                parse_calculated_numeric_value_with_ranges(
+                    context,
+                    property,
+                    VALUE_TYPE_LENGTH,
+                    Some(VALUE_TYPE_LENGTH),
+                    NumericRange::NON_NEGATIVE,
+                    name,
+                    arguments,
+                )
+            } else {
+                parse_length_percentage_value(
+                    context,
+                    property,
+                    value,
+                    NumericRange::NON_NEGATIVE,
+                    NumericRange::NON_NEGATIVE,
+                )
+            }
+        })
+    };
+    let size_x = parse_size(non_whitespace[0])?;
+    let size_y = if non_whitespace.len() == 2 {
+        parse_size(non_whitespace[1])?
+    } else {
+        StyleValueData::Keyword { keyword: keyword::AUTO }
+    };
+    Some(StyleValueData::BackgroundSize {
+        size_x: RetainedStyleValueData::from_owned(size_x),
+        size_y: RetainedStyleValueData::from_owned(size_y),
+    })
+}
+
+fn parse_background_size_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let parsed = values
+        .split(ComponentValue::is_comma)
+        .map(|item| parse_background_size_item(context, property, item))
+        .collect::<Option<Vec<_>>>();
+    let Some(parsed) = parsed else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+}
+
+fn parse_border_image_slice_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let mut slices = Vec::new();
+    let mut fill = false;
+    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    for (index, value) in significant.iter().enumerate() {
+        if value
+            .ident()
+            .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"fill"))
+        {
+            if fill || (index != 0 && index + 1 != significant.len()) {
+                return ParseOutcome::Invalid;
+            }
+            fill = true;
+            continue;
+        }
+        if slices.len() == 4 {
+            return ParseOutcome::Invalid;
+        }
+        let parsed = if let Some((name, arguments)) = value.function()
+            && math_function_from_name(name).is_some()
+        {
+            parse_calculated_numeric_value_with_ranges(
+                context,
+                property,
+                VALUE_TYPE_NUMBER,
+                None,
+                NumericRange::NON_NEGATIVE,
+                name,
+                arguments,
+            )
+            .or_else(|| {
+                parse_calculated_numeric_value_with_ranges(
+                    context,
+                    property,
+                    VALUE_TYPE_PERCENTAGE,
+                    None,
+                    NumericRange::NON_NEGATIVE,
+                    name,
+                    arguments,
+                )
+            })
+        } else {
+            parse_number_percentage_value(value, NumericRange::NON_NEGATIVE, NumericRange::NON_NEGATIVE)
+        };
+        let Some(parsed) = parsed else {
+            return ParseOutcome::Invalid;
+        };
+        slices.push(parsed);
+    }
+    let (top, right, bottom, left) = match slices.as_slice() {
+        [all] => (all, all, all, all),
+        [vertical, horizontal] => (vertical, horizontal, vertical, horizontal),
+        [top, horizontal, bottom] => (top, horizontal, bottom, horizontal),
+        [top, right, bottom, left] => (top, right, bottom, left),
+        _ => return ParseOutcome::Invalid,
+    };
+    ParseOutcome::Parsed(Arc::new(StyleValueData::BorderImageSlice {
+        top: RetainedStyleValueData::from_owned(top.clone()),
+        right: RetainedStyleValueData::from_owned(right.clone()),
+        bottom: RetainedStyleValueData::from_owned(bottom.clone()),
+        left: RetainedStyleValueData::from_owned(left.clone()),
+        fill,
+    }))
+}
+
+fn parse_shadow_item(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+    is_text_shadow: bool,
+) -> Option<StyleValueData> {
+    let mut stream = TokenStream::new(values);
+    stream.discard_whitespace();
+    let mut color = None;
+    let mut offset_x = None;
+    let mut offset_y = None;
+    let mut blur_radius = None;
+    let mut spread_distance = None;
+    let mut inset = false;
+
+    while stream.has_next_token() {
+        if let Some(parsed_color) = parse_color_value(context, property, &mut stream, false) {
+            if color.is_some() {
+                return None;
+            }
+            color = Some(parsed_color);
+            stream.discard_whitespace();
+            continue;
+        }
+
+        if !is_text_shadow
+            && !inset
+            && stream
+                .next_token()
+                .ident()
+                .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"inset"))
+        {
+            inset = true;
+            stream.discard_a_token();
+            stream.discard_whitespace();
+            continue;
+        }
+
+        if offset_x.is_none() {
+            let parsed_offset_x = parse_length_from_stream(context, property, &mut stream, NumericRange::INFINITE)?;
+            stream.discard_whitespace();
+            if !stream.has_next_token() {
+                return None;
+            }
+            let parsed_offset_y = parse_length_from_stream(context, property, &mut stream, NumericRange::INFINITE)?;
+            offset_x = Some(parsed_offset_x);
+            offset_y = Some(parsed_offset_y);
+            stream.discard_whitespace();
+
+            if stream.has_next_token()
+                && let Some(parsed_blur_radius) =
+                    parse_length_from_stream(context, property, &mut stream, NumericRange::NON_NEGATIVE)
+            {
+                blur_radius = Some(parsed_blur_radius);
+                stream.discard_whitespace();
+                if !is_text_shadow
+                    && stream.has_next_token()
+                    && let Some(parsed_spread_distance) =
+                        parse_length_from_stream(context, property, &mut stream, NumericRange::INFINITE)
+                {
+                    spread_distance = Some(parsed_spread_distance);
+                    stream.discard_whitespace();
+                }
+            }
+            continue;
+        }
+
+        return None;
+    }
+
+    Some(StyleValueData::Shadow {
+        shadow_type: u8::from(is_text_shadow),
+        color: color.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+        offset_x: RetainedStyleValueData::from_owned(offset_x?),
+        offset_y: RetainedStyleValueData::from_owned(offset_y?),
+        blur_radius: blur_radius.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+        spread_distance: spread_distance.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+        placement: u8::from(inset),
+    })
+}
+
+fn parse_shadow_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if single_non_whitespace_value(values)
+        .and_then(ComponentValue::ident)
+        .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"none"))
+    {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+    }
+    let is_text_shadow = property == property_id::TEXT_SHADOW;
+    let parsed = values
+        .split(ComponentValue::is_comma)
+        .map(|item| parse_shadow_item(context, property, item, is_text_shadow))
+        .collect::<Option<Vec<_>>>();
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+    })
+}
+
+fn parse_position_area_keywords(keywords: &[u16]) -> Option<StyleValueData> {
+    let x = [
+        keyword::LEFT,
+        keyword::CENTER,
+        keyword::RIGHT,
+        keyword::SPAN_LEFT,
+        keyword::SPAN_RIGHT,
+        keyword::X_START,
+        keyword::X_END,
+        keyword::SPAN_X_START,
+        keyword::SPAN_X_END,
+        keyword::SELF_X_START,
+        keyword::SELF_X_END,
+        keyword::SPAN_SELF_X_START,
+        keyword::SPAN_SELF_X_END,
+        keyword::SPAN_ALL,
+    ];
+    let y = [
+        keyword::TOP,
+        keyword::CENTER,
+        keyword::BOTTOM,
+        keyword::SPAN_TOP,
+        keyword::SPAN_BOTTOM,
+        keyword::Y_START,
+        keyword::Y_END,
+        keyword::SPAN_Y_START,
+        keyword::SPAN_Y_END,
+        keyword::SELF_Y_START,
+        keyword::SELF_Y_END,
+        keyword::SPAN_SELF_Y_START,
+        keyword::SPAN_SELF_Y_END,
+        keyword::SPAN_ALL,
+    ];
+    let block = [
+        keyword::BLOCK_START,
+        keyword::CENTER,
+        keyword::BLOCK_END,
+        keyword::SPAN_BLOCK_START,
+        keyword::SPAN_BLOCK_END,
+        keyword::SPAN_ALL,
+    ];
+    let inline = [
+        keyword::INLINE_START,
+        keyword::CENTER,
+        keyword::INLINE_END,
+        keyword::SPAN_INLINE_START,
+        keyword::SPAN_INLINE_END,
+        keyword::SPAN_ALL,
+    ];
+    let self_block = [
+        keyword::SELF_BLOCK_START,
+        keyword::CENTER,
+        keyword::SELF_BLOCK_END,
+        keyword::SPAN_SELF_BLOCK_START,
+        keyword::SPAN_SELF_BLOCK_END,
+        keyword::SPAN_ALL,
+    ];
+    let self_inline = [
+        keyword::SELF_INLINE_START,
+        keyword::CENTER,
+        keyword::SELF_INLINE_END,
+        keyword::SPAN_SELF_INLINE_START,
+        keyword::SPAN_SELF_INLINE_END,
+        keyword::SPAN_ALL,
+    ];
+    let start_end = [
+        keyword::START,
+        keyword::CENTER,
+        keyword::END,
+        keyword::SPAN_START,
+        keyword::SPAN_END,
+        keyword::SPAN_ALL,
+    ];
+    let self_start_end = [
+        keyword::SELF_START,
+        keyword::CENTER,
+        keyword::SELF_END,
+        keyword::SPAN_SELF_START,
+        keyword::SPAN_SELF_END,
+        keyword::SPAN_ALL,
+    ];
+    let categories = [
+        (&x[..], &y[..]),
+        (&block[..], &inline[..]),
+        (&self_block[..], &self_inline[..]),
+    ];
+    let ambiguous = [
+        keyword::CENTER,
+        keyword::SPAN_ALL,
+        keyword::START,
+        keyword::END,
+        keyword::SELF_START,
+        keyword::SELF_END,
+        keyword::SPAN_START,
+        keyword::SPAN_END,
+        keyword::SPAN_SELF_START,
+        keyword::SPAN_SELF_END,
+    ];
+
+    if let [keyword] = keywords {
+        let accepted = categories
+            .iter()
+            .any(|(first, second)| first.contains(keyword) || second.contains(keyword))
+            || start_end.contains(keyword)
+            || self_start_end.contains(keyword);
+        return accepted.then_some(StyleValueData::Keyword { keyword: *keyword });
+    }
+    let [first, second] = keywords else {
+        return None;
+    };
+    let canonical = categories
+        .iter()
+        .find_map(|(first_axis, second_axis)| {
+            if first_axis.contains(first) && second_axis.contains(second) {
+                Some((*first, *second))
+            } else if second_axis.contains(first) && first_axis.contains(second) {
+                Some((*second, *first))
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            (start_end.contains(first) && start_end.contains(second)
+                || self_start_end.contains(first) && self_start_end.contains(second))
+            .then_some((*first, *second))
+        })?;
+    if !ambiguous.contains(&canonical.0) && canonical.1 == keyword::SPAN_ALL {
+        return Some(StyleValueData::Keyword { keyword: canonical.0 });
+    }
+    if !ambiguous.contains(&canonical.1) && canonical.0 == keyword::SPAN_ALL {
+        return Some(StyleValueData::Keyword { keyword: canonical.1 });
+    }
+    Some(keyword_value_list(vec![canonical.0, canonical.1]))
+}
+
+fn parse_position_area_property(values: &[ComponentValue]) -> ParseOutcome {
+    let Some(keywords) = keyword_sequence(values) else {
+        return ParseOutcome::Invalid;
+    };
+    if keywords == [keyword::NONE] {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+    }
+    parse_position_area_keywords(&keywords).map_or(ParseOutcome::Invalid, |value| ParseOutcome::Parsed(Arc::new(value)))
+}
+
+fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    if keyword_sequence(values).is_some_and(|keywords| keywords == [keyword::NONE]) {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+    }
+    let parsed = values
+        .split(ComponentValue::is_comma)
+        .map(|item| {
+            if let Some(keywords) = keyword_sequence(item)
+                && let Some(position_area) = parse_position_area_keywords(&keywords)
+            {
+                return Some(position_area);
+            }
+            let mut dashed_ident = None;
+            let mut tactics = Vec::new();
+            let mut has_tactic_before_ident = false;
+            let mut has_tactic_after_ident = false;
+            for value in item.iter().filter(|value| !value.is_whitespace()) {
+                if let Some(keyword) = value.ident().and_then(keyword_from_ascii_case_insensitive)
+                    && matches!(
+                        keyword,
+                        keyword::FLIP_BLOCK | keyword::FLIP_INLINE | keyword::FLIP_START
+                    )
+                {
+                    if dashed_ident.is_some() {
+                        has_tactic_after_ident = true;
+                    } else {
+                        has_tactic_before_ident = true;
+                    }
+                    if has_tactic_before_ident && has_tactic_after_ident {
+                        return None;
+                    }
+                    if tactics.iter().any(|existing| {
+                        matches!(existing, StyleValueData::Keyword { keyword: existing } if *existing == keyword)
+                    }) {
+                        return None;
+                    }
+                    tactics.push(StyleValueData::Keyword { keyword });
+                } else if dashed_ident.is_none() {
+                    dashed_ident = Some(parse_dashed_ident_value(context, value)?);
+                } else {
+                    return None;
+                }
+            }
+            let mut parts = Vec::new();
+            if let Some(dashed_ident) = dashed_ident {
+                parts.push(dashed_ident);
+            }
+            if !tactics.is_empty() {
+                parts.push(value_list(tactics, 0, true));
+            }
+            (!parts.is_empty()).then(|| value_list(parts, 0, true))
+        })
+        .collect::<Option<Vec<_>>>();
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+    })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TransformOriginAxis {
+    None,
+    X,
+    Y,
+}
+
+struct TransformOriginOffset {
+    axis: TransformOriginAxis,
+    value: StyleValueData,
+    is_plain_numeric: bool,
+}
+
+fn parse_transform_origin_offset(
+    context: &ParseContext,
+    property: u16,
+    value: &ComponentValue,
+) -> Option<TransformOriginOffset> {
+    if let Some(keyword) = value.ident().and_then(keyword_from_ascii_case_insensitive) {
+        let axis = match keyword {
+            keyword::LEFT | keyword::RIGHT => TransformOriginAxis::X,
+            keyword::TOP | keyword::BOTTOM => TransformOriginAxis::Y,
+            keyword::CENTER => TransformOriginAxis::None,
+            _ => return None,
+        };
+        return Some(TransformOriginOffset {
+            axis,
+            value: StyleValueData::Keyword { keyword },
+            is_plain_numeric: false,
+        });
+    }
+    if let Some(value) =
+        parse_length_percentage_value(context, property, value, NumericRange::INFINITE, NumericRange::INFINITE)
+    {
+        return Some(TransformOriginOffset {
+            axis: TransformOriginAxis::None,
+            value,
+            is_plain_numeric: true,
+        });
+    }
+    let (name, arguments) = value.function()?;
+    math_function_from_name(name)?;
+    Some(TransformOriginOffset {
+        axis: TransformOriginAxis::None,
+        value: parse_calculated_numeric_value_with_ranges(
+            context,
+            property,
+            VALUE_TYPE_LENGTH,
+            Some(VALUE_TYPE_LENGTH),
+            NumericRange::INFINITE,
+            name,
+            arguments,
+        )?,
+        is_plain_numeric: false,
+    })
+}
+
+fn parse_transform_origin_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if significant.is_empty() || significant.len() > 3 {
+        return ParseOutcome::Invalid;
+    }
+    let Some(first) = parse_transform_origin_offset(context, property, significant[0]) else {
+        return ParseOutcome::Invalid;
+    };
+    let zero = || StyleValueData::Length {
+        value: 0.0,
+        unit: px_length_unit(),
+    };
+    if significant.len() == 1 {
+        let (x, y) = if first.axis == TransformOriginAxis::Y {
+            (
+                StyleValueData::Keyword {
+                    keyword: keyword::CENTER,
+                },
+                first.value,
+            )
+        } else {
+            (
+                first.value,
+                StyleValueData::Keyword {
+                    keyword: keyword::CENTER,
+                },
+            )
+        };
+        return ParseOutcome::Parsed(Arc::new(value_list(vec![x, y, zero()], 0, true)));
+    }
+    let Some(second) = parse_transform_origin_offset(context, property, significant[1]) else {
+        return ParseOutcome::Invalid;
+    };
+    if (first.is_plain_numeric && second.axis == TransformOriginAxis::X)
+        || (second.is_plain_numeric && first.axis == TransformOriginAxis::Y)
+        || (first.axis == TransformOriginAxis::X && second.axis == TransformOriginAxis::X)
+        || (first.axis == TransformOriginAxis::Y && second.axis == TransformOriginAxis::Y)
+    {
+        return ParseOutcome::Invalid;
+    }
+    let z = if significant.len() == 3 {
+        let value = significant[2];
+        let parsed = if let Some((name, arguments)) = value.function()
+            && math_function_from_name(name).is_some()
+        {
+            parse_calculated_numeric_value_with_ranges(
+                context,
+                property,
+                VALUE_TYPE_LENGTH,
+                None,
+                NumericRange::INFINITE,
+                name,
+                arguments,
+            )
+        } else {
+            parse_length_value(context, property, value, NumericRange::INFINITE)
+        };
+        let Some(parsed) = parsed else {
+            return ParseOutcome::Invalid;
+        };
+        parsed
+    } else {
+        zero()
+    };
+    let (x, y) = match (first.axis, second.axis) {
+        (TransformOriginAxis::X, _) => (first.value, second.value),
+        (TransformOriginAxis::Y, _) => (second.value, first.value),
+        (TransformOriginAxis::None, TransformOriginAxis::X) => (second.value, first.value),
+        _ => (first.value, second.value),
+    };
+    ParseOutcome::Parsed(Arc::new(value_list(vec![x, y, z], 0, true)))
 }
 
 fn parse_comma_separated_dashed_ident_list(
@@ -1974,6 +3200,16 @@ fn contains_tree_counting_function(values: &[ComponentValue]) -> bool {
     })
 }
 
+fn contains_arbitrary_substitution_function(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { name, values } => {
+            is_arbitrary_substitution_function(name) || contains_arbitrary_substitution_function(values)
+        }
+        ComponentKind::SimpleBlock { values, .. } => contains_arbitrary_substitution_function(values),
+        ComponentKind::Token(_) => false,
+    })
+}
+
 fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
         || property_is_shorthand(property)
@@ -2039,6 +3275,44 @@ fn parse_generic_text_property(context: &ParseContext, property: u16, values: &[
         return ParseOutcome::Invalid;
     }
     ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+}
+
+fn parse_generic_space_separated_value_list(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    let maximum_value_count = property_maximum_value_count(property);
+    if property_is_shorthand(property)
+        || property_has_coordinating_list_multiplicity(property)
+        || property_uses_special_keyword_parser(property)
+        || maximum_value_count == 1
+    {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    if let Some(reason) = unported_function_reason(values) {
+        return ParseOutcome::NotHandled(reason);
+    }
+
+    let parsed_values = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(|value| parse_single_property_leaf(context, property, value))
+        .collect::<Option<Vec<_>>>();
+    let Some(parsed_values) = parsed_values else {
+        return if property_leaf_grammar_is_fully_ported(property) {
+            ParseOutcome::Invalid
+        } else {
+            ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+        };
+    };
+    if parsed_values.is_empty() || parsed_values.len() > maximum_value_count {
+        return ParseOutcome::Invalid;
+    }
+    match parsed_values.as_slice() {
+        [_] => ParseOutcome::Parsed(Arc::new(parsed_values.into_iter().next().unwrap())),
+        _ => ParseOutcome::Parsed(Arc::new(value_list(parsed_values, 0, true))),
+    }
 }
 
 fn parse_generic_numeric_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -2122,14 +3396,45 @@ fn parse_generic_property_keyword(property: u16, values: &[ComponentValue]) -> P
 }
 
 fn parse_display_keyword(values: &[ComponentValue]) -> ParseOutcome {
-    let Some(identifier) = single_non_whitespace_value(values).and_then(ComponentValue::ident) else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
-    };
-    let Some(keyword) = keyword_from_ascii_case_insensitive(identifier) else {
+    let Some(keywords) = keyword_sequence(values) else {
         return ParseOutcome::Invalid;
     };
-    let Some(display) = FfiDisplay::from_single_keyword(keyword) else {
-        return ParseOutcome::Invalid;
+    let display = if let [keyword] = keywords.as_slice() {
+        let Some(display) = FfiDisplay::from_single_keyword(*keyword) else {
+            return ParseOutcome::Invalid;
+        };
+        display
+    } else {
+        let mut outside = None;
+        let mut inside = None;
+        let mut list_item = false;
+        for keyword in keywords {
+            if keyword == keyword::LIST_ITEM {
+                if list_item {
+                    return ParseOutcome::Invalid;
+                }
+                list_item = true;
+            } else if let Some(value) = keyword_to_display_inside(keyword) {
+                if value == display_inside::_WEBKIT_BOX || inside.replace(value).is_some() {
+                    return ParseOutcome::Invalid;
+                }
+            } else if let Some(value) = keyword_to_display_outside(keyword) {
+                if outside.replace(value).is_some() {
+                    return ParseOutcome::Invalid;
+                }
+            } else {
+                return ParseOutcome::Invalid;
+            }
+        }
+        if list_item && inside.is_some_and(|inside| !matches!(inside, display_inside::FLOW | display_inside::FLOW_ROOT))
+        {
+            return ParseOutcome::Invalid;
+        }
+        FfiDisplay::outside_and_inside(
+            outside.unwrap_or(display_outside::BLOCK),
+            inside.unwrap_or(display_inside::FLOW),
+            list_item,
+        )
     };
     ParseOutcome::Parsed(Arc::new(StyleValueData::Display { raw: display.encoded() }))
 }
@@ -2160,14 +3465,8 @@ pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
         unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
     };
 
-    const CANVAS_CONTEXT_GENERIC_VALUE: u16 = 0;
-    const ON_SCREEN_CANVAS_CONTEXT_FONT_VALUE: u16 = 3;
     if value_contexts.first().is_some_and(|value_context| {
-        value_context.kind == FfiValueParsingContextKind::Special
-            && matches!(
-                value_context.value,
-                CANVAS_CONTEXT_GENERIC_VALUE | ON_SCREEN_CANVAS_CONTEXT_FONT_VALUE
-            )
+        value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0 | 3)
     }) {
         return false;
     }
@@ -2202,9 +3501,19 @@ fn parse_color_property(context: &ParseContext, property: u16, values: &[Compone
 
 /// Parse a property value using the grammars which have been ported to Rust.
 ///
-/// `Invalid` is reserved for grammars which Rust handles completely. Until a
-/// grammar is ported, C++ remains authoritative through `NotHandled`.
+/// Longhand grammars are authoritative here. `NotHandled` is reserved for
+/// shorthands, substitution reparses, and property IDs outside the generated table.
 pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if context.is_substituted_value
+        || has_substitution_function_context(context)
+        || contains_arbitrary_substitution_function(values)
+        || matches!(unported_function_reason(values), Some(reason) if reason.label == SUBSTITUTION_NOT_PORTED.label)
+    {
+        return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+    }
+    if property_is_shorthand(property_id) {
+        return ParseOutcome::NotHandled(&SHORTHAND_NOT_PORTED);
+    }
     if let Some(value) = parse_builtin_value(values) {
         return ParseOutcome::Parsed(Arc::new(value));
     }
@@ -2216,21 +3525,109 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if !matches!(grid_outcome, ParseOutcome::NotHandled(_)) {
         return grid_outcome;
     }
-    if matches!(unported_function_reason(values), Some(reason) if reason.label == SUBSTITUTION_NOT_PORTED.label) {
-        return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
-    }
     let long_tail_outcome = parse_long_tail_property(context, property_id, values);
     if !matches!(long_tail_outcome, ParseOutcome::NotHandled(_)) {
         return long_tail_outcome;
+    }
+    if matches!(
+        property_id,
+        property_id::CONTAIN
+            | property_id::CONTAINER_TYPE
+            | property_id::POSITION_VISIBILITY
+            | property_id::TEXT_DECORATION_LINE
+            | property_id::TOUCH_ACTION
+            | property_id::WHITE_SPACE_TRIM
+    ) {
+        return parse_keyword_combination_property(property_id, values);
+    }
+    if property_id == property_id::PAINT_ORDER {
+        return parse_paint_order_property(values);
+    }
+    if property_id == property_id::SCROLLBAR_GUTTER {
+        return parse_scrollbar_gutter_property(values);
+    }
+    if property_id == property_id::ASPECT_RATIO {
+        return parse_aspect_ratio_property(context, property_id, values);
+    }
+    if property_id == property_id::MATH_DEPTH {
+        return parse_math_depth_property(context, property_id, values);
+    }
+    if property_id == property_id::SCROLLBAR_COLOR {
+        return parse_scrollbar_color_property(context, property_id, values);
+    }
+    if property_id == property_id::STROKE_DASHARRAY {
+        return parse_stroke_dasharray_property(context, property_id, values);
+    }
+    if property_id == property_id::TEXT_INDENT {
+        return parse_text_indent_property(context, property_id, values);
+    }
+    if property_id == property_id::TEXT_UNDERLINE_POSITION {
+        return parse_text_underline_position_property(values);
+    }
+    if matches!(
+        property_id,
+        property_id::OVERFLOW_CLIP_MARGIN_BLOCK_END
+            | property_id::OVERFLOW_CLIP_MARGIN_BLOCK_START
+            | property_id::OVERFLOW_CLIP_MARGIN_BOTTOM
+            | property_id::OVERFLOW_CLIP_MARGIN_INLINE_END
+            | property_id::OVERFLOW_CLIP_MARGIN_INLINE_START
+            | property_id::OVERFLOW_CLIP_MARGIN_LEFT
+            | property_id::OVERFLOW_CLIP_MARGIN_RIGHT
+            | property_id::OVERFLOW_CLIP_MARGIN_TOP
+    ) {
+        return parse_overflow_clip_margin_property(context, property_id, values);
+    }
+    if property_id == property_id::GRID_AUTO_FLOW {
+        return parse_grid_auto_flow_property(values);
+    }
+    if matches!(
+        property_id,
+        property_id::ALIGN_ITEMS | property_id::ALIGN_SELF | property_id::JUSTIFY_ITEMS | property_id::JUSTIFY_SELF
+    ) {
+        return parse_alignment_property(property_id, values);
+    }
+    if matches!(property_id, property_id::FILL | property_id::STROKE) {
+        return parse_paint_property(context, property_id, values);
+    }
+    if property_id == property_id::POSITION {
+        let Some(keyword) = single_non_whitespace_value(values)
+            .and_then(ComponentValue::ident)
+            .and_then(keyword_from_ascii_case_insensitive)
+        else {
+            return ParseOutcome::Invalid;
+        };
+        return if property_accepted_keywords(property_id).binary_search(&keyword).is_ok() {
+            ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }))
+        } else {
+            ParseOutcome::Invalid
+        };
+    }
+    if matches!(property_id, property_id::BACKGROUND_REPEAT | property_id::MASK_REPEAT) {
+        return parse_repeat_property(values);
+    }
+    if matches!(property_id, property_id::BACKGROUND_SIZE | property_id::MASK_SIZE) {
+        return parse_background_size_property(context, property_id, values);
+    }
+    if property_id == property_id::BORDER_IMAGE_SLICE {
+        return parse_border_image_slice_property(context, property_id, values);
+    }
+    if matches!(property_id, property_id::BOX_SHADOW | property_id::TEXT_SHADOW) {
+        return parse_shadow_property(context, property_id, values);
+    }
+    if property_id == property_id::POSITION_AREA {
+        return parse_position_area_property(values);
+    }
+    if property_id == property_id::POSITION_TRY_FALLBACKS {
+        return parse_position_try_fallbacks_property(context, values);
+    }
+    if property_id == property_id::TRANSFORM_ORIGIN {
+        return parse_transform_origin_property(context, property_id, values);
     }
     if contains_tree_counting_function(values) {
         let tree_counting_outcome = parse_generic_numeric_property(context, property_id, values);
         if !matches!(tree_counting_outcome, ParseOutcome::NotHandled(_)) {
             return tree_counting_outcome;
         }
-    }
-    if let Some(reason) = unported_function_reason(values) {
-        return ParseOutcome::NotHandled(reason);
     }
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
@@ -2270,6 +3667,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if !matches!(coordinating_list_outcome, ParseOutcome::NotHandled(_)) {
         return coordinating_list_outcome;
     }
+    let space_separated_list_outcome = parse_generic_space_separated_value_list(context, property_id, values);
+    if !matches!(space_separated_list_outcome, ParseOutcome::NotHandled(_)) {
+        return space_separated_list_outcome;
+    }
     let keyword_outcome = parse_generic_property_keyword(property_id, values);
     if !matches!(keyword_outcome, ParseOutcome::NotHandled(_)) {
         return keyword_outcome;
@@ -2278,7 +3679,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if !matches!(text_outcome, ParseOutcome::NotHandled(_)) {
         return text_outcome;
     }
-    parse_generic_numeric_property(context, property_id, values)
+    match parse_generic_numeric_property(context, property_id, values) {
+        ParseOutcome::NotHandled(_) => ParseOutcome::Invalid,
+        outcome => outcome,
+    }
 }
 
 /// The result category returned through the value-parser FFI.
@@ -2477,6 +3881,7 @@ mod tests {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
+            is_substituted_value: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),
@@ -2518,12 +3923,12 @@ mod tests {
     }
 
     #[test]
-    fn unported_property_falls_back_to_cpp() {
+    fn only_shorthands_and_unknown_properties_fall_back_to_cpp() {
         let values = consume_a_list_of_component_values(&tokenize_for_parser(b"0.5")).unwrap();
         let ParseOutcome::NotHandled(reason) = parse_css_value(&context(), 1, &values) else {
             panic!("unported value should not be authoritative");
         };
-        assert_eq!(reason.label, "property:not-ported");
+        assert_eq!(reason.label, "shorthand:not-ported");
         assert!(matches!(
             parse_css_value(&context(), u16::MAX, &values),
             ParseOutcome::NotHandled(_)
@@ -2543,10 +3948,10 @@ mod tests {
     }
 
     #[test]
-    fn leaves_mixed_and_special_grammars_with_cpp() {
+    fn parses_mixed_and_special_grammars() {
         assert!(matches!(
             parse(property_id::ALIGN_ITEMS, "normal"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(_)
         ));
         assert!(matches!(
             parse(property_id::FONT_FAMILY, "\"Ladybird Sans\""),
@@ -2573,7 +3978,7 @@ mod tests {
         ));
         assert!(matches!(
             parse(property_id::BACKGROUND_COLOR, "123"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Invalid
         ));
     }
 
@@ -2713,7 +4118,7 @@ mod tests {
         ));
         assert!(matches!(
             parse(property_id::TRANSITION_DURATION, "10s + 20s"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Invalid
         ));
     }
 
@@ -2808,6 +4213,116 @@ mod tests {
     }
 
     #[test]
+    fn parses_special_keyword_combinations() {
+        for (property, source) in [
+            (property_id::CONTAIN, "paint inline-size layout"),
+            (property_id::CONTAINER_TYPE, "scroll-state size"),
+            (property_id::POSITION_VISIBILITY, "no-overflow anchors-valid"),
+            (property_id::TEXT_DECORATION_LINE, "overline underline"),
+            (property_id::TOUCH_ACTION, "pinch-zoom pan-y pan-left"),
+            (property_id::WHITE_SPACE_TRIM, "discard-inner discard-before"),
+            (property_id::PAINT_ORDER, "markers stroke fill"),
+            (property_id::SCROLLBAR_GUTTER, "both-edges stable"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::CONTAIN, "size inline-size"),
+            (property_id::CONTAINER_TYPE, "normal size"),
+            (property_id::POSITION_VISIBILITY, "anchors-valid anchors-valid"),
+            (property_id::TEXT_DECORATION_LINE, "spelling-error underline"),
+            (property_id::TOUCH_ACTION, "pan-left pan-right"),
+            (property_id::WHITE_SPACE_TRIM, "none discard-inner"),
+            (property_id::PAINT_ORDER, "fill fill"),
+            (property_id::SCROLLBAR_GUTTER, "both-edges"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_special_numeric_longhands() {
+        for (property, source) in [
+            (property_id::ASPECT_RATIO, "auto 16 / 9"),
+            (property_id::MATH_DEPTH, "add(2)"),
+            (property_id::SCROLLBAR_COLOR, "red blue"),
+            (property_id::STROKE_DASHARRAY, "1 2px, 3%"),
+            (property_id::TEXT_INDENT, "hanging 2em each-line"),
+            (property_id::TEXT_UNDERLINE_POSITION, "under right"),
+            (property_id::OVERFLOW_CLIP_MARGIN_TOP, "content-box 2px"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        let mut random_function_index = 0;
+        let mut random_context = context();
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: property_id::MATH_DEPTH,
+            secondary_value: 0,
+            name: FfiUtf16View::default(),
+            allowed_channels: 0,
+        };
+        random_context.value_contexts = &value_context;
+        random_context.value_context_count = 1;
+        random_context.random_function_index = &mut random_function_index;
+        assert!(matches!(
+            parse_with_context(
+                &random_context,
+                property_id::MATH_DEPTH,
+                "random(fixed calc(2 / 4), 0, 10)"
+            ),
+            ParseOutcome::Parsed(_)
+        ));
+        for (property, source) in [
+            (property_id::ASPECT_RATIO, "auto auto"),
+            (property_id::MATH_DEPTH, "add(1 2)"),
+            (property_id::SCROLLBAR_COLOR, "red"),
+            (property_id::STROKE_DASHARRAY, "-1"),
+            (property_id::TEXT_INDENT, "hanging"),
+            (property_id::TEXT_UNDERLINE_POSITION, "left right"),
+            (property_id::OVERFLOW_CLIP_MARGIN_TOP, "margin-box"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_alignment_grid_and_paint_longhands() {
+        for (property, source) in [
+            (property_id::ALIGN_ITEMS, "normal"),
+            (property_id::ALIGN_SELF, "auto"),
+            (property_id::JUSTIFY_ITEMS, "legacy"),
+            (property_id::JUSTIFY_SELF, "baseline"),
+            (property_id::GRID_AUTO_FLOW, "dense column"),
+            (property_id::POSITION, "sticky"),
+            (property_id::FILL, "red"),
+            (property_id::STROKE, "url(#paint) none"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::ALIGN_ITEMS, "safe"),
+            (property_id::JUSTIFY_ITEMS, "legacy right"),
+            (property_id::GRID_AUTO_FLOW, "row column"),
+            (property_id::POSITION, "bogus"),
+            (property_id::FILL, "url(#paint) red blue"),
+            (property_id::POSITION_TRY_FALLBACKS, "flip-inline --bar flip-block"),
+            (property_id::BORDER_IMAGE_SLICE, "1% fill 2%"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+
+        let ParseOutcome::Parsed(value) = parse(property_id::FILL, "url(#paint)") else {
+            panic!("URL paint should parse");
+        };
+        let StyleValueData::ValueList { values, .. } = value.as_ref() else {
+            panic!("URL paint should be a value list");
+        };
+        assert_eq!(values.as_slice().len(), 2);
+        assert!(matches!(values.as_slice()[1].data(), StyleValueData::EmptyOptional));
+    }
+
+    #[test]
     fn parses_font_language_override_strings() {
         for source in ["normal", "\"ENG\"", "\"ENG \""] {
             assert!(matches!(
@@ -2832,7 +4347,7 @@ mod tests {
         assert!(matches!(parse(property_id::DISPLAY, "bogus"), ParseOutcome::Invalid));
         assert!(matches!(
             parse(property_id::DISPLAY, "inline flow"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(_)
         ));
     }
 
@@ -2868,9 +4383,7 @@ mod tests {
             },
             StyleValueData::Percentage { value } if *value == 25.0
         ));
-        // Width also accepts fit-content(), which is deliberately left for a
-        // later task, so rejected numeric leaves cannot yet be authoritative.
-        assert!(matches!(parse(property_id::WIDTH, "-1px"), ParseOutcome::NotHandled(_)));
+        assert!(matches!(parse(property_id::WIDTH, "-1px"), ParseOutcome::Invalid));
     }
 
     #[test]
@@ -2901,15 +4414,96 @@ mod tests {
     }
 
     #[test]
-    fn no_longhand_initial_value_is_authoritatively_rejected() {
+    fn parses_background_repeat_size_and_border_slices() {
+        for (property, source) in [
+            (property_id::BACKGROUND_REPEAT, "repeat-x, space round"),
+            (property_id::MASK_REPEAT, "no-repeat repeat"),
+            (property_id::BACKGROUND_SIZE, "cover, 10px auto"),
+            (property_id::MASK_SIZE, "25%"),
+            (property_id::BORDER_IMAGE_SLICE, "fill 10% 20 30% 40"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::BACKGROUND_REPEAT, "repeat-x round"),
+            (property_id::MASK_SIZE, "cover auto"),
+            (property_id::BORDER_IMAGE_SLICE, "fill fill 10"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_shadow_longhands() {
+        for (property, source) in [
+            (property_id::BOX_SHADOW, "none"),
+            (property_id::BOX_SHADOW, "inset red 1px 2px 3px -4px, 0 0 blue"),
+            (property_id::TEXT_SHADOW, "1px 2px, rgb(1 2 3) 0 0 4px"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::BOX_SHADOW, "1px"),
+            (property_id::BOX_SHADOW, "1px 2px -3px"),
+            (property_id::TEXT_SHADOW, "inset 1px 2px"),
+            (property_id::TEXT_SHADOW, "1px 2px 3px 4px"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_remaining_special_position_longhands() {
+        for (property, source) in [
+            (property_id::D, "none"),
+            (property_id::D, "path('M 0 0 L 1 1')"),
+            (property_id::POSITION_AREA, "left span-all"),
+            (property_id::POSITION_AREA, "bottom right"),
+            (
+                property_id::POSITION_TRY_FALLBACKS,
+                "--wide flip-block flip-inline, top",
+            ),
+            (property_id::TRANSFORM_ORIGIN, "top"),
+            (property_id::TRANSFORM_ORIGIN, "right 25% calc(1px + 2px)"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::D, "circle()"),
+            (property_id::POSITION_AREA, "left right"),
+            (property_id::POSITION_TRY_FALLBACKS, "--wide --narrow"),
+            (property_id::TRANSFORM_ORIGIN, "10px left"),
+            (property_id::TRANSFORM_ORIGIN, "left right"),
+            (property_id::TRANSFORM_ORIGIN, "left top 10%"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn every_longhand_initial_value_is_parsed_authoritatively() {
         for property in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
             let initial_value = property_initial_value(property);
             assert!(
-                !matches!(parse(property, initial_value), ParseOutcome::Invalid),
-                "Rust parser rejected the C++ initial value for {}: {initial_value}",
+                matches!(parse(property, initial_value), ParseOutcome::Parsed(_)),
+                "Rust parser did not handle the C++ initial value for {}: {initial_value}",
                 property_name(property)
             );
         }
+    }
+
+    #[test]
+    fn parses_space_separated_generic_property_values() {
+        let ParseOutcome::Parsed(value) = parse(property_id::BORDER_SPACING, "1px 2px") else {
+            panic!("border-spacing should parse");
+        };
+        assert!(
+            matches!(&*value, StyleValueData::ValueList { values, separator: 0, .. } if values.as_slice().len() == 2)
+        );
+        assert!(matches!(
+            parse(property_id::BORDER_SPACING, "1px 2px 3px"),
+            ParseOutcome::Invalid
+        ));
     }
 
     #[test]
@@ -3021,25 +4615,41 @@ mod tests {
         for (property, source) in [
             (property_id::TOP, "calc(anchor(top) + 1px)"),
             (property_id::OPACITY, "calc(sibling-count() / 10)"),
+            (
+                property_id::ANIMATION_ITERATION_COUNT,
+                "calc(sibling-index() + sign(1em - 1px))",
+            ),
+            (property_id::FILTER, "brightness(sibling-count())"),
+            (property_id::GRID_ROW_START, "span sibling-count()"),
+            (property_id::FONT_VARIATION_SETTINGS, "\"wght\" sibling-index()"),
+            (property_id::FONT_STYLE, "oblique calc(5deg * sibling-index())"),
+            (property_id::TRANSFORM, "matrix(sibling-index(), 2, 3, 4, 5, 6)"),
+            (
+                property_id::TRANSITION_TIMING_FUNCTION,
+                "steps(sibling-index(), jump-none)",
+            ),
+            (
+                property_id::ANIMATION_TIMING_FUNCTION,
+                "cubic-bezier(0, sibling-index(), 1, sign(2em - 20px))",
+            ),
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
         }
         assert!(matches!(
             parse(property_id::WIDTH, "calc(anchor-size(width) + 1px)"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Invalid
         ));
     }
 
     #[test]
-    fn leaves_random_in_canvas_colors_with_cpp() {
+    fn rejects_random_in_canvas_colors() {
         let mut random_function_index = 0;
         let value_contexts = [
             FfiValueParsingContext {
                 kind: FfiValueParsingContextKind::Special,
                 value: 0,
                 secondary_value: 0,
-                name: std::ptr::null(),
-                name_length: 0,
+                name: FfiUtf16View::default(),
                 allowed_channels: 0,
             },
             FfiValueParsingContext {
@@ -3061,7 +4671,7 @@ mod tests {
                 property_id::COLOR,
                 "rgb(random(30, 10) random(60, 10) random(90, 10))"
             ),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Invalid
         ));
         assert_eq!(random_function_index, 0);
     }
@@ -3085,6 +4695,14 @@ mod tests {
             parse(property_id::Z_INDEX, "sibling-index()"),
             ParseOutcome::Parsed(_)
         ));
+        assert!(matches!(
+            parse(property_id::FILTER, "blur(random(10px, 20px))"),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse(property_id::BACKGROUND_IMAGE, "image(attr(data-foo))"),
+            ParseOutcome::NotHandled(reason) if reason.label == "substitution"
+        ));
     }
 
     #[test]
@@ -3097,7 +4715,7 @@ mod tests {
             ("revert-layer", keyword::REVERT_LAYER),
         ] {
             let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
-            let ParseOutcome::Parsed(value) = parse_css_value(&context(), 1, &values) else {
+            let ParseOutcome::Parsed(value) = parse_css_value(&context(), property_id::WIDTH, &values) else {
                 panic!("CSS-wide keyword should parse");
             };
             assert!(matches!(&*value, StyleValueData::Keyword { keyword } if *keyword == expected_keyword));
