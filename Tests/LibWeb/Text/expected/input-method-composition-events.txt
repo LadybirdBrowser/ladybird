@@ -1,0 +1,72 @@
+contenteditable preedit+commit:
+  compositionstart(data="" cancelable=true bubbles=true)
+  compositionupdate(data="n" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="n" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="n" isComposing=true cancelable=false)
+  compositionupdate(data="ni" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="ni" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="ni" isComposing=true cancelable=false)
+  compositionupdate(data="你" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="你" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="你" isComposing=true cancelable=false)
+  compositionend(data="你" cancelable=false bubbles=true)
+contenteditable content: "你"
+contenteditable preedit+cancel:
+  compositionstart(data="" cancelable=true bubbles=true)
+  compositionupdate(data="x" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="x" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="x" isComposing=true cancelable=false)
+  compositionupdate(data="" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="" isComposing=true cancelable=false)
+  compositionend(data="" cancelable=false bubbles=true)
+contenteditable content after cancel: "你"
+contenteditable preedit+unmark:
+  compositionstart(data="" cancelable=true bubbles=true)
+  compositionupdate(data="?" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="?" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="?" isComposing=true cancelable=false)
+  compositionend(data="?" cancelable=false bubbles=true)
+contenteditable content after unmark: "你?"
+contenteditable with beforeinput preventDefault(): content "你?a"
+contenteditable with compositionstart preventDefault():
+  compositionstart(data="" cancelable=true bubbles=true)
+  compositionend(data="" cancelable=false bubbles=true)
+contenteditable content after cancelled start: "你?a"
+input preedit+commit:
+  compositionstart(data="" cancelable=true bubbles=true)
+  compositionupdate(data="h" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="h" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="h" isComposing=true cancelable=false)
+  compositionupdate(data="ha" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="ha" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="ha" isComposing=true cancelable=false)
+  compositionupdate(data="好" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="好" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="好" isComposing=true cancelable=false)
+  compositionend(data="好" cancelable=false bubbles=true)
+input value: "好"
+input composing over a selection:
+  compositionstart(data="好" cancelable=true bubbles=true)
+  compositionupdate(data="q" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="q" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="q" isComposing=true cancelable=false)
+  compositionupdate(data="q" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="q" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="q" isComposing=true cancelable=false)
+  compositionend(data="q" cancelable=false bubbles=true)
+input value after replacing selection: "q"
+replacement commit, no composition in progress:
+  beforeinput(inputType=insertCompositionText data="å" isComposing=false cancelable=false)
+  input(inputType=insertCompositionText data="å" isComposing=false cancelable=false)
+replacement value: "å"
+replacement commit during a composition:
+  compositionstart(data="" cancelable=true bubbles=true)
+  compositionupdate(data="c" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="c" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="c" isComposing=true cancelable=false)
+  compositionupdate(data="ç" cancelable=false bubbles=true)
+  beforeinput(inputType=insertCompositionText data="ç" isComposing=true cancelable=false)
+  input(inputType=insertCompositionText data="ç" isComposing=true cancelable=false)
+  compositionend(data="ç" cancelable=false bubbles=true)
+replacement value: "çc"

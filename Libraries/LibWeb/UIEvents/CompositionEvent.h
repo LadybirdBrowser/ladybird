@@ -23,6 +23,7 @@ public:
     [[nodiscard]] static GC::Ref<CompositionEvent> create(FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static GC::Ref<CompositionEvent> create(Utf16String const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static GC::Ref<CompositionEvent> create(Utf16FlyString const& event_name, CompositionEventInit const&);
+    [[nodiscard]] static GC::Ref<CompositionEvent> create(Utf16FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~CompositionEvent() override;
 

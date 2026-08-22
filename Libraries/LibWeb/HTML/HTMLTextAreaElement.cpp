@@ -488,6 +488,8 @@ void HTMLTextAreaElement::did_edit_text_node(Utf16FlyString const& input_type, O
     input_event_init.composed = true;
     input_event_init.input_type = input_type;
     input_event_init.data = data;
+    // https://w3c.github.io/uievents/#dom-inputevent-iscomposing
+    input_event_init.is_composing = document().is_input_method_composing();
     auto input_event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, input_event_init, {}, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
     dispatch_event(input_event);
 
