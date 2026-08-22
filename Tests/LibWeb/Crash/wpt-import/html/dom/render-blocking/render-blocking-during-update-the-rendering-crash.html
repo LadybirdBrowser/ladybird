@@ -1,0 +1,11 @@
+<body>
+    <link rel="help" href="https://github.com/servo/servo/issues/46303">
+    <div id="container">
+        <link id="link" href="x">
+    </div>
+
+    <script>
+        document.replaceChild(container, document.childNodes[0]);
+        requestAnimationFrame(() => { link.rel = "stylesheet" });
+    </script>
+</body>

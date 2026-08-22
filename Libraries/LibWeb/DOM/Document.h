@@ -901,7 +901,7 @@ public:
     void unload_a_document_and_its_descendants(GC::Ptr<Document> new_document, GC::Ptr<GC::Function<void()>> after_all_unloads = {});
 
     // https://html.spec.whatwg.org/multipage/dom.html#active-parser
-    GC::Ptr<HTML::HTMLParser> active_parser();
+    GC::Ptr<HTML::HTMLParser> active_parser() const;
 
     // https://html.spec.whatwg.org/multipage/dom.html#load-timing-info
     DocumentLoadTimingInfo& load_timing_info() { return m_load_timing_info; }
