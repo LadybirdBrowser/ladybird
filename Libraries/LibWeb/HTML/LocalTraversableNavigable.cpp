@@ -568,6 +568,9 @@ struct ChangingNavigableContinuationState : public JS::Cell {
     RefPtr<SessionHistoryEntry> target_entry;
     GC::Ptr<LocalNavigable> navigable;
     bool update_only = false;
+    Optional<Bindings::NavigationType> navigation_type;
+    LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior { LocalNavigable::NavigationAPIAbortBehavior::Abort };
+    UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
 
     GC::Ptr<DOM::Document> pending_document;
     GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> population_output;
@@ -718,6 +721,9 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         changing_navigable_continuation->target_entry = target_entry;
         changing_navigable_continuation->navigable = navigable;
         changing_navigable_continuation->update_only = false;
+        changing_navigable_continuation->navigation_type = job.navigation_type;
+        changing_navigable_continuation->navigation_api_abort_behavior = job.navigation_api_abort_behavior;
+        changing_navigable_continuation->user_involvement = job.user_involvement;
         changing_navigable_continuation->pending_document = pending_document;
         changing_navigable_continuation->population_output = nullptr;
 
@@ -969,7 +975,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     bool const update_only = continuation->update_only;
     RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
     auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = command.navigation_type, navigation_api_abort_behavior = command.navigation_api_abort_behavior, on_complete] {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = continuation->navigation_type, navigation_api_abort_behavior = continuation->navigation_api_abort_behavior, on_complete] {
         if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
             auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
                 navigation_type, *target_entry, displayed_document_id);
@@ -1089,7 +1095,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         // AD-HOC: Only clear the traversal marker installed by this history
         //         operation. A pending cross-document navigation can already
         //         own the navigable when a synchronous update reaches here.
-        clear_ongoing_history_traversal(navigable, command.navigation_api_abort_behavior);
+        clear_ongoing_history_traversal(navigable, continuation->navigation_api_abort_behavior);
 
         // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
         queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
@@ -1097,10 +1103,10 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     // 11. Otherwise:
     else {
         // 1. Assert: navigationType is not null.
-        VERIFY(command.navigation_type.has_value());
+        VERIFY(continuation->navigation_type.has_value());
 
         // 2. Deactivate displayedDocument, given userInvolvement, targetEntry, navigationType, and afterPotentialUnloads.
-        deactivate_a_document_for_cross_document_navigation(*displayed_document, command.user_involvement, *target_entry, continuation->resolved_document, after_potential_unload);
+        deactivate_a_document_for_cross_document_navigation(*displayed_document, continuation->user_involvement, *target_entry, continuation->resolved_document, after_potential_unload);
     }
 }
 
@@ -1514,17 +1520,9 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_history_operations.ensure(operation_id);
-    operation.navigation_type = navigation_type;
-    operation.user_involvement = user_involvement;
-    if (!operation.navigation_api_abort_behavior.has_value())
-        operation.navigation_api_abort_behavior = job_navigation_api_abort_behavior;
-    else
-        VERIFY(*operation.navigation_api_abort_behavior == job_navigation_api_abort_behavior);
-    auto navigation_api_abort_behavior = *operation.navigation_api_abort_behavior;
-
     auto source_snapshot_params = operation.source_snapshot_params;
     auto pending_document = operation.pending_document;
     RefPtr<SessionHistoryEntry> local_target_entry;
@@ -1591,7 +1589,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(CrossProce
             on_complete->function()(result.disposition);
         }));
     if (did_claim_navigable)
-        operation.claimed_navigables_awaiting_continuation.set(navigable_id);
+        operation.claimed_navigables_awaiting_continuation.set(navigable_id, navigation_api_abort_behavior);
 }
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable& navigable, Vector<SessionHistoryEntryDescriptor> entry_descriptors)
@@ -1656,9 +1654,6 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossPr
         {
             .history_object_length_and_index = history_object_length_and_index,
             .entries_for_navigation_api = move(entries_for_navigation_api),
-            .navigation_type = operation->value.navigation_type,
-            .navigation_api_abort_behavior = operation->value.navigation_api_abort_behavior.value_or(LocalNavigable::NavigationAPIAbortBehavior::Abort),
-            .user_involvement = operation->value.user_involvement.value_or(UserNavigationInvolvement::None),
         },
         on_complete);
 }
@@ -1670,11 +1665,10 @@ void LocalTraversableNavigable::complete_ui_history_operation(CrossProcessId ope
     if (!operation.has_value())
         return;
 
-    auto navigation_api_abort_behavior = operation->navigation_api_abort_behavior.value_or(LocalNavigable::NavigationAPIAbortBehavior::Abort);
     // AD-HOC: A canceled or stale operation can leave claimed navigables behind whose continuations never
     //         applied; release their "traversal" sentinels so newer navigations are not blocked.
-    for (auto navigable_id : operation->claimed_navigables_awaiting_continuation)
-        clear_ongoing_history_traversal(local_navigable_with_id(navigable_id), navigation_api_abort_behavior);
+    for (auto const& claim : operation->claimed_navigables_awaiting_continuation)
+        clear_ongoing_history_traversal(local_navigable_with_id(claim.key), claim.value);
 
     if (committed_step.has_value()
         && operation->local_target_navigable_id.has_value()
