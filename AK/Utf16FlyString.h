@@ -19,6 +19,7 @@ class [[nodiscard]] Utf16FlyString {
 
 public:
     constexpr Utf16FlyString() = default;
+    ALWAYS_INLINE ~Utf16FlyString() = default;
 
     static Utf16FlyString from_utf8(StringView);
     static Utf16FlyString from_utf8(String const& string) { return from_utf8_without_validation(string); }

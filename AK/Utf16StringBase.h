@@ -47,7 +47,7 @@ public:
         other.m_value = { .short_ascii_string = ShortString::create_empty() };
     }
 
-    constexpr ~Utf16StringBase()
+    ALWAYS_INLINE constexpr ~Utf16StringBase()
     {
         if !consteval {
             destroy_string();
