@@ -183,7 +183,7 @@ void FileDownloader::start_download_request(u64 download_id, URL::URL const& url
     auto request_headers = HTTP::HeaderList::create();
     request_headers->set({ "User-Agent"sv, Web::default_user_agent });
 
-    auto request = Application::request_server_client(download->is_private).start_request("GET"sv, url, *request_headers, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, {}, Requests::RequestClient::KeepAliveForTransfer::No, 0u);
+    auto request = Application::request_server_client(download->is_private).start_request("GET"sv, url, *request_headers, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, {}, Requests::RequestClient::TransferLease::No, 0u);
     if (!request) {
         fail_download(download_id, "Unable to start request to download file"_string);
         return;
@@ -538,7 +538,7 @@ void FileDownloader::start_segment_request(u64 download_id, size_t segment_index
 
     segment.request_is_ranged = true;
 
-    auto request = Application::request_server_client(download->is_private).start_request("GET"sv, active->effective_url, *request_headers, {}, HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::Yes, {}, Requests::RequestClient::KeepAliveForTransfer::No, static_cast<u32>(segment_index));
+    auto request = Application::request_server_client(download->is_private).start_request("GET"sv, active->effective_url, *request_headers, {}, HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::Yes, {}, Requests::RequestClient::TransferLease::No, static_cast<u32>(segment_index));
     if (!request) {
         fail_download(download_id, "Unable to start request to download file"_string);
         return;

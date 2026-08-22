@@ -109,12 +109,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // Connections are stored on the stack to ensure they are destroyed before static destruction begins. This prevents
     // crashes from notifiers trying to unregister from already-destroyed thread data during process exit.
     RequestServer::ConnectionFromClient::ConnectionMap connections;
+    RequestServer::ConnectionFromClient::RequestTransferLeaseMap request_transfer_leases;
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>(
         mach_server_name,
         RequestServer::ConnectionFromClient::IsPrimaryConnection::Yes,
         RequestServer::IsPrivate::No,
         connections,
+        request_transfer_leases,
         disk_cache,
         LexicalPath::join(cache_path, "alt-svc-cache.txt"sv).string()));
 

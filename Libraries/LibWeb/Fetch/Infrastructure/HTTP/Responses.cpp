@@ -114,15 +114,15 @@ bool Response::is_network_error() const
     return true;
 }
 
-void Response::release_request_for_transfer() const
+void Response::release_request_transfer_lease() const
 {
     if (m_request_server_request.has_value() && m_request_server_request->request)
-        m_request_server_request->request->release_for_transfer();
+        m_request_server_request->request->release_transfer_lease();
 }
 
 void Response::resume_body_delivery() const
 {
-    release_request_for_transfer();
+    release_request_transfer_lease();
     if (m_request_server_request.has_value()) {
         if (m_request_server_request->request)
             m_request_server_request->request->resume_body_delivery();

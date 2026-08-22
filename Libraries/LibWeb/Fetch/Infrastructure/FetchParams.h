@@ -53,6 +53,9 @@ public:
     [[nodiscard]] bool is_aborted() const;
     [[nodiscard]] bool is_canceled() const;
 
+    [[nodiscard]] bool has_response_body_transfer_lease() const { return m_has_response_body_transfer_lease; }
+    void set_has_response_body_transfer_lease(bool value) { m_has_response_body_transfer_lease = value; }
+
 private:
     FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms>, GC::Ref<FetchController>, GC::Ref<FetchTimingInfo>);
     FetchParams(FetchParams const&);
@@ -103,6 +106,9 @@ private:
     // preloaded response candidate (default null)
     //     Null, "pending", or a response.
     PreloadedResponseCandidate m_preloaded_response_candidate;
+
+    // Non-spec process integration: a navigation response is retained while the UI process selects its document host.
+    bool m_has_response_body_transfer_lease { false };
 };
 
 }

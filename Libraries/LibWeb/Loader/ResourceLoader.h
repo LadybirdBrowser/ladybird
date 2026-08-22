@@ -40,7 +40,7 @@ public:
     using OnCachedBodyAvailable = GC::Function<void(Core::ImmutableBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
 
-    RefPtr<Requests::Request> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnCachedBodyAvailable>, GC::Root<OnComplete>, Requests::RequestClient::KeepAliveForTransfer = Requests::RequestClient::KeepAliveForTransfer::No);
+    RefPtr<Requests::Request> load(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnCachedBodyAvailable>, GC::Root<OnComplete>, Requests::RequestClient::TransferLease = Requests::RequestClient::TransferLease::No);
 
     RefPtr<Requests::RequestClient>& request_client() { return m_request_client; }
 
@@ -87,7 +87,7 @@ private:
     template<typename ResourceHandler, typename ErrorHandler>
     void handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
 
-    RefPtr<Requests::Request> start_network_request(LoadRequest const&, Requests::RequestClient::KeepAliveForTransfer);
+    RefPtr<Requests::Request> start_network_request(LoadRequest const&, Requests::RequestClient::TransferLease);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderList const&);
     void finish_network_request(NonnullRefPtr<Requests::Request>);
 
