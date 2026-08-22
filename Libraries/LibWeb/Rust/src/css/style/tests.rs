@@ -5,6 +5,7 @@
  */
 
 use super::batch_matcher::insert_scope_rule;
+use super::capacity::ShallowCapacityBytes;
 use super::index::CandidateEntries;
 use super::index::ParentDispatchFacts;
 use super::index::SelectorPostingKey;
@@ -1771,6 +1772,27 @@ fn sibling_only_tree_staging_does_not_recompute_the_sibling_subtree_depth() {
 
     assert_eq!(engine.tree.take_depth_recompute_visits(), 1);
     assert_eq!(engine.tree.depth(nodes[3]), 3);
+}
+
+#[test]
+fn depth_recompute_membership_is_sparse_for_high_node_identities() {
+    let engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let relations = Some(TreeRelations::detached(TreeScopeID::DOCUMENT));
+    let low_rows = [
+        (StyleNodeID::element(1), None, relations),
+        (StyleNodeID::element(2), None, relations),
+    ];
+    let high_rows = [
+        (StyleNodeID::element(1_000_000), None, relations),
+        (StyleNodeID::element(u32::MAX), None, relations),
+    ];
+    let low_nodes = engine.depth_recompute_nodes(&low_rows);
+    let high_nodes = engine.depth_recompute_nodes(&high_rows);
+
+    assert_eq!(high_nodes.len(), 2);
+    assert!(high_nodes.contains(&StyleNodeID::element(1_000_000)));
+    assert!(high_nodes.contains(&StyleNodeID::element(u32::MAX)));
+    assert_eq!(high_nodes.shallow_capacity_bytes(), low_nodes.shallow_capacity_bytes());
 }
 
 #[test]
