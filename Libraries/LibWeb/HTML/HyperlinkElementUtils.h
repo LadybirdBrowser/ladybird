@@ -58,9 +58,11 @@ protected:
 
     Optional<URL::Origin> hyperlink_element_utils_extract_an_origin() const;
 
+    void href_content_attribute_changed();
     void reinitialize_url() const;
 
     Optional<URL::URL> m_url;
+    bool m_should_invalidate_style_after_url_change { true };
 };
 
 }
