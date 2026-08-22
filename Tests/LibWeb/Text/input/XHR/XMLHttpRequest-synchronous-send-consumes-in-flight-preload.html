@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A sync XHR whose request matches a <link rel=preload> that's still in flight must consume that preload: Main
+    // fetch parks on the preload's pending response, and the preload's own fetch — an ordinary fetch whose response is
+    // delivered by an event-loop task — must still be able to hand that response over while send() has the event loop
+    // paused. If it can't, send() never returns.
+    asyncTest(async done => {
+        const url = await httpTestServer().createEcho("GET", "/xhr-sync-consumes-in-flight-preload", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            // Keep the preload in flight long enough that send() certainly starts before it resolves.
+            delay_ms: 300,
+            body: "preloaded",
+        });
+
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "fetch";
+        // The preload key must match the XHR's request: XHR fetches with mode "cors" and credentials mode
+        // "same-origin", which is exactly what crossorigin="anonymous" gives the preload.
+        link.crossOrigin = "anonymous";
+        link.href = url;
+        document.head.appendChild(link);
+
+        // Let the preload's fetch get under way, then send() synchronously for the same URL while it's in flight.
+        setTimeout(() => {
+            // NB: A sync XHR in a Window context may not set a timeout. So, should the handover never happen, send()
+            // blocks until the harness's per-test timeout fails the test — which is the hard failure we'd want.
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", url, false);
+            xhr.send();
+            println(`status=${xhr.status} body=${xhr.responseText}`);
+            done();
+        }, 50);
+    });
+</script>
