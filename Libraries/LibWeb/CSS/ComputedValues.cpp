@@ -1033,35 +1033,6 @@ RefPtr<StyleValue const> ComputedValues::FontValues::font_family_style_value() c
     return animation_style_value(font_family);
 }
 
-RefPtr<StyleValue const> ComputedValues::MiscResetValues::outline_offset_style_value_value() const
-{
-    return animation_style_value(outline_offset_style_value);
-}
-
-OverflowClipMarginData ComputedValues::MiscResetValues::overflow_clip_margin_value() const
-{
-    auto side = [](ComputedValuesFFI::ComputedOverflowClipMarginSide const& value) {
-        return OverflowClipMarginSide {
-            .visual_box = value.has_visual_box ? Optional<BackgroundBox> { static_cast<BackgroundBox>(value.visual_box) } : Optional<BackgroundBox> {},
-            .offset = CSSPixels::from_raw(value.offset),
-        };
-    };
-    return {
-        .left = side(overflow_clip_margin.left),
-        .top = side(overflow_clip_margin.top),
-        .right = side(overflow_clip_margin.right),
-        .bottom = side(overflow_clip_margin.bottom),
-    };
-}
-
-Position ComputedValues::MiscResetValues::object_position_value() const
-{
-    return {
-        .offset_x = LengthPercentage::view(object_position_x),
-        .offset_y = LengthPercentage::view(object_position_y),
-    };
-}
-
 Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(view_transition_name.pointer);
@@ -1081,29 +1052,6 @@ TouchActionData ComputedValues::MiscResetValues::touch_action_value() const
         .allow_pinch_zoom = touch_action_allow_pinch_zoom,
         .allow_other = touch_action_allow_other,
     };
-}
-
-ShapeOutsideData ComputedValues::MiscResetValues::shape_outside_value() const
-{
-    ShapeOutsideData result;
-    auto apply_item = [&](StyleValue const& item) {
-        if (item.is_url())
-            result.image = item.as_url().url();
-        else if (item.is_abstract_image())
-            result.image = NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() };
-        else if (item.is_basic_shape())
-            result.basic_shape = item.as_basic_shape();
-        else if (auto shape_box = keyword_to_shape_box(item.to_keyword()); shape_box.has_value())
-            result.shape_box = *shape_box;
-    };
-    auto value = animation_style_value(shape_outside);
-    if (value->is_value_list()) {
-        for (auto const& item : value->as_value_list().values())
-            apply_item(item);
-    } else if (value->to_keyword() != Keyword::None) {
-        apply_item(value);
-    }
-    return result;
 }
 
 WillChange ComputedValues::MiscResetValues::will_change_value() const
@@ -1470,21 +1418,6 @@ RefPtr<AbstractImageStyleValue const> ComputedValues::MaskValues::mask_image_val
     return first_abstract_image_value(mask_image);
 }
 
-Vector<Position> ComputedValues::MaskValues::mask_positions_value() const
-{
-    Vector<Position> positions;
-    auto items = animation_items(mask_position);
-    positions.ensure_capacity(items.size());
-    for (auto const& item : items) {
-        auto const& position = item->as_position();
-        positions.unchecked_append(Position {
-            .offset_x = LengthPercentage::from_style_value(position.edge_x()->offset()),
-            .offset_y = LengthPercentage::from_style_value(position.edge_y()->offset()),
-        });
-    }
-    return positions;
-}
-
 Optional<ClipPathReference> ComputedValues::MaskValues::clip_path_value() const
 {
     auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(clip_path.pointer);
@@ -1620,167 +1553,6 @@ Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_v
     return result;
 }
 
-Vector<AnimationComposition> ComputedValues::AnimationValues::animation_compositions_value() const
-{
-    return animation_keyword_items<AnimationComposition>(animation_composition, keyword_to_animation_composition);
-}
-
-Vector<Time> ComputedValues::AnimationValues::animation_delays_value() const
-{
-    return animation_time_items(animation_delay);
-}
-
-Vector<AnimationDirection> ComputedValues::AnimationValues::animation_directions_value() const
-{
-    return animation_keyword_items<AnimationDirection>(animation_direction, keyword_to_animation_direction);
-}
-
-Vector<Optional<Time>> ComputedValues::AnimationValues::animation_durations_value() const
-{
-    Vector<Optional<Time>> result;
-    for (auto const& item : animation_items(animation_duration)) {
-        if (item->is_keyword())
-            result.empend();
-        else
-            result.append(Time::from_style_value(item, {}));
-    }
-    return result;
-}
-
-Vector<AnimationFillMode> ComputedValues::AnimationValues::animation_fill_modes_value() const
-{
-    return animation_keyword_items<AnimationFillMode>(animation_fill_mode, keyword_to_animation_fill_mode);
-}
-
-Vector<double> ComputedValues::AnimationValues::animation_iteration_counts_value() const
-{
-    Vector<double> result;
-    for (auto const& item : animation_items(animation_iteration_count)) {
-        if (item->is_keyword())
-            result.append(AK::Infinity<double>);
-        else
-            result.append(number_from_style_value(item, {}));
-    }
-    return result;
-}
-
-Vector<AnimationPlayState> ComputedValues::AnimationValues::animation_play_states_value() const
-{
-    return animation_keyword_items<AnimationPlayState>(animation_play_state, keyword_to_animation_play_state);
-}
-
-Vector<AnimationTimelineData> ComputedValues::AnimationValues::animation_timelines_value() const
-{
-    Vector<AnimationTimelineData> result;
-    for (auto const& item : animation_items(animation_timeline)) {
-        AnimationTimelineData timeline;
-        if (item->is_keyword()) {
-            timeline.type = item->to_keyword() == Keyword::Auto ? AnimationTimelineData::Type::Auto : AnimationTimelineData::Type::None;
-        } else if (item->is_custom_ident()) {
-            timeline.type = AnimationTimelineData::Type::Name;
-            timeline.name = item->as_custom_ident().custom_ident();
-        } else {
-            auto const& function = item->as_function();
-            auto const& arguments = function.value()->as_tuple().tuple();
-            if (function.name() == "scroll"_utf16_fly_string) {
-                timeline.type = AnimationTimelineData::Type::Scroll;
-                if (arguments[0])
-                    timeline.scroller = keyword_to_scroller(arguments[0]->to_keyword()).release_value();
-                if (arguments[1])
-                    timeline.axis = keyword_to_axis(arguments[1]->to_keyword()).release_value();
-            } else {
-                timeline.type = AnimationTimelineData::Type::View;
-                if (arguments[0])
-                    timeline.axis = keyword_to_axis(arguments[0]->to_keyword()).release_value();
-                if (arguments[1]) {
-                    auto const& edges = arguments[1]->as_value_list().values();
-                    timeline.inset = {
-                        .start = LengthPercentageOrAuto::from_style_value(edges[0]),
-                        .end = LengthPercentageOrAuto::from_style_value(edges[1]),
-                    };
-                }
-            }
-        }
-        result.append(move(timeline));
-    }
-    return result;
-}
-
-Vector<EasingFunction> ComputedValues::AnimationValues::animation_timing_functions_value() const
-{
-    Vector<EasingFunction> result;
-    for (auto const& item : animation_items(animation_timing_function))
-        result.append(EasingFunction::from_style_value(item));
-    return result;
-}
-
-StyleValueVector ComputedValues::AnimationValues::animation_timing_function_style_values_value() const
-{
-    return animation_items(animation_timing_function);
-}
-
-Vector<Optional<Utf16FlyString>> ComputedValues::AnimationValues::scroll_timeline_names_value() const
-{
-    return animation_optional_name_items(scroll_timeline_name);
-}
-
-Vector<Axis> ComputedValues::AnimationValues::scroll_timeline_axes_value() const
-{
-    return animation_keyword_items<Axis>(scroll_timeline_axis, keyword_to_axis);
-}
-
-TimelineScopeData ComputedValues::AnimationValues::timeline_scope_value() const
-{
-    TimelineScopeData result;
-    auto value = animation_style_value(timeline_scope);
-    if (value->is_keyword()) {
-        result.all = value->to_keyword() == Keyword::All;
-        return result;
-    }
-    auto append_name = [&](StyleValue const& item) {
-        if (item.is_custom_ident())
-            result.names.append(item.as_custom_ident().custom_ident());
-    };
-    if (value->is_value_list()) {
-        for (auto const& item : value->as_value_list().values())
-            append_name(*item);
-    } else {
-        append_name(*value);
-    }
-    return result;
-}
-
-Vector<Optional<Utf16FlyString>> ComputedValues::AnimationValues::view_timeline_names_value() const
-{
-    return animation_optional_name_items(view_timeline_name);
-}
-
-Vector<Axis> ComputedValues::AnimationValues::view_timeline_axes_value() const
-{
-    return animation_keyword_items<Axis>(view_timeline_axis, keyword_to_axis);
-}
-
-Vector<ViewTimelineInsetData> ComputedValues::AnimationValues::view_timeline_insets_value() const
-{
-    Vector<ViewTimelineInsetData> result;
-    auto append_inset = [&](StyleValue const& item) {
-        auto const& edges = item.as_value_list().values();
-        VERIFY(edges.size() == 2);
-        result.append({
-            .start = LengthPercentageOrAuto::from_style_value(edges[0]),
-            .end = LengthPercentageOrAuto::from_style_value(edges[1]),
-        });
-    };
-    auto value = animation_style_value(view_timeline_inset);
-    if (value->as_value_list().separator() == StyleValueList::Separator::Comma) {
-        for (auto const& item : value->as_value_list().values())
-            append_inset(*item);
-    } else {
-        append_inset(*value);
-    }
-    return result;
-}
-
 Vector<Optional<Utf16FlyString>> ComputedValues::AnimationValues::transition_properties_value() const
 {
     return animation_optional_name_items(transition_property);
@@ -1797,11 +1569,6 @@ Vector<EasingFunction> ComputedValues::AnimationValues::transition_timing_functi
     for (auto const& item : animation_items(transition_timing_function))
         result.append(EasingFunction::from_style_value(item));
     return result;
-}
-
-StyleValueVector ComputedValues::AnimationValues::transition_timing_function_style_values_value() const
-{
-    return animation_items(transition_timing_function);
 }
 
 Vector<Time> ComputedValues::AnimationValues::transition_delays_value() const
