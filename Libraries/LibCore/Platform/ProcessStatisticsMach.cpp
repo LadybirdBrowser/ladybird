@@ -90,7 +90,7 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
         process->time_spent_in_process = time_in_process.to_microseconds();
 
         process->cpu_percent = 0.0f;
-        if (process->has_cpu_time_baseline && time_diff_process > AK::Duration::zero())
+        if (process->has_cpu_time_baseline && time_diff_process > AK::Duration::zero() && total_cpu_micro_diff > 0.0f)
             process->cpu_percent = 100.0f * static_cast<float>(time_diff_process.to_microseconds()) / total_cpu_micro_diff;
         process->has_cpu_time_baseline = true;
     }
