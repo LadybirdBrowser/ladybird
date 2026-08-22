@@ -176,12 +176,13 @@ impl<'a> PaintableCommit<'a> {
         let expected_kind = paintable_kind_for_node(&facts, data.kind);
         let wants_paintable = (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
             && expected_kind != PaintableKind::None;
-        let existing_slot = self.arena.borrow().paintable_of_node(node);
+        let row_existed_before_this_commit = self.arena.borrow().paintable_row_is_populated(node);
         if !wants_paintable {
             self.callbacks.arena().clear_committed_fragment_link(node);
-            if !existing_slot.is_invalid() {
+            if row_existed_before_this_commit {
                 let reset = {
                     let arena = self.arena.borrow();
+                    let existing_slot = arena.paintable_of_node(node);
                     arena.invalidate_paint_cache(self.callbacks.arena(), existing_slot);
                     arena
                         .prepare_node_cleared_reset(node, existing_slot)
@@ -199,13 +200,12 @@ impl<'a> PaintableCommit<'a> {
             self.committed_navigable_container_viewports.borrow_mut().push(node);
         }
         if reuses_committed_subtree {
-            assert!(!existing_slot.is_invalid(), "a kept subtree root has no committed row");
-            let arena = self.arena.borrow();
-            debug_assert_eq!(
-                arena.paintable_of_node(node),
-                existing_slot,
-                "reused subtree root is not the node's own row"
+            assert!(
+                row_existed_before_this_commit,
+                "a kept subtree root has no committed row"
             );
+            let arena = self.arena.borrow();
+            let existing_slot = arena.paintable_of_node(node);
             self.offsets_before_commit
                 .borrow_mut()
                 .insert(existing_slot, arena.data_ref(existing_slot).offset);
@@ -237,14 +237,9 @@ impl<'a> PaintableCommit<'a> {
             ),
         };
         let is_item = data.flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
-        let row_existed_before_this_commit = !existing_slot.is_invalid();
         let slot = if row_existed_before_this_commit {
             let arena = self.arena.borrow();
-            debug_assert_eq!(
-                arena.paintable_of_node(node),
-                existing_slot,
-                "reused row is not the node's own"
-            );
+            let existing_slot = arena.paintable_of_node(node);
             self.offsets_before_commit
                 .borrow_mut()
                 .insert(existing_slot, arena.data_ref(existing_slot).offset);

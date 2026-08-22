@@ -411,9 +411,8 @@ impl PaintableArena {
         mut node: NodeSlotId,
     ) {
         loop {
-            let paintable = self.paintable_of_node(node);
-            if !paintable.is_invalid() {
-                self.clear_descendant_subtree_caches_along_paint_chain(layout_arena, paintable);
+            if self.paintable_row_is_populated(node) {
+                self.clear_descendant_subtree_caches_along_paint_chain(layout_arena, self.paintable_of_node(node));
                 return;
             }
             if !crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
@@ -514,6 +513,10 @@ impl PaintableArena {
             return PaintableSlotId::INVALID;
         }
         paintable
+    }
+
+    pub fn paintable_row_is_populated(&self, layout_node: NodeSlotId) -> bool {
+        !self.paintable_of_node(layout_node).is_invalid()
     }
 
     pub(crate) fn prepare_recommit_notification(&self, id: PaintableSlotId) -> PaintableRowReset {
