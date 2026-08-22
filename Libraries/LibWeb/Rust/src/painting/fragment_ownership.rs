@@ -101,10 +101,7 @@ pub(crate) fn nearest_self_painting_inline_box(
     let mut ancestor = nearest_fragmented_inline_ancestor(layout_arena, node);
     while let Some(candidate) = ancestor {
         let paintable = paintables.paintable_of_node(candidate);
-        if !paintable.is_invalid()
-            && paintables.is_live(paintable)
-            && is_self_painting_inline(&paintables.data_ref(paintable))
-        {
+        if !paintable.is_invalid() && is_self_painting_inline(&paintables.data_ref(paintable)) {
             return Some(paintable);
         }
         ancestor = nearest_fragmented_inline_ancestor(layout_arena, candidate);
@@ -145,9 +142,7 @@ fn assign_for_block(layout_arena: &LayoutNodeArena, paintables: &mut PaintableAr
             return None;
         }
         let paintable = paintables.paintable_of_node(node);
-        (!paintable.is_invalid()
-            && paintables.is_live(paintable)
-            && paintables.data_ref(paintable).kind == PaintableKind::InlinePaintable)
+        (!paintable.is_invalid() && paintables.data_ref(paintable).kind == PaintableKind::InlinePaintable)
             .then_some(paintable)
     };
 

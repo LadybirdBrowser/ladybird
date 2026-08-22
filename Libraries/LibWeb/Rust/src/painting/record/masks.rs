@@ -175,7 +175,7 @@ impl PaintRecorder<'_> {
 
         for node in self.layout_arena.svg_pattern_referencing_nodes() {
             let paintable = self.paintables.paintable_of_node(node);
-            if paintable.is_invalid() || !self.paintables.is_live(paintable) {
+            if paintable.is_invalid() {
                 continue;
             }
             if self.layout_node_is_inside_svg_resource_box(node) {

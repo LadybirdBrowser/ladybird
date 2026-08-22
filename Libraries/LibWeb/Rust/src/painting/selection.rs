@@ -85,7 +85,7 @@ pub(crate) fn apply(
             }
         } else {
             let slot = paintables.paintable_of_node(entry.layout_node);
-            if slot.is_invalid() || !paintables.is_live(slot) {
+            if slot.is_invalid() {
                 continue;
             }
             if paintables.data_ref(slot).selection_state != entry.state {

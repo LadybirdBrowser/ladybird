@@ -19,13 +19,13 @@ pub(crate) fn containing_block_paintable_of_node(
     node: NodeSlotId,
 ) -> Option<PaintableSlotId> {
     let own = paintables.paintable_of_node(node);
-    if !own.is_invalid() && paintables.is_live(own) {
+    if !own.is_invalid() {
         let block = paintables.data_ref(own).containing_block;
-        return (!block.is_invalid() && paintables.is_live(block)).then_some(block);
+        return paintables.is_live(block).then_some(block);
     }
     let block = layout_arena.node_containing_block_if_live(node)?;
     let block_paintable = paintables.paintable_of_node(block);
-    (!block_paintable.is_invalid() && paintables.is_live(block_paintable)).then_some(block_paintable)
+    (!block_paintable.is_invalid()).then_some(block_paintable)
 }
 
 pub(crate) fn containing_block_paintable(

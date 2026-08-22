@@ -40,7 +40,7 @@ pub(crate) fn refill_contained_boxes_index(
             let node_is_box_kind = layout_arena
                 .node_kind_if_live(node)
                 .is_some_and(crate::layout::kind_is_box);
-            if !node_is_box_kind || paintables.paintable_of_node(node).is_invalid() {
+            if !node_is_box_kind || !paintables.paintable_row_is_populated(node) {
                 continue;
             }
             if let Some(containing_block) = layout_arena.node_containing_block_if_live(node) {

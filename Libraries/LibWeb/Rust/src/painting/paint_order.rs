@@ -21,9 +21,8 @@ pub(crate) fn paint_parent(
 
     let mut ancestor = layout_arena.node_parent_if_live(paintables.data_ref(slot).layout_node);
     while let Some(node) = ancestor {
-        let paintable = paintables.paintable_of_node(node);
-        if !paintable.is_invalid() && paintables.is_live(paintable) {
-            return Some(paintable);
+        if paintables.paintable_row_is_populated(node) {
+            return Some(paintables.paintable_of_node(node));
         }
         if !fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
             return None;
@@ -42,8 +41,8 @@ fn first_paintable_in_layout_siblings(
     let mut current = first_node;
     while let Some(node) = current {
         let next_sibling = layout_arena.node_next_sibling_if_live(node);
-        let paintable = paintables.paintable_of_node(node);
-        if !paintable.is_invalid() && paintables.is_live(paintable) {
+        if paintables.paintable_row_is_populated(node) {
+            let paintable = paintables.paintable_of_node(node);
             if !paintables.data_ref(paintable).kind.forms_unconnected_subtree() {
                 return Some(paintable);
             }
@@ -93,8 +92,9 @@ pub(crate) fn next_paint_sibling(
             return Some(sibling);
         }
         let parent = layout_arena.node_parent_if_live(node)?;
-        let parent_paintable = paintables.paintable_of_node(parent);
-        if !parent_paintable.is_invalid() || !fragment_ownership::node_is_fragmented_inline(layout_arena, parent) {
+        if paintables.paintable_row_is_populated(parent)
+            || !fragment_ownership::node_is_fragmented_inline(layout_arena, parent)
+        {
             return None;
         }
         node = parent;
