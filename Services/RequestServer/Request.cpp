@@ -435,10 +435,10 @@ NonnullOwnPtr<Request> Request::fetch(
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data,
-    bool keep_alive_for_transfer,
+    Optional<Requests::RequestTransferLeaseKey> transfer_lease,
     Optional<u32> address_selection_hint)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data, keep_alive_for_transfer });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data, move(transfer_lease) });
     request->m_address_selection_hint = address_selection_hint;
     request->process();
 
@@ -494,7 +494,7 @@ Request::Request(
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data,
-    bool keep_alive_for_transfer)
+    Optional<Requests::RequestTransferLeaseKey> transfer_lease)
     : m_request_id(request_id)
     , m_type(type)
     , m_disk_cache(disk_cache)
@@ -510,7 +510,7 @@ Request::Request(
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
     , m_proxy_data(proxy_data)
     , m_response_headers(HTTP::HeaderList::create())
-    , m_keep_alive_for_transfer(keep_alive_for_transfer)
+    , m_transfer_lease(move(transfer_lease))
 {
     if constexpr (REQUESTSERVER_WIRE_DEBUG)
         wire_stats().ensure(this).created_at = MonotonicTime::now();
@@ -1304,7 +1304,7 @@ ErrorOr<void> Request::free_curl_structs()
     return {};
 }
 
-ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 request_id)
+ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 request_id, Optional<Requests::RequestTransferLeaseKey> transfer_lease)
 {
     if (m_type == RequestType::BackgroundRevalidation)
         return Error::from_string_literal("Cannot transfer background revalidation requests");
@@ -1313,14 +1313,18 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
     auto& previous_client = *m_client;
     auto previous_request_id = m_request_id;
 
-    if (was_complete)
+    if (was_complete) {
         TRY(detach_curl_handle_from_multi());
-    else if (&previous_client != &client)
+        m_network_connection_keep_alive = nullptr;
+    } else if (m_network_connection_keep_alive.ptr() == &client) {
+        m_network_connection_keep_alive = nullptr;
+    } else if (!m_network_connection_keep_alive && &previous_client != &client) {
         m_network_connection_keep_alive = &previous_client;
+    }
 
     m_client = &client;
     m_request_id = request_id;
-    m_keep_alive_for_transfer = false;
+    m_transfer_lease = move(transfer_lease);
 
     if (m_client_request_pipe.has_value())
         TRY(send_request_pipe_to_client());
@@ -1336,9 +1340,8 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
             m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, acquire_timing_info(), m_network_error);
         else
             m_client->async_request_finished(m_request_id, m_bytes_transferred_to_client, {}, m_network_error.value_or(Requests::NetworkError::Unknown));
-    } else {
-        previous_client.async_request_transferred(previous_request_id);
     }
+    previous_client.async_request_transferred(previous_request_id);
 
     return {};
 }

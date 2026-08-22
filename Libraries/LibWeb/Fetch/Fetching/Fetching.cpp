@@ -169,7 +169,7 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
 }
 
 // https://fetch.spec.whatwg.org/#concept-fetch
-GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
+GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue, CreateResponseBodyTransferLease create_response_body_transfer_lease)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch' with: request @ {}", &request);
 
@@ -216,6 +216,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     fetch_params->set_algorithms(algorithms);
     fetch_params->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
+    fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
 
     // 9. If request’s body is a byte sequence, then set request’s body to request’s body as a body.
     if (auto const* buffer = request.body().get_pointer<ByteBuffer>())
@@ -1475,10 +1476,10 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     if (!location_url_or_error.is_error() && !location_url_or_error.value().has_value())
         return PendingResponse::create(request, response);
 
-    // AD-HOC: Navigation responses are kept alive in RequestServer so they can be transferred to the UI process if
-    //         they become downloads. This response will be discarded in favor of either a network error or the
-    //         redirect response, so release that hold and stop the request if it is still active.
-    internal_response->release_request_for_transfer();
+    // AD-HOC: Navigation responses have a RequestServer transfer lease so they can move through the UI process.
+    //         This response will be discarded in favor of either a network error or the redirect response, so
+    //         release its lease and stop the request if it is still active.
+    internal_response->release_request_transfer_lease();
     if (auto const& request_server_request = internal_response->request_server_request(); request_server_request.has_value() && request_server_request->request)
         request_server_request->request->stop();
 
@@ -2313,11 +2314,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    auto keep_alive_for_transfer = request->destination() == Infrastructure::Request::Destination::Document
-        ? Requests::RequestClient::KeepAliveForTransfer::Yes
-        : Requests::RequestClient::KeepAliveForTransfer::No;
-    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, keep_alive_for_transfer);
-    if (network_request && request->destination() == Infrastructure::Request::Destination::Document)
+    auto transfer_lease = fetch_params.has_response_body_transfer_lease()
+        ? Requests::RequestClient::TransferLease::Yes
+        : Requests::RequestClient::TransferLease::No;
+    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_cached_body_available, on_complete, transfer_lease);
+    if (network_request && fetch_params.has_response_body_transfer_lease())
         network_request->set_body_delivery_paused(true);
     fetch_params.controller()->set_pending_request(network_request);
 

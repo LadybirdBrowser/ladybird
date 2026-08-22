@@ -16,6 +16,7 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Forward.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibRequests/RequestTransferLease.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
@@ -37,6 +38,13 @@ public:
 
     using ConnectionMap = HashMap<int, NonnullRefPtr<ConnectionFromClient>>;
 
+    struct RequestTransferLease {
+        NonnullRefPtr<ConnectionFromClient> owner;
+        u64 request_id { 0 };
+    };
+
+    using RequestTransferLeaseMap = HashMap<Requests::RequestTransferLeaseKey, RequestTransferLease>;
+
     ~ConnectionFromClient() override;
 
     virtual void die() override;
@@ -49,7 +57,7 @@ public:
     void request_complete(Badge<Request>, Request const&);
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client(IsPrivate) override;
@@ -61,9 +69,9 @@ private:
     virtual Messages::RequestServer::GetClientIdResponse get_client_id() override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
-    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, Core::ProxyData, bool keep_alive_for_transfer, Optional<u32> address_selection_hint) override;
-    virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id) override;
-    virtual void release_request_for_transfer(u64 request_id) override;
+    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, Core::ProxyData, bool create_transfer_lease, Optional<u32> address_selection_hint) override;
+    virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) override;
+    virtual void release_request_transfer_lease(int source_client_id, u64 source_request_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
@@ -94,6 +102,7 @@ private:
     IsPrivate m_is_private { IsPrivate::No };
 
     ConnectionMap& m_connections;
+    RequestTransferLeaseMap& m_request_transfer_leases;
     Optional<HTTP::DiskCache&> m_disk_cache;
 
     void* m_curl_multi { nullptr };

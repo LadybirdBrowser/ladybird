@@ -452,7 +452,7 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
 {
     auto active_window = this->active_window();
     if (!active_window) {
-        response->release_request_for_transfer();
+        response->release_request_transfer_lease();
         return;
     }
     auto& realm = active_window->principal_realm();
@@ -527,7 +527,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
     VERIFY(navigation_params->navigable);
     auto active_window = navigation_params->navigable->active_window();
     if (!active_window) {
-        response->release_request_for_transfer();
+        response->release_request_transfer_lease();
         return true;
     }
 
@@ -1721,7 +1721,8 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
                     .process_response_end_of_body = {},
                     .process_response_consume_body = {},
                 }),
-            Fetch::Fetching::UseParallelQueue::Yes);
+            Fetch::Fetching::UseParallelQueue::Yes,
+            Fetch::Fetching::CreateResponseBodyTransferLease::Yes);
     }
     // 6. Otherwise, process the next manual redirect for fetchController.
     else {
@@ -2342,7 +2343,7 @@ void LocalNavigable::populate_session_history_entry_document(
                 }
             } else {
                 auto nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
-                nav_params->response->release_request_for_transfer();
+                nav_params->response->release_request_transfer_lease();
             }
 
             output->navigation_params = navigation_params;

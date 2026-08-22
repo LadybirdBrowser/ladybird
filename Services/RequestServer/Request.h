@@ -21,6 +21,7 @@
 #include <LibIPC/File.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
+#include <LibRequests/RequestTransferLease.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/Forward.h>
@@ -47,7 +48,7 @@ public:
         HTTP::Cookie::IncludeCredentials include_credentials,
         Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data,
-        bool keep_alive_for_transfer,
+        Optional<Requests::RequestTransferLeaseKey>,
         Optional<u32> address_selection_hint);
 
     static NonnullOwnPtr<Request> connect(
@@ -78,10 +79,11 @@ public:
     RequestType type() const { return m_type; }
     URL::URL const& url() const { return m_url; }
     bool is_complete() const { return m_state == State::Complete || m_state == State::Error; }
-    bool keep_alive_for_transfer() const { return m_keep_alive_for_transfer; }
+    bool has_transfer_lease() const { return m_transfer_lease.has_value(); }
+    Optional<Requests::RequestTransferLeaseKey> const& transfer_lease() const { return m_transfer_lease; }
 
-    ErrorOr<void> transfer_to_client(ConnectionFromClient&, u64 request_id);
-    void release_for_transfer() { m_keep_alive_for_transfer = false; }
+    ErrorOr<void> transfer_to_client(ConnectionFromClient&, u64 request_id, Optional<Requests::RequestTransferLeaseKey>);
+    void release_transfer_lease() { m_transfer_lease.clear(); }
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     void notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringView cookie);
@@ -158,7 +160,7 @@ private:
         HTTP::Cookie::IncludeCredentials include_credentials,
         Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data,
-        bool keep_alive_for_transfer = false);
+        Optional<Requests::RequestTransferLeaseKey> = {});
 
     Request(
         u64 request_id,
@@ -248,7 +250,7 @@ private:
 
     Optional<u32> m_address_selection_hint;
 
-    bool m_keep_alive_for_transfer { false };
+    Optional<Requests::RequestTransferLeaseKey> m_transfer_lease;
     RefPtr<ConnectionFromClient> m_network_connection_keep_alive;
 };
 
