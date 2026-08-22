@@ -131,9 +131,13 @@ WebIDL::ExceptionOr<void> initialize_window_web_interfaces(HTML::Window& window,
 {
     auto& global_object = realm.global_object();
 
-    Bindings::add_window_exposed_interfaces(global_object);
-
     WEB_SET_PROTOTYPE_FOR_INTERFACE_ON(global_object, Window);
+
+    // OPTIMIZATION: The Window wrapper becomes the internal prototype of its WindowProxy. Mark it
+    // as a prototype before adding its many own properties so that attaching it does not copy them.
+    global_object.convert_to_prototype_if_needed();
+
+    Bindings::add_window_exposed_interfaces(global_object);
 
     Bindings::WindowGlobalMixin window_global_mixin;
     window_global_mixin.initialize(realm, global_object);
