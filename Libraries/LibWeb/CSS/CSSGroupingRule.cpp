@@ -50,6 +50,7 @@ WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(Utf16View rule, u32 index)
     if (auto* sheet = parent_style_sheet()) {
         record_style_rule_inserted(*m_rules->item(index));
         sheet->invalidate_owners();
+        sheet->synchronize_fonts_after_rule_change();
     }
     return index;
 }
@@ -62,6 +63,7 @@ WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(u32 index)
         if (removed_rule)
             record_style_rule_removed(*sheet, *removed_rule);
         sheet->invalidate_owners();
+        sheet->synchronize_fonts_after_rule_change();
     }
     return {};
 }

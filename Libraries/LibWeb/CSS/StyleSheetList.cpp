@@ -6,6 +6,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
@@ -93,6 +94,7 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_eng
     sheet.load_pending_image_resources(document());
 
     insert_sheet_in_tree_order(sheet);
+    document().fonts()->synchronize_css_connected_font_order();
 
     if (style_engine_update == StyleEngineUpdate::Record)
         record_stylesheet_attached(sheet, document_or_shadow_root(), following_sheet(sheet));
@@ -178,6 +180,7 @@ void StyleSheetList::move_sheet(CSSStyleSheet& sheet, StyleSheetList& destinatio
     VERIFY(position.has_value());
     m_sheets.remove(*position);
     insert_sheet_in_tree_order(sheet);
+    document().fonts()->synchronize_css_connected_font_order();
     record_stylesheet_attached(sheet, document_or_shadow_root(), following_sheet(sheet));
     invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root(), sheet);
 }

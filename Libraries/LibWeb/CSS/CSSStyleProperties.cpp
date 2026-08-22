@@ -1872,6 +1872,8 @@ void CSSStyleProperties::invalidate_owners()
                 return;
 
             sheet->invalidate_owners();
+            if (rule->type() == CSSRule::Type::FontFace)
+                sheet->synchronize_fonts_after_rule_change();
         }
     }
 }
