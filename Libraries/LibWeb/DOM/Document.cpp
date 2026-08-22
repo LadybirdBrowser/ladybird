@@ -3440,11 +3440,11 @@ HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16String const& local_name, ElementCreationOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16FlyString const& local_name, ElementCreationOptions const& options)
 {
     auto normalized_local_name = local_name;
     // 1. If localName is not a valid element local name, then throw an "InvalidCharacterError" DOMException.
-    if (!is_valid_element_local_name(local_name.utf16_view()))
+    if (!is_valid_element_local_name(local_name.view()))
         return WebIDL::InvalidCharacterError::create("Invalid character in tag name."_utf16);
 
     // 2. If this is an HTML document, then set localName to localName in ASCII lowercase.
@@ -3461,10 +3461,10 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16String const
         namespace_ = Namespace::HTML;
 
     // 5. Return the result of creating an element given this, localName, namespace, null, is, true, and registry.
-    return TRY(DOM::create_element(*this, Utf16FlyString::from_utf16(normalized_local_name.utf16_view()), move(namespace_), {}, move(is_value), true, registry));
+    return TRY(DOM::create_element(*this, move(normalized_local_name), move(namespace_), {}, move(is_value), true, registry));
 }
 
-WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16String const& local_name, Variant<Utf16String, ElementCreationOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(Utf16FlyString const& local_name, Variant<Utf16String, ElementCreationOptions> const& options)
 {
     ElementCreationOptions element_creation_options;
     options.visit(

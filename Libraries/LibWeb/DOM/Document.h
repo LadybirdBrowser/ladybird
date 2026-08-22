@@ -549,8 +549,8 @@ public:
     HTML::EnvironmentSettingsObject& relevant_settings_object() const;
 
     using ElementCreationOptions = Bindings::ElementCreationOptions;
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Utf16String const& local_name, ElementCreationOptions const& options);
-    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Utf16String const& local_name, Variant<Utf16String, ElementCreationOptions> const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Utf16FlyString const& local_name, ElementCreationOptions const& options);
+    WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Utf16FlyString const& local_name, Variant<Utf16String, ElementCreationOptions> const& options);
     WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<Utf16String> const& namespace_, Utf16String const& qualified_name, ElementCreationOptions const& options);
     WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<Utf16String> const& namespace_, Utf16String const& qualified_name, Variant<Utf16String, ElementCreationOptions> const& options);
     WebIDL::ExceptionOr<GC::Ref<Element>> create_element_ns(Optional<Utf16FlyString> const& namespace_, Utf16String const& qualified_name, Variant<Utf16String, ElementCreationOptions> const& options);
