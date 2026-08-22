@@ -302,12 +302,12 @@ public:
     Web::ScreenWakeLockState screen_wake_lock_state() const { return m_screen_wake_lock_state; }
 
     void did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
-    void request_history_operation(Badge<WebContentClient>, WebContentClient&, u64 requesting_page_id, u64 initiation_id, Web::HistoryOperationParameters);
-    void did_receive_history_operation_ready(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HistoryOperationReadyResult);
-    void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::HistoryStepResult);
-    void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
-    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
-    void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
+    void request_history_operation(Badge<WebContentClient>, WebContentClient&, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters);
+    void did_receive_history_operation_ready(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult);
+    void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult);
+    void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
+    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
+    void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_reset_session_history_for_testing(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor);
     bool capture_session_history_snapshot_for_testing(Badge<WebContentClient>);
     bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>);
@@ -463,13 +463,13 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
-    void will_apply_history_traversal_step(u64 operation_id);
-    void did_resume_history_traversal(u64 operation_id);
-    void did_apply_top_level_history_traversal_step(u64 operation_id);
-    void did_finish_history_traversal(u64 operation_id, Web::HTML::HistoryStepResult);
-    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, u64 traversal_sequence_number, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
-    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, u64 traversal_sequence_number, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
-    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, u64 initiation_id, u64 traversal_sequence_number, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
+    void will_apply_history_traversal_step(Web::HTML::CrossProcessId operation_id);
+    void did_resume_history_traversal(Web::HTML::CrossProcessId operation_id);
+    void did_apply_top_level_history_traversal_step(Web::HTML::CrossProcessId operation_id);
+    void did_finish_history_traversal(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult);
+    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 traversal_sequence_number, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 traversal_sequence_number, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(WebContentClient&, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 traversal_sequence_number, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 
@@ -498,9 +498,9 @@ protected:
         Load,
         HistoryTraversal,
     };
-    u64 begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<u64> history_operation_id = {}, Optional<URL::URL> expected_url = {});
+    u64 begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<Web::HTML::CrossProcessId> history_operation_id = {}, Optional<URL::URL> expected_url = {});
     void complete_webdriver_navigation(u64 navigation_id);
-    void complete_webdriver_history_traversal(u64 operation_id);
+    void complete_webdriver_history_traversal(Web::HTML::CrossProcessId operation_id);
     void update_navigation_action_state();
     void notify_session_history_changed();
     enum class SessionHistoryDumpMode {
@@ -682,7 +682,7 @@ protected:
     struct WebDriverNavigationObservation {
         WebDriverNavigationCompletionSource completion_source;
         u64 navigation_id { 0 };
-        Optional<u64> history_operation_id;
+        Optional<Web::HTML::CrossProcessId> history_operation_id;
         Optional<URL::URL> expected_url;
         bool history_operation_completed { false };
         bool load_completed { false };

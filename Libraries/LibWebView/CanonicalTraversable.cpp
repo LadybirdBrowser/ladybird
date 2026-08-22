@@ -331,9 +331,8 @@ StringView CanonicalTraversable::browser_history_traversal_stage_to_string(Brows
 }
 
 struct CanonicalTraversable::HistoryOperation {
-    HistoryOperation(u64 operation_id, Web::HistoryOperationParameters parameters, Optional<u64> initiation_id, RefPtr<WebContentClient> initiating_client, u64 initiating_page_id, Optional<i32> resolved_step, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete on_complete)
+    HistoryOperation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters, RefPtr<WebContentClient> initiating_client, u64 initiating_page_id, Optional<i32> resolved_step, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete on_complete)
         : operation_id(operation_id)
-        , initiation_id(initiation_id)
         , parameters(move(parameters))
         , on_complete(move(on_complete))
         , initiating_client(move(initiating_client))
@@ -343,20 +342,14 @@ struct CanonicalTraversable::HistoryOperation {
     {
     }
 
-    u64 operation_id { 0 };
-    Optional<u64> initiation_id;
+    Web::HTML::CrossProcessId operation_id;
     Web::HistoryOperationParameters parameters;
     OnHistoryOperationComplete on_complete;
-    // The initiating endpoint owns the state parked under initiation_id and must remain stable across process
+    // The initiating endpoint owns the state parked under the operation id and must remain stable across process
     // replacement. Jobs for individual navigables resolve their endpoints when they are dispatched instead.
     RefPtr<WebContentClient> initiating_client;
     u64 initiating_page_id { 0 };
-    struct CompletionEndpoint {
-        RefPtr<WebContentClient> client;
-        u64 page_id { 0 };
-        Optional<u64> initiation_id;
-    };
-    Vector<CompletionEndpoint> completion_endpoints;
+    Vector<HistoryJobEndpoint> completion_endpoints;
     // Delta and Navigation API traversals resolve their canonical target when their queue position is reached.
     Optional<i32> resolved_step;
     Optional<u64> traversal_sequence_number;
@@ -875,7 +868,7 @@ CanonicalTraversable::HistoryJobEndpoint CanonicalTraversable::history_job_endpo
     return {};
 }
 
-CanonicalTraversable::HistoryOperation* CanonicalTraversable::find_history_operation(u64 operation_id)
+CanonicalTraversable::HistoryOperation* CanonicalTraversable::find_history_operation(Web::HTML::CrossProcessId operation_id)
 {
     auto operation = m_history_operations.find(operation_id);
     if (operation == m_history_operations.end())
@@ -905,17 +898,14 @@ bool CanonicalTraversable::navigation_transaction_matches(HistoryOperation const
     return navigable->navigation_transaction_matches(*parameters.navigation_id, client, page_id);
 }
 
-void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, HistoryJobEndpoint endpoint, Optional<u64> initiation_id)
+void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, HistoryJobEndpoint endpoint)
 {
     VERIFY(endpoint.client);
-    for (auto& existing : operation.completion_endpoints) {
-        if (existing.client.ptr() != endpoint.client.ptr() || existing.page_id != endpoint.page_id)
-            continue;
-        if (initiation_id.has_value())
-            existing.initiation_id = initiation_id;
-        return;
+    for (auto const& existing : operation.completion_endpoints) {
+        if (existing.client.ptr() == endpoint.client.ptr() && existing.page_id == endpoint.page_id)
+            return;
     }
-    operation.completion_endpoints.append({ endpoint.client, endpoint.page_id, initiation_id });
+    operation.completion_endpoints.append(move(endpoint));
 }
 
 bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(HistoryOperation& operation, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob& job)
@@ -974,17 +964,13 @@ void CanonicalTraversable::dispatch_changing_navigable_history_step_job(HistoryO
     auto pending_job = operation.pending_changing_jobs.get(navigable_id);
     VERIFY(pending_job.has_value());
 
-    auto initiation_id = endpoint->client.ptr() == operation.initiating_client.ptr()
-            && endpoint->page_id == operation.initiating_page_id
-        ? operation.initiation_id
-        : Optional<u64> {};
     auto target_entry = pending_job.value()->job.target_entry;
     endpoint->client->async_run_changing_navigable_history_job(
         endpoint->page_id, operation.operation_id, navigable_id,
         move(target_entry), pending_job.value()->job.user_involvement,
         pending_job.value()->job.navigation_type,
         pending_job.value()->job.navigation_api_abort_behavior,
-        pending_job.value()->job.superseded_by_newer_navigation, initiation_id);
+        pending_job.value()->job.superseded_by_newer_navigation);
 }
 
 void CanonicalTraversable::dispatch_changing_navigable_history_step_continuation(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id)
@@ -1042,7 +1028,7 @@ void CanonicalTraversable::dispatch_crash_recovery_changing_job(HistoryOperation
     dispatch_changing_navigable_history_step_job(operation, id());
 }
 
-void CanonicalTraversable::finish_deferred_history_operation_after_crash_recovery(u64 operation_id)
+void CanonicalTraversable::finish_deferred_history_operation_after_crash_recovery(Web::HTML::CrossProcessId operation_id)
 {
     auto* operation = find_history_operation(operation_id);
     if (!operation || !operation->deferred_completion.has_value())
@@ -1090,7 +1076,7 @@ void CanonicalTraversable::complete_history_jobs_after_crash(HistoryOperation& o
     }
 }
 
-ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 operation_id)
+ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::HTML::CrossProcessId operation_id)
 {
     return {
         .run_unload_cancelation_job = [this, operation_id](ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) {
@@ -1159,10 +1145,16 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
     };
 }
 
-void CanonicalTraversable::run_history_operation_at_queue_position(u64 initiation_id, Web::HistoryOperationParameters request, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
+void CanonicalTraversable::run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
-    auto operation_id = m_next_history_operation_id++;
-    m_history_operations.set(operation_id, make<HistoryOperation>(operation_id, move(request), initiation_id, &requesting_client, requesting_page_id, resolved_step, traversal_sequence_number, move(on_complete)));
+    // Operation ids are namespaced per initiating process, so a requested id that is already live can only come
+    // from a misbehaving process. Drop the request rather than let it alias the existing operation.
+    if (m_history_operations.contains(operation_id)) {
+        dbgln("Refusing history operation with duplicate id {}", operation_id);
+        promise->resolve({});
+        return;
+    }
+    m_history_operations.set(operation_id, make<HistoryOperation>(operation_id, move(request), &requesting_client, requesting_page_id, resolved_step, traversal_sequence_number, move(on_complete)));
     auto* operation = find_history_operation(operation_id);
     VERIFY(operation);
     operation->queue_promise = promise;
@@ -1171,8 +1163,8 @@ void CanonicalTraversable::run_history_operation_at_queue_position(u64 initiatio
 
 void CanonicalTraversable::run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters parameters, bool check_for_cancelation, u64 traversal_sequence_number, Function<void()> on_ready, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
-    auto operation_id = m_next_history_operation_id++;
-    auto owned_operation = make<HistoryOperation>(operation_id, Web::HistoryOperationParameters { move(parameters) }, Optional<u64> {}, nullptr, 0, Optional<i32> {}, traversal_sequence_number, move(on_complete));
+    auto operation_id = Application::the().allocate_ui_process_cross_process_id();
+    auto owned_operation = make<HistoryOperation>(operation_id, Web::HistoryOperationParameters { move(parameters) }, nullptr, 0, Optional<i32> {}, traversal_sequence_number, move(on_complete));
     owned_operation->was_initiated_by_browser = true;
     owned_operation->check_for_cancelation = check_for_cancelation;
     owned_operation->on_browser_traversal_ready = move(on_ready);
@@ -1197,7 +1189,7 @@ void CanonicalTraversable::append_history_queue_steps(SessionHistoryTraversalSte
     m_history_traversal_queue.append_session_history_traversal_steps(move(steps));
 }
 
-void CanonicalTraversable::enqueue_history_operation(u64 initiation_id, Web::HistoryOperationParameters request, WebContentClient& requesting_client, u64 requesting_page_id, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete on_complete)
+void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, WebContentClient& requesting_client, u64 requesting_page_id, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete on_complete)
 {
     // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
     // Steps 6-7 remove the nested history before step 9 appends traversal steps. Apply the canonical counterpart while
@@ -1222,8 +1214,8 @@ void CanonicalTraversable::enqueue_history_operation(u64 initiation_id, Web::His
     }
 
     NonnullRefPtr<WebContentClient> requesting_client_ref { requesting_client };
-    auto steps = [this, initiation_id, request = move(request), requesting_client = move(requesting_client_ref), requesting_page_id, traversal_sequence_number, on_complete = move(on_complete)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
-        run_history_operation_at_queue_position(initiation_id, move(request), *requesting_client, requesting_page_id, {}, traversal_sequence_number, move(on_complete), move(promise));
+    auto steps = [this, operation_id, request = move(request), requesting_client = move(requesting_client_ref), requesting_page_id, traversal_sequence_number, on_complete = move(on_complete)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
+        run_history_operation_at_queue_position(operation_id, move(request), *requesting_client, requesting_page_id, {}, traversal_sequence_number, move(on_complete), move(promise));
     };
 
     if (synchronous_navigation_target.has_value())
@@ -1304,8 +1296,7 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
     add_history_operation_completion_endpoint(operation, {
                                                              operation.initiating_client,
                                                              operation.initiating_page_id,
-                                                         },
-        operation.initiation_id);
+                                                         });
 
     if (operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
         operation.owns_navigation_transaction = navigation_transaction_matches(
@@ -1316,7 +1307,6 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         }
     }
 
-    VERIFY(operation.initiation_id.has_value());
     Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation;
     if (operation.parameters.has<Web::NavigableCreationHistoryOperationParameters>()) {
         auto const& parameters = operation.parameters.get<Web::NavigableCreationHistoryOperationParameters>();
@@ -1345,7 +1335,7 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         }
     }
     operation.initiating_client->async_history_operation_started(
-        operation.initiating_page_id, operation.operation_id, *operation.initiation_id,
+        operation.initiating_page_id, operation.operation_id,
         move(reconstructed_child_navigation));
 }
 
@@ -1490,7 +1480,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     apply_history_step(operation, *target_step, false, {}, parameters.user_involvement, navigation_type);
 }
 
-void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HistoryOperationReadyResult result)
+void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
 {
     auto* operation = find_history_operation(operation_id);
     if (!operation || operation->algorithm)
@@ -1626,7 +1616,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
         });
 }
 
-void CanonicalTraversable::finish_history_operation(u64 operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step)
+void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step)
 {
     auto operation = m_history_operations.take(operation_id);
     if (!operation.has_value())
@@ -1654,7 +1644,7 @@ void CanonicalTraversable::finish_history_operation(u64 operation_id, Web::HTML:
     for (auto& endpoint : taken_operation.completion_endpoints)
         endpoint.client->async_complete_history_operation(
             endpoint.page_id, operation_id, result, committed_step,
-            m_session_history.size(), endpoint.initiation_id);
+            m_session_history.size());
 
     // All apply-driven mutations have settled at operation completion.
     session_history_changed();
@@ -1693,7 +1683,7 @@ void CanonicalTraversable::abandon_history_operations()
     }
 }
 
-void CanonicalTraversable::did_receive_history_step_unload_cancelation_result(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::HistoryStepResult result)
+void CanonicalTraversable::did_receive_history_step_unload_cancelation_result(WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
 {
     if (auto* operation = find_history_operation(operation_id)) {
         if (!operation->was_initiated_by(source_client, source_page_id))
@@ -1705,7 +1695,7 @@ void CanonicalTraversable::did_receive_history_step_unload_cancelation_result(We
     }
 }
 
-void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
 {
     if (auto* operation = find_history_operation(operation_id)) {
         auto pending_job = operation->pending_changing_jobs.get(navigable_id);
@@ -1767,7 +1757,7 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
     }
 }
 
-void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (auto* operation = find_history_operation(operation_id)) {
         auto endpoint = operation->changing_job_endpoints.get(navigable_id);
@@ -1819,7 +1809,7 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
     }
 }
 
-void CanonicalTraversable::did_receive_nonchanging_navigable_history_state_updated(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+void CanonicalTraversable::did_receive_nonchanging_navigable_history_state_updated(WebContentClient& source_client, u64 source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto* operation = find_history_operation(operation_id)) {
         auto pending = operation->pending_nonchanging_updates.get(navigable_id);
