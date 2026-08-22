@@ -1076,6 +1076,19 @@ impl StyleEngine {
         self.settle_tree_staging_memory();
     }
 
+    pub(super) fn depth_recompute_nodes(
+        &self,
+        staged_rows: &[(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)],
+    ) -> HashSet<StyleNodeID> {
+        staged_rows
+            .iter()
+            .filter_map(|&(node, before, relations)| {
+                let relations = relations?;
+                (before.is_none() || self.tree.parent(node) != relations.parent).then_some(node)
+            })
+            .collect()
+    }
+
     /// Install final staged relation rows at the transaction barrier.
     pub(super) fn apply_staged_tree_deltas(&mut self) {
         if self.tree_staging.is_empty() || self.tree_staging.is_applied() {
@@ -1087,13 +1100,7 @@ impl StyleEngine {
         // read before installation: the frozen before-side parent misses a move that a mid-transaction
         // application already installed, and a sibling-only row must not count as a moved parent.
         // A moved parent's subtree walk covers its moved descendants, so those are skipped below.
-        let depth_recompute_nodes = staged_rows
-            .iter()
-            .filter_map(|&(node, before, relations)| {
-                let relations = relations?;
-                (before.is_none() || self.tree.parent(node) != relations.parent).then_some(node)
-            })
-            .collect::<Vec<_>>();
+        let depth_recompute_nodes = self.depth_recompute_nodes(&staged_rows);
 
         for &(node, _, relations) in &staged_rows {
             let Some(relations) = relations else {
@@ -1119,11 +1126,14 @@ impl StyleEngine {
         for (parent, _, child) in &staged_first_children {
             self.tree.set_first_element_child(*parent, *child);
         }
-        for &node in &depth_recompute_nodes {
+        for &(node, _, _) in &staged_rows {
+            if !depth_recompute_nodes.contains(&node) {
+                continue;
+            }
             let parent_is_recomputed = self
                 .tree
                 .parent(node)
-                .is_some_and(|parent| depth_recompute_nodes.binary_search(&parent).is_ok());
+                .is_some_and(|parent| depth_recompute_nodes.contains(&parent));
             if !parent_is_recomputed {
                 self.tree.recompute_subtree_depth(node);
             }

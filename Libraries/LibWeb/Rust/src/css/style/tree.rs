@@ -185,6 +185,33 @@ pub(super) struct TreeRelationStaging {
 type StagedTreeRows = Vec<(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)>;
 type StagedFirstChildren = Vec<(StyleNodeID, Option<StyleNodeID>, Option<StyleNodeID>)>;
 
+fn radix_sort_style_node_ids(mut nodes: Vec<StyleNodeID>) -> Vec<StyleNodeID> {
+    if nodes.len() < 2 {
+        return nodes;
+    }
+    let mut scratch = vec![nodes[0]; nodes.len()];
+    let significant_bits = u32::BITS - nodes.iter().map(|node| node.raw()).max().unwrap().leading_zeros();
+    for shift in (0..significant_bits).step_by(u8::BITS as usize) {
+        let mut offsets = [0_usize; 1 << u8::BITS];
+        for node in &nodes {
+            offsets[((node.raw() >> shift) & u8::MAX as u32) as usize] += 1;
+        }
+        let mut offset = 0;
+        for count in &mut offsets {
+            let next_offset = offset + *count;
+            *count = offset;
+            offset = next_offset;
+        }
+        for &node in &nodes {
+            let bucket = ((node.raw() >> shift) & u8::MAX as u32) as usize;
+            scratch[offsets[bucket]] = node;
+            offsets[bucket] += 1;
+        }
+        std::mem::swap(&mut nodes, &mut scratch);
+    }
+    nodes
+}
+
 impl TreeRelationStaging {
     pub(super) fn is_empty(&self) -> bool {
         self.touched_rows.is_empty() && self.touched_first_children.is_empty()
@@ -281,17 +308,13 @@ impl TreeRelationStaging {
     }
 
     pub(super) fn dirty_rows(&self) -> StagedTreeRows {
-        let mut rows: StagedTreeRows = self
-            .dirty_rows
-            .iter()
-            .copied()
+        radix_sort_style_node_ids(self.dirty_rows.clone())
+            .into_iter()
             .map(|node| {
                 let pair = self.rows.get(node).expect("dirty tree row must be staged");
                 (node, pair.before, pair.after)
             })
-            .collect();
-        rows.sort_unstable_by_key(|&(node, _, _)| node);
-        rows
+            .collect()
     }
 
     pub(super) fn dirty_first_children(&self) -> StagedFirstChildren {
@@ -1073,6 +1096,30 @@ impl Iterator for Preorder<'_> {
 mod tests {
     use super::super::memory::DeviceClass;
     use super::*;
+
+    #[test]
+    fn radix_sorts_style_node_identities() {
+        let mut nodes = vec![
+            StyleNodeID::element(u32::MAX),
+            StyleNodeID::element(256),
+            StyleNodeID::element(65_536),
+            StyleNodeID::element(255),
+            StyleNodeID::element(1),
+        ];
+
+        nodes = radix_sort_style_node_ids(nodes);
+
+        assert_eq!(
+            nodes,
+            vec![
+                StyleNodeID::element(1),
+                StyleNodeID::element(255),
+                StyleNodeID::element(256),
+                StyleNodeID::element(65_536),
+                StyleNodeID::element(u32::MAX),
+            ]
+        );
+    }
 
     #[test]
     fn tree_staging_keeps_exact_before_and_after_rows_across_apply() {
