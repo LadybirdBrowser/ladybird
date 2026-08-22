@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -700,7 +701,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     auto traversable = navigable->traversable_navigable();
 
     // 11. Let sourceSnapshotParams be the result of snapshotting source snapshot params given document.
-    auto source_snapshot_params = document.snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(document);
 
     // 12. Append the following session history traversal steps to traversable:
     // NB: The UI process owns the session history traversal queue, resolves the key against the canonical session

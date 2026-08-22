@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -799,7 +800,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
 
             // 4. If potentiallyTargetSpecificSourceSnapshotParams is null, then set it to the result of snapshotting source snapshot params given navigable's active document.
             if (!potentially_target_specific_source_snapshot_params)
-                potentially_target_specific_source_snapshot_params = navigable->active_document()->snapshot_source_snapshot_params();
+                potentially_target_specific_source_snapshot_params = snapshot_source_snapshot_params(navigable->active_document());
 
             // 5. Set targetEntry's document state's reload pending to false.
             // AD-HOC: Preserve reload pending for steps 6 and 7 before step 5 clears it.
@@ -1350,7 +1351,7 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
     // 3. If sourceDocument is given, then:
     if (source_document) {
         // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
-        source_snapshot_params = source_document->snapshot_source_snapshot_params();
+        source_snapshot_params = snapshot_source_snapshot_params(source_document);
 
         // 2. Set initiatorToCheck to sourceDocument's node navigable.
         initiator_to_check = source_document->navigable();

@@ -73,6 +73,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/ScrollOptions.h>
+#include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
@@ -1099,7 +1100,7 @@ void Window::close()
     auto browsing_context = traversable->active_browsing_context();
 
     // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
-    auto source_snapshot_params = traversable->active_document()->snapshot_source_snapshot_params();
+    auto source_snapshot_params = snapshot_source_snapshot_params(traversable->active_document());
 
     auto& incumbent_global_object = HTML::incumbent_window();
 
