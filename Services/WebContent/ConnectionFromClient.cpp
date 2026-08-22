@@ -162,7 +162,7 @@ void ConnectionFromClient::run_navigation_unload_check(u64 page_id, Web::HTML::C
         page->run_navigation_unload_check(navigable_id, navigation_id);
         return;
     }
-    async_did_complete_navigation_unload_check(page_id, navigable_id, move(navigation_id), false);
+    async_did_fail_navigation_population(page_id, navigable_id, move(navigation_id));
 }
 
 void ConnectionFromClient::create_navigation_params(u64 page_id, Web::HTML::NavigationPopulationRequest request)

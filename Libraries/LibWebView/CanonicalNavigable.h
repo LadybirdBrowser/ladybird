@@ -42,30 +42,40 @@ public:
     };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
+    // A navigation transaction, live from its admission until its target document is activated or the
+    // navigation is canceled or superseded.
     struct OngoingNavigation {
         enum class Phase : u8 {
             Started,
             AwaitingUnloadCheck,
             Populating,
             AwaitingResponseBody,
-            Committed,
         };
 
         Optional<URL::URL> url {};
         Optional<URL::URL> current_url {};
         Optional<Web::NavigationTarget> target {};
         Optional<Utf16String> navigation_id {};
+        Optional<Web::HTML::NavigationStartRequest> start_request {};
         u64 sequence_number { 0 };
         bool has_started { false };
         bool uses_replacement_process { false };
         bool is_uncommitted { false };
         Phase phase { Phase::Started };
-        Optional<Web::HTML::NavigationStartRequest> start_request {};
         OwnPtr<NavigationLoader> loader {};
         WeakPtr<WebContentClient> population_worker_client {};
         u64 population_worker_page_id { 0 };
         WeakPtr<WebContentClient> host_client {};
         u64 host_page_id { 0 };
+    };
+
+    // The active document's load, tracked from the document's activation until WebContent reports that
+    // the load finished, failed, or was canceled. Kept apart from the ongoing navigation because the two
+    // overlap: a newer navigation can be admitted, and a traversal can run, while the active document's
+    // load is still in progress.
+    struct ActiveDocumentLoad {
+        Optional<Utf16String> navigation_id {};
+        Optional<URL::URL> url {};
     };
 
     CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id);
@@ -157,6 +167,9 @@ public:
     bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value() && m_ongoing_navigation->is_uncommitted; }
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
 
+    Optional<ActiveDocumentLoad> const& active_document_load() const { return m_active_document_load; }
+    void clear_active_document_load() { m_active_document_load.clear(); }
+
 private:
     Web::HTML::CrossProcessId m_id;
     Optional<Web::HTML::CrossProcessId> m_parent_id;
@@ -170,6 +183,7 @@ private:
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
+    Optional<ActiveDocumentLoad> m_active_document_load;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };
 
