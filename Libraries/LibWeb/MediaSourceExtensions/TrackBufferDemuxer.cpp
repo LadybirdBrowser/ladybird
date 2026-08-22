@@ -142,6 +142,7 @@ Optional<AK::Duration> TrackBufferDemuxer::earliest_evictable_frame_timestamp(AK
 size_t TrackBufferDemuxer::take_earliest_frame()
 {
     Sync::MutexLocker locker { m_mutex };
+    VERIFY(!m_reached_end_of_stream);
     auto frame = m_coded_frames.take_first();
     m_track_buffer_ranges.remove_range(frame.timestamp(), frame.timestamp() + frame.duration());
     auto bytes = frame.data().size();
@@ -166,6 +167,7 @@ Optional<AK::Duration> TrackBufferDemuxer::latest_evictable_frame_timestamp(AK::
 size_t TrackBufferDemuxer::take_latest_frame()
 {
     Sync::MutexLocker locker { m_mutex };
+    VERIFY(!m_reached_end_of_stream);
     auto frame = m_coded_frames.take_last();
     m_track_buffer_ranges.remove_range(frame.timestamp(), frame.timestamp() + frame.duration());
     auto bytes = frame.data().size();
