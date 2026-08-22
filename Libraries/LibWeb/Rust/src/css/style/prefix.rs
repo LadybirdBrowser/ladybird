@@ -1275,7 +1275,7 @@ impl PrefixDeltaArena {
     ///
     /// A step can occur in both delta partitions while moving between them, so test its combined
     /// state sign instead of treating every non-empty span as a semantic change.
-    fn changes_selected_state(&self, id: PrefixStateDeltaID, selection: &PrefixSelection) -> bool {
+    fn changes_selected_state(&self, id: PrefixStateDeltaID, selection: Option<&PrefixSelection>) -> bool {
         let delta = self.delta(id);
         [
             delta.persisting_additions,
@@ -1285,7 +1285,9 @@ impl PrefixDeltaArena {
         ]
         .into_iter()
         .flat_map(|span| self.get(span))
-        .any(|&step| selection.contains_step(step) && self.state_sign(Some(id), step) != 0)
+        .any(|&step| {
+            selection.is_none_or(|selection| selection.contains_step(step)) && self.state_sign(Some(id), step) != 0
+        })
     }
 
     fn persisting_only(&mut self, id: Option<PrefixStateDeltaID>) -> PrefixStateDeltaID {
@@ -2287,7 +2289,7 @@ impl PrefixStates {
         if entering_deltas.parent.is_none() && entering_deltas.previous.is_none() {
             return None;
         }
-        if self.local_facts_of(node) != Some(local_facts) || self.positional_bits_of(node) != positional_bits {
+        if self.local_facts_of(node) != Some(local_facts) {
             return None;
         }
         if local_output_deltas.result_changed && !local_output_deltas.result_delta_complete {
@@ -2356,6 +2358,7 @@ impl PrefixStates {
         evaluation: &PrefixEvaluation<'_, '_>,
         old_evaluation: &PrefixEvaluation<'_, '_>,
         selection: Option<&PrefixSelection>,
+        derive_unselected_deltas: bool,
         node: StyleNodeID,
         local_facts_changed: bool,
         local_affected_candidates: Option<&[PrefixProducer]>,
@@ -2412,84 +2415,108 @@ impl PrefixStates {
             Ok(bits) => bits,
             Err(incomplete) => return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete)),
         };
+        let old_positional_bits = self.positional_bits_of(node);
+        let positional_bits_changed = old.is_some() && old_positional_bits != positional_bits;
         let entering = EnteringStates {
             parent: parent_state,
             previous: previous_state,
         };
+        let transition_is_memoized = selection.is_none()
+            && derive_unselected_deltas
+            && self.transitions.contains_key(&PrefixTransitionKey {
+                parent: entering.parent,
+                previous: entering.previous,
+                local_facts,
+                is_document_root: evaluation.tree.parent(node).is_none(),
+                positional_bits,
+            });
         let old_entering = self.entering_of(node);
         // Interner give-back can strand a node with a remapped transition but no surviving
         // entering states: the entering names the parent's old state, which dies with a forgotten
         // parent transition. Local output deltas replay from the old entering, so without one the
         // difference has to come from comparing the interned state chains instead.
-        let can_derive_delta = selection.is_some()
+        let can_derive_delta = (selection.is_some() || derive_unselected_deltas)
+            && !transition_is_memoized
             && (entering_deltas.parent.is_some()
                 || entering_deltas.previous.is_some()
-                || local_affected_candidates.is_some())
+                || local_affected_candidates.is_some()
+                || positional_bits_changed)
             && (!local_facts_changed || local_affected_candidates.is_some())
             && old_entering.is_some();
         let mut affected_candidates = std::mem::take(&mut self.candidates);
         affected_candidates.clear();
-        for delta in [entering_deltas.parent, entering_deltas.previous].into_iter().flatten() {
-            self.collect_delta_steps(delta, delta_arena, &mut affected_candidates);
-        }
-        for delta in [entering_deltas.parent, entering_deltas.previous].into_iter().flatten() {
-            let delta = delta_arena.delta(delta);
-            for span in [delta.persisting_additions, delta.persisting_removals] {
-                for &step in delta_arena.get(span) {
-                    if let Some(predecessor) = evaluation.automaton.predecessor_of(step) {
-                        affected_candidates.push(predecessor);
+        if can_derive_delta {
+            for delta in [entering_deltas.parent, entering_deltas.previous].into_iter().flatten() {
+                self.collect_delta_steps(delta, delta_arena, &mut affected_candidates);
+            }
+            for delta in [entering_deltas.parent, entering_deltas.previous].into_iter().flatten() {
+                let delta = delta_arena.delta(delta);
+                for span in [delta.persisting_additions, delta.persisting_removals] {
+                    for &step in delta_arena.get(span) {
+                        if let Some(predecessor) = evaluation.automaton.predecessor_of(step) {
+                            affected_candidates.push(predecessor);
+                        }
                     }
                 }
             }
-        }
-        if local_facts_changed && let Some(local_affected_candidates) = local_affected_candidates {
-            let mut active_candidates = std::mem::take(&mut self.compare_left);
-            active_candidates.clear();
-            for active in [
-                old_entering.map(|entering| entering.parent),
-                old_entering.map(|entering| entering.previous),
-                Some(entering.parent),
-                Some(entering.previous),
-            ]
-            .into_iter()
-            .flatten()
-            {
-                self.collect_active(active, &mut active_candidates);
-            }
-            let mut append_roots = |evaluation: &PrefixEvaluation<'_, '_>| {
-                let Ok(row) = evaluation.row_of(node) else {
-                    return;
+            if (local_facts_changed && local_affected_candidates.is_some()) || positional_bits_changed {
+                let mut active_candidates = std::mem::take(&mut self.compare_left);
+                active_candidates.clear();
+                for active in [
+                    old_entering.map(|entering| entering.parent),
+                    old_entering.map(|entering| entering.previous),
+                    Some(entering.parent),
+                    Some(entering.previous),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    self.collect_active(active, &mut active_candidates);
+                }
+                let mut append_roots = |evaluation: &PrefixEvaluation<'_, '_>| {
+                    let Ok(row) = evaluation.row_of(node) else {
+                        return;
+                    };
+                    row.facts
+                        .for_each_dispatch_probe(row.row, evaluation.tree.parent(node).is_none(), |key, _| {
+                            if let Some(bucket) = evaluation.automaton.bucket(key) {
+                                active_candidates.extend_from_slice(&bucket.root_steps);
+                            }
+                        });
                 };
-                row.facts
-                    .for_each_dispatch_probe(row.row, evaluation.tree.parent(node).is_none(), |key, _| {
-                        if let Some(bucket) = evaluation.automaton.bucket(key) {
-                            active_candidates.extend_from_slice(&bucket.root_steps);
+                append_roots(old_evaluation);
+                append_roots(evaluation);
+                active_candidates.retain(|step| {
+                    local_affected_candidates
+                        .is_some_and(|producers| producers.binary_search_by_key(step, |producer| producer.step).is_ok())
+                        || match &evaluation.automaton.compounds
+                            [evaluation.automaton.steps[step.0 as usize].compound.0 as usize]
+                            .predicate
+                        {
+                            PrefixPredicate::Features {
+                                required_positional_bits,
+                                ..
+                            } => required_positional_bits & (old_positional_bits ^ positional_bits) != 0,
+                            PrefixPredicate::Program { .. } => false,
                         }
-                    });
-            };
-            append_roots(old_evaluation);
-            append_roots(evaluation);
-            active_candidates.retain(|step| {
+                });
+                affected_candidates.extend_from_slice(&active_candidates);
+                self.compare_left = active_candidates;
+            }
+            affected_candidates.sort_unstable();
+            affected_candidates.dedup();
+            let is_document_root = evaluation.tree.parent(node).is_none();
+            affected_candidates.retain(|&step| {
                 local_affected_candidates
-                    .binary_search_by_key(step, |producer| producer.step)
-                    .is_ok()
+                    .is_some_and(|producers| producers.binary_search_by_key(&step, |producer| producer.step).is_ok())
+                    || row.facts.carries_dispatch_key(
+                        row.row,
+                        evaluation.automaton.compounds[evaluation.automaton.steps[step.0 as usize].compound.0 as usize]
+                            .dispatch_key,
+                        is_document_root,
+                    )
             });
-            affected_candidates.extend_from_slice(&active_candidates);
-            self.compare_left = active_candidates;
         }
-        affected_candidates.sort_unstable();
-        affected_candidates.dedup();
-        let is_document_root = evaluation.tree.parent(node).is_none();
-        affected_candidates.retain(|&step| {
-            local_affected_candidates
-                .is_some_and(|producers| producers.binary_search_by_key(&step, |producer| producer.step).is_ok())
-                || row.facts.carries_dispatch_key(
-                    row.row,
-                    evaluation.automaton.compounds[evaluation.automaton.steps[step.0 as usize].compound.0 as usize]
-                        .dispatch_key,
-                    is_document_root,
-                )
-        });
         let local_output_deltas = if can_derive_delta && !local_facts_changed {
             old.zip(old_entering).map(|(old, old_entering)| {
                 self.emit_local_output_deltas(
@@ -2518,7 +2545,10 @@ impl PrefixStates {
                 return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
             }
         };
-        let sparse = if !local_facts_changed && selection.is_some() {
+        if can_derive_delta {
+            counters.bump(Counter::PrefixTransitionDeltaAttempts);
+        }
+        let sparse = if !local_facts_changed && can_derive_delta {
             match (old, local_output_deltas) {
                 (Some(old), Some(local_output_deltas)) => self.try_sparse_retained_local_transition(
                     evaluation,
@@ -2538,6 +2568,9 @@ impl PrefixStates {
         } else {
             None
         };
+        if sparse.is_some() {
+            counters.bump(Counter::PrefixTransitionDeltaHits);
+        }
         let used_sparse_transition = sparse.is_some();
         let (new, use_admitted_new_truth) = if let Some(transition) = sparse {
             (transition, false)
@@ -2616,7 +2649,7 @@ impl PrefixStates {
             } else {
                 delta_arena.combine(entering_deltas.parent, local_output_deltas.unwrap().continuation)
             };
-            let changed = delta_arena.changes_selected_state(delta, selection.unwrap());
+            let changed = delta_arena.changes_selected_state(delta, selection);
             (changed, changed.then_some(delta))
         } else {
             (!self.selected_states_equal(old.state, new.state, selection), None)
@@ -2629,7 +2662,7 @@ impl PrefixStates {
             } else {
                 delta_arena.combine(entering_deltas.previous, local_output_deltas.unwrap().right)
             };
-            let changed = delta_arena.changes_selected_state(delta, selection.unwrap());
+            let changed = delta_arena.changes_selected_state(delta, selection);
             (changed, changed.then_some(delta))
         } else {
             (!self.selected_states_equal(old.right, new.right, selection), None)
@@ -4368,8 +4401,8 @@ mod tests {
             terminals: Box::new([]),
         };
 
-        assert!(!arena.changes_selected_state(delta, &cancelled_selection));
-        assert!(arena.changes_selected_state(delta, &changed_selection));
+        assert!(!arena.changes_selected_state(delta, Some(&cancelled_selection)));
+        assert!(arena.changes_selected_state(delta, Some(&changed_selection)));
     }
 
     #[test]

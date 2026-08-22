@@ -5892,6 +5892,7 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
 
     // A trailing arrival: the previously last child keeps its facts but loses
     // `:last-child`, and the previous `:nth-last-child(2)` holder loses that too.
+    let delta_hits_before = engine.counters().get(Counter::PrefixTransitionDeltaHits);
     let trailing = nodes[8];
     let old_last = *model.last().unwrap();
     model.push(trailing);
@@ -5902,6 +5903,10 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
     );
     record_facts(&mut engine, trailing, class_item);
     flush_and_check(&mut engine, &model, "a trailing arrival");
+    assert!(
+        engine.counters().get(Counter::PrefixTransitionDeltaHits) > delta_hits_before,
+        "an arrival derives retained transition deltas for stationary siblings"
+    );
 
     // A middle removal: forward parity flips for every following sibling.
     let removed_index = 2;

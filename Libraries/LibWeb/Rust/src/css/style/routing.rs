@@ -2920,6 +2920,10 @@ impl StyleEngine {
                 let mut complete = true;
                 let mut prefix_completion_budget = PREFIX_TRANSITION_CACHE_COMPLETION_BUDGET;
                 let mut sibling_walk_abandoned = false;
+                // An arrival commonly creates transition keys this cache has never seen. Derive
+                // their exact signed changes from the retained states; departure-only edits tend
+                // to revisit memoized keys, where direct transition lookup is cheaper.
+                let derive_unselected_deltas = tree_relations_changed && departures.is_empty();
                 {
                     let states = match retained.lookup_mut(scope_program) {
                         Lookup::Known(states) => states,
@@ -2989,6 +2993,7 @@ impl StyleEngine {
                             &new_evaluation,
                             &old_evaluation,
                             difference_selection,
+                            derive_unselected_deltas,
                             node,
                             local_facts_changed,
                             local_prefix_candidates,
