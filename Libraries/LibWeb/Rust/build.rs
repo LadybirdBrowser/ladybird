@@ -1301,6 +1301,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut keyword_alias_rows = Vec::new();
     let mut keyword_only_rows = Vec::new();
     let mut coordinating_list_rows = Vec::new();
+    let mut maximum_value_count_rows = Vec::new();
     let mut percentages_resolve_to_rows = Vec::new();
     let mut unitless_length_quirk_rows = Vec::new();
     let mut hashless_hex_color_quirk_rows = Vec::new();
@@ -1389,6 +1390,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             property_field(name, "multiplicity").and_then(|value| value.as_str().map(str::to_string))
                 == Some("coordinating-list".to_string()),
         );
+        maximum_value_count_rows.push(
+            property_field(name, "max-values")
+                .and_then(|value| value.as_u64())
+                .unwrap_or(1),
+        );
         percentages_resolve_to_rows.push(match property_field(name, "percentages-resolve-to") {
             Some(value) => {
                 let type_name = value.as_str().unwrap();
@@ -1460,6 +1466,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_HAS_COORDINATING_LIST_MULTIPLICITY: [bool; {}] = {:?};\n\n",
         coordinating_list_rows.len(),
         coordinating_list_rows
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_MAXIMUM_VALUE_COUNTS: [u64; {}] = {:?};\n\n",
+        maximum_value_count_rows.len(),
+        maximum_value_count_rows
     ));
     output.push_str(&format!(
         "pub(crate) static PROPERTY_PERCENTAGES_RESOLVE_TO: [Option<u8>; {}] = [\n{}\n];\n",

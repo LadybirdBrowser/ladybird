@@ -14,7 +14,7 @@ use super::value_parser::{
     VALUE_TYPE_NUMBER, VALUE_TYPE_PERCENTAGE, equals_ascii_case_insensitive, parse_angle_value,
     parse_calculated_numeric_value_with_ranges, parse_integer_value, parse_length_from_stream,
     parse_length_percentage_from_stream, parse_number_from_stream, parse_number_percentage_value, parse_number_value,
-    parse_percentage_value, parse_url_value,
+    parse_percentage_value, parse_tree_counting_value, parse_url_value,
 };
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_step_position, step_position};
 use crate::css::css_tokenizer::ParserTokenKind;
@@ -373,6 +373,11 @@ fn parse_numeric_component(
     value_type: u8,
     range: NumericRange,
 ) -> Option<StyleValueData> {
+    if matches!(value_type, VALUE_TYPE_INTEGER | VALUE_TYPE_NUMBER)
+        && let Some(value) = parse_tree_counting_value(context, value, u8::from(value_type == VALUE_TYPE_INTEGER))
+    {
+        return Some(value);
+    }
     if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
@@ -651,10 +656,23 @@ fn parse_drop_shadow(context: &ParseContext, property: u16, values: &[ComponentV
     ))
 }
 
+fn contains_random_function(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { name, values } => {
+            equals_ascii_case_insensitive(name, b"random") || contains_random_function(values)
+        }
+        ComponentKind::SimpleBlock { values, .. } => contains_random_function(values),
+        ComponentKind::Token(_) => false,
+    })
+}
+
 fn parse_filter_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
     let (name, values) = value.function()?;
     let values_without_whitespace = non_whitespace(values);
     if equals_ascii_case_insensitive(name, b"blur") {
+        if contains_random_function(values) {
+            return None;
+        }
         let radius = if values_without_whitespace.is_empty() {
             StyleValueData::Length {
                 value: 0.0,

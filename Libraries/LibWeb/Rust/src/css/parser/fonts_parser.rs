@@ -262,17 +262,6 @@ fn contains_substitution(values: &[ComponentValue]) -> bool {
     })
 }
 
-fn contains_tree_counting_function(values: &[ComponentValue]) -> bool {
-    values.iter().any(|value| {
-        let Some((name, arguments)) = value.function() else {
-            return false;
-        };
-        equals_ascii_case_insensitive(name, b"sibling-index")
-            || equals_ascii_case_insensitive(name, b"sibling-count")
-            || contains_tree_counting_function(arguments)
-    })
-}
-
 fn parse_opentype_tag(context: &ParseContext, tokens: &mut TokenStream<'_>) -> Option<([u16; 4], StyleValueData)> {
     tokens.discard_whitespace();
     let string = tokens.consume_a_token().string()?;
@@ -613,15 +602,6 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     }
     if contains_substitution(values) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
-    }
-    if matches!(
-        property,
-        property_id::FONT_STYLE | property_id::FONT_FEATURE_SETTINGS | property_id::FONT_VARIATION_SETTINGS
-    ) && contains_tree_counting_function(values)
-    {
-        // NB: Tree-counting numeric values remain in the C++ parser until the
-        //     long-tail value task ports their calculation nodes.
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     }
     let single_keyword = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
