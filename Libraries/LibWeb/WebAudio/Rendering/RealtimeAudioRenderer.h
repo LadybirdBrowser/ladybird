@@ -29,6 +29,10 @@ namespace Web::WebAudio::Rendering {
 // https://webaudio.github.io/web-audio-api/#AudioContext
 class WEB_API RealtimeAudioRenderer final : public AtomicRefCounted<RealtimeAudioRenderer> {
 public:
+    // Device-buffer latency target. Public because AudioWorkletPipe derives its lookahead from the
+    // renderer's burst size, which this constant determines.
+    static constexpr u32 TARGET_LATENCY_MS = 100;
+
     static NonnullRefPtr<RealtimeAudioRenderer> create(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size);
     ~RealtimeAudioRenderer();
 

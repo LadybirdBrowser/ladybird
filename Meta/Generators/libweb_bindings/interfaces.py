@@ -32,6 +32,7 @@ from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 
 GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES = {
+    "AudioWorkletGlobalScope": "AudioWorklet",
     "DedicatedWorkerGlobalScope": "DedicatedWorker",
     "SharedWorkerGlobalScope": "SharedWorker",
 }
@@ -361,13 +362,15 @@ def write_implementation(
     if interface.name in GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES:
         exposure_prefix = GENERATED_GLOBAL_SCOPE_EXPOSURE_PREFIXES[interface.name]
         add_exposed_interfaces_function = {
+            "AudioWorklet": "add_audio_worklet_exposed_interfaces",
             "DedicatedWorker": "add_dedicated_worker_exposed_interfaces",
             "SharedWorker": "add_shared_worker_exposed_interfaces",
         }[exposure_prefix]
+        implementation_namespace = fully_qualified_name_for_interface(interface).rsplit("::", 1)[0]
         out.write(
             f"""}} // namespace Web::Bindings
 
-namespace Web::HTML {{
+namespace Web::{implementation_namespace} {{
 
 void {interface.name}::initialize_web_interfaces_impl()
 {{
@@ -382,7 +385,7 @@ void {interface.name}::initialize_web_interfaces_impl()
     Base::initialize_web_interfaces_impl();
 }}
 
-}} // namespace Web::HTML
+}} // namespace Web::{implementation_namespace}
 
 namespace Web::Bindings {{
 """

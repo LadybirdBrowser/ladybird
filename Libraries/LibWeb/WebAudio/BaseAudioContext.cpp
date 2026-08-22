@@ -29,6 +29,8 @@
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
+#include <LibWeb/WebAudio/AudioWorklet.h>
+#include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
@@ -95,6 +97,7 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_listener);
     visitor.visit(m_global_object);
     visitor.visit(m_document_observer);
+    visitor.visit(m_audio_worklet);
     visitor.visit(m_playing_sources);
 }
 
@@ -136,6 +139,22 @@ HTML::Window& BaseAudioContext::relevant_window() const
     auto* window = HTML::window_from_global_object(relevant_global_object());
     VERIFY(window);
     return *window;
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-audioworklet
+GC::Ref<AudioWorklet> BaseAudioContext::audio_worklet()
+{
+    if (!m_audio_worklet)
+        m_audio_worklet = AudioWorklet::create(*this);
+    return *m_audio_worklet;
+}
+
+void BaseAudioContext::shutdown_audio_worklet()
+{
+    if (!m_audio_worklet)
+        return;
+    if (auto scope = m_audio_worklet->audio_worklet_global_scope())
+        scope->shutdown_all_slots();
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)

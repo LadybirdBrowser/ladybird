@@ -24,6 +24,8 @@
         <string>Ladybird needs your location to provide it to websites that request geolocation access.</string>
         <key>NSLocationWhenInUseUsageDescription</key>
         <string>Ladybird needs your location to provide it to websites that request geolocation access.</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Ladybird needs access to your microphone to provide audio capture to websites that request it.</string>
         <key>CFBundleDocumentTypes</key>
         <array>
             <dict>

@@ -105,6 +105,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(play)                     \
     __ENUMERATE_HTML_EVENT(playing)                  \
     __ENUMERATE_HTML_EVENT(popstate)                 \
+    __ENUMERATE_HTML_EVENT(processorerror)           \
     __ENUMERATE_HTML_EVENT(progress)                 \
     __ENUMERATE_HTML_EVENT(ratechange)               \
     __ENUMERATE_HTML_EVENT(readystatechange)         \
