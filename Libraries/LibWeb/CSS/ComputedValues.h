@@ -1229,50 +1229,14 @@ private:
     static NonnullRefPtr<ComputedValues const> create_internal(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply);
 
 public:
-    AspectRatio aspect_ratio() const
-    {
-        auto const& value = m_noninherited.box->aspect_ratio;
-        return AspectRatio {
-            value.use_natural_aspect_ratio_if_available,
-            value.has_preferred_ratio ? Optional<Ratio> { Ratio { value.preferred_ratio_numerator, value.preferred_ratio_denominator } } : OptionalNone {},
-            value.computed_use_natural_aspect_ratio_if_available,
-            value.has_computed_ratio ? Optional<Ratio> { Ratio { value.computed_ratio_numerator, value.computed_ratio_denominator } } : OptionalNone {},
-        };
-    }
     ReadonlySpan<Utf16FlyString> anchor_names() const { return m_noninherited.anchor->anchor_names_span(); }
-    AnchorScopeData anchor_scope() const { return m_noninherited.anchor->anchor_scope_value(); }
     Vector<ComputedAnimationName> animation_names() const { return m_noninherited.animation->animation_names_value(); }
-    Vector<AnimationComposition> animation_compositions() const { return m_noninherited.animation->animation_compositions_value(); }
-    Vector<Time> animation_delays() const { return m_noninherited.animation->animation_delays_value(); }
-    Vector<AnimationDirection> animation_directions() const { return m_noninherited.animation->animation_directions_value(); }
-    Vector<Optional<Time>> animation_durations() const { return m_noninherited.animation->animation_durations_value(); }
-    Vector<AnimationFillMode> animation_fill_modes() const { return m_noninherited.animation->animation_fill_modes_value(); }
-    Vector<double> animation_iteration_counts() const { return m_noninherited.animation->animation_iteration_counts_value(); }
-    Vector<AnimationPlayState> animation_play_states() const { return m_noninherited.animation->animation_play_states_value(); }
-    Vector<AnimationTimelineData> animation_timelines() const { return m_noninherited.animation->animation_timelines_value(); }
-    Vector<EasingFunction> animation_timing_functions() const { return m_noninherited.animation->animation_timing_functions_value(); }
-    StyleValueVector animation_timing_function_style_values() const { return m_noninherited.animation->animation_timing_function_style_values_value(); }
-    BoxSizing box_sizing_for_aspect_ratio() const
-    {
-        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
-        // For a preferred aspect ratio specified as `auto && <ratio>`, the ratio is applied to the content box.
-        if (aspect_ratio().use_natural_aspect_ratio_if_available)
-            return BoxSizing::ContentBox;
-        return box_sizing();
-    }
 
     Float float_() const { return static_cast<Float>(m_noninherited.box->float_); }
-    CSSPixels border_spacing_horizontal() const { return CSSPixels::from_raw(m_inherited.table->border_spacing_horizontal); }
-    CSSPixels border_spacing_vertical() const { return CSSPixels::from_raw(m_inherited.table->border_spacing_vertical); }
-    CaptionSide caption_side() const { return static_cast<CaptionSide>(m_inherited.table->caption_side); }
     Color caret_color() const { return m_inherited.ui->caret_color_value(); }
-    Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
     Clip clip() const { return m_noninherited.effects->clip_value(); }
     ColorInterpolation color_interpolation() const { return m_inherited.svg->color_interpolation_value(); }
-    ColorInterpolation color_interpolation_filters() const { return m_inherited.svg->color_interpolation_filters_value(); }
     PreferredColorScheme color_scheme() const { return m_inherited.ui->color_scheme_value(); }
-    ReadonlySpan<Utf16FlyString> color_schemes() const { return m_inherited.ui->color_schemes_span(); }
-    bool color_scheme_only() const { return m_inherited.ui->color_scheme_only; }
     ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_inherited.box->content_visibility); }
     ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor() const { return m_inherited.ui->cursor_span(); }
     ComputedContentData computed_content() const { return m_noninherited.content_data->computed_content_value(); }
@@ -1280,7 +1244,6 @@ public:
     Vector<CounterData, 0> counter_increment() const { return m_noninherited.content_data->counter_increment_value(); }
     Vector<CounterData, 0> counter_reset() const { return m_noninherited.content_data->counter_reset_value(); }
     Vector<CounterData, 0> counter_set() const { return m_noninherited.content_data->counter_set_value(); }
-    PointerEvents pointer_events() const { return m_inherited.ui->pointer_events_value(); }
     Display display() const { return display_from_ffi_display(m_noninherited.box->display); }
     Display display_before_box_type_transformation() const { return display_from_ffi_display(m_noninherited.box->display_before_box_type_transformation); }
     Optional<int> z_index() const
@@ -1289,92 +1252,32 @@ public:
             return {};
         return m_noninherited.box->z_index;
     }
-    Variant<CSSPixels, double> tab_size() const
-    {
-        if (m_inherited.text->tab_size_is_number)
-            return m_inherited.text->tab_size_number;
-        return m_inherited.text->tab_size_length_value();
-    }
     TextAlign text_align() const { return m_inherited.text->text_align_value(); }
-    TextJustify text_justify() const { return m_inherited.text->text_justify_value(); }
-    TextIndentData text_indent() const { return m_inherited.text->text_indent_value(); }
-    TextWrapMode text_wrap_mode() const { return m_inherited.text->text_wrap_mode_value(); }
-    TextWrapStyle text_wrap_style() const { return m_inherited.text->text_wrap_style_value(); }
-    CSSPixels text_underline_offset() const { return m_inherited.text->text_underline_offset_value(); }
-    TextUnderlinePosition text_underline_position() const { return m_inherited.text->text_underline_position_value(); }
     ReadonlySpan<TextDecorationLine> text_decoration_line() const { return m_noninherited.text_reset->decoration_lines(); }
     TextDecorationThickness text_decoration_thickness() const { return m_noninherited.text_reset->decoration_thickness(); }
-    TextDecorationSkipInk text_decoration_skip_ink() const { return m_inherited.text->text_decoration_skip_ink_value(); }
     TextDecorationStyle text_decoration_style() const { return static_cast<TextDecorationStyle>(m_noninherited.text_reset->text_decoration_style); }
     Color text_decoration_color() const { return Color::from_bgra(m_noninherited.text_reset->text_decoration_color); }
-    TextTransform text_transform() const { return m_inherited.text->text_transform_value(); }
-    TextOverflow text_overflow() const { return static_cast<TextOverflow>(m_noninherited.box->text_overflow); }
     ReadonlySpan<ShadowData> text_shadow() const { return m_inherited.text->text_shadow_span(); }
     Positioning position() const { return static_cast<Positioning>(m_noninherited.box->position); }
-    PositionAnchor position_anchor_value() const { return m_noninherited.anchor->position_anchor_value(); }
-    Optional<Utf16FlyString> position_anchor() const { return m_noninherited.anchor->position_anchor_value().name; }
-    PositionAreaData position_area() const { return m_noninherited.anchor->position_area_value(); }
-    Vector<PositionTryFallbackData> position_try_fallbacks() const { return m_noninherited.anchor->position_try_fallbacks_value(); }
-    Optional<TryOrder> position_try_order() const { return m_noninherited.anchor->position_try_order_value(); }
-    PositionVisibilityData position_visibility() const { return m_noninherited.anchor->position_visibility_value(); }
-    Vector<Optional<Utf16FlyString>> scroll_timeline_names() const { return m_noninherited.animation->scroll_timeline_names_value(); }
-    Vector<Axis> scroll_timeline_axes() const { return m_noninherited.animation->scroll_timeline_axes_value(); }
-    TimelineScopeData timeline_scope() const { return m_noninherited.animation->timeline_scope_value(); }
-    Vector<Optional<Utf16FlyString>> view_timeline_names() const { return m_noninherited.animation->view_timeline_names_value(); }
-    Vector<Axis> view_timeline_axes() const { return m_noninherited.animation->view_timeline_axes_value(); }
-    Vector<ViewTimelineInsetData> view_timeline_insets() const { return m_noninherited.animation->view_timeline_insets_value(); }
     Vector<Optional<Utf16FlyString>> transition_properties() const { return m_noninherited.animation->transition_properties_value(); }
     Vector<Time> transition_durations() const { return m_noninherited.animation->transition_durations_value(); }
     Vector<EasingFunction> transition_timing_functions() const { return m_noninherited.animation->transition_timing_functions_value(); }
-    StyleValueVector transition_timing_function_style_values() const { return m_noninherited.animation->transition_timing_function_style_values_value(); }
     Vector<Time> transition_delays() const { return m_noninherited.animation->transition_delays_value(); }
     Vector<TransitionBehavior> transition_behaviors() const { return m_noninherited.animation->transition_behaviors_value(); }
     bool transition_delay_and_duration_are_single_zero() const { return m_noninherited.animation->transition_delay_and_duration_are_single_zero_value(); }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.text->white_space_collapse_value(); }
-    WhiteSpaceTrimData white_space_trim() const { return m_noninherited.text_reset->white_space_trim(); }
-    WordBreak word_break() const { return m_inherited.text->word_break_value(); }
-    OverflowWrap overflow_wrap() const { return m_inherited.text->overflow_wrap_value(); }
-    u64 orphans() const { return m_inherited.text->orphans; }
-    u64 widows() const { return m_inherited.text->widows; }
-    FontVariantEmoji font_variant_emoji() const { return static_cast<FontVariantEmoji>(m_inherited.font->font_variant_emoji); }
-    CSSPixels word_spacing() const { return m_inherited.text->word_spacing_value(); }
-    CSSPixels letter_spacing() const { return m_inherited.text->letter_spacing_value(); }
     FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
-    FlexWrap flex_wrap() const { return static_cast<FlexWrap>(m_noninherited.alignment->flex_wrap); }
-    FlexBasis flex_basis() const
-    {
-        if (m_noninherited.alignment->flex_basis.is_content)
-            return FlexBasisContent {};
-        return Size::view(m_noninherited.alignment->flex_basis.size);
-    }
-    double flex_grow() const { return m_noninherited.alignment->flex_grow; }
-    double flex_shrink() const { return m_noninherited.alignment->flex_shrink; }
-    i32 order() const { return m_noninherited.alignment->order; }
-    Optional<Color> accent_color() const
-    {
-        return m_inherited.ui->accent_color_value();
-    }
-    AlignContent align_content() const { return static_cast<AlignContent>(m_noninherited.alignment->align_content); }
-    AlignItems align_items() const { return static_cast<AlignItems>(m_noninherited.alignment->align_items); }
     AlignSelf align_self() const { return static_cast<AlignSelf>(m_noninherited.alignment->align_self); }
     Appearance appearance() const { return static_cast<Appearance>(m_noninherited.misc->appearance); }
-    Appearance computed_appearance() const { return static_cast<Appearance>(m_noninherited.misc->computed_appearance); }
     float opacity() const { return m_noninherited.effects->opacity; }
     Visibility visibility() const { return static_cast<Visibility>(m_inherited.box->visibility); }
-    ImageRendering image_rendering() const { return static_cast<ImageRendering>(m_inherited.box->image_rendering); }
     JustifyContent justify_content() const { return static_cast<JustifyContent>(m_noninherited.alignment->justify_content); }
     JustifySelf justify_self() const { return static_cast<JustifySelf>(m_noninherited.alignment->justify_self); }
-    JustifyItems justify_items() const { return static_cast<JustifyItems>(m_noninherited.alignment->justify_items); }
     ComputedFilterView backdrop_filter() const { return m_noninherited.effects->backdrop_filter_value(); }
     ComputedFilterView filter() const { return m_noninherited.effects->filter_value(); }
     ReadonlySpan<ShadowData> box_shadow() const { return m_noninherited.effects->box_shadow_span(); }
-    BoxSizing box_sizing() const { return static_cast<BoxSizing>(m_noninherited.box->box_sizing); }
     Size const& width() const { return Size::view(m_noninherited.sizing->width); }
-    Size const& min_width() const { return Size::view(m_noninherited.sizing->min_width); }
-    Size const& max_width() const { return Size::view(m_noninherited.sizing->max_width); }
     Size const& height() const { return Size::view(m_noninherited.sizing->height); }
-    Size const& min_height() const { return Size::view(m_noninherited.sizing->min_height); }
-    Size const& max_height() const { return Size::view(m_noninherited.sizing->max_height); }
     Variant<VerticalAlign, LengthPercentage> vertical_align() const
     {
         auto const& value = m_noninherited.box->vertical_align;
@@ -1382,59 +1285,9 @@ public:
             return static_cast<VerticalAlign>(value.keyword);
         return LengthPercentage::view(value.value);
     }
-    GridAutoFlow grid_auto_flow() const
-    {
-        return { .row = m_noninherited.box->grid_auto_flow_row, .dense = m_noninherited.box->grid_auto_flow_dense };
-    }
-    ColumnCount column_count() const
-    {
-        if (!m_noninherited.box->column_count_has_value)
-            return ColumnCount::make_auto();
-        return ColumnCount::make_integer(m_noninherited.box->column_count);
-    }
-    Variant<LengthPercentage, NormalGap> column_gap() const { return gap(m_noninherited.alignment->column_gap); }
-    ColumnSpan column_span() const { return static_cast<ColumnSpan>(m_noninherited.misc->column_span); }
-    Size const& column_width() const { return Size::view(m_noninherited.box->column_width); }
-    Size const& column_height() const { return Size::view(m_noninherited.misc->column_height); }
-    Variant<LengthPercentage, NormalGap> row_gap() const { return gap(m_noninherited.alignment->row_gap); }
-    BorderCollapse border_collapse() const { return static_cast<BorderCollapse>(m_inherited.table->border_collapse); }
-    EmptyCells empty_cells() const { return static_cast<EmptyCells>(m_inherited.table->empty_cells); }
-    ObjectFit object_fit() const { return static_cast<ObjectFit>(m_noninherited.misc->object_fit); }
-    Position object_position() const { return m_noninherited.misc->object_position_value(); }
     Direction direction() const { return static_cast<Direction>(m_inherited.box->direction); }
-    Optional<BaselineMetric> dominant_baseline() const { return m_inherited.svg->dominant_baseline_value(); }
-    UnicodeBidi unicode_bidi() const { return static_cast<UnicodeBidi>(m_noninherited.box->unicode_bidi); }
     WritingMode writing_mode() const { return static_cast<WritingMode>(m_inherited.box->writing_mode); }
 
-    bool inline_axis_is_reverse() const
-    {
-        switch (writing_mode()) {
-        case WritingMode::HorizontalTb:
-        case WritingMode::VerticalRl:
-        case WritingMode::VerticalLr:
-        case WritingMode::SidewaysRl:
-            return direction() == Direction::Rtl;
-        case WritingMode::SidewaysLr:
-            return direction() == Direction::Ltr;
-        }
-        VERIFY_NOT_REACHED();
-    }
-
-    bool block_axis_is_reverse() const
-    {
-        switch (writing_mode()) {
-        case WritingMode::HorizontalTb:
-        case WritingMode::VerticalLr:
-        case WritingMode::SidewaysLr:
-            return false;
-        case WritingMode::VerticalRl:
-        case WritingMode::SidewaysRl:
-            return true;
-        }
-        VERIFY_NOT_REACHED();
-    }
-
-    UserSelect user_select() const { return static_cast<UserSelect>(m_noninherited.misc->user_select); }
     Isolation isolation() const { return m_noninherited.effects->isolation_value(); }
     Containment contain() const
     {
@@ -1446,15 +1299,6 @@ public:
             .style_containment = box.style_containment,
             .paint_containment = box.paint_containment,
         };
-    }
-    Vector<Utf16FlyString> container_name() const
-    {
-        auto const& list = m_noninherited.box->container_name;
-        Vector<Utf16FlyString> names;
-        names.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            names.unchecked_append(Utf16FlyString::from_raw(list.pointer[i].raw));
-        return names;
     }
     ContainerType container_type() const
     {
@@ -1468,7 +1312,6 @@ public:
     MixBlendMode mix_blend_mode() const { return m_noninherited.effects->mix_blend_mode_value(); }
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name_value(); }
     TouchActionData touch_action() const { return m_noninherited.misc->touch_action_value(); }
-    ShapeRendering shape_rendering() const { return m_inherited.svg->shape_rendering_value(); }
 
     LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
     bool has_anchor_inset(PropertyID property_id) const
@@ -1486,24 +1329,12 @@ public:
         return style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(*handle));
     }
     LengthBox margin() const { return length_box(m_noninherited.surround->margin); }
-    LengthBox padding() const { return length_box(m_noninherited.surround->padding); }
     LengthBox scroll_margin() const { return length_box(m_noninherited.misc->scroll_margin); }
-    LengthBox scroll_padding() const { return length_box(m_noninherited.misc->scroll_padding); }
-    OverflowClipMarginData overflow_clip_margin() const { return m_noninherited.misc->overflow_clip_margin_value(); }
 
     BorderData const& border_left() const { return m_noninherited.border->border_left_value(); }
     BorderData const& border_top() const { return m_noninherited.border->border_top_value(); }
     BorderData const& border_right() const { return m_noninherited.border->border_right_value(); }
     BorderData const& border_bottom() const { return m_noninherited.border->border_bottom_value(); }
-    CSSPixels border_left_computed_width() const { return m_noninherited.border->border_left_computed_width_value(); }
-    CSSPixels border_top_computed_width() const { return m_noninherited.border->border_top_computed_width_value(); }
-    CSSPixels border_right_computed_width() const { return m_noninherited.border->border_right_computed_width_value(); }
-    CSSPixels border_bottom_computed_width() const { return m_noninherited.border->border_bottom_computed_width_value(); }
-
-    double corner_bottom_left_shape() const { return m_noninherited.border->corner_bottom_left_shape; }
-    double corner_bottom_right_shape() const { return m_noninherited.border->corner_bottom_right_shape; }
-    double corner_top_left_shape() const { return m_noninherited.border->corner_top_left_shape; }
-    double corner_top_right_shape() const { return m_noninherited.border->corner_top_right_shape; }
 
     Overflow overflow_x() const { return static_cast<Overflow>(m_noninherited.box->overflow_x); }
     Overflow overflow_y() const { return static_cast<Overflow>(m_noninherited.box->overflow_y); }
@@ -1511,44 +1342,18 @@ public:
     Color color() const { return m_inherited.text->color_value(); }
     Color background_color() const { return m_noninherited.background->background_color_value(); }
     RefPtr<StyleValue const> background_color_style_value() const;
-    BackgroundBox background_color_clip() const { return m_noninherited.background->background_color_clip_value(); }
-    Vector<BackgroundLayerData> background_layers() const { return m_noninherited.background->background_layers_value(); }
     Vector<BackgroundLayerData> mask_layers() const { return m_noninherited.mask_data->mask_layers_value(); }
-    Vector<Position> mask_positions() const { return m_noninherited.mask_data->mask_positions_value(); }
-    BorderImageData border_image() const { return m_noninherited.border->border_image_value(); }
 
     Color webkit_text_fill_color() const { return m_inherited.text->webkit_text_fill_color_value(); }
-    bool webkit_text_fill_color_is_current_color() const { return m_inherited.text->webkit_text_fill_color_is_current_color; }
 
     ListStyleType list_style_type(StyleScope const& style_scope) const { return m_inherited.list->list_style_type_value(style_scope); }
     bool list_style_type_depends_on_counter_style_environment() const { return m_inherited.list->list_style_type_depends_on_counter_style_environment(); }
-    ListStylePosition list_style_position() const { return static_cast<ListStylePosition>(m_inherited.list->list_style_position); }
 
-    Optional<SVGPaint> fill() const { return m_inherited.svg->fill_value(); }
-    FillRule fill_rule() const { return m_inherited.svg->fill_rule_value(); }
-    Optional<SVGPaint> stroke() const { return m_inherited.svg->stroke_value(); }
-    float fill_opacity() const { return m_inherited.svg->fill_opacity; }
-    ReadonlySpan<ComputedValuesFFI::ComputedSvgDash> stroke_dasharray() const { return m_inherited.svg->stroke_dasharray_span(); }
-    LengthPercentage const& stroke_dashoffset() const { return m_inherited.svg->stroke_dashoffset_value(); }
-    StrokeLinecap stroke_linecap() const { return m_inherited.svg->stroke_linecap_value(); }
-    StrokeLinejoin stroke_linejoin() const { return m_inherited.svg->stroke_linejoin_value(); }
-    VectorEffect vector_effect() const { return static_cast<VectorEffect>(m_noninherited.svg_reset->vector_effect); }
-    double stroke_miterlimit() const { return m_inherited.svg->stroke_miterlimit; }
-    float stroke_opacity() const { return m_inherited.svg->stroke_opacity; }
-    LengthPercentage const& stroke_width() const { return m_inherited.svg->stroke_width_value(); }
-    Color stop_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->stop_color); }
-    float stop_opacity() const { return m_noninherited.svg_reset->stop_opacity; }
-    TextAnchor text_anchor() const { return m_inherited.svg->text_anchor_value(); }
     RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image_value(); }
     Optional<MaskReference> mask() const { return m_noninherited.mask_data->mask_value(); }
-    MaskType mask_type() const { return m_noninherited.mask_data->mask_type_value(); }
     Optional<ClipPathReference> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
-    ClipRule clip_rule() const { return m_inherited.svg->clip_rule_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
-    PaintOrderList paint_order() const { return m_inherited.svg->paint_order_value(); }
-    u8 paint_order_serialization_length() const { return m_inherited.svg->paint_order_serialization_length; }
-    bool paint_order_is_normal() const { return m_inherited.svg->paint_order_is_normal; }
 
     LengthPercentage const& cx() const { return LengthPercentage::view(m_noninherited.svg_reset->cx); }
     LengthPercentage const& cy() const { return LengthPercentage::view(m_noninherited.svg_reset->cy); }
@@ -1570,13 +1375,6 @@ public:
     {
         m_noninherited.transform->for_each_transformation(callback);
     }
-    bool has_resolved_transforms() const { return m_noninherited.transform->has_resolved_transforms(); }
-    template<typename Callback>
-    void for_each_resolved_transform(Callback callback) const
-    {
-        m_noninherited.transform->for_each_resolved_transform(callback);
-    }
-    TransformBox transform_box() const { return m_noninherited.transform->transform_box_value(); }
     TransformOrigin transform_origin() const { return m_noninherited.transform->transform_origin_value(); }
     TransformStyle transform_style() const { return m_noninherited.transform->transform_style_value(); }
     BackfaceVisibility backface_visibility() const { return m_noninherited.transform->backface_visibility_value(); }
@@ -1587,36 +1385,21 @@ public:
     bool has_translate() const { return translate() != nullptr; }
     bool has_scale() const { return scale() != nullptr; }
     Optional<CSSPixels> perspective() const { return m_noninherited.transform->perspective_value(); }
-    Position perspective_origin() const { return m_noninherited.transform->perspective_origin_value(); }
 
     Gfx::FontCascadeList const& font_list() const { return m_inherited.font->font_list_value(); }
     CSSPixels font_size() const { return CSSPixels::from_raw(m_inherited.font->font_size); }
     double font_weight() const { return m_inherited.font->font_weight; }
-    Percentage font_width() const { return Percentage { m_inherited.font->font_width }; }
     CSSPixels line_height() const { return CSSPixels::from_raw(m_inherited.font->line_height_used); }
 
     Color outline_color() const { return Color::from_bgra(m_noninherited.misc->outline_color); }
-    CSSPixels outline_offset() const { return CSSPixels::from_raw(m_noninherited.misc->outline_offset); }
-    RefPtr<StyleValue const> outline_offset_style_value() const { return m_noninherited.misc->outline_offset_style_value_value(); }
     OutlineStyle outline_style() const { return static_cast<OutlineStyle>(m_noninherited.misc->outline_style); }
     CSSPixels outline_width() const { return CSSPixels::from_raw(m_noninherited.misc->outline_width); }
 
-    TableLayout table_layout() const { return static_cast<TableLayout>(m_noninherited.box->table_layout); }
-
     QuotesData quotes() const { return m_inherited.list->quotes_value(); }
 
-    MathShift math_shift() const { return static_cast<MathShift>(m_inherited.font->math_shift); }
     MathStyle math_style() const { return static_cast<MathStyle>(m_inherited.font->math_style); }
     int math_depth() const { return m_inherited.font->math_depth; }
 
-    ScrollBehavior scroll_behavior() const { return static_cast<ScrollBehavior>(m_noninherited.misc->scroll_behavior); }
-    ScrollbarColorData scrollbar_color() const { return m_inherited.ui->scrollbar_color_value(); }
-    ScrollbarGutter scrollbar_gutter() const { return static_cast<ScrollbarGutter>(m_noninherited.misc->scrollbar_gutter); }
-    ScrollbarWidth scrollbar_width() const { return static_cast<ScrollbarWidth>(m_noninherited.misc->scrollbar_width); }
-    Resize resize() const { return static_cast<Resize>(m_noninherited.box->resize); }
-    double shape_image_threshold() const { return m_noninherited.misc->shape_image_threshold; }
-    LengthPercentage shape_margin() const { return LengthPercentage::view(m_noninherited.misc->shape_margin); }
-    ShapeOutsideData shape_outside() const { return m_noninherited.misc->shape_outside_value(); }
     WillChange will_change() const { return m_noninherited.misc->will_change_value(); }
 
 private:
@@ -1659,13 +1442,6 @@ private:
             length_percentage_or_auto(box.bottom),
             length_percentage_or_auto(box.left),
         };
-    }
-
-    static RustStyleValueHandle retain_style_value_data(StyleValue const* value)
-    {
-        if (!value)
-            return {};
-        return RustStyleValueHandle { StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) };
     }
 
     static Statistics s_statistics;
@@ -1785,7 +1561,6 @@ public:
         ColorInterpolation color_interpolation_value() const { return static_cast<ColorInterpolation>(color_interpolation); }
         ColorInterpolation color_interpolation_filters_value() const { return static_cast<ColorInterpolation>(color_interpolation_filters); }
         TextAnchor text_anchor_value() const { return static_cast<TextAnchor>(text_anchor); }
-        ShapeRendering shape_rendering_value() const { return static_cast<ShapeRendering>(shape_rendering); }
         ReadonlySpan<ComputedValuesFFI::ComputedSvgDash> stroke_dasharray_span() const { return { stroke_dasharray.pointer, stroke_dasharray.length }; }
         LengthPercentage const& stroke_dashoffset_value() const { return LengthPercentage::view(stroke_dashoffset); }
         LengthPercentage const& stroke_width_value() const { return LengthPercentage::view(stroke_width); }
@@ -1815,21 +1590,8 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedText;
 
         TextAlign text_align_value() const { return static_cast<TextAlign>(text_align); }
-        TextJustify text_justify_value() const { return static_cast<TextJustify>(text_justify); }
         WhiteSpaceCollapse white_space_collapse_value() const { return static_cast<WhiteSpaceCollapse>(white_space_collapse); }
-        TextWrapMode text_wrap_mode_value() const { return static_cast<TextWrapMode>(text_wrap_mode); }
-        WordBreak word_break_value() const { return static_cast<WordBreak>(word_break); }
         CSSPixels letter_spacing_value() const { return CSSPixels::from_raw(letter_spacing); }
-        CSSPixels word_spacing_value() const { return CSSPixels::from_raw(word_spacing); }
-        CSSPixels tab_size_length_value() const { return CSSPixels::from_raw(tab_size_length); }
-        TextIndentData text_indent_value() const
-        {
-            return {
-                .length_percentage = LengthPercentage::view(text_indent.length_percentage),
-                .each_line = text_indent.each_line,
-                .hanging = text_indent.hanging,
-            };
-        }
         Color color_value() const { return Color::from_bgra(color); }
         Color webkit_text_fill_color_value() const { return Color::from_bgra(webkit_text_fill_color); }
         ReadonlySpan<ShadowData> text_shadow_span() const
@@ -1838,17 +1600,6 @@ public:
             return { reinterpret_cast<ShadowData const*>(text_shadow.pointer), text_shadow.length };
         }
         TextTransform text_transform_value() const { return static_cast<TextTransform>(text_transform); }
-        TextWrapStyle text_wrap_style_value() const { return static_cast<TextWrapStyle>(text_wrap_style); }
-        TextDecorationSkipInk text_decoration_skip_ink_value() const { return static_cast<TextDecorationSkipInk>(text_decoration_skip_ink); }
-        TextUnderlinePosition text_underline_position_value() const
-        {
-            return {
-                .horizontal = static_cast<TextUnderlinePositionHorizontal>(text_underline_position.horizontal),
-                .vertical = static_cast<TextUnderlinePositionVertical>(text_underline_position.vertical),
-            };
-        }
-        CSSPixels text_underline_offset_value() const { return CSSPixels::from_raw(text_underline_offset.used_value); }
-        OverflowWrap overflow_wrap_value() const { return static_cast<OverflowWrap>(overflow_wrap); }
 
         bool operator==(InheritedTextValues const& other) const
         {
@@ -1907,26 +1658,9 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Animation;
 
         Vector<ComputedAnimationName> animation_names_value() const;
-        Vector<AnimationComposition> animation_compositions_value() const;
-        Vector<Time> animation_delays_value() const;
-        Vector<AnimationDirection> animation_directions_value() const;
-        Vector<Optional<Time>> animation_durations_value() const;
-        Vector<AnimationFillMode> animation_fill_modes_value() const;
-        Vector<double> animation_iteration_counts_value() const;
-        Vector<AnimationPlayState> animation_play_states_value() const;
-        Vector<AnimationTimelineData> animation_timelines_value() const;
-        Vector<EasingFunction> animation_timing_functions_value() const;
-        StyleValueVector animation_timing_function_style_values_value() const;
-        Vector<Optional<Utf16FlyString>> scroll_timeline_names_value() const;
-        Vector<Axis> scroll_timeline_axes_value() const;
-        TimelineScopeData timeline_scope_value() const;
-        Vector<Optional<Utf16FlyString>> view_timeline_names_value() const;
-        Vector<Axis> view_timeline_axes_value() const;
-        Vector<ViewTimelineInsetData> view_timeline_insets_value() const;
         Vector<Optional<Utf16FlyString>> transition_properties_value() const;
         Vector<Time> transition_durations_value() const;
         Vector<EasingFunction> transition_timing_functions_value() const;
-        StyleValueVector transition_timing_function_style_values_value() const;
         Vector<Time> transition_delays_value() const;
         Vector<TransitionBehavior> transition_behaviors_value() const;
         bool transition_delay_and_duration_are_single_zero_value() const { return transition_delay_and_duration_are_single_zero; }
@@ -1963,10 +1697,6 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Anchor;
 
         ReadonlySpan<Utf16FlyString> anchor_names_span() const { return fly_strings(anchor_names); }
-        AnchorScopeData anchor_scope_value() const
-        {
-            return { .all = anchor_scope_all, .names = materialize_fly_strings(anchor_scope_names) };
-        }
         PositionAnchor position_anchor_value() const
         {
             PositionAnchor value {
@@ -1976,40 +1706,6 @@ public:
             if (value.type == PositionAnchor::Type::Name)
                 value.name = Utf16FlyString::from_raw(position_anchor_name.raw);
             return value;
-        }
-        PositionAreaData position_area_value() const { return materialize_position_area(position_area); }
-        Vector<PositionTryFallbackData> position_try_fallbacks_value() const
-        {
-            Vector<PositionTryFallbackData> values;
-            values.ensure_capacity(position_try_fallbacks.length);
-            for (size_t index = 0; index < position_try_fallbacks.length; ++index) {
-                auto const& source = position_try_fallbacks.pointer[index];
-                PositionTryFallbackData value;
-                if (source.name.raw)
-                    value.name = Utf16FlyString::from_raw(source.name.raw);
-                value.tactics.ensure_capacity(source.tactic_count);
-                for (size_t tactic = 0; tactic < source.tactic_count; ++tactic)
-                    value.tactics.unchecked_append(static_cast<TryTactic>(source.tactics[tactic]));
-                if (source.has_position_area)
-                    value.position_area = materialize_position_area(source.position_area);
-                values.unchecked_append(move(value));
-            }
-            return values;
-        }
-        Optional<TryOrder> position_try_order_value() const
-        {
-            if (!has_position_try_order)
-                return {};
-            return static_cast<TryOrder>(position_try_order);
-        }
-        PositionVisibilityData position_visibility_value() const
-        {
-            return {
-                .always = position_visibility_always,
-                .anchors_valid = position_visibility_anchors_valid,
-                .anchors_visible = position_visibility_anchors_visible,
-                .no_overflow = position_visibility_no_overflow,
-            };
         }
 
         bool operator==(AnchorValues const& other) const
@@ -2023,22 +1719,6 @@ public:
             static_assert(sizeof(Utf16FlyString) == sizeof(size_t));
             static_assert(alignof(Utf16FlyString) == alignof(size_t));
             return { reinterpret_cast<Utf16FlyString const*>(values.pointer), values.length };
-        }
-        static Vector<Utf16FlyString> materialize_fly_strings(ComputedValuesFFI::RetainedUtf16FlyStringList const& values)
-        {
-            Vector<Utf16FlyString> result;
-            result.ensure_capacity(values.length);
-            for (auto const& value : fly_strings(values))
-                result.unchecked_append(value);
-            return result;
-        }
-        static PositionAreaData materialize_position_area(ComputedValuesFFI::RetainedPositionAreaList const& values)
-        {
-            PositionAreaData result;
-            result.keywords.ensure_capacity(values.length);
-            for (size_t index = 0; index < values.length; ++index)
-                result.keywords.unchecked_append(static_cast<PositionArea>(values.pointer[index]));
-            return result;
         }
     };
 
@@ -2087,7 +1767,6 @@ public:
         MaskType mask_type_value() const;
         RefPtr<AbstractImageStyleValue const> mask_image_value() const;
         Vector<BackgroundLayerData> mask_layers_value() const;
-        Vector<Position> mask_positions_value() const;
         Optional<ClipPathReference> clip_path_value() const;
 
         bool operator==(MaskValues const& other) const
@@ -2113,15 +1792,6 @@ public:
             if (text_decoration_thickness_kind == 1)
                 return TextDecorationThickness { TextDecorationThickness::FromFont {} };
             return TextDecorationThickness { LengthPercentage::view(text_decoration_thickness) };
-        }
-
-        WhiteSpaceTrimData white_space_trim() const
-        {
-            return {
-                .discard_before = white_space_trim_discard_before,
-                .discard_after = white_space_trim_discard_after,
-                .discard_inner = white_space_trim_discard_inner,
-            };
         }
 
         bool operator==(TextResetValues const& other) const
@@ -2168,7 +1838,6 @@ public:
                 callback(*transformation);
         }
 
-        bool has_resolved_transforms() const { return resolved_transforms.length != 0; }
         template<typename Callback>
         void for_each_resolved_transform(Callback callback) const
         {
@@ -2216,14 +1885,6 @@ public:
                 return {};
             return CSSPixels::from_raw(perspective_px);
         }
-        Position perspective_origin_value() const
-        {
-            return {
-                .offset_x = LengthPercentage::view(perspective_origin_x),
-                .offset_y = LengthPercentage::view(perspective_origin_y),
-            };
-        }
-
         bool operator==(TransformValues const& other) const
         {
             return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
@@ -2244,7 +1905,6 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Background;
 
         Color background_color_value() const { return Color::from_bgra(background_color); }
-        BackgroundBox background_color_clip_value() const { return static_cast<BackgroundBox>(background_color_clip); }
         Vector<BackgroundLayerData> background_layers_value() const;
 
         bool operator==(BackgroundValues const& other) const
@@ -2261,10 +1921,6 @@ public:
         BorderData const& border_top_value() const { return reinterpret_cast<BorderData const&>(border_top); }
         BorderData const& border_right_value() const { return reinterpret_cast<BorderData const&>(border_right); }
         BorderData const& border_bottom_value() const { return reinterpret_cast<BorderData const&>(border_bottom); }
-        CSSPixels border_left_computed_width_value() const { return CSSPixels::from_raw(border_left_computed_width); }
-        CSSPixels border_top_computed_width_value() const { return CSSPixels::from_raw(border_top_computed_width); }
-        CSSPixels border_right_computed_width_value() const { return CSSPixels::from_raw(border_right_computed_width); }
-        CSSPixels border_bottom_computed_width_value() const { return CSSPixels::from_raw(border_bottom_computed_width); }
         BorderImageData border_image_value() const;
         RefPtr<AbstractImageStyleValue const> border_image_source_value() const;
 
@@ -2307,12 +1963,8 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::MiscResetValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::MiscReset;
 
-        RefPtr<StyleValue const> outline_offset_style_value_value() const;
-        OverflowClipMarginData overflow_clip_margin_value() const;
-        Position object_position_value() const;
         Optional<Utf16FlyString> view_transition_name_value() const;
         TouchActionData touch_action_value() const;
-        ShapeOutsideData shape_outside_value() const;
         WillChange will_change_value() const;
 
         bool operator==(MiscResetValues const& other) const
@@ -2357,13 +2009,6 @@ public:
     };
 
 private:
-    static Variant<LengthPercentage, NormalGap> gap(ComputedValuesFFI::ComputedGap const& gap)
-    {
-        if (gap.is_normal)
-            return NormalGap {};
-        return LengthPercentage::view(gap.value);
-    }
-
     struct NonInheritedValues {
         StyleStructRef<AnimationValues> animation;
         StyleStructRef<BoxValues> box;
