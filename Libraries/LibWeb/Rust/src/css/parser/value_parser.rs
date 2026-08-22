@@ -5378,6 +5378,17 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     parse_css_value_with_source(context, property_id, values, &source, &[])
 }
 
+/// Parses a UTF-16 property value whose component-value source is already serialized.
+#[allow(dead_code)]
+pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
+    let outcome = match consume_a_list_of_component_values(&tokenize_for_parser(source)) {
+        Ok(values) => parse_css_value_with_source(context, property_id, &values, source, &[]),
+        Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
+    };
+    record_outcome(property_id, &outcome);
+    outcome
+}
+
 /// The result category returned through the value-parser FFI.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -5608,6 +5619,22 @@ mod tests {
     fn parse_with_context(context: &ParseContext, property: u16, source: &str) -> ParseOutcome {
         let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
         parse_css_value(context, property, &values)
+    }
+
+    #[test]
+    fn parses_a_serialized_substituted_value() {
+        let mut parse_context = context();
+        parse_context.is_substituted_value = true;
+        let valid = utf16("rgb(1 2 3)");
+        let trailing = utf16("rgb(1 2 3) trailing");
+        assert!(matches!(
+            parse_css_value_from_source(&parse_context, property_id::COLOR, &valid),
+            ParseOutcome::Parsed(_)
+        ));
+        assert!(matches!(
+            parse_css_value_from_source(&parse_context, property_id::COLOR, &trailing),
+            ParseOutcome::Invalid
+        ));
     }
 
     fn component(source: &str) -> ComponentValue {
