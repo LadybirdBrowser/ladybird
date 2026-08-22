@@ -1144,5 +1144,7 @@ impl StyleEngine {
         self.retain_prefix_states();
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();
+        // Published matching scratch is the last owner that may name a retired identity.
+        self.tree.release_retired_identities(&mut self.memory);
     }
 }
