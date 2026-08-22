@@ -30,6 +30,7 @@ FetchParams::FetchParams(FetchParams const& params)
     , m_controller(params.m_controller)
     , m_timing_info(params.m_timing_info)
     , m_preloaded_response_candidate(params.m_preloaded_response_candidate)
+    , m_has_response_body_transfer_lease(params.m_has_response_body_transfer_lease)
 {
 }
 

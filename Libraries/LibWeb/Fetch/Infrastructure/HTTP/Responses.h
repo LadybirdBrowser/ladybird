@@ -146,7 +146,7 @@ public:
     MonotonicTime monotonic_response_time() const { return m_monotonic_response_time; }
     [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const { return m_request_server_request; }
     virtual void set_request_server_request(RequestServerRequest request) { m_request_server_request = move(request); }
-    virtual void release_request_for_transfer() const;
+    virtual void release_request_transfer_lease() const;
     virtual void resume_body_delivery() const;
     virtual void resume_body_delivery_up_to(size_t) const;
 
@@ -278,7 +278,7 @@ public:
     virtual void set_body_info(BodyInfo body_info) override { m_internal_response->set_body_info(move(body_info)); }
     [[nodiscard]] virtual Optional<RequestServerRequest> const& request_server_request() const override { return m_internal_response->request_server_request(); }
     virtual void set_request_server_request(RequestServerRequest request) override { m_internal_response->set_request_server_request(move(request)); }
-    virtual void release_request_for_transfer() const override { m_internal_response->release_request_for_transfer(); }
+    virtual void release_request_transfer_lease() const override { m_internal_response->release_request_transfer_lease(); }
     virtual void resume_body_delivery() const override { m_internal_response->resume_body_delivery(); }
     virtual void resume_body_delivery_up_to(size_t byte_count) const override { m_internal_response->resume_body_delivery_up_to(byte_count); }
 

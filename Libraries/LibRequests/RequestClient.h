@@ -16,6 +16,7 @@
 #include <LibRequests/CacheSizes.h>
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/RequestTimingInfo.h>
+#include <LibRequests/RequestTransferLease.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/IsPrivate.h>
@@ -34,7 +35,7 @@ class RequestClient final
 public:
     using InitTransport = Messages::RequestServer::InitTransport;
 
-    enum class KeepAliveForTransfer : u8 {
+    enum class TransferLease : u8 {
         No,
         Yes,
     };
@@ -43,10 +44,11 @@ public:
     virtual ~RequestClient() override;
 
     // Best-effort index into the resolved address pool.
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {}, KeepAliveForTransfer = KeepAliveForTransfer::No, Optional<u32> address_selection_hint = {});
-    RefPtr<Request> adopt_request(int source_client_id, u64 source_request_id);
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData const& = {}, TransferLease = TransferLease::No, Optional<u32> address_selection_hint = {});
+    RefPtr<Request> adopt_request(int source_client_id, u64 source_request_id, TransferLease = TransferLease::No);
     bool stop_request(Badge<Request>, Request&);
-    void release_request_for_transfer(Badge<Request>, Request&);
+    void release_request_transfer_lease(Badge<Request>, RequestTransferLeaseKey);
+    void release_request_transfer_lease(RequestTransferLeaseKey);
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
     int request_server_client_id() const { return m_request_server_client_id; }
 

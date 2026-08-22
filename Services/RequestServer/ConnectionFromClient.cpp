@@ -82,10 +82,11 @@ static auto time_curl_call(StringView label, F&& f)
 static constexpr i64 BURST_WINDOW_MS = 100;
 static constexpr u64 BURST_REPORT_THRESHOLD = 5;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, IsPrivate is_private, ConnectionMap& connections, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, IsPrivate is_private, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_is_private(is_private)
     , m_connections(connections)
+    , m_request_transfer_leases(request_transfer_leases)
     , m_disk_cache(disk_cache)
     , m_curl_multi(curl_multi_init())
     , m_resolver(Resolver::default_resolver())
@@ -143,6 +144,8 @@ ConnectionFromClient::~ConnectionFromClient()
 
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
+
+    s_client_ids.deallocate(client_id());
 }
 
 Optional<ConnectionFromClient&> ConnectionFromClient::primary_connection()
@@ -154,7 +157,7 @@ Optional<ConnectionFromClient&> ConnectionFromClient::primary_connection()
 
 void ConnectionFromClient::request_complete(Badge<Request>, Request const& request)
 {
-    if (request.keep_alive_for_transfer())
+    if (request.has_transfer_lease())
         return;
 
     Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id = request.request_id(), type = request.type()] {
@@ -172,9 +175,18 @@ void ConnectionFromClient::die()
     if (g_primary_connection == this)
         g_primary_connection = nullptr;
 
-    auto client_id = this->client_id();
-    m_connections.remove(client_id);
-    s_client_ids.deallocate(client_id);
+    Vector<Requests::RequestTransferLeaseKey> transfer_leases_to_cancel;
+    for (auto const& entry : m_request_transfer_leases) {
+        if (entry.value.owner.ptr() == this)
+            transfer_leases_to_cancel.append(entry.key);
+    }
+    for (auto const& transfer_lease : transfer_leases_to_cancel) {
+        auto lease = m_request_transfer_leases.take(transfer_lease);
+        if (lease.has_value())
+            m_active_requests.remove(lease->request_id);
+    }
+
+    m_connections.remove(client_id());
 
     if (m_connections.is_empty())
         Core::EventLoop::current().quit(0);
@@ -225,7 +237,7 @@ ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket(IsPriva
     auto disk_cache = is_private == IsPrivate::Yes ? Optional<HTTP::DiskCache&> {} : m_disk_cache;
 
     // Note: A ref is stored in the m_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, is_private, m_connections, disk_cache, m_alt_svc_cache_path.value_or({})));
+    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, is_private, m_connections, m_request_transfer_leases, disk_cache, m_alt_svc_cache_path.value_or({})));
 
     return handle;
 }
@@ -285,7 +297,7 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool keep_alive_for_transfer, Optional<u32> address_selection_hint)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool create_transfer_lease, Optional<u32> address_selection_hint)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -304,34 +316,59 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         }
     }
 
-    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data, keep_alive_for_transfer, address_selection_hint);
+    auto transfer_lease = create_transfer_lease
+        ? Optional<Requests::RequestTransferLeaseKey> { { client_id(), request_id } }
+        : Optional<Requests::RequestTransferLeaseKey> {};
+    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data, transfer_lease, address_selection_hint);
     m_active_requests.set(request_id, move(request));
+
+    if (transfer_lease.has_value())
+        m_request_transfer_leases.set(*transfer_lease, RequestTransferLease { *this, request_id });
 }
 
-void ConnectionFromClient::adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id)
+void ConnectionFromClient::adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease)
 {
-    auto source_connection = m_connections.get(source_client_id);
-    if (!source_connection.has_value()) {
+    auto lease_key = Requests::RequestTransferLeaseKey { source_client_id, source_request_id };
+    auto transfer_lease = m_request_transfer_leases.get(lease_key);
+    if (!transfer_lease.has_value()) {
         async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
         return;
     }
 
-    auto request = (*source_connection)->m_active_requests.take(source_request_id);
+    auto source_connection = transfer_lease->owner;
+    auto current_request_id = transfer_lease->request_id;
+    auto request = source_connection->m_active_requests.take(current_request_id);
     if (!request.has_value()) {
         async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
         return;
     }
 
-    auto transfer_result = (*request)->transfer_to_client(*this, target_request_id);
-    if (transfer_result.is_error()) {
-        dbgln("RequestServer: Failed to transfer request {} from client {} to client {}: {}", source_request_id, source_client_id, client_id(), transfer_result.error());
-        (*source_connection)->m_active_requests.set(source_request_id, request.release_value());
+    auto const& request_transfer_lease = (*request)->transfer_lease();
+    if (!request_transfer_lease.has_value() || *request_transfer_lease != lease_key) {
+        source_connection->m_active_requests.set(current_request_id, request.release_value());
         async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
         return;
     }
 
-    auto should_remove_after_transfer = (*request)->is_complete();
+    auto transfer_lease_to_preserve = preserve_transfer_lease
+        ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
+        : Optional<Requests::RequestTransferLeaseKey> {};
+    auto transfer_result = (*request)->transfer_to_client(*this, target_request_id, move(transfer_lease_to_preserve));
+    if (transfer_result.is_error()) {
+        dbgln("RequestServer: Failed to transfer request {} from client {} to client {}: {}", source_request_id, source_client_id, client_id(), transfer_result.error());
+        source_connection->m_active_requests.set(current_request_id, request.release_value());
+        async_request_finished(target_request_id, 0, {}, Requests::NetworkError::Unknown);
+        return;
+    }
+
+    auto should_remove_after_transfer = (*request)->is_complete() && !preserve_transfer_lease;
     m_active_requests.set(target_request_id, request.release_value());
+    if (preserve_transfer_lease) {
+        transfer_lease->owner = *this;
+        transfer_lease->request_id = target_request_id;
+    } else {
+        m_request_transfer_leases.remove(lease_key);
+    }
     if (should_remove_after_transfer) {
         Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), target_request_id] {
             if (auto self = weak_self.strong_ref())
@@ -340,17 +377,25 @@ void ConnectionFromClient::adopt_request(int source_client_id, u64 source_reques
     }
 }
 
-void ConnectionFromClient::release_request_for_transfer(u64 request_id)
+void ConnectionFromClient::release_request_transfer_lease(int source_client_id, u64 source_request_id)
 {
-    auto request = m_active_requests.get(request_id);
+    auto lease_key = Requests::RequestTransferLeaseKey { source_client_id, source_request_id };
+    auto lease = m_request_transfer_leases.get(lease_key);
+    if (!lease.has_value() || lease->owner.ptr() != this)
+        return;
+
+    auto owner = lease->owner;
+    auto request_id = lease->request_id;
+    m_request_transfer_leases.remove(lease_key);
+    auto request = owner->m_active_requests.get(request_id);
     if (!request.has_value())
         return;
 
-    (*request)->release_for_transfer();
+    (*request)->release_transfer_lease();
     if ((*request)->is_complete()) {
-        Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id] {
-            if (auto self = weak_self.strong_ref())
-                self->m_active_requests.remove(request_id);
+        Core::deferred_invoke([weak_owner = owner->make_weak_ptr<ConnectionFromClient>(), request_id] {
+            if (auto owner = weak_owner.strong_ref())
+                owner->m_active_requests.remove(request_id);
         });
     }
 }
@@ -491,6 +536,9 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
         dbgln("StopRequest: Request ID {} not found", request_id);
         return false;
     }
+
+    if ((*request)->transfer_lease().has_value())
+        m_request_transfer_leases.remove(*(*request)->transfer_lease());
 
     return true;
 }

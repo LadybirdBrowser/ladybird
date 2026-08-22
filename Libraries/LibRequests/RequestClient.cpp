@@ -80,23 +80,29 @@ void RequestClient::die()
     }
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data, KeepAliveForTransfer keep_alive_for_transfer, Optional<u32> address_selection_hint)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data, TransferLease transfer_lease, Optional<u32> address_selection_hint)
 {
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
 
-    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data, keep_alive_for_transfer == KeepAliveForTransfer::Yes, address_selection_hint);
-    auto request = Request::create_from_id({}, *this, request_id);
+    auto transfer_lease_key = transfer_lease == TransferLease::Yes
+        ? Optional<RequestTransferLeaseKey> { { m_request_server_client_id, request_id } }
+        : Optional<RequestTransferLeaseKey> {};
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data, transfer_lease_key.has_value(), address_selection_hint);
+    auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
     m_requests.set(request_id, request);
     return request;
 }
 
-RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_request_id)
+RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_request_id, TransferLease transfer_lease)
 {
     auto request_id = m_next_request_id++;
 
-    IPCProxy::async_adopt_request(source_client_id, source_request_id, request_id);
-    auto request = Request::create_from_id({}, *this, request_id);
+    auto transfer_lease_key = transfer_lease == TransferLease::Yes
+        ? Optional<RequestTransferLeaseKey> { { source_client_id, source_request_id } }
+        : Optional<RequestTransferLeaseKey> {};
+    IPCProxy::async_adopt_request(source_client_id, source_request_id, request_id, transfer_lease_key.has_value());
+    auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
     m_requests.set(request_id, request);
     return request;
 }
@@ -133,9 +139,14 @@ bool RequestClient::stop_request(Badge<Request>, Request& request)
     return true;
 }
 
-void RequestClient::release_request_for_transfer(Badge<Request>, Request& request)
+void RequestClient::release_request_transfer_lease(Badge<Request>, RequestTransferLeaseKey transfer_lease)
 {
-    async_release_request_for_transfer(request.id());
+    release_request_transfer_lease(transfer_lease);
+}
+
+void RequestClient::release_request_transfer_lease(RequestTransferLeaseKey transfer_lease)
+{
+    async_release_request_transfer_lease(transfer_lease.source_client_id, transfer_lease.source_request_id);
 }
 
 void RequestClient::ensure_connection(URL::URL const& url, RequestServer::CacheLevel cache_level)
