@@ -179,19 +179,47 @@ pub struct ParseContext {
 
 #[repr(C)]
 pub struct FfiParserToken {
+    pub number_value: f64,
+    pub value_offset: usize,
+    pub value_length: usize,
+    pub delim: u32,
     pub token_type: u8,
     pub hash_type: u8,
     pub number_type: u8,
-    pub number_value: f64,
-    pub delim: u32,
-    pub value_offset: usize,
-    pub value_length: usize,
 }
 
 pub(crate) enum ParseOutcome {
     Parsed(Arc<StyleValueData>),
     Invalid,
     NotHandled(&'static NotHandledReason),
+}
+
+struct SharedKeywordValues(Box<[Arc<StyleValueData>]>);
+
+// SAFETY: This cache only contains the pointer-free `Keyword` variant. Other
+// `StyleValueData` variants remain thread-bound and are never inserted here.
+unsafe impl Send for SharedKeywordValues {}
+// SAFETY: The cached keyword values are immutable after initialization.
+unsafe impl Sync for SharedKeywordValues {}
+
+fn shared_style_value(value: StyleValueData) -> Arc<StyleValueData> {
+    let StyleValueData::Keyword { keyword } = value else {
+        return Arc::new(value);
+    };
+
+    static KEYWORD_VALUES: OnceLock<SharedKeywordValues> = OnceLock::new();
+    let values = KEYWORD_VALUES.get_or_init(|| {
+        SharedKeywordValues(
+            (0..keyword::NAMES.len())
+                .map(|keyword| {
+                    Arc::new(StyleValueData::Keyword {
+                        keyword: keyword as u16,
+                    })
+                })
+                .collect(),
+        )
+    });
+    values.0[usize::from(keyword)].clone()
 }
 
 fn single_non_whitespace_value(values: &[ComponentValue]) -> Option<&ComponentValue> {
@@ -1558,7 +1586,7 @@ fn parse_keyword_combination_property(property: u16, values: &[ComponentValue]) 
         }
         _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
     };
-    ParseOutcome::Parsed(Arc::new(parsed))
+    ParseOutcome::Parsed(shared_style_value(parsed))
 }
 
 fn parse_paint_order_property(values: &[ComponentValue]) -> ParseOutcome {
@@ -1566,7 +1594,7 @@ fn parse_paint_order_property(values: &[ComponentValue]) -> ParseOutcome {
         return ParseOutcome::Invalid;
     };
     if keywords == [keyword::NORMAL] {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword {
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword {
             keyword: keyword::NORMAL,
         }));
     }
@@ -1593,9 +1621,9 @@ fn parse_paint_order_property(values: &[ComponentValue]) -> ParseOutcome {
                 keyword::FILL
             }
     {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: first }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: first }));
     }
-    ParseOutcome::Parsed(Arc::new(keyword_value_list(keywords[..2].to_vec())))
+    ParseOutcome::Parsed(shared_style_value(keyword_value_list(keywords[..2].to_vec())))
 }
 
 fn parse_scrollbar_gutter_property(values: &[ComponentValue]) -> ParseOutcome {
@@ -1608,7 +1636,7 @@ fn parse_scrollbar_gutter_property(values: &[ComponentValue]) -> ParseOutcome {
         [keyword::STABLE, keyword::BOTH_EDGES] | [keyword::BOTH_EDGES, keyword::STABLE] => 2,
         _ => return ParseOutcome::Invalid,
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::ScrollbarGutter { value }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::ScrollbarGutter { value }))
 }
 
 fn parse_aspect_ratio_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -1630,15 +1658,15 @@ fn parse_aspect_ratio_property(context: &ParseContext, property: u16, values: &[
         .then(|| parse_ratio_value_with_context(context, property, ratio_values))
         .flatten();
     match (auto_at_start || auto_at_end, ratio) {
-        (true, Some(ratio)) => ParseOutcome::Parsed(Arc::new(value_list(
+        (true, Some(ratio)) => ParseOutcome::Parsed(shared_style_value(value_list(
             vec![StyleValueData::Keyword { keyword: keyword::AUTO }, ratio],
             0,
             true,
         ))),
         (true, None) if non_whitespace.len() == 1 => {
-            ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::AUTO }))
+            ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::AUTO }))
         }
-        (false, Some(ratio)) => ParseOutcome::Parsed(Arc::new(ratio)),
+        (false, Some(ratio)) => ParseOutcome::Parsed(shared_style_value(ratio)),
         _ => ParseOutcome::Invalid,
     }
 }
@@ -1648,10 +1676,10 @@ fn parse_math_depth_property(context: &ParseContext, property: u16, values: &[Co
         return ParseOutcome::Invalid;
     };
     if let Some(keyword) = parse_specific_keyword(value, &[keyword::AUTO_ADD]) {
-        return ParseOutcome::Parsed(Arc::new(keyword));
+        return ParseOutcome::Parsed(shared_style_value(keyword));
     }
     if let Some(integer) = parse_single_numeric_value_type(context, property, VALUE_TYPE_INTEGER, value) {
-        return ParseOutcome::Parsed(Arc::new(integer));
+        return ParseOutcome::Parsed(shared_style_value(integer));
     }
     let Some((name, arguments)) = value.function() else {
         return ParseOutcome::Invalid;
@@ -1670,7 +1698,7 @@ fn parse_math_depth_property(context: &ParseContext, property: u16, values: &[Co
     let Some(name) = retain_fly_string(context, &"add".encode_utf16().collect::<Vec<_>>()) else {
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Function {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Function {
         name,
         value: RetainedStyleValueData::from_owned(integer),
     }))
@@ -1680,7 +1708,7 @@ fn parse_scrollbar_color_property(context: &ParseContext, property: u16, values:
     if single_non_whitespace_value(values)
         .is_some_and(|value| parse_specific_keyword(value, &[keyword::AUTO]).is_some())
     {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::AUTO }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::AUTO }));
     }
     let mut stream = TokenStream::new(values);
     stream.discard_whitespace();
@@ -1695,7 +1723,7 @@ fn parse_scrollbar_color_property(context: &ParseContext, property: u16, values:
     if stream.has_next_token() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::ScrollbarColor {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::ScrollbarColor {
         thumb_color: RetainedStyleValueData::from_owned(thumb_color),
         track_color: RetainedStyleValueData::from_owned(track_color),
     }))
@@ -1705,7 +1733,7 @@ fn parse_stroke_dasharray_property(context: &ParseContext, property: u16, values
     if single_non_whitespace_value(values)
         .is_some_and(|value| parse_specific_keyword(value, &[keyword::NONE]).is_some())
     {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::NONE }));
     }
     let mut stream = TokenStream::new(values);
     let mut dashes = Vec::new();
@@ -1733,7 +1761,7 @@ fn parse_stroke_dasharray_property(context: &ParseContext, property: u16, values
     if dashes.is_empty() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(value_list(dashes, 1, true)))
+    ParseOutcome::Parsed(shared_style_value(value_list(dashes, 1, true)))
 }
 
 fn parse_text_indent_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -1768,7 +1796,7 @@ fn parse_text_indent_property(context: &ParseContext, property: u16, values: &[C
     let Some(length_percentage) = length_percentage else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::TextIndent {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::TextIndent {
         length_percentage: RetainedStyleValueData::from_owned(length_percentage),
         hanging,
         each_line,
@@ -1780,7 +1808,7 @@ fn parse_text_underline_position_property(values: &[ComponentValue]) -> ParseOut
         return ParseOutcome::Invalid;
     };
     if keywords == [keyword::AUTO] {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::TextUnderlinePosition {
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::TextUnderlinePosition {
             horizontal: text_underline_position_horizontal::AUTO,
             vertical: text_underline_position_vertical::AUTO,
         }));
@@ -1800,7 +1828,7 @@ fn parse_text_underline_position_property(values: &[ComponentValue]) -> ParseOut
             return ParseOutcome::Invalid;
         }
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::TextUnderlinePosition {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::TextUnderlinePosition {
         horizontal: horizontal.unwrap_or(text_underline_position_horizontal::AUTO),
         vertical: vertical.unwrap_or(text_underline_position_vertical::AUTO),
     }))
@@ -1846,7 +1874,7 @@ fn parse_overflow_clip_margin_property(
     if stream.has_next_token() || (visual_box.is_none() && length.is_none()) {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::OverflowClipMargin {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::OverflowClipMargin {
         has_visual_box: visual_box.is_some(),
         visual_box: visual_box.unwrap_or(0),
         offset: RetainedStyleValueData::from_owned(length.unwrap_or(StyleValueData::Length {
@@ -1878,7 +1906,7 @@ fn parse_grid_auto_flow_property(values: &[ComponentValue]) -> ParseOutcome {
     if !has_axis && !dense {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::GridAutoFlow { row, dense }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::GridAutoFlow { row, dense }))
 }
 
 fn parse_alignment_property(property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -1893,7 +1921,7 @@ fn parse_alignment_property(property: u16, values: &[ComponentValue]) -> ParseOu
     {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword }))
 }
 
 fn parse_paint_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -1904,13 +1932,13 @@ fn parse_paint_property(context: &ParseContext, property: u16, values: &[Compone
     {
         let keyword =
             keyword_from_ascii_case_insensitive(single_non_whitespace_value(values).unwrap().ident().unwrap()).unwrap();
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword }));
     }
     let mut stream = TokenStream::new(values);
     if let Some(color) = parse_color_value(context, property, &mut stream, false) {
         stream.discard_whitespace();
         if !stream.has_next_token() {
-            return ParseOutcome::Parsed(Arc::new(color));
+            return ParseOutcome::Parsed(shared_style_value(color));
         }
     }
 
@@ -1939,7 +1967,7 @@ fn parse_paint_property(context: &ParseContext, property: u16, values: &[Compone
         return ParseOutcome::Invalid;
     }
     let parsed = vec![url, fallback.unwrap_or(StyleValueData::EmptyOptional)];
-    ParseOutcome::Parsed(Arc::new(value_list(parsed, 0, true)))
+    ParseOutcome::Parsed(shared_style_value(value_list(parsed, 0, true)))
 }
 
 fn parse_repeat_item(values: &[ComponentValue]) -> Option<StyleValueData> {
@@ -1986,7 +2014,7 @@ fn parse_repeat_property(values: &[ComponentValue]) -> ParseOutcome {
     let Some(parsed) = parsed else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+    ParseOutcome::Parsed(shared_style_value(value_list(parsed, 1, true)))
 }
 
 fn parse_background_size_item(
@@ -2049,7 +2077,7 @@ fn parse_background_size_property(context: &ParseContext, property: u16, values:
     let Some(parsed) = parsed else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+    ParseOutcome::Parsed(shared_style_value(value_list(parsed, 1, true)))
 }
 
 fn parse_border_image_slice_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -2108,7 +2136,7 @@ fn parse_border_image_slice_property(context: &ParseContext, property: u16, valu
         [top, right, bottom, left] => (top, right, bottom, left),
         _ => return ParseOutcome::Invalid,
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::BorderImageSlice {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::BorderImageSlice {
         top: RetainedStyleValueData::from_owned(top.clone()),
         right: RetainedStyleValueData::from_owned(right.clone()),
         bottom: RetainedStyleValueData::from_owned(bottom.clone()),
@@ -2203,7 +2231,7 @@ fn parse_shadow_property(context: &ParseContext, property: u16, values: &[Compon
         .and_then(ComponentValue::ident)
         .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"none"))
     {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::NONE }));
     }
     let is_text_shadow = property == property_id::TEXT_SHADOW;
     let parsed = values
@@ -2211,7 +2239,7 @@ fn parse_shadow_property(context: &ParseContext, property: u16, values: &[Compon
         .map(|item| parse_shadow_item(context, property, item, is_text_shadow))
         .collect::<Option<Vec<_>>>();
     parsed.map_or(ParseOutcome::Invalid, |parsed| {
-        ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+        ParseOutcome::Parsed(shared_style_value(value_list(parsed, 1, true)))
     })
 }
 
@@ -2355,14 +2383,16 @@ fn parse_position_area_property(values: &[ComponentValue]) -> ParseOutcome {
         return ParseOutcome::Invalid;
     };
     if keywords == [keyword::NONE] {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::NONE }));
     }
-    parse_position_area_keywords(&keywords).map_or(ParseOutcome::Invalid, |value| ParseOutcome::Parsed(Arc::new(value)))
+    parse_position_area_keywords(&keywords).map_or(ParseOutcome::Invalid, |value| {
+        ParseOutcome::Parsed(shared_style_value(value))
+    })
 }
 
 fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
     if keyword_sequence(values).is_some_and(|keywords| keywords == [keyword::NONE]) {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword: keyword::NONE }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword: keyword::NONE }));
     }
     let parsed = values
         .split(ComponentValue::is_comma)
@@ -2414,7 +2444,7 @@ fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[Compo
         })
         .collect::<Option<Vec<_>>>();
     parsed.map_or(ParseOutcome::Invalid, |parsed| {
-        ParseOutcome::Parsed(Arc::new(value_list(parsed, 1, true)))
+        ParseOutcome::Parsed(shared_style_value(value_list(parsed, 1, true)))
     })
 }
 
@@ -2503,7 +2533,7 @@ fn parse_transform_origin_property(context: &ParseContext, property: u16, values
                 },
             )
         };
-        return ParseOutcome::Parsed(Arc::new(value_list(vec![x, y, zero()], 0, true)));
+        return ParseOutcome::Parsed(shared_style_value(value_list(vec![x, y, zero()], 0, true)));
     }
     let Some(second) = parse_transform_origin_offset(context, property, significant[1]) else {
         return ParseOutcome::Invalid;
@@ -2545,7 +2575,7 @@ fn parse_transform_origin_property(context: &ParseContext, property: u16, values
         (TransformOriginAxis::None, TransformOriginAxis::X) => (second.value, first.value),
         _ => (first.value, second.value),
     };
-    ParseOutcome::Parsed(Arc::new(value_list(vec![x, y, z], 0, true)))
+    ParseOutcome::Parsed(shared_style_value(value_list(vec![x, y, z], 0, true)))
 }
 
 fn parse_comma_separated_dashed_ident_list(
@@ -2656,7 +2686,9 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
         }
         _ => unreachable!(),
     };
-    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(shared_style_value(parsed))
+    })
 }
 
 fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -2666,7 +2698,7 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
             .ident()
             .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"normal"))
     {
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::ColorScheme {
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme {
             schemes: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
             scheme_codes: RetainedByteList::from_bytes(Vec::new()),
             only: false,
@@ -2702,7 +2734,7 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
     if schemes.is_empty() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::ColorScheme {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme {
         schemes: RetainedUtf16FlyStringList::from_retained_strings(schemes),
         scheme_codes: RetainedByteList::from_bytes(scheme_codes),
         only,
@@ -2713,7 +2745,7 @@ fn parse_quotes_property(context: &ParseContext, values: &[ComponentValue]) -> P
     if let Some(value) = single_non_whitespace_value(values)
         && let Some(keyword) = parse_specific_keyword(value, &[keyword::AUTO, keyword::NONE])
     {
-        return ParseOutcome::Parsed(Arc::new(keyword));
+        return ParseOutcome::Parsed(shared_style_value(keyword));
     }
     let strings = values
         .iter()
@@ -2726,7 +2758,7 @@ fn parse_quotes_property(context: &ParseContext, values: &[ComponentValue]) -> P
     if strings.len() % 2 != 0 {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(value_list(strings, 0, false)))
+    ParseOutcome::Parsed(shared_style_value(value_list(strings, 0, false)))
 }
 
 fn parse_counter_definitions_property(
@@ -2737,7 +2769,7 @@ fn parse_counter_definitions_property(
     if let Some(value) = single_non_whitespace_value(values)
         && let Some(none) = parse_specific_keyword(value, &[keyword::NONE])
     {
-        return ParseOutcome::Parsed(Arc::new(none));
+        return ParseOutcome::Parsed(shared_style_value(none));
     }
 
     let allow_reversed = property == property_id::COUNTER_RESET;
@@ -2795,7 +2827,7 @@ fn parse_counter_definitions_property(
     if definitions.is_empty() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::CounterDefinitions {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::CounterDefinitions {
         counter_definitions: RetainedCounterDefinitionList::from_retained_elements(definitions),
     }))
 }
@@ -2873,7 +2905,9 @@ fn parse_list_style_type_property(context: &ParseContext, values: &[ComponentVal
             .or_else(|| string_style_value(context, value.string()?))
             .or_else(|| parse_counter_style(context, value))
     });
-    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(shared_style_value(parsed))
+    })
 }
 
 fn parse_counter_function(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
@@ -2921,7 +2955,7 @@ fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> 
     if let Some(value) = single_non_whitespace_value(values)
         && let Some(keyword) = parse_specific_keyword(value, &[keyword::NONE, keyword::NORMAL])
     {
-        return ParseOutcome::Parsed(Arc::new(keyword));
+        return ParseOutcome::Parsed(shared_style_value(keyword));
     }
     let mut tokens = TokenStream::new(values);
     let mut content = Vec::new();
@@ -2984,7 +3018,7 @@ fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> 
     if content.is_empty() || (in_alt_text && alt_text.is_empty()) {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Content {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Content {
         content: RetainedStyleValueData::from_owned(value_list(content, 0, true)),
         alt_text: if alt_text.is_empty() {
             RetainedStyleValueData::none()
@@ -3050,7 +3084,7 @@ fn parse_cursor_property(context: &ParseContext, values: &[ComponentValue]) -> P
             y,
         });
     }
-    ParseOutcome::Parsed(Arc::new(match cursors.as_slice() {
+    ParseOutcome::Parsed(shared_style_value(match cursors.as_slice() {
         [_] => cursors.remove(0),
         _ => value_list(cursors, 1, true),
     }))
@@ -3208,7 +3242,7 @@ fn parse_animation_timeline_property(context: &ParseContext, values: &[Component
         })
         .collect::<Option<Vec<_>>>();
     timelines.map_or(ParseOutcome::Invalid, |timelines| {
-        ParseOutcome::Parsed(Arc::new(value_list(timelines, 1, true)))
+        ParseOutcome::Parsed(shared_style_value(value_list(timelines, 1, true)))
     })
 }
 
@@ -3227,7 +3261,7 @@ fn parse_view_timeline_inset_property(
         })
         .collect::<Option<Vec<_>>>();
     insets.map_or(ParseOutcome::Invalid, |insets| {
-        ParseOutcome::Parsed(Arc::new(value_list(insets, 1, true)))
+        ParseOutcome::Parsed(shared_style_value(value_list(insets, 1, true)))
     })
 }
 
@@ -3305,7 +3339,7 @@ fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: 
         };
         parsed_values.push(parsed);
     }
-    ParseOutcome::Parsed(Arc::new(value_list(parsed_values, 1, true)))
+    ParseOutcome::Parsed(shared_style_value(value_list(parsed_values, 1, true)))
 }
 
 fn parse_generic_text_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -3327,7 +3361,7 @@ fn parse_generic_text_property(context: &ParseContext, property: u16, values: &[
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     };
     if let Some(parsed) = parse_single_property_leaf(context, property, value) {
-        return ParseOutcome::Parsed(Arc::new(parsed));
+        return ParseOutcome::Parsed(shared_style_value(parsed));
     }
     if property_leaf_grammar_is_fully_ported(property) {
         return ParseOutcome::Invalid;
@@ -3368,8 +3402,8 @@ fn parse_generic_space_separated_value_list(
         return ParseOutcome::Invalid;
     }
     match parsed_values.as_slice() {
-        [_] => ParseOutcome::Parsed(Arc::new(parsed_values.into_iter().next().unwrap())),
-        _ => ParseOutcome::Parsed(Arc::new(value_list(parsed_values, 0, true))),
+        [_] => ParseOutcome::Parsed(shared_style_value(parsed_values.into_iter().next().unwrap())),
+        _ => ParseOutcome::Parsed(shared_style_value(value_list(parsed_values, 0, true))),
     }
 }
 
@@ -3418,7 +3452,7 @@ fn parse_generic_numeric_property(context: &ParseContext, property: u16, values:
     }
 
     if let Some(parsed) = parsed {
-        return ParseOutcome::Parsed(Arc::new(parsed));
+        return ParseOutcome::Parsed(shared_style_value(parsed));
     }
     if property_numeric_grammar_is_fully_ported(property) && single_value.is_some() {
         return ParseOutcome::Invalid;
@@ -3445,7 +3479,7 @@ fn parse_generic_property_keyword(property: u16, values: &[ComponentValue]) -> P
             .is_ok()
     {
         let keyword = property_resolve_legacy_value_alias(property, parsed_keyword);
-        return ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword }));
     }
     if property_accepts_only_keywords(property) {
         return ParseOutcome::Invalid;
@@ -3494,7 +3528,7 @@ fn parse_display_keyword(values: &[ComponentValue]) -> ParseOutcome {
             list_item,
         )
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Display { raw: display.encoded() }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Display { raw: display.encoded() }))
 }
 
 fn context_allows_quirky_color(context: &ParseContext, property: u16) -> bool {
@@ -3554,7 +3588,7 @@ fn parse_color_property(context: &ParseContext, property: u16, values: &[Compone
     if stream.has_next_token() {
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     }
-    ParseOutcome::Parsed(Arc::new(color))
+    ParseOutcome::Parsed(shared_style_value(color))
 }
 
 fn parse_positional_value_list_shorthand(
@@ -3601,7 +3635,7 @@ fn parse_positional_value_list_shorthand(
         },
         _ => return ParseOutcome::Invalid,
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Shorthand {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand {
         shorthand_property: property,
         sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
         values: RetainedStyleValueDataList::from_retained_values(
@@ -3743,7 +3777,7 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
         }
         parsed_order
     };
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Shorthand {
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand {
         shorthand_property: property,
         sub_properties: RetainedPropertyIdList::from_property_ids(
             order.iter().map(|&index| longhands[index]).collect(),
@@ -3817,7 +3851,7 @@ fn parse_border_shorthand(context: &ParseContext, property: u16, values: &[Compo
         };
         parsed.push(border_image);
     }
-    ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, parsed)))
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(property, sub_properties, parsed)))
 }
 
 fn parse_flex_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -3885,7 +3919,7 @@ fn parse_flex_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
             basis.unwrap_or_else(|| percentage(0.0)),
         ]
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::FLEX,
         longhands_for_shorthand(property_id::FLEX).to_vec(),
         parsed,
@@ -3952,7 +3986,7 @@ fn parse_columns_shorthand(context: &ParseContext, values: &[ComponentValue]) ->
     let Some(height) = height else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::COLUMNS,
         vec![
             property_id::COLUMN_COUNT,
@@ -3988,7 +4022,7 @@ fn parse_container_shorthand(context: &ParseContext, values: &[ComponentValue]) 
             None => return ParseOutcome::Invalid,
         },
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::CONTAINER,
         longhands_for_shorthand(property_id::CONTAINER).to_vec(),
         vec![(*name).clone(), container_type],
@@ -4006,7 +4040,7 @@ fn parse_place_shorthand(context: &ParseContext, property: u16, values: &[Compon
         && matches!(&*align_value, StyleValueData::Keyword { .. })
         && matches!(parse_css_value(context, justify, values), ParseOutcome::Parsed(_))
     {
-        return ParseOutcome::Parsed(Arc::new(shorthand_value(
+        return ParseOutcome::Parsed(shared_style_value(shorthand_value(
             property,
             vec![align, justify],
             vec![(*align_value).clone(), (*align_value).clone()],
@@ -4025,7 +4059,7 @@ fn parse_place_shorthand(context: &ParseContext, property: u16, values: &[Compon
         ) else {
             continue;
         };
-        return ParseOutcome::Parsed(Arc::new(shorthand_value(
+        return ParseOutcome::Parsed(shared_style_value(shorthand_value(
             property,
             vec![align, justify],
             vec![(*align_value).clone(), (*justify_value).clone()],
@@ -4083,7 +4117,7 @@ fn parse_list_style_shorthand(context: &ParseContext, values: &[ComponentValue])
     else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::LIST_STYLE,
         longhands.to_vec(),
         parsed,
@@ -4104,7 +4138,7 @@ fn parse_white_space_shorthand(context: &ParseContext, values: &[ComponentValue]
             _ => None,
         };
         if let Some((collapse, wrap)) = aliases {
-            return ParseOutcome::Parsed(Arc::new(shorthand_value(
+            return ParseOutcome::Parsed(shared_style_value(shorthand_value(
                 property_id::WHITE_SPACE,
                 longhands_for_shorthand(property_id::WHITE_SPACE).to_vec(),
                 vec![
@@ -4173,7 +4207,7 @@ fn parse_white_space_shorthand(context: &ParseContext, values: &[ComponentValue]
     else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::WHITE_SPACE,
         longhands.to_vec(),
         parsed,
@@ -4200,7 +4234,7 @@ fn parse_overflow_clip_margin_shorthand(
         return ParseOutcome::Invalid;
     };
     let longhands = longhands_for_shorthand(property);
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property,
         longhands.to_vec(),
         vec![(*value).clone(); longhands.len()],
@@ -4272,7 +4306,7 @@ fn parse_text_decoration_shorthand(context: &ParseContext, values: &[ComponentVa
     else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::TEXT_DECORATION,
         output_order.to_vec(),
         output,
@@ -4371,7 +4405,7 @@ fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue
             else {
                 return ParseOutcome::Invalid;
             };
-            return ParseOutcome::Parsed(Arc::new(shorthand_value(
+            return ParseOutcome::Parsed(shared_style_value(shorthand_value(
                 property_id::BORDER_IMAGE,
                 longhands.to_vec(),
                 output,
@@ -4436,7 +4470,7 @@ fn parse_font_variant_shorthand(context: &ParseContext, values: &[ComponentValue
     else {
         return ParseOutcome::Invalid;
     };
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::FONT_VARIANT,
         output_order.to_vec(),
         output,
@@ -4552,7 +4586,11 @@ fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
             else {
                 return ParseOutcome::Invalid;
             };
-            return ParseOutcome::Parsed(Arc::new(shorthand_value(property_id::FONT, longhands.to_vec(), output)));
+            return ParseOutcome::Parsed(shared_style_value(shorthand_value(
+                property_id::FONT,
+                longhands.to_vec(),
+                output,
+            )));
         }
         if font_style.is_none() {
             let mut parsed_style = None;
@@ -4774,7 +4812,7 @@ fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue])
         property_id::BACKGROUND_ORIGIN,
         property_id::BACKGROUND_CLIP,
     ];
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::BACKGROUND,
         output_order.to_vec(),
         vec![
@@ -4877,7 +4915,7 @@ fn parse_mask_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
             }
         })
         .collect();
-    ParseOutcome::Parsed(Arc::new(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
         property_id::MASK,
         output_order.to_vec(),
         output,
@@ -4966,7 +5004,7 @@ fn parse_timeline_shorthand(context: &ParseContext, property: u16, values: &[Com
         sub_properties.push(inset_property);
         output.push(value_list(insets, 1, true));
     }
-    ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, output)))
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(property, sub_properties, output)))
 }
 
 fn parse_animation_transition_shorthand(
@@ -5045,7 +5083,7 @@ fn parse_animation_transition_shorthand(
         };
         output.push(initial);
     }
-    ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, output)))
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(property, sub_properties, output)))
 }
 
 fn trim_ascii_whitespace(code_units: &[u16]) -> &[u16] {
@@ -5099,7 +5137,7 @@ fn parse_css_value_with_source(
         return ParseOutcome::Invalid;
     }
     if let Some(value) = parse_builtin_value(values) {
-        return ParseOutcome::Parsed(Arc::new(value));
+        return ParseOutcome::Parsed(shared_style_value(value));
     }
     if property_id == property_id::CUSTOM || substitution_presence.has_any() {
         let declaration_values = values
@@ -5109,7 +5147,7 @@ fn parse_css_value_with_source(
         if !declaration_values.is_empty() && !declaration_value_is_valid(declaration_values) {
             return ParseOutcome::Invalid;
         }
-        return ParseOutcome::Parsed(Arc::new(unresolved_value(
+        return ParseOutcome::Parsed(shared_style_value(unresolved_value(
             unresolved_source,
             comparison_source,
             substitution_presence,
@@ -5295,7 +5333,7 @@ fn parse_css_value_with_source(
             return ParseOutcome::Invalid;
         };
         return if property_accepted_keywords(property_id).binary_search(&keyword).is_ok() {
-            ParseOutcome::Parsed(Arc::new(StyleValueData::Keyword { keyword }))
+            ParseOutcome::Parsed(shared_style_value(StyleValueData::Keyword { keyword }))
         } else {
             ParseOutcome::Invalid
         };
@@ -5676,34 +5714,11 @@ pub unsafe extern "C" fn rust_parse_css_value_from_tokens(
                     || value == CssTokenType::OpenCurly as u8
             )
         });
-        let parse_values = |values: &[ComponentValue]| {
-            parse_css_value_with_source(
-                unsafe { &*context },
-                property_id,
-                values,
-                &unresolved_source,
-                &comparison_source,
-            )
-        };
-        let outcome = if tokens.is_empty() {
-            parse_values(&[])
-        } else if tokens.len() == 1 && !contains_nested_values {
-            let Some(token) = parser_token_from_ffi(&tokens[0], token_values) else {
-                return invalid_ffi_result();
-            };
-            let value = ComponentValue {
-                kind: ComponentKind::Token(token.kind),
-                original_source_text: token.source.to_vec().into_boxed_slice(),
-            };
-            parse_values(std::slice::from_ref(&value))
-        } else if contains_nested_values {
+        let values = if contains_nested_values {
             let Some(tokens) = parser_tokens_from_ffi(tokens, token_values) else {
                 return invalid_ffi_result();
             };
-            match consume_a_list_of_component_values(tokens) {
-                Ok(values) => parse_values(&values),
-                Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
-            }
+            consume_a_list_of_component_values(tokens).map(smallvec::SmallVec::from_vec)
         } else {
             let Some(values) = tokens
                 .iter()
@@ -5713,11 +5728,21 @@ pub unsafe extern "C" fn rust_parse_css_value_from_tokens(
                         original_source_text: token.source.to_vec().into_boxed_slice(),
                     })
                 })
-                .collect::<Option<Vec<_>>>()
+                .collect::<Option<smallvec::SmallVec<[_; 3]>>>()
             else {
                 return invalid_ffi_result();
             };
-            parse_values(&values)
+            Ok(values)
+        };
+        let outcome = match values {
+            Ok(values) => parse_css_value_with_source(
+                unsafe { &*context },
+                property_id,
+                &values,
+                &unresolved_source,
+                &comparison_source,
+            ),
+            Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
         };
         record_outcome(property_id, &outcome);
 

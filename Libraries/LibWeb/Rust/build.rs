@@ -1779,17 +1779,32 @@ fn generate_keywords(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn 
         output.push_str(&format!("        \"{name}\",\n"));
     }
     output.push_str("    ];\n");
-    let mut sorted_names = keywords
-        .iter()
-        .enumerate()
-        .map(|(index, keyword)| (keyword.as_str().unwrap(), (index + 1) as u16))
-        .collect::<Vec<_>>();
-    sorted_names.sort_unstable_by_key(|&(name, _)| name);
-    output.push_str(&format!(
-        "    pub(crate) static SORTED_NAMES: [(&str, u16); {}] = {:?};\n",
-        sorted_names.len(),
-        sorted_names
-    ));
+    let mut lookup_groups = std::collections::BTreeMap::<(usize, u8), Vec<(&str, u16)>>::new();
+    for (index, keyword) in keywords.iter().enumerate() {
+        let name = keyword.as_str().unwrap();
+        lookup_groups
+            .entry((name.len(), name.as_bytes()[0]))
+            .or_default()
+            .push((name, (index + 1) as u16));
+    }
+    output.push_str(
+        "    pub(crate) fn from_ascii_case_insensitive(identifier: &[u16]) -> Option<u16> {\n\
+             let equals = |expected: &[u8]| {\n\
+                 identifier.iter().zip(expected).all(|(&left, &right)| {\n\
+                     crate::css::ffi_support::ascii_lowercase(left) == u16::from(right)\n\
+                 })\n\
+             };\n\
+             let first = crate::css::ffi_support::ascii_lowercase(*identifier.first()?);\n\
+             match (identifier.len(), first) {\n",
+    );
+    for ((length, first), candidates) in lookup_groups {
+        writeln!(output, "        ({length}, {}) => {{", u16::from(first))?;
+        for (name, code) in candidates {
+            writeln!(output, "            if equals(b\"{name}\") {{ return Some({code}); }}")?;
+        }
+        output.push_str("            None\n        }\n");
+    }
+    output.push_str("        _ => None,\n    }\n}\n");
     output.push_str("}\n");
     std::fs::write(out_dir.join("keywords_generated.rs"), output)?;
     Ok(())
