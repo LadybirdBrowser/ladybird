@@ -43,6 +43,8 @@ struct NavigationRequestDescriptor {
 };
 
 struct NavigationResponseBodyHandle {
+    // This pair identifies a RequestServer transfer lease. It remains stable as the
+    // response moves from the fetch worker through the UI process to the document host.
     int request_server_client_id { -1 };
     u64 request_server_request_id { 0 };
 };

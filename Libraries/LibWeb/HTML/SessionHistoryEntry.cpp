@@ -39,7 +39,7 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
-static SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState& document_state)
+SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState const& document_state)
 {
     return {
         .id = document_state.cross_process_id(),
@@ -125,6 +125,20 @@ PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descri
         .navigation_api_id = entry.navigation_api_id(),
         .scroll_restoration_mode = entry.scroll_restoration_mode(),
         .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
+PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntryDescriptor entry)
+{
+    return {
+        .url = move(entry.url),
+        .document_state = move(entry.document_state),
+        .classic_history_api_state = move(entry.classic_history_api_state),
+        .navigation_api_state = move(entry.navigation_api_state),
+        .navigation_api_key = move(entry.navigation_api_key),
+        .navigation_api_id = move(entry.navigation_api_id),
+        .scroll_restoration_mode = entry.scroll_restoration_mode,
+        .scroll_position_data = move(entry.scroll_position_data),
     };
 }
 

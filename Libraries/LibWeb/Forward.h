@@ -35,6 +35,7 @@ class ResourceLoader;
 class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
+enum class NavigationTarget : u8;
 enum class TraversalDecision;
 enum class WheelDeltaPrecision : u8;
 enum class ScrollGesturePhase : u8;
@@ -917,6 +918,7 @@ class WorkerNavigator;
 class XMLSerializer;
 
 enum class AllowMultipleFiles;
+enum class HistoryStepResult;
 using CanvasColorType = Bindings::CanvasColorType;
 using CanvasDirection = Bindings::CanvasDirection;
 using CanvasLineCap = Bindings::CanvasLineCap;
@@ -936,6 +938,9 @@ struct DeserializedTransferRecord;
 struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
+struct NavigationPopulationRequest;
+struct NavigationPopulationResult;
+struct NavigationStartRequest;
 struct NavigationParams;
 struct OpenerPolicy;
 struct OpenerPolicyEnforcementResult;
@@ -946,6 +951,7 @@ struct SerializedFormData;
 struct SerializedPolicyContainer;
 struct SerializedTransferRecord;
 struct SourceSnapshotParams;
+struct TargetSnapshotParams;
 struct ToggleTaskTracker;
 
 }
