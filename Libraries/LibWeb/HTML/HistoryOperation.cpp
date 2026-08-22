@@ -12,7 +12,7 @@ template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));
-    TRY(encoder.encode(parameters.pending_document_state_id));
+    TRY(encoder.encode(parameters.history_entry));
     TRY(encoder.encode(parameters.navigation_id));
     TRY(encoder.encode(parameters.history_handling));
     TRY(encoder.encode(parameters.user_involvement));
@@ -24,7 +24,7 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
 {
     return Web::FinalizeCrossDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .pending_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
         .navigation_id = TRY(decoder.decode<Optional<Utf16String>>()),
         .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
@@ -32,17 +32,21 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::CrossDocumentNavigationFinalization const& finalization)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::CrossDocumentNavigationFinalizationHostState const& state)
 {
-    TRY(encoder.encode(finalization.history_entry));
+    TRY(encoder.encode(state.pending_document_is_in_auxiliary_browsing_context_with_opener));
+    TRY(encoder.encode(state.pending_document_origin));
+    TRY(encoder.encode(state.active_document_origin));
     return {};
 }
 
 template<>
-ErrorOr<Web::CrossDocumentNavigationFinalization> IPC::decode(Decoder& decoder)
+ErrorOr<Web::CrossDocumentNavigationFinalizationHostState> IPC::decode(Decoder& decoder)
 {
-    return Web::CrossDocumentNavigationFinalization {
-        .history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
+    return Web::CrossDocumentNavigationFinalizationHostState {
+        .pending_document_is_in_auxiliary_browsing_context_with_opener = TRY(decoder.decode<bool>()),
+        .pending_document_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
+        .active_document_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
     };
 }
 
