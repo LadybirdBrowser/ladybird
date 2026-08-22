@@ -2455,10 +2455,7 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, u64 
         },
         [](auto const&) { return false; });
     auto finalizes_top_level_cross_document_navigation = parameters.visit(
-        [this](Web::PushHistoryOperationParameters const& parameters) {
-            return parameters.navigable_id == m_top_level_traversable.id();
-        },
-        [this](Web::ReplaceHistoryOperationParameters const& parameters) {
+        [this](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) {
             return parameters.navigable_id == m_top_level_traversable.id();
         },
         [](auto const&) { return false; });

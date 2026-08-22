@@ -3536,9 +3536,12 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         ? entry_to_restore->document_state.id
         : history_entry->document_state()->cross_process_id();
     traversable->request_history_operation(
-        history_handling == HistoryHandlingBehavior::Replace
-            ? HistoryOperationParameters { ReplaceHistoryOperationParameters { .navigable_id = navigable->id(), .pending_document_state_id = pending_document_state_id, .user_involvement = user_involvement } }
-            : HistoryOperationParameters { PushHistoryOperationParameters { .navigable_id = navigable->id(), .pending_document_state_id = pending_document_state_id, .user_involvement = user_involvement } },
+        FinalizeCrossDocumentNavigationHistoryOperationParameters {
+            .navigable_id = navigable->id(),
+            .pending_document_state_id = pending_document_state_id,
+            .history_handling = history_handling,
+            .user_involvement = user_involvement,
+        },
         {
             .pending_document = pending_document,
             .expected_ongoing_navigation_navigable = navigable,
