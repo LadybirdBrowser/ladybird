@@ -302,6 +302,8 @@ impl Builder<'_> {
         self.paintables.update_data(slot, |data| {
             data.enclosing_scroll_node_index = 0;
             data.own_scroll_node_index = 0;
+            data.fixed_background_visual_context = 0;
+            data.has_fixed_background_visual_context = false;
         });
 
         let mut nearest_scroll_nodes_for_descendants = if is_fixed {
