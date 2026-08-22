@@ -22,11 +22,12 @@ fn commit_subtree(
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
     paintables: &crate::painting::paintable_build::PaintableCommit<'_>,
-    scopes: &mut crate::layout::CommitScopes<'_>,
+    links_by_slot: &std::collections::HashMap<u32, &crate::layout::FragmentLink>,
+    pass_fragments: &crate::layout::CompletedPassFragments,
 ) {
     let slot_index = callbacks.slot_index(node);
-    let entry = scopes.link_for_slot(slot_index);
-    let reuses_committed_subtree = scopes.subtree_was_reused(slot_index);
+    let entry = links_by_slot.get(&slot_index).copied();
+    let reuses_committed_subtree = pass_fragments.subtree_was_reused(slot_index);
     debug_assert!(!reuses_committed_subtree || entry.is_some());
     if let Some(link) = entry {
         callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
@@ -70,17 +71,11 @@ fn commit_subtree(
         return;
     }
 
-    if let Some(link) = entry {
-        scopes.open_scope(&link.fragment.children);
-    }
     let mut child = callbacks.first_child(node);
     while !child.is_invalid() {
         let next = callbacks.next_sibling(child);
-        commit_subtree(child, callbacks, sink, paintables, scopes);
+        commit_subtree(child, callbacks, sink, paintables, links_by_slot, pass_fragments);
         child = next;
-    }
-    if entry.is_some() {
-        scopes.close_scope();
     }
 
     if has_pending_inline_box_geometry {
@@ -97,10 +92,10 @@ pub(crate) fn commit_replacing(
     sink: &FfiCommitSink,
     pass_fragments: &crate::layout::CompletedPassFragments,
 ) {
-    let mut scopes = crate::layout::CommitScopes::for_pass(pass_fragments);
+    let links_by_slot = pass_fragments.links_by_slot();
     let paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);
     paintables.begin_commit(root);
-    commit_subtree(root, callbacks, sink, &paintables, &mut scopes);
+    commit_subtree(root, callbacks, sink, &paintables, &links_by_slot, pass_fragments);
     paintables.translate_reused_subtrees();
     paintables.discard_absolute_rects_memoized_during_commit();
     let viewport_shells = paintables.committed_navigable_container_viewport_shells();
