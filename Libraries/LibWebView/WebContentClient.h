@@ -77,6 +77,7 @@ public:
     IsPrivate is_private() const { return m_is_private; }
 
     void assign_view(Badge<Application>, ViewImplementation&);
+    bool is_ready_for_view_assignment(Badge<Application>) const { return m_did_create_initial_top_level_traversable; }
     void register_view(u64 page_id, ViewImplementation&);
     void unregister_view(u64 page_id);
 
@@ -294,6 +295,8 @@ private:
     Optional<i32> m_compositor_connection_id;
     u64 m_initial_page_id { 0 };
     Web::HTML::CrossProcessId m_root_navigable_id;
+    bool m_did_create_initial_top_level_traversable { false };
+    Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry_awaiting_view;
 
     ProcessHandle m_process_handle;
     RefPtr<Core::Timer> m_detached_page_close_timer;

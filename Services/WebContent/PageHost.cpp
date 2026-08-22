@@ -27,7 +27,10 @@ void PageHost::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_na
     VERIFY(m_pages.is_empty());
     m_cross_process_id_allocator = cross_process_id_allocator;
     auto& first_page = create_page(initial_page_id, root_navigable_id);
-    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank(), Empty {}, initial_document_state_id);
+    auto traversable = Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank(), Empty {}, initial_document_state_id);
+    auto initial_history_entry = traversable->active_session_history_entry();
+    VERIFY(initial_history_entry);
+    first_page.page().client().page_did_create_top_level_traversable(traversable->id(), Web::HTML::create_session_history_entry_descriptor(*initial_history_entry));
 }
 
 PageClient& PageHost::create_page(u64 page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
