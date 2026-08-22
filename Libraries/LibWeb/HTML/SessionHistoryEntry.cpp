@@ -162,6 +162,23 @@ SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistory
 }
 
 template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryEntryIdentity const& identity)
+{
+    TRY(encoder.encode(identity.document_state_id));
+    TRY(encoder.encode(identity.navigation_api_id));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::SessionHistoryEntryIdentity> IPC::decode(Decoder& decoder)
+{
+    return Web::HTML::SessionHistoryEntryIdentity {
+        .document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .navigation_api_id = TRY(decoder.decode<Utf16String>()),
+    };
+}
+
+template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryEntryDescriptor const& entry)
 {
     TRY(encoder.encode(entry.step));

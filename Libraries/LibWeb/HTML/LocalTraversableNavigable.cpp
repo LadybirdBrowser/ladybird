@@ -1681,12 +1681,14 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
     if (target_navigable->active_session_history_entry() != target_entry)
         return;
 
+    Optional<SessionHistoryEntryIdentity> entry_to_replace_identity;
+    if (entry_to_replace)
+        entry_to_replace_identity = session_history_entry_identity(*entry_to_replace);
+
     auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
         .navigable_id = target_navigable->id(),
         .target_entry = create_same_document_navigation_entry(target_entry),
-        .entry_to_replace_navigation_api_key = entry_to_replace
-            ? Optional<Utf16String> { entry_to_replace->navigation_api_key() }
-            : OptionalNone {},
+        .entry_to_replace = move(entry_to_replace_identity),
         .previous_entry_persisted_state = move(previous_entry_persisted_state),
         .history_handling = history_handling,
         .user_involvement = user_involvement,

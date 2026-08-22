@@ -3441,7 +3441,7 @@ bool LocalNavigable::allowed_by_sandboxing_to_navigate(LocalNavigable const& tar
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
+static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3496,11 +3496,8 @@ static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_docum
         history_entry->document_state()->set_navigable_target_name(Utf16String {});
     }
 
-    // 5. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
-    auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? navigable->active_session_history_entry() : nullptr;
-    Optional<Utf16String> entry_to_replace_navigation_api_key;
-    if (entry_to_replace)
-        entry_to_replace_navigation_api_key = entry_to_replace->navigation_api_key();
+    // Step 5 continues in the UI process, which owns navigable's canonical session history entries and received
+    // historyHandling with this operation.
 
     // 6. Let traversable be navigable's traversable navigable.
     auto traversable = navigable->traversable_navigable();
@@ -3510,7 +3507,6 @@ static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_docum
 
     return Web::CrossDocumentNavigationFinalization {
         .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
-        .entry_to_replace_navigation_api_key = move(entry_to_replace_navigation_api_key),
     };
 }
 
@@ -3534,8 +3530,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
-                auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, move(entry_to_restore));
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+                auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_entry, pending_document, expected_ongoing_navigation_id, move(entry_to_restore));
                 if (!finalization.has_value()) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
