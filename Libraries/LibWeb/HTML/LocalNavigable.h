@@ -130,6 +130,7 @@ public:
     virtual Utf16String const& target_name() const override;
 
     GC::Ptr<NavigableContainer> container() const;
+    void set_container(Badge<NavigableContainer>, GC::Ptr<NavigableContainer> container) { m_container = container; }
     GC::Ptr<DOM::Document> container_document() const;
 
     GC::Ptr<LocalTraversableNavigable> traversable_navigable() const;
