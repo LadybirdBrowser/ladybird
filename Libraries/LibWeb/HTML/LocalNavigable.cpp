@@ -1089,7 +1089,7 @@ Utf16String const& LocalNavigable::target_name() const
 GC::Ptr<NavigableContainer> LocalNavigable::container() const
 {
     // The container of a navigable navigable is the navigable container whose nested navigable is navigable, or null if there is no such element.
-    return NavigableContainer::navigable_container_with_content_navigable(const_cast<LocalNavigable&>(*this));
+    return m_container;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document

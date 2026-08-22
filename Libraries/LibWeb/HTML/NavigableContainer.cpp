@@ -105,6 +105,7 @@ void NavigableContainer::create_new_child_navigable()
 
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;
+    navigable->set_container({}, this);
 
     auto traversable = parent_navigable->traversable_navigable();
     (void)traversable->adopt_canonical_id_for_child_created_during_history_reconstruction(*parent_navigable, navigable);
@@ -337,6 +338,7 @@ void NavigableContainer::destroy_the_child_navigable()
 
     auto after_document_destruction = GC::create_function(GC::Heap::the(), [this, navigable] {
         // 3. Set container's content navigable to null.
+        as<LocalNavigable>(*navigable).set_container({}, nullptr);
         m_content_navigable = nullptr;
         document().schedule_html_parser_end_check();
 
