@@ -63,6 +63,47 @@ describe("[[Construct]] trap normal behavior", () => {
 
         Reflect.construct(p, [15], theNewTarget);
     });
+
+    test("trap receives only passed arguments", () => {
+        let receivedArguments;
+        const p = new Proxy(
+            class {
+                constructor(_formalParameter) {}
+            },
+            {
+                construct(target, arguments_, newTarget) {
+                    receivedArguments = arguments_;
+                    return Reflect.construct(target, arguments_, newTarget);
+                },
+            }
+        );
+
+        new p();
+        expect(receivedArguments.length).toBe(0);
+
+        new p(1, 2);
+        expect(receivedArguments.length).toBe(2);
+        expect(receivedArguments[0]).toBe(1);
+        expect(receivedArguments[1]).toBe(2);
+    });
+
+    test("bound proxy constructor preserves empty argument list", () => {
+        let receivedArguments;
+        const p = new Proxy(
+            class {
+                constructor(_formalParameter) {}
+            },
+            {
+                construct(target, arguments_, newTarget) {
+                    receivedArguments = arguments_;
+                    return Reflect.construct(target, arguments_, newTarget);
+                },
+            }
+        );
+
+        new (p.bind(undefined))();
+        expect(receivedArguments.length).toBe(0);
+    });
 });
 
 describe("[[Construct]] invariants", () => {
