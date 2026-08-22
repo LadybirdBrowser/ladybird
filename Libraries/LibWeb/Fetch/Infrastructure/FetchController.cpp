@@ -104,6 +104,10 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
             : serialized_value_or_error.value();
     };
     m_serialized_abort_reason = structured_serialize(error.value(), fallback_error_value);
+
+    // AD-HOC: stop_fetch() returns early once the state is "aborted". So, this is the last chance to release the
+    //         network request. Without it, the response pipe stays open for good.
+    stop_pending_request();
 }
 
 // https://fetch.spec.whatwg.org/#fetch-controller-terminate
@@ -111,6 +115,10 @@ void FetchController::terminate()
 {
     // To terminate a fetch controller controller, set controller’s state to "terminated".
     m_state = State::Terminated;
+
+    // AD-HOC: As in abort() above — stop_fetch() won’t release the request once the state is "terminated" — so,
+    //         release it here.
+    stop_pending_request();
 }
 
 void FetchController::stop_fetch()
@@ -143,6 +151,11 @@ void FetchController::stop_fetch()
 void FetchController::stop_request()
 {
     VERIFY(m_state == State::Stopped);
+    stop_pending_request();
+}
+
+void FetchController::stop_pending_request()
+{
     if (m_pending_request) {
         m_pending_request->stop();
         m_pending_request = nullptr;
