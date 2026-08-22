@@ -2051,8 +2051,83 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
 
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
 {
-    if (node.is_connected())
-        update_layout(reason);
+    if (!node.is_connected())
+        return;
+
+    auto* document_element = this->document_element();
+    auto const may_have_style_query_dependencies = document_element && document_element->is_style_query_container();
+    auto const reads_layout_geometry = reason == UpdateLayoutReason::ElementGetClientRects
+        || reason == UpdateLayoutReason::ElementClientWidth
+        || reason == UpdateLayoutReason::ElementClientHeight
+        || reason == UpdateLayoutReason::HTMLElementOffsetWidth
+        || reason == UpdateLayoutReason::HTMLElementOffsetHeight;
+    if (reads_layout_geometry
+        && m_has_completed_style_update
+        && layout_is_up_to_date()
+        && !m_needs_media_rule_evaluation
+        && !m_needs_animated_style_update
+        && m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+        && m_elements_with_pending_top_layer_membership_change.is_empty()
+        && !m_top_layer_needs_layout_zone_rebuild
+        && !style_computer().style_engine().css_transitions_may_observe_style_changes()
+        && !may_have_style_query_dependencies) {
+        auto document_is_clean_for_layout_geometry_read = [](Document const& document) {
+            return document.m_has_completed_style_update
+                && document.layout_is_up_to_date()
+                && !document.m_has_dirty_style_attributes
+                && !document.style_computer().style_engine().has_pending_transaction()
+                && !document.m_needs_media_rule_evaluation
+                && !document.m_needs_animated_style_update
+                && document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+                && document.m_elements_with_pending_top_layer_membership_change.is_empty()
+                && !document.m_top_layer_needs_layout_zone_rebuild;
+        };
+        auto embedding_document_chain_is_clean = [&] {
+            auto const* embedded_document = this;
+            while (auto navigable = embedded_document->navigable()) {
+                auto embedding_document = navigable->container_document();
+                if (!embedding_document || embedding_document.ptr() == embedded_document)
+                    return true;
+                if (!document_is_clean_for_layout_geometry_read(*embedding_document))
+                    return false;
+                embedded_document = embedding_document.ptr();
+            }
+            return true;
+        };
+        if (embedding_document_chain_is_clean()) {
+            synchronize_dirty_style_attributes();
+            if (!style_computer().style_engine().pending_transaction_may_affect_layout_geometry()) {
+                // A later inline transition declaration still needs the pending style as its
+                // before-change style, even though this geometry read can reuse the current layout.
+                if (!style_computer().style_engine().has_pending_transaction()
+                    || style_computer().style_engine().defer_pending_transaction_for_geometry_read()) {
+                    return;
+                }
+            }
+        }
+    }
+
+    update_layout(reason);
+}
+
+void Document::flush_deferred_style_change_event()
+{
+    auto& style_engine = style_computer().style_engine();
+    if (!style_engine.has_deferred_geometry_transaction())
+        return;
+
+    if (!style_engine.begin_deferred_geometry_transaction_flush()) {
+        // All non-replayable style inputs consume the boundary before changing their authoritative
+        // state. Reaching this fallback means exact local-fact journalling coarsened, so preserve
+        // correctness by settling the combined transaction even though it cannot remain a distinct
+        // transition style-change event.
+        update_style();
+        return;
+    }
+    ScopeGuard restore_later_style_inputs = [&] {
+        style_engine.end_deferred_geometry_transaction_flush();
+    };
+    update_style();
 }
 
 bool Document::needs_style_update_after_layout()

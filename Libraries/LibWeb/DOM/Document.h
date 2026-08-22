@@ -806,6 +806,7 @@ public:
     void set_has_completed_style_update() { m_has_completed_style_update = true; }
     void mark_style_attribute_dirty() { m_has_dirty_style_attributes = true; }
     void synchronize_dirty_style_attributes();
+    void flush_deferred_style_change_event();
     void build_registered_properties_cache_for_style_update() { build_registered_properties_cache(); }
     void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);

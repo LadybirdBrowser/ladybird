@@ -376,14 +376,22 @@ static void request_frame_for_first_recorded_input(StyleEngine const& style_engi
     style_computer->document().page().client().request_frame();
 }
 
+static void flush_deferred_geometry_transaction_before_non_replayable_input(StyleEngine const& style_engine, GC::Ptr<StyleComputer> style_computer)
+{
+    if (style_computer && style_engine.has_deferred_geometry_transaction())
+        style_computer->document().flush_deferred_style_change_event();
+}
+
 void StyleEngine::record_tree_delta(StyleEngineFFI::FfiTreeDelta const& delta)
 {
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
     m_tree_deltas.append(delta);
 }
 
 void StyleEngine::record_element_arrival(StyleEngineFFI::FfiElementArrival arrival, ReadonlySpan<StyleAtomID> custom_states)
 {
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
     VERIFY(m_arrival_custom_state_atoms.size() <= NumericLimits<u32>::max());
     VERIFY(custom_states.size() <= NumericLimits<u32>::max());
@@ -409,6 +417,7 @@ void StyleEngine::record_state_delta(StyleEngineFFI::FfiStateDelta const& delta)
 
 void StyleEngine::record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const& delta)
 {
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
     m_element_declaration_deltas.append(delta);
 }
@@ -429,6 +438,7 @@ void StyleEngine::append_or_merge_element_style_input(StyleNodeID style_node, u8
 void StyleEngine::record_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
 {
     if (style_node != 0 && reaction != 0) {
+        flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
         request_frame_for_first_recorded_input(*this, m_style_computer);
         append_or_merge_element_style_input(style_node, reaction, inherited_style_groups);
     }
@@ -439,6 +449,7 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
     if (style_node == 0 || reaction == 0)
         return;
 
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     // The relation columns must include every tree delta recorded before this derived action. The
     // descendants themselves stay in the C++ batch so the next transaction normalizes them with
     // every other feedback action from this stabilization pass.
@@ -594,6 +605,34 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
 bool StyleEngine::has_pending_transaction() const
 {
     return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_impl);
+}
+
+bool StyleEngine::pending_transaction_may_affect_layout_geometry()
+{
+    submit_recorded_input();
+    return StyleEngineFFI::style_engine_pending_transaction_may_affect_layout_geometry(m_impl);
+}
+
+bool StyleEngine::has_deferred_geometry_transaction() const
+{
+    return StyleEngineFFI::style_engine_has_deferred_geometry_transaction(m_impl);
+}
+
+bool StyleEngine::defer_pending_transaction_for_geometry_read()
+{
+    submit_recorded_input();
+    return StyleEngineFFI::style_engine_defer_pending_transaction_for_geometry_read(m_impl);
+}
+
+bool StyleEngine::begin_deferred_geometry_transaction_flush()
+{
+    submit_recorded_input();
+    return StyleEngineFFI::style_engine_begin_deferred_geometry_transaction_flush(m_impl);
+}
+
+void StyleEngine::end_deferred_geometry_transaction_flush()
+{
+    StyleEngineFFI::style_engine_end_deferred_geometry_transaction_flush(m_impl);
 }
 
 bool StyleEngine::read_matches(StyleNodeID node, Vector<RuleMatch>& matches, Optional<MatchPurpose> purpose)

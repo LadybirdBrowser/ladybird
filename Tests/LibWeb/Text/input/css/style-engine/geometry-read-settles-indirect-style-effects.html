@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --query-color {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: black;
+    }
+
+    @keyframes wider {
+        from, to { width: 150px; }
+    }
+
+    #animated-target {
+        width: 100px;
+        height: 10px;
+    }
+    #animated-target.running {
+        animation: wider 1s paused both;
+    }
+
+    #query-container {
+        container-type: inline-size;
+        width: 100px;
+    }
+    #query-container.named {
+        container-name: measured;
+    }
+    #query-target {
+        width: 10px;
+        height: 10px;
+    }
+    @container measured (min-width: 50px) {
+        #query-target { width: 60px; }
+    }
+
+    #style-query-container {
+        color: black;
+        container-type: inline-size;
+        --query-color: currentColor;
+    }
+    #style-query-container.red {
+        color: red;
+    }
+    #style-query-target {
+        width: 10px;
+        height: 10px;
+    }
+    @container style(--query-color: red) {
+        #style-query-target { width: 70px; }
+    }
+</style>
+<div id="animated-target"></div>
+<div id="query-container">
+    <div id="query-target"></div>
+</div>
+<div id="style-query-container">
+    <div id="style-query-target"></div>
+</div>
+<script>
+    test(() => {
+        const animatedTarget = document.getElementById("animated-target");
+        animatedTarget.offsetWidth;
+        animatedTarget.className = "running";
+        println(`animated width: ${animatedTarget.offsetWidth}`);
+
+        const queryContainer = document.getElementById("query-container");
+        const queryTarget = document.getElementById("query-target");
+        queryTarget.getBoundingClientRect();
+        queryContainer.className = "named";
+        println(`container query width: ${queryTarget.getBoundingClientRect().width}`);
+
+        const styleQueryContainer = document.getElementById("style-query-container");
+        const styleQueryTarget = document.getElementById("style-query-target");
+        styleQueryTarget.offsetWidth;
+        styleQueryContainer.className = "red";
+        println(`registered style query width: ${styleQueryTarget.offsetWidth}`);
+    });
+</script>

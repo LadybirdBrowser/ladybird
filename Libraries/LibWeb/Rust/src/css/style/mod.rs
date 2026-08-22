@@ -769,6 +769,11 @@ pub struct StyleEngine {
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     journal: NormalizationJournal,
+    /// Local selector facts through the latest geometry read which reused committed layout. A
+    /// normal style observation merges this into `journal`; a newly introduced transition can
+    /// instead consume it as the preceding style change event.
+    deferred_geometry_journal: NormalizationJournal,
+    flushing_deferred_geometry_journal: bool,
     /// Exact element reactions retained across rootless flushes until a style root can consume them.
     deferred_element_style_inputs: Vec<NormalizedInput>,
     deferred_element_style_input_memory: MemoryLease,

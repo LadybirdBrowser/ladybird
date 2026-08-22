@@ -1,0 +1,2 @@
+initial grandchild width: 100
+updated grandchild width: 200

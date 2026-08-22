@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @font-face {
+        font-family: LatoBold;
+        src: url("../../../../Assets/Lato-Bold.ttf");
+    }
+
+    #text-target {
+        display: inline-block;
+        font: 48px LatoBold;
+        text-rendering: optimizeSpeed;
+    }
+    #text-target.legible {
+        text-rendering: optimizeLegibility;
+    }
+
+    #stroke-target {
+        stroke: none;
+        stroke-width: 10px;
+    }
+    #stroke-target.visible {
+        stroke: black;
+    }
+
+    #stroke-width-target {
+        stroke: black;
+        stroke-width: 1px;
+    }
+    #stroke-width-target.thick {
+        stroke-width: 10px;
+    }
+
+    #current-color-stroke-target {
+        color: transparent;
+        stroke: currentColor;
+        stroke-width: 10px;
+    }
+    #current-color-stroke-target.visible {
+        color: black;
+    }
+</style>
+<span id="text-target">AVAVAV</span>
+<svg width="200" height="100">
+    <rect id="stroke-target" x="20" y="20" width="20" height="20"></rect>
+    <rect id="stroke-width-target" x="80" y="20" width="20" height="20"></rect>
+    <rect id="current-color-stroke-target" x="140" y="20" width="20" height="20"></rect>
+</svg>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+
+        const textTarget = document.getElementById("text-target");
+        const speedWidth = textTarget.offsetWidth;
+        textTarget.className = "legible";
+        const immediateLegibleWidth = textTarget.offsetWidth;
+        getComputedStyle(textTarget).textRendering;
+        const settledLegibleWidth = textTarget.offsetWidth;
+        println(`text-rendering read is fresh: ${immediateLegibleWidth === settledLegibleWidth}`);
+        println(`text-rendering changes width: ${speedWidth !== settledLegibleWidth}`);
+
+        const strokeTarget = document.getElementById("stroke-target");
+        const noStrokeWidth = strokeTarget.getBoundingClientRect().width;
+        strokeTarget.setAttribute("class", "visible");
+        const immediateStrokeWidth = strokeTarget.getBoundingClientRect().width;
+        getComputedStyle(strokeTarget).stroke;
+        // The old metadata did not schedule layout after settling style, so use a full rebuild as
+        // the geometry oracle.
+        internals.compareLayoutTreeWithFullRebuild();
+        const settledStrokeWidth = strokeTarget.getBoundingClientRect().width;
+        println(`stroke read is fresh: ${immediateStrokeWidth === settledStrokeWidth}`);
+        println(`stroke changes bounds: ${noStrokeWidth !== settledStrokeWidth}`);
+
+        const strokeWidthTarget = document.getElementById("stroke-width-target");
+        const thinStrokeWidth = strokeWidthTarget.getBoundingClientRect().width;
+        strokeWidthTarget.setAttribute("class", "thick");
+        const immediateThickStrokeWidth = strokeWidthTarget.getBoundingClientRect().width;
+        getComputedStyle(strokeWidthTarget).strokeWidth;
+        internals.compareLayoutTreeWithFullRebuild();
+        const settledThickStrokeWidth = strokeWidthTarget.getBoundingClientRect().width;
+        println(`stroke-width read is fresh: ${immediateThickStrokeWidth === settledThickStrokeWidth}`);
+        println(`stroke-width changes bounds: ${thinStrokeWidth !== settledThickStrokeWidth}`);
+
+        const currentColorStrokeTarget = document.getElementById("current-color-stroke-target");
+        const transparentStrokeWidth = currentColorStrokeTarget.getBoundingClientRect().width;
+        currentColorStrokeTarget.setAttribute("class", "visible");
+        const immediateCurrentColorStrokeWidth = currentColorStrokeTarget.getBoundingClientRect().width;
+        getComputedStyle(currentColorStrokeTarget).color;
+        internals.compareLayoutTreeWithFullRebuild();
+        const settledCurrentColorStrokeWidth = currentColorStrokeTarget.getBoundingClientRect().width;
+        println(`currentColor stroke read is fresh: ${immediateCurrentColorStrokeWidth === settledCurrentColorStrokeWidth}`);
+        println(`currentColor stroke changes bounds: ${transparentStrokeWidth !== settledCurrentColorStrokeWidth}`);
+    });
+</script>

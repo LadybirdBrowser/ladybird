@@ -789,6 +789,13 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     if (count == 0)
         return;
 
+    // OPTIMIZATION: Geometry reads defer replayable selector facts, but a tree mutation changes
+    //               authoritative relationships. Consume that style-change boundary while the old
+    //               tree is still intact.
+    document().flush_deferred_style_change_event();
+    if (&node->document() != &document())
+        node->document().flush_deferred_style_change_event();
+
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
     if (document().has_valid_html_collection_caches())
         affects_elements = mutation_affects_elements(nodes.span());
@@ -1132,6 +1139,8 @@ void Node::remove(bool suppress_observers)
 
     // 2. Assert: parent is non-null.
     VERIFY(parent);
+
+    document().flush_deferred_style_change_event();
 
     // 3. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
@@ -1498,6 +1507,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 8. Assert: oldParent is non-null.
     VERIFY(old_parent);
+
+    document().flush_deferred_style_change_event();
 
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
     if (document().has_valid_html_collection_caches())

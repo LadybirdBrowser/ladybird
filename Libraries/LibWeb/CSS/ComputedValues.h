@@ -1352,6 +1352,7 @@ public:
     RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image_value(); }
     Optional<MaskReference> mask() const { return m_noninherited.mask_data->mask_value(); }
     Optional<ClipPathReference> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
+    Optional<SVGPaint> stroke() const { return m_inherited.svg->stroke_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
 

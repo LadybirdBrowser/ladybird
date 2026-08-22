@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #middle-frame {
+        border: 0;
+        width: 100px;
+        height: 20px;
+    }
+    #middle-frame.wide {
+        width: 200px;
+    }
+</style>
+<script>
+    asyncTest(async done => {
+        const middleFrame = document.createElement("iframe");
+        const middleLoaded = new Promise(resolve => {
+            middleFrame.addEventListener("load", resolve, { once: true });
+        });
+        middleFrame.id = "middle-frame";
+        middleFrame.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                html, body { margin: 0; }
+                iframe { border: 0; width: 100%; height: 10px; }
+            </style>
+        `;
+        document.body.append(middleFrame);
+        await middleLoaded;
+
+        const childFrame = middleFrame.contentDocument.createElement("iframe");
+        const childLoaded = new Promise(resolve => {
+            childFrame.addEventListener("load", resolve, { once: true });
+        });
+        childFrame.srcdoc = `
+            <!DOCTYPE html>
+            <style>html, body { margin: 0; } #target { width: 100vw; height: 10px; }</style>
+            <div id="target"></div>
+        `;
+        middleFrame.contentDocument.body.append(childFrame);
+        await childLoaded;
+
+        const target = childFrame.contentDocument.getElementById("target");
+        println(`initial grandchild width: ${target.offsetWidth}`);
+        middleFrame.className = "wide";
+        println(`updated grandchild width: ${target.offsetWidth}`);
+        done();
+    });
+</script>
