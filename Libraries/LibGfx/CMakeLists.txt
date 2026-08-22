@@ -18,6 +18,7 @@ set(SOURCES
     Font/FontSupport.cpp
     Font/FontVariationSettings.cpp
     Font/PathFontProvider.cpp
+    Font/SkiaFontProvider.cpp
     Font/Typeface.cpp
     Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp

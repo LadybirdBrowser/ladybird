@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibGfx/Font/Typeface.h>
 
 #ifdef AK_OS_MACOS
@@ -33,6 +34,8 @@ public:
     static ErrorOr<RefPtr<TypefaceSkia>> match_family_style(StringView family_name, u16 weight, u16 width, u8 slope);
     static ErrorOr<RefPtr<TypefaceSkia>> find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
     static Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
+    static void for_each_typeface_in_family(StringView family_name, Function<void(NonnullRefPtr<TypefaceSkia>)>);
+    static void initialize_font_manager();
 
     RefPtr<TypefaceSkia const> clone_with_variations(Vector<FontVariationAxis> const& axes) const;
 

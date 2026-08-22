@@ -121,11 +121,6 @@ if (ENABLE_CRANELIFT_JIT)
     target_compile_definitions(LibWebView PUBLIC HAVE_WASM_COMPILER_SERVICE=1)
 endif()
 
-# Third-party
-if (HAS_FONTCONFIG)
-    target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
-endif()
-
 if (ENABLE_INSTALL_HEADERS)
     foreach(header ${GENERATED_SOURCES})
         get_filename_component(extension ${header} EXT)
