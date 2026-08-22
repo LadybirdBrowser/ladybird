@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -328,156 +330,175 @@ bool is_unknown_html_element(Utf16FlyString const& tag_name)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#elements-in-the-dom%3Aelement-interface
+using HTMLElementFactory = GC::Ref<Element> (*)(Document&, QualifiedName);
+
+template<typename ElementType>
+static GC::Ref<Element> create_html_element_on_heap(Document& document, QualifiedName qualified_name)
+{
+    return create_element_on_heap<ElementType>(document, move(qualified_name));
+}
+
+static HashMap<FlatPtr, HTMLElementFactory> const& html_element_factories()
+{
+    static NeverDestroyed<HashMap<FlatPtr, HTMLElementFactory>> factories = [] {
+        HashMap<FlatPtr, HTMLElementFactory> factories;
+
+#define __ENUMERATE_HTML_TAG(name, tag) factories.set(HTML::TagNames::name.raw_identity(), &create_html_element_on_heap<HTML::HTMLUnknownElement>);
+        ENUMERATE_HTML_TAGS
+#undef __ENUMERATE_HTML_TAG
+
+#define REGISTER_HTML_ELEMENT(tag_name, element_type) factories.set(HTML::TagNames::tag_name.raw_identity(), &create_html_element_on_heap<HTML::element_type>)
+        REGISTER_HTML_ELEMENT(a, HTMLAnchorElement);
+        REGISTER_HTML_ELEMENT(area, HTMLAreaElement);
+        REGISTER_HTML_ELEMENT(audio, HTMLAudioElement);
+        REGISTER_HTML_ELEMENT(base, HTMLBaseElement);
+        REGISTER_HTML_ELEMENT(body, HTMLBodyElement);
+        REGISTER_HTML_ELEMENT(br, HTMLBRElement);
+        REGISTER_HTML_ELEMENT(button, HTMLButtonElement);
+        REGISTER_HTML_ELEMENT(canvas, HTMLCanvasElement);
+        REGISTER_HTML_ELEMENT(data, HTMLDataElement);
+        REGISTER_HTML_ELEMENT(datalist, HTMLDataListElement);
+        REGISTER_HTML_ELEMENT(details, HTMLDetailsElement);
+        REGISTER_HTML_ELEMENT(dialog, HTMLDialogElement);
+        REGISTER_HTML_ELEMENT(dir, HTMLDirectoryElement);
+        REGISTER_HTML_ELEMENT(div, HTMLDivElement);
+        REGISTER_HTML_ELEMENT(dl, HTMLDListElement);
+        REGISTER_HTML_ELEMENT(embed, HTMLEmbedElement);
+        REGISTER_HTML_ELEMENT(fieldset, HTMLFieldSetElement);
+        REGISTER_HTML_ELEMENT(font, HTMLFontElement);
+        REGISTER_HTML_ELEMENT(form, HTMLFormElement);
+        REGISTER_HTML_ELEMENT(frame, HTMLFrameElement);
+        REGISTER_HTML_ELEMENT(frameset, HTMLFrameSetElement);
+        REGISTER_HTML_ELEMENT(head, HTMLHeadElement);
+        REGISTER_HTML_ELEMENT(h1, HTMLHeadingElement);
+        REGISTER_HTML_ELEMENT(h2, HTMLHeadingElement);
+        REGISTER_HTML_ELEMENT(h3, HTMLHeadingElement);
+        REGISTER_HTML_ELEMENT(h4, HTMLHeadingElement);
+        REGISTER_HTML_ELEMENT(h5, HTMLHeadingElement);
+        REGISTER_HTML_ELEMENT(h6, HTMLHeadingElement);
+        REGISTER_HTML_ELEMENT(hr, HTMLHRElement);
+        REGISTER_HTML_ELEMENT(html, HTMLHtmlElement);
+        REGISTER_HTML_ELEMENT(iframe, HTMLIFrameElement);
+        REGISTER_HTML_ELEMENT(img, HTMLImageElement);
+        REGISTER_HTML_ELEMENT(input, HTMLInputElement);
+        REGISTER_HTML_ELEMENT(label, HTMLLabelElement);
+        REGISTER_HTML_ELEMENT(legend, HTMLLegendElement);
+        REGISTER_HTML_ELEMENT(li, HTMLLIElement);
+        REGISTER_HTML_ELEMENT(link, HTMLLinkElement);
+        REGISTER_HTML_ELEMENT(map, HTMLMapElement);
+        REGISTER_HTML_ELEMENT(marquee, HTMLMarqueeElement);
+        REGISTER_HTML_ELEMENT(menu, HTMLMenuElement);
+        REGISTER_HTML_ELEMENT(meta, HTMLMetaElement);
+        REGISTER_HTML_ELEMENT(meter, HTMLMeterElement);
+        REGISTER_HTML_ELEMENT(ins, HTMLModElement);
+        REGISTER_HTML_ELEMENT(del, HTMLModElement);
+        REGISTER_HTML_ELEMENT(object, HTMLObjectElement);
+        REGISTER_HTML_ELEMENT(ol, HTMLOListElement);
+        REGISTER_HTML_ELEMENT(optgroup, HTMLOptGroupElement);
+        REGISTER_HTML_ELEMENT(option, HTMLOptionElement);
+        REGISTER_HTML_ELEMENT(output, HTMLOutputElement);
+        REGISTER_HTML_ELEMENT(p, HTMLParagraphElement);
+        REGISTER_HTML_ELEMENT(param, HTMLParamElement);
+        REGISTER_HTML_ELEMENT(picture, HTMLPictureElement);
+        REGISTER_HTML_ELEMENT(pre, HTMLPreElement);
+        REGISTER_HTML_ELEMENT(listing, HTMLPreElement);
+        REGISTER_HTML_ELEMENT(xmp, HTMLPreElement);
+        REGISTER_HTML_ELEMENT(progress, HTMLProgressElement);
+        REGISTER_HTML_ELEMENT(blockquote, HTMLQuoteElement);
+        REGISTER_HTML_ELEMENT(q, HTMLQuoteElement);
+        REGISTER_HTML_ELEMENT(script, HTMLScriptElement);
+        REGISTER_HTML_ELEMENT(selectedcontent, HTMLSelectedContentElement);
+        REGISTER_HTML_ELEMENT(select, HTMLSelectElement);
+        REGISTER_HTML_ELEMENT(slot, HTMLSlotElement);
+        REGISTER_HTML_ELEMENT(source, HTMLSourceElement);
+        REGISTER_HTML_ELEMENT(span, HTMLSpanElement);
+        REGISTER_HTML_ELEMENT(style, HTMLStyleElement);
+        REGISTER_HTML_ELEMENT(summary, HTMLSummaryElement);
+        REGISTER_HTML_ELEMENT(caption, HTMLTableCaptionElement);
+        REGISTER_HTML_ELEMENT(td, HTMLTableCellElement);
+        REGISTER_HTML_ELEMENT(th, HTMLTableCellElement);
+        REGISTER_HTML_ELEMENT(colgroup, HTMLTableColElement);
+        REGISTER_HTML_ELEMENT(col, HTMLTableColElement);
+        REGISTER_HTML_ELEMENT(table, HTMLTableElement);
+        REGISTER_HTML_ELEMENT(tr, HTMLTableRowElement);
+        REGISTER_HTML_ELEMENT(tbody, HTMLTableSectionElement);
+        REGISTER_HTML_ELEMENT(thead, HTMLTableSectionElement);
+        REGISTER_HTML_ELEMENT(tfoot, HTMLTableSectionElement);
+        REGISTER_HTML_ELEMENT(template_, HTMLTemplateElement);
+        REGISTER_HTML_ELEMENT(textarea, HTMLTextAreaElement);
+        REGISTER_HTML_ELEMENT(time, HTMLTimeElement);
+        REGISTER_HTML_ELEMENT(title, HTMLTitleElement);
+        REGISTER_HTML_ELEMENT(track, HTMLTrackElement);
+        REGISTER_HTML_ELEMENT(ul, HTMLUListElement);
+        REGISTER_HTML_ELEMENT(video, HTMLVideoElement);
+
+#define REGISTER_GENERIC_HTML_ELEMENT(tag_name) REGISTER_HTML_ELEMENT(tag_name, HTMLElement)
+        REGISTER_GENERIC_HTML_ELEMENT(article);
+        REGISTER_GENERIC_HTML_ELEMENT(search);
+        REGISTER_GENERIC_HTML_ELEMENT(section);
+        REGISTER_GENERIC_HTML_ELEMENT(nav);
+        REGISTER_GENERIC_HTML_ELEMENT(aside);
+        REGISTER_GENERIC_HTML_ELEMENT(hgroup);
+        REGISTER_GENERIC_HTML_ELEMENT(header);
+        REGISTER_GENERIC_HTML_ELEMENT(footer);
+        REGISTER_GENERIC_HTML_ELEMENT(address);
+        REGISTER_GENERIC_HTML_ELEMENT(dt);
+        REGISTER_GENERIC_HTML_ELEMENT(dd);
+        REGISTER_GENERIC_HTML_ELEMENT(figure);
+        REGISTER_GENERIC_HTML_ELEMENT(figcaption);
+        REGISTER_GENERIC_HTML_ELEMENT(main);
+        REGISTER_GENERIC_HTML_ELEMENT(em);
+        REGISTER_GENERIC_HTML_ELEMENT(strong);
+        REGISTER_GENERIC_HTML_ELEMENT(small);
+        REGISTER_GENERIC_HTML_ELEMENT(s);
+        REGISTER_GENERIC_HTML_ELEMENT(cite);
+        REGISTER_GENERIC_HTML_ELEMENT(dfn);
+        REGISTER_GENERIC_HTML_ELEMENT(abbr);
+        REGISTER_GENERIC_HTML_ELEMENT(ruby);
+        REGISTER_GENERIC_HTML_ELEMENT(rt);
+        REGISTER_GENERIC_HTML_ELEMENT(rp);
+        REGISTER_GENERIC_HTML_ELEMENT(code);
+        REGISTER_GENERIC_HTML_ELEMENT(var);
+        REGISTER_GENERIC_HTML_ELEMENT(samp);
+        REGISTER_GENERIC_HTML_ELEMENT(kbd);
+        REGISTER_GENERIC_HTML_ELEMENT(sub);
+        REGISTER_GENERIC_HTML_ELEMENT(sup);
+        REGISTER_GENERIC_HTML_ELEMENT(i);
+        REGISTER_GENERIC_HTML_ELEMENT(b);
+        REGISTER_GENERIC_HTML_ELEMENT(u);
+        REGISTER_GENERIC_HTML_ELEMENT(mark);
+        REGISTER_GENERIC_HTML_ELEMENT(bdi);
+        REGISTER_GENERIC_HTML_ELEMENT(bdo);
+        REGISTER_GENERIC_HTML_ELEMENT(wbr);
+        REGISTER_GENERIC_HTML_ELEMENT(noscript);
+        REGISTER_GENERIC_HTML_ELEMENT(acronym);
+        REGISTER_GENERIC_HTML_ELEMENT(basefont);
+        REGISTER_GENERIC_HTML_ELEMENT(big);
+        REGISTER_GENERIC_HTML_ELEMENT(center);
+        REGISTER_GENERIC_HTML_ELEMENT(nobr);
+        REGISTER_GENERIC_HTML_ELEMENT(noembed);
+        REGISTER_GENERIC_HTML_ELEMENT(noframes);
+        REGISTER_GENERIC_HTML_ELEMENT(plaintext);
+        REGISTER_GENERIC_HTML_ELEMENT(rb);
+        REGISTER_GENERIC_HTML_ELEMENT(rtc);
+        REGISTER_GENERIC_HTML_ELEMENT(strike);
+        REGISTER_GENERIC_HTML_ELEMENT(tt);
+#undef REGISTER_GENERIC_HTML_ELEMENT
+#undef REGISTER_HTML_ELEMENT
+
+        return factories;
+    }();
+
+    return *factories;
+}
+
 static GC::Ref<Element> create_html_element(Document& document, QualifiedName qualified_name)
 {
     auto const& tag_name = qualified_name.local_name();
 
-    if (tag_name == HTML::TagNames::a)
-        return create_element_on_heap<HTML::HTMLAnchorElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::area)
-        return create_element_on_heap<HTML::HTMLAreaElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::audio)
-        return create_element_on_heap<HTML::HTMLAudioElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::base)
-        return create_element_on_heap<HTML::HTMLBaseElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::body)
-        return create_element_on_heap<HTML::HTMLBodyElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::br)
-        return create_element_on_heap<HTML::HTMLBRElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::button)
-        return create_element_on_heap<HTML::HTMLButtonElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::canvas)
-        return create_element_on_heap<HTML::HTMLCanvasElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::data)
-        return create_element_on_heap<HTML::HTMLDataElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::datalist)
-        return create_element_on_heap<HTML::HTMLDataListElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::details)
-        return create_element_on_heap<HTML::HTMLDetailsElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::dialog)
-        return create_element_on_heap<HTML::HTMLDialogElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::dir)
-        return create_element_on_heap<HTML::HTMLDirectoryElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::div)
-        return create_element_on_heap<HTML::HTMLDivElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::dl)
-        return create_element_on_heap<HTML::HTMLDListElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::embed)
-        return create_element_on_heap<HTML::HTMLEmbedElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::fieldset)
-        return create_element_on_heap<HTML::HTMLFieldSetElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::font)
-        return create_element_on_heap<HTML::HTMLFontElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::form)
-        return create_element_on_heap<HTML::HTMLFormElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::frame)
-        return create_element_on_heap<HTML::HTMLFrameElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::frameset)
-        return create_element_on_heap<HTML::HTMLFrameSetElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::head)
-        return create_element_on_heap<HTML::HTMLHeadElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6))
-        return create_element_on_heap<HTML::HTMLHeadingElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::hr)
-        return create_element_on_heap<HTML::HTMLHRElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::html)
-        return create_element_on_heap<HTML::HTMLHtmlElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::iframe)
-        return create_element_on_heap<HTML::HTMLIFrameElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::img)
-        return create_element_on_heap<HTML::HTMLImageElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::input)
-        return create_element_on_heap<HTML::HTMLInputElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::label)
-        return create_element_on_heap<HTML::HTMLLabelElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::legend)
-        return create_element_on_heap<HTML::HTMLLegendElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::li)
-        return create_element_on_heap<HTML::HTMLLIElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::link)
-        return create_element_on_heap<HTML::HTMLLinkElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::map)
-        return create_element_on_heap<HTML::HTMLMapElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::marquee)
-        return create_element_on_heap<HTML::HTMLMarqueeElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::menu)
-        return create_element_on_heap<HTML::HTMLMenuElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::meta)
-        return create_element_on_heap<HTML::HTMLMetaElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::meter)
-        return create_element_on_heap<HTML::HTMLMeterElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(HTML::TagNames::ins, HTML::TagNames::del))
-        return create_element_on_heap<HTML::HTMLModElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::object)
-        return create_element_on_heap<HTML::HTMLObjectElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::ol)
-        return create_element_on_heap<HTML::HTMLOListElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::optgroup)
-        return create_element_on_heap<HTML::HTMLOptGroupElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::option)
-        return create_element_on_heap<HTML::HTMLOptionElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::output)
-        return create_element_on_heap<HTML::HTMLOutputElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::p)
-        return create_element_on_heap<HTML::HTMLParagraphElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::param)
-        return create_element_on_heap<HTML::HTMLParamElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::picture)
-        return create_element_on_heap<HTML::HTMLPictureElement>(document, move(qualified_name));
-    // NOTE: The obsolete elements "listing" and "xmp" are explicitly mapped to HTMLPreElement in the specification.
-    if (tag_name.is_one_of(HTML::TagNames::pre, HTML::TagNames::listing, HTML::TagNames::xmp))
-        return create_element_on_heap<HTML::HTMLPreElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::progress)
-        return create_element_on_heap<HTML::HTMLProgressElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(HTML::TagNames::blockquote, HTML::TagNames::q))
-        return create_element_on_heap<HTML::HTMLQuoteElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::script)
-        return create_element_on_heap<HTML::HTMLScriptElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::selectedcontent)
-        return create_element_on_heap<HTML::HTMLSelectedContentElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::select)
-        return create_element_on_heap<HTML::HTMLSelectElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::slot)
-        return create_element_on_heap<HTML::HTMLSlotElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::source)
-        return create_element_on_heap<HTML::HTMLSourceElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::span)
-        return create_element_on_heap<HTML::HTMLSpanElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::style)
-        return create_element_on_heap<HTML::HTMLStyleElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::summary)
-        return create_element_on_heap<HTML::HTMLSummaryElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::caption)
-        return create_element_on_heap<HTML::HTMLTableCaptionElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(Web::HTML::TagNames::td, Web::HTML::TagNames::th))
-        return create_element_on_heap<HTML::HTMLTableCellElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(HTML::TagNames::colgroup, HTML::TagNames::col))
-        return create_element_on_heap<HTML::HTMLTableColElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::table)
-        return create_element_on_heap<HTML::HTMLTableElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::tr)
-        return create_element_on_heap<HTML::HTMLTableRowElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(HTML::TagNames::tbody, HTML::TagNames::thead, HTML::TagNames::tfoot))
-        return create_element_on_heap<HTML::HTMLTableSectionElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::template_)
-        return create_element_on_heap<HTML::HTMLTemplateElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::textarea)
-        return create_element_on_heap<HTML::HTMLTextAreaElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::time)
-        return create_element_on_heap<HTML::HTMLTimeElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::title)
-        return create_element_on_heap<HTML::HTMLTitleElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::track)
-        return create_element_on_heap<HTML::HTMLTrackElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::ul)
-        return create_element_on_heap<HTML::HTMLUListElement>(document, move(qualified_name));
-    if (tag_name == HTML::TagNames::video)
-        return create_element_on_heap<HTML::HTMLVideoElement>(document, move(qualified_name));
-    if (tag_name.is_one_of(
-            HTML::TagNames::article, HTML::TagNames::search, HTML::TagNames::section, HTML::TagNames::nav, HTML::TagNames::aside, HTML::TagNames::hgroup, HTML::TagNames::header, HTML::TagNames::footer, HTML::TagNames::address, HTML::TagNames::dt, HTML::TagNames::dd, HTML::TagNames::figure, HTML::TagNames::figcaption, HTML::TagNames::main, HTML::TagNames::em, HTML::TagNames::strong, HTML::TagNames::small, HTML::TagNames::s, HTML::TagNames::cite, HTML::TagNames::dfn, HTML::TagNames::abbr, HTML::TagNames::ruby, HTML::TagNames::rt, HTML::TagNames::rp, HTML::TagNames::code, HTML::TagNames::var, HTML::TagNames::samp, HTML::TagNames::kbd, HTML::TagNames::sub, HTML::TagNames::sup, HTML::TagNames::i, HTML::TagNames::b, HTML::TagNames::u, HTML::TagNames::mark, HTML::TagNames::bdi, HTML::TagNames::bdo, HTML::TagNames::wbr, HTML::TagNames::noscript,
-            // Obsolete
-            HTML::TagNames::acronym, HTML::TagNames::basefont, HTML::TagNames::big, HTML::TagNames::center, HTML::TagNames::nobr, HTML::TagNames::noembed, HTML::TagNames::noframes, HTML::TagNames::plaintext, HTML::TagNames::rb, HTML::TagNames::rtc, HTML::TagNames::strike, HTML::TagNames::tt))
-        return create_element_on_heap<HTML::HTMLElement>(document, move(qualified_name));
+    if (auto factory = html_element_factories().get(tag_name.raw_identity()); factory.has_value())
+        return factory.value()(document, move(qualified_name));
+
     if (HTML::is_valid_custom_element_name(qualified_name.local_name()))
         return create_element_on_heap<HTML::HTMLElement>(document, move(qualified_name));
 
