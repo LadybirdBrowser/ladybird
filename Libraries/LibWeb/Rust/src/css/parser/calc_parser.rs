@@ -16,8 +16,10 @@ use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_chan
 use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::math_functions::{MathFunction, math_function_from_name};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
+use crate::css::parser::positions_shapes_parser::parse_anchor_function;
 use crate::css::parser::value_parser::{
-    ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, RESOLUTION_UNIT_NAMES, TIME_UNIT_NAMES,
+    ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, ParseContext, RESOLUTION_UNIT_NAMES, TIME_UNIT_NAMES,
+    context_allows_tree_counting_functions,
 };
 use crate::css::property_metadata::property_name;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
@@ -41,6 +43,7 @@ pub(crate) struct CalcParserContext {
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub allowed_color_channels: u64,
     pub allow_random_functions: bool,
+    pub parse_context: *const ParseContext,
 }
 
 impl CalcParserContext {
@@ -53,6 +56,7 @@ impl CalcParserContext {
             intern_utf16_fly_string: None,
             allowed_color_channels: 0,
             allow_random_functions: false,
+            parse_context: std::ptr::null(),
         }
     }
 }
@@ -160,7 +164,7 @@ impl<'a> CalculationParser<'a> {
             } => parse_a_calculation(values, self.context),
             ComponentKind::Function { name, values } => {
                 if math_function_from_name(name).is_none() {
-                    return Err(CalcParseError::NotHandled);
+                    return parse_non_math_function(value, name, values, self.context);
                 }
                 parse_a_calc_function_node(name, values, self.context)
             }
@@ -195,6 +199,39 @@ impl<'a> CalculationParser<'a> {
             _ => Err(CalcParseError::Invalid),
         }
     }
+}
+
+fn parse_non_math_function(
+    value: &ComponentValue,
+    name: &[u16],
+    arguments: &[ComponentValue],
+    context: CalcParserContext,
+) -> Result<Arc<CalcNode>> {
+    let parse_context = unsafe { context.parse_context.as_ref() }.ok_or(CalcParseError::NotHandled)?;
+    if (equals_ascii_case_insensitive(name, b"sibling-count") || equals_ascii_case_insensitive(name, b"sibling-index"))
+        && arguments.iter().all(ComponentValue::is_whitespace)
+        && context_allows_tree_counting_functions(parse_context)
+    {
+        return Ok(Arc::new(CalcNode::NonMathFunction {
+            value: RetainedStyleValueData::from_owned(StyleValueData::TreeCountingFunction {
+                function: u8::from(equals_ascii_case_insensitive(name, b"sibling-index")),
+                computed_type: 0,
+            }),
+            numeric_type: CalcNumericType::default(),
+        }));
+    }
+    // NB: ValueParsing.cpp only converts anchor() to a NonMathFunction calc leaf.
+    //     AnchorSizeStyleValue does not implement AbstractNonMathCalcFunctionStyleValue.
+    let parsed = parse_anchor_function(parse_context, context.property, value);
+    let Some(parsed) = parsed else {
+        return Err(CalcParseError::NotHandled);
+    };
+    let mut numeric_type = CalcNumericType::default();
+    numeric_type.exponents[0] = Some(1);
+    Ok(Arc::new(CalcNode::NonMathFunction {
+        value: RetainedStyleValueData::from_owned(parsed),
+        numeric_type,
+    }))
 }
 
 fn parse_calc_keyword(identifier: &[u16], context: CalcParserContext) -> Result<Arc<CalcNode>> {
@@ -732,6 +769,7 @@ mod tests {
             intern_utf16_fly_string: Some(discard_interned_string),
             allowed_color_channels: 0,
             allow_random_functions: true,
+            parse_context: std::ptr::null(),
         };
         let parsed = parse_a_calc_function_node(name, values, context).unwrap();
         assert!(matches!(&*parsed, CalcNode::Random { .. }));

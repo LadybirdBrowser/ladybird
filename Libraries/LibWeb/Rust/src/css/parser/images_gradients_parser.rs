@@ -621,7 +621,7 @@ fn parse_gradient(
         .or_else(|| parse_radial_gradient(context, property, name, arguments))
 }
 
-fn parse_image_value(
+pub(crate) fn parse_image_value(
     context: &ParseContext,
     property: u16,
     tokens: &mut TokenStream<'_>,

@@ -1225,7 +1225,11 @@ fn property_allows_anchor(property: u16) -> bool {
     )
 }
 
-fn parse_anchor_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+pub(crate) fn parse_anchor_function(
+    context: &ParseContext,
+    property: u16,
+    value: &ComponentValue,
+) -> Option<StyleValueData> {
     if !property_allows_anchor(property) {
         return None;
     }
@@ -1893,11 +1897,11 @@ mod tests {
         ));
         assert!(matches!(
             parse_anchor_fit(property_id::TOP, "calc(anchor(top, 1px) + 2px)"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(_)
         ));
         assert!(matches!(
             parse_anchor_fit(property_id::TOP, "anchor(--foo top, calc(0.5 * anchor(--bar bottom)))"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::Parsed(_)
         ));
         assert!(matches!(
             parse_anchor_fit(property_id::INSET, "auto anchor(right) 10px 20%"),
