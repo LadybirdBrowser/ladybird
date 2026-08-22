@@ -842,9 +842,12 @@ HTMLOptionElement* HTMLSelectElement::placeholder_label_option() const
         // and if the value of the first option element in the select element's list of options (if any) is the empty
         // string, and that option element's parent node is the select element (and not an optgroup element), then that
         // option is the select element's placeholder label option.
-        auto first_option_element = list_of_options()[0];
-        if (first_option_element->value().is_empty() && first_option_element->parent() == this)
-            return first_option_element;
+        auto options = list_of_options();
+        if (!options.is_empty()) {
+            auto first_option_element = options[0];
+            if (first_option_element->value().is_empty() && first_option_element->parent() == this)
+                return first_option_element;
+        }
     }
     return {};
 }
