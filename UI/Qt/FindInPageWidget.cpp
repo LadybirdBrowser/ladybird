@@ -12,6 +12,7 @@
 
 #include <QEvent>
 #include <QKeyEvent>
+#include <QPointer>
 #include <QStyle>
 
 namespace Ladybird {
@@ -163,9 +164,15 @@ void FindInPageWidget::focusInEvent(QFocusEvent* event)
 {
     QWidget::focusInEvent(event);
     m_find_text->setFocus();
-    auto selected_text = m_content_view->selected_text();
-    if (!selected_text.is_empty())
-        m_find_text->setText(qstring_from_ak_string(selected_text));
+    auto find_text_before_request = m_find_text->text();
+    auto request_id = ++m_selected_text_request_id;
+    m_content_view->selected_text()->when_resolved([guarded_this = QPointer<FindInPageWidget> { this }, request_id, find_text_before_request = AK::move(find_text_before_request)](auto& selected_text) {
+        if (!guarded_this || request_id != guarded_this->m_selected_text_request_id || guarded_this->m_find_text->text() != find_text_before_request)
+            return;
+        if (!selected_text.is_empty())
+            guarded_this->m_find_text->setText(qstring_from_ak_string(selected_text));
+        guarded_this->m_find_text->selectAll();
+    });
     m_find_text->selectAll();
 }
 

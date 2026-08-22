@@ -42,6 +42,7 @@
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
+#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/StorageSetResult.h>
@@ -117,6 +118,11 @@ endpoint WebContentClient
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
 
     did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info) =|
+
+    did_get_selected_text(u64 page_id, u64 request_id, ByteString selection) =|
+    did_get_selected_text_for_lookup(u64 page_id, u64 request_id, Optional<WebView::DictionaryLookup> lookup) =|
+    did_select_word_for_dictionary_lookup(u64 page_id, u64 request_id, bool selected) =|
+    did_cut_selected_text(u64 page_id, u64 request_id, ByteString selection) =|
 
     did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
 
