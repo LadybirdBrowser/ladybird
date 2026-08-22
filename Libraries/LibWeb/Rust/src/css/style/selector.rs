@@ -6211,7 +6211,7 @@ impl<'a> MatchEvaluator<'a> {
     /// sequence length and repeated across rules. Child positions depend only on tree relations;
     /// of-type positions additionally depend on the fact side, so old and new evaluations use
     /// separate caches.
-    fn indexed_sibling_position(
+    pub(super) fn indexed_sibling_position(
         &self,
         position: NthPosition,
         node: StyleNodeID,

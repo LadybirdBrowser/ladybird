@@ -1325,6 +1325,38 @@ impl StyleEngine {
         }
     }
 
+    /// Whether an of-type position kept the same truth across this transaction.
+    fn nth_of_type_truth_unchanged(
+        &mut self,
+        nth: NthPosition,
+        node: StyleNodeID,
+        workspace: &MatchEvaluationWorkspace,
+    ) -> bool {
+        let Some(view) = self
+            .transaction_fact_view
+            .as_ref()
+            .filter(|view| view.before_sibling_relations_available)
+        else {
+            return false;
+        };
+        let resident_facts = self.facts.primary();
+        let old_count = MatchEvaluator::new(&self.tree, resident_facts)
+            .with_transaction_fact_view(view, TransactionFactSide::Before)
+            .with_match_workspace(workspace, MatchEvaluationSide::OldTree)
+            .indexed_sibling_position(nth, node, &mut self.counters)
+            .ok()
+            .flatten();
+        let new_count = MatchEvaluator::new(&self.tree, resident_facts)
+            .with_transaction_fact_view(view, TransactionFactSide::After)
+            .with_match_workspace(workspace, MatchEvaluationSide::Current)
+            .indexed_sibling_position(nth, node, &mut self.counters)
+            .ok()
+            .flatten();
+        old_count
+            .zip(new_count)
+            .is_some_and(|(old, new)| nth.matches_count(old) == nth.matches_count(new))
+    }
+
     /// Name the children whose position in the sequence actually moved.
     ///
     /// A child arriving or leaving at index `i` shifts the count-from-the-start of everything from
@@ -1347,6 +1379,7 @@ impl StyleEngine {
         if children.is_empty() {
             return;
         }
+        let sequence_match_workspace = MatchEvaluationWorkspace::default();
         // Where in the sequence the earliest and the latest change happened. A change nobody could
         // place leaves the whole sequence moved, because that is all that is still provable.
         let (first_moved, last_moved) = match change.span {
@@ -1430,25 +1463,30 @@ impl StyleEngine {
                 // old position, so evaluate the test on both sides and drop the children whose
                 // truth provably did not move. A relative positional input stays routed: it is a
                 // possible witness, and witness truth is judged at its anchors, not here.
-                let truth_unchanged_on_both_sides = counts_this_sequence
-                    && change.arriving_nodes.binary_search(&child).is_err()
-                    && engine.transaction_fact_view.as_ref().is_some_and(|view| {
-                        view.before_sibling_relations_available
-                            && view
-                                .before_sibling_geometry
-                                .sibling_positions(child)
-                                .is_some_and(|old| {
-                                    let new_count = match nth.from_end {
-                                        true => children.len() - at,
-                                        false => at + 1,
-                                    } as i64;
-                                    let old_count = i64::from(match nth.from_end {
-                                        true => old.from_end,
-                                        false => old.from_start,
-                                    });
-                                    nth.matches_count(new_count) == nth.matches_count(old_count)
-                                })
-                    });
+                let truth_unchanged_on_both_sides = change.arriving_nodes.binary_search(&child).is_err()
+                    && match counts_this_sequence {
+                        true => engine.transaction_fact_view.as_ref().is_some_and(|view| {
+                            view.before_sibling_relations_available
+                                && view
+                                    .before_sibling_geometry
+                                    .sibling_positions(child)
+                                    .is_some_and(|old| {
+                                        let new_count = match nth.from_end {
+                                            true => children.len() - at,
+                                            false => at + 1,
+                                        } as i64;
+                                        let old_count = i64::from(match nth.from_end {
+                                            true => old.from_end,
+                                            false => old.from_start,
+                                        });
+                                        nth.matches_count(new_count) == nth.matches_count(old_count)
+                                    })
+                        }),
+                        false if nth.of_type => {
+                            engine.nth_of_type_truth_unchanged(nth, child, &sequence_match_workspace)
+                        }
+                        false => false,
+                    };
                 for &entry_index in candidates {
                     let entry = &entries[entry_index];
                     let point = routing.route(entry.route);
@@ -1537,6 +1575,12 @@ impl StyleEngine {
                 }
             }
         }
+        let sequence_match_workspace_bytes = sequence_match_workspace.capacity_bytes();
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, sequence_match_workspace_bytes);
+        drop(sequence_match_workspace);
+        self.memory
+            .release(MemoryCategory::BatchScratch, sequence_match_workspace_bytes);
     }
 
     /// Route a possible relational witness through the anchors whose truth it can flip.
