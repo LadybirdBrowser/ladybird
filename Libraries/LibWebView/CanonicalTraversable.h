@@ -132,11 +132,17 @@ private:
     void complete_history_jobs_after_crash(HistoryOperation&, Vector<Web::HTML::CrossProcessId> changing_jobs, Vector<Web::HTML::CrossProcessId> nonchanging_updates);
     void finish_deferred_history_operation_after_crash_recovery(Web::HTML::CrossProcessId operation_id);
     ApplyHistoryStepJobs create_apply_history_step_jobs(Web::HTML::CrossProcessId operation_id);
+    void run_direct_history_operation(HistoryOperation&);
+    void traverse_the_history_by_a_delta_at_queue_position(HistoryOperation&, Web::TraverseByDeltaHistoryOperationParameters const&);
     void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, OnHistoryOperationComplete = nullptr);
     void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, u64 sequence_number, Function<void()> on_ready, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
     void finalize_a_cross_document_navigation(HistoryOperation&, Web::CrossDocumentNavigationFinalizationHostState);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {});
+    void apply_the_push_or_replace_history_step(HistoryOperation&, i32 step, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement);
+    void apply_the_reload_history_step(HistoryOperation&, Web::HTML::UserNavigationInvolvement);
+    void apply_the_traverse_history_step(HistoryOperation&, i32 step, Optional<Web::InitiatorSourceSnapshot>, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement);
+    void resume_applying_the_traverse_history_step(HistoryOperation&, i32 step, Web::HTML::UserNavigationInvolvement);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
     void finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
     HistoryOperation* ongoing_browser_history_traversal();

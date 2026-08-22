@@ -2622,15 +2622,6 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, WebC
     };
 
     parameters.visit(
-        [&](Web::TraverseByDeltaHistoryOperationParameters& parameters) {
-            // The traversal target is resolved once the queue reaches these steps, so navigations queued ahead of the
-            // traversal are part of the session history it resolves against.
-            RefPtr<WebContentClient> request_client = requesting_client;
-            m_top_level_traversable.append_history_queue_steps(
-                [this, request_client = move(request_client), requesting_page_id, operation_id, sequence_number, parameters = move(parameters)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
-                    start_requested_history_traversal(*request_client, requesting_page_id, operation_id, sequence_number, move(parameters), move(promise));
-                });
-        },
         [&](Web::NavigationAPITraverseHistoryOperationParameters& parameters) {
             // As with delta traversal, resolve the key only after earlier queued operations have completed.
             RefPtr<WebContentClient> request_client = requesting_client;
@@ -2642,19 +2633,6 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, WebC
         [&](auto&) {
             m_top_level_traversable.enqueue_history_operation(operation_id, move(parameters), requesting_client, requesting_page_id, sequence_number, move(requested_operation_completion));
         });
-}
-
-void ViewImplementation::start_requested_history_traversal(WebContentClient& requesting_client, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 sequence_number, Web::TraverseByDeltaHistoryOperationParameters parameters, NonnullRefPtr<Core::Promise<Empty>> promise)
-{
-    auto target = m_top_level_traversable.session_history().traversal_target_for_delta(parameters.delta);
-    if (!target.has_value()) {
-        requesting_client.async_complete_history_operation(
-            requesting_page_id, operation_id, Web::HTML::HistoryStepResult::Applied, {},
-            m_top_level_traversable.session_history().size());
-        promise->resolve({});
-        return;
-    }
-    start_requested_history_traversal(requesting_client, requesting_page_id, operation_id, sequence_number, move(parameters), target.release_value(), move(promise));
 }
 
 void ViewImplementation::start_requested_history_traversal(WebContentClient& requesting_client, u64 requesting_page_id, Web::HTML::CrossProcessId operation_id, u64 sequence_number, Web::NavigationAPITraverseHistoryOperationParameters parameters, NonnullRefPtr<Core::Promise<Empty>> promise)
