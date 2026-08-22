@@ -723,6 +723,7 @@ protected:
     Optional<SessionTabId> m_session_tab_id;
     Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
     RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_for_testing;
+    RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_queue_promise;
 
     struct WebDriverNavigationCompletionRequest {
         Function<void(Web::WebDriver::Response)> on_complete;

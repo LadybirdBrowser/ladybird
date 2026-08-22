@@ -1863,7 +1863,6 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
         [&](Web::NavigableCreationHistoryOperationParameters const&) { return result.has<Web::HTML::CrossProcessId>(); },
         [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&) { return false; },
         [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) { return false; },
-        [&](Web::ResetSessionHistoryForTestingOperationParameters const&) { return false; },
         [&](Web::FlushSessionHistoryTraversalQueueOperationParameters const&) { return false; },
         [&](auto const&) { return result.has<Empty>(); });
     if (!result_matches_request) {
@@ -1911,9 +1910,6 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentClient&
         },
         [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) {
             // Close runs entirely in the requesting process at this queue position and must complete with proceed=false.
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::ResetSessionHistoryForTestingOperationParameters const&) {
             VERIFY_NOT_REACHED();
         },
         [&](Web::FlushSessionHistoryTraversalQueueOperationParameters const&) {
