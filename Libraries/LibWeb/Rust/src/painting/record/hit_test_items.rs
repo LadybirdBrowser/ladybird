@@ -27,16 +27,16 @@ impl<'a> PaintRecorder<'a> {
         facts
     }
 
-    fn is_anonymous(&self, paintable: PaintableSlotId) -> bool {
+    fn is_anonymous(&self, paintable: NodeSlotId) -> bool {
         self.data(paintable).has_flag(PaintableFlag::Anonymous)
     }
 
-    fn is_generated_for_pseudo_element(&self, paintable: PaintableSlotId) -> bool {
+    fn is_generated_for_pseudo_element(&self, paintable: NodeSlotId) -> bool {
         self.layout_arena
             .node_is_generated_for_pseudo_element(self.data(paintable).layout_node)
     }
 
-    fn is_atomic_inline(&self, paintable: PaintableSlotId) -> bool {
+    fn is_atomic_inline(&self, paintable: NodeSlotId) -> bool {
         if self.data(paintable).has_flag(PaintableFlag::Replaced) {
             return true;
         }
@@ -47,7 +47,7 @@ impl<'a> PaintRecorder<'a> {
         display.is_inline_outside() && !display.is_flow_inside()
     }
 
-    pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: PaintableSlotId) {
+    pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: NodeSlotId) {
         let paintables = self.paintables;
         let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
         while let Some(child) = next_child {
@@ -59,7 +59,7 @@ impl<'a> PaintRecorder<'a> {
         }
     }
 
-    pub(crate) fn record_hit_test_items(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    pub(crate) fn record_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if self.nested.is_some() {
             return;
         }
@@ -76,7 +76,7 @@ impl<'a> PaintRecorder<'a> {
         }
     }
 
-    fn record_base_hit_test_items(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn record_base_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if phase != PaintPhase::Background && phase != PaintPhase::Overlay {
             return;
         }
@@ -106,7 +106,7 @@ impl<'a> PaintRecorder<'a> {
         }
     }
 
-    fn record_lines_hit_test_items(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn record_lines_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if phase != PaintPhase::Foreground {
             return;
         }
@@ -131,7 +131,7 @@ impl<'a> PaintRecorder<'a> {
         self.record_empty_line_caret_items(paintable, context);
     }
 
-    fn record_empty_line_caret_items(&mut self, paintable: PaintableSlotId, context: usize) {
+    fn record_empty_line_caret_items(&mut self, paintable: NodeSlotId, context: usize) {
         let targets =
             crate::painting::visual_lines::empty_line_caret_targets(self.layout_arena, self.paintables, paintable);
         for target in targets {
@@ -146,7 +146,7 @@ impl<'a> PaintRecorder<'a> {
         }
     }
 
-    fn record_inline_hit_test_items(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn record_inline_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if self.is_anonymous(paintable) && !self.is_generated_for_pseudo_element(paintable) {
             return;
         }
@@ -205,19 +205,19 @@ impl<'a> PaintRecorder<'a> {
         }
     }
 
-    fn inline_root(&self, paintable: PaintableSlotId) -> Option<PaintableSlotId> {
+    fn inline_root(&self, paintable: NodeSlotId) -> Option<NodeSlotId> {
         let block = self.data(paintable).containing_block;
-        if block.is_invalid() || !self.paintables.is_live(block) {
+        if block.is_invalid() || !self.paintables.paintable_row_is_populated(block) {
             return None;
         }
         self.data(block).kind.has_lines().then_some(block)
     }
 
-    fn piece_of(&self, root: PaintableSlotId, piece_index: u32) -> InlineBoxPieceRecord {
+    fn piece_of(&self, root: NodeSlotId, piece_index: u32) -> InlineBoxPieceRecord {
         self.paintables.side(root).inline_box_pieces[piece_index as usize]
     }
 
-    fn inline_has_content(&self, paintable: PaintableSlotId) -> bool {
+    fn inline_has_content(&self, paintable: NodeSlotId) -> bool {
         let has_content_pieces = self.inline_root(paintable).is_some_and(|root| {
             self.paintables
                 .side(paintable)
@@ -229,7 +229,7 @@ impl<'a> PaintRecorder<'a> {
             || crate::painting::paint_order::first_paint_child(self.layout_arena, self.paintables, paintable).is_some()
     }
 
-    fn append_piece_boxes(&mut self, paintable: PaintableSlotId) {
+    fn append_piece_boxes(&mut self, paintable: NodeSlotId) {
         let Some(root) = self.inline_root(paintable) else {
             return;
         };
@@ -247,7 +247,7 @@ impl<'a> PaintRecorder<'a> {
         }
     }
 
-    fn record_svg_path_hit_test_items(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn record_svg_path_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if phase != PaintPhase::Foreground {
             return;
         }
@@ -281,7 +281,7 @@ impl<'a> PaintRecorder<'a> {
         self.append_svg_path(paintable, path, facts.svg_path_winding_rule, bounding_box, context);
     }
 
-    fn record_empty_editable_hit_test_item(&mut self, paintable: PaintableSlotId) {
+    fn record_empty_editable_hit_test_item(&mut self, paintable: NodeSlotId) {
         if self.is_anonymous(paintable) || !self.paintable_facts(paintable).is_editable_or_editing_host {
             return;
         }
@@ -290,11 +290,11 @@ impl<'a> PaintRecorder<'a> {
         self.append_empty_editable(paintable, rect, context);
     }
 
-    fn fragment(&self, owner: PaintableSlotId, index: usize) -> &'a FragmentRecord {
+    fn fragment(&self, owner: NodeSlotId, index: usize) -> &'a FragmentRecord {
         &self.paintables.side(owner).fragments[index]
     }
 
-    fn fragment_is_block_level_box(&self, owner: PaintableSlotId, index: usize) -> bool {
+    fn fragment_is_block_level_box(&self, owner: NodeSlotId, index: usize) -> bool {
         text_fragment::is_block_level_box(self.layout_arena, self.fragment(owner, index))
     }
 
@@ -329,8 +329,8 @@ impl<'a> PaintRecorder<'a> {
         true
     }
 
-    fn containing_block_margin_rect(&self, containing_block: PaintableSlotId) -> Option<CssPixelRect> {
-        if containing_block.is_invalid() || !self.paintables.is_live(containing_block) {
+    fn containing_block_margin_rect(&self, containing_block: NodeSlotId) -> Option<CssPixelRect> {
+        if containing_block.is_invalid() || !self.paintables.paintable_row_is_populated(containing_block) {
             return None;
         }
         let absolute = paintable_geometry::absolute_rect(self.paintables, containing_block);
@@ -350,7 +350,7 @@ impl<'a> PaintRecorder<'a> {
         ))
     }
 
-    fn margin_rect_for_paintable(&self, paintable: PaintableSlotId) -> Option<CssPixelRect> {
+    fn margin_rect_for_paintable(&self, paintable: NodeSlotId) -> Option<CssPixelRect> {
         self.containing_block_margin_rect(self.data(paintable).containing_block)
     }
 
@@ -359,25 +359,25 @@ impl<'a> PaintRecorder<'a> {
         self.containing_block_margin_rect(block)
     }
 
-    fn writing_mode_of(&self, paintable: PaintableSlotId) -> u8 {
+    fn writing_mode_of(&self, paintable: NodeSlotId) -> u8 {
         self.layout_arena
             .node_style_if_live(self.data(paintable).layout_node)
             .map_or(css_enums::writing_mode::HORIZONTAL_TB, |style| style.writing_mode())
     }
 
-    fn inline_axis_is_reverse_of(&self, paintable: PaintableSlotId) -> bool {
+    fn inline_axis_is_reverse_of(&self, paintable: NodeSlotId) -> bool {
         self.layout_arena
             .node_style_if_live(self.data(paintable).layout_node)
             .is_some_and(|style| style.inline_axis_is_reverse())
     }
 
-    fn block_axis_is_reverse_of(&self, paintable: PaintableSlotId) -> bool {
+    fn block_axis_is_reverse_of(&self, paintable: NodeSlotId) -> bool {
         self.layout_arena
             .node_style_if_live(self.data(paintable).layout_node)
             .is_some_and(|style| style.block_axis_is_reverse())
     }
 
-    fn layout_containing_block_of(&self, paintable: PaintableSlotId) -> NodeSlotId {
+    fn layout_containing_block_of(&self, paintable: NodeSlotId) -> NodeSlotId {
         self.layout_arena
             .node_containing_block_if_live(self.data(paintable).layout_node)
             .unwrap_or(NodeSlotId::INVALID)
@@ -388,11 +388,14 @@ impl<'a> PaintRecorder<'a> {
             && self.layout_arena.node_flags_if_live(node) & NodeFlag::Anonymous as u32 == 0
     }
 
-    fn absolute_containing_line_box_rect(&self, paintable: PaintableSlotId) -> Option<CssPixelRect> {
+    fn absolute_containing_line_box_rect(&self, paintable: NodeSlotId) -> Option<CssPixelRect> {
         let containing_line_box_index =
             paintable_geometry::committed_containing_line_box_index(self.paintables, paintable)?;
         let block = self.data(paintable).containing_block;
-        if block.is_invalid() || !self.paintables.is_live(block) || !self.data(block).kind.has_lines() {
+        if block.is_invalid()
+            || !self.paintables.paintable_row_is_populated(block)
+            || !self.data(block).kind.has_lines()
+        {
             return None;
         }
         let line = self.paintables.side(block).lines.get(containing_line_box_index)?;
@@ -401,8 +404,8 @@ impl<'a> PaintRecorder<'a> {
 
     fn append_box(
         &mut self,
-        paintable_box: PaintableSlotId,
-        target: PaintableSlotId,
+        paintable_box: NodeSlotId,
+        target: NodeSlotId,
         rect: CssPixelRect,
         context: usize,
         border_radii: BorderRadii,
@@ -435,7 +438,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn base_hit_test_item(&self, kind: HitTestItemKind, target: PaintableSlotId, context: usize) -> HitTestItem {
+    fn base_hit_test_item(&self, kind: HitTestItemKind, target: NodeSlotId, context: usize) -> HitTestItem {
         HitTestItem {
             kind,
             paintable: target,
@@ -462,7 +465,7 @@ impl<'a> PaintRecorder<'a> {
 
     fn append_svg_path(
         &mut self,
-        target: PaintableSlotId,
+        target: NodeSlotId,
         path: Rc<libgfx_rust::path::OwnedPath>,
         winding_rule: i32,
         bounding_box: CssPixelRect,
@@ -477,7 +480,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn append_text_fragment(&mut self, owner: PaintableSlotId, fragment_index: u32, context: usize) {
+    fn append_text_fragment(&mut self, owner: NodeSlotId, fragment_index: u32, context: usize) {
         let fragment = self.fragment(owner, fragment_index as usize);
         if !self.text_fragment_is_hit_testable(fragment) {
             return;
@@ -508,7 +511,7 @@ impl<'a> PaintRecorder<'a> {
 
     fn append_empty_line_for_fragment(
         &mut self,
-        owner: PaintableSlotId,
+        owner: NodeSlotId,
         sibling_fragment_index: u32,
         caret_offset: usize,
         line_box_index: usize,
@@ -541,7 +544,7 @@ impl<'a> PaintRecorder<'a> {
 
     fn append_empty_line_for_node(
         &mut self,
-        owner: PaintableSlotId,
+        owner: NodeSlotId,
         caret_node: NodeSlotId,
         caret_offset: usize,
         line_rect: CssPixelRect,
@@ -559,7 +562,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn append_empty_editable(&mut self, paintable: PaintableSlotId, rect: CssPixelRect, context: usize) {
+    fn append_empty_editable(&mut self, paintable: NodeSlotId, rect: CssPixelRect, context: usize) {
         let item = HitTestItem {
             rect,
             caret_rect: rect,
@@ -570,7 +573,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn append_chrome_widget(&mut self, paintable: PaintableSlotId, chrome_widget_kind: u8, context: usize) {
+    fn append_chrome_widget(&mut self, paintable: NodeSlotId, chrome_widget_kind: u8, context: usize) {
         let item = HitTestItem {
             chrome_widget_kind,
             ..self.base_hit_test_item(HitTestItemKind::ChromeWidget, paintable, context)

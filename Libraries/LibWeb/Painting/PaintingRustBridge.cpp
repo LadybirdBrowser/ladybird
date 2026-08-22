@@ -492,7 +492,7 @@ void patch_rust_visual_context_nodes(DOM::Document& document, AccumulatedVisualC
         visual_context_tree.node_at(VisualContextIndex { index }).data = visual_context_data_from_export(Layout::RustFFI::layout_arena_visual_context_tree_node(tree, index));
 }
 
-bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::PaintableSlotId paintable_slot)
+bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable_slot)
 {
     return Layout::RustFFI::layout_arena_update_visual_context_values(layout_arena_handle(document), paintable_slot, visual_context_host_callbacks(document));
 }

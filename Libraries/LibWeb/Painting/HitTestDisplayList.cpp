@@ -85,7 +85,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     exported_items.resize(item_count);
     Layout::RustFFI::layout_arena_export_hit_test_items(arena_handle, exported_items.data(), exported_items.size());
     for (auto const& exported : exported_items) {
-        VERIFY(exported.paintable.index != Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX);
+        VERIFY(exported.paintable.index != Layout::RustFFI::INVALID_NODE_SLOT_INDEX);
         VERIFY(Layout::RustFFI::layout_arena_paintable_row(arena_handle, exported.paintable));
         switch (static_cast<ChromeWidgetKind>(exported.chrome_widget_kind)) {
         case ChromeWidgetKind::None:
@@ -336,7 +336,7 @@ HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPo
     return closest_line;
 }
 
-static Layout::RustFFI::FfiFragmentTextFacts fragment_text_facts(void* arena_handle, Layout::RustFFI::PaintableSlotId box, Optional<u32> const& text_fragment_index)
+static Layout::RustFFI::FfiFragmentTextFacts fragment_text_facts(void* arena_handle, Layout::RustFFI::NodeSlotId box, Optional<u32> const& text_fragment_index)
 {
     if (!text_fragment_index.has_value())
         return {};

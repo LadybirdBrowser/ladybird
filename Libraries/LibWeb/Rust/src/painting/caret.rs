@@ -8,20 +8,20 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::{FragmentRecord, PaintableSlotId, SELECTION_STATE_START_AND_END};
+use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::text_fragment::{self, CaretMatch};
 
 pub(crate) struct CaretRectResult {
     pub rect: CssPixelRect,
     pub style_source: NodeSlotId,
-    pub owner: PaintableSlotId,
+    pub owner: NodeSlotId,
     pub node: NodeSlotId,
 }
 
 fn caret_rect_in_fragment(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    owner: PaintableSlotId,
+    owner: NodeSlotId,
     fragment: &FragmentRecord,
     offset: usize,
 ) -> CaretRectResult {
@@ -47,8 +47,8 @@ pub(crate) fn caret_rect_for_position(
     offset: usize,
     affinity_is_downstream: bool,
 ) -> Option<CaretRectResult> {
-    let mut fallback: Option<(PaintableSlotId, u32)> = None;
-    let mut direct: Option<(PaintableSlotId, u32)> = None;
+    let mut fallback: Option<(NodeSlotId, u32)> = None;
+    let mut direct: Option<(NodeSlotId, u32)> = None;
     text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |block, index, fragment| {
         match text_fragment::caret_match(fragment, offset, affinity_is_downstream) {
             CaretMatch::None => true,

@@ -7,13 +7,14 @@
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::commands::{
     DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform, VisualContextIndex,
 };
 use crate::painting::display_list::recorder::{DisplayListRecorder, FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
-use crate::painting::paintable_data::{PaintableKind, PaintableSlotId};
+use crate::painting::paintable_data::PaintableKind;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use libgfx_rust::{
@@ -34,7 +35,7 @@ impl BackgroundBox {
     }
 }
 
-pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let Some(inputs) =
         crate::painting::record::paint::background_resolution::resolve_background_for_paint(recorder, paintable)
     else {
@@ -52,7 +53,7 @@ pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: Pain
 
 pub(crate) fn paint_background_within(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     background_rect: CssPixelRect,
     border_radii: BorderRadii,
 ) {
@@ -82,7 +83,7 @@ pub(crate) fn paint_background_within(
 
 pub(crate) fn paint_resolved_background(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     resolved: &crate::painting::record::paint::background_resolution::ResolvedBackground<'_>,
     image_rendering: u8,
     is_root_element: bool,
@@ -267,7 +268,7 @@ pub(crate) fn background_box_for(
     box_clip: u8,
     border_box: BackgroundBox,
     recorder: &PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) -> BackgroundBox {
     let mut background_box = border_box;
     if box_clip == css_enums::background_box::CONTENT_BOX {
@@ -337,7 +338,7 @@ pub(crate) fn paint_image(
 #[allow(clippy::too_many_arguments)]
 fn paint_image_layer(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     layer: &crate::painting::record::paint::background_resolution::ResolvedBackgroundLayer<'_>,
     image_rendering: u8,
     css_clip_rect: CssPixelRect,
@@ -774,11 +775,11 @@ fn source_rect_for_visible_image_part(
     )
 }
 
-fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let converter = recorder.converter;
     let scale = recorder.inputs.device_pixels_per_css_pixel;
 
-    let append_fragment = |recorder: &mut PaintRecorder<'_>, owner: PaintableSlotId, fragment_index: usize| {
+    let append_fragment = |recorder: &mut PaintRecorder<'_>, owner: NodeSlotId, fragment_index: usize| {
         let fragment = &recorder.paintables.side(owner).fragments[fragment_index];
         let is_text = recorder
             .layout_arena
@@ -816,7 +817,10 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: Paintable
     let data = recorder.data(paintable);
     if data.kind == PaintableKind::InlinePaintable {
         let root = data.containing_block;
-        if !root.is_invalid() && recorder.paintables.is_live(root) && recorder.data(root).kind.has_lines() {
+        if !root.is_invalid()
+            && recorder.paintables.paintable_row_is_populated(root)
+            && recorder.data(root).kind.has_lines()
+        {
             let paintables = recorder.paintables;
             for piece_index in &paintables.side(paintable).piece_indices {
                 let piece = &paintables.side(root).inline_box_pieces[*piece_index as usize];

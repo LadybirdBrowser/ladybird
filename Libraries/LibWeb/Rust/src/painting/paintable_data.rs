@@ -9,52 +9,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph};
 use std::cell::Cell;
 
-pub const INVALID_PAINTABLE_SLOT_INDEX: u32 = u32::MAX;
 pub const NO_STACKING_CONTEXT: u32 = u32::MAX;
-const PAINTABLE_SLOT_INDEX_BITS: u32 = 24;
-const PAINTABLE_SLOT_INDEX_MASK: u32 = (1 << PAINTABLE_SLOT_INDEX_BITS) - 1;
-pub(crate) const MAX_PAINTABLE_SLOT_COUNT: u32 = PAINTABLE_SLOT_INDEX_MASK;
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[repr(C)]
-pub struct PaintableSlotId {
-    pub index: u32,
-}
-
-impl PaintableSlotId {
-    pub const INVALID: Self = Self {
-        index: INVALID_PAINTABLE_SLOT_INDEX,
-    };
-
-    pub(crate) fn new(index: u32, generation: u8) -> Self {
-        assert!(
-            index < MAX_PAINTABLE_SLOT_COUNT,
-            "paintable arena exhausted its 24-bit slot index space"
-        );
-        assert_ne!(generation, 0, "paintable arena slot generation must be nonzero");
-        Self {
-            index: index | (u32::from(generation) << PAINTABLE_SLOT_INDEX_BITS),
-        }
-    }
-
-    pub(crate) fn slot_index(self) -> u32 {
-        self.index & PAINTABLE_SLOT_INDEX_MASK
-    }
-
-    pub(crate) fn generation(self) -> u8 {
-        (self.index >> PAINTABLE_SLOT_INDEX_BITS) as u8
-    }
-
-    pub fn is_invalid(self) -> bool {
-        self == Self::INVALID
-    }
-}
-
-impl Default for PaintableSlotId {
-    fn default() -> Self {
-        Self::INVALID
-    }
-}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(u8)]
@@ -176,7 +131,7 @@ pub struct FfiOverflowData {
 #[repr(C)]
 pub struct PaintableData {
     pub layout_node: NodeSlotId,
-    pub containing_block: PaintableSlotId,
+    pub containing_block: NodeSlotId,
     pub kind: PaintableKind,
     pub selection_state: u8,
     pub slot_generation: u8,
@@ -213,7 +168,7 @@ impl Default for PaintableData {
     fn default() -> Self {
         Self {
             layout_node: NodeSlotId::INVALID,
-            containing_block: PaintableSlotId::INVALID,
+            containing_block: NodeSlotId::INVALID,
             kind: PaintableKind::None,
             selection_state: 0,
             slot_generation: 0,

@@ -53,7 +53,7 @@ impl HitTestList {
             HitTestItemKind::EmptyLine => false,
             HitTestItemKind::EmptyEditable => item.rect.contains_point(local_point),
             HitTestItemKind::ChromeWidget => {
-                if !paintables.is_live(item.paintable) {
+                if !paintables.paintable_row_is_populated(item.paintable) {
                     return false;
                 }
                 let node = paintables.data_ref(item.paintable).layout_node;

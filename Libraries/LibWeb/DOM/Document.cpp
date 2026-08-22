@@ -662,7 +662,7 @@ Layout::NodeArena& Document::layout_node_arena()
         m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
         Layout::RustFFI::layout_arena_set_chrome_state_callback(
             m_layout_node_arena->handle(), this,
-            [](void* context, Layout::RustFFI::PaintableSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
+            [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
                 auto& document = *static_cast<Document*>(context);
                 document.chrome_widget_registry().drop_widgets_for_slot(slot);
                 if (kind == Layout::RustFFI::PaintableRowResetKind::Recommitted && Painting::viewport_row_slot(document).index == slot.index)
@@ -2334,7 +2334,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
 void Document::collect_boxes_with_auto_content_visibility()
 {
-    Vector<Layout::RustFFI::PaintableSlotId> boxes_with_auto_content_visibility;
+    Vector<Layout::RustFFI::NodeSlotId> boxes_with_auto_content_visibility;
     unsafe_layout_node()->for_each_in_inclusive_subtree([&](Layout::Node& node) {
         switch (node.kind()) {
         case Layout::RustFFI::NodeKind::SVGMaskBox:

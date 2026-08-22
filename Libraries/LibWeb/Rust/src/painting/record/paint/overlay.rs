@@ -6,13 +6,14 @@
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::VisualContextIndex;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
-use crate::painting::paintable_data::{PaintableKind, PaintableSlotId};
+use crate::painting::paintable_data::PaintableKind;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntRect, LineStyle, ShouldAntiAlias, WindingRule};
 
-pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let data = recorder.data(paintable);
     if data.kind != PaintableKind::ViewportPaintable
         && data.own_scroll_node_index == 0
@@ -91,7 +92,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: Paintab
 
 fn paint_middle_button_scroll_indicator(
     recorder: &mut PaintRecorder<'_>,
-    _paintable: PaintableSlotId,
+    _paintable: NodeSlotId,
     facts: &crate::painting::host::FfiOverlayFacts,
 ) {
     const CIRCLE_COLOR: Color = Color::from_rgba(255, 255, 255, 220);

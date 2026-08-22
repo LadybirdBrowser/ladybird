@@ -29,7 +29,7 @@ pub struct FfiRecordingInputs {
     pub window_is_focused: bool,
     pub outline_auto_color: u32,
     pub has_inspector_highlight: bool,
-    pub inspector_highlight_paintable: crate::painting::paintable_data::PaintableSlotId,
+    pub inspector_highlight_paintable: crate::layout::node_data::NodeSlotId,
     pub tooltip_color: u32,
     pub tooltip_text_color: u32,
     pub tooltip_border_color: u32,
@@ -44,7 +44,7 @@ pub struct FfiRecordingInputs {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiGridOverlayInput {
-    pub paintable: crate::painting::paintable_data::PaintableSlotId,
+    pub paintable: crate::layout::node_data::NodeSlotId,
     pub color: u32,
     pub label_foreground_color: u32,
     pub label_css_pixel_size: f32,
@@ -57,7 +57,7 @@ pub struct FfiGridOverlayInput {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiFlexOverlayInput {
-    pub paintable: crate::painting::paintable_data::PaintableSlotId,
+    pub paintable: crate::layout::node_data::NodeSlotId,
     pub color: u32,
 }
 
@@ -203,7 +203,7 @@ pub struct FfiSvgPaintStyle {
     pub end: [f32; 2],
     pub start_radius: f32,
     pub end_radius: f32,
-    pub pattern_paintable: crate::painting::paintable_data::PaintableSlotId,
+    pub pattern_paintable: crate::layout::node_data::NodeSlotId,
     pub tile_content_transform: [f32; 16],
     pub tile_rect: [f32; 4],
     pub content_scale: [f32; 2],

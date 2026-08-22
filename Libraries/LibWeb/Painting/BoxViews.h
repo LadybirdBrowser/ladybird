@@ -34,12 +34,12 @@ WEB_API Gfx::FloatRect svg_viewport_user_rect(Layout::Node const& viewport);
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
-Layout::RustFFI::PaintableSlotId committed_row_slot(Layout::Node const&);
-Layout::RustFFI::PaintableSlotId viewport_row_slot(DOM::Document const&);
+Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const&);
+Layout::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const&);
 Layout::RustFFI::PaintableData const* committed_row(Layout::Node const&);
 
 WEB_API bool has_committed_box(Layout::Node const&);
-WEB_API Layout::Node* layout_node_for_committed_slot(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
+WEB_API Layout::Node* layout_node_for_committed_slot(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
 
 WEB_API CSSPixelRect absolute_rect(Layout::Node const&);
 WEB_API CSSPixelRect absolute_padding_box_rect(Layout::Node const&);

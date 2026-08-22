@@ -9,8 +9,8 @@ use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::css::style_value::StyleValueData;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiLayerImageList;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
 use crate::painting::record::paint::replaced::{Fraction, SizeWithAspectRatio, run_default_sizing_algorithm};
@@ -239,7 +239,7 @@ enum LayerType {
 #[allow(clippy::too_many_arguments)]
 fn resolve_layers<'a>(
     recorder: &PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     layers: Vec<ComputedLayer<'a>>,
     background_color: libgfx_rust::Color,
     background_color_clip: u8,
@@ -468,7 +468,7 @@ struct LayerImageIntrinsics<'a> {
 
 fn image_intrinsic_facts<'a>(
     recorder: &PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     image: &LayerImageSource<'a>,
 ) -> LayerImageIntrinsics<'a> {
     match image.value {
@@ -517,7 +517,7 @@ fn image_intrinsic_facts<'a>(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_background_layers<'a>(
     recorder: &PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     style: ComputedValuesView<'a>,
     image_list: FfiLayerImageList,
     background_color: libgfx_rust::Color,
@@ -540,7 +540,7 @@ pub(crate) fn resolve_background_layers<'a>(
 
 pub(crate) fn resolve_mask_layers<'a>(
     recorder: &PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     style: ComputedValuesView<'a>,
     border_rect: CssPixelRect,
 ) -> ResolvedBackground<'a> {
@@ -559,7 +559,7 @@ pub(crate) fn resolve_mask_layers<'a>(
 
 pub(crate) fn resolve_background_for_paint<'a>(
     recorder: &PaintRecorder<'a>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
     let layout_arena = recorder.layout_arena;
     let data = recorder.data(paintable);

@@ -8,7 +8,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::fragment_ownership;
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::{FfiSelectionEntry, PaintableSlotId, SELECTION_STATE_NONE};
+use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_NONE};
 use crate::painting::text_fragment;
 
 #[derive(Clone, Copy, Debug)]
@@ -17,7 +17,7 @@ pub(crate) struct SelectionRange {
     pub end_offset: usize,
 }
 
-fn invalidate_block_and_ancestors(layout_arena: &LayoutNodeArena, paintables: &PaintableArena, block: PaintableSlotId) {
+fn invalidate_block_and_ancestors(layout_arena: &LayoutNodeArena, paintables: &PaintableArena, block: NodeSlotId) {
     let mut current = Some(block);
     while let Some(slot) = current {
         paintables.invalidate_paint_cache(layout_arena, slot);
@@ -31,7 +31,7 @@ fn invalidate_self_painting_inline_box(layout_arena: &LayoutNodeArena, paintable
     }
 }
 
-fn reset_states(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, viewport: PaintableSlotId) {
+fn reset_states(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, viewport: NodeSlotId) {
     let mut slots = Vec::new();
     crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, paintables, viewport, |slot| {
         slots.push(slot);
@@ -60,7 +60,7 @@ fn reset_states(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena,
 pub(crate) fn apply(
     layout_arena: &LayoutNodeArena,
     paintables: &mut PaintableArena,
-    viewport: PaintableSlotId,
+    viewport: NodeSlotId,
     entries: &[FfiSelectionEntry],
     range: SelectionRange,
 ) {
@@ -84,7 +84,7 @@ pub(crate) fn apply(
                 invalidate_self_painting_inline_box(layout_arena, paintables, entry.layout_node);
             }
         } else {
-            let slot = paintables.paintable_of_node(entry.layout_node);
+            let slot = paintables.populated_paintable_row_of_node(entry.layout_node);
             if slot.is_invalid() {
                 continue;
             }
@@ -97,7 +97,7 @@ pub(crate) fn apply(
     paintables.selection = Some(range);
 }
 
-pub(crate) fn clear(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, viewport: PaintableSlotId) {
+pub(crate) fn clear(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, viewport: NodeSlotId) {
     reset_states(layout_arena, paintables, viewport);
     paintables.selection = None;
 }

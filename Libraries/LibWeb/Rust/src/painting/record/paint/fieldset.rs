@@ -7,14 +7,13 @@
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
 use libgfx_rust::{Color, IntRect};
 
-fn rendered_legend(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> Option<NodeSlotId> {
+fn rendered_legend(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> Option<NodeSlotId> {
     let arena = recorder.layout_arena;
     let mut child = arena.node_first_child_if_live(recorder.data(fieldset).layout_node);
     while let Some(node) = child {
@@ -26,13 +25,13 @@ fn rendered_legend(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> O
     None
 }
 
-fn legend_paintable(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> Option<PaintableSlotId> {
+fn legend_paintable(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> Option<NodeSlotId> {
     let legend = rendered_legend(recorder, fieldset)?;
-    let paintable = recorder.paintables.paintable_of_node(legend);
+    let paintable = recorder.paintables.populated_paintable_row_of_node(legend);
     (!paintable.is_invalid()).then_some(paintable)
 }
 
-fn css_border_top_width(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> CssPixels {
+fn css_border_top_width(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> CssPixels {
     recorder
         .layout_arena
         .node_style_if_live(recorder.data(fieldset).layout_node)
@@ -40,7 +39,7 @@ fn css_border_top_width(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId)
         .unwrap_or_default()
 }
 
-fn effective_border_top(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> CssPixels {
+fn effective_border_top(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> CssPixels {
     let css_border_top = css_border_top_width(recorder, fieldset);
     if let Some(legend) = legend_paintable(recorder, fieldset) {
         let legend_margin = crate::painting::paintable_geometry::committed_margin(recorder.paintables, legend);
@@ -51,7 +50,7 @@ fn effective_border_top(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId)
     css_border_top
 }
 
-fn visual_border_box_rect(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> CssPixelRect {
+fn visual_border_box_rect(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> CssPixelRect {
     let css_border_top = css_border_top_width(recorder, fieldset);
     let allocated_border_top = effective_border_top(recorder, fieldset);
     let mut rect = absolute_border_box_rect(recorder.paintables, fieldset);
@@ -64,7 +63,7 @@ fn visual_border_box_rect(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotI
     rect
 }
 
-pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: PaintableSlotId) {
+pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
     recorder.recorder.save();
     let clip = recorder
         .converter
@@ -74,7 +73,7 @@ pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: Paint
     recorder.recorder.restore();
 }
 
-pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: PaintableSlotId) {
+pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
     let Some(legend) = legend_paintable(recorder, fieldset) else {
         super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
         return;

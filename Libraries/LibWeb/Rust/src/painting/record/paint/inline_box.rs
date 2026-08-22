@@ -6,7 +6,7 @@
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
-use crate::painting::paintable_data::PaintableSlotId;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::{PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP};
 use crate::painting::paintable_geometry;
 use crate::painting::record::paint::border::paint_box_borders;
@@ -14,10 +14,13 @@ use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersData
 use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
 
-pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId, phase: PaintPhase) {
+pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     let root = {
         let block = recorder.data(paintable).containing_block;
-        if block.is_invalid() || !recorder.paintables.is_live(block) || !recorder.data(block).kind.has_lines() {
+        if block.is_invalid()
+            || !recorder.paintables.paintable_row_is_populated(block)
+            || !recorder.data(block).kind.has_lines()
+        {
             return;
         }
         block

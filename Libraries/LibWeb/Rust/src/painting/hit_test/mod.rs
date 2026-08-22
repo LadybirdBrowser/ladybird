@@ -11,7 +11,6 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiHitTestQueryCallbacks;
-use crate::painting::paintable_data::PaintableSlotId;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -36,7 +35,7 @@ pub use crate::painting::border_radii::BorderRadii;
 #[derive(Clone)]
 pub struct HitTestItem {
     pub kind: HitTestItemKind,
-    pub paintable: PaintableSlotId,
+    pub paintable: NodeSlotId,
     pub chrome_widget_kind: u8,
     pub text_fragment_index: Option<u32>,
     pub caret_node: NodeSlotId,

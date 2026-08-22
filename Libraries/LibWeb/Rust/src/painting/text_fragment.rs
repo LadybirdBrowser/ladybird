@@ -10,21 +10,20 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::FragmentRecord;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry;
 
 pub(crate) fn containing_block_paintable_of_node(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     node: NodeSlotId,
-) -> Option<PaintableSlotId> {
-    let own = paintables.paintable_of_node(node);
+) -> Option<NodeSlotId> {
+    let own = paintables.populated_paintable_row_of_node(node);
     if !own.is_invalid() {
         let block = paintables.data_ref(own).containing_block;
-        return paintables.is_live(block).then_some(block);
+        return paintables.paintable_row_is_populated(block).then_some(block);
     }
     let block = layout_arena.node_containing_block_if_live(node)?;
-    let block_paintable = paintables.paintable_of_node(block);
+    let block_paintable = paintables.populated_paintable_row_of_node(block);
     (!block_paintable.is_invalid()).then_some(block_paintable)
 }
 
@@ -32,7 +31,7 @@ pub(crate) fn containing_block_paintable(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     fragment: &FragmentRecord,
-) -> Option<PaintableSlotId> {
+) -> Option<NodeSlotId> {
     containing_block_paintable_of_node(layout_arena, paintables, fragment.layout_node)
 }
 
@@ -51,7 +50,7 @@ pub(crate) fn absolute_rect(
 pub(crate) fn absolute_line_box_rect(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    owner: PaintableSlotId,
+    owner: NodeSlotId,
     fragment: &FragmentRecord,
 ) -> CssPixelRect {
     let lines = &paintables.side(owner).lines;
@@ -169,7 +168,7 @@ pub(crate) fn for_each_fragment_of_nodes(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     node_slots: &[NodeSlotId],
-    mut callback: impl FnMut(PaintableSlotId, u32, &FragmentRecord) -> bool,
+    mut callback: impl FnMut(NodeSlotId, u32, &FragmentRecord) -> bool,
 ) {
     for &node in node_slots {
         let Some(block) = containing_block_paintable_of_node(layout_arena, paintables, node) else {

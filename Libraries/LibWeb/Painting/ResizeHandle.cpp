@@ -15,12 +15,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<ResizeHandle> ResizeHandle::create(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+NonnullRefPtr<ResizeHandle> ResizeHandle::create(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot)
 {
     return adopt_ref(*new ResizeHandle(arena, slot));
 }
 
-ResizeHandle::ResizeHandle(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+ResizeHandle::ResizeHandle(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot)
     : ChromeWidget(arena, slot)
     , m_element(as<DOM::Element>(*layout_node()->dom_node()))
 {

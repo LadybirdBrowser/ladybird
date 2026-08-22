@@ -5,11 +5,10 @@
  */
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
-use crate::painting::paintable_data::{
-    FragmentRecord, PaintableSlotId, SELECTION_STATE_NONE, SELECTION_STATE_START_AND_END,
-};
+use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_NONE, SELECTION_STATE_START_AND_END};
 use crate::painting::record::PaintRecorder;
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::{Color, FloatPoint, IntRect, Orientation};
@@ -75,7 +74,7 @@ fn selection_offsets_for_fragment(
 
 fn compute_render_spans(
     recorder: &mut PaintRecorder<'_>,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     owned_fragment_indices: &[u32],
 ) -> Vec<RenderSpan> {
     let arena = recorder.layout_arena;
@@ -245,8 +244,8 @@ pub(crate) fn glyph_run_emission(
 
 pub(crate) fn paint_fragments_foreground(
     recorder: &mut PaintRecorder<'_>,
-    block: PaintableSlotId,
-    owner: Option<PaintableSlotId>,
+    block: NodeSlotId,
+    owner: Option<NodeSlotId>,
 ) {
     let filter = crate::painting::fragment_ownership::effective_filter(recorder.paintables, owner.unwrap_or(block));
     let fragment_count = recorder.paintables.side(block).fragments.len();
@@ -275,7 +274,7 @@ pub(crate) fn paint_fragments_foreground(
     }
 }
 
-fn selection_rect(recorder: &PaintRecorder<'_>, block: PaintableSlotId, span: &RenderSpan) -> CssPixelRect {
+fn selection_rect(recorder: &PaintRecorder<'_>, block: NodeSlotId, span: &RenderSpan) -> CssPixelRect {
     let Some(offsets) = span.selection_offsets else {
         return CssPixelRect::default();
     };
@@ -285,7 +284,7 @@ fn selection_rect(recorder: &PaintRecorder<'_>, block: PaintableSlotId, span: &R
     })
 }
 
-fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: PaintableSlotId, span: &RenderSpan) {
+fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, span: &RenderSpan) {
     if span.shadow_layers.is_empty() {
         return;
     }
@@ -368,7 +367,7 @@ fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: PaintableSlotId, s
 
 fn paint_text_fragment(
     recorder: &mut PaintRecorder<'_>,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     span: &RenderSpan,
     decoration_sets: &[crate::painting::record::paint::text_decoration::TextDecorationSet],
 ) {
@@ -475,7 +474,7 @@ fn paint_text_fragment(
 
 // Paints the caret when it sits in a fragment owned by `owner`; the block itself
 // (owner == None) also handles blank lines and empty editable elements.
-pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: PaintableSlotId, owner: Option<PaintableSlotId>) {
+pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, owner: Option<NodeSlotId>) {
     let owner_shell = owner.map_or(std::ptr::null_mut(), |owner| recorder.layout_node_shell(owner));
     let facts = recorder
         .paint_host

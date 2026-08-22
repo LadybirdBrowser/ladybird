@@ -7,9 +7,10 @@
 use crate::css::css_pixels::CssPixels;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeKind;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::fragment_ownership;
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::{FragmentRecord, PaintableSlotId};
+use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::text_fragment;
 
 fn push_class_name(out: &mut Vec<u8>, kind: NodeKind) {
@@ -130,7 +131,7 @@ pub(crate) fn dump_block_fragments(
     out: &mut Vec<u8>,
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     indent: usize,
     interactive: bool,
 ) {
@@ -158,7 +159,7 @@ pub(crate) fn dump_inline_piece_fragments(
     out: &mut Vec<u8>,
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    inline_paintable: PaintableSlotId,
+    inline_paintable: NodeSlotId,
     indent: usize,
     interactive: bool,
 ) {

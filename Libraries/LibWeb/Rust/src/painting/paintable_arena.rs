@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeFlag, NodeSlotId};
 use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, LayoutNodeArena};
 use crate::painting::paintable_data::*;
 use std::cell::Cell;
@@ -33,11 +33,11 @@ fn new_chunk() -> Box<Chunk> {
 
 #[derive(Clone, Copy)]
 pub(crate) struct PaintableRowReset {
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
     kind: PaintableRowResetKind,
     callback: Option<(
         *mut c_void,
-        unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
+        unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
     )>,
 }
 
@@ -69,13 +69,13 @@ pub struct PaintableArena {
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     pub(crate) paint_caches: Vec<crate::painting::record::cache::PaintCache>,
-    absolute_rect_memo: std::cell::RefCell<Vec<Option<(PaintableSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
+    absolute_rect_memo: std::cell::RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     chrome_state_callback: Option<(
         *mut c_void,
-        unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
+        unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
     )>,
 }
 
@@ -87,7 +87,7 @@ impl PaintableArena {
     pub(crate) fn set_chrome_state_callback(
         &mut self,
         context: *mut c_void,
-        callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
+        callback: unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
     ) {
         self.chrome_state_callback = Some((context, callback));
     }
@@ -98,10 +98,10 @@ impl PaintableArena {
 
     pub(crate) fn with_committed_fragment_link<R>(
         &self,
-        slot: PaintableSlotId,
+        slot: NodeSlotId,
         read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
     ) -> R {
-        debug_assert!(self.is_live(slot));
+        debug_assert!(self.paintable_row_is_populated(slot));
         let slots = self.committed_fragment_links.borrow();
         read(
             slots
@@ -177,7 +177,7 @@ impl PaintableArena {
         };
     }
 
-    fn prepare_row_reset(&self, slot: PaintableSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {
+    fn prepare_row_reset(&self, slot: NodeSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {
         PaintableRowReset {
             slot,
             kind,
@@ -185,7 +185,7 @@ impl PaintableArena {
         }
     }
 
-    pub fn memoized_absolute_rect(&self, id: PaintableSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {
+    pub fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {
         let (memoized_id, memoized_epoch, rect) = self
             .absolute_rect_memo
             .borrow()
@@ -195,7 +195,7 @@ impl PaintableArena {
         (memoized_id == id && memoized_epoch == self.absolute_rect_memo_epoch.get()).then_some(rect)
     }
 
-    pub fn memoize_absolute_rect(&self, id: PaintableSlotId, rect: crate::css::css_pixels::CssPixelRect) {
+    pub fn memoize_absolute_rect(&self, id: NodeSlotId, rect: crate::css::css_pixels::CssPixelRect) {
         self.absolute_rect_memo.borrow_mut()[id.slot_index() as usize] =
             Some((id, self.absolute_rect_memo_epoch.get(), rect));
     }
@@ -235,18 +235,19 @@ impl PaintableArena {
         }
     }
 
-    pub(crate) fn inline_pieces_root(&self, inline_paintable: PaintableSlotId) -> Option<PaintableSlotId> {
-        if !self.is_live(inline_paintable) {
+    pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {
+        if !self.paintable_row_is_populated(inline_paintable) {
             return None;
         }
         let root = self.data_ref(inline_paintable).containing_block;
-        (!root.is_invalid() && self.is_live(root) && self.data_ref(root).kind.has_lines()).then_some(root)
+        (!root.is_invalid() && self.paintable_row_is_populated(root) && self.data_ref(root).kind.has_lines())
+            .then_some(root)
     }
 
-    pub fn row_for_node(&mut self, layout_node: NodeSlotId) -> PaintableSlotId {
+    pub fn row_for_node(&mut self, layout_node: NodeSlotId) -> NodeSlotId {
         let index = layout_node.slot_index();
         assert!(
-            index < MAX_PAINTABLE_SLOT_COUNT,
+            index < MAX_NODE_SLOT_COUNT,
             "paintable arena exhausted its 24-bit slot index space"
         );
         while self.side_data.len() <= index as usize {
@@ -268,7 +269,7 @@ impl PaintableArena {
         self.paint_caches[index as usize].clear();
         self.absolute_rect_memo.get_mut()[index as usize] = None;
 
-        PaintableSlotId::new(index, generation)
+        NodeSlotId::new(index, generation)
     }
 
     fn reset_row(&mut self, layout_arena: Option<&LayoutNodeArena>, reset: PaintableRowReset) {
@@ -292,7 +293,7 @@ impl PaintableArena {
             return None;
         }
         Some(self.prepare_row_reset(
-            PaintableSlotId::new(layout_slot_index, generation),
+            NodeSlotId::new(layout_slot_index, generation),
             PaintableRowResetKind::Freed,
         ))
     }
@@ -304,9 +305,9 @@ impl PaintableArena {
     pub(crate) fn prepare_node_cleared_reset(
         &self,
         layout_node: NodeSlotId,
-        id: PaintableSlotId,
+        id: NodeSlotId,
     ) -> Option<PaintableRowReset> {
-        if id.is_invalid() || self.paintable_of_node(layout_node) != id {
+        if id.is_invalid() || self.populated_paintable_row_of_node(layout_node) != id {
             return None;
         }
         Some(self.prepare_row_reset(id, PaintableRowResetKind::Cleared))
@@ -316,7 +317,7 @@ impl PaintableArena {
         self.reset_row(Some(layout_arena), reset);
     }
 
-    pub fn is_live(&self, id: PaintableSlotId) -> bool {
+    pub fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool {
         if id.is_invalid() {
             return false;
         }
@@ -336,7 +337,7 @@ impl PaintableArena {
         chunk.slots[index as usize % PAINTABLE_SLOTS_PER_CHUNK].get()
     }
 
-    fn data_cell(&self, id: PaintableSlotId) -> &Cell<PaintableData> {
+    fn data_cell(&self, id: NodeSlotId) -> &Cell<PaintableData> {
         assert!(!id.is_invalid(), "invalid paintable arena slot ID");
         let index = id.slot_index() as usize;
         let chunk = self
@@ -353,15 +354,15 @@ impl PaintableArena {
         data
     }
 
-    pub fn data_ptr(&self, id: PaintableSlotId) -> *mut PaintableData {
+    pub fn data_ptr(&self, id: NodeSlotId) -> *mut PaintableData {
         self.data_cell(id).as_ptr()
     }
 
-    pub fn data_ref(&self, id: PaintableSlotId) -> PaintableData {
+    pub fn data_ref(&self, id: NodeSlotId) -> PaintableData {
         self.data_cell(id).get()
     }
 
-    pub fn update_data<R>(&self, id: PaintableSlotId, callback: impl FnOnce(&mut PaintableData) -> R) -> R {
+    pub fn update_data<R>(&self, id: NodeSlotId, callback: impl FnOnce(&mut PaintableData) -> R) -> R {
         let cell = self.data_cell(id);
         let mut data = cell.get();
         let result = callback(&mut data);
@@ -378,8 +379,8 @@ impl PaintableArena {
         chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK].get_mut()
     }
 
-    pub(crate) fn invalidate_paint_cache(&self, layout_arena: &LayoutNodeArena, id: PaintableSlotId) {
-        if !self.is_live(id) {
+    pub(crate) fn invalidate_paint_cache(&self, layout_arena: &LayoutNodeArena, id: NodeSlotId) {
+        if !self.paintable_row_is_populated(id) {
             return;
         }
         self.paint_caches[id.slot_index() as usize].clear();
@@ -393,9 +394,9 @@ impl PaintableArena {
     pub(crate) fn clear_descendant_subtree_caches_along_paint_chain(
         &self,
         layout_arena: &LayoutNodeArena,
-        id: PaintableSlotId,
+        id: NodeSlotId,
     ) {
-        if !self.is_live(id) {
+        if !self.paintable_row_is_populated(id) {
             return;
         }
         let mut current = Some(id);
@@ -412,7 +413,10 @@ impl PaintableArena {
     ) {
         loop {
             if self.paintable_row_is_populated(node) {
-                self.clear_descendant_subtree_caches_along_paint_chain(layout_arena, self.paintable_of_node(node));
+                self.clear_descendant_subtree_caches_along_paint_chain(
+                    layout_arena,
+                    self.populated_paintable_row_of_node(node),
+                );
                 return;
             }
             if !crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
@@ -425,8 +429,8 @@ impl PaintableArena {
         }
     }
 
-    pub(crate) fn invalidate_for_repaint(&self, layout_arena: &LayoutNodeArena, id: PaintableSlotId) {
-        if !self.is_live(id) {
+    pub(crate) fn invalidate_for_repaint(&self, layout_arena: &LayoutNodeArena, id: NodeSlotId) {
+        if !self.paintable_row_is_populated(id) {
             return;
         }
         self.invalidate_paint_cache(layout_arena, id);
@@ -458,9 +462,9 @@ impl PaintableArena {
     pub(crate) fn invalidate_propagated_text_decoration_caches(
         &self,
         layout_arena: &LayoutNodeArena,
-        root: PaintableSlotId,
+        root: NodeSlotId,
     ) {
-        if !self.is_live(root) {
+        if !self.paintable_row_is_populated(root) {
             return;
         }
 
@@ -492,39 +496,30 @@ impl PaintableArena {
         }
     }
 
-    pub fn side(&self, id: PaintableSlotId) -> &PaintableSideData {
-        debug_assert!(self.is_live(id));
+    pub fn side(&self, id: NodeSlotId) -> &PaintableSideData {
+        debug_assert!(self.paintable_row_is_populated(id));
         &self.side_data[id.slot_index() as usize]
     }
 
-    pub fn side_mut(&mut self, id: PaintableSlotId) -> &mut PaintableSideData {
-        debug_assert!(self.is_live(id));
+    pub fn side_mut(&mut self, id: NodeSlotId) -> &mut PaintableSideData {
+        debug_assert!(self.paintable_row_is_populated(id));
         &mut self.side_data[id.slot_index() as usize]
     }
 
-    pub fn paintable_of_node(&self, layout_node: NodeSlotId) -> PaintableSlotId {
-        if layout_node.is_invalid() {
-            return PaintableSlotId::INVALID;
+    pub fn populated_paintable_row_of_node(&self, layout_node: NodeSlotId) -> NodeSlotId {
+        if self.paintable_row_is_populated(layout_node) {
+            layout_node
+        } else {
+            NodeSlotId::INVALID
         }
-        let paintable = PaintableSlotId {
-            index: layout_node.index,
-        };
-        if !self.is_live(paintable) {
-            return PaintableSlotId::INVALID;
-        }
-        paintable
     }
 
-    pub fn paintable_row_is_populated(&self, layout_node: NodeSlotId) -> bool {
-        !self.paintable_of_node(layout_node).is_invalid()
-    }
-
-    pub(crate) fn prepare_recommit_notification(&self, id: PaintableSlotId) -> PaintableRowReset {
-        assert!(self.is_live(id));
+    pub(crate) fn prepare_recommit_notification(&self, id: NodeSlotId) -> PaintableRowReset {
+        assert!(self.paintable_row_is_populated(id));
         self.prepare_row_reset(id, PaintableRowResetKind::Recommitted)
     }
 
-    pub(crate) fn begin_row_recommit(&mut self, id: PaintableSlotId) {
+    pub(crate) fn begin_row_recommit(&mut self, id: NodeSlotId) {
         self.update_data(id, |data| {
             data.offset = FfiCssPixelPoint::default();
             data.content_size = FfiCssPixelSize::default();

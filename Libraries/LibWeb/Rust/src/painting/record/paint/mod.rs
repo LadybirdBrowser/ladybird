@@ -22,10 +22,11 @@ pub mod table_borders;
 pub mod text;
 pub mod text_decoration;
 
-use crate::painting::paintable_data::{PaintableKind, PaintableSlotId};
+use crate::layout::node_data::NodeSlotId;
+use crate::painting::paintable_data::PaintableKind;
 use crate::painting::record::{PaintPhase, PaintRecorder};
 
-pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId, phase: PaintPhase) {
+pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     let kind = recorder.data(paintable).kind;
     match kind {
         PaintableKind::PaintableWithLines
@@ -94,7 +95,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId
 
 pub(crate) fn border_radii_shrunk_for_borders(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) -> crate::painting::border_radii::BorderRadii {
     let mut radii = recorder.border_radii(paintable);
     let layout_node = recorder.data(paintable).layout_node;
@@ -130,15 +131,15 @@ pub(crate) fn end_corner_clip(recorder: &mut PaintRecorder<'_>, applied: bool) {
     }
 }
 
-pub(crate) fn paint_base(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId, phase: PaintPhase) {
+pub(crate) fn paint_base(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     paint_base_with(recorder, paintable, phase, background::paint_background);
 }
 
 pub(crate) fn paint_base_with(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     phase: PaintPhase,
-    paint_background: fn(&mut PaintRecorder<'_>, PaintableSlotId),
+    paint_background: fn(&mut PaintRecorder<'_>, NodeSlotId),
 ) {
     if phase == PaintPhase::Foreground {
         return;
@@ -176,7 +177,7 @@ pub(crate) fn paint_base_with(
 
 pub(crate) fn paint_backdrop_filter(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     facts: &crate::painting::record::BasePaintFacts,
 ) {
     if !facts.has_backdrop_filter {

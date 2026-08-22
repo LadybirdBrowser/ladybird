@@ -27,7 +27,7 @@ unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
 pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
     arena: *mut c_void,
     context: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
+    callback: unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
@@ -53,11 +53,11 @@ pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: PaintableSlotId) -> *mut PaintableData {
+pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: NodeSlotId) -> *mut PaintableData {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return std::ptr::null_mut();
         }
         paintables.data_ptr(slot)
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
         arena.clear_committed_fragment_link(layout_node);
         let reset = {
             let paintables = arena.paintables().borrow();
-            let slot = paintables.paintable_of_node(layout_node);
+            let slot = paintables.populated_paintable_row_of_node(layout_node);
             paintables.prepare_node_cleared_reset(layout_node, slot)
         };
         if let Some(reset) = reset {
@@ -90,14 +90,14 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_transfer_fragments_to_replacement_node(
     arena: *mut c_void,
-    containing_block: PaintableSlotId,
+    containing_block: NodeSlotId,
     old_node: NodeSlotId,
     new_node: NodeSlotId,
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let mut paintables = arena.paintables().borrow_mut();
-        if !paintables.is_live(containing_block) {
+        if !paintables.paintable_row_is_populated(containing_block) {
             return;
         }
         let side = paintables.side_mut(containing_block);
@@ -120,12 +120,12 @@ pub unsafe extern "C" fn layout_arena_paintable_transfer_fragments_to_replacemen
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> *mut c_void {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let mut current = paintables.is_live(slot).then_some(slot);
+        let mut current = paintables.paintable_row_is_populated(slot).then_some(slot);
         while let Some(paintable) = current {
             let layout_node = paintables.data_ref(paintable).layout_node;
             let flags = arena.node_flags_if_live(layout_node);
@@ -142,14 +142,11 @@ pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_layout_node_shell(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-) -> *mut c_void {
+pub unsafe extern "C" fn layout_arena_paintable_layout_node_shell(arena: *mut c_void, slot: NodeSlotId) -> *mut c_void {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return std::ptr::null_mut();
         }
         arena.shell_if_live(paintables.data_ref(slot).layout_node)
@@ -160,10 +157,7 @@ pub unsafe extern "C" fn layout_arena_paintable_layout_node_shell(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-) -> bool {
+pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(arena: *mut c_void, slot: NodeSlotId) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
@@ -188,7 +182,7 @@ unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_selection_apply(
     arena: *mut c_void,
-    viewport: PaintableSlotId,
+    viewport: NodeSlotId,
     entries: *const FfiSelectionEntry,
     entry_count: usize,
     range_start_offset: usize,
@@ -197,7 +191,7 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let mut paintables = arena.paintables().borrow_mut();
-        if !paintables.is_live(viewport) {
+        if !paintables.paintable_row_is_populated(viewport) {
             return;
         }
         // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
@@ -219,11 +213,11 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewport: PaintableSlotId) {
+pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewport: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let mut paintables = arena.paintables().borrow_mut();
-        if !paintables.is_live(viewport) {
+        if !paintables.paintable_row_is_populated(viewport) {
             return;
         }
         crate::painting::selection::clear(arena, &mut paintables, viewport);
@@ -236,14 +230,14 @@ pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewpo
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_set_sticky_insets(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
     insets: FfiStickyInsets,
     has_insets: bool,
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if paintables.is_live(slot) {
+        if paintables.paintable_row_is_populated(slot) {
             paintables.update_data(slot, |data| {
                 data.sticky_insets = insets;
                 data.has_sticky_insets = has_insets;
@@ -256,11 +250,11 @@ pub unsafe extern "C" fn layout_arena_paintable_set_sticky_insets(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut c_void, slot: PaintableSlotId) {
+pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut c_void, slot: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if paintables.is_live(slot) {
+        if paintables.paintable_row_is_populated(slot) {
             paintables.update_data(slot, |data| {
                 data.overflow = FfiOverflowData::default();
                 data.has_overflow = false;
@@ -273,11 +267,11 @@ pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut 
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_clear_cached_overflow_data(arena: *mut c_void, slot: PaintableSlotId) {
+pub unsafe extern "C" fn layout_arena_paintable_clear_cached_overflow_data(arena: *mut c_void, slot: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if paintables.is_live(slot) {
+        if paintables.paintable_row_is_populated(slot) {
             paintables.update_data(slot, |data| {
                 data.cached_overflow = FfiOverflowData::default();
                 data.has_cached_overflow = false;
@@ -298,14 +292,14 @@ pub struct FfiPhysicalOverflowDirections {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
     arena: *mut c_void,
-    box_paintable: PaintableSlotId,
+    box_paintable: NodeSlotId,
     visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(box_paintable) {
+        if !paintables.paintable_row_is_populated(box_paintable) {
             return;
         }
         crate::painting::scrollable_overflow::measure_scrollable_overflow(
@@ -331,11 +325,11 @@ pub struct FfiBoxModelMetrics {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_offset(arena: *mut c_void, slot: PaintableSlotId) -> FfiCssPixelPoint {
+pub unsafe extern "C" fn layout_arena_paintable_offset(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelPoint {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiCssPixelPoint::default();
         }
         crate::painting::paintable_geometry::committed_offset(&paintables, slot)
@@ -346,14 +340,11 @@ pub unsafe extern "C" fn layout_arena_paintable_offset(arena: *mut c_void, slot:
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_content_size(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-) -> FfiCssPixelSize {
+pub unsafe extern "C" fn layout_arena_paintable_content_size(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelSize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiCssPixelSize::default();
         }
         crate::painting::paintable_geometry::committed_content_size(&paintables, slot)
@@ -366,12 +357,12 @@ pub unsafe extern "C" fn layout_arena_paintable_content_size(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_size(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> FfiCssPixelSize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiCssPixelSize::default();
         }
         crate::painting::paintable_geometry::committed_svg_viewport_size(&paintables, slot)
@@ -390,12 +381,12 @@ pub struct FfiOptionalAffineTransform {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_transform(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> FfiOptionalAffineTransform {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let transform = if paintables.is_live(slot) {
+        let transform = if paintables.paintable_row_is_populated(slot) {
             crate::painting::paintable_geometry::committed_svg_viewport_transform(&paintables, slot)
         } else {
             None
@@ -411,14 +402,11 @@ pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_transform(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_box_model(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-) -> FfiBoxModelMetrics {
+pub unsafe extern "C" fn layout_arena_paintable_box_model(arena: *mut c_void, slot: NodeSlotId) -> FfiBoxModelMetrics {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiBoxModelMetrics::default();
         }
         FfiBoxModelMetrics {
@@ -436,12 +424,12 @@ pub unsafe extern "C" fn layout_arena_paintable_box_model(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_uses_collapsing_borders_model(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return false;
         }
         crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(&paintables, slot)
@@ -452,14 +440,11 @@ pub unsafe extern "C" fn layout_arena_paintable_uses_collapsing_borders_model(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-) -> FfiCssPixelRect {
+pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
         crate::painting::paintable_geometry::absolute_rect(&paintables, slot).into()
@@ -472,12 +457,12 @@ pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_absolute_padding_box_rect(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> FfiCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
         crate::painting::paintable_geometry::absolute_padding_box_rect(&paintables, slot).into()
@@ -490,12 +475,12 @@ pub unsafe extern "C" fn layout_arena_paintable_absolute_padding_box_rect(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_absolute_border_box_rect(
     arena: *mut c_void,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> FfiCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
+        if !paintables.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
         crate::painting::paintable_geometry::absolute_border_box_rect(&paintables, slot).into()
@@ -548,12 +533,12 @@ pub unsafe extern "C" fn layout_arena_clear_scrollable_overflow_contained_boxes(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) -> FfiPhysicalOverflowDirections {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let directions = if paintables.is_live(paintable) {
+        let directions = if paintables.paintable_row_is_populated(paintable) {
             crate::painting::scrollable_overflow::physical_overflow_directions(
                 arena,
                 paintables.data_ref(paintable).layout_node,
@@ -572,12 +557,12 @@ pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_void, root: PaintableSlotId) {
+pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_void, root: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let tree = {
             let paintables = arena.paintables().borrow();
-            if !paintables.is_live(root) {
+            if !paintables.paintable_row_is_populated(root) {
                 return;
             }
             crate::painting::stacking_context::build_stacking_context_tree(arena, &paintables, root)
@@ -596,7 +581,7 @@ use crate::painting::host::FfiVisualContextHostCallbacks;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
     arena: *mut c_void,
-    viewport: PaintableSlotId,
+    viewport: NodeSlotId,
     callbacks: FfiVisualContextHostCallbacks,
     force_incompatible_rebuild: bool,
 ) -> bool {
@@ -604,7 +589,7 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
         let arena = unsafe { arena_from_handle(arena) };
         let (mut tree, scroll_state, paintables_with_mask_nodes, previous_assignments) = {
             let paintables = arena.paintables().borrow();
-            if !paintables.is_live(viewport) {
+            if !paintables.paintable_row_is_populated(viewport) {
                 return false;
             }
             let previous_assignments = paintables.visual_context_assignments();
@@ -650,7 +635,7 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_update_visual_context_values(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     callbacks: FfiVisualContextHostCallbacks,
 ) -> bool {
     abort_on_panic(|| {
@@ -658,7 +643,7 @@ pub unsafe extern "C" fn layout_arena_update_visual_context_values(
         let pixel_ratio = callbacks.tree_inputs().device_pixels_per_css_pixel;
         let mut tree = {
             let mut paintables = arena.paintables().borrow_mut();
-            if !paintables.is_live(paintable) {
+            if !paintables.paintable_row_is_populated(paintable) {
                 return false;
             }
             let Some(tree) = paintables.visual_context.tree.take() else {
@@ -789,7 +774,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
-    viewport: PaintableSlotId,
+    viewport: NodeSlotId,
     callbacks: crate::painting::host::FfiHitTestHostCallbacks,
     paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
     visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
@@ -799,7 +784,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let arena = unsafe { arena_from_handle(arena) };
         let mut output = {
             let paintables = arena.paintables().borrow();
-            if !paintables.is_live(viewport) || paintables.stacking_context_tree.is_none() {
+            if !paintables.paintable_row_is_populated(viewport) || paintables.stacking_context_tree.is_none() {
                 return 0;
             }
             let command_cache_source = (!inputs.should_show_line_box_borders)
@@ -1131,7 +1116,7 @@ pub unsafe extern "C" fn layout_arena_last_recording_has_blocking_wheel_event_li
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     propagated_text_decorations: bool,
 ) {
     abort_on_panic(|| {
@@ -1149,7 +1134,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(arena: *mut c_void, paintable: PaintableSlotId) {
+pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(arena: *mut c_void, paintable: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         arena.paintables().borrow().invalidate_for_repaint(arena, paintable);
@@ -1176,12 +1161,12 @@ pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) -> *const c_void {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(paintable) {
+        if !paintables.paintable_row_is_populated(paintable) {
             return std::ptr::null();
         }
         crate::painting::paintable_geometry::committed_svg_path(&paintables, paintable)
@@ -1194,8 +1179,8 @@ pub struct FfiCaretRectResult {
     pub found: bool,
     pub rect: FfiCssPixelRect,
     pub style_source: *mut c_void,
-    pub owner_paintable: PaintableSlotId,
-    pub nearest_self_painting_inline: PaintableSlotId,
+    pub owner_paintable: NodeSlotId,
+    pub nearest_self_painting_inline: NodeSlotId,
 }
 
 /// # Safety
@@ -1215,8 +1200,8 @@ pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
             found: false,
             rect: FfiCssPixelRect::default(),
             style_source: std::ptr::null_mut(),
-            owner_paintable: PaintableSlotId::INVALID,
-            nearest_self_painting_inline: PaintableSlotId::INVALID,
+            owner_paintable: NodeSlotId::INVALID,
+            nearest_self_painting_inline: NodeSlotId::INVALID,
         };
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
@@ -1237,7 +1222,7 @@ pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
         result.owner_paintable = answer.owner;
         result.nearest_self_painting_inline =
             crate::painting::fragment_ownership::nearest_self_painting_inline_box(arena, &paintables, answer.node)
-                .unwrap_or(PaintableSlotId::INVALID);
+                .unwrap_or(NodeSlotId::INVALID);
         result
     })
 }
@@ -1285,7 +1270,7 @@ pub struct FfiEmptyLineCaretRect {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
     arena: *mut c_void,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     node_slots: *const NodeSlotId,
     node_slot_count: usize,
     offset: usize,
@@ -1298,7 +1283,7 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
         };
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(block) {
+        if !paintables.paintable_row_is_populated(block) {
             return result;
         }
         // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
@@ -1325,7 +1310,7 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
 
 fn with_inline_pieces(
     paintables: &crate::painting::paintable_arena::PaintableArena,
-    inline_paintable: PaintableSlotId,
+    inline_paintable: NodeSlotId,
     mut callback: impl FnMut(&InlineBoxPieceRecord, &PaintableData) -> bool,
 ) {
     let Some(root) = paintables.inline_pieces_root(inline_paintable) else {
@@ -1347,7 +1332,7 @@ fn with_inline_pieces(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_inline_paintable_piece_border_box_rects(
     arena: *mut c_void,
-    inline_paintable: PaintableSlotId,
+    inline_paintable: NodeSlotId,
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
@@ -1376,7 +1361,7 @@ pub unsafe extern "C" fn layout_arena_inline_paintable_piece_border_box_rects(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_inline_paintable_has_content_pieces(
     arena: *mut c_void,
-    inline_paintable: PaintableSlotId,
+    inline_paintable: NodeSlotId,
 ) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
@@ -1406,7 +1391,7 @@ pub struct FfiOptionalCssPixelPoint {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_inline_paintable_first_piece_position(
     arena: *mut c_void,
-    inline_paintable: PaintableSlotId,
+    inline_paintable: NodeSlotId,
 ) -> FfiOptionalCssPixelPoint {
     abort_on_panic(|| {
         let mut result = FfiOptionalCssPixelPoint {
@@ -1627,7 +1612,7 @@ pub struct FfiFragmentTextFacts {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_fragment_text_facts(
     arena: *mut c_void,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment_index: u32,
 ) -> FfiFragmentTextFacts {
     abort_on_panic(|| {
@@ -1639,7 +1624,7 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_text_facts(
         };
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(block) {
+        if !paintables.paintable_row_is_populated(block) {
             return facts;
         }
         let Some(fragment) = paintables.side(block).fragments.get(fragment_index as usize) else {
@@ -1667,7 +1652,7 @@ pub enum FfiCaretMatch {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_fragment_caret_match(
     arena: *mut c_void,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment_index: u32,
     offset: usize,
     affinity_is_downstream: bool,
@@ -1675,7 +1660,7 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_caret_match(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(block) {
+        if !paintables.paintable_row_is_populated(block) {
             return FfiCaretMatch::None;
         }
         let Some(fragment) = paintables.side(block).fragments.get(fragment_index as usize) else {
@@ -1695,7 +1680,7 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_caret_match(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_fragment_index_in_node_for_point(
     arena: *mut c_void,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment_index: u32,
     x: CssPixels,
     y: CssPixels,
@@ -1703,7 +1688,7 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_index_in_node_for_point
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(block) {
+        if !paintables.paintable_row_is_populated(block) {
             return 0;
         }
         let Some(fragment) = paintables.side(block).fragments.get(fragment_index as usize) else {
@@ -1724,14 +1709,14 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_index_in_node_for_point
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_fragment_caret_range_rect(
     arena: *mut c_void,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment_index: u32,
     offset: usize,
 ) -> FfiCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(block) {
+        if !paintables.paintable_row_is_populated(block) {
             return FfiCssPixelRect::default();
         }
         let Some(fragment) = paintables.side(block).fragments.get(fragment_index as usize) else {
@@ -1813,7 +1798,7 @@ pub struct FfiOptionalCssPixelRect {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
     arena: *mut c_void,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     node: NodeSlotId,
 ) -> FfiOptionalCssPixelRect {
     abort_on_panic(|| {
@@ -1823,7 +1808,7 @@ pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
         };
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(block) {
+        if !paintables.paintable_row_is_populated(block) {
             return result;
         }
         for fragment in &paintables.side(block).fragments {
@@ -1844,14 +1829,14 @@ pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
     arena: *mut c_void,
-    root: PaintableSlotId,
+    root: NodeSlotId,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCssPixelRect),
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(root) {
+        if !paintables.paintable_row_is_populated(root) {
             return;
         }
         crate::painting::paint_order::for_each_in_paint_subtree(arena, &paintables, root, |current| {
@@ -1871,7 +1856,7 @@ pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_dump_block_fragments(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     indent: usize,
     interactive: bool,
     context: *mut c_void,
@@ -1880,7 +1865,7 @@ pub unsafe extern "C" fn layout_arena_paintable_dump_block_fragments(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(paintable) {
+        if !paintables.paintable_row_is_populated(paintable) {
             return;
         }
         let mut out = Vec::new();
@@ -1898,7 +1883,7 @@ pub unsafe extern "C" fn layout_arena_paintable_dump_block_fragments(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_dump_inline_piece_fragments(
     arena: *mut c_void,
-    inline_paintable: PaintableSlotId,
+    inline_paintable: NodeSlotId,
     indent: usize,
     interactive: bool,
     context: *mut c_void,
@@ -1907,7 +1892,7 @@ pub unsafe extern "C" fn layout_arena_paintable_dump_inline_piece_fragments(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(inline_paintable) {
+        if !paintables.paintable_row_is_populated(inline_paintable) {
             return;
         }
         let mut out = Vec::new();
@@ -1932,7 +1917,7 @@ pub unsafe extern "C" fn layout_arena_paintable_dump_inline_piece_fragments(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     container_node_id: i64,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
@@ -1940,7 +1925,7 @@ pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(paintable) {
+        if !paintables.paintable_row_is_populated(paintable) {
             return;
         }
         if let Some(data) = crate::painting::paintable_geometry::committed_grid_layout_data(&paintables, paintable) {
@@ -1956,7 +1941,7 @@ pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     container_node_id: i64,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
@@ -1964,7 +1949,7 @@ pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(paintable) {
+        if !paintables.paintable_row_is_populated(paintable) {
             return;
         }
         if let Some(data) = crate::painting::paintable_geometry::committed_flex_layout_data(&paintables, paintable) {
@@ -1980,7 +1965,7 @@ pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
     arena: *mut c_void,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     context: *mut c_void,
     consume: unsafe extern "C" fn(
         *mut c_void,
@@ -1991,7 +1976,7 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        if !paintables.is_live(paintable) {
+        if !paintables.paintable_row_is_populated(paintable) {
             return;
         }
         if let Some(tracks) = crate::painting::paintable_geometry::committed_used_grid_tracks(&paintables, paintable) {
@@ -2032,7 +2017,7 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_node(
             .expect("no stacking context tree")
             .nodes[index];
         crate::painting::host::FfiStackingContextNodeExport {
-            layout_node_shell: if paintables.is_live(node.paintable) {
+            layout_node_shell: if paintables.paintable_row_is_populated(node.paintable) {
                 arena.shell_if_live(paintables.data_ref(node.paintable).layout_node)
             } else {
                 std::ptr::null_mut()
@@ -2174,7 +2159,7 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
         for (output, item) in output.iter_mut().zip(items.iter()) {
             let rect = |rect: crate::css::css_pixels::CssPixelRect| crate::layout::FfiCssPixelRect::from(rect);
             assert!(
-                paintables.is_live(item.paintable),
+                paintables.paintable_row_is_populated(item.paintable),
                 "exporting a hit-test item for a non-live paintable"
             );
             *output = crate::painting::host::FfiHitTestItemExport {
@@ -2196,12 +2181,12 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
 fn paint_tree_dump_entries(
     arena: &LayoutNodeArena,
     paintables: &crate::painting::paintable_arena::PaintableArena,
-    root: PaintableSlotId,
+    root: NodeSlotId,
 ) -> Vec<crate::painting::host::FfiPaintTreeDumpEntry> {
     fn visit(
         arena: &LayoutNodeArena,
         paintables: &crate::painting::paintable_arena::PaintableArena,
-        slot: PaintableSlotId,
+        slot: NodeSlotId,
         depth: u32,
         entries: &mut Vec<crate::painting::host::FfiPaintTreeDumpEntry>,
     ) {
@@ -2214,7 +2199,7 @@ fn paint_tree_dump_entries(
         });
     }
 
-    if !paintables.is_live(root) {
+    if !paintables.paintable_row_is_populated(root) {
         return Vec::new();
     }
     let mut entries = Vec::new();
@@ -2226,7 +2211,7 @@ fn paint_tree_dump_entries(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_tree_dump_entry_count(arena: *mut c_void, root: PaintableSlotId) -> usize {
+pub unsafe extern "C" fn layout_arena_paint_tree_dump_entry_count(arena: *mut c_void, root: NodeSlotId) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
@@ -2241,7 +2226,7 @@ pub unsafe extern "C" fn layout_arena_paint_tree_dump_entry_count(arena: *mut c_
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_export_paint_tree_dump_entries(
     arena: *mut c_void,
-    root: PaintableSlotId,
+    root: NodeSlotId,
     output: *mut crate::painting::host::FfiPaintTreeDumpEntry,
     output_length: usize,
 ) {

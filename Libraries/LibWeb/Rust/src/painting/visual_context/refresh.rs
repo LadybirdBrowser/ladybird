@@ -6,23 +6,23 @@
 
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot, StickyConstraints};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextHostCallbacks;
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry;
 
 pub(crate) fn precompute_sticky_constraints(
     paintables: &PaintableArena,
     scroll_state: &mut ScrollState,
     sticky_slot: ScrollStateSlot,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) {
     let nearest_scrolling_ancestor_slot = scroll_state.nearest_scrolling_ancestor_slot(sticky_slot);
     if nearest_scrolling_ancestor_slot == NO_SCROLL_STATE_SLOT {
         return;
     }
     let scroll_ancestor = scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable;
-    if !paintables.is_live(scroll_ancestor) {
+    if !paintables.paintable_row_is_populated(scroll_ancestor) {
         return;
     }
     let sticky_border_box_rect = paintable_geometry::absolute_border_box_rect(paintables, paintable);
@@ -66,7 +66,7 @@ pub(crate) fn refresh_sticky_constraints(paintables: &PaintableArena, scroll_sta
         // Skip entries whose paintables a subtree relayout has replaced; the pending visual
         // context tree rebuild recreates those entries before anything reads them.
         let paintable = state.paintable;
-        if paintables.is_live(paintable) {
+        if paintables.paintable_row_is_populated(paintable) {
             precompute_sticky_constraints(paintables, scroll_state, slot, paintable);
         }
     }
@@ -95,7 +95,7 @@ pub(crate) fn refresh_scroll_state(
             continue;
         }
         let scroll_ancestor = scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable;
-        if !paintables.is_live(scroll_ancestor) {
+        if !paintables.paintable_row_is_populated(scroll_ancestor) {
             continue;
         }
         let sticky_insets = sticky_data.insets;
@@ -158,7 +158,7 @@ pub(crate) fn refresh_scroll_state(
             continue;
         }
         let paintable = state.paintable;
-        if paintables.is_live(paintable) {
+        if paintables.paintable_row_is_populated(paintable) {
             let node = paintables.data_ref(paintable).layout_node;
             let offset: CssPixelPoint = callbacks.scroll_offset(layout_arena.shell_if_live(node)).into();
             scroll_state.state_at_slot_mut(slot).own_offset = CssPixelPoint::new(-offset.x, -offset.y);

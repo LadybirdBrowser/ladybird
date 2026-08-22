@@ -97,10 +97,10 @@ pub(crate) fn nearest_self_painting_inline_box(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     node: NodeSlotId,
-) -> Option<PaintableSlotId> {
+) -> Option<NodeSlotId> {
     let mut ancestor = nearest_fragmented_inline_ancestor(layout_arena, node);
     while let Some(candidate) = ancestor {
-        let paintable = paintables.paintable_of_node(candidate);
+        let paintable = paintables.populated_paintable_row_of_node(candidate);
         if !paintable.is_invalid() && is_self_painting_inline(&paintables.data_ref(paintable)) {
             return Some(paintable);
         }
@@ -112,7 +112,7 @@ pub(crate) fn nearest_self_painting_inline_box(
 pub(crate) fn assign_fragment_ownership(
     layout_arena: &LayoutNodeArena,
     paintables: &mut PaintableArena,
-    viewport: PaintableSlotId,
+    viewport: NodeSlotId,
 ) {
     // Whether a box is self-painting depends on the stacking context tree, so this runs
     // whenever that tree is rebuilt.
@@ -133,15 +133,15 @@ pub(crate) fn assign_fragment_ownership(
     }
 }
 
-fn assign_for_block(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, block: PaintableSlotId) {
+fn assign_for_block(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, block: NodeSlotId) {
     let pieces = paintables.side(block).inline_box_pieces.clone();
     let mut block_filter = FragmentOwnershipFilter::everything();
 
-    let piece_paintable_of = |paintables: &PaintableArena, node: NodeSlotId| -> Option<PaintableSlotId> {
+    let piece_paintable_of = |paintables: &PaintableArena, node: NodeSlotId| -> Option<NodeSlotId> {
         if node.is_invalid() || layout_arena.shell_if_live(node).is_null() {
             return None;
         }
-        let paintable = paintables.paintable_of_node(node);
+        let paintable = paintables.populated_paintable_row_of_node(node);
         (!paintable.is_invalid() && paintables.data_ref(paintable).kind == PaintableKind::InlinePaintable)
             .then_some(paintable)
     };
@@ -153,19 +153,17 @@ fn assign_for_block(layout_arena: &LayoutNodeArena, paintables: &mut PaintableAr
         }
     }
 
-    let mut owners: Vec<PaintableSlotId> = Vec::new();
+    let mut owners: Vec<NodeSlotId> = Vec::new();
     let mut filters: Vec<FragmentOwnershipFilter> = Vec::new();
-    let filter_index = |owners: &mut Vec<PaintableSlotId>,
-                        filters: &mut Vec<FragmentOwnershipFilter>,
-                        owner: PaintableSlotId|
-     -> usize {
-        if let Some(index) = owners.iter().position(|candidate| *candidate == owner) {
-            return index;
-        }
-        owners.push(owner);
-        filters.push(FragmentOwnershipFilter::default());
-        owners.len() - 1
-    };
+    let filter_index =
+        |owners: &mut Vec<NodeSlotId>, filters: &mut Vec<FragmentOwnershipFilter>, owner: NodeSlotId| -> usize {
+            if let Some(index) = owners.iter().position(|candidate| *candidate == owner) {
+                return index;
+            }
+            owners.push(owner);
+            filters.push(FragmentOwnershipFilter::default());
+            owners.len() - 1
+        };
 
     for piece in &pieces {
         if piece.fragment_count == 0 {
@@ -203,7 +201,7 @@ fn assign_for_block(layout_arena: &LayoutNodeArena, paintables: &mut PaintableAr
 
 pub fn effective_filter(
     paintables: &PaintableArena,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
 ) -> std::borrow::Cow<'_, FragmentOwnershipFilter> {
     if let Some(filter) = &paintables.side(paintable).fragment_ownership {
         return std::borrow::Cow::Borrowed(filter);

@@ -9,8 +9,8 @@ use crate::css::css_enums::{
 };
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::path::PathBuilder;
 use libgfx_rust::{CapStyle, Color, IntPoint, JoinStyle, LineStyle, ShouldAntiAlias};
@@ -89,7 +89,7 @@ fn resolve_text_decoration_thickness(
 // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
 fn anchor_for_decorating_box(
     recorder: &PaintRecorder<'_>,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment: &crate::painting::paintable_data::FragmentRecord,
     decorating_node: crate::layout::node_data::NodeSlotId,
     text_parent: crate::layout::node_data::NodeSlotId,
@@ -117,7 +117,7 @@ fn anchor_for_decorating_box(
 
 pub(crate) fn decoration_sets_for_span(
     recorder: &PaintRecorder<'_>,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     span: &crate::painting::record::paint::text::RenderSpan,
 ) -> Vec<TextDecorationSet> {
     let mut sets: Vec<TextDecorationSet> = Vec::new();
@@ -280,7 +280,7 @@ struct DecorationSegment {
 #[allow(clippy::too_many_arguments)]
 fn compute_skip_ink_segments(
     recorder: &mut PaintRecorder<'_>,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment_index: u32,
     span_start_x: i32,
     span_end_x: i32,
@@ -417,7 +417,7 @@ fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> Pat
 
 pub(crate) fn paint_decoration_lines(
     recorder: &mut PaintRecorder<'_>,
-    block: PaintableSlotId,
+    block: NodeSlotId,
     fragment_index: u32,
     fragment_box: CssPixelRect,
     set: &TextDecorationSet,

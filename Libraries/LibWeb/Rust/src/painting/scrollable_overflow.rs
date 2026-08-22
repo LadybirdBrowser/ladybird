@@ -11,7 +11,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::painting::host::{FfiScrollableOverflowHostCallbacks, FfiVisualContextHostCallbacks};
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::{FfiOverflowData, PaintableSlotId};
+use crate::painting::paintable_data::FfiOverflowData;
 use crate::painting::visual_context::node_values;
 use crate::painting::{paintable_geometry, style_queries, text_fragment};
 use libgfx_rust::matrix::{AffineTransform, FloatMatrix4x4};
@@ -191,7 +191,7 @@ fn apply_css_transform_to_scrollable_overflow_rect(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     visual_context_callbacks: &FfiVisualContextHostCallbacks,
-    box_paintable: PaintableSlotId,
+    box_paintable: NodeSlotId,
     rect: CssPixelRect,
     box_has_css_transform: bool,
 ) -> CssPixelRect {
@@ -225,7 +225,7 @@ fn apply_css_transform_to_scrollable_overflow_rect(
 fn padding_inflated_scrollable_overflow(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    box_paintable: PaintableSlotId,
+    box_paintable: NodeSlotId,
     box_node: NodeSlotId,
     in_flow_and_floated_content_bounds: CssPixelRect,
 ) -> CssPixelRect {
@@ -284,7 +284,7 @@ pub(crate) fn measure_scrollable_overflow(
     paintables: &PaintableArena,
     visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
-    box_paintable: PaintableSlotId,
+    box_paintable: NodeSlotId,
 ) -> CssPixelRect {
     let data = paintables.data_ref(box_paintable);
     if data.has_overflow {
@@ -374,7 +374,7 @@ pub(crate) fn measure_scrollable_overflow(
     //          its 3D rendering context. [CSS3-TRANSFORMS]
     if let Some(contained_boxes) = paintables.scrollable_overflow_contained_boxes.get(&box_node) {
         for &child_node in contained_boxes {
-            let child_paintable = paintables.paintable_of_node(child_node);
+            let child_paintable = paintables.populated_paintable_row_of_node(child_node);
             if child_paintable.is_invalid() || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
             {
                 continue;

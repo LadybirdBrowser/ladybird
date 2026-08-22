@@ -175,7 +175,7 @@ pub struct VisualContextNode {
 #[derive(Default)]
 pub struct VisualContextState {
     pub tree: Option<VisualContextTree>,
-    pub paintables_with_mask_nodes: Vec<crate::painting::paintable_data::PaintableSlotId>,
+    pub paintables_with_mask_nodes: Vec<crate::layout::node_data::NodeSlotId>,
     pub scroll_state: scroll_state::ScrollState,
     pub scroll_state_snapshot: Vec<FloatPoint>,
     pub needs_to_refresh_scroll_state: bool,

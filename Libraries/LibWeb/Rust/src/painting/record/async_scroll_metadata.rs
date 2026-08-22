@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::*;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
@@ -45,14 +46,14 @@ fn css_inset_to_device_inset(inset: Option<CssPixels>, device_pixels_per_css_pix
 }
 
 impl PaintRecorder<'_> {
-    fn could_be_scrolled_by_wheel_event(&mut self, paintable: PaintableSlotId) -> bool {
+    fn could_be_scrolled_by_wheel_event(&mut self, paintable: NodeSlotId) -> bool {
         let facts = self.hit_test_facts(paintable);
         facts.could_be_scrolled_horizontally || facts.could_be_scrolled_vertically
     }
 
-    fn nearest_scrollable_ancestor(&mut self, paintable: PaintableSlotId) -> Option<PaintableSlotId> {
+    fn nearest_scrollable_ancestor(&mut self, paintable: NodeSlotId) -> Option<NodeSlotId> {
         let mut candidate = self.data(paintable).containing_block;
-        while !candidate.is_invalid() && self.paintables.is_live(candidate) {
+        while !candidate.is_invalid() && self.paintables.paintable_row_is_populated(candidate) {
             if self.could_be_scrolled_by_wheel_event(candidate) {
                 return Some(candidate);
             }
@@ -64,7 +65,7 @@ impl PaintRecorder<'_> {
         None
     }
 
-    fn minimum_scroll_offset(&self, paintable: PaintableSlotId) -> CssPixelPoint {
+    fn minimum_scroll_offset(&self, paintable: NodeSlotId) -> CssPixelPoint {
         let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.paintables, paintable) else {
             return CssPixelPoint::default();
         };
@@ -76,7 +77,7 @@ impl PaintRecorder<'_> {
         )
     }
 
-    fn maximum_scroll_offset(&self, paintable: PaintableSlotId) -> CssPixelPoint {
+    fn maximum_scroll_offset(&self, paintable: NodeSlotId) -> CssPixelPoint {
         let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.paintables, paintable) else {
             return CssPixelPoint::default();
         };
@@ -88,8 +89,8 @@ impl PaintRecorder<'_> {
         )
     }
 
-    fn wheel_hit_test_target_scroll_node_index_for(&mut self, paintable: PaintableSlotId) -> usize {
-        let mut paintables_to_cache: Vec<PaintableSlotId> = Vec::new();
+    fn wheel_hit_test_target_scroll_node_index_for(&mut self, paintable: NodeSlotId) -> usize {
+        let mut paintables_to_cache: Vec<NodeSlotId> = Vec::new();
         let mut target = 0usize;
         let mut current = paintable;
         loop {
@@ -107,7 +108,7 @@ impl PaintRecorder<'_> {
 
             let raw_containing_block = self.data(current).containing_block;
             let mut containing_block = (!raw_containing_block.is_invalid()
-                && self.paintables.is_live(raw_containing_block))
+                && self.paintables.paintable_row_is_populated(raw_containing_block))
             .then_some(raw_containing_block);
             if let Some(block) = containing_block
                 && self.data(block).has_flag(PaintableFlag::FixedPosition)
@@ -140,7 +141,7 @@ impl PaintRecorder<'_> {
         target
     }
 
-    fn record_wheel_hit_test_target(&mut self, paintable: PaintableSlotId) {
+    fn record_wheel_hit_test_target(&mut self, paintable: NodeSlotId) {
         // OPTIMIZATION: The compositor falls back to the viewport when there are no explicit
         // targets. Avoid generating redundant per-box targets when no non-viewport scroller
         // could need one.
@@ -187,7 +188,7 @@ impl PaintRecorder<'_> {
 
     fn record_blocking_wheel_event_region(
         &mut self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         facts: &crate::painting::host::FfiAsyncScrollFacts,
     ) {
         if self.inputs.has_blocking_wheel_event_region_covering_viewport {
@@ -212,7 +213,7 @@ impl PaintRecorder<'_> {
             .compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion { rect });
     }
 
-    fn record_main_thread_wheel_event_region(&mut self, paintable: PaintableSlotId) {
+    fn record_main_thread_wheel_event_region(&mut self, paintable: NodeSlotId) {
         let rect = css_rect_to_device_rect(
             paintable_geometry::absolute_border_box_rect(self.paintables, paintable),
             self.inputs.device_pixels_per_css_pixel,
@@ -224,7 +225,7 @@ impl PaintRecorder<'_> {
             .compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion { rect });
     }
 
-    fn record_scroll_node(&mut self, paintable: PaintableSlotId, facts: &crate::painting::host::FfiAsyncScrollFacts) {
+    fn record_scroll_node(&mut self, paintable: NodeSlotId, facts: &crate::painting::host::FfiAsyncScrollFacts) {
         let scroll_node_kind = match facts.scroll_node_kind {
             crate::painting::host::FfiScrollNodeKind::Viewport => CompositorScrollNodeKind::Viewport,
             crate::painting::host::FfiScrollNodeKind::Element => CompositorScrollNodeKind::Element,
@@ -270,7 +271,7 @@ impl PaintRecorder<'_> {
 
     fn record_viewport_scrollbar_state(
         &mut self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         facts: &crate::painting::host::FfiAsyncScrollFacts,
     ) {
         if !facts.records_viewport_scrollbars {
@@ -320,7 +321,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    pub(crate) fn record_async_scrolling_metadata(&mut self, paintable: PaintableSlotId) {
+    pub(crate) fn record_async_scrolling_metadata(&mut self, paintable: NodeSlotId) {
         if !self.inputs.is_recording_async_scrolling_metadata {
             return;
         }

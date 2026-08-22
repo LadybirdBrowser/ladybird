@@ -200,7 +200,7 @@ EventHandler::EventHandler(Badge<HTML::LocalNavigable>, HTML::LocalNavigable& na
 
 EventHandler::~EventHandler() = default;
 
-static Layout::Node* layout_node_for_target(DOM::Document& document, Layout::RustFFI::PaintableSlotId box)
+static Layout::Node* layout_node_for_target(DOM::Document& document, Layout::RustFFI::NodeSlotId box)
 {
     return Painting::layout_node_for_committed_slot(document.layout_node_arena(), box);
 }
@@ -2455,7 +2455,7 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
 }
 
 // https://w3c.github.io/uievents/#maybe-show-context-menu
-void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::RustFFI::PaintableSlotId box, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
+void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::RustFFI::NodeSlotId box, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
 {
     // AD-HOC: Allow the user to bypass custom context menus by holding shift, like Firefox.
     if ((modifiers & UIEvents::Mod_Shift) == 0) {
