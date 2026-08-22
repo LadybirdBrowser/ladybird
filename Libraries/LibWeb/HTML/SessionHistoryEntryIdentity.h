@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
@@ -17,5 +19,15 @@ struct SessionHistoryEntryIdentity {
 
     bool operator==(SessionHistoryEntryIdentity const&) const = default;
 };
+
+}
+
+namespace IPC {
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryIdentity const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::SessionHistoryEntryIdentity> decode(Decoder&);
 
 }

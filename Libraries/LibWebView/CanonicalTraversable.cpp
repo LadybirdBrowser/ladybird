@@ -1255,8 +1255,10 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         auto child_navigable = find(parameters.navigable_id);
         auto current_step = m_session_history.current_step();
         if (child_navigable.has_value() && current_step.has_value()) {
-            if (auto const* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step))
+            if (auto const* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
+                child_navigable->set_active_session_history_entry(*target_entry);
                 creation_target_entry = *target_entry;
+            }
         }
     }
     operation.initiating_client->async_history_operation_started(
@@ -1300,7 +1302,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
         return;
     }
 
-    auto finalize_cross_document_navigation = [&](Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId pending_document_state_id) {
+    auto finalize_cross_document_navigation = [&](Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId pending_document_state_id, Web::HTML::HistoryHandlingBehavior history_handling) {
         auto finalization = move(result.get<Web::CrossDocumentNavigationFinalization>());
         if (finalization.history_entry.document_state.id != pending_document_state_id) {
             finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
@@ -1314,8 +1316,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
         }
 
         auto target_step = m_session_history.finalize_cross_document_navigation(
-            nested_history_id_for(*navigable), move(finalization.history_entry),
-            move(finalization.entry_to_replace_navigation_api_key));
+            *navigable, move(finalization.history_entry), history_handling);
         if (!target_step.has_value())
             finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
         return target_step;
@@ -1323,7 +1324,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
 
     request.visit(
         [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) {
-            auto target_step = finalize_cross_document_navigation(parameters.navigable_id, parameters.pending_document_state_id);
+            auto target_step = finalize_cross_document_navigation(parameters.navigable_id, parameters.pending_document_state_id, parameters.history_handling);
             if (!target_step.has_value())
                 return;
             auto navigation_type = parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Push
@@ -1375,7 +1376,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
             update_for_navigable_creation_or_destruction(*operation);
         },
         [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters) {
-            VERIFY(parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Push || parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace);
+            VERIFY(parameters.entry_to_replace.has_value() == (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace));
             auto& finalization = result.get<Web::HTML::SameDocumentNavigationEntry>();
             if (finalization.document_state_id != parameters.target_entry.document_state_id
                 || finalization.navigation_api_key != parameters.target_entry.navigation_api_key
@@ -1390,18 +1391,18 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
                 return;
             }
 
-            navigable->set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity {
-                .document_state_id = finalization.document_state_id,
-                .navigation_api_id = finalization.navigation_api_id,
-            });
-
             auto target_step = m_session_history.finalize_same_document_navigation(
                 *navigable, move(finalization),
-                parameters.entry_to_replace_navigation_api_key);
+                parameters.entry_to_replace);
             if (!target_step.has_value()) {
                 finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
                 return;
             }
+
+            navigable->set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity {
+                .document_state_id = parameters.target_entry.document_state_id,
+                .navigation_api_id = parameters.target_entry.navigation_api_id,
+            });
 
             auto navigation_type = parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace
                 ? Web::Bindings::NavigationType::Replace
