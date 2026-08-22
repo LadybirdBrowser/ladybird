@@ -765,15 +765,6 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         },
         {
             .source_snapshot_params = source_snapshot_params,
-            .pre_steps = GC::create_function(heap(), [key, navigable](Optional<Web::ReconstructedChildNavigation>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
-                // 3. If targetSHE is navigable's active session history entry:
-                // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
-                if (auto active_entry = navigable->active_session_history_entry(); active_entry && active_entry->navigation_api_key() == key) {
-                    ready->function()(HistoryStepResult::NoMatchingEntry);
-                    return;
-                }
-                ready->function()(Empty {});
-            }),
             .on_complete = on_complete,
         });
 
