@@ -231,7 +231,7 @@ void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::Transp
 {
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     if (on_wasm_compiler_connection)
-        on_wasm_compiler_connection(handle);
+        on_wasm_compiler_connection(move(handle));
 #endif
 }
 

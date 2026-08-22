@@ -26,17 +26,11 @@ void CompilerState::install_compiler_callback()
     });
 }
 
-static ErrorOr<NonnullRefPtr<ThreadedClient>> connect_to_wasm_compiler(IPC::TransportHandle const& handle)
-{
-    auto transport = TRY(handle.create_transport());
-    return ThreadedClient::create(move(transport));
-}
-
-void CompilerState::replace_connection(IPC::TransportHandle const& handle)
+void CompilerState::replace_connection(IPC::TransportHandle handle)
 {
     RefPtr<ThreadedClient> new_client;
 
-    if (auto result = connect_to_wasm_compiler(handle); result.is_error())
+    if (auto result = ThreadedClient::create(move(handle)); result.is_error())
         dbgln("Failed to connect to WebAssembly compiler: {}", result.error());
     else
         new_client = result.release_value();

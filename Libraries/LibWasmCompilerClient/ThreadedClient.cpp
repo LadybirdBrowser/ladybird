@@ -7,15 +7,16 @@
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibThreading/Thread.h>
 #include <LibWasmCompilerClient/Client.h>
 #include <LibWasmCompilerClient/ThreadedClient.h>
 
 namespace WasmCompilerClient {
 
-ErrorOr<NonnullRefPtr<ThreadedClient>> ThreadedClient::create(NonnullOwnPtr<IPC::Transport> transport)
+ErrorOr<NonnullRefPtr<ThreadedClient>> ThreadedClient::create(IPC::TransportHandle handle)
 {
-    auto client = adopt_ref(*new ThreadedClient(move(transport)));
+    auto client = adopt_ref(*new ThreadedClient(move(handle)));
 
     Optional<Error> initialization_error;
     {
@@ -30,9 +31,9 @@ ErrorOr<NonnullRefPtr<ThreadedClient>> ThreadedClient::create(NonnullOwnPtr<IPC:
     return client;
 }
 
-ThreadedClient::ThreadedClient(NonnullOwnPtr<IPC::Transport> transport)
-    : m_thread(Threading::Thread::construct("WasmCompiler IPC"sv, [this, transport = move(transport)]() mutable {
-        return thread_main(move(transport));
+ThreadedClient::ThreadedClient(IPC::TransportHandle handle)
+    : m_thread(Threading::Thread::construct("WasmCompiler IPC"sv, [this, handle = move(handle)]() {
+        return thread_main(handle);
     }))
 {
     m_thread->start();
@@ -80,10 +81,27 @@ Core::AnonymousBuffer ThreadedClient::compile(Core::AnonymousBuffer const& buffe
     return client->compile(buffer);
 }
 
-intptr_t ThreadedClient::thread_main(NonnullOwnPtr<IPC::Transport> transport)
+// This must run on the IPC thread. On Windows, the socket's notifier is bound to the event loop of the thread that
+// creates the socket, and the connection must be serviced by that same thread.
+static ErrorOr<NonnullRefPtr<Client>> create_client(IPC::TransportHandle const& handle)
+{
+    auto transport = TRY(handle.create_transport());
+    auto client = TRY(try_make_ref_counted<Client>(move(transport)));
+
+#ifdef AK_OS_WINDOWS
+    if (auto response = client->send_sync_but_allow_failure<Client::InitTransport>(Core::System::getpid()))
+        client->transport().set_peer_pid(response->peer_pid());
+    else
+        return Error::from_string_literal("Failed to initialize WebAssembly compiler transport");
+#endif
+
+    return client;
+}
+
+intptr_t ThreadedClient::thread_main(IPC::TransportHandle const& handle)
 {
     Core::EventLoop event_loop;
-    auto client_or_error = try_make_ref_counted<Client>(move(transport));
+    auto client_or_error = create_client(handle);
 
     if (client_or_error.is_error()) {
         Sync::MutexLocker locker(m_mutex);
@@ -94,18 +112,6 @@ intptr_t ThreadedClient::thread_main(NonnullOwnPtr<IPC::Transport> transport)
     }
 
     auto client = client_or_error.release_value();
-
-#ifdef AK_OS_WINDOWS
-    auto response = client->send_sync_but_allow_failure<Client::InitTransport>(Core::System::getpid());
-    if (!response) {
-        Sync::MutexLocker locker(m_mutex);
-        m_initialization_error = Error::from_string_literal("Failed to initialize WebAssembly compiler transport");
-        m_initialized = true;
-        m_initialization_condition.broadcast();
-        return 1;
-    }
-    client->transport().set_peer_pid(response->peer_pid());
-#endif
 
     {
         Sync::MutexLocker locker(m_mutex);
