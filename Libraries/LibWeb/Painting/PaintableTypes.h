@@ -71,9 +71,4 @@ struct OverflowData {
     bool has_scrollable_overflow { false };
 };
 
-struct CachedOverflowData {
-    CSSPixelRect rect_relative_to_padding_box;
-    bool has_scrollable_overflow { false };
-};
-
 }
