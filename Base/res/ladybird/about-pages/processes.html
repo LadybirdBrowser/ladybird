@@ -48,6 +48,11 @@
             table {
                 width: 100%;
                 border-collapse: collapse;
+                table-layout: fixed;
+            }
+
+            th#name {
+                width: 55%;
             }
 
             th {
@@ -156,20 +161,6 @@
                     return multiplier * (lhsValue - rhsValue);
                 };
 
-                let oldTable = document.getElementById("process-table");
-
-                let newTable = document.createElement("tbody");
-                newTable.setAttribute("id", "process-table");
-
-                const insertColumn = (row, value, className) => {
-                    let column = row.insertCell();
-                    if (className) {
-                        column.className = className;
-                    }
-                    column.innerText = value;
-                    return column;
-                };
-
                 const processesByPID = new Map();
                 window.processes.forEach(process => {
                     processesByPID.set(process.pid, process);
@@ -190,13 +181,9 @@
                     }
                 });
 
-                const insertProcess = (process, depth) => {
-                    let row = newTable.insertRow();
-                    let nameColumn = insertColumn(row, process.name, "process-name");
-                    nameColumn.style.setProperty("--process-depth", depth);
-                    insertColumn(row, process.pid);
-                    insertColumn(row, cpuFormatter.format(process.cpu));
-                    insertColumn(row, memoryFormatter.formatBytes(process.memory));
+                const sortedProcesses = [];
+                const appendProcess = (process, depth) => {
+                    sortedProcesses.push({ process, depth });
 
                     const childProcesses = childProcessesByEmbedderPID.get(process.pid);
                     if (!childProcesses) {
@@ -205,16 +192,61 @@
 
                     childProcesses.sort(compareProcesses);
                     childProcesses.forEach(childProcess => {
-                        insertProcess(childProcess, depth + 1);
+                        appendProcess(childProcess, depth + 1);
                     });
                 };
 
                 rootProcesses.sort(compareProcesses);
                 rootProcesses.forEach(process => {
-                    insertProcess(process, 0);
+                    appendProcess(process, 0);
                 });
 
-                oldTable.parentNode.replaceChild(newTable, oldTable);
+                const table = document.getElementById("process-table");
+                const rowsByPID = new Map();
+                Array.from(table.rows).forEach(row => {
+                    rowsByPID.set(Number(row.dataset.pid), row);
+                });
+
+                const updateColumn = (column, value) => {
+                    if (column.textContent !== value) {
+                        column.textContent = value;
+                    }
+                };
+
+                const sortedRows = sortedProcesses.map(({ process, depth }) => {
+                    let row = rowsByPID.get(process.pid);
+                    if (row) {
+                        rowsByPID.delete(process.pid);
+                    } else {
+                        row = table.insertRow();
+                        row.dataset.pid = process.pid;
+
+                        const nameColumn = row.insertCell();
+                        nameColumn.className = "process-name";
+                        row.insertCell();
+                        row.insertCell();
+                        row.insertCell();
+                    }
+
+                    const nameColumn = row.cells[0];
+                    updateColumn(nameColumn, process.name);
+                    if (nameColumn.style.getPropertyValue("--process-depth") !== `${depth}`) {
+                        nameColumn.style.setProperty("--process-depth", depth);
+                    }
+                    updateColumn(row.cells[1], `${process.pid}`);
+                    updateColumn(row.cells[2], cpuFormatter.format(process.cpu));
+                    updateColumn(row.cells[3], memoryFormatter.formatBytes(process.memory));
+
+                    return row;
+                });
+
+                rowsByPID.forEach(row => row.remove());
+
+                sortedRows.forEach((row, index) => {
+                    if (table.rows[index] !== row) {
+                        table.insertBefore(row, table.rows.item(index));
+                    }
+                });
             };
 
             const loadProcessStatistics = processes => {
