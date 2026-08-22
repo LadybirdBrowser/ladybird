@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // While a sync XHR send() is blocked, the event loop is paused: No other task may run — not a due timer, not a
+    // posted message, not a rendering update (so, no rAF callback) — and no author microtask (so, no promise reaction).
+    // Everything that became runnable while send() was blocked must then run after send() returns, each exactly once —
+    // with the microtasks ahead of the tasks.
+    //
+    // NOTE: The order the tasks run in relative to one another is deliberately not asserted. A due timer, a posted
+    // message and a rendering update come from three different task sources — and the event loop chooses between task
+    // sources in an implementation-defined manner. So, pinning that order would assert something no spec guarantees.
+    asyncTest(async done => {
+        const url = await httpTestServer().createEcho("GET", "/xhr-sync-send-pauses-other-tasks", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain" },
+            // Hold the response long enough that every source below is certainly due while send() is blocked.
+            delay_ms: 300,
+            body: "ok",
+        });
+
+        const log = [];
+        const note = s => log.push(s);
+        const armed = ["timer", "postMessage", "rAF", "microtask", "queueMicrotask"];
+
+        // Perform the send() from a task — so that the things we arm here are all observed from a clean slate.
+        setTimeout(() => {
+            // Arm one of each kind of work, all of which become runnable while send() is blocked.
+            setTimeout(() => note("timer"), 0);
+            const channel = new MessageChannel();
+            channel.port1.onmessage = () => note("postMessage");
+            channel.port2.postMessage("x");
+            requestAnimationFrame(() => note("rAF"));
+            Promise.resolve().then(() => note("microtask"));
+            queueMicrotask(() => note("queueMicrotask"));
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", url, false);
+            xhr.send();
+            const send_result = `status=${xhr.status} body=${xhr.responseText}`;
+
+            // Nothing armed above may have run yet: send() blocked the whole time, and we haven't yet yielded.
+            println(`ran during send(): ${log.join(" | ") || "(nothing)"}`);
+            println(`send result: ${send_result}`);
+
+            // Now yield, and wait for all of it to run. Waiting a fixed amount of time would be a race; a rendering
+            // opportunity — and so the rAF callback — isn't guaranteed to arrive within any particular window.
+            let polls = 0;
+            const when_everything_has_run = () => {
+                const missing = armed.filter(k => !log.includes(k));
+                if (missing.length > 0 && ++polls < 500) {
+                    setTimeout(when_everything_has_run, 10);
+                    return;
+                }
+                const duplicated = armed.filter(k => log.filter(s => s === k).length > 1);
+                println(`missing: ${missing.join(",") || "(none)"}  duplicated: ${duplicated.join(",") || "(none)"}`);
+                // The microtasks must have run before the tasks that were armed alongside them: A microtask checkpoint
+                // comes before the next task is picked up.
+                const microtask = log.indexOf("microtask");
+                const queued_microtask = log.indexOf("queueMicrotask");
+                const timer = log.indexOf("timer");
+                const posted_message = log.indexOf("postMessage");
+                println(`microtasks before tasks: ${microtask < timer && microtask < posted_message && queued_microtask < timer && queued_microtask < posted_message}`);
+                println(`microtask order kept: ${microtask < queued_microtask}`);
+                done();
+            };
+            setTimeout(when_everything_has_run, 0);
+        });
+    });
+</script>

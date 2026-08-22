@@ -1,0 +1,3 @@
+sync: status=200 body=sync done
+async: body=async done
+async reactions ran during send(): false
