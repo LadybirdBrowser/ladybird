@@ -14,6 +14,7 @@
 namespace Web::CSS {
 
 class FontFace;
+class FontComputer;
 
 class CSSFontFaceRule final : public CSSRule {
     WEB_WRAPPABLE(CSSFontFaceRule, CSSRule);
@@ -33,7 +34,7 @@ public:
     GC::Ptr<FontFace> css_connected_font_face() const { return m_css_connected_font_face; }
     void set_css_connected_font_face(GC::Ptr<FontFace> font_face) { m_css_connected_font_face = font_face; }
     void handle_descriptor_change(Utf16FlyString const& property);
-    void disconnect_font_face();
+    void disconnect_font_face(FontComputer* = nullptr);
 
 private:
     CSSFontFaceRule(GC::Ref<CSSFontFaceDescriptors>);

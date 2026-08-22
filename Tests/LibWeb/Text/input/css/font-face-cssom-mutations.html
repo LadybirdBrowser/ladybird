@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<style id="author-sheet"></style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const sheet = document.getElementById("author-sheet").sheet;
+        const findFace = family => [...document.fonts].find(face => face.family === family);
+
+        const manualFace = new FontFace("ManualFace", "local(Arial)");
+        document.fonts.add(manualFace);
+
+        sheet.insertRule("@font-face { font-family: FirstInserted; src: local(Arial); }", 0);
+        const firstInserted = findFace("FirstInserted");
+        println(`insertRule adds a CSS-connected FontFace: ${!!firstInserted}`);
+
+        sheet.insertRule("@font-face { font-family: SecondInserted; src: local(Arial); }", 0);
+        const secondInserted = findFace("SecondInserted");
+        const orderedFaces = [...document.fonts];
+        println(`inserted faces follow stylesheet order: ${orderedFaces.indexOf(secondInserted) < orderedFaces.indexOf(firstInserted)}`);
+        println(`CSS-connected faces precede manually-added faces: ${orderedFaces.indexOf(firstInserted) < orderedFaces.indexOf(manualFace)}`);
+        println(`unaffected rules retain their FontFace object: ${findFace("FirstInserted") === firstInserted}`);
+
+        sheet.deleteRule(0);
+        println(`deleteRule removes the corresponding FontFace: ${!findFace("SecondInserted")}`);
+        document.fonts.add(secondInserted);
+        println(`deleteRule disconnects the FontFace before deletion: ${document.fonts.delete(secondInserted)}`);
+        println(`deleteRule FontFace is absent after deletion: ${!document.fonts.has(secondInserted)}`);
+
+        sheet.insertRule("@media all {}", sheet.cssRules.length);
+        const matchingGroup = sheet.cssRules[sheet.cssRules.length - 1];
+        matchingGroup.insertRule("@font-face { font-family: NestedMatching; src: local(Arial); }", 0);
+        println(`insertRule connects a face in a matching group: ${!!findFace("NestedMatching")}`);
+        matchingGroup.deleteRule(0);
+        println(`nested deleteRule removes the corresponding FontFace: ${!findFace("NestedMatching")}`);
+
+        sheet.insertRule("@media not all {}", sheet.cssRules.length);
+        const nonMatchingGroup = sheet.cssRules[sheet.cssRules.length - 1];
+        nonMatchingGroup.insertRule("@font-face { font-family: NestedNonMatching; src: local(Arial); }", 0);
+        println(`a face in a non-matching group is not connected: ${!findFace("NestedNonMatching")}`);
+        nonMatchingGroup.media.mediaText = "all";
+        println(`a face is connected when its group starts matching: ${!!findFace("NestedNonMatching")}`);
+        nonMatchingGroup.media.mediaText = "not all";
+        println(`a face is disconnected when its group stops matching: ${!findFace("NestedNonMatching")}`);
+
+        const constructedSheet = new CSSStyleSheet();
+        document.adoptedStyleSheets = [constructedSheet];
+        constructedSheet.replaceSync("@font-face { font-family: ReplacedSync; src: local(Arial); }");
+        const replacedSync = findFace("ReplacedSync");
+        println(`replaceSync adds a CSS-connected FontFace: ${!!replacedSync}`);
+
+        constructedSheet.replaceSync("@font-face { font-family: ReplacedSyncAgain; src: local(Arial); }");
+        println(`replaceSync removes the old FontFace: ${!findFace("ReplacedSync")}`);
+        println(`replaceSync creates a new FontFace: ${!!findFace("ReplacedSyncAgain")}`);
+        document.fonts.add(replacedSync);
+        println(`replaceSync disconnects the old FontFace before deletion: ${document.fonts.delete(replacedSync)}`);
+        println(`replaceSync old FontFace is absent after deletion: ${!document.fonts.has(replacedSync)}`);
+
+        await constructedSheet.replace("@font-face { font-family: ReplacedAsync; src: local(Arial); }");
+        println(`replace removes the previous FontFace: ${!findFace("ReplacedSyncAgain")}`);
+        println(`replace creates a new FontFace: ${!!findFace("ReplacedAsync")}`);
+
+        document.adoptedStyleSheets = [];
+        println(`removing a stylesheet removes its FontFace: ${!findFace("ReplacedAsync")}`);
+
+        sheet.insertRule('@font-face { font-family: BeforeDescriptorChange; src: url("../../../Assets/HashSans.woff"); }', sheet.cssRules.length);
+        const descriptorRuleIndex = sheet.cssRules.length - 1;
+        const descriptorRule = sheet.cssRules[descriptorRuleIndex];
+        const testString = "WWWWWWWWWWWWWWWWWWWW";
+        await document.fonts.load("20px BeforeDescriptorChange", testString);
+
+        const measureWidth = fontFamily => {
+            const span = document.createElement("span");
+            span.style.fontFamily = fontFamily;
+            span.style.fontSize = "20px";
+            span.textContent = testString;
+            document.body.appendChild(span);
+            const width = span.offsetWidth;
+            span.remove();
+            return width;
+        };
+
+        const fallbackWidth = measureWidth("serif");
+        println(`face matches before a font-family descriptor change: ${measureWidth("BeforeDescriptorChange, serif") !== fallbackWidth}`);
+        descriptorRule.style.fontFamily = "AfterDescriptorChange";
+        println(`face matches after a font-family descriptor change: ${measureWidth("AfterDescriptorChange, serif") !== fallbackWidth}`);
+        println(`old family stops matching after a descriptor change: ${measureWidth("BeforeDescriptorChange, serif") === fallbackWidth}`);
+        sheet.deleteRule(descriptorRuleIndex);
+
+        const firstStyle = document.createElement("style");
+        firstStyle.textContent = "@font-face { font-family: FirstMovedSheet; src: local(Arial); }";
+        const secondStyle = document.createElement("style");
+        secondStyle.textContent = "@font-face { font-family: SecondMovedSheet; src: local(Arial); }";
+        document.head.appendChild(firstStyle);
+        document.head.appendChild(secondStyle);
+
+        const firstMovedFace = findFace("FirstMovedSheet");
+        const secondMovedFace = findFace("SecondMovedSheet");
+        document.head.moveBefore(secondStyle, firstStyle);
+        const movedFaces = [...document.fonts];
+        println(`moving a stylesheet updates font source order: ${movedFaces.indexOf(secondMovedFace) < movedFaces.indexOf(firstMovedFace)}`);
+        firstStyle.remove();
+        secondStyle.remove();
+
+        document.fonts.delete(manualFace);
+    });
+</script>

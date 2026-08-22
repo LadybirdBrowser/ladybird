@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSFunctionRule.h>
+#include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -38,6 +39,31 @@ GC::Ref<CSSRuleList> CSSRuleList::create(ReadonlySpan<GC::Ref<CSSRule>> rules)
 
 CSSRuleList::CSSRuleList()
 {
+}
+
+static void disconnect_font_faces_in_rule(CSSRule& rule)
+{
+    if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule))
+        font_face_rule->disconnect_font_face();
+
+    if (auto* grouping_rule = as_if<CSSGroupingRule>(rule)) {
+        for (auto& child_rule : grouping_rule->css_rules())
+            disconnect_font_faces_in_rule(child_rule);
+    }
+}
+
+void CSSRuleList::set_rules(Badge<CSSStyleSheet>, Vector<GC::Ref<CSSRule>> rules)
+{
+    // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+    // If a @font-face rule is removed from the document, its corresponding FontFace object is no longer CSS-connected.
+    // The connection is not restorable by any means (but adding the @font-face back to the stylesheet will create a
+    // brand new FontFace object which is CSS-connected).
+    for (auto& rule : m_rules) {
+        disconnect_font_faces_in_rule(rule);
+        rule->set_parent_style_sheet(nullptr);
+    }
+
+    m_rules = move(rules);
 }
 
 void CSSRuleList::visit_edges(GC::Cell::Visitor& visitor)
@@ -169,8 +195,6 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<Utf16View, 
     // 8. Insert new rule into list at the zero-indexed position index.
     m_rules.insert(index, *new_rule);
 
-    // FIXME: Load font faces for inserted @font-face rules
-
     // 9. Return index.
     if (on_change)
         on_change();
@@ -214,9 +238,10 @@ void CSSRuleList::remove_a_css_rule_without_validation(u32 index)
     CSSRule& old_rule = m_rules[index];
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
-    // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
-    if (auto* font_face_rule = as_if<CSSFontFaceRule>(old_rule))
-        font_face_rule->disconnect_font_face();
+    // If a @font-face rule is removed from the document, its corresponding FontFace object is no longer CSS-connected.
+    // The connection is not restorable by any means (but adding the @font-face back to the stylesheet will create a
+    // brand new FontFace object which is CSS-connected).
+    disconnect_font_faces_in_rule(old_rule);
 
     // 5. Remove rule old rule from list at the zero-indexed position index.
     m_rules.remove(index);

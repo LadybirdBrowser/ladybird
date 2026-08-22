@@ -58,6 +58,7 @@ void MediaList::invalidate_owners_for_media_change()
     if (!sheet)
         return;
     sheet->invalidate_owners();
+    sheet->synchronize_fonts_after_rule_change();
 
     // Which of the sheet's rules are gated is published from here rather than from the transition
     // `evaluate_media_queries` reports, because a list that has just been reparsed has evaluated
