@@ -1,4 +1,5 @@
 set(SOURCES
+    AIA.cpp
     ConnectionFromClient.cpp
     CURL.cpp
     Request.cpp
