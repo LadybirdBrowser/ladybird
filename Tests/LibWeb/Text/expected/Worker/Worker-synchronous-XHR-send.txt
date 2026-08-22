@@ -1,0 +1,4 @@
+before send
+after send: status=200 responseText=hello over http
+microtask ran
+timer fired
