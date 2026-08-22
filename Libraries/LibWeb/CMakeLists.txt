@@ -729,6 +729,7 @@ set(SOURCES
     HTML/SharedWorkerGlobalScope.cpp
     HTML/SourceSet.cpp
     HTML/SourceSnapshotParams.cpp
+    HTML/TargetSnapshotParams.cpp
     HTML/Storage.cpp
     HTML/StorageEvent.cpp
     HTML/StructuredSerialize.cpp

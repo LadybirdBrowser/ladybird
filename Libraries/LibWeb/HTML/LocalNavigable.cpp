@@ -2657,7 +2657,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
         set_delaying_load_events(true);
 
     // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
-    auto target_snapshot_params = snapshot_target_snapshot_params();
+    auto target_snapshot_params = snapshot_target_snapshot_params(*this);
 
     // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id
     //     is navigationId, status is "pending", and url is url.
@@ -3177,7 +3177,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     };
 
     // AD-HOC: Get the target snapshot params. This is missing from the spec, see https://github.com/whatwg/html/issues/12563
-    auto target_snapshot_params = snapshot_target_snapshot_params();
+    auto target_snapshot_params = snapshot_target_snapshot_params(*this);
 
     // 16. Let navigationParams be a new navigation params, with
     //     id: navigationId
@@ -3438,20 +3438,6 @@ bool LocalNavigable::allowed_by_sandboxing_to_navigate(LocalNavigable const& tar
     // 5. If sourceSnapshotParams's sandboxing flags's sandboxed navigation browsing context flag is set, then return false.
     // 6. Return true.
     return !has_flag(source_snapshot_params.sandboxing_flags, SandboxingFlagSet::SandboxedNavigation);
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
-TargetSnapshotParams LocalNavigable::snapshot_target_snapshot_params()
-{
-    // To snapshot target snapshot params given a navigable targetNavigable, return a new target snapshot params with:
-    // - sandboxing flags: the result of determining the creation sandboxing flags given targetNavigable's active
-    //   browsing context and targetNavigable's container
-    // - iframe element referrer policy: the result of determining the iframe element referrer policy given
-    //   targetNavigable's container
-    return {
-        .sandboxing_flags = determine_the_creation_sandboxing_flags(*active_browsing_context(), container()),
-        .iframe_element_referrer_policy = determine_iframe_element_referrer_policy(container()),
-    };
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
