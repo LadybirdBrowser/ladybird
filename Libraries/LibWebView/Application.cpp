@@ -1075,7 +1075,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
     if (root_navigable_id.has_value() || initial_document_state_id.has_value())
         return create_web_content_client(view, IsPrivate::No, allocate_page_id(), root_navigable_id, initial_document_state_id);
 
-    if (m_spare_web_content_process) {
+    if (m_spare_web_content_process && m_spare_web_content_process->is_ready_for_view_assignment({})) {
         auto web_content_client = m_spare_web_content_process.release_nonnull();
         launch_spare_web_content_process();
 
@@ -1111,7 +1111,7 @@ void Application::launch_spare_web_content_process()
     if (browser_options().profile_helper_process == ProcessType::WebContent)
         return;
 
-    if (m_has_queued_task_to_launch_spare_web_content_process)
+    if (m_spare_web_content_process || m_has_queued_task_to_launch_spare_web_content_process)
         return;
     m_has_queued_task_to_launch_spare_web_content_process = true;
 
@@ -1125,10 +1125,14 @@ void Application::launch_spare_web_content_process()
         }
 
         m_spare_web_content_process = web_content_client.release_value();
-
         if (auto process = find_process(m_spare_web_content_process->pid()); process.has_value())
             process->set_title("(spare)"_utf16);
     });
+}
+
+bool Application::has_ready_spare_web_content_process() const
+{
+    return m_spare_web_content_process && m_spare_web_content_process->is_ready_for_view_assignment({});
 }
 
 ErrorOr<void> Application::launch_services()

@@ -328,6 +328,7 @@ protected:
     virtual void on_devtools_disabled() const;
 
     Main::Arguments& arguments() { return m_arguments; }
+    bool has_ready_spare_web_content_process() const;
 
 private:
     ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});

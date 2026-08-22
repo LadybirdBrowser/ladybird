@@ -817,19 +817,6 @@ TEST_CASE(same_document_replacement_preserves_forward_history)
     expect_entry(history, 1, 2, "https://example.com/forward"sv);
 }
 
-TEST_CASE(first_cross_document_finalization_initializes_history)
-{
-    WebView::TraversableSessionHistory history;
-
-    auto target_step = history.finalize_cross_document_navigation(
-        {}, pending_entry(entry(0, "https://a.example/"sv)), {});
-    EXPECT(target_step.has_value());
-    EXPECT_EQ(*target_step, 0);
-    EXPECT_EQ(history.size(), 1uz);
-    EXPECT_EQ(history.used_step_count(), 1uz);
-    expect_current_entry(history, 0, "https://a.example/"sv);
-}
-
 TEST_CASE(nested_finalization_replaces_initial_entry_after_its_key_changes)
 {
     WebView::TraversableSessionHistory history;

@@ -33,6 +33,11 @@ public:
     {
     }
 
+    bool has_ready_spare_web_content_process() const
+    {
+        return WebView::Application::has_ready_spare_web_content_process();
+    }
+
     virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
     {
         browser_options.headless_mode = WebView::HeadlessMode::Test;
@@ -80,7 +85,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
-    auto view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
+    auto view = WebView::HeadlessWebView::create(theme, { 800, 600 });
 
     size_t loads_started = 0;
     view->on_load_start = [&] { ++loads_started; };
@@ -91,6 +96,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     size_t expected_loads = 1;
     // Wait out the initial about:blank load; navigating before it completes would drop the navigation.
     Core::EventLoop::current().spin_until([&]() { return loads_finished >= expected_loads; });
+
+    // A spare can create its initial traversable before a view adopts it. Preserve that entry across assignment.
+    Core::EventLoop::current().spin_until([&]() { return app->has_ready_spare_web_content_process(); });
+    auto spare_view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
+    VERIFY(spare_view->traversable().session_history().current_step() == 0);
+    VERIFY(spare_view->traversable().session_history().current_entry());
+    VERIFY(spare_view->traversable().session_history().current_entry()->url == URL::about_blank());
+
+    size_t spare_view_loads_finished = 0;
+    spare_view->on_load_finish = [&](auto const&) { ++spare_view_loads_finished; };
+    auto spare_view_url = URL::Parser::basic_parse("data:text/html,spare-process-navigation"sv).release_value();
+    spare_view->load(spare_view_url);
+    Core::EventLoop::current().spin_until([&]() { return spare_view_loads_finished == 1; });
+    VERIFY(spare_view->url() == spare_view_url);
 
     auto url_a = URL::Parser::basic_parse("data:text/html,<title>A</title>first"sv).release_value();
     auto url_b = URL::Parser::basic_parse("data:text/html,<title>B</title>second"sv).release_value();
