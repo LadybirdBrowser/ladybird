@@ -557,7 +557,7 @@ fn parse_unicode_ranges(values: &[ComponentValue]) -> Option<StyleValueData> {
             }
             let mut text = Vec::new();
             for value in range {
-                text.extend_from_slice(&value.original_source_text);
+                value.original_source_text.append_to(&mut text);
             }
             parse_unicode_range_text(&text)
         })

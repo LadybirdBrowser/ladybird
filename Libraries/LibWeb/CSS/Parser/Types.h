@@ -43,6 +43,7 @@ struct AtRule {
 // https://drafts.csswg.org/css-syntax/#qualified-rule
 struct QualifiedRule {
     Vector<ComponentValue> prelude;
+    Utf16String prelude_text;
     Vector<Declaration> declarations;
     Vector<RuleOrListOfDeclarations> child_rules;
     Optional<SourcePosition> source_position = {};

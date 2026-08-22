@@ -351,7 +351,6 @@ impl<'a> SelectorParser<'a> {
                     let source = invalid_values
                         .iter()
                         .flat_map(|value| value.original_source_text.iter())
-                        .copied()
                         .collect::<Vec<_>>();
                     selectors.push(CompiledSelector::new(
                         vec![CompoundSelector {

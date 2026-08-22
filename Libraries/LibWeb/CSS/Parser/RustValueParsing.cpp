@@ -436,7 +436,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
     auto const remaining_tokens = tokens.remaining_tokens();
-    auto source = serialize_a_series_of_component_values(remaining_tokens);
+    auto source = original_source_text.has_value()
+        ? *original_source_text
+        : serialize_a_series_of_component_values_for_retokenization(remaining_tokens);
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
         &context, to_underlying(property_id), ffi_utf16_view(source),
         ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), &status, &reason);
@@ -456,7 +458,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 
 Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(FontDescriptorKind kind, TokenStream<ComponentValue>& tokens)
 {
-    auto source = serialize_a_series_of_component_values_preserving_original_source_text(tokens.remaining_tokens());
+    auto source = kind == FontDescriptorKind::SourceList
+        ? serialize_a_series_of_component_values_for_retokenization(tokens.remaining_tokens())
+        : serialize_a_series_of_component_values_preserving_original_source_text(tokens.remaining_tokens());
     if (kind == FontDescriptorKind::UnicodeRangeList)
         source = source.replace("/**/"_utf16, ""_utf16, ReplaceMode::All);
 
@@ -557,7 +561,7 @@ RefPtr<StyleValue const> Parser::parse_primitive_value(ValueType value_type, Tok
         .font_tech_is_supported = rust_font_tech_is_supported,
         .random_function_index = &m_random_function_index,
     };
-    auto source = serialize_a_series_of_component_values(tokens.remaining_tokens());
+    auto source = serialize_a_series_of_component_values_for_retokenization(tokens.remaining_tokens());
     size_t consumed = 0;
     auto const* parsed = ValueParserFFI::rust_parse_css_primitive_from_source(
         &context, to_underlying(value_type), ffi_utf16_view(source),

@@ -298,6 +298,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     VERIFY(index < data.rule_count);
     auto const& rule = data.rules[index];
     auto prelude = component_values(data, rule.prelude_start, rule.prelude_count);
+    auto prelude_text = Utf16String::from_utf16(utf16_value(data, rule.prelude_source_offset, rule.prelude_source_length));
     auto children = items(data, rule.children_start, rule.child_count);
     if (rule.rule_type == 0) {
         return AtRule {
@@ -311,6 +312,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     VERIFY(rule.rule_type == 1);
     return QualifiedRule {
         .prelude = move(prelude),
+        .prelude_text = move(prelude_text),
         .declarations = declarations(data, rule.declarations_start, rule.declaration_count),
         .child_rules = move(children),
         .source_position = rule.has_source_position ? Optional<SourcePosition> { source_position(rule.start_line, rule.start_column) } : OptionalNone {},
@@ -346,7 +348,7 @@ void RustSyntaxParser::set_token_position(Token& token, SourcePosition start, So
     token.set_position_range(Badge<RustSyntaxParser> {}, start, end);
 }
 
-Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, ReadonlySpan<RuleContext> contexts)
+Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, ReadonlySpan<RuleContext> contexts, PreservePropertySourceText preserve_property_source_text)
 {
     static_assert(sizeof(RuleContext) == sizeof(u8));
     ReadonlyBytes document_url;
@@ -360,7 +362,7 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
     auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_random_function_index);
-    auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, resolve_property_id);
+    auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, resolve_property_id, preserve_property_source_text == PreservePropertySourceText::Yes);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);

@@ -1122,6 +1122,7 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
     // Let rule be a new qualified rule with its prelude, declarations, and child rules all initially set to empty lists.
     QualifiedRule rule {
         .prelude = {},
+        .prelude_text = {},
         .declarations = {},
         .child_rules = {},
         .source_position = {},
@@ -1157,6 +1158,7 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
 
         // <{-token>
         if (token.is(Token::Type::OpenCurly)) {
+            rule.prelude_text = serialize_a_series_of_component_values_for_retokenization(rule.prelude);
             // If the first two non-<whitespace-token> values of rule’s prelude are an <ident-token> whose value starts with "--"
             // followed by a <colon-token>, then:
             TokenStream prelude_tokens { rule.prelude };
@@ -2011,7 +2013,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
     };
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
-    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
+    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context, PreservePropertySourceText::Yes);
     if (should_verify_rust_syntax_parser())
         verify_rust_syntax_declarations(declarations_and_at_rules, parse_a_blocks_contents(token_stream()));
 
