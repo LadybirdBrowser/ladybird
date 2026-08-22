@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const firstParent = document.createElement("div");
+        const secondParent = document.createElement("div");
+        const child = document.createElement("span");
+        const grandchild = document.createElement("b");
+        child.appendChild(grandchild);
+
+        firstParent.appendChild(child);
+        println(`detached insertion: ${child.getRootNode() === firstParent && grandchild.getRootNode() === firstParent}`);
+
+        secondParent.appendChild(child);
+        println(`detached move: ${child.getRootNode() === secondParent && grandchild.getRootNode() === secondParent}`);
+
+        child.remove();
+        println(`removal: ${child.getRootNode() === child && grandchild.getRootNode() === child}`);
+
+        document.body.appendChild(child);
+        println(`document insertion: ${child.getRootNode() === document && grandchild.getRootNode() === document}`);
+
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(child);
+        document.body.appendChild(host);
+        println(`shadow insertion: ${child.getRootNode() === shadowRoot && grandchild.getRootNode() === shadowRoot}`);
+        println(`composed shadow root: ${child.getRootNode({ composed: true }) === document}`);
+    });
+</script>

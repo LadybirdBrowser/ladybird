@@ -1,0 +1,6 @@
+detached insertion: true
+detached move: true
+removal: true
+document insertion: true
+shadow insertion: true
+composed shadow root: true
