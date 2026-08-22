@@ -82,7 +82,12 @@
     [79, "PrepareSelectorQuery"],
     [80, "AddCounterStyleRule"],
     [81, "AttributeValueTextRequirementsVersion"],
-    [82, "AttributeNameRequiresValueText"]
+    [82, "AttributeNameRequiresValueText"],
+    [83, "PendingTransactionMayAffectLayoutGeometry"],
+    [84, "DeferPendingTransactionForGeometryRead"],
+    [85, "BeginDeferredGeometryTransactionFlush"],
+    [86, "EndDeferredGeometryTransactionFlush"],
+    [87, "HasDeferredGeometryTransaction"]
   ],
   "operations": [
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
@@ -104,6 +109,11 @@
     { "event": "SetElementCustomStates", "ffi": "style_engine_set_element_custom_states", "cpp": "set_element_custom_states", "return": "void", "args": [["node", "style_node"], ["states", "style_atom_slice"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let states = states.iter().copied().map(StyleAtomID).collect::<Vec<_>>(); engine.set_element_custom_states(node, &states);" },
     { "event": "ConnectedElementCount", "ffi": "style_engine_connected_element_count", "cpp": "connected_element_count", "return": "u32", "receiver": "const", "args": [], "body": "let result = engine.connected_element_count();" },
     { "event": "HasPendingTransaction", "ffi": "style_engine_has_pending_transaction", "return": "bool", "receiver": "const", "args": [], "body": "let result = engine.has_pending_transaction();" },
+    { "event": "PendingTransactionMayAffectLayoutGeometry", "ffi": "style_engine_pending_transaction_may_affect_layout_geometry", "return": "bool", "receiver": "const", "replay": false, "args": [], "body": "let result = engine.pending_transaction_may_affect_layout_geometry();" },
+    { "event": "DeferPendingTransactionForGeometryRead", "ffi": "style_engine_defer_pending_transaction_for_geometry_read", "return": "bool", "replay": false, "args": [], "body": "let result = engine.defer_pending_transaction_for_geometry_read();" },
+    { "event": "BeginDeferredGeometryTransactionFlush", "ffi": "style_engine_begin_deferred_geometry_transaction_flush", "return": "bool", "replay": false, "args": [], "body": "let result = engine.begin_deferred_geometry_transaction_flush();" },
+    { "event": "EndDeferredGeometryTransactionFlush", "ffi": "style_engine_end_deferred_geometry_transaction_flush", "return": "void", "replay": false, "args": [], "body": "engine.end_deferred_geometry_transaction_flush();" },
+    { "event": "HasDeferredGeometryTransaction", "ffi": "style_engine_has_deferred_geometry_transaction", "return": "bool", "receiver": "const", "replay": false, "args": [], "body": "let result = engine.has_deferred_geometry_transaction();" },
     { "event": "MatchDocument", "ffi": "style_engine_match_document", "cpp": "match_document", "return": "usize_u64", "replay": false, "args": [["root", "style_node"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return usize::MAX; }; let result = engine.match_document(root).unwrap_or(usize::MAX);" },
     { "event": "BeginColdMatchingBatch", "ffi": "style_engine_begin_cold_matching_batch", "cpp": "begin_cold_matching_batch", "return": "bool", "replay": false, "args": [["root", "style_node"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return false; }; let result = engine.begin_cold_matching_batch(root);" },
     { "event": "BeginAdaptiveColdMatchingBatch", "ffi": "style_engine_begin_adaptive_cold_matching_batch", "cpp": "begin_adaptive_cold_matching_batch", "return": "void", "replay": false, "args": [["root", "style_node"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return; }; engine.begin_adaptive_cold_matching_batch(root);" },

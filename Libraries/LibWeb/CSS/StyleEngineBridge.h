@@ -189,6 +189,16 @@ public:
     void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
     [[nodiscard]] bool has_pending_transaction() const;
+    [[nodiscard]] bool has_deferred_geometry_transaction() const;
+    [[nodiscard]] bool pending_transaction_may_affect_layout_geometry();
+    [[nodiscard]] bool defer_pending_transaction_for_geometry_read();
+    [[nodiscard]] bool begin_deferred_geometry_transaction_flush();
+    void end_deferred_geometry_transaction_flush();
+    // Geometry reads establish the before-change style used by CSS transitions. Keep this
+    // monotonic because an inactive rule or a later inline edit can expose the transition only
+    // after that boundary.
+    void note_css_transitions_may_observe_style_changes() { m_css_transitions_may_observe_style_changes = true; }
+    [[nodiscard]] bool css_transitions_may_observe_style_changes() const { return m_css_transitions_may_observe_style_changes; }
 
     // Submits everything recorded since the last flush as one transaction and normalizes it.
     void flush();
@@ -270,6 +280,7 @@ private:
     Vector<StyleEngineFFI::FfiStateDelta> m_state_deltas;
     Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
     Vector<StyleEngineFFI::FfiElementStyleInput> m_element_style_inputs;
+    bool m_css_transitions_may_observe_style_changes { false };
 };
 
 }

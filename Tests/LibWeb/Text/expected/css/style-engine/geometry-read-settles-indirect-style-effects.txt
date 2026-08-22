@@ -1,0 +1,3 @@
+animated width: 150
+container query width: 60
+registered style query width: 70
