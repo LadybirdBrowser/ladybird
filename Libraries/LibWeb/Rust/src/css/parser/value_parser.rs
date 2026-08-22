@@ -8,8 +8,9 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use crate::css::css_enums::{
-    keyword, keyword_from_ascii_case_insensitive, keyword_to_cross_origin_modifier_value,
-    keyword_to_referrer_policy_modifier_value,
+    keyword, keyword_from_ascii_case_insensitive, keyword_to_counter_style_name_keyword,
+    keyword_to_cross_origin_modifier_value, keyword_to_cursor_predefined, keyword_to_referrer_policy_modifier_value,
+    keyword_to_symbols_type, symbols_type,
 };
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_parser};
@@ -21,7 +22,7 @@ use crate::css::parser::color_parser::{is_color_function_name, parse_color_value
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::parser::fonts_parser::{parse_font_descriptor, parse_font_property};
 use crate::css::parser::grid_parser::parse_grid_property;
-use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property};
+use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property, parse_image_value};
 use crate::css::parser::positions_shapes_parser::{
     is_position_shape_function_name, parse_anchor_fit_property, parse_geometry_property, parse_position_property,
 };
@@ -35,11 +36,12 @@ use crate::css::property_metadata::{
     property_has_hashless_hex_color_quirk, property_has_unitless_length_quirk, property_id, property_is_shorthand,
     property_numeric_ranges, property_percentages_resolve_to, property_resolve_legacy_value_alias,
 };
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
+use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
-    RetainedNumericRangeList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
-    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
+    RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
+    RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString, RetainedStyleValueData,
+    RetainedStyleValueDataList, StyleValueData,
 };
 use std::collections::BTreeMap;
 use std::ffi::c_void;
@@ -936,6 +938,24 @@ fn parse_single_numeric_value_type(
     value: &ComponentValue,
 ) -> Option<StyleValueData> {
     if let Some((name, values)) = value.function()
+        && values.iter().all(ComponentValue::is_whitespace)
+        && context_allows_tree_counting_functions(context)
+    {
+        let function = if equals_ascii_case_insensitive(name, b"sibling-count") {
+            0
+        } else if equals_ascii_case_insensitive(name, b"sibling-index") {
+            1
+        } else {
+            u8::MAX
+        };
+        if function != u8::MAX && matches!(value_type, VALUE_TYPE_NUMBER | VALUE_TYPE_INTEGER) {
+            return Some(StyleValueData::TreeCountingFunction {
+                function,
+                computed_type: u8::from(value_type == VALUE_TYPE_INTEGER),
+            });
+        }
+    }
+    if let Some((name, values)) = value.function()
         && math_function_from_name(name).is_some()
     {
         return parse_calculated_numeric_value(context, property, value_type, name, values);
@@ -998,6 +1018,20 @@ fn parse_single_numeric_value_type(
     }
 }
 
+pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> bool {
+    let contexts = if context.value_context_count == 0 {
+        &[]
+    } else if context.value_contexts.is_null() {
+        return false;
+    } else {
+        unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
+    };
+    !contexts.iter().any(|value_context| {
+        value_context.kind == FfiValueParsingContextKind::Descriptor
+            || (value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0..=2))
+    })
+}
+
 fn parse_calculated_numeric_value(
     context: &ParseContext,
     property: u16,
@@ -1032,6 +1066,26 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
     name: &[u16],
     values: &[ComponentValue],
 ) -> Option<StyleValueData> {
+    if equals_ascii_case_insensitive(name, b"calc")
+        && let Some(tree_value) = single_non_whitespace_value(values)
+        && let Some((tree_name, tree_arguments)) = tree_value.function()
+        && tree_arguments.iter().all(ComponentValue::is_whitespace)
+        && context_allows_tree_counting_functions(context)
+    {
+        let function = if equals_ascii_case_insensitive(tree_name, b"sibling-count") {
+            0
+        } else if equals_ascii_case_insensitive(tree_name, b"sibling-index") {
+            1
+        } else {
+            u8::MAX
+        };
+        if function != u8::MAX && matches!(value_type, VALUE_TYPE_NUMBER | VALUE_TYPE_INTEGER) {
+            return Some(StyleValueData::TreeCountingFunction {
+                function,
+                computed_type: u8::from(value_type == VALUE_TYPE_INTEGER),
+            });
+        }
+    }
     let root = match parse_a_calc_function_node(
         name,
         values,
@@ -1042,6 +1096,7 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
             intern_utf16_fly_string: context.intern_utf16_fly_string,
             allowed_color_channels: 0,
             allow_random_functions: context_allows_random_functions(context),
+            parse_context: context,
         },
     ) {
         Ok(root) => root,
@@ -1300,6 +1355,625 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
     parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
 }
 
+fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if non_whitespace.len() == 1
+        && non_whitespace[0]
+            .ident()
+            .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"normal"))
+    {
+        return ParseOutcome::Parsed(Arc::new(StyleValueData::ColorScheme {
+            schemes: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            scheme_codes: RetainedByteList::from_bytes(Vec::new()),
+            only: false,
+        }));
+    }
+
+    let mut only = false;
+    let mut schemes = Vec::new();
+    let mut scheme_codes = Vec::new();
+    for (index, value) in non_whitespace.iter().enumerate() {
+        let Some(identifier) = value.ident() else {
+            return ParseOutcome::Invalid;
+        };
+        if equals_ascii_case_insensitive(identifier, b"only") {
+            if only || (index != 0 && index + 1 != non_whitespace.len()) {
+                return ParseOutcome::Invalid;
+            }
+            only = true;
+            continue;
+        }
+        if !is_valid_custom_ident(identifier, &["normal"]) {
+            return ParseOutcome::Invalid;
+        }
+        schemes.push(retain_fly_string(context, identifier).expect("parse context supplies string interning"));
+        scheme_codes.push(if equals_ascii_case_insensitive(identifier, b"dark") {
+            1
+        } else if equals_ascii_case_insensitive(identifier, b"light") {
+            2
+        } else {
+            0
+        });
+    }
+    if schemes.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::ColorScheme {
+        schemes: RetainedUtf16FlyStringList::from_retained_strings(schemes),
+        scheme_codes: RetainedByteList::from_bytes(scheme_codes),
+        only,
+    }))
+}
+
+fn parse_quotes_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    if let Some(value) = single_non_whitespace_value(values)
+        && let Some(keyword) = parse_specific_keyword(value, &[keyword::AUTO, keyword::NONE])
+    {
+        return ParseOutcome::Parsed(Arc::new(keyword));
+    }
+    let strings = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(|value| string_style_value(context, value.string()?))
+        .collect::<Option<Vec<_>>>();
+    let Some(strings) = strings else {
+        return ParseOutcome::Invalid;
+    };
+    if strings.len() % 2 != 0 {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(value_list(strings, 0, false)))
+}
+
+fn parse_counter_definitions_property(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    if let Some(value) = single_non_whitespace_value(values)
+        && let Some(none) = parse_specific_keyword(value, &[keyword::NONE])
+    {
+        return ParseOutcome::Parsed(Arc::new(none));
+    }
+
+    let allow_reversed = property == property_id::COUNTER_RESET;
+    let default_value = i32::from(property == property_id::COUNTER_INCREMENT);
+    let mut tokens = TokenStream::new(values);
+    let mut definitions = Vec::new();
+    tokens.discard_whitespace();
+    while tokens.has_next_token() {
+        let (name, is_reversed) = if let Some(identifier) = tokens.next_token().ident() {
+            if !is_valid_custom_ident(identifier, &["none"]) {
+                return ParseOutcome::Invalid;
+            }
+            let name = retain_fly_string(context, identifier).expect("parse context supplies string interning");
+            tokens.discard_a_token();
+            (name, false)
+        } else if allow_reversed {
+            let Some((name, arguments)) = tokens.next_token().function() else {
+                return ParseOutcome::Invalid;
+            };
+            if !equals_ascii_case_insensitive(name, b"reversed") {
+                return ParseOutcome::Invalid;
+            }
+            let Some(identifier) = single_non_whitespace_value(arguments).and_then(ComponentValue::ident) else {
+                return ParseOutcome::Invalid;
+            };
+            if !is_valid_custom_ident(identifier, &["none"]) {
+                return ParseOutcome::Invalid;
+            }
+            let name = retain_fly_string(context, identifier).expect("parse context supplies string interning");
+            tokens.discard_a_token();
+            (name, true)
+        } else {
+            return ParseOutcome::Invalid;
+        };
+        tokens.discard_whitespace();
+        let value = if tokens.has_next_token() {
+            let mut candidate = tokens.clone();
+            parse_integer_from_stream(context, property, &mut candidate, NumericRange::INFINITE).map(|value| {
+                tokens = candidate;
+                RetainedStyleValueData::from_owned(value)
+            })
+        } else {
+            None
+        };
+        let value = value.unwrap_or_else(|| {
+            if is_reversed {
+                RetainedStyleValueData::none()
+            } else {
+                RetainedStyleValueData::from_owned(StyleValueData::Integer { value: default_value })
+            }
+        });
+        definitions.push(RetainedCounterDefinition::new(name, is_reversed, value));
+        tokens.discard_whitespace();
+    }
+    if definitions.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::CounterDefinitions {
+        counter_definitions: RetainedCounterDefinitionList::from_retained_elements(definitions),
+    }))
+}
+
+fn parse_counter_style(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    if let Some(identifier) = value.ident() {
+        if !is_valid_custom_ident(identifier, &["none"]) {
+            return None;
+        }
+        let name = if keyword_from_ascii_case_insensitive(identifier)
+            .and_then(keyword_to_counter_style_name_keyword)
+            .is_some()
+        {
+            identifier
+                .iter()
+                .map(|&code_unit| {
+                    if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
+                        code_unit + u16::from(b'a' - b'A')
+                    } else {
+                        code_unit
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            identifier.to_vec()
+        };
+        return Some(StyleValueData::CounterStyle {
+            is_symbols: false,
+            name: retain_fly_string(context, &name)?,
+            symbols_type: symbols_type::SYMBOLIC,
+            symbols: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+        });
+    }
+
+    let (name, arguments) = value.function()?;
+    if !equals_ascii_case_insensitive(name, b"symbols") {
+        return None;
+    }
+    let mut tokens = TokenStream::new(arguments);
+    tokens.discard_whitespace();
+    let mut symbol_type = symbols_type::SYMBOLIC;
+    if let Some(keyword) = tokens
+        .next_token()
+        .ident()
+        .and_then(keyword_from_ascii_case_insensitive)
+        .and_then(keyword_to_symbols_type)
+    {
+        symbol_type = keyword;
+        tokens.discard_a_token();
+    }
+    tokens.discard_whitespace();
+    let mut symbols = Vec::new();
+    while let Some(string) = tokens.next_token().string() {
+        symbols.push(retain_fly_string(context, string)?);
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+    }
+    if tokens.has_next_token()
+        || symbols.is_empty()
+        || (matches!(symbol_type, symbols_type::ALPHABETIC | symbols_type::NUMERIC) && symbols.len() < 2)
+    {
+        return None;
+    }
+    Some(StyleValueData::CounterStyle {
+        is_symbols: true,
+        name: RetainedUtf16FlyString::none(),
+        symbols_type: symbol_type,
+        symbols: RetainedUtf16FlyStringList::from_retained_strings(symbols),
+    })
+}
+
+fn parse_list_style_type_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let parsed = single_non_whitespace_value(values).and_then(|value| {
+        parse_specific_keyword(value, &[keyword::NONE])
+            .or_else(|| string_style_value(context, value.string()?))
+            .or_else(|| parse_counter_style(context, value))
+    });
+    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+}
+
+fn parse_counter_function(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    let (name, arguments) = value.function()?;
+    let function = if equals_ascii_case_insensitive(name, b"counter") {
+        0
+    } else if equals_ascii_case_insensitive(name, b"counters") {
+        1
+    } else {
+        return None;
+    };
+    let parts = arguments.split(ComponentValue::is_comma).collect::<Vec<_>>();
+    if parts.len() < function + 1 || parts.len() > function + 2 {
+        return None;
+    }
+    let counter_name = single_non_whitespace_value(parts[0])?.ident()?;
+    if !is_valid_custom_ident(counter_name, &["none"]) {
+        return None;
+    }
+    let join_string = if function == 1 {
+        retain_fly_string(context, single_non_whitespace_value(parts[1])?.string()?)?
+    } else {
+        retain_fly_string(context, &[])?
+    };
+    let style_index = function + 1;
+    let counter_style = if parts.len() > style_index {
+        parse_counter_style(context, single_non_whitespace_value(parts[style_index])?)?
+    } else {
+        StyleValueData::CounterStyle {
+            is_symbols: false,
+            name: retain_fly_string(context, &"decimal".encode_utf16().collect::<Vec<_>>())?,
+            symbols_type: symbols_type::SYMBOLIC,
+            symbols: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+        }
+    };
+    Some(StyleValueData::Counter {
+        function: function as u8,
+        counter_name: retain_fly_string(context, counter_name)?,
+        counter_style: RetainedStyleValueData::from_owned(counter_style),
+        join_string,
+    })
+}
+
+fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let non_whitespace_values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if non_whitespace_values.len() > 1
+        && non_whitespace_values
+            .iter()
+            .all(|value| value.string().is_some_and(<[u16]>::is_empty))
+    {
+        // NB: Parser-synthesized StyleValueList tokens are reconstructed as separate empty strings for Rust,
+        //     while the C++ token stream retains the original single list value. Task 016 removes this fragment seam.
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    if let Some(value) = single_non_whitespace_value(values)
+        && let Some(keyword) = parse_specific_keyword(value, &[keyword::NONE, keyword::NORMAL])
+    {
+        return ParseOutcome::Parsed(Arc::new(keyword));
+    }
+    let mut tokens = TokenStream::new(values);
+    let mut content = Vec::new();
+    let mut alt_text = Vec::new();
+    let mut in_alt_text = false;
+    tokens.discard_whitespace();
+    while tokens.has_next_token() {
+        if tokens.next_token().is_delim(b'/') {
+            if in_alt_text || content.is_empty() {
+                return ParseOutcome::Invalid;
+            }
+            in_alt_text = true;
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
+            continue;
+        }
+        let value = tokens.next_token();
+        let parsed = string_style_value(context, value.string().unwrap_or(&[]))
+            .filter(|_| value.string().is_some())
+            .or_else(|| parse_counter_function(context, value))
+            .or_else(|| {
+                let identifier = value.ident()?;
+                let keyword = keyword_from_ascii_case_insensitive(identifier)?;
+                property_accepted_keywords(property_id::CONTENT)
+                    .binary_search(&keyword)
+                    .is_ok()
+                    .then_some(StyleValueData::Keyword { keyword })
+            });
+        let parsed = if let Some(parsed) = parsed {
+            tokens.discard_a_token();
+            parsed
+        } else if !in_alt_text {
+            let mut candidate = tokens.clone();
+            let Some(image) = parse_image_value(context, property_id::CONTENT, &mut candidate, true) else {
+                return ParseOutcome::Invalid;
+            };
+            tokens = candidate;
+            image
+        } else {
+            return ParseOutcome::Invalid;
+        };
+        if matches!(
+            parsed,
+            StyleValueData::Keyword {
+                keyword: keyword::NONE | keyword::NORMAL
+            }
+        ) {
+            return ParseOutcome::Invalid;
+        }
+        if in_alt_text && !matches!(parsed, StyleValueData::String { .. } | StyleValueData::Counter { .. }) {
+            return ParseOutcome::Invalid;
+        }
+        if in_alt_text {
+            alt_text.push(parsed);
+        } else {
+            content.push(parsed);
+        }
+        tokens.discard_whitespace();
+    }
+    if content.is_empty() || (in_alt_text && alt_text.is_empty()) {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Parsed(Arc::new(StyleValueData::Content {
+        content: RetainedStyleValueData::from_owned(value_list(content, 0, false)),
+        alt_text: if alt_text.is_empty() {
+            RetainedStyleValueData::none()
+        } else {
+            RetainedStyleValueData::from_owned(value_list(alt_text, 0, false))
+        },
+    }))
+}
+
+fn parse_cursor_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let parts = values.split(ComponentValue::is_comma).collect::<Vec<_>>();
+    if parts.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    let mut cursors = Vec::new();
+    for (index, part) in parts.iter().enumerate() {
+        let mut tokens = TokenStream::new(part);
+        tokens.discard_whitespace();
+        if index + 1 == parts.len() {
+            let Some(keyword) = tokens
+                .next_token()
+                .ident()
+                .and_then(keyword_from_ascii_case_insensitive)
+                .filter(|keyword| keyword_to_cursor_predefined(*keyword).is_some())
+            else {
+                return ParseOutcome::Invalid;
+            };
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
+            if tokens.has_next_token() {
+                return ParseOutcome::Invalid;
+            }
+            cursors.push(StyleValueData::Keyword { keyword });
+            continue;
+        }
+        let Some(image) = parse_image_value(context, property_id::CURSOR, &mut tokens, true) else {
+            return ParseOutcome::Invalid;
+        };
+        tokens.discard_whitespace();
+        let (x, y) = if tokens.has_next_token() {
+            let Some(x) = parse_number_from_stream(context, property_id::CURSOR, &mut tokens, NumericRange::INFINITE)
+            else {
+                return ParseOutcome::Invalid;
+            };
+            let Some(y) = parse_number_from_stream(context, property_id::CURSOR, &mut tokens, NumericRange::INFINITE)
+            else {
+                return ParseOutcome::Invalid;
+            };
+            (
+                RetainedStyleValueData::from_owned(x),
+                RetainedStyleValueData::from_owned(y),
+            )
+        } else {
+            (RetainedStyleValueData::none(), RetainedStyleValueData::none())
+        };
+        tokens.discard_whitespace();
+        if tokens.has_next_token() {
+            return ParseOutcome::Invalid;
+        }
+        cursors.push(StyleValueData::Cursor {
+            image: RetainedStyleValueData::from_owned(image),
+            x,
+            y,
+        });
+    }
+    ParseOutcome::Parsed(Arc::new(match cursors.as_slice() {
+        [_] => cursors.remove(0),
+        _ => value_list(cursors, 1, true),
+    }))
+}
+
+fn parse_view_timeline_inset_from_stream(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+) -> Option<StyleValueData> {
+    let mut inset_values = Vec::new();
+    while inset_values.len() < 2 {
+        tokens.discard_whitespace();
+        if let Some(auto) = parse_specific_keyword(tokens.next_token(), &[keyword::AUTO]) {
+            tokens.discard_a_token();
+            inset_values.push(auto);
+            continue;
+        }
+        let mut candidate = tokens.clone();
+        let Some(inset) = parse_length_percentage_from_stream(
+            context,
+            property,
+            &mut candidate,
+            NumericRange::INFINITE,
+            NumericRange::INFINITE,
+        ) else {
+            break;
+        };
+        *tokens = candidate;
+        inset_values.push(inset);
+    }
+    if inset_values.len() == 1 {
+        inset_values.push(inset_values[0].clone());
+    }
+    (!inset_values.is_empty()).then(|| value_list(inset_values, 0, true))
+}
+
+fn retained_function(
+    context: &ParseContext,
+    name: &[u8],
+    arguments: Vec<RetainedStyleValueData>,
+) -> Option<StyleValueData> {
+    Some(StyleValueData::Function {
+        name: retain_fly_string(context, &name.iter().map(|byte| u16::from(*byte)).collect::<Vec<_>>())?,
+        value: RetainedStyleValueData::from_owned(StyleValueData::Tuple {
+            values: RetainedStyleValueDataList::from_retained_values(arguments),
+        }),
+    })
+}
+
+fn parse_scroll_function(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    let (name, arguments) = value.function()?;
+    if !equals_ascii_case_insensitive(name, b"scroll") {
+        return None;
+    }
+    let mut scroller = None;
+    let mut axis = None;
+    let mut has_scroller = false;
+    let mut has_axis = false;
+    for value in arguments.iter().filter(|value| !value.is_whitespace()) {
+        let parsed = parse_property_keyword_data(property_id::ANIMATION_TIMELINE, value).or_else(|| {
+            value
+                .ident()
+                .and_then(keyword_from_ascii_case_insensitive)
+                .map(|keyword| StyleValueData::Keyword { keyword })
+        })?;
+        let StyleValueData::Keyword { keyword } = parsed else {
+            return None;
+        };
+        if matches!(keyword, keyword::ROOT | keyword::NEAREST | keyword::SELF) {
+            if has_scroller {
+                return None;
+            }
+            has_scroller = true;
+            scroller = (keyword != keyword::NEAREST).then_some(StyleValueData::Keyword { keyword });
+        } else if matches!(keyword, keyword::BLOCK | keyword::INLINE | keyword::X | keyword::Y) {
+            if has_axis {
+                return None;
+            }
+            has_axis = true;
+            axis = (keyword != keyword::BLOCK).then_some(StyleValueData::Keyword { keyword });
+        } else {
+            return None;
+        }
+    }
+    retained_function(
+        context,
+        b"scroll",
+        vec![
+            scroller.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+            axis.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+        ],
+    )
+}
+
+fn parse_view_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+    let (name, arguments) = value.function()?;
+    if !equals_ascii_case_insensitive(name, b"view") {
+        return None;
+    }
+    let mut tokens = TokenStream::new(arguments);
+    let mut axis = None;
+    let mut inset = None;
+    let mut has_axis = false;
+    let mut has_inset = false;
+    while {
+        tokens.discard_whitespace();
+        tokens.has_next_token()
+    } {
+        let mut candidate = tokens.clone();
+        if let Some(parsed_inset) = parse_view_timeline_inset_from_stream(context, property, &mut candidate) {
+            if has_inset {
+                return None;
+            }
+            has_inset = true;
+            tokens = candidate;
+            let is_default = matches!(
+                &parsed_inset,
+                StyleValueData::ValueList { values, .. }
+                    if values.as_slice().iter().all(|value| matches!(value.data(), StyleValueData::Keyword { keyword: keyword::AUTO }))
+            );
+            inset = (!is_default).then_some(parsed_inset);
+            continue;
+        }
+        let keyword = tokens
+            .next_token()
+            .ident()
+            .and_then(keyword_from_ascii_case_insensitive)?;
+        if !matches!(keyword, keyword::BLOCK | keyword::INLINE | keyword::X | keyword::Y) || has_axis {
+            return None;
+        }
+        has_axis = true;
+        tokens.discard_a_token();
+        axis = (keyword != keyword::BLOCK).then_some(StyleValueData::Keyword { keyword });
+    }
+    retained_function(
+        context,
+        b"view",
+        vec![
+            axis.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+            inset.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+        ],
+    )
+}
+
+fn parse_animation_timeline_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let timelines = values
+        .split(ComponentValue::is_comma)
+        .map(|item| {
+            let value = single_non_whitespace_value(item)?;
+            parse_specific_keyword(value, &[keyword::AUTO, keyword::NONE])
+                .or_else(|| parse_dashed_ident_value(context, value))
+                .or_else(|| parse_scroll_function(context, value))
+                .or_else(|| parse_view_function(context, property_id::ANIMATION_TIMELINE, value))
+        })
+        .collect::<Option<Vec<_>>>();
+    timelines.map_or(ParseOutcome::Invalid, |timelines| {
+        ParseOutcome::Parsed(Arc::new(value_list(timelines, 1, true)))
+    })
+}
+
+fn parse_view_timeline_inset_property(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    let insets = values
+        .split(ComponentValue::is_comma)
+        .map(|item| {
+            let mut tokens = TokenStream::new(item);
+            let parsed = parse_view_timeline_inset_from_stream(context, property, &mut tokens)?;
+            tokens.discard_whitespace();
+            (!tokens.has_next_token()).then_some(parsed)
+        })
+        .collect::<Option<Vec<_>>>();
+    insets.map_or(ParseOutcome::Invalid, |insets| {
+        ParseOutcome::Parsed(Arc::new(value_list(insets, 1, true)))
+    })
+}
+
+fn parse_long_tail_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    match property {
+        property_id::ANIMATION_TIMELINE => parse_animation_timeline_property(context, values),
+        property_id::COLOR_SCHEME => parse_color_scheme_property(context, values),
+        property_id::CONTENT => parse_content_property(context, values),
+        property_id::CURSOR => parse_cursor_property(context, values),
+        property_id::LIST_STYLE_TYPE => parse_list_style_type_property(context, values),
+        property_id::QUOTES => parse_quotes_property(context, values),
+        property_id::VIEW_TIMELINE_INSET => parse_view_timeline_inset_property(context, property, values),
+        property_id::COUNTER_INCREMENT | property_id::COUNTER_RESET | property_id::COUNTER_SET => {
+            if values.iter().any(|value| {
+                value
+                    .function()
+                    .is_some_and(|(name, _)| math_function_from_name(name).is_some())
+            }) && unported_function_reason(values).is_some()
+                && !contains_tree_counting_function(values)
+            {
+                return ParseOutcome::NotHandled(&FUNCTION_NOT_PORTED);
+            }
+            parse_counter_definitions_property(context, property, values)
+        }
+        _ => ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+    }
+}
+
+fn contains_tree_counting_function(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { name, values } => {
+            equals_ascii_case_insensitive(name, b"sibling-count")
+                || equals_ascii_case_insensitive(name, b"sibling-index")
+                || contains_tree_counting_function(values)
+        }
+        ComponentKind::SimpleBlock { values, .. } => contains_tree_counting_function(values),
+        ComponentKind::Token(_) => false,
+    })
+}
+
 fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
         || property_is_shorthand(property)
@@ -1376,7 +2050,9 @@ fn parse_generic_numeric_property(context: &ParseContext, property: u16, values:
     {
         return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
     }
-    if let Some(reason) = unported_function_reason(values) {
+    if let Some(reason) = unported_function_reason(values)
+        && !contains_tree_counting_function(values)
+    {
         return ParseOutcome::NotHandled(reason);
     }
 
@@ -1539,6 +2215,19 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     let grid_outcome = parse_grid_property(context, property_id, values);
     if !matches!(grid_outcome, ParseOutcome::NotHandled(_)) {
         return grid_outcome;
+    }
+    if matches!(unported_function_reason(values), Some(reason) if reason.label == SUBSTITUTION_NOT_PORTED.label) {
+        return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+    }
+    let long_tail_outcome = parse_long_tail_property(context, property_id, values);
+    if !matches!(long_tail_outcome, ParseOutcome::NotHandled(_)) {
+        return long_tail_outcome;
+    }
+    if contains_tree_counting_function(values) {
+        let tree_counting_outcome = parse_generic_numeric_property(context, property_id, values);
+        if !matches!(tree_counting_outcome, ParseOutcome::NotHandled(_)) {
+            return tree_counting_outcome;
+        }
     }
     if let Some(reason) = unported_function_reason(values) {
         return ParseOutcome::NotHandled(reason);
@@ -1886,6 +2575,86 @@ mod tests {
             parse(property_id::BACKGROUND_COLOR, "123"),
             ParseOutcome::NotHandled(_)
         ));
+    }
+
+    #[test]
+    fn parses_counter_quote_and_color_scheme_values() {
+        for (property, source) in [
+            (property_id::COUNTER_INCREMENT, "chapter 2 section"),
+            (property_id::COUNTER_RESET, "reversed(chapter) 5 section"),
+            (property_id::COUNTER_SET, "none"),
+            (property_id::LIST_STYLE_TYPE, "upper-roman"),
+            (property_id::LIST_STYLE_TYPE, "symbols(cyclic \"a\" \"b\")"),
+            (property_id::QUOTES, "\"«\" \"»\" \"‹\" \"›\""),
+            (property_id::COLOR_SCHEME, "only light dark custom"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+
+        assert!(matches!(
+            parse(property_id::QUOTES, "\"unpaired\""),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse(property_id::COLOR_SCHEME, "light only dark"),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse(property_id::COUNTER_INCREMENT, "chapter calc(sibling-count())"),
+            ParseOutcome::Parsed(_)
+        ));
+        assert!(matches!(
+            parse(property_id::COLOR_SCHEME, "var(--scheme)"),
+            ParseOutcome::NotHandled(_)
+        ));
+    }
+
+    #[test]
+    fn parses_content_counters_and_cursors() {
+        for (property, source) in [
+            (
+                property_id::CONTENT,
+                "\"Chapter \" counter(chapter) / \"Chapter number\"",
+            ),
+            (property_id::CONTENT, "open-quote url(marker.svg) close-quote"),
+            (property_id::CONTENT, "counters(section, \".\", upper-roman)"),
+            (property_id::CURSOR, "url(cursor.svg) 4 5, pointer"),
+            (property_id::CURSOR, "crosshair"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+
+        assert!(matches!(
+            parse(property_id::CONTENT, "normal \"suffix\""),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse(property_id::CURSOR, "url(cursor.svg), unknown-cursor"),
+            ParseOutcome::Invalid
+        ));
+    }
+
+    #[test]
+    fn parses_timeline_functions_and_insets() {
+        for (property, source) in [
+            (
+                property_id::ANIMATION_TIMELINE,
+                "scroll(), view(inline 1px auto), --named",
+            ),
+            (property_id::ANIMATION_TIMELINE, "scroll(root x), view(auto auto)"),
+            (property_id::VIEW_TIMELINE_INSET, "1px, auto 2%, calc(1px + 1%)"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::ANIMATION_TIMELINE, "scroll(root self)"),
+            (property_id::ANIMATION_TIMELINE, "scroll(nearest root)"),
+            (property_id::ANIMATION_TIMELINE, "view(inline block)"),
+            (property_id::ANIMATION_TIMELINE, "view(auto auto 1px)"),
+            (property_id::VIEW_TIMELINE_INSET, "auto auto auto"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
     }
 
     #[test]
@@ -2239,6 +3008,26 @@ mod tests {
         };
         assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
         assert_eq!(random_function_index, 1);
+
+        assert!(matches!(
+            parse_with_context(&random_context, property_id::OPACITY, "random(0, random(0, 1))"),
+            ParseOutcome::Parsed(_)
+        ));
+        assert_eq!(random_function_index, 3);
+    }
+
+    #[test]
+    fn parses_non_math_functions_inside_calculations() {
+        for (property, source) in [
+            (property_id::TOP, "calc(anchor(top) + 1px)"),
+            (property_id::OPACITY, "calc(sibling-count() / 10)"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        assert!(matches!(
+            parse(property_id::WIDTH, "calc(anchor-size(width) + 1px)"),
+            ParseOutcome::NotHandled(_)
+        ));
     }
 
     #[test]
@@ -2286,13 +3075,16 @@ mod tests {
                 "attr(data-size type(<percentage>))",
                 "substitution",
             ),
-            (property_id::Z_INDEX, "sibling-index()", "function:not-ported"),
         ] {
             let ParseOutcome::NotHandled(reason) = parse(property, source) else {
                 panic!("deferred function should fall back: {source}");
             };
             assert_eq!(reason.label, expected_reason);
         }
+        assert!(matches!(
+            parse(property_id::Z_INDEX, "sibling-index()"),
+            ParseOutcome::Parsed(_)
+        ));
     }
 
     #[test]

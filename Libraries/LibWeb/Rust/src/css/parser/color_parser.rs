@@ -192,6 +192,7 @@ fn parse_calculated_numeric(
             intern_utf16_fly_string: context.intern_utf16_fly_string,
             allowed_color_channels,
             allow_random_functions: context_allows_random_functions(context),
+            parse_context: context,
         },
     ) {
         Ok(root) => root,

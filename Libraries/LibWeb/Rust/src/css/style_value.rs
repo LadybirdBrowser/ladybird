@@ -604,6 +604,14 @@ pub struct RetainedCounterDefinition {
 }
 
 impl RetainedCounterDefinition {
+    pub(crate) fn new(name: RetainedUtf16FlyString, is_reversed: bool, value: RetainedStyleValueData) -> Self {
+        Self {
+            name,
+            is_reversed,
+            value,
+        }
+    }
+
     pub(crate) fn name(&self) -> &RetainedUtf16FlyString {
         &self.name
     }
