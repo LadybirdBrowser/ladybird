@@ -56,6 +56,7 @@ private:
     QCheckBox* m_match_case { nullptr };
     QLabel* m_result_label { nullptr };
     bool m_is_updating_chrome_style { false };
+    u64 m_selected_text_request_id { 0 };
 };
 
 }

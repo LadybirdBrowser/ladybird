@@ -21,6 +21,7 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
 @interface SearchPanel () <NSSearchFieldDelegate>
 {
     CaseSensitivity m_case_sensitivity;
+    u64 m_selected_text_request_id;
 }
 
 @property (nonatomic, strong) NSSearchField* search_field;
@@ -112,17 +113,26 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
 
 - (void)useSelectionForFind:(id)sender
 {
-    auto selected_text = [[[self tab] web_view] view].selected_text();
-    auto* query = Ladybird::string_to_ns_string(selected_text);
+    __weak SearchPanel* weak_self = self;
+    auto case_sensitivity = m_case_sensitivity;
+    auto request_id = ++m_selected_text_request_id;
+    NSString* search_text_before_request = [self.search_field stringValue];
+    [[[self tab] web_view] view].selected_text()->when_resolved([weak_self, case_sensitivity, request_id, search_text_before_request](auto& selected_text) {
+        SearchPanel* strong_self = weak_self;
+        if (!strong_self || request_id != strong_self->m_selected_text_request_id || ![[strong_self.search_field stringValue] isEqualToString:search_text_before_request])
+            return;
 
-    [self setPasteBoardContents:query];
+        auto* query = Ladybird::string_to_ns_string(selected_text);
 
-    if (![self isHidden]) {
-        [self.search_field setStringValue:query];
-        [[[self tab] web_view] findInPage:query caseSensitivity:m_case_sensitivity];
+        [strong_self setPasteBoardContents:query];
 
-        [self.window makeFirstResponder:self.search_field];
-    }
+        if (![strong_self isHidden]) {
+            [strong_self.search_field setStringValue:query];
+            [[[strong_self tab] web_view] findInPage:query caseSensitivity:case_sensitivity];
+
+            [strong_self.window makeFirstResponder:strong_self.search_field];
+        }
+    });
 }
 
 - (void)onFindInPageResult:(size_t)current_match_index
