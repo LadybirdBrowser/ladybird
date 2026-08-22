@@ -497,6 +497,71 @@ Utf16String serialize_a_series_of_component_values_preserving_original_source_te
     return builder.to_string();
 }
 
+static bool serialize_component_values_for_retokenization(Utf16StringBuilder& builder, ReadonlySpan<Parser::ComponentValue> component_values);
+
+static bool serialize_component_value_for_retokenization(Utf16StringBuilder& builder, Parser::ComponentValue const& component_value)
+{
+    if (component_value.is_token()) {
+        if (should_preserve_original_source_text_for_custom_property(component_value)
+            || component_value.is(Parser::Token::Type::BadString)
+            || component_value.is(Parser::Token::Type::BadUrl)) {
+            auto const& original_source_text = component_value.token().original_source_text();
+            if (original_source_text.is_empty())
+                return false;
+            builder.append(original_source_text);
+        } else {
+            builder.append(component_value.token().to_string());
+        }
+        return true;
+    }
+
+    if (component_value.is_function()) {
+        auto const& function = component_value.function();
+        if (function.name_token.original_source_text().is_empty())
+            return false;
+        builder.append(function.name_token.original_source_text());
+        if (!serialize_component_values_for_retokenization(builder, function.value))
+            return false;
+        builder.append(function.end_token.original_source_text());
+        return true;
+    }
+
+    if (component_value.is_block()) {
+        auto const& block = component_value.block();
+        if (block.token.original_source_text().is_empty())
+            return false;
+        builder.append(block.token.original_source_text());
+        if (!serialize_component_values_for_retokenization(builder, block.value))
+            return false;
+        builder.append(block.end_token.original_source_text());
+        return true;
+    }
+
+    return false;
+}
+
+static bool serialize_component_values_for_retokenization(Utf16StringBuilder& builder, ReadonlySpan<Parser::ComponentValue> component_values)
+{
+    Parser::TokenStream tokens { component_values };
+    while (tokens.has_next_token()) {
+        auto const& current_token = tokens.consume_a_token();
+        auto const& next_token = tokens.next_token();
+        if (!serialize_component_value_for_retokenization(builder, current_token))
+            return false;
+        if (needs_comment_between(current_token, next_token))
+            builder.append_ascii("/**/"sv);
+    }
+    return true;
+}
+
+Utf16String serialize_a_series_of_component_values_for_retokenization(ReadonlySpan<Parser::ComponentValue> component_values)
+{
+    Utf16StringBuilder builder;
+    if (!serialize_component_values_for_retokenization(builder, component_values))
+        return serialize_a_series_of_component_values(component_values);
+    return builder.to_string();
+}
+
 String serialize_a_positional_value_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values, SerializationMode mode)
 {
     switch (values.size()) {

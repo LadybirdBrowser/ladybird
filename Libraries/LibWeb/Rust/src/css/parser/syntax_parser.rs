@@ -11,8 +11,9 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_component_value};
 use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
-    parse_css_value_with_source,
+    parse_css_value_with_utf16_source,
 };
+use std::borrow::Cow;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -63,6 +64,7 @@ pub(crate) struct AtRule {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct QualifiedRule {
     pub prelude: Vec<ComponentValue>,
+    pub prelude_is_selector: bool,
     pub declarations: Vec<Declaration>,
     pub children: Vec<RuleOrDeclarations>,
     pub source_position: Option<SourcePosition>,
@@ -209,22 +211,56 @@ impl Parser {
     }
 
     fn consume_component_value(&mut self) -> Result<ComponentValue, ()> {
-        consume_a_component_value(&self.tokens, &mut self.position, 0)
+        consume_a_component_value(&mut self.tokens, &mut self.position, 0, true)
+    }
+
+    fn clone_component_value(&mut self) -> Result<ComponentValue, ()> {
+        consume_a_component_value(&mut self.tokens, &mut self.position, 0, false)
+    }
+
+    fn declaration_can_take_tokens(&self, save_original_text: bool) -> bool {
+        if save_original_text {
+            return false;
+        }
+        let mut nesting_depth = 0usize;
+        for token in &self.tokens[self.position..] {
+            match token.kind {
+                ParserTokenKind::Function(_) | ParserTokenKind::OpenSquare | ParserTokenKind::OpenParen => {
+                    nesting_depth += 1;
+                }
+                ParserTokenKind::OpenCurly if nesting_depth == 0 => return false,
+                ParserTokenKind::OpenCurly => nesting_depth += 1,
+                ParserTokenKind::CloseSquare | ParserTokenKind::CloseParen | ParserTokenKind::CloseCurly
+                    if nesting_depth > 0 =>
+                {
+                    nesting_depth -= 1;
+                }
+                ParserTokenKind::Semicolon | ParserTokenKind::CloseCurly if nesting_depth == 0 => break,
+                _ => {}
+            }
+        }
+        true
     }
 
     fn consume_component_values_until(
         &mut self,
         stop: Option<&ParserTokenKind>,
         nested: Nested,
+        take_tokens: bool,
     ) -> Vec<ComponentValue> {
-        let mut values = Vec::new();
+        let mut values = Vec::with_capacity(4);
         while let Some(kind) = self.next_kind() {
             if stop.is_some_and(|stop| std::mem::discriminant(kind) == std::mem::discriminant(stop))
                 || nested == Nested::Yes && matches!(kind, ParserTokenKind::CloseCurly)
             {
                 break;
             }
-            let Ok(value) = self.consume_component_value() else {
+            let value = if take_tokens {
+                self.consume_component_value()
+            } else {
+                self.clone_component_value()
+            };
+            let Ok(value) = value else {
                 break;
             };
             values.push(value);
@@ -261,7 +297,7 @@ impl Parser {
         self.position += 1;
         let mut rule = AtRule {
             name,
-            prelude: Vec::new(),
+            prelude: Vec::with_capacity(4),
             children: Vec::new(),
             has_block: false,
         };
@@ -293,16 +329,17 @@ impl Parser {
         stop: Option<&ParserTokenKind>,
         nested: Nested,
     ) -> Result<QualifiedRule, QualifiedRuleResult> {
-        let mut rule = QualifiedRule {
-            prelude: Vec::new(),
-            declarations: Vec::new(),
-            children: Vec::new(),
-            source_position: None,
-        };
         let qualified_context = if self.rule_context.last() == Some(&RuleContext::AtKeyframes) {
             RuleContext::Keyframe
         } else {
             RuleContext::Style
+        };
+        let mut rule = QualifiedRule {
+            prelude: Vec::with_capacity(8),
+            prelude_is_selector: qualified_context == RuleContext::Style,
+            declarations: Vec::new(),
+            children: Vec::new(),
+            source_position: None,
         };
         loop {
             let Some(kind) = self.next_kind() else {
@@ -367,8 +404,8 @@ impl Parser {
 
     // https://drafts.csswg.org/css-syntax-3/#consume-block-contents
     fn consume_block_contents(&mut self) -> Vec<RuleOrDeclarations> {
-        let mut result = Vec::new();
-        let mut declarations = Vec::new();
+        let mut result = Vec::with_capacity(4);
+        let mut declarations = Vec::with_capacity(8);
         loop {
             match self.next_kind() {
                 Some(ParserTokenKind::Whitespace | ParserTokenKind::Semicolon) => self.position += 1,
@@ -437,7 +474,8 @@ impl Parser {
         }
         self.position += 1;
         self.discard_whitespace();
-        let mut value = self.consume_component_values_until(Some(&ParserTokenKind::Semicolon), nested);
+        let can_take_tokens = self.declaration_can_take_tokens(save_original_text);
+        let mut value = self.consume_component_values_until(Some(&ParserTokenKind::Semicolon), nested, can_take_tokens);
 
         let mut important = false;
         if value.len() >= 2 {
@@ -507,7 +545,6 @@ impl Parser {
             value
                 .iter()
                 .flat_map(|value| value.original_source_text.iter())
-                .copied()
                 .collect::<Vec<_>>()
                 .into_boxed_slice()
         });
@@ -695,6 +732,8 @@ pub struct FfiSyntaxRule {
     pub name_length: usize,
     pub prelude_start: usize,
     pub prelude_count: usize,
+    pub prelude_source_offset: usize,
+    pub prelude_source_length: usize,
     pub declarations_start: usize,
     pub declaration_count: usize,
     pub children_start: usize,
@@ -746,12 +785,26 @@ pub struct FfiSyntaxParse {
     parse_context: *const ParseContext,
     resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     retain_property_components: bool,
+    preserve_property_source_text: bool,
+}
+
+fn component_list_source(values: &[ComponentValue]) -> Cow<'_, [u16]> {
+    if values.is_empty() {
+        return Cow::Borrowed(&[]);
+    }
+    Cow::Owned(
+        values
+            .iter()
+            .flat_map(|value| value.original_source_text.iter())
+            .collect(),
+    )
 }
 
 impl FfiSyntaxParse {
     fn new(
         parse_context: *const ParseContext,
         resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
+        preserve_property_source_text: bool,
     ) -> Self {
         Self {
             values: Vec::new(),
@@ -765,6 +818,7 @@ impl FfiSyntaxParse {
             parse_context,
             resolve_property_id,
             retain_property_components: std::env::var("LIBWEB_VERIFY_RUST_SYNTAX_PARSER").as_deref() == Ok("1"),
+            preserve_property_source_text,
         }
     }
 
@@ -776,6 +830,12 @@ impl FfiSyntaxParse {
 
     fn append_optional_value(&mut self, value: Option<&[u16]>) -> (usize, usize) {
         value.map_or((usize::MAX, 0), |value| self.append_value(value))
+    }
+
+    fn append_source(&mut self, source: &crate::css::css_tokenizer::ParserSource) -> (usize, usize) {
+        let offset = self.values.len();
+        source.append_to(&mut self.values);
+        (offset, source.len())
     }
 
     fn append_component_list(&mut self, values: &[ComponentValue]) -> (usize, usize) {
@@ -842,7 +902,7 @@ impl FfiSyntaxParse {
         let (children_start, child_count) = self.append_component_list(children);
         let (value_offset, value_length) = self.append_value(payload);
         let full_source_length = component.original_source_text.len();
-        let (full_source_offset, _) = self.append_value(&component.original_source_text);
+        let (full_source_offset, _) = self.append_source(&component.original_source_text);
         let source_offset = full_source_offset;
         let source_length = component.opening_source_length;
         let end_source_offset = full_source_offset + full_source_length - component.closing_source_length;
@@ -873,22 +933,26 @@ impl FfiSyntaxParse {
 
     fn append_declaration(&mut self, declaration: &Declaration) -> usize {
         let (name_offset, name_length) = self.append_value(declaration.name.as_ref());
-        let value_source = declaration
-            .value
-            .iter()
-            .flat_map(|value| value.original_source_text.iter().copied())
-            .collect::<Vec<_>>();
+        let value_source = component_list_source(&declaration.value);
         let (values_start, value_count) = if declaration.is_property && !self.retain_property_components {
             (0, 0)
         } else {
             self.append_component_list(&declaration.value)
         };
-        let (value_source_offset, value_source_length) = self.append_value(&value_source);
         let (original_value_offset, original_value_length) =
             self.append_optional_value(declaration.original_value_text.as_deref());
         let (original_full_text_offset, original_full_text_length) =
             self.append_optional_value(declaration.original_full_text.as_deref());
-        let (property_id, parse_status, parsed_value) = self.parse_declaration_value(declaration, &value_source);
+        let (property_id, parse_status, parsed_value) =
+            self.parse_declaration_value(declaration, value_source.as_ref());
+        let needs_value_text = self.preserve_property_source_text
+            || parse_status != FfiParseStatus::Parsed
+            || equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient");
+        let (value_source_offset, value_source_length) = if needs_value_text {
+            self.append_value(value_source.as_ref())
+        } else {
+            (0, 0)
+        };
         let index = self.declarations.len();
         self.declarations.push(FfiSyntaxDeclaration {
             name_offset,
@@ -929,7 +993,6 @@ impl FfiSyntaxParse {
             return (property_id, FfiParseStatus::NotHandled, std::ptr::null());
         }
 
-        let source = source_utf16;
         let parse_context = unsafe { &*self.parse_context };
         let mut value_contexts = if parse_context.value_context_count == 0 {
             Vec::new()
@@ -949,7 +1012,7 @@ impl FfiSyntaxParse {
         context.value_contexts = value_contexts.as_ptr();
         context.value_context_count = value_contexts.len();
 
-        let outcome = parse_css_value_with_source(&context, property_id, &declaration.value, source, source);
+        let outcome = parse_css_value_with_utf16_source(&context, property_id, &declaration.value, source_utf16);
         if let Some(random_function_index) = unsafe { parse_context.random_function_index.as_mut() } {
             *random_function_index = 0;
         }
@@ -997,28 +1060,37 @@ impl FfiSyntaxParse {
     }
 
     fn append_rule(&mut self, rule: &Rule) -> usize {
-        let (rule_type, name, prelude, declarations, children, has_block, source_position) = match rule {
-            Rule::At(rule) => (
-                0,
-                rule.name.as_ref(),
-                rule.prelude.as_slice(),
-                &[][..],
-                rule.children.as_slice(),
-                rule.has_block,
-                None,
-            ),
-            Rule::Qualified(rule) => (
-                1,
-                &[][..],
-                rule.prelude.as_slice(),
-                rule.declarations.as_slice(),
-                rule.children.as_slice(),
-                true,
-                rule.source_position,
-            ),
-        };
+        let (rule_type, name, prelude, prelude_is_selector, declarations, children, has_block, source_position) =
+            match rule {
+                Rule::At(rule) => (
+                    0,
+                    rule.name.as_ref(),
+                    rule.prelude.as_slice(),
+                    false,
+                    &[][..],
+                    rule.children.as_slice(),
+                    rule.has_block,
+                    None,
+                ),
+                Rule::Qualified(rule) => (
+                    1,
+                    &[][..],
+                    rule.prelude.as_slice(),
+                    rule.prelude_is_selector,
+                    rule.declarations.as_slice(),
+                    rule.children.as_slice(),
+                    true,
+                    rule.source_position,
+                ),
+            };
         let (name_offset, name_length) = self.append_value(name);
-        let (prelude_start, prelude_count) = self.append_component_list(prelude);
+        let prelude_source = component_list_source(prelude);
+        let (prelude_source_offset, prelude_source_length) = self.append_value(prelude_source.as_ref());
+        let (prelude_start, prelude_count) = if prelude_is_selector {
+            (0, 0)
+        } else {
+            self.append_component_list(prelude)
+        };
         let (declarations_start, declaration_count) = self.append_declarations(declarations);
         let (children_start, child_count) = self.append_items(children);
         let index = self.rules.len();
@@ -1028,6 +1100,8 @@ impl FfiSyntaxParse {
             name_length,
             prelude_start,
             prelude_count,
+            prelude_source_offset,
+            prelude_source_length,
             declarations_start,
             declaration_count,
             children_start,
@@ -1085,7 +1159,7 @@ pub unsafe extern "C" fn rust_parse_css_stylesheet_syntax(
             return std::ptr::null_mut();
         };
         let rules = parse_stylesheet(source);
-        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id);
+        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, false);
         parse.append_roots(&rules);
         Box::into_raw(Box::new(parse))
     })
@@ -1102,6 +1176,7 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
     context_count: usize,
     parse_context: *const ParseContext,
     resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
+    preserve_property_source_text: bool,
 ) -> *mut FfiSyntaxParse {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
@@ -1125,7 +1200,7 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
             return std::ptr::null_mut();
         };
         let items = parse_block_contents(source, contexts);
-        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id);
+        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, preserve_property_source_text);
         parse.append_root_items(&items);
         Box::into_raw(Box::new(parse))
     })
@@ -1226,5 +1301,39 @@ mod tests {
 
         assert!(parse_block_contents(b"color: red", Vec::new()).is_empty());
         assert!(parse_stylesheet(b"@top-left { color: red }").is_empty());
+    }
+
+    #[test]
+    fn preserves_tokens_when_a_nested_rule_looks_like_a_declaration() {
+        let rules = parse_stylesheet(b"a { color: red; b:hover { width: 1px } }");
+        let Rule::Qualified(rule) = &rules[0] else {
+            panic!("expected qualified rule");
+        };
+        assert_eq!(rule.declarations.len(), 1);
+        assert!(matches!(
+            rule.children.first(),
+            Some(RuleOrDeclarations::Rule(Rule::Qualified(_)))
+        ));
+    }
+
+    #[test]
+    fn transfers_selector_preludes_verbatim() {
+        let rules = parse_stylesheet(b":heading(1.0) {}");
+        let mut parse = super::FfiSyntaxParse::new(std::ptr::null(), None, false);
+        parse.append_roots(&rules);
+        let rule = parse.rules[parse.roots[0]];
+        assert_eq!(
+            &parse.values[rule.prelude_source_offset..rule.prelude_source_offset + rule.prelude_source_length],
+            utf16(":heading(1.0) ")
+        );
+        assert!(
+            crate::css::selector_parser::parse_selector_list(
+                b":heading(1.0) ",
+                &[],
+                crate::css::selector_parser::SelectorType::Standalone,
+                crate::css::selector_parser::SelectorParsingMode::Standard,
+            )
+            .is_err()
+        );
     }
 }

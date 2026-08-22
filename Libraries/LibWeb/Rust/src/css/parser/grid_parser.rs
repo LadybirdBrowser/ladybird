@@ -1501,6 +1501,7 @@ mod tests {
         }
         for (property, source) in [
             (property_id::GRID_COLUMN, "1 / 2 / 3"),
+            (property_id::GRID_ROW, "1.0"),
             (property_id::GRID_ROW, "/ 2"),
             (property_id::GRID_AREA, "a / b / c / d / e"),
         ] {

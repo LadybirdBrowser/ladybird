@@ -181,26 +181,22 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
         [[maybe_unused]] auto last = m_rule_context.take_last();
         VERIFY(last == RuleContext::Style);
     };
-    TokenStream prelude_stream { qualified_rule.prelude };
+    auto maybe_selectors = parse_selector_list_in_rust(qualified_rule.prelude_text, m_declared_namespaces,
+        nested == Nested::Yes, false);
 
-    auto maybe_selectors = parse_a_selector_list(prelude_stream,
-        nested == Nested::Yes ? SelectorType::Relative : SelectorType::Standalone);
-
-    if (maybe_selectors.is_error()) {
-        if (maybe_selectors.error() == ParseError::SyntaxError) {
-            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "style"_utf16_fly_string,
-                .prelude = prelude_stream.dump_string(),
-                .description = "Selectors invalid."_string,
-            });
-        }
+    if (!maybe_selectors.has_value()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "style"_utf16_fly_string,
+            .prelude = qualified_rule.prelude_text.to_utf8(),
+            .description = "Selectors invalid."_string,
+        });
         return {};
     }
 
     if (maybe_selectors.value().is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "style"_utf16_fly_string,
-            .prelude = prelude_stream.dump_string(),
+            .prelude = qualified_rule.prelude_text.to_utf8(),
             .description = "Empty selector."_string,
         });
         return {};

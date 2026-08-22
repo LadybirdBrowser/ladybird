@@ -377,7 +377,6 @@ pub(crate) struct ParserToken {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(crate) enum ParserSource {
     Empty,
     Owned(Box<[u16]>),
@@ -412,7 +411,6 @@ impl Iterator for ParserSourceIter<'_> {
     }
 }
 
-#[allow(dead_code)]
 impl ParserSource {
     pub(crate) fn empty() -> Self {
         Self::Empty

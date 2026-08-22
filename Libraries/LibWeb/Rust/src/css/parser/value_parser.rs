@@ -5142,6 +5142,24 @@ pub(crate) fn parse_css_value_with_source(
     if collect_arbitrary_substitution_function_presence(values, &mut substitution_presence).is_err() {
         return ParseOutcome::Invalid;
     }
+    parse_css_value_after_substitution_scan(
+        context,
+        property_id,
+        values,
+        unresolved_source,
+        comparison_source,
+        substitution_presence,
+    )
+}
+
+fn parse_css_value_after_substitution_scan(
+    context: &ParseContext,
+    property_id: u16,
+    values: &[ComponentValue],
+    unresolved_source: &[u16],
+    comparison_source: &[u16],
+    substitution_presence: SubstitutionFunctionsPresence,
+) -> ParseOutcome {
     if let Some(value) = parse_builtin_value(values) {
         return ParseOutcome::Parsed(shared_style_value(value));
     }
@@ -5168,7 +5186,7 @@ pub(crate) fn parse_css_value_with_source(
                     name: function_name.into_boxed_slice().into(),
                     values: nested_values.into_boxed_slice(),
                 },
-                original_source_text: Box::new([]),
+                original_source_text: crate::css::css_tokenizer::ParserSource::empty(),
                 opening_source_length: 0,
                 closing_source_length: 0,
                 start_position: Default::default(),
@@ -5431,12 +5449,35 @@ pub(crate) fn parse_css_value_with_source(
     }
 }
 
+pub(crate) fn parse_css_value_with_utf16_source(
+    context: &ParseContext,
+    property_id: u16,
+    values: &[ComponentValue],
+    source: &[u16],
+) -> ParseOutcome {
+    if values
+        .iter()
+        .any(|value| matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
+    {
+        return ParseOutcome::Invalid;
+    }
+    let mut substitution_presence = SubstitutionFunctionsPresence::default();
+    if collect_arbitrary_substitution_function_presence(values, &mut substitution_presence).is_err() {
+        return ParseOutcome::Invalid;
+    }
+    let source = if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+        source
+    } else {
+        &[]
+    };
+    parse_css_value_after_substitution_scan(context, property_id, values, source, source, substitution_presence)
+}
+
 /// Parse a property value using the grammars which have been ported to Rust.
 pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: &[ComponentValue]) -> ParseOutcome {
     let source = values
         .iter()
         .flat_map(|value| value.original_source_text.iter())
-        .copied()
         .collect::<Vec<_>>();
     parse_css_value_with_source(context, property_id, values, &source, &[])
 }

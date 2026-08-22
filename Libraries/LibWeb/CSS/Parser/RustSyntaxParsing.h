@@ -15,10 +15,15 @@ namespace Web::CSS::Parser {
 
 class Parser;
 
+enum class PreservePropertySourceText {
+    No,
+    Yes,
+};
+
 class RustSyntaxParser {
 public:
     static Vector<Rule> parse_stylesheet(Parser&);
-    static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>);
+    static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static void set_token_position(Token&, SourcePosition, SourcePosition);
 };
 
