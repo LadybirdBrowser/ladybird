@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-text-font-fallback-ref.html">
+<meta name="fuzzy" content="maxDifference=0-8;totalPixels=0-300">
+<style>
+@font-face {
+    font-family: 'HashFont';
+    src: url('../../Assets/HashSans.woff');
+    unicode-range: U+0041; /* Only letter 'A' */
+}
+.test {
+    font-family: 'HashFont', 'SerenitySans';
+    font-size: 40px;
+}
+</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240">
+    <defs>
+        <path id="line" d="M 20 200 H 380"/>
+    </defs>
+    <text class="test" x="20" y="60">AB</text>
+    <text class="test" x="200" y="130" text-anchor="middle">AB</text>
+    <text class="test"><textPath href="#line">AB</textPath></text>
+</svg>
