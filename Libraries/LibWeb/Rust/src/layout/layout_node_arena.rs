@@ -264,6 +264,7 @@ pub(crate) struct LayoutNodeArena {
     next_run_nonce: Cell<u64>,
     fc_run_cache_store: crate::layout::FcRunCacheArenaStore,
     paintables: RefCell<crate::painting::paintable_arena::PaintableArena>,
+    paint_state: RefCell<crate::painting::paint_state::PaintState>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
     owner_thread: thread::ThreadId,
 }
@@ -287,6 +288,7 @@ impl LayoutNodeArena {
             next_run_nonce: Cell::new(1),
             fc_run_cache_store: crate::layout::FcRunCacheArenaStore::default(),
             paintables: RefCell::new(crate::painting::paintable_arena::PaintableArena::new()),
+            paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
@@ -1480,6 +1482,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn paintables(&self) -> &RefCell<crate::painting::paintable_arena::PaintableArena> {
         &self.paintables
+    }
+
+    pub(crate) fn paint_state(&self) -> &RefCell<crate::painting::paint_state::PaintState> {
+        &self.paint_state
     }
 
     pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {

@@ -9,7 +9,6 @@ use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, LayoutNo
 use crate::painting::paintable_data::*;
 use std::cell::Cell;
 use std::ffi::c_void;
-use std::rc::Rc;
 
 pub(crate) const PAINTABLE_SLOTS_PER_CHUNK: usize = 64;
 
@@ -61,18 +60,9 @@ pub struct PaintableArena {
     chunks: Vec<Box<Chunk>>,
     side_data: Vec<PaintableSideData>,
     committed_fragment_links: std::cell::RefCell<Vec<CommittedFragmentLinkSlot>>,
-    pub(crate) stacking_context_tree: Option<crate::painting::stacking_context::StackingContextTree>,
-    pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
-    pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
-    pub(crate) hit_test_list_generation: u64,
-    pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     pub(crate) paint_caches: Vec<crate::painting::record::cache::PaintCache>,
     absolute_rect_memo: std::cell::RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
-    pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
-    pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     chrome_state_callback: Option<(
         *mut c_void,
         unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
@@ -166,15 +156,6 @@ impl PaintableArena {
         {
             *slot = CommittedFragmentLinkSlot::default();
         }
-    }
-
-    pub(crate) fn reset_visual_context_state(&mut self) {
-        let next_tree_version = self.visual_context.next_tree_version;
-        self.visual_context = crate::painting::visual_context::VisualContextState {
-            needs_to_refresh_scroll_state: true,
-            next_tree_version,
-            ..Default::default()
-        };
     }
 
     fn prepare_row_reset(&self, slot: NodeSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {

@@ -62,7 +62,6 @@ pub(crate) fn apply(
     paintables: &mut PaintableArena,
     viewport: NodeSlotId,
     entries: &[FfiSelectionEntry],
-    range: SelectionRange,
 ) {
     reset_states(layout_arena, paintables, viewport);
     for entry in entries {
@@ -93,10 +92,8 @@ pub(crate) fn apply(
             }
         }
     }
-    paintables.selection = Some(range);
 }
 
 pub(crate) fn clear(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, viewport: NodeSlotId) {
     reset_states(layout_arena, paintables, viewport);
-    paintables.selection = None;
 }

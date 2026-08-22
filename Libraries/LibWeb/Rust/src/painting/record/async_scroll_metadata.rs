@@ -146,7 +146,7 @@ impl PaintRecorder<'_> {
         // targets. Avoid generating redundant per-box targets when no non-viewport scroller
         // could need one.
         if !self
-            .paintables
+            .paint_state
             .visual_context
             .scroll_state
             .has_non_viewport_wheel_scroll_target_candidate
@@ -339,10 +339,10 @@ impl PaintRecorder<'_> {
 
         let sticky_node_index = self.data(paintable).enclosing_scroll_node_index;
         if self.data(paintable).has_flag(PaintableFlag::StickyPosition) && sticky_node_index != 0 {
-            let Some(tree) = &self.paintables.visual_context.tree else {
+            let Some(tree) = &self.paint_state.visual_context.tree else {
                 return;
             };
-            let scroll_state = &self.paintables.visual_context.scroll_state;
+            let scroll_state = &self.paint_state.visual_context.scroll_state;
             let sticky_slot = tree.scroll_state_slot_for_node(sticky_node_index);
             if sticky_slot == NO_SCROLL_STATE_SLOT {
                 return;

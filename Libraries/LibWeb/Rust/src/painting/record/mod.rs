@@ -62,6 +62,7 @@ pub(crate) struct NestedRecordingState {
 pub struct PaintRecorder<'a> {
     pub(crate) layout_arena: &'a LayoutNodeArena,
     pub(crate) paintables: &'a PaintableArena,
+    pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
     stacking_contexts: &'a StackingContextTree,
     pub(crate) host: &'a FfiHitTestHostCallbacks,
     pub(crate) paint_host: &'a FfiPaintHostCallbacks,
@@ -182,6 +183,7 @@ impl<'a> PaintRecorder<'a> {
         PaintRecorder {
             layout_arena: self.layout_arena,
             paintables: self.paintables,
+            paint_state: self.paint_state,
             stacking_contexts: self.stacking_contexts,
             host: self.host,
             paint_host: self.paint_host,
