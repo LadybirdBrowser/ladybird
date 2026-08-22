@@ -389,15 +389,13 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn absolute_containing_line_box_rect(&self, paintable: PaintableSlotId) -> Option<CssPixelRect> {
-        let data = self.data(paintable);
-        if !data.has_containing_line_box_index {
-            return None;
-        }
-        let block = data.containing_block;
+        let containing_line_box_index =
+            paintable_geometry::committed_containing_line_box_index(self.paintables, paintable)?;
+        let block = self.data(paintable).containing_block;
         if block.is_invalid() || !self.paintables.is_live(block) || !self.data(block).kind.has_lines() {
             return None;
         }
-        let line = self.paintables.side(block).lines.get(data.containing_line_box_index)?;
+        let line = self.paintables.side(block).lines.get(containing_line_box_index)?;
         Some(CssPixelRect::from(line.rect).translated_by(paintable_geometry::absolute_position(self.paintables, block)))
     }
 
@@ -409,15 +407,14 @@ impl<'a> PaintRecorder<'a> {
         context: usize,
         border_radii: BorderRadii,
     ) {
-        let data = self.data(paintable_box);
-        let (caret_line_index, caret_line_rect) = if data.has_containing_line_box_index {
-            (
-                Some(data.containing_line_box_index),
-                self.absolute_containing_line_box_rect(paintable_box),
-            )
-        } else {
-            (None, None)
-        };
+        let (caret_line_index, caret_line_rect) =
+            match paintable_geometry::committed_containing_line_box_index(self.paintables, paintable_box) {
+                Some(containing_line_box_index) => (
+                    Some(containing_line_box_index),
+                    self.absolute_containing_line_box_rect(paintable_box),
+                ),
+                None => (None, None),
+            };
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z = crate::painting::style_queries::effective_z_index(self.layout_arena, &self.data(target))
                 .unwrap_or(0)

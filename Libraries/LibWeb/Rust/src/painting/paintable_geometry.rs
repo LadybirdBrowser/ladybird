@@ -96,6 +96,30 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &PaintableArena, sl
     })
 }
 
+pub(crate) fn committed_containing_line_box_index(arena: &PaintableArena, slot: PaintableSlotId) -> Option<usize> {
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.containing_line_box_index))
+}
+
+pub(crate) fn committed_svg_viewport_transform(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> Option<crate::layout::FfiAffineTransform> {
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_viewport_transform))
+}
+
+pub(crate) fn committed_svg_viewport_size(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> crate::layout::FfiCssPixelSize {
+    if arena.data_ref(slot).kind != PaintableKind::SVGSVGPaintable {
+        return crate::layout::FfiCssPixelSize::default();
+    }
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg_viewport_size)
+            .unwrap_or_default()
+    })
+}
+
 pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;
