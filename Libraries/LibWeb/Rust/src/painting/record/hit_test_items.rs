@@ -333,11 +333,11 @@ impl<'a> PaintRecorder<'a> {
         if containing_block.is_invalid() || !self.paintables.is_live(containing_block) {
             return None;
         }
-        let block = self.data(containing_block);
         let absolute = paintable_geometry::absolute_rect(self.paintables, containing_block);
         let margin = paintable_geometry::committed_margin(self.paintables, containing_block);
         let border = paintable_geometry::committed_border(self.paintables, containing_block);
         let padding = paintable_geometry::committed_padding(self.paintables, containing_block);
+        let content_size = paintable_geometry::committed_content_size(self.paintables, containing_block);
         let top = margin.top + border.top + padding.top;
         let right = margin.right + border.right + padding.right;
         let bottom = margin.bottom + border.bottom + padding.bottom;
@@ -345,8 +345,8 @@ impl<'a> PaintRecorder<'a> {
         Some(CssPixelRect::new(
             absolute.x - left,
             absolute.y - top,
-            block.content_size.width + left + right,
-            block.content_size.height + top + bottom,
+            content_size.width + left + right,
+            content_size.height + top + bottom,
         ))
     }
 

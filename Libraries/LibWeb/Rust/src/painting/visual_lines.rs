@@ -191,7 +191,7 @@ pub(crate) fn empty_line_caret_targets(
     }
 
     let content_position = paintable_geometry::absolute_position(paintables, block);
-    let content_width = paintables.data_ref(block).content_size.width;
+    let content_width = paintable_geometry::committed_content_size(paintables, block).width;
     let mut targets = Vec::new();
     for (i, line) in lines.iter().enumerate() {
         if line.has_fragments {

@@ -410,12 +410,10 @@ pub(crate) fn measure_scrollable_overflow(
                     border.top != zero || border.right != zero || border.bottom != zero || border.left != zero;
                 if !has_border {
                     let padding = crate::painting::paintable_geometry::committed_padding(paintables, child_paintable);
-                    let content_box_relative_to_padding_box = CssPixelRect::new(
-                        padding.left,
-                        padding.top,
-                        child_data.content_size.width,
-                        child_data.content_size.height,
-                    );
+                    let content_size =
+                        crate::painting::paintable_geometry::committed_content_size(paintables, child_paintable);
+                    let content_box_relative_to_padding_box =
+                        CssPixelRect::new(padding.left, padding.top, content_size.width, content_size.height);
                     // The committed line fragment already contributes this content box. A box with no border whose
                     // cached overflow fits inside the content box cannot expand its containing block's overflow.
                     if content_box_relative_to_padding_box.contains_rect(child_data.cached_overflow.rect.into()) {
