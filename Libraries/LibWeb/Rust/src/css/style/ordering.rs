@@ -979,6 +979,7 @@ impl StyleEngine {
                         deferred_prefix_matches: None,
                         answer_is_exact: None,
                         cascade_only: false,
+                        rule_filter: None,
                     },
                 ) {
                     result = Err(incomplete);

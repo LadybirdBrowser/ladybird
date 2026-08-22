@@ -2523,6 +2523,7 @@ pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usiz
 pub unsafe extern "C" fn style_engine_take_style_transaction(
     engine: *mut c_void,
     root: u32,
+    defer_non_geometry_style: bool,
 ) -> FfiStyleTransactionView {
     abort_on_panic(|| {
         let Some(root) = StyleNodeID::from_raw(root) else {
@@ -2531,7 +2532,9 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         engine.clear_ffi_style_transaction_output();
         let mut output = FfiStyleTransactionOutput::default();
-        output.scoped = engine.take_style_transaction(root, |transaction_version, program_version, answers| {
+        let mut emit = |transaction_version: super::StyleTransactionVersion,
+                        program_version: super::ProgramVersion,
+                        answers: &[super::PublishedStyleDeltaRecord]| {
             assert!(
                 output.answers.is_empty(),
                 "a style transaction emitted more than one batch"
@@ -2539,7 +2542,11 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
             output.transaction_version = transaction_version.0;
             output.program_version = program_version.0;
             output.answers.extend_from_slice(answers);
-        });
+        };
+        output.scoped = match defer_non_geometry_style {
+            true => engine.take_style_transaction_for_layout_geometry(root, &mut emit),
+            false => engine.take_style_transaction(root, &mut emit),
+        };
         output.reclaimed_style_atoms = std::mem::take(&mut engine.reclaimed_style_atoms)
             .into_iter()
             .map(|reclaimed| FfiReclaimedStyleAtom {
@@ -2551,6 +2558,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         if engine.recording_id().is_some() {
             engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
                 payload.write_u32(root.raw());
+                payload.write_bool(defer_non_geometry_style);
                 let mut outputs = super::record_replay::PayloadWriter::default();
                 write_style_transaction_outputs(&output, &mut outputs);
                 payload.write_bytes(outputs.as_bytes());

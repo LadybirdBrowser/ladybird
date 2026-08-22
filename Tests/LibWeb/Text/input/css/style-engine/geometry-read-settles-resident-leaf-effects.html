@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item {
+        width: 37px;
+        height: 10px;
+    }
+    .item:nth-child(even) {
+        width: 44px;
+    }
+</style>
+<div id="container"><div class="item" id="first"></div><div class="item" id="second"></div></div>
+<script>
+    test(() => {
+        container.getBoundingClientRect();
+        const firstIdentity = internals.styleRecordIdentity(first);
+        const secondIdentity = internals.styleRecordIdentity(second);
+
+        const arriving = document.createElement("div");
+        arriving.className = "item";
+        container.prepend(arriving);
+
+        println(`arriving leaf geometry: ${arriving.offsetWidth}`);
+        println(`first resident geometry settled: ${first.offsetWidth}`);
+        println(`second resident geometry settled: ${second.offsetWidth}`);
+        println(`first resident style settled: ${internals.styleRecordIdentity(first) !== firstIdentity}`);
+        println(`second resident style settled: ${internals.styleRecordIdentity(second) !== secondIdentity}`);
+    });
+</script>

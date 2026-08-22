@@ -1,0 +1,5 @@
+arriving leaf geometry: 37
+first resident geometry settled: 44
+second resident geometry settled: 37
+first resident style settled: true
+second resident style settled: true

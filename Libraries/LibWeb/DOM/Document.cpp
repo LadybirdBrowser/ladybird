@@ -2049,16 +2049,21 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     }
 }
 
+static bool update_layout_reason_reads_element_geometry(UpdateLayoutReason reason)
+{
+    return reason == UpdateLayoutReason::ElementGetClientRects
+        || reason == UpdateLayoutReason::ElementClientWidth
+        || reason == UpdateLayoutReason::ElementClientHeight
+        || reason == UpdateLayoutReason::HTMLElementOffsetWidth
+        || reason == UpdateLayoutReason::HTMLElementOffsetHeight;
+}
+
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
 {
     if (!node.is_connected())
         return;
 
-    auto const reads_layout_geometry = reason == UpdateLayoutReason::ElementGetClientRects
-        || reason == UpdateLayoutReason::ElementClientWidth
-        || reason == UpdateLayoutReason::ElementClientHeight
-        || reason == UpdateLayoutReason::HTMLElementOffsetWidth
-        || reason == UpdateLayoutReason::HTMLElementOffsetHeight;
+    auto const reads_layout_geometry = update_layout_reason_reads_element_geometry(reason);
     if (reads_layout_geometry
         && m_has_completed_style_update
         && layout_is_up_to_date()
@@ -2244,7 +2249,10 @@ void Document::update_layout(UpdateLayoutReason reason)
     // Recompute it after each pass because an initial style update can enroll the elements of a
     // freshly parsed document after update_layout() has already started.
     for (u64 layout_pass = 0; layout_pass < ordinary_stabilization_round_limit + static_cast<u64>(style_computer().style_engine().connected_element_count()) + 1; ++layout_pass) {
-        update_style();
+        if (update_layout_reason_reads_element_geometry(reason))
+            update_style_for_layout_geometry();
+        else
+            update_style();
         process_pending_top_layer_layout_changes();
 
         auto const should_collect_devtools_layout_data = page().client().has_active_devtools_client();

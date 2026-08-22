@@ -468,6 +468,7 @@ public:
     void obtain_theme_color();
 
     void update_style();
+    void update_style_for_layout_geometry();
     void invalidate_style_for_viewport_change();
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
     void set_suppresses_attribute_style_invalidation(bool suppresses) { m_suppresses_attribute_style_invalidation = suppresses; }

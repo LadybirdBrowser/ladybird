@@ -269,7 +269,22 @@ impl StyleEngine {
             dispatch_workspace_bytes: 0,
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             cascade_compaction_workspace_bytes: 0,
+            rule_filter: None,
         }));
+    }
+
+    pub(super) fn set_published_match_answer_rule_filter(&mut self, rules: Vec<(RuleID, SelectorProgramID)>) {
+        let traversal = self
+            .batch_matching_traversal
+            .as_mut()
+            .expect("a published answer rule filter requires a completion batch");
+        debug_assert!(traversal.rule_filter.is_none());
+        let rules: Rc<[(RuleID, SelectorProgramID)]> = rules.into_boxed_slice().into();
+        self.memory.reserve_required(
+            MemoryCategory::BatchScratch,
+            (rules.len() * size_of::<(RuleID, SelectorProgramID)>()) as u64,
+        );
+        traversal.rule_filter = Some(rules);
     }
 
     pub(super) fn end_published_match_answer_completion_batch(&mut self) {
@@ -302,6 +317,12 @@ impl StyleEngine {
         self.memory.release(
             MemoryCategory::BatchScratch,
             traversal.cascade_compaction_workspace_bytes,
+        );
+        self.memory.release(
+            MemoryCategory::BatchScratch,
+            traversal.rule_filter.as_ref().map_or(0, |rules| {
+                (rules.len() * size_of::<(RuleID, SelectorProgramID)>()) as u64
+            }),
         );
         let released_cascade_payload_bytes = self.match_answers.sweep_unreferenced();
         self.retained_match_answers
@@ -351,6 +372,7 @@ impl StyleEngine {
             dispatch_workspace_bytes: 0,
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             cascade_compaction_workspace_bytes: 0,
+            rule_filter: None,
         })
     }
 
@@ -447,6 +469,7 @@ impl StyleEngine {
             dispatch_workspace_bytes: 0,
             cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             cascade_compaction_workspace_bytes: 0,
+            rule_filter: None,
         }));
     }
 
@@ -921,6 +944,7 @@ impl StyleEngine {
                 deferred_prefix_matches: retry.deferred_prefix_matches,
                 answer_is_exact: retry.answer_is_exact,
                 cascade_only: retry.cascade_only,
+                rule_filter: retry.rule_filter,
             },
         );
         let _ = shared_prefix_states;
@@ -959,6 +983,9 @@ impl StyleEngine {
             .observing_witnesses(&self.relational_witnesses);
         if attempt.cascade_only {
             interpreter = interpreter.for_cascade();
+        }
+        if let Some(rule_filter) = attempt.rule_filter {
+            interpreter = interpreter.with_rule_filter(rule_filter).with_direct_rule_filter();
         }
         if self.tree.tree_scope(node) == scope
             && let Some(requirements) = ancestor_requirements
@@ -3579,10 +3606,14 @@ impl StyleEngine {
             }
             // OPTIMIZATION: Identical sheet sets share a scope program, so the prefix automaton's
             // answer can be reused across otherwise independent shadow trees.
-            let can_defer_prefix_matches =
-                compact_for_cascade && inner_scope.is_none() && slotted_scopes.is_empty() && part_scopes.is_empty();
+            let rule_filter = traversal.rule_filter.as_deref();
+            let can_defer_prefix_matches = compact_for_cascade
+                && rule_filter.is_none()
+                && inner_scope.is_none()
+                && slotted_scopes.is_empty()
+                && part_scopes.is_empty();
             let mut deferred_prefix_matches = None;
-            let mut retained_match_answer_is_exact = compact_for_cascade;
+            let mut retained_match_answer_is_exact = compact_for_cascade && rule_filter.is_none();
             let result = for_each_matching_scope(
                 scope,
                 inner_scope,
@@ -3606,6 +3637,7 @@ impl StyleEngine {
                                 .then_some(&mut deferred_prefix_matches),
                             answer_is_exact: Some(&mut retained_match_answer_is_exact),
                             cascade_only: is_primary && can_defer_prefix_matches && !self.complete_answers_exactly,
+                            rule_filter,
                         },
                     )
                 },
@@ -4051,7 +4083,12 @@ impl StyleEngine {
             .map(|traversal| Rc::clone(&traversal.prefix_caches))
             .unwrap_or_else(|| Rc::new(RefCell::new(PrefixCaches::default())));
         let mut completion_scratch_bytes = 0;
-        let mut retained_match_answer_is_exact = compact_for_cascade;
+        let rule_filter = self
+            .batch_matching_traversal
+            .as_ref()
+            .and_then(|traversal| traversal.rule_filter.as_ref())
+            .map(Rc::clone);
+        let mut retained_match_answer_is_exact = compact_for_cascade && rule_filter.is_none();
         let mut facts = StyleNodeFacts::new();
         let mut requests = Vec::new();
         loop {
@@ -4085,6 +4122,7 @@ impl StyleEngine {
                                 && inner_scope.is_none()
                                 && slotted_scopes.is_empty()
                                 && part_scopes.is_empty(),
+                            rule_filter: rule_filter.as_deref(),
                         },
                     )
                 },

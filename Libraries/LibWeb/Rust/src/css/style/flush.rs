@@ -14,6 +14,23 @@ impl StyleEngine {
         root: StyleNodeID,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
     ) -> bool {
+        self.take_style_transaction_impl(root, false, &mut emit)
+    }
+
+    pub fn take_style_transaction_for_layout_geometry(
+        &mut self,
+        root: StyleNodeID,
+        mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+    ) -> bool {
+        self.take_style_transaction_impl(root, true, &mut emit)
+    }
+
+    fn take_style_transaction_impl(
+        &mut self,
+        root: StyleNodeID,
+        defer_non_geometry_style: bool,
+        emit: &mut impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+    ) -> bool {
         self.reclaim_computed_memory_if_needed();
         self.sync_tier3_benefit_observations();
         let tier3_evictions = self.memory.finish_tier3_quota_period();
@@ -45,7 +62,25 @@ impl StyleEngine {
 
         let mut transaction = self.drain_transaction();
         self.apply_staged_transaction(&mut transaction);
-        if transaction.is_empty() {
+        let force_deferred_resident_non_geometry_style =
+            !defer_non_geometry_style && self.deferred_resident_non_geometry_style;
+        if force_deferred_resident_non_geometry_style {
+            self.deferred_resident_non_geometry_style = false;
+        }
+        let mut layout_geometry_rule_filter =
+            (defer_non_geometry_style && !initial_tree_was_bulk_loaded && !publish_document_root_arrival)
+                .then(|| self.layout_geometry_rule_filter_for_deferred_resident_non_geometry_style(&transaction))
+                .flatten();
+        let defer_resident_non_geometry_style = layout_geometry_rule_filter.is_some();
+        if defer_resident_non_geometry_style {
+            self.deferred_resident_non_geometry_style = true;
+            self.discard_retained_prefix_caches();
+            self.retained_match_answers.evict(&mut self.match_answers);
+            let workspace_bytes = self.match_workspace.capacity_bytes();
+            self.match_workspace = MatchEvaluationWorkspace::default();
+            self.memory.release(MemoryCategory::BatchScratch, workspace_bytes);
+        }
+        if transaction.is_empty() && !force_deferred_resident_non_geometry_style {
             self.release_transaction_and_sweep_atoms(transaction);
             return true;
         }
@@ -84,7 +119,9 @@ impl StyleEngine {
         // retain it across the same boundary. Other selector-affecting transactions retire the
         // answers they name: a planned element may not be recomputed by the traversal that
         // immediately follows, and stale state must not survive into a later reuse.
-        let transaction_reaches_no_selector = !transaction.has_coarsened_markers()
+        let transaction_reaches_no_selector = !force_deferred_resident_non_geometry_style
+            && !defer_resident_non_geometry_style
+            && !transaction.has_coarsened_markers()
             && transaction.inputs.iter().all(|input| {
                 matches!(
                     input.key,
@@ -103,7 +140,10 @@ impl StyleEngine {
                         | InputKey::CascadeTopology(_)
                 )
             });
-        let retained_answer_patch_selection = self.rules_for_retained_answer_patch(&transaction);
+        let retained_answer_patch_selection = (!force_deferred_resident_non_geometry_style
+            && !defer_resident_non_geometry_style)
+            .then(|| self.rules_for_retained_answer_patch(&transaction))
+            .flatten();
         let transaction_supports_global_exact_cascade_stops =
             retained_answer_patch_selection.as_ref().is_some_and(|selection| {
                 let changed_nodes_have_selector_only_identity_inputs = transaction.inputs.iter().all(|input| {
@@ -310,7 +350,8 @@ impl StyleEngine {
                 )
             })
             .count();
-        let use_exact_tree_routing = !transaction.has_coarsened_markers()
+        let use_exact_tree_routing = !defer_resident_non_geometry_style
+            && !transaction.has_coarsened_markers()
             && exact_tree_routing_is_selective(arriving_nodes.len() + departing_nodes, connected_element_count);
         let mut transaction_fact_view = self.transaction_fact_view_for(&mut transaction, root, &regions);
         if use_exact_tree_routing {
@@ -326,7 +367,10 @@ impl StyleEngine {
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, fact_view_bytes);
         let mut sequences = SequenceChanges::new();
-        if !transaction.has_coarsened_markers() {
+        if !transaction.has_coarsened_markers()
+            && !defer_resident_non_geometry_style
+            && !force_deferred_resident_non_geometry_style
+        {
             // Routing reads the program as it stands now, but the inputs happened before it did.
             // A sheet that went away in this same transaction was still deciding when the mutations
             // ahead of it in the journal were recorded, so its rules cannot be skipped as inactive.
@@ -620,7 +664,7 @@ impl StyleEngine {
                     InputKey::RuleField(_, RuleField::Activation) | InputKey::SheetActivation(_)
                 )
             });
-        if !transaction.markers.is_empty() {
+        if !transaction.markers.is_empty() || force_deferred_resident_non_geometry_style {
             // A complete-scope action or coarsened journal proves no narrower output region, so the
             // plan is the document. An environment action still preserves the exact selector state
             // maintained above because it changed no selector input.
@@ -1014,6 +1058,10 @@ impl StyleEngine {
                 if !reuse_active_batch_matching_traversal {
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch);
                 }
+                if let Some(rule_filter) = layout_geometry_rule_filter.take() {
+                    debug_assert!(!reuse_active_batch_matching_traversal);
+                    self.set_published_match_answer_rule_filter(rule_filter);
+                }
                 let retained_answer_dispatch = retained_answer_patch
                     .as_ref()
                     .map(|patch| patch.dispatch.as_ref())
@@ -1370,6 +1418,127 @@ impl StyleEngine {
             }
         }
         !publish_document_root_arrival && !plan_is_broad
+    }
+
+    /// A leaf-only tree transaction can be split at a geometry observation when every rule which
+    /// may affect geometry is insensitive to unrelated leaves. Arrivals receive a complete
+    /// geometry-affecting style projection; resident non-geometry style and the rest of each
+    /// arrival's style are observed by the next ordinary cold transaction.
+    fn layout_geometry_rule_filter_for_deferred_resident_non_geometry_style(
+        &self,
+        transaction: &StyleTransaction,
+    ) -> Option<Vec<(RuleID, SelectorProgramID)>> {
+        if transaction.has_coarsened_markers() {
+            return None;
+        }
+
+        let mut has_tree_change = false;
+        let mut nonresident_nodes = Vec::new();
+        let route_liveness = self.routing.route_liveness(&self.program, &self.programs);
+        for input in &transaction.inputs {
+            match (input.key, input.old, input.new) {
+                (
+                    InputKey::TreeRelations(node),
+                    InputValue::TreeRelations(None),
+                    InputValue::TreeRelations(Some(relations)),
+                ) => {
+                    has_tree_change = true;
+                    nonresident_nodes.push(node);
+                    if relations.parent.is_none()
+                        || relations.assigned_slot.is_some()
+                        || self.tree.first_element_child(node).is_some()
+                    {
+                        return None;
+                    }
+                }
+                (
+                    InputKey::TreeRelations(node),
+                    InputValue::TreeRelations(Some(relations)),
+                    InputValue::TreeRelations(None),
+                ) => {
+                    has_tree_change = true;
+                    nonresident_nodes.push(node);
+                    if relations.parent.is_none()
+                        || relations.assigned_slot.is_some()
+                        || self.tree.first_element_child(node).is_some()
+                    {
+                        return None;
+                    }
+                }
+                (
+                    InputKey::TreeRelations(_),
+                    InputValue::TreeRelations(Some(old)),
+                    InputValue::TreeRelations(Some(new)),
+                ) if old.parent.is_some()
+                    && old.parent == new.parent
+                    && old.tree_scope == new.tree_scope
+                    && old.assigned_slot == new.assigned_slot =>
+                {
+                    has_tree_change = true;
+                }
+                (
+                    InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts),
+                    InputValue::Feature(FeatureValue::Absent),
+                    InputValue::Feature(FeatureValue::Present),
+                ) => {}
+                (InputKey::LocalFeature(_, LocalFeatureKey::PartExposure), _, _) => return None,
+                (InputKey::LocalFeature(..) | InputKey::State(..), _, _) => {
+                    if self.input_routes_may_affect_layout_geometry(input, &route_liveness) {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        }
+        if !has_tree_change {
+            return None;
+        }
+
+        let mut geometry_rules = Vec::new();
+        for raw_rule in 0..self.program.rule_count() {
+            let rule = RuleID(raw_rule);
+            if !self.program.rule_can_decide(rule) {
+                continue;
+            }
+            let version = self.program.rule_version(rule);
+            if !version.kind.matches_elements() {
+                continue;
+            }
+            if !self.program.declarations_are_complete_for(rule) {
+                return None;
+            }
+            let affects_geometry =
+                self.program.declared_properties_of(rule).iter().any(|declared| {
+                    crate::css::property_metadata::property_may_affect_layout_geometry(declared.property)
+                });
+            if !affects_geometry {
+                continue;
+            }
+            let program_id = version.selector_program?;
+            let program = self.programs.get(program_id);
+            let resident_answers_are_stable = program.resident_answers_are_stable_under_leaf_changes()
+                || program.entries().iter().enumerate().all(|(entry, _)| {
+                    program.entry_resident_answer_is_stable_under_leaf_changes(entry)
+                        || (!program.subject_dispatch_keys(entry).is_empty()
+                            && !program.subject_dispatch_keys(entry).iter().any(|&key| {
+                                if !key.has_selector_posting() {
+                                    return true;
+                                }
+                                match self.facts.postings().lookup(key) {
+                                    Lookup::Known(posting) => posting
+                                        .candidates()
+                                        .any(|candidate| !nonresident_nodes.contains(&candidate)),
+                                    Lookup::KnownAbsent => false,
+                                    Lookup::Missing(_) => true,
+                                }
+                            }))
+                });
+            if !resident_answers_are_stable {
+                return None;
+            }
+            geometry_rules.push((rule, program_id));
+        }
+        Some(geometry_rules)
     }
 
     pub(super) fn prepare_topology_for_matching(&mut self, root: StyleNodeID, regions: &mut ImpactRegions) -> bool {

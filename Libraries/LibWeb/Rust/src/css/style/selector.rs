@@ -761,6 +761,55 @@ impl SelectorProgram {
             .any(|node| matches!(node, SelectorOp::RelativeExists(_)))
     }
 
+    /// Whether inserting or removing an unrelated element leaf can leave every resident element's
+    /// answer unchanged. The arriving element itself is outside this proof and must be matched in
+    /// full. Parent and ancestor constraints are stable because no resident ancestry changes;
+    /// sibling, positional, relational, scoped, and shadow-crossing constraints can observe the
+    /// leaf from another subject and therefore refuse the proof.
+    #[must_use]
+    pub(super) fn resident_answers_are_stable_under_leaf_changes(&self) -> bool {
+        (0..self.entries.len()).all(|entry| self.entry_resident_answer_is_stable_under_leaf_changes(entry))
+    }
+
+    #[must_use]
+    pub(super) fn entry_resident_answer_is_stable_under_leaf_changes(&self, entry: usize) -> bool {
+        self.node_is_resident_stable_under_leaf_changes(self.entries[entry].root)
+    }
+
+    fn node_is_resident_stable_under_leaf_changes(&self, id: SelectorNodeID) -> bool {
+        match self.node(id) {
+            SelectorOp::And { first, count } | SelectorOp::Or { first, count } => self
+                .operands(first, count)
+                .iter()
+                .all(|&operand| self.node_is_resident_stable_under_leaf_changes(operand)),
+            SelectorOp::Where(inner)
+            | SelectorOp::Not(inner)
+            | SelectorOp::Parent(inner)
+            | SelectorOp::Ancestor(inner) => self.node_is_resident_stable_under_leaf_changes(inner),
+            SelectorOp::Feature(_)
+            | SelectorOp::State(_)
+            | SelectorOp::Root
+            | SelectorOp::IsNode(_)
+            | SelectorOp::ValueState { .. }
+            | SelectorOp::Language { .. }
+            | SelectorOp::Heading(_) => true,
+            SelectorOp::PreviousSibling(_)
+            | SelectorOp::PrecedingSibling(_)
+            | SelectorOp::NthPosition(_)
+            | SelectorOp::RelativeExists(_)
+            | SelectorOp::Host(_)
+            | SelectorOp::Slotted(_)
+            | SelectorOp::Part(_)
+            | SelectorOp::ExposedToHost { .. }
+            | SelectorOp::Empty
+            | SelectorOp::Scope
+            | SelectorOp::AssignedSlot(_)
+            | SelectorOp::ScopeRootInstance
+            | SelectorOp::RelativeAnchorInstance
+            | SelectorOp::InScope { .. } => false,
+        }
+    }
+
     /// Whether any node in this subtree tests sibling position. A retained witness for a
     /// query containing one can go stale from a sibling mutation that never touches the
     /// witness itself, so such witnesses cannot prove an anchor unchanged.

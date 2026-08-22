@@ -350,6 +350,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::StyleDeltaBatch => {
                     let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
+                    let defer_non_geometry_style = event.payload.read_bool()?;
                     let output_bytes = event.payload.read_bytes()?;
                     let expected_digest = event.payload.read_u64()?;
                     let expected = read_style_transaction_outputs(PayloadReader::new(output_bytes))?;
@@ -380,7 +381,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     let start = Instant::now();
-                    let actual_view = unsafe { bridge::style_engine_take_style_transaction(engine, root) };
+                    let actual_view =
+                        unsafe { bridge::style_engine_take_style_transaction(engine, root, defer_non_geometry_style) };
                     let actual_reclaimed_atoms = if actual_view.reclaimed_style_atom_count == 0 {
                         Vec::new()
                     } else {

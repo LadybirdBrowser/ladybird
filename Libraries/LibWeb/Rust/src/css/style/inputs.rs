@@ -50,6 +50,7 @@ impl StyleEngine {
             deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             initial_tree_batch_applied: false,
             initial_tree_bulk_load_is_pending: false,
+            deferred_resident_non_geometry_style: false,
             tree_staging: TreeRelationStaging::default(),
             tree_staging_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             program_staging: ProgramStaging::default(),
@@ -703,6 +704,48 @@ impl StyleEngine {
             || !self.tree_staging.is_empty()
             || self.program_staging.is_dirty()
             || self.sheet_rule_replacement.is_some()
+            || self.deferred_resident_non_geometry_style
+    }
+
+    #[must_use]
+    pub fn has_immediate_pending_transaction(&self) -> bool {
+        !self.journal.is_empty()
+            || !self.tree_staging.is_empty()
+            || self.program_staging.is_dirty()
+            || self.sheet_rule_replacement.is_some()
+    }
+
+    pub(super) fn input_routes_may_affect_layout_geometry(
+        &self,
+        input: &NormalizedInput,
+        route_liveness: &BitColumn,
+    ) -> bool {
+        let mut keys = match input.key {
+            InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) => {
+                let mut keys = routing_keys_for_input(input);
+                for other in self.facts.attribute_name_keys(name) {
+                    if other != name {
+                        keys.push(RoutingKey::AttributeName(other));
+                    }
+                }
+                keys
+            }
+            _ => routing_keys_for_input(input),
+        };
+        keys.sort_unstable();
+        keys.dedup();
+        keys.into_iter().any(|key| {
+            self.routing.routes_for(key).iter().copied().any(|route| {
+                if !route_liveness.contains(route.index()) {
+                    return false;
+                }
+                let rule = self.routing.rule_of(route);
+                !self.program.declarations_are_complete_for(rule)
+                    || self.program.declared_properties_of(rule).iter().any(|declared| {
+                        crate::css::property_metadata::property_may_affect_layout_geometry(declared.property)
+                    })
+            })
+        })
     }
 
     /// Whether settling the pending selector inputs can change geometry derived from the committed
@@ -728,37 +771,12 @@ impl StyleEngine {
         }
 
         let route_liveness = self.routing.route_liveness(&self.program, &self.programs);
-        self.journal.inputs().any(|input| {
-            let mut keys = match input.key {
-                InputKey::LocalFeature(_, LocalFeatureKey::PartExposure | LocalFeatureKey::ArrivingFacts) => {
-                    return true;
-                }
-                InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) => {
-                    let mut keys = routing_keys_for_input(&input);
-                    for other in self.facts.attribute_name_keys(name) {
-                        if other != name {
-                            keys.push(RoutingKey::AttributeName(other));
-                        }
-                    }
-                    keys
-                }
-                InputKey::LocalFeature(..) | InputKey::State(..) => routing_keys_for_input(&input),
-                _ => return true,
-            };
-            keys.sort_unstable();
-            keys.dedup();
-            keys.into_iter().any(|key| {
-                self.routing.routes_for(key).iter().copied().any(|route| {
-                    if !route_liveness.contains(route.index()) {
-                        return false;
-                    }
-                    let rule = self.routing.rule_of(route);
-                    !self.program.declarations_are_complete_for(rule)
-                        || self.program.declared_properties_of(rule).iter().any(|declared| {
-                            crate::css::property_metadata::property_may_affect_layout_geometry(declared.property)
-                        })
-                })
-            })
+        self.journal.inputs().any(|input| match input.key {
+            InputKey::LocalFeature(_, LocalFeatureKey::PartExposure | LocalFeatureKey::ArrivingFacts) => true,
+            InputKey::LocalFeature(..) | InputKey::State(..) => {
+                self.input_routes_may_affect_layout_geometry(&input, &route_liveness)
+            }
+            _ => true,
         })
     }
 

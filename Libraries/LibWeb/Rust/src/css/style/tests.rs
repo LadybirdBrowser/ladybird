@@ -271,6 +271,26 @@ fn test_selector_parser_builds_class_descendant_selectors() {
     assert!(parsed == builder.finish());
 }
 
+#[test]
+fn selector_leaf_stability_distinguishes_ancestry_from_sibling_position() {
+    let guard = StyleAtomID(1);
+    let target = StyleAtomID(2);
+    let stable_atoms = [("guard", guard), ("target", target)];
+
+    for selector in [".guard .target", ".guard > .target"] {
+        assert!(
+            test_selector_program(selector, &stable_atoms).resident_answers_are_stable_under_leaf_changes(),
+            "{selector} cannot observe an unrelated leaf through a resident subject"
+        );
+    }
+    for selector in [".guard + .target", ".guard ~ .target", ".target:nth-child(2n+1)"] {
+        assert!(
+            !test_selector_program(selector, &stable_atoms).resident_answers_are_stable_under_leaf_changes(),
+            "{selector} can observe an unrelated leaf through a resident subject"
+        );
+    }
+}
+
 fn prepare_empty_transaction_fact_view(engine: &mut StyleEngine, root: StyleNodeID) {
     let mut transaction = engine.take_transaction();
     assert!(transaction.is_empty(), "test setup left a transaction pending");
@@ -8795,7 +8815,7 @@ fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
         bridge::style_engine_set_replay_reclaimed_style_atoms(engine_pointer, recorded.as_ptr(), recorded.len());
     }
 
-    let output = unsafe { bridge::style_engine_take_style_transaction(engine_pointer, nodes[0].raw()) };
+    let output = unsafe { bridge::style_engine_take_style_transaction(engine_pointer, nodes[0].raw(), false) };
 
     assert!(output.style_atoms_swept);
     assert_eq!(output.reclaimed_style_atom_count, 1);

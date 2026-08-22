@@ -555,10 +555,10 @@ bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<v
     return true;
 }
 
-StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)
+StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root, TransactionMode mode)
 {
     submit_recorded_input();
-    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value());
+    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value(), mode == TransactionMode::LayoutGeometry);
     if (view.reclaimed_style_atom_count != 0) {
         HashTable<StyleAtomID> reclaimed_atoms;
         reclaimed_atoms.ensure_capacity(view.reclaimed_style_atom_count);
@@ -594,6 +594,11 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
 bool StyleEngine::has_pending_transaction() const
 {
     return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_impl);
+}
+
+bool StyleEngine::has_immediate_pending_transaction() const
+{
+    return has_recorded_input() || StyleEngineFFI::style_engine_has_immediate_pending_transaction(m_impl);
 }
 
 bool StyleEngine::pending_transaction_may_affect_layout_geometry()

@@ -1292,6 +1292,7 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) dispatch_workspace_bytes: u64,
     pub(super) cascade_compaction_workspace: ordering::CascadeCompactionWorkspace,
     pub(super) cascade_compaction_workspace_bytes: u64,
+    pub(super) rule_filter: Option<Rc<[(RuleID, SelectorProgramID)]>>,
 }
 
 /// Current-side matching scratch produced by the transaction immediately before a style

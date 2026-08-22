@@ -1,0 +1,7 @@
+arriving leaf geometry: 37
+only arriving leaf invalidated: true
+first resident style deferred: true
+second resident style deferred: true
+deferred first style is observable: rgb(255, 0, 0)
+deferred second style is observable: rgb(0, 0, 255)
+deferred resident class style is observable: rgb(0, 128, 0)

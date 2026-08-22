@@ -189,6 +189,7 @@ public:
     void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
     [[nodiscard]] bool has_pending_transaction() const;
+    [[nodiscard]] bool has_immediate_pending_transaction() const;
     [[nodiscard]] bool pending_transaction_may_affect_layout_geometry();
 
     // Submits everything recorded since the last flush as one transaction and normalizes it.
@@ -205,6 +206,10 @@ public:
         ReadonlySpan<PublishedStyleDelta> reactions;
         bool is_scoped;
     };
+    enum class TransactionMode : u8 {
+        AllStyle,
+        LayoutGeometry,
+    };
 
     // Takes pending inputs. The diagnostic transaction reports reaction nodes and then discards
     // its matching outputs. The style transaction publishes versioned match-answer records. False
@@ -212,7 +217,7 @@ public:
     // NB: The returned reactions borrow Rust storage until the next mutable engine call or an
     //     explicit discard. Consume them synchronously before asking the engine anything else.
     bool take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&&);
-    PublishedStyleTransaction take_style_transaction(StyleNodeID root);
+    PublishedStyleTransaction take_style_transaction(StyleNodeID root, TransactionMode = TransactionMode::AllStyle);
 
     using RuleMatch = StyleEngineFFI::FfiRuleMatch;
 

@@ -43,7 +43,7 @@ static void finish_complete_style_update()
         ladybird_animated_properties_unref(releases.animated_properties[i]);
 }
 
-static void update_style(DOM::Document&);
+static void update_style(DOM::Document&, StyleEngine::TransactionMode);
 static bool update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode);
 
 static void apply_element_style_invalidation_after_style_change(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation)
@@ -148,7 +148,7 @@ static void sort_style_engine_reactions_for_direct_application(StyleComputer& st
     });
 }
 
-static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document)
+static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document, StyleEngine::TransactionMode mode)
 {
     StyleEngineTransaction transaction;
     auto& style_computer = document.style_computer();
@@ -166,7 +166,7 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
     }
 
     auto planning_started_at = MonotonicTime::now();
-    auto published_transaction = style_computer.style_engine().take_style_transaction(root->style_node_id());
+    auto published_transaction = style_computer.style_engine().take_style_transaction(root->style_node_id(), mode);
     if (!published_transaction.reactions.is_empty())
         transaction.published_version = published_transaction.version;
     for (auto const& answer : published_transaction.reactions) {
@@ -425,7 +425,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     return transaction_invalidation;
 }
 
-static void update_style(DOM::Document& document)
+static void update_style(DOM::Document& document, StyleEngine::TransactionMode mode)
 {
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
     ScopeGuard leave_complete_style_update = finish_complete_style_update;
@@ -473,10 +473,16 @@ static void update_style(DOM::Document& document)
     // change selector or cascade inputs. Apply an animation-only update first, then take a
     // transaction only if the resulting inherited-style feedback requires one.
     record_non_author_stylesheets(document);
+    auto has_pending_transaction = [&] {
+        if (mode == StyleEngine::TransactionMode::LayoutGeometry)
+            return document.style_computer().style_engine().has_immediate_pending_transaction();
+        return document.style_computer().style_engine().has_pending_transaction();
+    };
+
     if (document.has_completed_style_update()
-        && !document.style_computer().style_engine().has_pending_transaction()) {
+        && !has_pending_transaction()) {
         document.update_animated_style_if_needed();
-        if (!document.style_computer().style_engine().has_pending_transaction())
+        if (!has_pending_transaction())
             return;
     }
 
@@ -485,7 +491,7 @@ static void update_style(DOM::Document& document)
     // transpose programs reach. A transaction that could not be proven narrower publishes a
     // complete document reaction batch. Only a transaction that cannot complete its answers falls
     // back to document invalidation.
-    auto style_engine_transaction = take_style_engine_transaction(document);
+    auto style_engine_transaction = take_style_engine_transaction(document, mode);
 
     if (!style_engine_transaction.reactions.is_empty())
         document.note_style_stabilization_has_style_reactions();
@@ -494,8 +500,8 @@ static void update_style(DOM::Document& document)
     auto style_engine_reactions = move(style_engine_transaction.reactions);
     auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
     if (style_engine_reactions.is_empty()
-        && document.style_computer().style_engine().has_pending_transaction()) {
-        auto feedback_transaction = take_style_engine_transaction(document);
+        && has_pending_transaction()) {
+        auto feedback_transaction = take_style_engine_transaction(document, mode);
         style_engine_reactions = move(feedback_transaction.reactions);
         prefers_broad_matching_batch = feedback_transaction.prefers_broad_matching_batch;
     }
@@ -637,8 +643,8 @@ static void update_style(DOM::Document& document)
         // Exact consequences produced while recomputing become the next transaction in this
         // stabilization epoch. Take it only after consuming the current published answers, since
         // a new transaction retires their scratch.
-        if (document.style_computer().style_engine().has_pending_transaction()) {
-            auto next_transaction = take_style_engine_transaction(document);
+        if (has_pending_transaction()) {
+            auto next_transaction = take_style_engine_transaction(document, mode);
             style_engine_reactions = move(next_transaction.reactions);
         }
         if (style_engine_reactions.is_empty())
@@ -739,13 +745,13 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
             && (!document.has_completed_style_update()
                 || document.style_computer().style_engine().has_pending_transaction());
         if (can_run_regular_style_update) {
-            update_style(document);
+            update_style(document, StyleEngine::TransactionMode::AllStyle);
             ran_regular_style_update = true;
         } else {
             document.update_animated_style_if_needed();
             if (!document.is_running_update_layout()
                 && document.style_computer().style_engine().has_pending_transaction()) {
-                update_style(document);
+                update_style(document, StyleEngine::TransactionMode::AllStyle);
                 ran_regular_style_update = true;
             }
         }
@@ -843,7 +849,12 @@ namespace Web::DOM {
 
 void Document::update_style()
 {
-    CSS::update_style(*this);
+    CSS::update_style(*this, CSS::StyleEngine::TransactionMode::AllStyle);
+}
+
+void Document::update_style_for_layout_geometry()
+{
+    CSS::update_style(*this, CSS::StyleEngine::TransactionMode::LayoutGeometry);
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)

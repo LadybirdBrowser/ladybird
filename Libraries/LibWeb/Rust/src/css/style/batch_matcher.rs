@@ -721,6 +721,7 @@ pub struct BatchMatcher<'a> {
     /// node about exactly the rules a transaction reached, through the same machinery a full
     /// match uses.
     rule_filter: Option<&'a [(RuleID, SelectorProgramID)]>,
+    direct_rule_filter: bool,
     cascade_only: bool,
     witnesses: Option<&'a std::cell::RefCell<RelationalWitnesses>>,
 }
@@ -938,6 +939,7 @@ impl<'a> BatchMatcher<'a> {
             ancestor_requirements: None,
             match_workspace: None,
             rule_filter: None,
+            direct_rule_filter: false,
             cascade_only: false,
             witnesses: None,
         }
@@ -1014,6 +1016,12 @@ impl<'a> BatchMatcher<'a> {
     #[must_use]
     pub(super) fn with_rule_filter(mut self, rules: &'a [(RuleID, SelectorProgramID)]) -> Self {
         self.rule_filter = Some(rules);
+        self
+    }
+
+    #[must_use]
+    pub(super) fn with_direct_rule_filter(mut self) -> Self {
+        self.direct_rule_filter = true;
         self
     }
 
@@ -1247,7 +1255,10 @@ impl<'a> BatchMatcher<'a> {
         if let Some(witnesses) = self.witnesses {
             evaluator = evaluator.observing_witnesses(witnesses);
         }
-        if let Some(rules) = self.rule_filter.filter(|rules| self.filtered_rules_are_narrow(rules)) {
+        if let Some(rules) = self
+            .rule_filter
+            .filter(|rules| self.direct_rule_filter || self.filtered_rules_are_narrow(rules))
+        {
             return self.match_filtered_rules_directly(node, row, rules, &evaluator, out, counters);
         }
         let start = out.matches.len();

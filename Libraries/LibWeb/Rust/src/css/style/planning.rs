@@ -1413,6 +1413,7 @@ pub(super) struct BatchMatchAttempt<'a> {
     pub(super) deferred_prefix_matches: Option<&'a mut Option<PrefixMatchSetID>>,
     pub(super) answer_is_exact: Option<&'a mut bool>,
     pub(super) cascade_only: bool,
+    pub(super) rule_filter: Option<&'a [(RuleID, SelectorProgramID)]>,
 }
 
 pub(super) struct BatchMatchRetry<'a> {
@@ -1421,6 +1422,7 @@ pub(super) struct BatchMatchRetry<'a> {
     pub(super) deferred_prefix_matches: Option<&'a mut Option<PrefixMatchSetID>>,
     pub(super) answer_is_exact: Option<&'a mut bool>,
     pub(super) cascade_only: bool,
+    pub(super) rule_filter: Option<&'a [(RuleID, SelectorProgramID)]>,
 }
 
 #[derive(Clone, Copy)]

@@ -777,6 +777,10 @@ pub struct StyleEngine {
     initial_tree_batch_applied: bool,
     /// Whether that bulk load is still part of the transaction awaiting first observation.
     initial_tree_bulk_load_is_pending: bool,
+    /// A geometry-only observation committed structural inputs while leaving resident
+    /// non-geometry style at its previous snapshot. The next ordinary style observation
+    /// cold-matches the document.
+    deferred_resident_non_geometry_style: bool,
     /// Final relation rows staged until the next observation boundary. Moving one node updates its
     /// affected neighbours here, so those derived changes need no separate journal ingress.
     tree_staging: TreeRelationStaging,

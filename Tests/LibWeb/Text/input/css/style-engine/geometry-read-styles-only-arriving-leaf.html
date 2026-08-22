@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item {
+        width: 37px;
+        height: 10px;
+    }
+    .item:nth-child(even) {
+        background-color: red;
+    }
+    .item.pending-paint {
+        color: green;
+    }
+    .item[data-paint] {
+        background-color: blue;
+    }
+</style>
+<div id="container"><div class="item" id="first"></div><div class="item" id="second"></div></div>
+<script>
+    test(() => {
+        container.getBoundingClientRect();
+        const firstIdentity = internals.styleRecordIdentity(first);
+        const secondIdentity = internals.styleRecordIdentity(second);
+
+        first.classList.add("pending-paint");
+        second.setAttribute("data-paint", "");
+
+        const arriving = document.createElement("div");
+        arriving.className = "item";
+        container.prepend(arriving);
+
+        const beforeGeometry = internals.styleEngineCounters();
+        const width = arriving.offsetWidth;
+        const afterGeometry = internals.styleEngineCounters();
+
+        println(`arriving leaf geometry: ${width}`);
+        println(`only arriving leaf invalidated: ${afterGeometry.invalidatedStyleNodes - beforeGeometry.invalidatedStyleNodes === 1}`);
+        println(`first resident style deferred: ${internals.styleRecordIdentity(first) === firstIdentity}`);
+        println(`second resident style deferred: ${internals.styleRecordIdentity(second) === secondIdentity}`);
+        println(`deferred first style is observable: ${getComputedStyle(first).backgroundColor}`);
+        println(`deferred second style is observable: ${getComputedStyle(second).backgroundColor}`);
+        println(`deferred resident class style is observable: ${getComputedStyle(first).color}`);
+    });
+</script>
