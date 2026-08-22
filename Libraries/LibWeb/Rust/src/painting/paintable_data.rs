@@ -141,7 +141,6 @@ pub enum PaintableFlag {
     Floating = 1 << 4,
     Inline = 1 << 5,
     HasNonInvertibleCssTransform = 1 << 6,
-    PreparedByCommit = 1 << 7,
     Anonymous = 1 << 8,
     Replaced = 1 << 9,
     FlexOrGridItem = 1 << 10,

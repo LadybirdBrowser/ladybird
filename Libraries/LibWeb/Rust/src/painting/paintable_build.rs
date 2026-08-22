@@ -9,8 +9,7 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::{
-    FfiCommittedBoxMetrics, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, LineData, Node,
-    NodeFacts,
+    FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, FragmentLink, LineData, Node, NodeFacts,
 };
 use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
@@ -295,7 +294,6 @@ impl<'a> PaintableCommit<'a> {
                 PaintableFlag::ReplacedBox,
                 crate::layout::kind_is_replaced_box(data.kind),
             );
-            paintable.set_flag(PaintableFlag::PreparedByCommit, true);
             paintable.display = display.encoded();
         });
         PreparedPaintable {
@@ -315,58 +313,60 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn set_box_metrics(
         &self,
         slot: PaintableSlotId,
-        metrics: &FfiCommittedBoxMetrics,
+        link: &FragmentLink,
+        reuses_committed_subtree: bool,
     ) -> Option<(FfiCssPixelSize, FfiCssPixelSize)> {
         let arena = self.arena.borrow();
         let mut content_size_change = None;
+        let fragment = &link.fragment;
         arena.update_data(slot, |data| {
-            if data.layout_fragment_identity != metrics.fragment_identity {
-                data.layout_fragment_identity = metrics.fragment_identity;
+            if data.layout_fragment_identity != fragment.identity {
+                data.layout_fragment_identity = fragment.identity;
                 data.cached_overflow = FfiOverflowData::default();
                 data.has_cached_overflow = false;
             }
             data.inset = FfiPixelBox {
-                top: metrics.inset_top,
-                right: metrics.inset_right,
-                bottom: metrics.inset_bottom,
-                left: metrics.inset_left,
+                top: link.inset_top,
+                right: link.inset_right,
+                bottom: link.inset_bottom,
+                left: link.inset_left,
             };
             data.padding = FfiPixelBox {
-                top: metrics.padding_top,
-                right: metrics.padding_right,
-                bottom: metrics.padding_bottom,
-                left: metrics.padding_left,
+                top: fragment.padding_top,
+                right: fragment.padding_right,
+                bottom: fragment.padding_bottom,
+                left: fragment.padding_left,
             };
             data.border = FfiPixelBox {
-                top: metrics.border_top,
-                right: metrics.border_right,
-                bottom: metrics.border_bottom,
-                left: metrics.border_left,
+                top: fragment.border_top,
+                right: fragment.border_right,
+                bottom: fragment.border_bottom,
+                left: fragment.border_left,
             };
             data.margin = FfiPixelBox {
-                top: metrics.margin_top,
-                right: metrics.margin_right,
-                bottom: metrics.margin_bottom,
-                left: metrics.margin_left,
+                top: fragment.margin_top,
+                right: fragment.margin_right,
+                bottom: fragment.margin_bottom,
+                left: fragment.margin_left,
             };
             let new_content_size = FfiCssPixelSize {
-                width: metrics.content_inline_size,
-                height: metrics.content_block_size,
+                width: fragment.content_inline_size,
+                height: fragment.content_block_size,
             };
             if data.content_size != new_content_size {
                 assert!(
-                    !metrics.reuses_committed_subtree,
+                    !reuses_committed_subtree,
                     "a reused committed subtree changed its content size"
                 );
                 content_size_change = Some((data.content_size, new_content_size));
             }
             data.content_size = new_content_size;
-            data.offset = metrics.content_offset;
-            if metrics.has_containing_line_box_index {
-                data.containing_line_box_index = metrics.containing_line_box_index;
+            data.offset = link.committed_offset;
+            if let Some(containing_line_box_index) = link.containing_line_box_index {
+                data.containing_line_box_index = containing_line_box_index;
                 data.has_containing_line_box_index = true;
             }
-            data.uses_collapsing_borders_model = metrics.uses_collapsing_borders_model;
+            data.uses_collapsing_borders_model = fragment.uses_collapsing_borders_model;
         });
         content_size_change
     }

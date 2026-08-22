@@ -353,9 +353,9 @@ impl UsedValues {
         }
     }
 
-    /// Seals every field that commit emits as part of FfiCommittedBoxMetrics.
-    /// Called when the box is placed: after placement, none of these may
-    /// change again.
+    /// Seals every box metric that is copied from a committed fragment into
+    /// its paint record. Called when the box is placed: after placement, none
+    /// of these may change again.
     pub(crate) fn seal_committed_box_metrics(&self) {
         self.content_inline_size.seal();
         self.content_block_size.seal();
