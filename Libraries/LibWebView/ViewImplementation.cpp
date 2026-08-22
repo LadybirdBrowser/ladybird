@@ -1025,36 +1025,94 @@ Optional<Core::SharedVersion> ViewImplementation::document_cookie_version(URL::U
     return Core::get_shared_version(m_document_cookie_version_buffer, *document_index);
 }
 
-ByteString ViewImplementation::selected_text()
+NonnullRefPtr<Core::Promise<ByteString>> ViewImplementation::selected_text()
 {
-    return client().get_selected_text(page_id());
+    auto promise = Core::Promise<ByteString>::construct();
+    auto request_id = m_next_selection_request_id++;
+    m_pending_selected_text_requests.set(request_id, promise);
+    client().async_get_selected_text(page_id(), request_id);
+    return promise;
 }
 
-ByteString ViewImplementation::cut_selected_text()
+void ViewImplementation::did_receive_selected_text(Badge<WebContentClient>, u64 request_id, ByteString selection)
 {
-    return client().cut_selected_text(page_id());
+    auto promise = m_pending_selected_text_requests.take(request_id);
+    if (!promise.has_value())
+        return;
+    promise.value()->resolve(move(selection));
 }
 
-Optional<String> ViewImplementation::selected_text_with_whitespace_collapsed()
+NonnullRefPtr<Core::Promise<ByteString>> ViewImplementation::cut_selected_text()
 {
-    auto selected_text = MUST(Web::Infra::strip_and_collapse_whitespace(this->selected_text()));
-    if (selected_text.is_empty())
-        return OptionalNone {};
-    return selected_text;
+    auto promise = Core::Promise<ByteString>::construct();
+    auto request_id = m_next_selection_request_id++;
+    m_pending_cut_selected_text_requests.set(request_id, promise);
+    client().async_cut_selected_text(page_id(), request_id);
+    return promise;
 }
 
-Optional<DictionaryLookup> ViewImplementation::selected_text_for_dictionary_lookup()
+void ViewImplementation::did_cut_selected_text(Badge<WebContentClient>, u64 request_id, ByteString selection)
 {
-    auto lookup = client().get_selected_text_for_lookup(page_id());
-    if (!lookup.has_value())
-        return {};
+    auto promise = m_pending_cut_selected_text_requests.take(request_id);
+    if (!promise.has_value())
+        return;
+    promise.value()->resolve(move(selection));
+}
 
-    auto selected_text = MUST(Web::Infra::strip_and_collapse_whitespace(lookup->text));
-    if (selected_text.is_empty())
-        return {};
+NonnullRefPtr<Core::Promise<Optional<String>>> ViewImplementation::selected_text_with_whitespace_collapsed()
+{
+    return selected_text()->map<Optional<String>>([](auto& selection) -> Optional<String> {
+        auto collapsed_selection = MUST(Web::Infra::strip_and_collapse_whitespace(selection));
+        if (collapsed_selection.is_empty())
+            return {};
+        return collapsed_selection;
+    });
+}
 
-    lookup->text = move(selected_text);
-    return lookup;
+NonnullRefPtr<Core::Promise<Optional<DictionaryLookup>>> ViewImplementation::selected_text_for_dictionary_lookup()
+{
+    auto promise = Core::Promise<Optional<DictionaryLookup>>::construct();
+    auto request_id = m_next_selection_request_id++;
+    m_pending_selected_text_for_lookup_requests.set(request_id, promise);
+    client().async_get_selected_text_for_lookup(page_id(), request_id);
+
+    return promise->map<Optional<DictionaryLookup>>([](auto& lookup) -> Optional<DictionaryLookup> {
+        if (!lookup.has_value())
+            return {};
+
+        auto collapsed_selection = MUST(Web::Infra::strip_and_collapse_whitespace(lookup->text));
+        if (collapsed_selection.is_empty())
+            return {};
+
+        auto result = lookup;
+        result->text = move(collapsed_selection);
+        return result;
+    });
+}
+
+void ViewImplementation::did_receive_selected_text_for_lookup(Badge<WebContentClient>, u64 request_id, Optional<DictionaryLookup> lookup)
+{
+    auto promise = m_pending_selected_text_for_lookup_requests.take(request_id);
+    if (!promise.has_value())
+        return;
+    promise.value()->resolve(move(lookup));
+}
+
+NonnullRefPtr<Core::Promise<bool>> ViewImplementation::select_word_for_dictionary_lookup(Gfx::IntPoint widget_position)
+{
+    auto promise = Core::Promise<bool>::construct();
+    auto request_id = m_next_selection_request_id++;
+    m_pending_select_word_for_dictionary_lookup_requests.set(request_id, promise);
+    client().async_select_word_for_dictionary_lookup(page_id(), request_id, to_content_position(widget_position).to_type<Web::DevicePixels>());
+    return promise;
+}
+
+void ViewImplementation::did_select_word_for_dictionary_lookup(Badge<WebContentClient>, u64 request_id, bool selected)
+{
+    auto promise = m_pending_select_word_for_dictionary_lookup_requests.take(request_id);
+    if (!promise.has_value())
+        return;
+    promise.value()->resolve(selected);
 }
 
 bool ViewImplementation::look_up_selected_text_at(Gfx::IntPoint widget_position)
@@ -1062,18 +1120,30 @@ bool ViewImplementation::look_up_selected_text_at(Gfx::IntPoint widget_position)
     if (!on_request_dictionary_lookup)
         return false;
 
-    auto lookup = selected_text_for_dictionary_lookup();
-    if (!lookup.has_value()) {
-        if (!client().select_word_for_dictionary_lookup(page_id(), to_content_position(widget_position).to_type<Web::DevicePixels>()))
-            return false;
+    auto weak_this = make_weak_ptr();
+    selected_text_for_dictionary_lookup()->when_resolved([weak_this, widget_position](auto& lookup) {
+        if (!weak_this)
+            return;
 
-        lookup = selected_text_for_dictionary_lookup();
-    }
-    if (!lookup.has_value())
-        return false;
+        if (lookup.has_value()) {
+            auto lookup_position = lookup->baseline_origin.has_value() ? weak_this->to_widget_position(*lookup->baseline_origin) : widget_position;
+            weak_this->on_request_dictionary_lookup(*lookup, lookup_position);
+            return;
+        }
 
-    auto lookup_position = lookup->baseline_origin.has_value() ? to_widget_position(*lookup->baseline_origin) : widget_position;
-    on_request_dictionary_lookup(*lookup, lookup_position);
+        weak_this->select_word_for_dictionary_lookup(widget_position)->when_resolved([weak_this, widget_position](bool& selected) {
+            if (!weak_this || !selected)
+                return;
+
+            weak_this->selected_text_for_dictionary_lookup()->when_resolved([weak_this, widget_position](auto& lookup) {
+                if (!weak_this || !lookup.has_value())
+                    return;
+
+                auto lookup_position = lookup->baseline_origin.has_value() ? weak_this->to_widget_position(*lookup->baseline_origin) : widget_position;
+                weak_this->on_request_dictionary_lookup(*lookup, lookup_position);
+            });
+        });
+    });
     return true;
 }
 
@@ -1756,6 +1826,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     m_needs_beforeunload_check = true;
 
     if (create_new_client == CreateNewClient::Yes) {
+        reject_pending_selection_requests();
+
         if (m_history_operation_handling_for_next_client == HistoryOperationHandling::Abandon) {
             // NB: Replies from the previous process will never arrive; complete the in-flight operations so the
             //     traversal queue can serve the new process.
@@ -2104,6 +2176,8 @@ void ViewImplementation::did_complete_webdriver_content_command(Badge<WebContent
 
 void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
 {
+    reject_pending_selection_requests();
+
     auto window_handle = move(m_client_state.client_handle);
 
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
@@ -2610,6 +2684,8 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
 {
+    reject_pending_selection_requests();
+
     set_loading_state(false);
     m_top_level_traversable.clear_ongoing_navigation();
 
@@ -3287,64 +3363,117 @@ void ViewImplementation::update_look_up_selected_text_action(Optional<Dictionary
     m_look_up_selected_text_action->set_visible(m_look_up.has_value());
 }
 
-void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
+void ViewImplementation::request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete)
 {
-    auto& cut_selection_action = Application::the().cut_selection_action();
-    cut_selection_action.set_visible(for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes);
-
-    auto const& search_engine = Application::settings().search_engine();
-    auto lookup = on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {};
-    auto selected_text = lookup.map([](auto const& lookup) { return lookup.text; });
-    if (!selected_text.has_value())
-        selected_text = selected_text_with_whitespace_collapsed();
-    m_search_text = search_engine.has_value() ? selected_text : OptionalNone {};
-    auto selected_text_url = selected_text.has_value() ? url_from_text(*selected_text) : OptionalNone {};
-    update_look_up_selected_text_action(lookup, content_position);
-
-    ScopeGuard guard { [&]() {
-        cut_selection_action.set_visible(true);
-        m_search_text.clear();
-    } };
-
-    if (m_search_text.has_value()) {
-        m_search_selected_text_action->set_text(search_engine->format_search_query_for_display(*m_search_text));
-        m_search_selected_text_action->set_visible(true);
-    } else {
-        m_search_selected_text_action->set_visible(false);
-    }
-
-    if (selected_text_url.has_value() && m_selected_text_link_context_menu->on_activation) {
-        m_context_menu_url = selected_text_url.release_value();
-        m_open_in_new_tab_action->set_text("Open in New Tab"sv);
-        m_selected_text_link_context_menu->on_activation(to_widget_position(content_position));
+    if (!on_request_dictionary_lookup) {
+        Optional<DictionaryLookup> lookup;
+        on_complete(lookup);
         return;
     }
 
-    if (m_page_context_menu->on_activation)
-        m_page_context_menu->on_activation(to_widget_position(content_position));
+    selected_text_for_dictionary_lookup()->when_resolved([on_complete = move(on_complete)](auto& lookup) mutable {
+        on_complete(lookup);
+    });
+}
+
+void ViewImplementation::reject_pending_selection_requests()
+{
+    ++m_context_menu_request_id;
+
+    auto reject_requests = [](auto& requests) {
+        auto pending_requests = move(requests);
+        for (auto& request : pending_requests)
+            request.value->reject(Error::from_string_literal("WebContent was replaced before completing a selection request"));
+    };
+
+    reject_requests(m_pending_selected_text_requests);
+    reject_requests(m_pending_selected_text_for_lookup_requests);
+    reject_requests(m_pending_select_word_for_dictionary_lookup_requests);
+    reject_requests(m_pending_cut_selected_text_requests);
+}
+
+void ViewImplementation::did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
+{
+    auto request_id = ++m_context_menu_request_id;
+    auto weak_this = make_weak_ptr();
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, for_input_events_target](auto const& lookup) {
+        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+            return;
+
+        auto show_context_menu = [weak_this, request_id, content_position, for_input_events_target, lookup](Optional<String> selected_text) {
+            if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+                return;
+
+            auto& cut_selection_action = Application::the().cut_selection_action();
+            cut_selection_action.set_visible(for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes);
+
+            auto const& search_engine = Application::settings().search_engine();
+            weak_this->m_search_text = search_engine.has_value() ? selected_text : OptionalNone {};
+            auto selected_text_url = selected_text.has_value() ? url_from_text(*selected_text) : OptionalNone {};
+            weak_this->update_look_up_selected_text_action(lookup, content_position);
+
+            ScopeGuard guard { [&]() {
+                cut_selection_action.set_visible(true);
+                weak_this->m_search_text.clear();
+            } };
+
+            if (weak_this->m_search_text.has_value()) {
+                weak_this->m_search_selected_text_action->set_text(search_engine->format_search_query_for_display(*weak_this->m_search_text));
+                weak_this->m_search_selected_text_action->set_visible(true);
+            } else {
+                weak_this->m_search_selected_text_action->set_visible(false);
+            }
+
+            if (selected_text_url.has_value() && weak_this->m_selected_text_link_context_menu->on_activation) {
+                weak_this->m_context_menu_url = selected_text_url.release_value();
+                weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
+                weak_this->m_selected_text_link_context_menu->on_activation(weak_this->to_widget_position(content_position));
+                return;
+            }
+
+            if (weak_this->m_page_context_menu->on_activation)
+                weak_this->m_page_context_menu->on_activation(weak_this->to_widget_position(content_position));
+        };
+
+        if (lookup.has_value()) {
+            show_context_menu(lookup->text);
+            return;
+        }
+
+        weak_this->selected_text_with_whitespace_collapsed()->when_resolved([show_context_menu = move(show_context_menu)](auto& selected_text) mutable {
+            show_context_menu(selected_text);
+        });
+    });
 }
 
 void ViewImplementation::did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url)
 {
-    m_context_menu_url = move(url);
-    update_look_up_selected_text_action(on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {}, content_position);
+    auto request_id = ++m_context_menu_request_id;
+    auto weak_this = make_weak_ptr();
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, url = move(url)](auto const& lookup) mutable {
+        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+            return;
 
-    m_open_in_new_tab_action->set_text("Open in New Tab"sv);
+        weak_this->m_context_menu_url = move(url);
+        weak_this->update_look_up_selected_text_action(lookup, content_position);
 
-    switch (url_type(m_context_menu_url)) {
-    case URLType::Email:
-        m_copy_url_action->set_text("Copy Email Address"sv);
-        break;
-    case URLType::Telephone:
-        m_copy_url_action->set_text("Copy Phone Number"sv);
-        break;
-    case URLType::Other:
-        m_copy_url_action->set_text("Copy Link Address"sv);
-        break;
-    }
+        weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
 
-    if (m_link_context_menu->on_activation)
-        m_link_context_menu->on_activation(to_widget_position(content_position));
+        switch (url_type(weak_this->m_context_menu_url)) {
+        case URLType::Email:
+            weak_this->m_copy_url_action->set_text("Copy Email Address"sv);
+            break;
+        case URLType::Telephone:
+            weak_this->m_copy_url_action->set_text("Copy Phone Number"sv);
+            break;
+        case URLType::Other:
+            weak_this->m_copy_url_action->set_text("Copy Link Address"sv);
+            break;
+        }
+
+        if (weak_this->m_link_context_menu->on_activation)
+            weak_this->m_link_context_menu->on_activation(weak_this->to_widget_position(content_position));
+    });
 }
 
 void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path)
@@ -3363,46 +3492,60 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap)
 {
-    m_context_menu_url = move(url);
-    m_image_context_menu_bitmap = move(bitmap);
-    update_look_up_selected_text_action(on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {}, content_position);
+    auto request_id = ++m_context_menu_request_id;
+    auto weak_this = make_weak_ptr();
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, url = move(url), bitmap = move(bitmap)](auto const& lookup) mutable {
+        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+            return;
 
-    m_open_in_new_tab_action->set_text("Open Image in New Tab"sv);
-    m_copy_url_action->set_text("Copy Image URL"sv);
+        weak_this->m_context_menu_url = move(url);
+        weak_this->m_image_context_menu_bitmap = move(bitmap);
+        weak_this->update_look_up_selected_text_action(lookup, content_position);
 
-    m_copy_image_action->set_enabled(m_image_context_menu_bitmap.has_value());
+        weak_this->m_open_in_new_tab_action->set_text("Open Image in New Tab"sv);
+        weak_this->m_copy_url_action->set_text("Copy Image URL"sv);
 
-    if (m_image_context_menu->on_activation)
-        m_image_context_menu->on_activation(to_widget_position(content_position));
+        weak_this->m_copy_image_action->set_enabled(weak_this->m_image_context_menu_bitmap.has_value());
+
+        if (weak_this->m_image_context_menu->on_activation)
+            weak_this->m_image_context_menu->on_activation(weak_this->to_widget_position(content_position));
+    });
 }
 
 void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
 {
-    m_context_menu_url = move(menu.media_url);
-    update_look_up_selected_text_action(on_request_dictionary_lookup ? selected_text_for_dictionary_lookup() : OptionalNone {}, content_position);
+    auto request_id = ++m_context_menu_request_id;
+    auto weak_this = make_weak_ptr();
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, menu = move(menu)](auto const& lookup) mutable {
+        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
+            return;
 
-    m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
-    m_copy_url_action->set_text(menu.is_video ? "Copy Video URL"sv : "Copy Audio URL"sv);
+        weak_this->m_context_menu_url = move(menu.media_url);
+        weak_this->update_look_up_selected_text_action(lookup, content_position);
 
-    m_open_audio_action->set_visible(!menu.is_video);
-    m_open_video_action->set_visible(menu.is_video);
+        weak_this->m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
+        weak_this->m_copy_url_action->set_text(menu.is_video ? "Copy Video URL"sv : "Copy Audio URL"sv);
 
-    m_media_play_action->set_visible(!menu.is_playing);
-    m_media_pause_action->set_visible(menu.is_playing);
+        weak_this->m_open_audio_action->set_visible(!menu.is_video);
+        weak_this->m_open_video_action->set_visible(menu.is_video);
 
-    m_media_mute_action->set_visible(!menu.is_muted);
-    m_media_unmute_action->set_visible(menu.is_muted);
+        weak_this->m_media_play_action->set_visible(!menu.is_playing);
+        weak_this->m_media_pause_action->set_visible(menu.is_playing);
 
-    m_media_show_controls_action->set_visible(!menu.has_user_agent_controls);
-    m_media_hide_controls_action->set_visible(menu.has_user_agent_controls);
+        weak_this->m_media_mute_action->set_visible(!menu.is_muted);
+        weak_this->m_media_unmute_action->set_visible(menu.is_muted);
 
-    m_media_loop_action->set_checked(menu.is_looping);
+        weak_this->m_media_show_controls_action->set_visible(!menu.has_user_agent_controls);
+        weak_this->m_media_hide_controls_action->set_visible(menu.has_user_agent_controls);
 
-    m_media_enter_fullscreen_action->set_visible(menu.is_video && !menu.is_fullscreen);
-    m_media_exit_fullscreen_action->set_visible(menu.is_video && menu.is_fullscreen);
+        weak_this->m_media_loop_action->set_checked(menu.is_looping);
 
-    if (m_media_context_menu->on_activation)
-        m_media_context_menu->on_activation(to_widget_position(content_position));
+        weak_this->m_media_enter_fullscreen_action->set_visible(menu.is_video && !menu.is_fullscreen);
+        weak_this->m_media_exit_fullscreen_action->set_visible(menu.is_video && menu.is_fullscreen);
+
+        if (weak_this->m_media_context_menu->on_activation)
+            weak_this->m_media_context_menu->on_activation(weak_this->to_widget_position(content_position));
+    });
 }
 
 u64 ViewImplementation::add_navigation_listener(NavigationListener listener)

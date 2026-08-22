@@ -147,10 +147,10 @@ endpoint WebContentServer
 
     request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
 
-    get_selected_text(u64 page_id) => (ByteString selection)
-    get_selected_text_for_lookup(u64 page_id) => (Optional<WebView::DictionaryLookup> lookup)
-    select_word_for_dictionary_lookup(u64 page_id, Web::DevicePixelPoint position) => (bool selected)
-    cut_selected_text(u64 page_id) => (ByteString selection)
+    get_selected_text(u64 page_id, u64 request_id) =|
+    get_selected_text_for_lookup(u64 page_id, u64 request_id) =|
+    select_word_for_dictionary_lookup(u64 page_id, u64 request_id, Web::DevicePixelPoint position) =|
+    cut_selected_text(u64 page_id, u64 request_id) =|
     select_all(u64 page_id) =|
     undo(u64 page_id) =|
     redo(u64 page_id) =|

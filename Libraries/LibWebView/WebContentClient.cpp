@@ -1183,6 +1183,30 @@ void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfo
         view->did_receive_internal_page_info({}, type, info);
 }
 
+void WebContentClient::did_get_selected_text(u64 page_id, u64 request_id, ByteString selection)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_selected_text({}, request_id, move(selection));
+}
+
+void WebContentClient::did_get_selected_text_for_lookup(u64 page_id, u64 request_id, Optional<DictionaryLookup> lookup)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_selected_text_for_lookup({}, request_id, move(lookup));
+}
+
+void WebContentClient::did_select_word_for_dictionary_lookup(u64 page_id, u64 request_id, bool selected)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_select_word_for_dictionary_lookup({}, request_id, selected);
+}
+
+void WebContentClient::did_cut_selected_text(u64 page_id, u64 request_id, ByteString selection)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_cut_selected_text({}, request_id, move(selection));
+}
+
 void WebContentClient::did_execute_js_console_input(u64 page_id, JsonValue result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

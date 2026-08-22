@@ -1905,11 +1905,12 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
     async_did_get_internal_page_info(page_id, type, buffer);
 }
 
-Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_selected_text(u64 page_id)
+void ConnectionFromClient::get_selected_text(u64 page_id, u64 request_id)
 {
+    ByteString selection;
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().focused_navigable().selected_text().to_utf8().to_byte_string();
-    return ByteString {};
+        selection = page->page().focused_navigable().selected_text().to_utf8().to_byte_string();
+    async_did_get_selected_text(page_id, request_id, selection);
 }
 
 static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layout_node(Web::Layout::Node const& layout_node, double zoom_level)
@@ -1959,16 +1960,20 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
     return page.css_to_device_point(to_top_level_viewport_point(baseline_origin)).to_type<int>();
 }
 
-Messages::WebContentServer::GetSelectedTextForLookupResponse ConnectionFromClient::get_selected_text_for_lookup(u64 page_id)
+void ConnectionFromClient::get_selected_text_for_lookup(u64 page_id, u64 request_id)
 {
     auto page = this->page(page_id);
-    if (!page.has_value())
-        return Optional<WebView::DictionaryLookup> {};
+    if (!page.has_value()) {
+        async_did_get_selected_text_for_lookup(page_id, request_id, {});
+        return;
+    }
 
     auto& navigable = page->page().focused_navigable();
     auto text = navigable.selected_text();
-    if (text.is_empty())
-        return Optional<WebView::DictionaryLookup> {};
+    if (text.is_empty()) {
+        async_did_get_selected_text_for_lookup(page_id, request_id, {});
+        return;
+    }
 
     auto document = navigable.active_document();
     auto range = document ? document->get_selection()->range() : nullptr;
@@ -1986,30 +1991,31 @@ Messages::WebContentServer::GetSelectedTextForLookupResponse ConnectionFromClien
             baseline_origin = dictionary_lookup_baseline_origin_for_range(*range, page->page(), *layout_node);
     }
 
-    return WebView::DictionaryLookup {
-        .text = text.to_utf8(),
-        .style = move(style),
-        .baseline_origin = baseline_origin,
-    };
+    async_did_get_selected_text_for_lookup(page_id, request_id, WebView::DictionaryLookup {
+                                                                    .text = text.to_utf8(),
+                                                                    .style = move(style),
+                                                                    .baseline_origin = baseline_origin,
+                                                                });
 }
 
-Messages::WebContentServer::SelectWordForDictionaryLookupResponse ConnectionFromClient::select_word_for_dictionary_lookup(u64 page_id, Web::DevicePixelPoint position)
+void ConnectionFromClient::select_word_for_dictionary_lookup(u64 page_id, u64 request_id, Web::DevicePixelPoint position)
 {
+    bool selected = false;
 #if defined(AK_OS_MACOS)
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().select_word_for_dictionary_lookup(position);
+        selected = page->page().select_word_for_dictionary_lookup(position);
 #else
-    (void)page_id;
     (void)position;
 #endif
-    return false;
+    async_did_select_word_for_dictionary_lookup(page_id, request_id, selected);
 }
 
-Messages::WebContentServer::CutSelectedTextResponse ConnectionFromClient::cut_selected_text(u64 page_id)
+void ConnectionFromClient::cut_selected_text(u64 page_id, u64 request_id)
 {
+    ByteString selection;
     if (auto page = this->page(page_id); page.has_value())
-        return page->page().focused_navigable().cut_selected_text().to_utf8().to_byte_string();
-    return ByteString {};
+        selection = page->page().focused_navigable().cut_selected_text().to_utf8().to_byte_string();
+    async_did_cut_selected_text(page_id, request_id, selection);
 }
 
 void ConnectionFromClient::select_all(u64 page_id)
