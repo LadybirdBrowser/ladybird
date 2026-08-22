@@ -8,7 +8,9 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/Subsampling.h>
 
 namespace Media::Codecs {
@@ -46,6 +48,7 @@ public:
     };
 
     static Optional<Parameters> parse_codec_parameters(GenericLexer&);
+    static MEDIA_API Optional<Parameters> parse_configuration_record(ReadonlyBytes);
 };
 
 }

@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Span.h>
+#include <LibMedia/Export.h>
 
 namespace Media::Codecs {
 
@@ -28,6 +30,10 @@ public:
 
         bool operator==(Parameters const&) const = default;
     };
+
+    // The Audio Specific Config carries no object type indication, so callers supply the one their container implies:
+    // the descriptor's own value for ISOBMFF, and MPEG-4 Audio for Matroska's A_AAC.
+    static MEDIA_API Optional<Parameters> parse_configuration_record(ReadonlyBytes audio_specific_config, u8 object_type_indication);
 };
 
 }
