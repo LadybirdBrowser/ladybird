@@ -293,6 +293,11 @@ Document::HTMLCollectionAttributeInvalidationTypes Document::html_collection_att
     return types;
 }
 
+static size_t retain_registered_property_utf16_fly_string(u16 const* code_units, size_t length)
+{
+    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
+}
+
 GC_DEFINE_ALLOCATOR(Document);
 
 // https://html.spec.whatwg.org/multipage/origin.html#obtain-browsing-context-navigation
@@ -9841,31 +9846,43 @@ void Document::sync_custom_property_registrations_to_rust()
     for (auto const& [name, registration] : m_registered_property_set)
         effective_registrations.set(name, &registration);
 
-    Vector<String> names;
-    Vector<Optional<String>> initial_values;
+    Vector<Utf16String> names;
+    Vector<Utf16String> syntaxes;
+    Vector<Optional<Utf16String>> initial_values;
     Vector<CSS::ComputedValuesFFI::FfiCustomPropertyRegistration> registrations;
     names.ensure_capacity(effective_registrations.size());
+    syntaxes.ensure_capacity(effective_registrations.size());
     initial_values.ensure_capacity(effective_registrations.size());
     registrations.ensure_capacity(effective_registrations.size());
     for (auto const& [name, registration] : effective_registrations) {
-        names.unchecked_append(MUST(name.view().to_utf8()));
+        names.unchecked_append(name.to_utf16_string());
+        syntaxes.unchecked_append(registration->syntax->to_string());
         initial_values.unchecked_append(registration->initial_value
-                ? Optional<String> { registration->initial_value->to_string(CSS::SerializationMode::Normal) }
-                : Optional<String> {});
-        auto const& name_utf8 = names.last();
+                ? Optional<Utf16String> { registration->initial_value->to_utf16_string(CSS::SerializationMode::Normal) }
+                : Optional<Utf16String> {});
+        auto const& name_string = names.last();
+        auto const& syntax = syntaxes.last();
         auto const& initial_value = initial_values.last();
         registrations.unchecked_append({
-            .name = name_utf8.bytes().data(),
-            .name_length = name_utf8.bytes().size(),
-            .syntax_is_universal = registration->syntax->type() == CSS::Parser::SyntaxNode::NodeType::Universal,
+            .name = ffi_utf16_view(name_string),
+            .syntax = ffi_utf16_view(syntax),
             .inherits = registration->inherit,
             .has_initial_value = initial_value.has_value(),
             .initial_value = initial_value.has_value() ? initial_value->bytes().data() : nullptr,
             .initial_value_length = initial_value.has_value() ? initial_value->bytes().size() : 0,
         });
     }
+    auto document_url = url().serialize();
+    auto document_base_url = base_url().serialize();
+    CSS::ComputedValuesFFI::FfiCustomPropertyRegistryContext context {
+        .document_url = document_url.bytes().data(),
+        .document_url_length = document_url.bytes().size(),
+        .document_base_url = document_base_url.bytes().data(),
+        .document_base_url_length = document_base_url.bytes().size(),
+        .intern_utf16_fly_string = retain_registered_property_utf16_fly_string,
+    };
     CSS::ComputedValuesFFI::rust_custom_property_registry_update(
-        m_rust_custom_property_registry, registrations.data(), registrations.size());
+        m_rust_custom_property_registry, &context, registrations.data(), registrations.size());
 }
 
 void Document::build_registered_properties_cache()

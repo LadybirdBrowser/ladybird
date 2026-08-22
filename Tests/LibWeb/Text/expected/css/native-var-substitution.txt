@@ -8,5 +8,5 @@ C++ resolver unused: true
 registered width: 9px
 unregistered height: 11px
 registered universal initial: 13px
-registered value used C++ resolver: true
+registered value used C++ resolver: false
 unregistered value used native parser: true

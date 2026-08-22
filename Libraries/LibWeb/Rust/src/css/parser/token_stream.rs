@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#![allow(dead_code)]
-
 use std::ops::{Deref, DerefMut};
 
 use super::component_value::ComponentValue;

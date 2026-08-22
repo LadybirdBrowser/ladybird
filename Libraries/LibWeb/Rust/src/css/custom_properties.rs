@@ -18,6 +18,8 @@ use crate::css::css_tokenizer::OwnedTokenKind;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
+use crate::css::parser::value_parser::{FfiValueParsingContext, FfiValueParsingContextKind, ParseContext};
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
@@ -67,21 +69,55 @@ pub struct CustomPropertyStore {
 
 pub struct CustomPropertyRegistry {
     registrations: HashMap<Vec<u16>, RegisteredCustomProperty>,
+    document_url: Vec<u8>,
+    document_base_url: Vec<u8>,
+    intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
 }
 
 struct RegisteredCustomProperty {
-    syntax_is_universal: bool,
-    _inherits: bool,
+    syntax: SyntaxNode,
+    inherits: bool,
     initial_source: Option<Vec<u16>>,
 }
 
 #[repr(C)]
 pub struct FfiCustomPropertyRegistration {
     pub name: FfiUtf16View,
-    pub syntax_is_universal: bool,
+    pub syntax: FfiUtf16View,
     pub inherits: bool,
     pub has_initial_value: bool,
     pub initial_value: FfiUtf16View,
+}
+
+#[repr(C)]
+pub struct FfiCustomPropertyRegistryContext {
+    pub document_url: *const u8,
+    pub document_url_length: usize,
+    pub document_base_url: *const u8,
+    pub document_base_url_length: usize,
+    pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+}
+
+impl CustomPropertyRegistry {
+    fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
+        ParseContext {
+            in_quirks_mode: false,
+            is_svg_presentation_attribute: false,
+            is_substituted_value: false,
+            contains_attr_tainted_values: false,
+            value_contexts: std::ptr::null(),
+            value_context_count: 0,
+            document_url: self.document_url.as_ptr(),
+            document_url_length: self.document_url.len(),
+            document_base_url: self.document_base_url.as_ptr(),
+            document_base_url_length: self.document_base_url.len(),
+            intern_utf16_fly_string: self.intern_utf16_fly_string,
+            normalize_svg_path_data: None,
+            font_format_is_supported: None,
+            font_tech_is_supported: None,
+            random_function_index,
+        }
+    }
 }
 
 impl CustomPropertyStore {
@@ -91,11 +127,18 @@ impl CustomPropertyStore {
             .or_else(|| self.parent.as_ref()?.get(name_raw))
     }
 
-    fn get_by_name(&self, name: &[u16]) -> Option<&CustomPropertyEntry> {
+    fn get_by_name_with_owner(&self, name: &[u16]) -> Option<(&CustomPropertyEntry, &CustomPropertyStore)> {
         self.own_names
             .get(name)
             .and_then(|name_raw| self.own_values.get(name_raw))
-            .or_else(|| self.parent.as_ref()?.get_by_name(name))
+            .map(|entry| (entry, self))
+            .or_else(|| self.parent.as_ref()?.get_by_name_with_owner(name))
+    }
+
+    fn get_own_by_name(&self, name: &[u16]) -> Option<&CustomPropertyEntry> {
+        self.own_names
+            .get(name)
+            .and_then(|name_raw| self.own_values.get(name_raw))
     }
 }
 
@@ -192,6 +235,55 @@ fn is_single_css_wide_keyword(tokens: &[OwnedToken]) -> bool {
         || keyword.eq_ignore_ascii_case("revert-layer")
 }
 
+fn registration_accepts_tokens(
+    registry: &CustomPropertyRegistry,
+    registration: &RegisteredCustomProperty,
+    tokens: &[OwnedToken],
+) -> bool {
+    if matches!(registration.syntax, SyntaxNode::Universal) {
+        return true;
+    }
+    let source = serialize_tokens(tokens);
+    let mut random_function_index = 0;
+    let value_context = FfiValueParsingContext {
+        kind: FfiValueParsingContextKind::Property,
+        value: crate::css::property_metadata::property_id::CUSTOM,
+        secondary_value: 0,
+        name: Default::default(),
+        allowed_channels: 0,
+    };
+    let mut context = registry.parse_context(&mut random_function_index);
+    context.value_contexts = &raw const value_context;
+    context.value_context_count = 1;
+    parse_with_syntax(&context, &source, &registration.syntax).is_some()
+}
+
+fn registered_property_fallback(
+    owner: Option<&CustomPropertyStore>,
+    registry: &CustomPropertyRegistry,
+    registration: &RegisteredCustomProperty,
+    name: &[u16],
+    recursion_depth: u32,
+) -> TokenResolution {
+    if registration.inherits
+        && let Some(parent) = owner.and_then(|owner| owner.parent.as_deref())
+    {
+        return resolve_custom_property(
+            Some(parent),
+            Some(registry),
+            name,
+            &mut VarResolutionContext::default(),
+            recursion_depth + 1,
+        );
+    }
+    registration
+        .initial_source
+        .as_ref()
+        .map_or(TokenResolution::Invalid, |source| {
+            TokenResolution::Resolved(tokenize_owned(source))
+        })
+}
+
 fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
@@ -200,10 +292,11 @@ fn resolve_custom_property(
     recursion_depth: u32,
 ) -> TokenResolution {
     let registration = registry.and_then(|registry| registry.registrations.get(name));
-    if registration.is_some_and(|registration| !registration.syntax_is_universal) {
-        return TokenResolution::NotHandled;
-    }
-    let Some(entry) = store.and_then(|store| store.get_by_name(name)) else {
+    let entry_and_owner = store.and_then(|store| match registration {
+        Some(registration) if !registration.inherits => store.get_own_by_name(name).map(|entry| (entry, store)),
+        _ => store.get_by_name_with_owner(name),
+    });
+    let Some((entry, owner)) = entry_and_owner else {
         return registration
             .and_then(|registration| registration.initial_source.as_ref())
             .map_or(TokenResolution::Invalid, |source| {
@@ -217,11 +310,6 @@ fn resolve_custom_property(
     let Some((source, includes_var)) = data.unresolved_var_source() else {
         return TokenResolution::NotHandled;
     };
-    if registration.is_some() && includes_var {
-        // NB: Cycles involving registered properties affect the registered property's computed
-        // value and fallback behavior. Keep those on the registered-property computation path.
-        return TokenResolution::NotHandled;
-    }
     if context.cyclic_names.contains(name) {
         return TokenResolution::Invalid;
     }
@@ -234,8 +322,12 @@ fn resolve_custom_property(
             .extend(context.active_names[cycle_start..].iter().cloned());
         return TokenResolution::Cyclic;
     }
-    context.active_names.push(name.to_vec());
-    let result = substitute_tokens(store, registry, &tokenize_owned(source), context, recursion_depth + 1);
+    context.active_names.push(name.to_owned());
+    let result = if includes_var {
+        substitute_tokens(store, registry, &tokenize_owned(source), context, recursion_depth + 1)
+    } else {
+        TokenResolution::Resolved(tokenize_owned(source))
+    };
     let active_name = context.active_names.pop().expect("active custom property");
     debug_assert_eq!(active_name, name);
     if let TokenResolution::Resolved(tokens) = &result
@@ -244,6 +336,23 @@ fn resolve_custom_property(
         // NB: A CSS-wide keyword produced by substitution must first take on its custom-property
         // meaning. Keep this case on the C++ path until custom-property keyword resolution moves.
         return TokenResolution::NotHandled;
+    }
+    if let (Some(registry), Some(registration)) = (registry, registration) {
+        if context.cyclic_names.contains(name) {
+            if !context.active_names.is_empty() {
+                return TokenResolution::Cyclic;
+            }
+            return registered_property_fallback(Some(owner), registry, registration, name, recursion_depth);
+        }
+        return match result {
+            TokenResolution::Resolved(tokens) if registration_accepts_tokens(registry, registration, &tokens) => {
+                TokenResolution::Resolved(tokens)
+            }
+            TokenResolution::Resolved(_) | TokenResolution::Invalid | TokenResolution::Cyclic => {
+                registered_property_fallback(Some(owner), registry, registration, name, recursion_depth)
+            }
+            TokenResolution::NotHandled => TokenResolution::NotHandled,
+        };
     }
     result
 }
@@ -516,6 +625,9 @@ pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
     abort_on_panic(|| {
         Box::into_raw(Box::new(CustomPropertyRegistry {
             registrations: HashMap::new(),
+            document_url: Vec::new(),
+            document_base_url: Vec::new(),
+            intern_utf16_fly_string: None,
         }))
         .cast()
     })
@@ -529,16 +641,28 @@ pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_registry_update(
     registry: *mut c_void,
+    context: *const FfiCustomPropertyRegistryContext,
     registrations: *const FfiCustomPropertyRegistration,
     registration_count: usize,
 ) {
     abort_on_panic(|| {
+        let Some(context) = (unsafe { context.as_ref() }) else {
+            return;
+        };
         let registrations = if registration_count == 0 {
             &[]
         } else {
             unsafe { std::slice::from_raw_parts(registrations, registration_count) }
         };
         let registry = unsafe { &mut *registry.cast::<CustomPropertyRegistry>() };
+        registry.document_url = unsafe { crate::bytes_from_raw(context.document_url, context.document_url_length) }
+            .unwrap_or_default()
+            .to_vec();
+        registry.document_base_url =
+            unsafe { crate::bytes_from_raw(context.document_base_url, context.document_base_url_length) }
+                .unwrap_or_default()
+                .to_vec();
+        registry.intern_utf16_fly_string = context.intern_utf16_fly_string;
         registry.registrations.clear();
         registry.registrations.reserve(registrations.len());
         for registration in registrations {
@@ -551,11 +675,15 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
             } else {
                 None
             };
+            let Some(syntax) = unsafe { registration.syntax.to_utf16() }.and_then(|syntax| parse_syntax(&syntax, true))
+            else {
+                continue;
+            };
             registry.registrations.insert(
                 name,
                 RegisteredCustomProperty {
-                    syntax_is_universal: registration.syntax_is_universal,
-                    _inherits: registration.inherits,
+                    syntax,
+                    inherits: registration.inherits,
                     initial_source,
                 },
             );

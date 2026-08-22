@@ -162,6 +162,13 @@ public:
 
     size_t current_index() const { return m_index; }
 
+    ReadonlySpan<T> remaining_tokens() const
+    {
+        if (m_index >= m_tokens.size())
+            return {};
+        return m_tokens.slice(m_index);
+    }
+
     ReadonlySpan<T> tokens_since(size_t start) const
     {
         if (start > m_index)

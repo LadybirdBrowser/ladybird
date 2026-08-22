@@ -188,7 +188,11 @@ fn parse_transform_argument(
     (!stream.has_next_token()).then_some(parsed)
 }
 
-fn parse_transform_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+pub(crate) fn parse_transform_function(
+    context: &ParseContext,
+    property: u16,
+    value: &ComponentValue,
+) -> Option<StyleValueData> {
     let (name, values) = value.function()?;
     let function = function_index(name)?;
     let arguments = values.split(ComponentValue::is_comma).collect::<Vec<_>>();
@@ -212,7 +216,11 @@ fn non_whitespace(values: &[ComponentValue]) -> Vec<&ComponentValue> {
     values.iter().filter(|value| !value.is_whitespace()).collect()
 }
 
-fn parse_transform(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+pub(crate) fn parse_transform(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
     let transformations = non_whitespace(values)
         .into_iter()
         .map(|value| parse_transform_function(context, property, value))

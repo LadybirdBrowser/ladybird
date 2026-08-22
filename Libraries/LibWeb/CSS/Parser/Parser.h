@@ -656,8 +656,6 @@ private:
 
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 
-    RefPtr<StyleValue const> parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node);
-
     static bool has_ignored_vendor_prefix(Utf16View);
 
     void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
