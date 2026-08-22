@@ -157,6 +157,7 @@ pub enum FfiValueParsingContextKind {
 }
 
 /// One entry in the C++ Parser's value-context stack.
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiValueParsingContext {
     pub kind: FfiValueParsingContextKind,
@@ -5131,7 +5132,7 @@ pub(crate) fn unresolved_value(
     }
 }
 
-fn parse_css_value_with_source(
+pub(crate) fn parse_css_value_with_source(
     context: &ParseContext,
     property_id: u16,
     values: &[ComponentValue],
@@ -5176,6 +5177,8 @@ fn parse_css_value_with_source(
                     values: nested_values.into_boxed_slice(),
                 },
                 original_source_text: Box::new([]),
+                opening_source_length: 0,
+                closing_source_length: 0,
                 start_position: Default::default(),
                 end_position: Default::default(),
             }];
@@ -5747,6 +5750,8 @@ pub unsafe extern "C" fn rust_parse_css_value_from_tokens(
             let value = ComponentValue {
                 kind: ComponentKind::Token(token.kind),
                 original_source_text: token.source.to_vec().into_boxed_slice(),
+                opening_source_length: 0,
+                closing_source_length: 0,
                 start_position: token.start_position,
                 end_position: token.end_position,
             };
@@ -5766,6 +5771,8 @@ pub unsafe extern "C" fn rust_parse_css_value_from_tokens(
                     parser_token_from_ffi(token, token_values).map(|token| ComponentValue {
                         kind: ComponentKind::Token(token.kind),
                         original_source_text: token.source.to_vec().into_boxed_slice(),
+                        opening_source_length: 0,
+                        closing_source_length: 0,
                         start_position: token.start_position,
                         end_position: token.end_position,
                     })

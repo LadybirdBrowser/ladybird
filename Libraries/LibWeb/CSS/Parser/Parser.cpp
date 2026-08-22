@@ -26,6 +26,8 @@
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
+#include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Sizing.h>
@@ -118,20 +120,25 @@ ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
 
 Parser Parser::create(ParsingParams const& context, StringView input, StringView encoding)
 {
-    auto tokens = Tokenizer::tokenize(input, encoding);
-    return Parser { context, move(tokens) };
+    auto source = RustTokenizer::normalize_input(input, encoding);
+    auto tokens = RustTokenizer::tokenize(source, "utf-8"sv);
+    return Parser { context, move(source), move(tokens) };
 }
 
 Parser Parser::create(ParsingParams const& context, Utf16View input)
 {
     auto tokens = Tokenizer::tokenize(input);
-    return Parser { context, move(tokens) };
+    StringBuilder source;
+    for (auto const& token : tokens)
+        source.append(token.original_source_text());
+    return Parser { context, source.to_string_without_validation(), move(tokens) };
 }
 
-Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
+Parser::Parser(ParsingParams const& context, String source, Vector<Token> tokens)
     : m_document(context.document)
     , m_parsing_mode(context.mode)
     , m_is_ua_style_sheet(context.is_ua_style_sheet)
+    , m_source(move(source))
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
     , m_value_context(move(context.value_context))
@@ -229,14 +236,17 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
 
 GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
 {
-    return convert_rules(parse_a_stylesheets_contents(m_token_stream));
+    return convert_rules(RustSyntaxParser::parse_stylesheet(*this));
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
 GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> media_list)
 {
     // To parse a CSS stylesheet, first parse a stylesheet.
-    auto const& style_sheet = parse_a_stylesheet(m_token_stream, location);
+    ParsedStyleSheet style_sheet {
+        .location = location,
+        .rules = RustSyntaxParser::parse_stylesheet(*this),
+    };
 
     auto rule_list = CSSRuleList::create(convert_rules(style_sheet.rules));
     if (!media_list)
@@ -1526,6 +1536,9 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
         .original_value_text = {},
         .original_full_text = {},
         .source_position = {},
+        .value_text = {},
+        .parsed_property_id = {},
+        .parsed_value = {},
     };
     auto start_token_index = input.current_index();
 
@@ -1907,7 +1920,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
     };
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
-    auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
+    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
 
     // 2. Let parsed declarations be a new empty list.
     PropertiesAndCustomProperties parsed_declarations;
@@ -1934,7 +1947,7 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
 
 Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_block()
 {
-    auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
+    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
 
     Vector<DevToolsStyleDeclaration> parsed_declarations;
     for (auto const& rule_or_list : declarations_and_at_rules) {
@@ -1942,13 +1955,9 @@ Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_
             for (auto const& declaration : *rule_declarations) {
                 auto property = PropertyNameAndID::from_name(declaration.name);
 
-                StringBuilder value_builder;
-                for (auto const& value : declaration.value)
-                    value_builder.append(value.original_source_text());
-
                 parsed_declarations.append(DevToolsStyleDeclaration {
                     .name = declaration.name,
-                    .value = value_builder.to_string_without_validation(),
+                    .value = declaration.value_text,
                     .important = declaration.important,
                     .is_custom_property = property.has_value() && property->is_custom_property(),
                     .is_name_valid = property.has_value(),
@@ -2004,7 +2013,7 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
     m_rule_context.append(context_type);
-    auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
+    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
     m_rule_context.take_last();
 
     // 2. Let parsed declarations be a new empty list.
@@ -2258,16 +2267,39 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
     if (declaration.name.equals_ignoring_ascii_case("-webkit-box-orient"sv)) {
         // INTEROP: -webkit-box-orient predates flex-direction and uses horizontal and vertical
         //          for the values now represented by row and column, respectively.
-        auto legacy_value_token_stream = TokenStream(declaration.value);
-        legacy_value_token_stream.discard_whitespace();
-        auto const& token = legacy_value_token_stream.consume_a_token();
-        legacy_value_token_stream.discard_whitespace();
-        if (!legacy_value_token_stream.has_next_token()) {
-            if (token.is_ident("horizontal"_utf16))
+        if (declaration.parsed_property_id.has_value()) {
+            auto value = declaration.value_text.trim_ascii_whitespace();
+            if (value.equals_ignoring_ascii_case("horizontal"sv))
                 legacy_value = KeywordStyleValue::create(Keyword::Row);
-            else if (token.is_ident("vertical"_utf16))
+            else if (value.equals_ignoring_ascii_case("vertical"sv))
                 legacy_value = KeywordStyleValue::create(Keyword::Column);
+        } else {
+            auto legacy_value_token_stream = TokenStream(declaration.value);
+            legacy_value_token_stream.discard_whitespace();
+            auto const& token = legacy_value_token_stream.consume_a_token();
+            legacy_value_token_stream.discard_whitespace();
+            if (!legacy_value_token_stream.has_next_token()) {
+                if (token.is_ident("horizontal"_utf16))
+                    legacy_value = KeywordStyleValue::create(Keyword::Row);
+                else if (token.is_ident("vertical"_utf16))
+                    legacy_value = KeywordStyleValue::create(Keyword::Column);
+            }
         }
+    }
+
+    if (declaration.parsed_property_id.has_value()) {
+        auto value = legacy_value ? legacy_value : declaration.parsed_value;
+        if (!value) {
+            ErrorReporter::the().report(InvalidPropertyError {
+                .property_name = property->name(),
+                .value_string = declaration.value_text.to_utf8(),
+                .description = "Failed to parse."_string,
+            });
+            return {};
+        }
+        return property->is_custom_property()
+            ? StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_nonnull() }, property->name() }
+            : StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_nonnull() } };
     }
 
     auto value_token_stream = TokenStream(declaration.value);

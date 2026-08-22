@@ -78,7 +78,7 @@ struct WEB_API ParsingParams {
 
 struct DevToolsStyleDeclaration {
     Utf16FlyString name;
-    String value;
+    Utf16String value;
     Important important { Important::No };
     bool is_custom_property { false };
     bool is_name_valid { false };
@@ -173,7 +173,8 @@ public:
     static ParseErrorOr<void> collect_arbitrary_substitution_function_presence(ComponentValue const&, SubstitutionFunctionsPresence&);
 
 private:
-    Parser(ParsingParams const&, Vector<Token>);
+    friend class RustSyntaxParser;
+    Parser(ParsingParams const&, String source, Vector<Token>);
 
     // "Parse a stylesheet" is intended to be the normal parser entry point, for parsing stylesheets.
     struct ParsedStyleSheet {
@@ -405,6 +406,7 @@ private:
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 
+    Utf16String m_source;
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;
 

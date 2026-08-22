@@ -1853,7 +1853,7 @@ static JsonArray serialize_devtools_style_declarations(DOM::Document const& docu
 
         serialized_declarations.must_append(serialize_devtools_style_declaration(
             MUST(declaration.name.view().to_utf8()),
-            declaration.value,
+            declaration.value.to_utf8(),
             declaration.important,
             declaration.is_custom_property ? IsCustomProperty::Yes : IsCustomProperty::No,
             inherits ? Inherits::Yes : Inherits::No,
