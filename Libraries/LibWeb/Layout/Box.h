@@ -56,7 +56,7 @@ public:
 
     void notify_content_navigable_of_committed_viewport();
     bool has_saved_abspos_layout_inputs() const { return has_flag(RustFFI::NodeFlag::HasSavedAbsposLayoutInputs); }
-    bool has_saved_committed_geometry() const { return has_flag(RustFFI::NodeFlag::HasSavedCommittedGeometry); }
+    bool has_committed_fragment_link() const { return has_flag(RustFFI::NodeFlag::HasCommittedFragmentLink); }
     bool saved_abspos_cb_derives_from_own_computed_values() const { return has_flag(RustFFI::NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues); }
     bool saved_abspos_alignment_derives_from_own_computed_values() const { return has_flag(RustFFI::NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues); }
 

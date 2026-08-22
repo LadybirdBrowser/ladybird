@@ -160,7 +160,7 @@ pub enum NodeFlag {
     ListMarkerIsInside = 1 << 23,
     HasAnchorNames = 1 << 24,
     InsetsUseAnchorFunctions = 1 << 25,
-    HasSavedCommittedGeometry = 1 << 26,
+    HasCommittedFragmentLink = 1 << 26,
     HasPreserve3dTransformStyle = 1 << 27,
 }
 
@@ -263,8 +263,8 @@ mod tests {
     }
 
     #[test]
-    fn saved_committed_geometry_flag_uses_a_previously_unassigned_bit() {
-        assert_eq!(NodeFlag::HasSavedCommittedGeometry as u32, 1 << 26);
+    fn committed_fragment_link_flag_uses_a_previously_unassigned_bit() {
+        assert_eq!(NodeFlag::HasCommittedFragmentLink as u32, 1 << 26);
         assert_eq!(NodeFlag::HasPreserve3dTransformStyle as u32, 1 << 27);
     }
 

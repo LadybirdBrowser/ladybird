@@ -104,7 +104,7 @@ bool Box::is_partial_relayout_boundary() const
     // outermost one. An absolutely positioned SVG root's placement is not frozen, so it must
     // qualify through the saved-inputs replay path below instead.
     if (is_svg_svg_box() && !is_absolutely_positioned())
-        return has_saved_committed_geometry();
+        return has_committed_fragment_link();
 
     if (!is_absolutely_positioned())
         return false;
