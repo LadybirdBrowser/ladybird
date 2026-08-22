@@ -1396,6 +1396,7 @@ mod tests {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
+            contains_attr_tainted_values: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),

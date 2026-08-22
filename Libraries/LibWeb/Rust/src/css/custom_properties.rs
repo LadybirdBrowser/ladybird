@@ -15,6 +15,7 @@ use std::rc::Rc;
 use crate::abort_on_panic;
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
+use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style_value::RetainedStyleValueData;
@@ -637,7 +638,8 @@ pub struct FfiCustomPropertyStoreValue {
     pub found: bool,
     pub important: bool,
     pub data: *const c_void,
-    pub token_source: *const u8,
+    pub token_source_ascii: *const u8,
+    pub token_source_utf16: *const u16,
     pub token_source_length: usize,
 }
 
@@ -658,16 +660,22 @@ pub unsafe extern "C" fn rust_custom_property_store_get(
                 found: false,
                 important: false,
                 data: std::ptr::null(),
-                token_source: std::ptr::null(),
+                token_source_ascii: std::ptr::null(),
+                token_source_utf16: std::ptr::null(),
                 token_source_length: 0,
             };
         };
         let token_source = entry.value.data().unresolved_token_source().unwrap_or_default();
+        let (token_source_ascii, token_source_utf16) = match token_source {
+            TokenizerInput::Ascii(units) => (units.as_ptr(), std::ptr::null()),
+            TokenizerInput::Utf16(units) => (std::ptr::null(), units.as_ptr()),
+        };
         FfiCustomPropertyStoreValue {
             found: true,
             important: entry.important,
             data: entry.value.data() as *const StyleValueData as *const c_void,
-            token_source: token_source.as_ptr(),
+            token_source_ascii,
+            token_source_utf16,
             token_source_length: token_source.len(),
         }
     })

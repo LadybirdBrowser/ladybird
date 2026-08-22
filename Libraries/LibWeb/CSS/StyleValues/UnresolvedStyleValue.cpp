@@ -19,23 +19,23 @@
 
 namespace Web::CSS {
 
-static String source_text_from_component_values(Vector<Parser::ComponentValue> const& values, UnresolvedStyleValue::SourceTextMode source_text_mode)
+static Utf16String source_text_from_component_values(Vector<Parser::ComponentValue> const& values, UnresolvedStyleValue::SourceTextMode source_text_mode)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     for (auto const& value : values) {
         auto original_source_text = value.original_source_text();
         if (original_source_text.is_empty()) {
             auto serialized_values = serialize_a_series_of_component_values(values);
             if (source_text_mode == UnresolvedStyleValue::SourceTextMode::Trim)
-                return serialized_values.trim_ascii_whitespace().to_utf8();
-            return serialized_values.to_utf8();
+                return serialized_values.trim_ascii_whitespace();
+            return serialized_values;
         }
         builder.append(original_source_text);
     }
 
-    auto source_text = builder.to_string_without_validation();
+    auto source_text = builder.to_string();
     if (source_text_mode == UnresolvedStyleValue::SourceTextMode::Trim)
-        return MUST(source_text.trim_ascii_whitespace());
+        return source_text.trim_ascii_whitespace();
     return source_text;
 }
 
@@ -45,19 +45,21 @@ static void mark_as_attr_tainted(Vector<Parser::ComponentValue>& values)
         value.set_attr_tainted();
 }
 
-static StyleValueFFI::StyleValueData const* create_rust_style_value(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values, StyleValue const* parsed_value)
+static StyleValueFFI::StyleValueData const* create_rust_style_value(Utf16String source_text, Utf16String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values, StyleValue const* parsed_value)
 {
-    auto source_text_bytes = source_text.bytes();
-    auto value_comparison_text_bytes = value_comparison_text.bytes();
+    auto source_text_view = source_text.utf16_view();
+    auto value_comparison_text_view = value_comparison_text.utf16_view();
     auto source_text_raw = source_text.to_raw_leaked();
     auto value_comparison_text_raw = value_comparison_text.to_raw_leaked();
     return StyleValueFFI::rust_style_value_create_unresolved(
         source_text_raw,
-        source_text_bytes.data(),
-        source_text_bytes.size(),
+        source_text_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(source_text_view.ascii_span().data()) : nullptr,
+        source_text_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(source_text_view.utf16_span().data()),
+        source_text_view.length_in_code_units(),
         value_comparison_text_raw,
-        value_comparison_text_bytes.data(),
-        value_comparison_text_bytes.size(),
+        value_comparison_text_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(value_comparison_text_view.ascii_span().data()) : nullptr,
+        value_comparison_text_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(value_comparison_text_view.utf16_span().data()),
+        value_comparison_text_view.length_in_code_units(),
         substitution_presence.attr,
         substitution_presence.dashed_function,
         substitution_presence.env,
@@ -68,48 +70,48 @@ static StyleValueFFI::StyleValueData const* create_rust_style_value(String sourc
         parsed_value ? StyleValueFFI::rust_style_value_retain(parsed_value->rust_style_value_data()) : nullptr);
 }
 
-String UnresolvedStyleValue::comparison_text() const
+Utf16String UnresolvedStyleValue::comparison_text() const
 {
     auto value_comparison_text = this->value_comparison_text();
     if (!value_comparison_text.is_empty())
         return value_comparison_text;
-    return MUST(source_text().trim_ascii_whitespace());
+    return source_text().trim_ascii_whitespace();
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
 {
     auto has_original_source_text = original_source_text.has_value();
     auto source_text = [&] {
         if (has_original_source_text)
-            return MUST(original_source_text.release_value().trim_ascii_whitespace());
+            return original_source_text.release_value().trim_ascii_whitespace();
 
         if (source_text_mode == SourceTextMode::Trim)
-            return MUST(serialize_a_series_of_component_values_preserving_original_source_text(values).trim_ascii_whitespace());
+            return serialize_a_series_of_component_values_preserving_original_source_text(values).trim_ascii_whitespace();
         if (source_text_mode == SourceTextMode::TrimLeading)
-            return MUST(serialize_a_series_of_component_values_preserving_original_source_text(values).trim_ascii_whitespace(TrimMode::Left));
+            return serialize_a_series_of_component_values_preserving_original_source_text(values).trim_ascii_whitespace(TrimMode::Left);
 
         return source_text_from_component_values(values, source_text_mode);
     }();
     // NB: The comparison text is a normalized serialization, only used when we have separate original source text.
     //     Don't pay for serializing it otherwise.
     auto value_comparison_text = has_original_source_text
-        ? serialize_a_series_of_component_values(values).trim_ascii_whitespace().to_utf8()
-        : String {};
+        ? serialize_a_series_of_component_values(values).trim_ascii_whitespace()
+        : Utf16String {};
     return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values, move(parsed_value)));
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> original_source_text, SourceTextMode source_text_mode, bool contains_attr_tainted_values)
 {
     return create_internal(move(values), substitution_presence, move(original_source_text), source_text_mode, contains_attr_tainted_values, nullptr);
 }
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text, SourceTextMode source_text_mode, NonnullRefPtr<StyleValue const> parsed_value)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<Utf16String> original_source_text, SourceTextMode source_text_mode, NonnullRefPtr<StyleValue const> parsed_value)
 {
     VERIFY(!parsed_value->is_unresolved());
     return create_internal(move(values), substitution_presence, move(original_source_text), source_text_mode, true, move(parsed_value));
 }
 
-UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
+UnresolvedStyleValue::UnresolvedStyleValue(Utf16String source_text, Utf16String value_comparison_text, Parser::SubstitutionFunctionsPresence substitution_presence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value)
     : StyleValue(Type::Unresolved, create_rust_style_value(move(source_text), move(value_comparison_text), substitution_presence, contains_attr_tainted_values, parsed_value.ptr()))
 {
 }

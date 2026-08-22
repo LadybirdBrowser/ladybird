@@ -756,15 +756,6 @@ fn parse_filter_list(context: &ParseContext, property: u16, values: &[ComponentV
     (!values.is_empty()).then(|| value_list(values, 0, false))
 }
 
-fn has_function_context(context: &ParseContext) -> bool {
-    if context.value_context_count == 0 || context.value_contexts.is_null() {
-        return false;
-    }
-    unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
-        .iter()
-        .any(|value_context| value_context.kind == super::value_parser::FfiValueParsingContextKind::Function)
-}
-
 fn contains_math_function(values: &[ComponentValue]) -> bool {
     values.iter().any(|value| match &value.kind {
         ComponentKind::Function { name, values } => {
@@ -780,12 +771,6 @@ pub(crate) fn parse_transform_effect_property(
     property: u16,
     values: &[ComponentValue],
 ) -> ParseOutcome {
-    if has_function_context(context) {
-        // NB: C++ can call this parser with the tokens of a calculation nested
-        //     in one of these functions while resolving substitutions. Preserve
-        //     function-context parsing until the substitution seam is gone.
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
-    }
     if property == property_id::TRANSFORM
         && keyword_none(values).is_none()
         && non_whitespace(values).iter().any(|value| value.function().is_none())
@@ -837,6 +822,7 @@ mod tests {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
+            contains_attr_tainted_values: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),
