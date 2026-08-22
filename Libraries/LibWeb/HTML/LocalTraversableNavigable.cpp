@@ -1749,7 +1749,11 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
         request_history_operation(
             CloseTopLevelTraversableHistoryOperationParameters { .traversable_id = id() },
             {
-                .pre_steps = GC::create_function(heap(), [this](Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady> ready) {
+                .on_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
+                    // NB: An abandoned close never reached its queue position; do not destroy the traversable for it.
+                    if (result != HistoryStepResult::Applied)
+                        return;
+
                     // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
                     auto after_all_unloads = GC::create_function(heap(), [this] {
                         destroy_top_level_traversable();
@@ -1757,7 +1761,6 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
 
                     // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
                     active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-                    ready->function()(HistoryStepResult::Applied);
                 }),
             });
     };
