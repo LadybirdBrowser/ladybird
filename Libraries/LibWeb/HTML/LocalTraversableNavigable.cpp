@@ -486,33 +486,26 @@ bool LocalTraversableNavigable::route_child_created_during_history_reconstructio
     return true;
 }
 
-void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete)
+// NB: The UI process sends the reset request at its position on the session history traversal queue and holds the
+//     queue until the retained active entry is returned, so this runs with the ordering the replaced algorithms had.
+void LocalTraversableNavigable::reset_session_history_for_testing()
 {
-    request_history_operation(
-        ResetSessionHistoryForTestingOperationParameters { .traversable_id = id() },
-        {
-            .pre_steps = GC::create_function(heap(), [this, on_complete](Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady> ready) {
-                auto maybe_active_entry = active_session_history_entry();
-                VERIFY(maybe_active_entry);
-                auto active_entry = maybe_active_entry.release_nonnull();
+    auto maybe_active_entry = active_session_history_entry();
+    VERIFY(maybe_active_entry);
+    auto active_entry = maybe_active_entry.release_nonnull();
 
-                active_entry->set_step(0);
-                set_active_session_history_entry(active_entry);
-                set_current_session_history_entry(active_entry);
-                m_session_history_entry_count = 1;
+    active_entry->set_step(0);
+    set_active_session_history_entry(active_entry);
+    set_current_session_history_entry(active_entry);
+    m_session_history_entry_count = 1;
 
-                auto document = active_document();
-                VERIFY(document);
-                document->history()->m_index = 0;
-                document->history()->m_length = 1;
+    auto document = active_document();
+    VERIFY(document);
+    document->history()->m_index = 0;
+    document->history()->m_length = 1;
 
-                Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api { active_entry };
-                active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
-
-                ready->function()(HistoryStepResult::Applied);
-                on_complete->function()();
-            }),
-        });
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api { active_entry };
+    active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation

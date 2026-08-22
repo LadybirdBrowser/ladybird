@@ -439,15 +439,10 @@ void ConnectionFromClient::complete_history_operation(u64 page_id, Web::HTML::Cr
 void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
-        auto& event_loop = Web::HTML::main_thread_event_loop();
-        page->page().top_level_traversable()->reset_session_history_for_testing(
-            GC::create_function(event_loop.heap(), [this, page_id] {
-                auto page = this->page(page_id);
-                VERIFY(page.has_value());
-                auto active_entry = page->page().top_level_traversable()->active_session_history_entry();
-                VERIFY(active_entry);
-                async_did_reset_session_history_for_testing(page_id, Web::HTML::create_session_history_entry_descriptor(*active_entry));
-            }));
+        page->page().top_level_traversable()->reset_session_history_for_testing();
+        auto active_entry = page->page().top_level_traversable()->active_session_history_entry();
+        VERIFY(active_entry);
+        async_did_reset_session_history_for_testing(page_id, Web::HTML::create_session_history_entry_descriptor(*active_entry));
     }
 }
 
