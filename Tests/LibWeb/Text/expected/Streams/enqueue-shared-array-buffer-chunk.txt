@@ -1,0 +1,2 @@
+whole shared buffer: hello
+shared view at offset 1, length 3: ell
