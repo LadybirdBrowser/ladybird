@@ -1,0 +1,9 @@
+document
+  generic focused
+    button name="Contents button"
+      text leaf name="Contents button"
+    button name="Nested contents button"
+      text leaf name="Nested contents button"
+    generic
+      button name="Normal button"
+        text leaf name="Normal button"

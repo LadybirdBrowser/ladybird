@@ -1,0 +1,12 @@
+document
+  generic focused
+    heading name="Top heading" level=1
+      text leaf name="Top heading"
+    heading name="Sub heading" level=2
+      text leaf name="Sub heading"
+    heading name="Doc subtitle" level=3
+      text leaf name="Doc subtitle"
+    paragraph
+      text leaf name="Text with emoji: 👋 and then more"
+    heading name="Aria heading" level=5
+      text leaf name="Aria heading"

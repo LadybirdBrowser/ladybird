@@ -1033,6 +1033,13 @@ RefPtr<StyleValue const> ComputedValues::FontValues::font_family_style_value() c
     return animation_style_value(font_family);
 }
 
+FontStyleKeyword ComputedValues::FontValues::font_style_keyword() const
+{
+    if (!font_style.pointer)
+        return FontStyleKeyword::Normal;
+    return animation_style_value(font_style)->as_font_style().font_style();
+}
+
 RefPtr<StyleValue const> ComputedValues::MiscResetValues::outline_offset_style_value_value() const
 {
     return animation_style_value(outline_offset_style_value);

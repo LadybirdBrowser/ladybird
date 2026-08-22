@@ -1,0 +1,19 @@
+document
+  generic focused
+    heading name="Top level" level=1
+      text leaf name="Top level"
+    generic
+      heading name="Section heading" level=2
+        text leaf name="Section heading"
+      paragraph
+        text leaf name="Section content."
+      generic
+        heading name="Subsection heading" level=3
+          text leaf name="Subsection heading"
+        paragraph
+          text leaf name="Subsection content."
+    generic
+      heading name="Another section" level=2
+        text leaf name="Another section"
+      heading name="Custom heading level 4" level=4
+        text leaf name="Custom heading level 4"

@@ -431,6 +431,14 @@ fn outline_style_to_line_style(style: u8) -> u8 {
     }
 }
 
+pub(crate) fn auto_outline_data(auto_outline_color: u32) -> OutlineData {
+    OutlineData {
+        color: auto_outline_color,
+        line_style: line_style::SOLID,
+        width: CssPixels::from_integer(2),
+    }
+}
+
 // Returns OptionalNone if there is no outline to paint.
 pub(crate) fn outline_data(
     arena: &LayoutNodeArena,
@@ -444,9 +452,8 @@ pub(crate) fn outline_data(
         return None;
     }
     let (color, resolved_line_style, width) = if misc.outline_style == outline_style::AUTO {
-        // `auto` lets us do whatever we want for the outline. 2px of the accent
-        // colour seems reasonable.
-        (auto_outline_color, line_style::SOLID, CssPixels::from_integer(2))
+        let auto_outline = auto_outline_data(auto_outline_color);
+        (auto_outline.color, auto_outline.line_style, auto_outline.width)
     } else {
         let resolved = outline_style_to_line_style(misc.outline_style);
         (misc.outline_color, resolved, misc.outline_width)
