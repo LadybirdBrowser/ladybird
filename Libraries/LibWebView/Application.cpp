@@ -488,10 +488,15 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     set_mach_server_name(m_mach_port_server->server_port_name());
 
     m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
-        set_process_mach_port(request.pid, move(request.task_port));
         auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
         result.visit(
-            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
+            [this, pid = request.pid, task_port = move(request.task_port)](IPC::TransportBootstrapMachServer::ChildTransportHandled) mutable {
+                // The child sends its task port before Process::spawn() returns, so it cannot be added to the process
+                // manager yet. Install the port once control returns to the browser event loop.
+                VERIFY(m_event_loop);
+                m_event_loop->deferred_invoke([this, pid, task_port = move(task_port)]() mutable {
+                    set_process_mach_port(pid, move(task_port));
+                });
             },
             [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
                 if (!m_on_browser_process_transport)

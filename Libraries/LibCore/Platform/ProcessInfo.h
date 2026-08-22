@@ -20,6 +20,14 @@ struct ProcessInfo {
     {
     }
 
+    void reset_cpu_time()
+    {
+        cpu_percent = 0.0f;
+#if defined(AK_OS_MACH)
+        has_cpu_time_baseline = false;
+#endif
+    }
+
     pid_t pid { 0 };
 
     u64 memory_usage_bytes { 0 };
@@ -29,6 +37,7 @@ struct ProcessInfo {
 
 #if defined(AK_OS_MACH)
     Core::MachPort child_task_port;
+    bool has_cpu_time_baseline { false };
 #endif
 };
 
