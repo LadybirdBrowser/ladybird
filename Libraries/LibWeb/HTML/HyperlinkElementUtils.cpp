@@ -396,11 +396,20 @@ void HyperlinkElementUtils::reinitialize_url() const
     const_cast<HyperlinkElementUtils*>(this)->set_the_url();
 }
 
+void HyperlinkElementUtils::href_content_attribute_changed()
+{
+    m_url = {};
+    m_should_invalidate_style_after_url_change = false;
+    CSS::Invalidation::invalidate_style_after_hyperlink_state_change(hyperlink_element_utils_element());
+}
+
 // https://html.spec.whatwg.org/multipage/links.html#concept-hyperlink-url-set
 void HyperlinkElementUtils::set_the_url()
 {
-    ScopeGuard invalidate_style_if_needed = [old_url = m_url, this] {
-        if (m_url != old_url)
+    auto should_invalidate_style = m_should_invalidate_style_after_url_change;
+    m_should_invalidate_style_after_url_change = true;
+    ScopeGuard invalidate_style_if_needed = [old_url = m_url, should_invalidate_style, this] {
+        if (should_invalidate_style && m_url != old_url)
             CSS::Invalidation::invalidate_style_after_hyperlink_state_change(hyperlink_element_utils_element());
     };
 
@@ -426,6 +435,8 @@ void HyperlinkElementUtils::set_the_url()
 // https://html.spec.whatwg.org/multipage/links.html#api-for-hyperlink-elements:extract-an-origin
 Optional<URL::Origin> HyperlinkElementUtils::hyperlink_element_utils_extract_an_origin() const
 {
+    reinitialize_url();
+
     // 1. If this's url is null, then return null.
     if (!m_url.has_value())
         return {};

@@ -18,8 +18,10 @@ HTMLHyperlinkElementUtils::~HTMLHyperlinkElementUtils() = default;
 // https://html.spec.whatwg.org/multipage/links.html#api-for-a-and-area-elements:concept-hyperlink-url-set-2
 void HTMLHyperlinkElementUtils::set_the_url()
 {
-    ScopeGuard invalidate_style_if_needed = [old_url = m_url, this] {
-        if (m_url != old_url)
+    auto should_invalidate_style = m_should_invalidate_style_after_url_change;
+    m_should_invalidate_style_after_url_change = true;
+    ScopeGuard invalidate_style_if_needed = [old_url = m_url, should_invalidate_style, this] {
+        if (should_invalidate_style && m_url != old_url)
             CSS::Invalidation::invalidate_style_after_hyperlink_state_change(hyperlink_element_utils_element());
     };
 
