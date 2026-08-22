@@ -262,7 +262,8 @@ impl PaintRecorder<'_> {
 
         // Draw the background and borders for block-level children (step 4)
         self.paint_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
-        if self.paintables.side(paintable).collapsed_table_borders.is_some() {
+        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.paintables, paintable).is_some()
+        {
             self.paint_node(paintable, PaintPhase::TableCollapsedBorder);
         }
         // Draw the non-positioned floats (step 5)
@@ -330,7 +331,8 @@ impl PaintRecorder<'_> {
         if !self.is_pure_inline_box(paintable) {
             self.paint_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
         }
-        if self.paintables.side(paintable).collapsed_table_borders.is_some() {
+        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.paintables, paintable).is_some()
+        {
             self.paint_node(paintable, PaintPhase::TableCollapsedBorder);
         }
     }

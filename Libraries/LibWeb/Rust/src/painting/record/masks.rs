@@ -245,7 +245,7 @@ impl PaintRecorder<'_> {
 
     fn target_user_space_object_bounding_box(&self, target: PaintableSlotId) -> CssPixelRect {
         if self.data(target).kind == PaintableKind::SVGPathPaintable
-            && let Some(path) = &self.paintables.side(target).computed_svg_path
+            && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(self.paintables, target)
         {
             let [x, y, width, height] = path.bounding_box();
             return CssPixelRect::new(

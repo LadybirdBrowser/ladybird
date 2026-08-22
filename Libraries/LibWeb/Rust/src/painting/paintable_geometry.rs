@@ -96,6 +96,54 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &PaintableArena, sl
     })
 }
 
+pub(crate) fn committed_grid_layout_data(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> Option<std::rc::Rc<crate::layout::GridLayoutData>> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.grid_layout_data.clone())
+    })
+}
+
+pub(crate) fn committed_flex_layout_data(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> Option<std::rc::Rc<crate::layout::FlexLayoutData>> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.flex_layout_data.clone())
+    })
+}
+
+pub(crate) fn committed_used_grid_tracks(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> Option<std::rc::Rc<crate::layout::OwnedUsedGridTracks>> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.used_grid_tracks.clone())
+    })
+}
+
+pub(crate) fn committed_collapsed_table_borders(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> Option<std::rc::Rc<crate::layout::OwnedCollapsedTableBorders>> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.collapsed_table_borders.clone())
+    })
+}
+
+pub(crate) fn committed_svg_path(
+    arena: &PaintableArena,
+    slot: PaintableSlotId,
+) -> Option<std::rc::Rc<libgfx_rust::path::OwnedPath>> {
+    if arena.data_ref(slot).kind != PaintableKind::SVGPathPaintable {
+        return None;
+    }
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.computed_svg_path.clone())
+    })
+}
+
 pub(crate) fn committed_containing_line_box_index(arena: &PaintableArena, slot: PaintableSlotId) -> Option<usize> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.containing_line_box_index))
 }

@@ -1184,10 +1184,7 @@ pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
         if !paintables.is_live(paintable) {
             return std::ptr::null();
         }
-        paintables
-            .side(paintable)
-            .computed_svg_path
-            .as_ref()
+        crate::painting::paintable_geometry::committed_svg_path(&paintables, paintable)
             .map_or(std::ptr::null(), |path| path.as_raw())
     })
 }
@@ -1946,8 +1943,8 @@ pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
         if !paintables.is_live(paintable) {
             return;
         }
-        if let Some(data) = &paintables.side(paintable).grid_layout_data {
-            let json = crate::painting::devtools_layout::serialize_grid_layout(data, container_node_id);
+        if let Some(data) = crate::painting::paintable_geometry::committed_grid_layout_data(&paintables, paintable) {
+            let json = crate::painting::devtools_layout::serialize_grid_layout(&data, container_node_id);
             unsafe { consume(context, json.as_ptr(), json.len()) };
         }
     });
@@ -1970,8 +1967,8 @@ pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
         if !paintables.is_live(paintable) {
             return;
         }
-        if let Some(data) = &paintables.side(paintable).flex_layout_data {
-            let json = crate::painting::devtools_layout::serialize_flex_layout(data, container_node_id);
+        if let Some(data) = crate::painting::paintable_geometry::committed_flex_layout_data(&paintables, paintable) {
+            let json = crate::painting::devtools_layout::serialize_flex_layout(&data, container_node_id);
             unsafe { consume(context, json.as_ptr(), json.len()) };
         }
     });
@@ -1997,7 +1994,7 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
         if !paintables.is_live(paintable) {
             return;
         }
-        if let Some(tracks) = &paintables.side(paintable).used_grid_tracks {
+        if let Some(tracks) = crate::painting::paintable_geometry::committed_used_grid_tracks(&paintables, paintable) {
             tracks.with_ffi_views(|columns, rows| unsafe { consume(context, columns, rows) });
         }
     });
