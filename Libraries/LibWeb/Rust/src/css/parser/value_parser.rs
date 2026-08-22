@@ -34,18 +34,19 @@ use crate::css::parser::transforms_effects_parser::{
     is_transform_effect_function_name, parse_transform_effect_property,
 };
 use crate::css::property_metadata::{
-    FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
-    property_accepts_only_keywords, property_custom_ident_blacklist, property_has_coordinating_list_multiplicity,
-    property_has_hashless_hex_color_quirk, property_has_unitless_length_quirk, property_id, property_is_shorthand,
-    property_maximum_value_count, property_numeric_ranges, property_percentages_resolve_to,
-    property_resolve_legacy_value_alias,
+    FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, longhands_for_shorthand, property_accepted_keywords,
+    property_accepted_value_types, property_accepts_only_keywords, property_custom_ident_blacklist,
+    property_has_coordinating_list_multiplicity, property_has_hashless_hex_color_quirk,
+    property_has_unitless_length_quirk, property_id, property_initial_value,
+    property_is_positional_value_list_shorthand, property_is_shorthand, property_maximum_value_count,
+    property_numeric_ranges, property_percentages_resolve_to, property_resolve_legacy_value_alias,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
     RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
-    RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData,
+    RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
+    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 use std::collections::BTreeMap;
 use std::ffi::c_void;
@@ -3471,6 +3472,1497 @@ fn parse_color_property(context: &ParseContext, property: u16, values: &[Compone
     ParseOutcome::Parsed(Arc::new(color))
 }
 
+fn parse_positional_value_list_shorthand(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    if !property_is_positional_value_list_shorthand(property) {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+
+    let longhands = longhands_for_shorthand(property);
+    let Some(&representative_longhand) = longhands.first() else {
+        return ParseOutcome::Invalid;
+    };
+    let parsed = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(
+            |value| match parse_css_value(context, representative_longhand, std::slice::from_ref(value)) {
+                ParseOutcome::Parsed(value) => Some((*value).clone()),
+                ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
+            },
+        )
+        .collect::<Option<Vec<_>>>();
+    let Some(parsed) = parsed.filter(|parsed| !parsed.is_empty() && parsed.len() <= longhands.len()) else {
+        return ParseOutcome::Invalid;
+    };
+
+    let expanded = match longhands.len() {
+        2 => match parsed.as_slice() {
+            [first] => vec![first.clone(), first.clone()],
+            [first, second] => vec![first.clone(), second.clone()],
+            _ => return ParseOutcome::Invalid,
+        },
+        4 => match parsed.as_slice() {
+            [first] => vec![first.clone(), first.clone(), first.clone(), first.clone()],
+            [first, second] => vec![first.clone(), second.clone(), first.clone(), second.clone()],
+            [first, second, third] => vec![first.clone(), second.clone(), third.clone(), second.clone()],
+            [first, second, third, fourth] => {
+                vec![first.clone(), second.clone(), third.clone(), fourth.clone()]
+            }
+            _ => return ParseOutcome::Invalid,
+        },
+        _ => return ParseOutcome::Invalid,
+    };
+    ParseOutcome::Parsed(Arc::new(StyleValueData::Shorthand {
+        shorthand_property: property,
+        sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+        values: RetainedStyleValueDataList::from_retained_values(
+            expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+        ),
+    }))
+}
+
+fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<StyleValueData> {
+    let initial = property_initial_value(property);
+    let values = consume_a_list_of_component_values(&tokenize_for_parser(initial.as_bytes())).ok()?;
+    match parse_css_value(context, property, &values) {
+        ParseOutcome::Parsed(value) => Some((*value).clone()),
+        ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
+    }
+}
+
+fn shorthand_value(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValueData>) -> StyleValueData {
+    StyleValueData::Shorthand {
+        shorthand_property: property,
+        sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
+        values: RetainedStyleValueDataList::from_retained_values(
+            values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+        ),
+    }
+}
+
+fn shorthand_with_initial_longhands(context: &ParseContext, property: u16) -> Option<StyleValueData> {
+    let longhands = longhands_for_shorthand(property);
+    let values = longhands
+        .iter()
+        .map(|&longhand| parse_initial_longhand(context, longhand))
+        .collect::<Option<Vec<_>>>()?;
+    Some(shorthand_value(property, longhands.to_vec(), values))
+}
+
+fn parse_component_for_property(
+    context: &ParseContext,
+    property: u16,
+    value: &ComponentValue,
+) -> Option<StyleValueData> {
+    parse_slice_for_property(context, property, std::slice::from_ref(value))
+}
+
+fn parse_slice_for_property(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let mut non_whitespace = values.iter().filter(|value| !value.is_whitespace());
+    if non_whitespace.next().is_some_and(|value| {
+        value
+            .ident()
+            .and_then(keyword_from_ascii_case_insensitive)
+            .is_some_and(is_css_wide_keyword)
+    }) && non_whitespace.next().is_none()
+    {
+        return None;
+    }
+    match parse_css_value(context, property, values) {
+        ParseOutcome::Parsed(value) => {
+            if property_has_coordinating_list_multiplicity(property)
+                && let StyleValueData::ValueList { values, .. } = &*value
+            {
+                return values.as_slice().first()?.optional_data().cloned();
+            }
+            Some((*value).clone())
+        }
+        ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
+    }
+}
+
+fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if !matches!(
+        property,
+        property_id::BORDER_BLOCK_END
+            | property_id::BORDER_BLOCK_START
+            | property_id::BORDER_BOTTOM
+            | property_id::BORDER_INLINE_END
+            | property_id::BORDER_INLINE_START
+            | property_id::BORDER_LEFT
+            | property_id::BORDER_RIGHT
+            | property_id::BORDER_TOP
+            | property_id::FLEX_FLOW
+            | property_id::OUTLINE
+            | property_id::TEXT_WRAP
+    ) {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+
+    let longhands = longhands_for_shorthand(property);
+    let mut parsed = vec![None; longhands.len()];
+    let mut parsed_order = Vec::with_capacity(longhands.len());
+    let mut parsed_any = false;
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
+        if value
+            .ident()
+            .and_then(keyword_from_ascii_case_insensitive)
+            .is_some_and(is_css_wide_keyword)
+        {
+            return ParseOutcome::Invalid;
+        }
+        let mut matched = false;
+        for (index, &longhand) in longhands.iter().enumerate() {
+            if parsed[index].is_some() {
+                continue;
+            }
+            if let ParseOutcome::Parsed(value) = parse_css_value(context, longhand, std::slice::from_ref(value)) {
+                parsed[index] = Some((*value).clone());
+                parsed_order.push(index);
+                matched = true;
+                parsed_any = true;
+                break;
+            }
+        }
+        if !matched {
+            return ParseOutcome::Invalid;
+        }
+    }
+    if !parsed_any {
+        return ParseOutcome::Invalid;
+    }
+
+    let Some(parsed) = parsed
+        .into_iter()
+        .zip(longhands)
+        .map(|(value, &longhand)| value.or_else(|| parse_initial_longhand(context, longhand)))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return ParseOutcome::Invalid;
+    };
+    let order = if property == property_id::FLEX_FLOW {
+        (0..longhands.len()).collect()
+    } else {
+        for index in 0..longhands.len() {
+            if !parsed_order.contains(&index) {
+                parsed_order.push(index);
+            }
+        }
+        parsed_order
+    };
+    ParseOutcome::Parsed(Arc::new(StyleValueData::Shorthand {
+        shorthand_property: property,
+        sub_properties: RetainedPropertyIdList::from_property_ids(
+            order.iter().map(|&index| longhands[index]).collect(),
+        ),
+        values: RetainedStyleValueDataList::from_retained_values(
+            order
+                .into_iter()
+                .map(|index| RetainedStyleValueData::from_owned(parsed[index].clone()))
+                .collect(),
+        ),
+    }))
+}
+
+fn parse_border_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let (width_property, style_property, color_property) = match property {
+        property_id::BORDER => (
+            property_id::BORDER_WIDTH,
+            property_id::BORDER_STYLE,
+            property_id::BORDER_COLOR,
+        ),
+        property_id::BORDER_BLOCK => (
+            property_id::BORDER_BLOCK_WIDTH,
+            property_id::BORDER_BLOCK_STYLE,
+            property_id::BORDER_BLOCK_COLOR,
+        ),
+        property_id::BORDER_INLINE => (
+            property_id::BORDER_INLINE_WIDTH,
+            property_id::BORDER_INLINE_STYLE,
+            property_id::BORDER_INLINE_COLOR,
+        ),
+        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+    };
+    let candidates = [width_property, color_property, style_property];
+    let mut parsed = [None, None, None];
+    let mut parsed_any = false;
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
+        let mut matched = false;
+        for (index, &candidate) in candidates.iter().enumerate() {
+            if parsed[index].is_none()
+                && let Some(component) = parse_component_for_property(context, candidate, value)
+            {
+                parsed[index] = Some(component);
+                parsed_any = true;
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            return ParseOutcome::Invalid;
+        }
+    }
+    if !parsed_any {
+        return ParseOutcome::Invalid;
+    }
+    let [width, color, style] = parsed;
+    let Some(width) = width.or_else(|| shorthand_with_initial_longhands(context, width_property)) else {
+        return ParseOutcome::Invalid;
+    };
+    let Some(style) = style.or_else(|| shorthand_with_initial_longhands(context, style_property)) else {
+        return ParseOutcome::Invalid;
+    };
+    let Some(color) = color.or_else(|| shorthand_with_initial_longhands(context, color_property)) else {
+        return ParseOutcome::Invalid;
+    };
+    let mut sub_properties = vec![width_property, style_property, color_property];
+    let mut parsed = vec![width, style, color];
+    if property == property_id::BORDER {
+        sub_properties.push(property_id::BORDER_IMAGE);
+        let Some(border_image) = shorthand_with_initial_longhands(context, property_id::BORDER_IMAGE) else {
+            return ParseOutcome::Invalid;
+        };
+        parsed.push(border_image);
+    }
+    ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, parsed)))
+}
+
+fn parse_flex_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if values.is_empty()
+        || values.iter().any(|value| {
+            value
+                .ident()
+                .and_then(keyword_from_ascii_case_insensitive)
+                .is_some_and(is_css_wide_keyword)
+        })
+    {
+        return ParseOutcome::Invalid;
+    }
+    let number = |value| StyleValueData::Number { value };
+    let percentage = |value| StyleValueData::Percentage { value };
+    let auto = || StyleValueData::Keyword { keyword: keyword::AUTO };
+    let parsed = if let [value] = values.as_slice() {
+        if let Some(grow) = parse_component_for_property(context, property_id::FLEX_GROW, value) {
+            vec![grow, number(1.0), percentage(0.0)]
+        } else if let Some(basis) = parse_component_for_property(context, property_id::FLEX_BASIS, value) {
+            vec![number(1.0), number(1.0), basis]
+        } else if value
+            .ident()
+            .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"none"))
+        {
+            vec![number(0.0), number(0.0), auto()]
+        } else {
+            return ParseOutcome::Invalid;
+        }
+    } else {
+        let mut index = 0;
+        let mut grow = None;
+        let mut shrink = None;
+        let mut basis = None;
+        while index < values.len() {
+            if grow.is_none()
+                && let Some(value) = parse_component_for_property(context, property_id::FLEX_GROW, values[index])
+            {
+                grow = Some(value);
+                index += 1;
+                if index < values.len() {
+                    shrink = parse_component_for_property(context, property_id::FLEX_SHRINK, values[index]);
+                    if shrink.is_some() {
+                        index += 1;
+                    }
+                }
+                continue;
+            }
+            if basis.is_none()
+                && let Some(value) = parse_component_for_property(context, property_id::FLEX_BASIS, values[index])
+            {
+                basis = Some(value);
+                index += 1;
+                continue;
+            }
+            return ParseOutcome::Invalid;
+        }
+        vec![
+            grow.or_else(|| parse_initial_longhand(context, property_id::FLEX_GROW))
+                .unwrap_or_else(|| number(0.0)),
+            shrink
+                .or_else(|| parse_initial_longhand(context, property_id::FLEX_SHRINK))
+                .unwrap_or_else(|| number(1.0)),
+            basis.unwrap_or_else(|| percentage(0.0)),
+        ]
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::FLEX,
+        longhands_for_shorthand(property_id::FLEX).to_vec(),
+        parsed,
+    )))
+}
+
+fn parse_columns_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    let slash = values.iter().position(|value| value.is_delim(b'/'));
+    let (columns, height) = if let Some(slash) = slash {
+        if slash == 0 || slash > 2 || values.len() != slash + 2 {
+            return ParseOutcome::Invalid;
+        }
+        (&values[..slash], Some(values[slash + 1]))
+    } else {
+        if values.is_empty() || values.len() > 2 {
+            return ParseOutcome::Invalid;
+        }
+        (values.as_slice(), None)
+    };
+    let mut count = None;
+    let mut width = None;
+    let mut auto_count = 0;
+    for value in columns {
+        if value
+            .ident()
+            .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"auto"))
+        {
+            auto_count += 1;
+        } else {
+            if count.is_none()
+                && let Some(parsed_count) = parse_component_for_property(context, property_id::COLUMN_COUNT, value)
+            {
+                count = Some(parsed_count);
+                continue;
+            }
+            if width.is_none()
+                && let Some(parsed_width) = parse_component_for_property(context, property_id::COLUMN_WIDTH, value)
+            {
+                width = Some(parsed_width);
+                continue;
+            }
+            return ParseOutcome::Invalid;
+        }
+    }
+    if auto_count > 2 {
+        return ParseOutcome::Invalid;
+    }
+    let auto = || StyleValueData::Keyword { keyword: keyword::AUTO };
+    if auto_count > 0 {
+        count.get_or_insert_with(auto);
+        width.get_or_insert_with(auto);
+    }
+    let Some(count) = count.or_else(|| parse_initial_longhand(context, property_id::COLUMN_COUNT)) else {
+        return ParseOutcome::Invalid;
+    };
+    let Some(width) = width.or_else(|| parse_initial_longhand(context, property_id::COLUMN_WIDTH)) else {
+        return ParseOutcome::Invalid;
+    };
+    let height = match height {
+        Some(value) => parse_component_for_property(context, property_id::COLUMN_HEIGHT, value),
+        None => parse_initial_longhand(context, property_id::COLUMN_HEIGHT),
+    };
+    let Some(height) = height else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::COLUMNS,
+        vec![
+            property_id::COLUMN_COUNT,
+            property_id::COLUMN_WIDTH,
+            property_id::COLUMN_HEIGHT,
+        ],
+        vec![count, width, height],
+    )))
+}
+
+fn parse_container_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let slash = values.iter().position(|value| value.is_delim(b'/'));
+    let (name_values, type_values) = match slash {
+        Some(slash) => (&values[..slash], Some(&values[slash + 1..])),
+        None => (values, None),
+    };
+    if name_values.iter().all(ComponentValue::is_whitespace)
+        || type_values.is_some_and(|values| values.iter().all(ComponentValue::is_whitespace))
+        || values.iter().filter(|value| value.is_delim(b'/')).count() > 1
+    {
+        return ParseOutcome::Invalid;
+    }
+    let ParseOutcome::Parsed(name) = parse_css_value(context, property_id::CONTAINER_NAME, name_values) else {
+        return ParseOutcome::Invalid;
+    };
+    let container_type = match type_values {
+        Some(values) => match parse_css_value(context, property_id::CONTAINER_TYPE, values) {
+            ParseOutcome::Parsed(value) => (*value).clone(),
+            ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => return ParseOutcome::Invalid,
+        },
+        None => match parse_initial_longhand(context, property_id::CONTAINER_TYPE) {
+            Some(value) => value,
+            None => return ParseOutcome::Invalid,
+        },
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::CONTAINER,
+        longhands_for_shorthand(property_id::CONTAINER).to_vec(),
+        vec![(*name).clone(), container_type],
+    )))
+}
+
+fn parse_place_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let (align, justify) = match property {
+        property_id::PLACE_CONTENT => (property_id::ALIGN_CONTENT, property_id::JUSTIFY_CONTENT),
+        property_id::PLACE_ITEMS => (property_id::ALIGN_ITEMS, property_id::JUSTIFY_ITEMS),
+        property_id::PLACE_SELF => (property_id::ALIGN_SELF, property_id::JUSTIFY_SELF),
+        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+    };
+    if let ParseOutcome::Parsed(align_value) = parse_css_value(context, align, values)
+        && matches!(&*align_value, StyleValueData::Keyword { .. })
+        && matches!(parse_css_value(context, justify, values), ParseOutcome::Parsed(_))
+    {
+        return ParseOutcome::Parsed(Arc::new(shorthand_value(
+            property,
+            vec![align, justify],
+            vec![(*align_value).clone(), (*align_value).clone()],
+        )));
+    }
+    let non_whitespace = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .cloned()
+        .collect::<Vec<_>>();
+    for split in (1..non_whitespace.len()).rev() {
+        let (align_values, justify_values) = non_whitespace.split_at(split);
+        let (ParseOutcome::Parsed(align_value), ParseOutcome::Parsed(justify_value)) = (
+            parse_css_value(context, align, align_values),
+            parse_css_value(context, justify, justify_values),
+        ) else {
+            continue;
+        };
+        return ParseOutcome::Parsed(Arc::new(shorthand_value(
+            property,
+            vec![align, justify],
+            vec![(*align_value).clone(), (*justify_value).clone()],
+        )));
+    }
+    ParseOutcome::Invalid
+}
+
+fn parse_list_style_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let longhands = [
+        property_id::LIST_STYLE_POSITION,
+        property_id::LIST_STYLE_IMAGE,
+        property_id::LIST_STYLE_TYPE,
+    ];
+    let mut parsed = [None, None, None];
+    let mut none_count = 0;
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
+        if value
+            .ident()
+            .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"none"))
+        {
+            none_count += 1;
+            continue;
+        }
+        let mut matched = false;
+        for (index, &longhand) in longhands.iter().enumerate() {
+            if parsed[index].is_none()
+                && let Some(component) = parse_component_for_property(context, longhand, value)
+            {
+                parsed[index] = Some(component);
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            return ParseOutcome::Invalid;
+        }
+    }
+    if none_count > 2 || (none_count == 2 && (parsed[1].is_some() || parsed[2].is_some())) {
+        return ParseOutcome::Invalid;
+    }
+    if none_count > 0 {
+        if parsed[1].is_some() && parsed[2].is_some() {
+            return ParseOutcome::Invalid;
+        }
+        let none = || StyleValueData::Keyword { keyword: keyword::NONE };
+        parsed[1].get_or_insert_with(none);
+        parsed[2].get_or_insert_with(none);
+    }
+    let Some(parsed) = parsed
+        .into_iter()
+        .zip(longhands)
+        .map(|(value, longhand)| value.or_else(|| parse_initial_longhand(context, longhand)))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::LIST_STYLE,
+        longhands.to_vec(),
+        parsed,
+    )))
+}
+
+fn parse_white_space_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let components = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    let keyword_value = |keyword| StyleValueData::Keyword { keyword };
+    if let [value] = components.as_slice()
+        && let Some(keyword) = value.ident().and_then(keyword_from_ascii_case_insensitive)
+    {
+        let aliases = match keyword {
+            keyword::NORMAL => Some((keyword::COLLAPSE, keyword::WRAP)),
+            keyword::PRE => Some((keyword::PRESERVE, keyword::NOWRAP)),
+            keyword::PRE_WRAP => Some((keyword::PRESERVE, keyword::WRAP)),
+            keyword::PRE_LINE => Some((keyword::PRESERVE_BREAKS, keyword::WRAP)),
+            _ => None,
+        };
+        if let Some((collapse, wrap)) = aliases {
+            return ParseOutcome::Parsed(Arc::new(shorthand_value(
+                property_id::WHITE_SPACE,
+                longhands_for_shorthand(property_id::WHITE_SPACE).to_vec(),
+                vec![
+                    keyword_value(collapse),
+                    keyword_value(wrap),
+                    keyword_value(keyword::NONE),
+                ],
+            )));
+        }
+    }
+
+    let longhands = [
+        property_id::WHITE_SPACE_COLLAPSE,
+        property_id::TEXT_WRAP_MODE,
+        property_id::WHITE_SPACE_TRIM,
+    ];
+    let mut parsed = [None, None, None];
+    let mut index = 0;
+    while index < components.len() {
+        if parsed[0].is_none()
+            && let Some(value) = parse_component_for_property(context, longhands[0], components[index])
+        {
+            parsed[0] = Some(value);
+            index += 1;
+            continue;
+        }
+        if parsed[1].is_none()
+            && let Some(value) = parse_component_for_property(context, longhands[1], components[index])
+        {
+            parsed[1] = Some(value);
+            index += 1;
+            continue;
+        }
+        if parsed[2].is_none() {
+            let start = index;
+            while index < components.len()
+                && components[index]
+                    .ident()
+                    .and_then(keyword_from_ascii_case_insensitive)
+                    .is_some_and(|keyword| property_accepted_keywords(longhands[2]).binary_search(&keyword).is_ok())
+            {
+                index += 1;
+            }
+            let trim_values = components[start..index]
+                .iter()
+                .map(|value| (*value).clone())
+                .collect::<Vec<_>>();
+            match parse_css_value(context, longhands[2], &trim_values) {
+                ParseOutcome::Parsed(value) => {
+                    parsed[2] = Some((*value).clone());
+                    continue;
+                }
+                ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => {}
+            }
+        }
+        return ParseOutcome::Invalid;
+    }
+    if components.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    let Some(parsed) = parsed
+        .into_iter()
+        .zip(longhands)
+        .map(|(value, longhand)| value.or_else(|| parse_initial_longhand(context, longhand)))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::WHITE_SPACE,
+        longhands.to_vec(),
+        parsed,
+    )))
+}
+
+fn parse_overflow_clip_margin_shorthand(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    if !matches!(
+        property,
+        property_id::OVERFLOW_CLIP_MARGIN
+            | property_id::OVERFLOW_CLIP_MARGIN_BLOCK
+            | property_id::OVERFLOW_CLIP_MARGIN_INLINE
+    ) {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    let Some(&longhand) = longhands_for_shorthand(property).first() else {
+        return ParseOutcome::Invalid;
+    };
+    let ParseOutcome::Parsed(value) = parse_css_value(context, longhand, values) else {
+        return ParseOutcome::Invalid;
+    };
+    let longhands = longhands_for_shorthand(property);
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property,
+        longhands.to_vec(),
+        vec![(*value).clone(); longhands.len()],
+    )))
+}
+
+fn assign_shorthand_components(
+    context: &ParseContext,
+    components: &[ComponentValue],
+    properties: &[u16],
+    offset: usize,
+    parsed: &mut [Option<StyleValueData>],
+) -> bool {
+    if offset == components.len() {
+        return true;
+    }
+    for (property_index, &property) in properties.iter().enumerate() {
+        if parsed[property_index].is_some() {
+            continue;
+        }
+        for end in (offset + 1..=components.len()).rev() {
+            let Some(value) = parse_slice_for_property(context, property, &components[offset..end]) else {
+                continue;
+            };
+            parsed[property_index] = Some(value);
+            if assign_shorthand_components(context, components, properties, end, parsed) {
+                return true;
+            }
+            parsed[property_index] = None;
+        }
+    }
+    false
+}
+
+fn parse_text_decoration_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let components = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .cloned()
+        .collect::<Vec<_>>();
+    if components.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    let parse_order = [
+        property_id::TEXT_DECORATION_COLOR,
+        property_id::TEXT_DECORATION_LINE,
+        property_id::TEXT_DECORATION_STYLE,
+        property_id::TEXT_DECORATION_THICKNESS,
+    ];
+    let mut parsed = [None, None, None, None];
+    if !assign_shorthand_components(context, &components, &parse_order, 0, &mut parsed) {
+        return ParseOutcome::Invalid;
+    }
+    let output_order = [
+        property_id::TEXT_DECORATION_LINE,
+        property_id::TEXT_DECORATION_THICKNESS,
+        property_id::TEXT_DECORATION_STYLE,
+        property_id::TEXT_DECORATION_COLOR,
+    ];
+    let Some(output) = output_order
+        .iter()
+        .map(|&property| {
+            let index = parse_order.iter().position(|candidate| *candidate == property)?;
+            parsed[index]
+                .clone()
+                .or_else(|| parse_initial_longhand(context, property))
+        })
+        .collect::<Option<Vec<_>>>()
+    else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::TEXT_DECORATION,
+        output_order.to_vec(),
+        output,
+    )))
+}
+
+fn assign_border_image_outer_components(
+    context: &ParseContext,
+    components: &[ComponentValue],
+    parsed: &mut [Option<StyleValueData>; 5],
+) -> bool {
+    let properties = [
+        property_id::BORDER_IMAGE_SOURCE,
+        property_id::BORDER_IMAGE_REPEAT,
+        property_id::BORDER_IMAGE_SLICE,
+    ];
+    let mut outer = [parsed[0].clone(), parsed[4].clone(), parsed[1].clone()];
+    if !assign_shorthand_components(context, components, &properties, 0, &mut outer) {
+        return false;
+    }
+    parsed[0] = outer[0].take();
+    parsed[4] = outer[1].take();
+    parsed[1] = outer[2].take();
+    true
+}
+
+fn parse_border_image_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let mut sections = Vec::new();
+    let mut current = Vec::new();
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
+        if value.is_delim(b'/') {
+            sections.push(current);
+            current = Vec::new();
+        } else {
+            current.push(value.clone());
+        }
+    }
+    sections.push(current);
+    if sections.is_empty() || sections.len() > 3 || sections[0].is_empty() {
+        return ParseOutcome::Invalid;
+    }
+
+    let mut base = [None, None, None, None, None];
+    if !assign_border_image_outer_components(context, &sections[0], &mut base)
+        || sections.len() > 1 && base[1].is_none()
+    {
+        return ParseOutcome::Invalid;
+    }
+    let width_ends: Vec<usize> = if sections.len() == 1 {
+        vec![0]
+    } else if sections.len() == 2 {
+        (1..=sections[1].len()).rev().collect()
+    } else {
+        vec![sections[1].len()]
+    };
+    for width_end in width_ends {
+        let mut parsed = base.clone();
+        if width_end > 0 {
+            let Some(width) =
+                parse_slice_for_property(context, property_id::BORDER_IMAGE_WIDTH, &sections[1][..width_end])
+            else {
+                continue;
+            };
+            parsed[2] = Some(width);
+        }
+        if sections.len() > 1 && !assign_border_image_outer_components(context, &sections[1][width_end..], &mut parsed)
+        {
+            continue;
+        }
+        let outset_ends: Vec<usize> = if sections.len() == 3 {
+            (1..=sections[2].len()).rev().collect()
+        } else {
+            vec![0]
+        };
+        for outset_end in outset_ends {
+            let mut candidate = parsed.clone();
+            if outset_end > 0 {
+                let Some(outset) =
+                    parse_slice_for_property(context, property_id::BORDER_IMAGE_OUTSET, &sections[2][..outset_end])
+                else {
+                    continue;
+                };
+                candidate[3] = Some(outset);
+            }
+            if sections.len() == 3
+                && !assign_border_image_outer_components(context, &sections[2][outset_end..], &mut candidate)
+            {
+                continue;
+            }
+            let longhands = longhands_for_shorthand(property_id::BORDER_IMAGE);
+            let Some(output) = candidate
+                .into_iter()
+                .zip(longhands)
+                .map(|(value, &longhand)| value.or_else(|| parse_initial_longhand(context, longhand)))
+                .collect::<Option<Vec<_>>>()
+            else {
+                return ParseOutcome::Invalid;
+            };
+            return ParseOutcome::Parsed(Arc::new(shorthand_value(
+                property_id::BORDER_IMAGE,
+                longhands.to_vec(),
+                output,
+            )));
+        }
+    }
+    ParseOutcome::Invalid
+}
+
+fn parse_font_variant_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let components = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .cloned()
+        .collect::<Vec<_>>();
+    if components.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    if components.len() > 1
+        && components.iter().any(|value| {
+            value.ident().is_some_and(|ident| {
+                equals_ascii_case_insensitive(ident, b"normal") || equals_ascii_case_insensitive(ident, b"none")
+            })
+        })
+    {
+        return ParseOutcome::Invalid;
+    }
+    let parse_order = [
+        property_id::FONT_VARIANT_LIGATURES,
+        property_id::FONT_VARIANT_ALTERNATES,
+        property_id::FONT_VARIANT_NUMERIC,
+        property_id::FONT_VARIANT_EAST_ASIAN,
+        property_id::FONT_VARIANT_CAPS,
+        property_id::FONT_VARIANT_EMOJI,
+        property_id::FONT_VARIANT_POSITION,
+    ];
+    let mut parsed: [Option<StyleValueData>; 7] = Default::default();
+    let single_keyword = components.len() == 1
+        && components[0].ident().is_some_and(|ident| {
+            equals_ascii_case_insensitive(ident, b"normal") || equals_ascii_case_insensitive(ident, b"none")
+        });
+    if single_keyword {
+        if components[0]
+            .ident()
+            .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"none"))
+        {
+            parsed[0] = Some(StyleValueData::Keyword { keyword: keyword::NONE });
+        }
+    } else if !assign_shorthand_components(context, &components, &parse_order, 0, &mut parsed) {
+        return ParseOutcome::Invalid;
+    }
+    let output_order = longhands_for_shorthand(property_id::FONT_VARIANT);
+    let Some(output) = output_order
+        .iter()
+        .map(|&property| {
+            let index = parse_order.iter().position(|candidate| *candidate == property)?;
+            parsed[index]
+                .clone()
+                .or_else(|| parse_initial_longhand(context, property))
+        })
+        .collect::<Option<Vec<_>>>()
+    else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::FONT_VARIANT,
+        output_order.to_vec(),
+        output,
+    )))
+}
+
+fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let components = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut font_style = None;
+    let mut font_variant = None;
+    let mut font_weight = None;
+    let mut font_width = None;
+    let mut normal_count = 0;
+    let mut index = 0;
+    while index < components.len() {
+        let component = &components[index];
+        if component
+            .ident()
+            .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"normal"))
+        {
+            normal_count += 1;
+            index += 1;
+            continue;
+        }
+        if font_variant.is_none()
+            && component
+                .ident()
+                .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"small-caps"))
+        {
+            let ParseOutcome::Parsed(value) = parse_font_variant_shorthand(context, std::slice::from_ref(component))
+            else {
+                return ParseOutcome::Invalid;
+            };
+            font_variant = Some((*value).clone());
+            index += 1;
+            continue;
+        }
+        if font_width.is_none()
+            && let Some(value) = parse_component_for_property(context, property_id::FONT_WIDTH, component)
+            && matches!(value, StyleValueData::Keyword { .. })
+        {
+            font_width = Some(value);
+            index += 1;
+            continue;
+        }
+        if let Some(font_size) = parse_component_for_property(context, property_id::FONT_SIZE, component) {
+            index += 1;
+            let line_height = if components.get(index).is_some_and(|value| value.is_delim(b'/')) {
+                index += 1;
+                let Some(component) = components.get(index) else {
+                    return ParseOutcome::Invalid;
+                };
+                let Some(value) = parse_component_for_property(context, property_id::LINE_HEIGHT, component) else {
+                    return ParseOutcome::Invalid;
+                };
+                index += 1;
+                Some(value)
+            } else {
+                None
+            };
+            if index >= components.len() {
+                return ParseOutcome::Invalid;
+            }
+            let Some(font_family) = parse_slice_for_property(context, property_id::FONT_FAMILY, &components[index..])
+            else {
+                return ParseOutcome::Invalid;
+            };
+            let unset_count = usize::from(font_style.is_none())
+                + usize::from(font_weight.is_none())
+                + usize::from(font_variant.is_none())
+                + usize::from(font_width.is_none());
+            if normal_count > unset_count {
+                return ParseOutcome::Invalid;
+            }
+            let font_variant = match font_variant {
+                Some(value) => Some(value),
+                None => {
+                    let values = consume_a_list_of_component_values(&tokenize_for_parser(b"normal")).ok();
+                    match values
+                        .as_deref()
+                        .map(|values| parse_font_variant_shorthand(context, values))
+                    {
+                        Some(ParseOutcome::Parsed(value)) => Some((*value).clone()),
+                        _ => return ParseOutcome::Invalid,
+                    }
+                }
+            };
+            let longhands = longhands_for_shorthand(property_id::FONT);
+            let explicit = [
+                Some(font_family),
+                Some(font_size),
+                font_width,
+                font_style,
+                font_variant,
+                font_weight,
+                line_height,
+            ];
+            let Some(output) = longhands
+                .iter()
+                .enumerate()
+                .map(|(index, &longhand)| {
+                    explicit
+                        .get(index)
+                        .cloned()
+                        .flatten()
+                        .or_else(|| parse_initial_longhand(context, longhand))
+                })
+                .collect::<Option<Vec<_>>>()
+            else {
+                return ParseOutcome::Invalid;
+            };
+            return ParseOutcome::Parsed(Arc::new(shorthand_value(property_id::FONT, longhands.to_vec(), output)));
+        }
+        if font_style.is_none() {
+            let mut parsed_style = None;
+            for end in (index + 1..=components.len()).rev() {
+                if let Some(value) = parse_slice_for_property(context, property_id::FONT_STYLE, &components[index..end])
+                {
+                    parsed_style = Some((value, end));
+                    break;
+                }
+            }
+            if let Some((value, end)) = parsed_style {
+                font_style = Some(value);
+                index = end;
+                continue;
+            }
+        }
+        if font_weight.is_none()
+            && let Some(value) = parse_component_for_property(context, property_id::FONT_WEIGHT, component)
+        {
+            font_weight = Some(value);
+            index += 1;
+            continue;
+        }
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::Invalid
+}
+
+fn comma_separated_layers(values: &[ComponentValue]) -> Option<Vec<Vec<ComponentValue>>> {
+    if values
+        .iter()
+        .rev()
+        .find(|value| !value.is_whitespace())
+        .is_some_and(|value| value.is_comma())
+    {
+        return None;
+    }
+    let mut layers = Vec::new();
+    let mut layer = Vec::new();
+    for value in values {
+        if value.is_comma() {
+            if !layer.iter().any(|value: &ComponentValue| !value.is_whitespace()) {
+                return None;
+            }
+            layers.push(layer);
+            layer = Vec::new();
+        } else if !value.is_whitespace() {
+            layer.push(value.clone());
+        }
+    }
+    if !layer.is_empty() {
+        layers.push(layer);
+    }
+    (!layers.is_empty()).then_some(layers)
+}
+
+fn single_coordinating_value(value: StyleValueData) -> Option<StyleValueData> {
+    match value {
+        StyleValueData::ValueList { values, .. } => values.as_slice().first()?.optional_data().cloned(),
+        value => Some(value),
+    }
+}
+
+fn parse_layer_with_optional_size<const N: usize>(
+    context: &ParseContext,
+    layer: &[ComponentValue],
+    properties: &[u16; N],
+    position_index: usize,
+    size_property: u16,
+) -> Option<([Option<StyleValueData>; N], Option<StyleValueData>)> {
+    let slash = layer.iter().position(|value| value.is_delim(b'/'));
+    if layer.iter().filter(|value| value.is_delim(b'/')).count() > 1 {
+        return None;
+    }
+    let before_slash = slash.map_or(layer, |index| &layer[..index]);
+    let mut parsed: [Option<StyleValueData>; N] = std::array::from_fn(|_| None);
+    if !assign_shorthand_components(context, before_slash, properties, 0, &mut parsed) {
+        return None;
+    }
+    let Some(slash) = slash else {
+        return Some((parsed, None));
+    };
+    if parsed[position_index].is_none() || slash + 1 == layer.len() {
+        return None;
+    }
+    let after_slash = &layer[slash + 1..];
+    for end in (1..=after_slash.len()).rev() {
+        let Some(size) = parse_slice_for_property(context, size_property, &after_slash[..end]) else {
+            continue;
+        };
+        let mut candidate = parsed.clone();
+        if assign_shorthand_components(context, &after_slash[end..], properties, 0, &mut candidate) {
+            return Some((candidate, Some(size)));
+        }
+    }
+    None
+}
+
+fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let Some(layers) = comma_separated_layers(values) else {
+        return ParseOutcome::Invalid;
+    };
+    let properties = [
+        property_id::BACKGROUND_ATTACHMENT,
+        property_id::BACKGROUND_CLIP,
+        property_id::BACKGROUND_COLOR,
+        property_id::BACKGROUND_IMAGE,
+        property_id::BACKGROUND_ORIGIN,
+        property_id::BACKGROUND_POSITION,
+        property_id::BACKGROUND_REPEAT,
+    ];
+    let mut images = Vec::new();
+    let mut position_xs = Vec::new();
+    let mut position_ys = Vec::new();
+    let mut sizes = Vec::new();
+    let mut repeats = Vec::new();
+    let mut attachments = Vec::new();
+    let mut origins = Vec::new();
+    let mut clips = Vec::new();
+    let mut color = None;
+    for (layer_index, layer) in layers.iter().enumerate() {
+        let Some((mut parsed, size)) =
+            parse_layer_with_optional_size(context, layer, &properties, 5, property_id::BACKGROUND_SIZE)
+        else {
+            return ParseOutcome::Invalid;
+        };
+        if parsed.iter().all(Option::is_none) && size.is_none()
+            || parsed[2].is_some() && layer_index + 1 != layers.len()
+        {
+            return ParseOutcome::Invalid;
+        }
+        if let Some(layer_color) = parsed[2].take()
+            && color.replace(layer_color).is_some()
+        {
+            return ParseOutcome::Invalid;
+        }
+        let (position_x, position_y) = if let Some(position) = parsed[5].take() {
+            let StyleValueData::Shorthand { values, .. } = position else {
+                return ParseOutcome::Invalid;
+            };
+            let [x, y] = values.as_slice() else {
+                return ParseOutcome::Invalid;
+            };
+            let Some(x) = x.optional_data().cloned().and_then(single_coordinating_value) else {
+                return ParseOutcome::Invalid;
+            };
+            let Some(y) = y.optional_data().cloned().and_then(single_coordinating_value) else {
+                return ParseOutcome::Invalid;
+            };
+            (x, y)
+        } else {
+            let Some(x) = coordinating_initial_item(context, property_id::BACKGROUND_POSITION_X) else {
+                return ParseOutcome::Invalid;
+            };
+            let Some(y) = coordinating_initial_item(context, property_id::BACKGROUND_POSITION_Y) else {
+                return ParseOutcome::Invalid;
+            };
+            (x, y)
+        };
+        let Some(image) = parsed[3]
+            .take()
+            .or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_IMAGE))
+        else {
+            return ParseOutcome::Invalid;
+        };
+        let Some(size) = size.or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_SIZE)) else {
+            return ParseOutcome::Invalid;
+        };
+        let Some(repeat) = parsed[6]
+            .take()
+            .or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_REPEAT))
+        else {
+            return ParseOutcome::Invalid;
+        };
+        let Some(attachment) = parsed[0]
+            .take()
+            .or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_ATTACHMENT))
+        else {
+            return ParseOutcome::Invalid;
+        };
+        let (origin, clip) = match (parsed[1].take(), parsed[4].take()) {
+            (Some(first), Some(second)) => (first, second),
+            (Some(first), None) => (first.clone(), first),
+            (None, Some(first)) => (first.clone(), first),
+            (None, None) => {
+                let Some(origin) = coordinating_initial_item(context, property_id::BACKGROUND_ORIGIN) else {
+                    return ParseOutcome::Invalid;
+                };
+                let Some(clip) = coordinating_initial_item(context, property_id::BACKGROUND_CLIP) else {
+                    return ParseOutcome::Invalid;
+                };
+                (origin, clip)
+            }
+        };
+        images.push(image);
+        position_xs.push(position_x);
+        position_ys.push(position_y);
+        sizes.push(size);
+        repeats.push(repeat);
+        attachments.push(attachment);
+        origins.push(origin);
+        clips.push(clip);
+    }
+    let Some(color) = color.or_else(|| parse_initial_longhand(context, property_id::BACKGROUND_COLOR)) else {
+        return ParseOutcome::Invalid;
+    };
+    let position = shorthand_value(
+        property_id::BACKGROUND_POSITION,
+        vec![property_id::BACKGROUND_POSITION_X, property_id::BACKGROUND_POSITION_Y],
+        vec![value_list(position_xs, 1, true), value_list(position_ys, 1, true)],
+    );
+    let output_order = [
+        property_id::BACKGROUND_COLOR,
+        property_id::BACKGROUND_IMAGE,
+        property_id::BACKGROUND_POSITION,
+        property_id::BACKGROUND_SIZE,
+        property_id::BACKGROUND_REPEAT,
+        property_id::BACKGROUND_ATTACHMENT,
+        property_id::BACKGROUND_ORIGIN,
+        property_id::BACKGROUND_CLIP,
+    ];
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::BACKGROUND,
+        output_order.to_vec(),
+        vec![
+            color,
+            value_list(images, 1, true),
+            position,
+            value_list(sizes, 1, true),
+            value_list(repeats, 1, true),
+            value_list(attachments, 1, true),
+            value_list(origins, 1, true),
+            value_list(clips, 1, true),
+        ],
+    )))
+}
+
+fn parse_mask_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let Some(layers) = comma_separated_layers(values) else {
+        return ParseOutcome::Invalid;
+    };
+    let properties = [
+        property_id::MASK_IMAGE,
+        property_id::MASK_POSITION,
+        property_id::MASK_REPEAT,
+        property_id::MASK_ORIGIN,
+        property_id::MASK_CLIP,
+        property_id::MASK_COMPOSITE,
+        property_id::MASK_MODE,
+    ];
+    let mut coordinated: [Vec<StyleValueData>; 8] = std::array::from_fn(|_| Vec::new());
+    for layer in &layers {
+        let Some((mut parsed, size)) =
+            parse_layer_with_optional_size(context, layer, &properties, 1, property_id::MASK_SIZE)
+        else {
+            return ParseOutcome::Invalid;
+        };
+        if parsed.iter().all(Option::is_none) && size.is_none() {
+            return ParseOutcome::Invalid;
+        }
+        let (origin, clip) = match (parsed[3].take(), parsed[4].take()) {
+            (Some(origin), Some(clip)) => (origin, clip),
+            (Some(origin), None) => (origin.clone(), origin),
+            (None, Some(clip)) => {
+                let Some(origin) = coordinating_initial_item(context, property_id::MASK_ORIGIN) else {
+                    return ParseOutcome::Invalid;
+                };
+                (origin, clip)
+            }
+            (None, None) => {
+                let Some(origin) = coordinating_initial_item(context, property_id::MASK_ORIGIN) else {
+                    return ParseOutcome::Invalid;
+                };
+                (origin.clone(), origin)
+            }
+        };
+        let values = [
+            parsed[0]
+                .take()
+                .or_else(|| coordinating_initial_item(context, property_id::MASK_IMAGE)),
+            parsed[1]
+                .take()
+                .or_else(|| coordinating_initial_item(context, property_id::MASK_POSITION)),
+            size.or_else(|| coordinating_initial_item(context, property_id::MASK_SIZE)),
+            parsed[2]
+                .take()
+                .or_else(|| coordinating_initial_item(context, property_id::MASK_REPEAT)),
+            Some(origin),
+            Some(clip),
+            parsed[5]
+                .take()
+                .or_else(|| coordinating_initial_item(context, property_id::MASK_COMPOSITE)),
+            parsed[6]
+                .take()
+                .or_else(|| coordinating_initial_item(context, property_id::MASK_MODE)),
+        ];
+        for (index, value) in values.into_iter().enumerate() {
+            let Some(value) = value else {
+                return ParseOutcome::Invalid;
+            };
+            coordinated[index].push(value);
+        }
+    }
+    let output_order = [
+        property_id::MASK_IMAGE,
+        property_id::MASK_POSITION,
+        property_id::MASK_SIZE,
+        property_id::MASK_REPEAT,
+        property_id::MASK_ORIGIN,
+        property_id::MASK_CLIP,
+        property_id::MASK_COMPOSITE,
+        property_id::MASK_MODE,
+    ];
+    let multiple = layers.len() > 1;
+    let output = coordinated
+        .into_iter()
+        .map(|mut values| {
+            if multiple {
+                value_list(values, 1, true)
+            } else {
+                values.remove(0)
+            }
+        })
+        .collect();
+    ParseOutcome::Parsed(Arc::new(shorthand_value(
+        property_id::MASK,
+        output_order.to_vec(),
+        output,
+    )))
+}
+
+fn coordinating_initial_item(context: &ParseContext, property: u16) -> Option<StyleValueData> {
+    let initial = parse_initial_longhand(context, property)?;
+    match initial {
+        StyleValueData::ValueList { values, .. } => values.as_slice().first()?.optional_data().cloned(),
+        value => Some(value),
+    }
+}
+
+fn parse_timeline_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let (name_property, axis_property, inset_property) = match property {
+        property_id::SCROLL_TIMELINE => (
+            property_id::SCROLL_TIMELINE_NAME,
+            property_id::SCROLL_TIMELINE_AXIS,
+            None,
+        ),
+        property_id::VIEW_TIMELINE => (
+            property_id::VIEW_TIMELINE_NAME,
+            property_id::VIEW_TIMELINE_AXIS,
+            Some(property_id::VIEW_TIMELINE_INSET),
+        ),
+        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+    };
+    let mut names = Vec::new();
+    let mut axes = Vec::new();
+    let mut insets = Vec::new();
+    for layer in values.split(ComponentValue::is_comma) {
+        let components = layer
+            .iter()
+            .filter(|value| !value.is_whitespace())
+            .cloned()
+            .collect::<Vec<_>>();
+        let Some(name) = components
+            .first()
+            .and_then(|value| parse_component_for_property(context, name_property, value))
+        else {
+            return ParseOutcome::Invalid;
+        };
+        names.push(name);
+        if let Some(inset_property) = inset_property {
+            let properties = [axis_property, inset_property];
+            let mut parsed = [None, None];
+            if !assign_shorthand_components(context, &components[1..], &properties, 0, &mut parsed) {
+                return ParseOutcome::Invalid;
+            }
+            let Some(axis) = parsed[0]
+                .take()
+                .or_else(|| coordinating_initial_item(context, axis_property))
+            else {
+                return ParseOutcome::Invalid;
+            };
+            let Some(inset) = parsed[1]
+                .take()
+                .or_else(|| coordinating_initial_item(context, inset_property))
+            else {
+                return ParseOutcome::Invalid;
+            };
+            axes.push(axis);
+            insets.push(inset);
+        } else {
+            if components.len() > 2 {
+                return ParseOutcome::Invalid;
+            }
+            let axis = if let Some(value) = components.get(1) {
+                parse_component_for_property(context, axis_property, value)
+            } else {
+                coordinating_initial_item(context, axis_property)
+            };
+            let Some(axis) = axis else {
+                return ParseOutcome::Invalid;
+            };
+            axes.push(axis);
+        }
+    }
+    if names.is_empty() {
+        return ParseOutcome::Invalid;
+    }
+    let mut sub_properties = vec![name_property, axis_property];
+    let mut output = vec![value_list(names, 1, true), value_list(axes, 1, true)];
+    if let Some(inset_property) = inset_property {
+        sub_properties.push(inset_property);
+        output.push(value_list(insets, 1, true));
+    }
+    ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, output)))
+}
+
+fn parse_animation_transition_shorthand(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    let (parsed_longhands, reset_only) = match property {
+        property_id::ANIMATION => (
+            &[
+                property_id::ANIMATION_DURATION,
+                property_id::ANIMATION_TIMING_FUNCTION,
+                property_id::ANIMATION_DELAY,
+                property_id::ANIMATION_ITERATION_COUNT,
+                property_id::ANIMATION_DIRECTION,
+                property_id::ANIMATION_FILL_MODE,
+                property_id::ANIMATION_PLAY_STATE,
+                property_id::ANIMATION_NAME,
+            ][..],
+            Some(property_id::ANIMATION_TIMELINE),
+        ),
+        property_id::TRANSITION => (
+            &[
+                property_id::TRANSITION_PROPERTY,
+                property_id::TRANSITION_DURATION,
+                property_id::TRANSITION_TIMING_FUNCTION,
+                property_id::TRANSITION_DELAY,
+                property_id::TRANSITION_BEHAVIOR,
+            ][..],
+            None,
+        ),
+        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+    };
+    let layers = values.split(ComponentValue::is_comma).collect::<Vec<_>>();
+    let mut coordinated = vec![Vec::with_capacity(layers.len()); parsed_longhands.len()];
+    for layer in &layers {
+        let components = layer
+            .iter()
+            .filter(|value| !value.is_whitespace())
+            .cloned()
+            .collect::<Vec<_>>();
+        if components.is_empty() {
+            return ParseOutcome::Invalid;
+        }
+        let mut parsed = vec![None; parsed_longhands.len()];
+        if !assign_shorthand_components(context, &components, parsed_longhands, 0, &mut parsed) {
+            return ParseOutcome::Invalid;
+        }
+        for (index, &longhand) in parsed_longhands.iter().enumerate() {
+            let Some(value) = parsed[index]
+                .take()
+                .or_else(|| coordinating_initial_item(context, longhand))
+            else {
+                return ParseOutcome::Invalid;
+            };
+            coordinated[index].push(value);
+        }
+    }
+    if property == property_id::TRANSITION
+        && layers.len() > 1
+        && coordinated[0]
+            .iter()
+            .any(|value| matches!(value, StyleValueData::Keyword { keyword: keyword::NONE }))
+    {
+        return ParseOutcome::Invalid;
+    }
+    let mut sub_properties = parsed_longhands.to_vec();
+    let mut output = coordinated
+        .into_iter()
+        .map(|values| value_list(values, 1, true))
+        .collect::<Vec<_>>();
+    if let Some(reset_only) = reset_only {
+        sub_properties.push(reset_only);
+        let Some(initial) = parse_initial_longhand(context, reset_only) else {
+            return ParseOutcome::Invalid;
+        };
+        output.push(initial);
+    }
+    ParseOutcome::Parsed(Arc::new(shorthand_value(property, sub_properties, output)))
+}
+
 /// Parse a property value using the grammars which have been ported to Rust.
 ///
 /// Longhand grammars are authoritative here. `NotHandled` is reserved for
@@ -3482,11 +4974,91 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     {
         return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
     }
-    if property_is_shorthand(property_id) {
-        return ParseOutcome::NotHandled(&SHORTHAND_NOT_PORTED);
-    }
     if let Some(value) = parse_builtin_value(values) {
         return ParseOutcome::Parsed(Arc::new(value));
+    }
+    if property_is_shorthand(property_id) {
+        let outcome = parse_grid_property(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_geometry_property(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_anchor_fit_property(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_position_property(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_positional_value_list_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_unordered_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_border_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        if property_id == property_id::FLEX {
+            return parse_flex_shorthand(context, values);
+        }
+        if property_id == property_id::COLUMNS {
+            return parse_columns_shorthand(context, values);
+        }
+        if property_id == property_id::CONTAINER {
+            return parse_container_shorthand(context, values);
+        }
+        let outcome = parse_place_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        if property_id == property_id::LIST_STYLE {
+            return parse_list_style_shorthand(context, values);
+        }
+        if property_id == property_id::WHITE_SPACE {
+            return parse_white_space_shorthand(context, values);
+        }
+        let outcome = parse_overflow_clip_margin_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        if property_id == property_id::TEXT_DECORATION {
+            return parse_text_decoration_shorthand(context, values);
+        }
+        if property_id == property_id::BORDER_IMAGE {
+            return parse_border_image_shorthand(context, values);
+        }
+        if property_id == property_id::FONT_VARIANT {
+            return parse_font_variant_shorthand(context, values);
+        }
+        if property_id == property_id::FONT {
+            return parse_font_shorthand(context, values);
+        }
+        if property_id == property_id::BACKGROUND {
+            return parse_background_shorthand(context, values);
+        }
+        if property_id == property_id::MASK {
+            return parse_mask_shorthand(context, values);
+        }
+        let outcome = parse_timeline_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        let outcome = parse_animation_transition_shorthand(context, property_id, values);
+        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+            return outcome;
+        }
+        if property_id == property_id::ALL {
+            return ParseOutcome::Invalid;
+        }
+        return ParseOutcome::NotHandled(&SHORTHAND_NOT_PORTED);
     }
     let font_outcome = parse_font_property(context, property_id, values);
     if !matches!(font_outcome, ParseOutcome::NotHandled(_)) {
@@ -3894,16 +5466,278 @@ mod tests {
     }
 
     #[test]
-    fn only_shorthands_and_unknown_properties_fall_back_to_cpp() {
+    fn unknown_properties_fall_back_to_cpp() {
         let values = consume_a_list_of_component_values(&tokenize_for_parser(b"0.5")).unwrap();
-        let ParseOutcome::NotHandled(reason) = parse_css_value(&context(), 1, &values) else {
-            panic!("unported value should not be authoritative");
-        };
-        assert_eq!(reason.label, "shorthand:not-ported");
+        assert!(matches!(
+            parse_css_value(&context(), property_id::ALL, &values),
+            ParseOutcome::Invalid
+        ));
         assert!(matches!(
             parse_css_value(&context(), u16::MAX, &values),
             ParseOutcome::NotHandled(_)
         ));
+    }
+
+    #[test]
+    fn parses_positional_shorthands() {
+        for (property, source, expected_values) in [
+            (property_id::PADDING, "1px 2px 3px", 4),
+            (property_id::GAP, "normal 2%", 2),
+            (property_id::OVERFLOW, "hidden auto", 2),
+            (property_id::BORDER_COLOR, "red green", 4),
+            (property_id::MARGIN_INLINE, "auto 1px", 2),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("shorthand should parse: {source}");
+            };
+            let StyleValueData::Shorthand {
+                shorthand_property,
+                sub_properties,
+                values,
+            } = &*value
+            else {
+                panic!("value should be a shorthand: {source}");
+            };
+            assert_eq!(*shorthand_property, property);
+            assert_eq!(sub_properties.as_slice(), longhands_for_shorthand(property));
+            assert_eq!(values.as_slice().len(), expected_values);
+        }
+    }
+
+    #[test]
+    fn parses_unordered_shorthands_and_fills_initial_values() {
+        for (property, source) in [
+            (property_id::BORDER_TOP, "thick dotted red"),
+            (property_id::BORDER_INLINE_START, "blue"),
+            (property_id::FLEX_FLOW, "wrap column"),
+            (property_id::OUTLINE, "2px red"),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("shorthand should parse: {source}");
+            };
+            let StyleValueData::Shorthand {
+                sub_properties, values, ..
+            } = &*value
+            else {
+                panic!("value should be a shorthand: {source}");
+            };
+            if property == property_id::FLEX_FLOW {
+                assert_eq!(sub_properties.as_slice(), longhands_for_shorthand(property));
+            }
+            assert_eq!(values.as_slice().len(), longhands_for_shorthand(property).len());
+        }
+        for (property, source) in [
+            (property_id::BORDER_TOP, "red blue"),
+            (property_id::FLEX_FLOW, "wrap nowrap"),
+            (property_id::OUTLINE, "initial solid"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_composite_border_flex_and_columns_shorthands() {
+        for (property, source, expected_properties) in [
+            (property_id::BORDER, "solid red", 4),
+            (property_id::BORDER_BLOCK, "2px dashed", 3),
+            (property_id::FLEX, "2 3 10%", 3),
+            (property_id::FLEX, "none", 3),
+            (property_id::COLUMNS, "20em 3 / 40em", 3),
+            (property_id::COLUMNS, "auto", 3),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("shorthand should parse: {source}");
+            };
+            let StyleValueData::Shorthand {
+                sub_properties, values, ..
+            } = &*value
+            else {
+                panic!("value should be a shorthand: {source}");
+            };
+            assert_eq!(sub_properties.as_slice().len(), expected_properties);
+            assert_eq!(values.as_slice().len(), expected_properties);
+        }
+        for (property, source) in [
+            (property_id::BORDER, "solid dashed"),
+            (property_id::FLEX, "none 1"),
+            (property_id::COLUMNS, "/ auto"),
+            (property_id::COLUMNS, "1 / bogus"),
+            (property_id::COLUMNS, "10px 20px"),
+            (property_id::COLUMNS, "initial initial"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_grouping_shorthands() {
+        for (property, source) in [
+            (property_id::CONTAINER, "main / inline-size"),
+            (property_id::PLACE_CONTENT, "space-between center"),
+            (property_id::PLACE_ITEMS, "center"),
+            (property_id::PLACE_SELF, "start end"),
+            (property_id::LIST_STYLE, "inside square"),
+            (property_id::LIST_STYLE, "none none"),
+            (property_id::TEXT_WRAP, "balance"),
+            (property_id::WHITE_SPACE, "pre-wrap"),
+            (property_id::WHITE_SPACE, "preserve nowrap discard-after"),
+            (property_id::WHITE_SPACE, "discard-inner preserve"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::CONTAINER, "main /"),
+            (property_id::PLACE_ITEMS, "normal normal normal"),
+            (property_id::LIST_STYLE, "none none none"),
+            (property_id::WHITE_SPACE, "wrap nowrap"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_decoration_clip_and_timeline_shorthands() {
+        for (property, source) in [
+            (property_id::OVERFLOW_CLIP_MARGIN, "content-box 2px"),
+            (property_id::TEXT_DECORATION, "underline overline wavy red 2px"),
+            (property_id::SCROLL_TIMELINE, "--main inline, none"),
+            (property_id::VIEW_TIMELINE, "--main 10% 20% inline, none"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::OVERFLOW_CLIP_MARGIN, "1px 2px"),
+            (property_id::TEXT_DECORATION, "solid dashed"),
+            (property_id::SCROLL_TIMELINE, "--main inline block"),
+            (property_id::VIEW_TIMELINE, "--main, "),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_border_image_shorthand() {
+        for source in [
+            "none",
+            "url(border.png) 30 fill / 10px / 2 round",
+            "10% / / 1 repeat",
+            "stretch 20%",
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property_id::BORDER_IMAGE, source) else {
+                panic!("shorthand should parse: {source}");
+            };
+            let StyleValueData::Shorthand { values, .. } = &*value else {
+                panic!("value should be a shorthand: {source}");
+            };
+            assert_eq!(values.as_slice().len(), 5);
+        }
+        for source in ["10 /", "10 / /", "10 / 2 /", "round round round"] {
+            assert!(matches!(
+                parse(property_id::BORDER_IMAGE, source),
+                ParseOutcome::Invalid
+            ));
+        }
+        assert!(matches!(
+            parse(property_id::BORDER_IMAGE, "1 / none / 1px"),
+            ParseOutcome::Invalid
+        ));
+    }
+
+    #[test]
+    fn parses_font_shorthands() {
+        for (property, source, expected_values) in [
+            (property_id::FONT_VARIANT, "normal", 7),
+            (property_id::FONT_VARIANT, "none", 7),
+            (property_id::FONT_VARIANT, "small-caps oldstyle-nums ruby emoji", 7),
+            (property_id::FONT, "16px serif", 12),
+            (
+                property_id::FONT,
+                "italic small-caps 700 condensed 12px/1.5 'Example', serif",
+                12,
+            ),
+            (property_id::FONT, "normal normal 10pt sans-serif", 12),
+            (property_id::FONT, "oblique 45deg 24px Arial", 12),
+            (property_id::FONT, "16px initial simple", 12),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("shorthand should parse: {source}");
+            };
+            let StyleValueData::Shorthand { values, .. } = &*value else {
+                panic!("value should be a shorthand: {source}");
+            };
+            assert_eq!(values.as_slice().len(), expected_values);
+        }
+        for (property, source) in [
+            (property_id::FONT_VARIANT, "small-caps all-small-caps"),
+            (property_id::FONT_VARIANT, "normal small-caps"),
+            (property_id::FONT, "italic 16px"),
+            (property_id::FONT, "16px initial"),
+            (property_id::FONT, "normal normal normal normal normal 16px serif"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_background_and_mask_shorthands() {
+        for (property, source, expected_values) in [
+            (property_id::BACKGROUND, "red", 8),
+            (
+                property_id::BACKGROUND,
+                "url(a.png) left top / cover no-repeat fixed padding-box content-box",
+                8,
+            ),
+            (
+                property_id::BACKGROUND,
+                "none, linear-gradient(red, blue) center / 20px 30px",
+                8,
+            ),
+            (property_id::MASK, "none", 8),
+            (
+                property_id::MASK,
+                "url(mask.png) center / contain no-repeat border-box no-clip add luminance",
+                8,
+            ),
+            (property_id::MASK, "none, linear-gradient(black, transparent)", 8),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("shorthand should parse: {source}");
+            };
+            let StyleValueData::Shorthand { values, .. } = &*value else {
+                panic!("value should be a shorthand: {source}");
+            };
+            assert_eq!(values.as_slice().len(), expected_values);
+        }
+        for (property, source) in [
+            (property_id::BACKGROUND, "red, none"),
+            (property_id::BACKGROUND, "center /"),
+            (property_id::MASK, "center /"),
+            (property_id::MASK, "none,"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_animation_and_transition_shorthands() {
+        for (property, source) in [
+            (
+                property_id::ANIMATION,
+                "slide 2s ease-in 1s infinite alternate both paused",
+            ),
+            (property_id::ANIMATION, "none, fade 200ms"),
+            (property_id::TRANSITION, "opacity 1s ease 200ms allow-discrete"),
+            (property_id::TRANSITION, "color 1s, opacity 2s linear"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
+        }
+        for (property, source) in [
+            (property_id::ANIMATION, "1s 2s 3s"),
+            (property_id::TRANSITION, "none 1s, opacity 2s"),
+            (property_id::TRANSITION, "opacity ease linear"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
     }
 
     #[test]
@@ -4667,8 +6501,8 @@ mod tests {
     fn does_not_parse_css_wide_keywords_as_partial_values() {
         let values = consume_a_list_of_component_values(&tokenize_for_parser(b"inherit extra")).unwrap();
         assert!(matches!(
-            parse_css_value(&context(), 1, &values),
-            ParseOutcome::NotHandled(_)
+            parse_css_value(&context(), property_id::ALL, &values),
+            ParseOutcome::Invalid
         ));
     }
 }
