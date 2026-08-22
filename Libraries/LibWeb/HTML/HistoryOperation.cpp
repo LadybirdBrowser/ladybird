@@ -9,39 +9,22 @@
 #include <LibWeb/HTML/HistoryOperation.h>
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::PushHistoryOperationParameters const& parameters)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));
     TRY(encoder.encode(parameters.pending_document_state_id));
+    TRY(encoder.encode(parameters.history_handling));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
 }
 
 template<>
-ErrorOr<Web::PushHistoryOperationParameters> IPC::decode(Decoder& decoder)
+ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
-    return Web::PushHistoryOperationParameters {
+    return Web::FinalizeCrossDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .pending_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
-    };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReplaceHistoryOperationParameters const& parameters)
-{
-    TRY(encoder.encode(parameters.navigable_id));
-    TRY(encoder.encode(parameters.pending_document_state_id));
-    TRY(encoder.encode(parameters.user_involvement));
-    return {};
-}
-
-template<>
-ErrorOr<Web::ReplaceHistoryOperationParameters> IPC::decode(Decoder& decoder)
-{
-    return Web::ReplaceHistoryOperationParameters {
-        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .pending_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
