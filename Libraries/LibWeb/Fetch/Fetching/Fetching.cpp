@@ -926,16 +926,27 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     auto algorithms = fetch_params.algorithms();
 
     // AD-HOC: A parallel-queue task destination with a process-response-consume-body algorithm is a sync XHR send()
-    //         (https://xhr.spec.whatwg.org/#the-send()-method, step 12). While that send() is blocked, the HTML event
-    //         loop is paused (https://html.spec.whatwg.org/multipage/#pause): It runs no tasks and performs no
-    //         microtask checkpoints. But the identity-TransformStream pipe in step 7 and Body::fully_read() in step 8.4
-    //         progress only thru promise-reaction microtasks — so they'd never complete. Nor could they when send() was
-    //         invoked from within a microtask: Performing a microtask checkpoint is non-reentrant. The spec runs all of
-    //         this in parallel, off the event loop. So, for such a fetch, read the internal response's stream directly
-    //         (chunk delivery and stream close fulfill pending read requests synchronously), and once the read
-    //         completes, run processResponseEndOfBody — which the pipe's flush algorithm would otherwise have — and
-    //         then processBody, in the order the parallel queue would have run them.
+    //         (https://xhr.spec.whatwg.org/#the-send()-method, step 12) — or a preload fetch that "consume a preloaded
+    //         resource" re-targeted onto a parallel queue for one. While that send() is blocked, the HTML event loop is
+    //         paused (https://html.spec.whatwg.org/multipage/#pause): It runs no tasks and performs no microtask
+    //         checkpoints. But the identity-TransformStream pipe in step 7 and Body::fully_read() in step 8.4 progress
+    //         only thru promise-reaction microtasks — so they'd never complete. Nor could they when send() was invoked
+    //         from within a microtask: Performing a microtask checkpoint is non-reentrant. The spec runs all of this in
+    //         parallel, off the event loop. So, for such a fetch, read the internal response's stream directly (chunk
+    //         delivery and stream close fulfill pending read requests synchronously), and once the read completes, run
+    //         processResponseEndOfBody — which the pipe's flush algorithm would otherwise have — and then processBody,
+    //         in the order the parallel queue would have run them.
     bool read_body_in_parallel = fetch_params.task_destination().has<NonnullRefPtr<HTML::ParallelQueue>>() && algorithms->process_response_consume_body();
+
+    // AD-HOC: That direct read runs processResponseEndOfBody and processBody itself. processResponse (step 4 above)
+    //         and processResponseEndOfBody's task (step 3) are queued either way — onto a parallel queue backed by the
+    //         event loop's task queue (ParallelQueue::enqueue) — so they'd stay frozen til send() unpauses the loop,
+    //         and run after the body they precede was consumed. No caller sets either; assert it, so that adding one
+    //         fails here instead of silently reordering the algorithms.
+    if (read_body_in_parallel) {
+        VERIFY(!algorithms->process_response());
+        VERIFY(!algorithms->process_response_end_of_body());
+    }
 
     // 6. If internalResponse’s body is null, then run processResponseEndOfBody.
     if (!internal_response->body()) {
