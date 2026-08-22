@@ -1350,6 +1350,12 @@ public:
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
 
+    // AD-HOC: Whether a platform input-method composition is in progress in this document. Any input event fired for an
+    //         edit made with this set has isComposing=true — whichever path fires it: editing commands for an editing
+    //         host, or a text control's own value change. LocalNavigable sets+clears it around the composition session.
+    bool is_input_method_composing() const { return m_is_input_method_composing; }
+    void set_is_input_method_composing(bool is_composing) { m_is_input_method_composing = is_composing; }
+
     // The history of user editing actions in this document, created lazily by the first
     // recorded editing command.
     GC::Ptr<Editing::EditingHistory> editing_history_if_exists() const { return m_editing_history; }
@@ -1980,6 +1986,7 @@ private:
     mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     GC::Ref<EditingHostManager> m_editing_host_manager;
+    bool m_is_input_method_composing { false };
 
     GC::Ptr<Editing::EditingHistory> m_editing_history;
 

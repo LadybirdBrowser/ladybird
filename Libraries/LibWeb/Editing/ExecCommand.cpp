@@ -221,8 +221,13 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
 
         // AD-HOC: For insertText, we do what other browsers do and set data to value. A paste carries null data even
         //         though it runs the insertText command.
-        if (event_init.input_type == UIEvents::InputTypes::insertText)
+        if (event_init.input_type == UIEvents::InputTypes::insertText || event_init.input_type == UIEvents::InputTypes::insertCompositionText)
             event_init.data = Utf16String::from_utf16(value);
+
+        // https://w3c.github.io/uievents/#dom-inputevent-iscomposing
+        // true if the input event occurs as part of a composition session; that is, after a compositionstart event and
+        // before the corresponding compositionend event.
+        event_init.is_composing = is_input_method_composing();
 
         auto event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, event_init, {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
         event->set_is_trusted(true);

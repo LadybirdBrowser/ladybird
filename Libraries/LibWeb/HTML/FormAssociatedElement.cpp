@@ -1278,7 +1278,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
     // The input event's data attribute is only set for certain input types according to:
     // https://w3c.github.io/input-events/#overview
     Optional<Utf16String> data_for_input_event;
-    if (first_is_one_of(input_type, UIEvents::InputTypes::insertText, UIEvents::InputTypes::insertFromPaste))
+    if (first_is_one_of(input_type, UIEvents::InputTypes::insertText, UIEvents::InputTypes::insertCompositionText, UIEvents::InputTypes::insertFromPaste))
         data_for_input_event = Utf16String::from_utf16(data_for_insertion);
 
     did_edit_text_node(input_type, data_for_input_event);

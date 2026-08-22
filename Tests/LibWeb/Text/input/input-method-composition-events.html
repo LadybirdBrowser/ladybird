@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="editable" contenteditable="true"></div>
+<input id="input">
+<script>
+    // The composition-event contract that editors like Slate rely on to suspend their own document-model reconciliation
+    // while an IME is composing: (1) compositionstart; then, per-update, (2) a compositionupdate followed by a non-
+    // cancelable beforeinput/input pair of inputType=insertCompositionText + isComposing=true; and then — once the
+    // composition commits or is canceled: (3) a compositionend.
+    // https://w3c.github.io/uievents/#events-compositionevents
+    // https://w3c.github.io/input-events/#event-order-during-composition
+    promiseTest(async () => {
+        const types = ["compositionstart", "compositionupdate", "compositionend", "beforeinput", "input"];
+        const describe = e => {
+            if (e.type.startsWith("composition"))
+                return `${e.type}(data=${JSON.stringify(e.data)} cancelable=${e.cancelable} bubbles=${e.bubbles})`;
+            return `${e.type}(inputType=${e.inputType} data=${JSON.stringify(e.data)} isComposing=${e.isComposing} cancelable=${e.cancelable})`;
+        };
+        const log = [];
+        const attach = el => types.forEach(t => el.addEventListener(t, e => log.push(describe(e))));
+        const flush = () => { const out = log.join("\n  "); log.length = 0; return out; };
+        // Text controls fire their input event from a queued element task; let that run before reading the log.
+        const settle = () => new Promise(r => setTimeout(r, 0));
+
+        const editable = document.getElementById("editable");
+        const input = document.getElementById("input");
+        attach(editable);
+        attach(input);
+
+        // contenteditable: compose in two updates, then commit.
+        editable.focus();
+        getSelection().collapse(editable, 0);
+        internals.setMarkedTextFromInputMethod("n");
+        internals.setMarkedTextFromInputMethod("ni");
+        internals.commitTextFromInputMethod("你");
+        await settle();
+        println(`contenteditable preedit+commit:\n  ${flush()}`);
+        println(`contenteditable content: ${JSON.stringify(editable.textContent)}`);
+
+        // contenteditable: compose, then the IME cancels by clearing the preedit.
+        internals.setMarkedTextFromInputMethod("x");
+        internals.setMarkedTextFromInputMethod("");
+        await settle();
+        println(`contenteditable preedit+cancel:\n  ${flush()}`);
+        println(`contenteditable content after cancel: ${JSON.stringify(editable.textContent)}`);
+
+        // contenteditable: unmark leaves the preedit in place and ends the session.
+        internals.setMarkedTextFromInputMethod("?");
+        internals.unmarkTextFromInputMethod();
+        await settle();
+        println(`contenteditable preedit+unmark:\n  ${flush()}`);
+        println(`contenteditable content after unmark: ${JSON.stringify(editable.textContent)}`);
+
+        // The beforeinput for a composition update is not cancelable: preventDefault() must not stop the DOM update.
+        const cancel = e => e.preventDefault();
+        editable.addEventListener("beforeinput", cancel);
+        internals.setMarkedTextFromInputMethod("a");
+        internals.commitTextFromInputMethod("a");
+        editable.removeEventListener("beforeinput", cancel);
+        await settle();
+        println(`contenteditable with beforeinput preventDefault(): content ${JSON.stringify(editable.textContent)}`);
+        flush();
+
+        // A cancelled compositionstart ends the session at once: compositionend is still sent, nothing is inserted.
+        // https://w3c.github.io/uievents/#events-composition-canceling
+        const cancelStart = e => e.preventDefault();
+        editable.addEventListener("compositionstart", cancelStart);
+        internals.setMarkedTextFromInputMethod("z");
+        editable.removeEventListener("compositionstart", cancelStart);
+        await settle();
+        println(`contenteditable with compositionstart preventDefault():\n  ${flush()}`);
+        println(`contenteditable content after cancelled start: ${JSON.stringify(editable.textContent)}`);
+
+        // <input>: the same contract, through the text control's own path.
+        input.focus();
+        input.setSelectionRange(0, 0);
+        internals.setMarkedTextFromInputMethod("h");
+        internals.setMarkedTextFromInputMethod("ha");
+        internals.commitTextFromInputMethod("好");
+        await settle();
+        println(`input preedit+commit:\n  ${flush()}`);
+        println(`input value: ${JSON.stringify(input.value)}`);
+
+        // compositionstart.data is the text that was selected when the session began.
+        input.setSelectionRange(0, 1);
+        internals.setMarkedTextFromInputMethod("q");
+        internals.commitTextFromInputMethod("q");
+        await settle();
+        println(`input composing over a selection:\n  ${flush()}`);
+        println(`input value after replacing selection: ${JSON.stringify(input.value)}`);
+
+        // A commit that replaces text around the caret (an input method correcting a word) takes its own path. It
+        // must still fire beforeinput before the DOM changes: editors intercept beforeinput to control the commit.
+        const replacement = document.createElement("input");
+        replacement.value = "a";
+        document.body.appendChild(replacement);
+        attach(replacement);
+        replacement.focus();
+        replacement.setSelectionRange(1, 1);
+        internals.commitTextFromInputMethod("\u00e5", -1, 1);
+        await settle();
+        println(`replacement commit, no composition in progress:\n  ${flush()}`);
+        println(`replacement value: ${JSON.stringify(replacement.value)}`);
+
+        // The same replacement path, but during a composition: it belongs to the session, so it reports an update too.
+        replacement.value = "b";
+        replacement.setSelectionRange(1, 1);
+        internals.setMarkedTextFromInputMethod("c");
+        internals.commitTextFromInputMethod("\u00e7", -1, 1);
+        await settle();
+        println(`replacement commit during a composition:\n  ${flush()}`);
+        println(`replacement value: ${JSON.stringify(replacement.value)}`);
+    });
+</script>

@@ -17,6 +17,9 @@ namespace Web::UIEvents::EventNames {
     __ENUMERATE_UI_EVENT(auxclick)           \
     __ENUMERATE_UI_EVENT(beforeinput)        \
     __ENUMERATE_UI_EVENT(click)              \
+    __ENUMERATE_UI_EVENT(compositionend)     \
+    __ENUMERATE_UI_EVENT(compositionstart)   \
+    __ENUMERATE_UI_EVENT(compositionupdate)  \
     __ENUMERATE_UI_EVENT(contextmenu)        \
     __ENUMERATE_UI_EVENT(dblclick)           \
     __ENUMERATE_UI_EVENT(gotpointercapture)  \
