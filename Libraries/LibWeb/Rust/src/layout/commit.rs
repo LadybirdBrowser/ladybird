@@ -5,36 +5,6 @@
  */
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCommittedBoxMetrics {
-    pub fragment_identity: u64,
-    pub reuses_committed_subtree: bool,
-    pub content_offset: crate::layout::FfiCssPixelPoint,
-    pub content_inline_size: crate::layout::CssPixels,
-    pub content_block_size: crate::layout::CssPixels,
-    pub margin_left: crate::layout::CssPixels,
-    pub margin_right: crate::layout::CssPixels,
-    pub margin_top: crate::layout::CssPixels,
-    pub margin_bottom: crate::layout::CssPixels,
-    pub border_left: crate::layout::CssPixels,
-    pub border_right: crate::layout::CssPixels,
-    pub border_top: crate::layout::CssPixels,
-    pub border_bottom: crate::layout::CssPixels,
-    pub padding_left: crate::layout::CssPixels,
-    pub padding_right: crate::layout::CssPixels,
-    pub padding_top: crate::layout::CssPixels,
-    pub padding_bottom: crate::layout::CssPixels,
-    pub inset_left: crate::layout::CssPixels,
-    pub inset_right: crate::layout::CssPixels,
-    pub inset_top: crate::layout::CssPixels,
-    pub inset_bottom: crate::layout::CssPixels,
-    pub containing_line_box_index: usize,
-    pub has_containing_line_box_index: bool,
-    pub uses_collapsing_borders_model: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
 pub struct FfiPaintableGeometry {
     pub content_inline_size: crate::layout::CssPixels,
     pub content_block_size: crate::layout::CssPixels,
@@ -127,33 +97,7 @@ fn commit_subtree(
         && !paintable_slot.is_invalid()
     {
         let fragment = &link.fragment;
-        let box_metrics = FfiCommittedBoxMetrics {
-            fragment_identity: fragment.identity,
-            reuses_committed_subtree,
-            content_offset: link.committed_offset,
-            content_inline_size: fragment.content_inline_size,
-            content_block_size: fragment.content_block_size,
-            margin_left: fragment.margin_left,
-            margin_right: fragment.margin_right,
-            margin_top: fragment.margin_top,
-            margin_bottom: fragment.margin_bottom,
-            border_left: fragment.border_left,
-            border_right: fragment.border_right,
-            border_top: fragment.border_top,
-            border_bottom: fragment.border_bottom,
-            padding_left: fragment.padding_left,
-            padding_right: fragment.padding_right,
-            padding_top: fragment.padding_top,
-            padding_bottom: fragment.padding_bottom,
-            inset_left: link.inset_left,
-            inset_right: link.inset_right,
-            inset_top: link.inset_top,
-            inset_bottom: link.inset_bottom,
-            containing_line_box_index: link.containing_line_box_index.unwrap_or(0),
-            has_containing_line_box_index: link.containing_line_box_index.is_some(),
-            uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
-        };
-        let content_size_change = paintables.set_box_metrics(paintable_slot, &box_metrics);
+        let content_size_change = paintables.set_box_metrics(paintable_slot, link, reuses_committed_subtree);
         if prepared.row_existed_before_this_commit
             && let Some((old_content_size, new_content_size)) = content_size_change
         {
