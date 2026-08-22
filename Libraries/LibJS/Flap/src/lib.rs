@@ -984,7 +984,7 @@ specialize Clear(dst: Undefined);
         assert!(
             emission_error
                 .message
-                .contains("required runtime constant 'INT32_TAG_SHIFTED'")
+                .contains("required runtime constant 'VM_RUNNING_EXECUTION_CONTEXT'")
         );
     }
 

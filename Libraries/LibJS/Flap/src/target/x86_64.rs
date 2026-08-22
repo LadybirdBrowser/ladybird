@@ -23,7 +23,6 @@ use super::ir::{
     MachineOperand as Operand, MachineProgram as Program, RuntimeConstants,
 };
 use super::machine_verify::{define_machine_opcodes, operands_match};
-use super::registers::x86_64 as registers;
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::{Architecture, CompileOptions, ObjectFormat};
 use std::fmt::Write;
@@ -592,11 +591,10 @@ fn generate_entry_point(out: &mut String, program: &Program, abi: X86_64Abi) {
     w!(out, "    mov r13d, {entry_point}         # pc = entry_point");
     let values_padding = if abi.is_win64() { "           " } else { "          " };
     w!(out, "    mov rbx, {values}{values_padding}# values");
-    let int32_tag_shifted = runtime(program)[KnownLayoutConstant::Int32TagShifted];
-    let int32_tag_shifted_register = int32_tag_shifted_register();
+    let heap_region_base = runtime(program)[KnownLayoutConstant::VmHeapRegionBase];
     w!(
         out,
-        "    movabs {int32_tag_shifted_register}, {int32_tag_shifted}  # INT32_TAG_SHIFTED"
+        "    mov r15, QWORD PTR [{vm} + {heap_region_base}]  # heap region base"
     );
     w!(out, "    mov QWORD PTR {}, {vm}  # save VM*", vm_slot(abi));
     let vm_breakpoint_controller = runtime(program)[KnownLayoutConstant::VmBreakpointController];
@@ -738,10 +736,6 @@ fn values_offset(program: &Program) -> i64 {
     runtime(program)[KnownLayoutConstant::SizeOfExecutionContext]
 }
 
-fn int32_tag_shifted_register() -> &'static str {
-    registers::R15.as_str()
-}
-
 fn format_x86_address(terms: &str, offset: i64) -> String {
     match offset.cmp(&0) {
         std::cmp::Ordering::Less => format!("[{terms} - {}]", offset.unsigned_abs()),
@@ -824,7 +818,7 @@ mod tests {
     fn test_program() -> Program {
         Program {
             runtime: RuntimeConstants::from_values([
-                (KnownLayoutConstant::Int32TagShifted, 0x7ffa_0000_0000_0000u64 as i64),
+                (KnownLayoutConstant::VmHeapRegionBase, 16664),
                 (KnownLayoutConstant::SizeOfExecutionContext, 120),
             ]),
             dispatch_handlers: Vec::new(),
@@ -920,7 +914,7 @@ mod tests {
     }
 
     #[test]
-    fn boxes_clean_int32_values_with_the_pinned_tag() {
+    fn formats_or_with_a_physical_register() {
         let output = emit([instruction(
             Opcode::Or64Register,
             vec![

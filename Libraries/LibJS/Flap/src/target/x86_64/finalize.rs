@@ -785,10 +785,14 @@ impl Backend for X86_64Backend {
         source: PhysicalRegister,
         clean: bool,
     ) -> Result<(), CompileError> {
+        let int32_tag_shifted = emit.constant(KnownLayoutConstant::Int32TagShifted)?;
         if !clean || destination != source {
             emit!(emit.output, X86_64; if clean { Opcode::Move64Register } else { Opcode::Move32Register } => [register destination, register source];);
         }
-        emit!(emit.output, X86_64; Opcode::Or64Register => [register destination, register R15];);
+        emit!(emit.output, X86_64;
+            Opcode::MoveAbsolute64Immediate => [register R11, immediate int32_tag_shifted];
+            Opcode::Or64Register => [register destination, register R11];
+        );
         Ok(())
     }
 
@@ -813,15 +817,12 @@ impl Backend for X86_64Backend {
             emit!(emit.output, X86_64; Opcode::Move64Register => [register destination, register source];);
         }
         let heap_region_offset_mask = emit.constant(KnownLayoutConstant::HeapRegionOffsetMask)?;
-        let vm_heap_region_base = emit.constant(KnownLayoutConstant::VmHeapRegionBase)?;
         emit!(emit.output, X86_64;
             Opcode::MoveAbsolute64Immediate => [register R11, immediate heap_region_offset_mask];
             Opcode::AluRegister { operation: super::AluOperation::And, width: IntegerWidth::U64 } => [register destination, register R11];
         );
-        vm_load(emit, R11);
         emit!(emit.output, X86_64;
-            Opcode::Load { width: MemoryWidth::DoubleWord, signed: false } => [register R11, address MachineMemoryAddress::offset(R11, vm_heap_region_base)];
-            Opcode::AluRegister { operation: super::AluOperation::Add, width: IntegerWidth::U64 } => [register destination, register R11];
+            Opcode::AluRegister { operation: super::AluOperation::Add, width: IntegerWidth::U64 } => [register destination, register R15];
         );
         Ok(())
     }

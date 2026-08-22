@@ -234,8 +234,9 @@ pub(crate) mod aarch64 {
 /// Interpreter register conventions and allocatable target registers.
 ///
 /// All pinned registers are callee-saved so they survive C++ calls. On
-/// x86-64, rbx holds `values`, `exec_ctx` is derived by subtracting the fixed
-/// execution-context size, and r15 holds the shifted Int32 tag.
+/// x86-64, rbx holds `values`, r15 holds the heap region base, and `exec_ctx`
+/// is derived by subtracting the fixed execution-context size. AArch64 keeps
+/// the heap region base in x24.
 ///
 /// `temporaries` and `fp_temporaries` are the allocatable register pools.
 /// Registers used as hidden instruction-expansion scratch are deliberately
@@ -248,8 +249,9 @@ pub(crate) mod aarch64 {
 /// - aarch64: x9, x10 are universal scratch in the codegen (large-imm
 ///   materialization, dispatch tail, pair-memory base computation), and
 ///   d16 is FPR scratch for double-to-int32 round-trip checks. x21
-///   caches `pb + pc` for fast dispatch; x22/x23/x24 hold pinned tag
-///   constants. None of these are addressable by DSL name.
+///   caches `pb + pc` for fast dispatch; x22/x23 hold pinned tag constants,
+///   and x24 holds the heap region base. None of these are addressable by DSL
+///   name.
 pub(crate) struct TargetRegisterInfo {
     pub(crate) interpreter: [Option<PhysicalRegister>; InterpreterRegister::COUNT],
     pub(crate) temporaries: &'static [PhysicalRegister],
@@ -309,7 +311,7 @@ pub(crate) const AARCH64_REGS: TargetRegisterInfo = TargetRegisterInfo {
         Some(aarch64::X27),
         Some(aarch64::X28),
         Some(aarch64::X19),
-        None,
+        Some(aarch64::X24),
         Some(aarch64::SP),
         Some(aarch64::X29),
     ],
@@ -392,7 +394,9 @@ pub(crate) fn physical_register_named(name: &str, arch: Architecture) -> Option<
 
 #[cfg(test)]
 mod tests {
-    use super::{aarch64, x86_64};
+    use super::{aarch64, resolve_interpreter_register, x86_64};
+    use crate::Architecture;
+    use crate::types::InterpreterRegister;
 
     #[test]
     fn keeps_allocation_costs_on_typed_registers() {
@@ -402,5 +406,17 @@ mod tests {
         assert_eq!(x86_64::XMM0.allocation_cost(), 2);
         assert_eq!(aarch64::X0.allocation_cost(), 0);
         assert_eq!(aarch64::D0.allocation_cost(), 0);
+    }
+
+    #[test]
+    fn pins_heap_region_base_in_a_callee_saved_register() {
+        assert_eq!(
+            resolve_interpreter_register(InterpreterRegister::HeapRegionBase, Architecture::X86_64),
+            Some(x86_64::R15)
+        );
+        assert_eq!(
+            resolve_interpreter_register(InterpreterRegister::HeapRegionBase, Architecture::Aarch64),
+            Some(aarch64::X24)
+        );
     }
 }
