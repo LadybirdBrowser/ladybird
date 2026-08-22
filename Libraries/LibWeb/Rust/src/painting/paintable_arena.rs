@@ -516,16 +516,13 @@ impl PaintableArena {
         paintable
     }
 
-    pub(crate) fn prepare_reset_for_relayout(&self, id: PaintableSlotId) -> PaintableRowReset {
+    pub(crate) fn prepare_recommit_notification(&self, id: PaintableSlotId) -> PaintableRowReset {
         assert!(self.is_live(id));
-        self.prepare_row_reset(id, PaintableRowResetKind::RelayoutReuse)
+        self.prepare_row_reset(id, PaintableRowResetKind::Recommitted)
     }
 
-    pub(crate) fn reset_for_relayout(&mut self, reset: PaintableRowReset) {
-        let id = reset.slot;
-        self.clear_absolute_rect_memo();
+    pub(crate) fn begin_row_recommit(&mut self, id: PaintableSlotId) {
         self.update_data(id, |data| {
-            data.containing_block = PaintableSlotId::INVALID;
             data.offset = FfiCssPixelPoint::default();
             data.content_size = FfiCssPixelSize::default();
             data.overflow = FfiOverflowData::default();
@@ -535,15 +532,8 @@ impl PaintableArena {
             data.local_padding_box_union = FfiCssPixelRect::default();
             data.local_border_box_union = FfiCssPixelRect::default();
             data.stacking_context = crate::painting::stacking_context::NO_STACKING_CONTEXT;
-            data.enclosing_scroll_node_index = 0;
-            data.own_scroll_node_index = 0;
-            data.has_accumulated_visual_context = false;
-            data.accumulated_visual_context_index = 0;
-            data.accumulated_visual_context_for_descendants_index = 0;
-            data.fixed_background_visual_context = 0;
-            data.has_fixed_background_visual_context = false;
         });
         self.paint_caches[id.slot_index() as usize].clear();
-        self.side_mut(id).reset_for_relayout();
+        self.side_mut(id).clear_committed_records();
     }
 }

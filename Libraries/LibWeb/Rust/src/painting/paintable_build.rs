@@ -248,10 +248,10 @@ impl<'a> PaintableCommit<'a> {
             self.offsets_before_commit
                 .borrow_mut()
                 .insert(existing_slot, arena.data_ref(existing_slot).offset);
-            let reset = arena.prepare_reset_for_relayout(existing_slot);
+            let notification = arena.prepare_recommit_notification(existing_slot);
             drop(arena);
-            reset.invoke_callback();
-            self.arena.borrow_mut().reset_for_relayout(reset);
+            notification.invoke_callback();
+            self.arena.borrow_mut().begin_row_recommit(existing_slot);
             existing_slot
         } else {
             let mut arena = self.arena.borrow_mut();

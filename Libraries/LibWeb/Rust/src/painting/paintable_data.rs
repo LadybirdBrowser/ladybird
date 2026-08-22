@@ -274,7 +274,7 @@ pub const SELECTION_STATE_FULL: u8 = 4;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PaintableRowResetKind {
-    RelayoutReuse = 0,
+    Recommitted = 0,
     Cleared = 1,
     Freed = 2,
 }
@@ -358,7 +358,7 @@ pub struct PaintableSideData {
 }
 
 impl PaintableSideData {
-    pub(crate) fn reset_for_relayout(&mut self) {
+    pub(crate) fn clear_committed_records(&mut self) {
         self.lines.clear();
         self.fragments.clear();
         self.inline_box_pieces.clear();
