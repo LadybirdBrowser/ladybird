@@ -966,6 +966,16 @@ struct DeclaredPropertyColumns {
     bool declarations_are_complete;
 };
 
+bool property_defines_a_css_transition(PropertyID property_id)
+{
+    return property_id == PropertyID::Transition
+        || property_id == PropertyID::TransitionBehavior
+        || property_id == PropertyID::TransitionDelay
+        || property_id == PropertyID::TransitionDuration
+        || property_id == PropertyID::TransitionProperty
+        || property_id == PropertyID::TransitionTimingFunction;
+}
+
 static bool publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, bool declarations_are_complete = true)
 {
     auto* style_engine = style_engine_for(element);
@@ -974,6 +984,8 @@ static bool publish_element_declared_properties(DOM::Element& element, StyleEngi
 
     DeclaredPropertyColumns columns(style_properties.size(), declarations_are_complete);
     for (auto const& property : style_properties) {
+        if (property_defines_a_css_transition(property.property_id))
+            style_engine->note_css_transitions_may_observe_style_changes();
         // What a declaration decides is a set of longhands. An attribute maps to whichever property
         // names it, `overflow` included, and the cascade expands that before anything is decided, so
         // a shorthand left whole here would name a property nothing ever wins.
@@ -1009,6 +1021,7 @@ bool record_element_presentational_hint_properties(DOM::Element& element, Readon
 
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)
 {
+    element.document().flush_deferred_style_change_event();
     // A declaration the element itself sources is named in its style input record by its identity,
     // and this is the write that moves what that identity says without moving the identity.
     element.retire_style_input_record();
@@ -1197,8 +1210,11 @@ static void record_rule_declared_properties(StyleEngine& style_engine, StyleEngi
         return;
 
     DeclaredPropertyColumns columns(declaration->properties().size(), declaration->custom_properties().is_empty());
-    for (auto const& property : declaration->properties())
+    for (auto const& property : declaration->properties()) {
+        if (property_defines_a_css_transition(property.property_id))
+            style_engine.note_css_transitions_may_observe_style_changes();
         columns.append(property, ExpandShorthands::No);
+    }
     style_engine.set_rule_declared_properties(rule_id, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.declarations_are_complete);
 }
 
@@ -1234,6 +1250,7 @@ static void set_compiled_rule_id(CSSRule& rule, StyleEngineRuleID rule_id, HashM
 
 void record_cascade_layer_order(DOM::Document& document, TreeScopeID tree_scope, ReadonlySpan<Utf16FlyString> qualified_names_in_order)
 {
+    document.flush_deferred_style_change_event();
     Vector<u32> layers;
     layers.ensure_capacity(qualified_names_in_order.size());
     auto& style_engine = document.style_computer().style_engine();
@@ -1643,6 +1660,19 @@ static void for_each_document_with_engine_copy(CSSStyleSheet& sheet, auto const&
         callback(*document);
 }
 
+static void flush_deferred_style_change_events_for_sheet(CSSStyleSheet& sheet)
+{
+    for_each_document_with_engine_copy(sheet, [](DOM::Document& document) {
+        document.flush_deferred_style_change_event();
+    });
+}
+
+void flush_deferred_style_change_events_for_rule(CSSRule& rule)
+{
+    if (auto* sheet = owning_compiled_sheet(rule))
+        flush_deferred_style_change_events_for_sheet(*sheet);
+}
+
 // Whether the conditions of every group a rule sits inside hold. A rule compiled on its own has to
 // be told the same thing the whole-sheet walk would have told it.
 static bool enclosing_conditions_hold(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, DOM::Document const& document)
@@ -1681,6 +1711,7 @@ static void collect_enclosing_group_context(GC::RootVector<GC::Ref<CSSRule>> con
 // position it holds there.
 static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, DOM::Document& document)
 {
+    document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
     if (sheet_id == 0)
@@ -1747,6 +1778,7 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
     bool any_engine_heard = false;
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
         any_engine_heard = true;
+        document.flush_deferred_style_change_event();
         document.bump_style_environment_version();
 
         auto& style_computer = document.style_computer();
@@ -1837,6 +1869,7 @@ void record_style_rule_selector_changed(CSSStyleRule& rule)
     }
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        document.flush_deferred_style_change_event();
         for (auto& affected_rule : affected)
             replace_matching_selectors(*affected_rule, document);
     });
@@ -1860,6 +1893,7 @@ void record_style_rule_declarations_changed(CSSRule& rule)
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         auto rule_id = style_computer.style_engine_rule_id_for(rule_to_report);
         if (rule_id == 0)
@@ -1881,6 +1915,7 @@ void record_style_rule_declarations_changed(CSSRule& rule)
 void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
 {
     for_each_document_with_engine_copy(sheet, [&](DOM::Document& document) {
+        document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
         if (sheet_id == 0)
@@ -1900,6 +1935,7 @@ void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
 
 void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, CSSStyleSheet* before)
 {
+    document_or_shadow_root.document().flush_deferred_style_change_event();
     publish_document_kind(document_or_shadow_root.document());
     auto& style_computer = document_or_shadow_root.document().style_computer();
     auto& style_engine = style_computer.style_engine();
@@ -1973,6 +2009,7 @@ void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
 // the set is compared by identity and re-attached whole when it differs.
 void record_non_author_stylesheets(DOM::Document& document)
 {
+    document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
     auto& style_scope = document.style_scope();
 
@@ -2089,6 +2126,7 @@ void record_stylesheet_rule_conditions(CSSStyleSheet& sheet)
 
 void record_stylesheet_rule_conditions(CSSStyleSheet& sheet, DOM::Document& document)
 {
+    document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
     for (size_t index = 0; index < sheet.rules().length(); ++index) {
         if (auto rule = sheet.rules().item(index))
@@ -2098,6 +2136,7 @@ void record_stylesheet_rule_conditions(CSSStyleSheet& sheet, DOM::Document& docu
 
 void record_stylesheet_conditions(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)
 {
+    document_or_shadow_root.document().flush_deferred_style_change_event();
     auto* engine_sheet = owning_engine_sheet(sheet);
     if (!engine_sheet)
         return;
@@ -2110,6 +2149,7 @@ void record_stylesheet_conditions(CSSStyleSheet& sheet, DOM::Node& document_or_s
 
 void record_stylesheet_detached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root)
 {
+    document_or_shadow_root.document().flush_deferred_style_change_event();
     auto& style_computer = document_or_shadow_root.document().style_computer();
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
     if (sheet_id == 0)

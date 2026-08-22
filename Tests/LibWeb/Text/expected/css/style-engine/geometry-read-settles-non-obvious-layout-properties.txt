@@ -1,0 +1,8 @@
+text-rendering read is fresh: true
+text-rendering changes width: true
+stroke read is fresh: true
+stroke changes bounds: true
+stroke-width read is fresh: true
+stroke-width changes bounds: true
+currentColor stroke read is fresh: true
+currentColor stroke changes bounds: true

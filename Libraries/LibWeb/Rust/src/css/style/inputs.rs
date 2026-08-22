@@ -46,6 +46,8 @@ impl StyleEngine {
             tree,
             program: StyleSheetProgram::new(),
             journal: NormalizationJournal::new(),
+            deferred_geometry_journal: NormalizationJournal::new(),
+            flushing_deferred_geometry_journal: false,
             deferred_element_style_inputs: Vec::new(),
             deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             initial_tree_batch_applied: false,
@@ -700,9 +702,161 @@ impl StyleEngine {
     #[must_use]
     pub fn has_pending_transaction(&self) -> bool {
         !self.journal.is_empty()
+            || (!self.flushing_deferred_geometry_journal && !self.deferred_geometry_journal.is_empty())
             || !self.tree_staging.is_empty()
             || self.program_staging.is_dirty()
             || self.sheet_rule_replacement.is_some()
+    }
+
+    #[must_use]
+    pub fn has_deferred_geometry_transaction(&self) -> bool {
+        !self.flushing_deferred_geometry_journal && !self.deferred_geometry_journal.is_empty()
+    }
+
+    /// Whether settling the pending selector inputs can change geometry derived from the committed
+    /// layout. This is deliberately a proof of independence rather than a list of properties which
+    /// usually avoid layout: anything not explicitly known to preserve geometry remains observable.
+    #[must_use]
+    pub fn pending_transaction_may_affect_layout_geometry(&self) -> bool {
+        if self.journal.is_empty() {
+            return !self.tree_staging.is_empty()
+                || self.program_staging.is_dirty()
+                || self.sheet_rule_replacement.is_some()
+                || !self.deferred_element_style_inputs.is_empty()
+                || self.initial_tree_bulk_load_is_pending;
+        }
+        if !self.journal.markers().is_empty()
+            || !self.tree_staging.is_empty()
+            || self.program_staging.is_dirty()
+            || self.sheet_rule_replacement.is_some()
+            || !self.deferred_element_style_inputs.is_empty()
+            || self.initial_tree_bulk_load_is_pending
+        {
+            return true;
+        }
+
+        let route_liveness = self.routing.route_liveness(&self.program, &self.programs);
+        self.journal.inputs().any(|input| {
+            let mut keys = match input.key {
+                InputKey::LocalFeature(_, LocalFeatureKey::PartExposure | LocalFeatureKey::ArrivingFacts) => {
+                    return true;
+                }
+                InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) => {
+                    let mut keys = routing_keys_for_input(&input);
+                    for other in self.facts.attribute_name_keys(name) {
+                        if other != name {
+                            keys.push(RoutingKey::AttributeName(other));
+                        }
+                    }
+                    keys
+                }
+                InputKey::LocalFeature(..) | InputKey::State(..) => routing_keys_for_input(&input),
+                _ => return true,
+            };
+            keys.sort_unstable();
+            keys.dedup();
+            keys.into_iter().any(|key| {
+                self.routing.routes_for(key).iter().copied().any(|route| {
+                    if !route_liveness.contains(route.index()) {
+                        return false;
+                    }
+                    let rule = self.routing.rule_of(route);
+                    !self.program.declarations_are_complete_for(rule)
+                        || self.program.declared_properties_of(rule).iter().any(|declared| {
+                            crate::css::property_metadata::property_may_affect_layout_geometry(declared.property)
+                        })
+                })
+            })
+        })
+    }
+
+    /// Preserve the pending paint-only selector facts as the style change event established by a
+    /// geometry read. Repeated reads advance the same boundary to the latest observed facts.
+    /// Returning false means exact journalling coarsened while combining the facts, so the caller
+    /// must settle style instead of reusing layout.
+    pub fn defer_pending_transaction_for_geometry_read(&mut self) -> bool {
+        debug_assert!(!self.flushing_deferred_geometry_journal);
+        debug_assert!(self.tree_staging.is_empty());
+        debug_assert!(!self.program_staging.is_dirty());
+        debug_assert!(self.sheet_rule_replacement.is_none());
+        debug_assert!(self.deferred_element_style_inputs.is_empty());
+        debug_assert!(!self.initial_tree_bulk_load_is_pending);
+        debug_assert!(self.journal.markers().is_empty());
+        debug_assert!(
+            self.journal
+                .inputs()
+                .all(|input| matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..)))
+        );
+
+        if self.journal.is_empty() {
+            return true;
+        }
+        if self.deferred_geometry_journal.is_empty() {
+            std::mem::swap(&mut self.journal, &mut self.deferred_geometry_journal);
+        } else {
+            self.deferred_geometry_journal
+                .absorb_newer(&mut self.journal, &mut self.memory, &mut self.counters);
+        }
+        self.deferred_geometry_journal.markers().is_empty()
+    }
+
+    /// Make the style transaction sealed by a geometry read current while preserving local facts
+    /// recorded after it for the following style change event.
+    pub fn begin_deferred_geometry_transaction_flush(&mut self) -> bool {
+        debug_assert!(!self.flushing_deferred_geometry_journal);
+        if self.deferred_geometry_journal.is_empty()
+            || !self.journal.markers().is_empty()
+            || !self.tree_staging.is_empty()
+            || self.program_staging.is_dirty()
+            || self.sheet_rule_replacement.is_some()
+            || !self.deferred_element_style_inputs.is_empty()
+            || self.initial_tree_bulk_load_is_pending
+            || !self
+                .journal
+                .inputs()
+                .all(|input| matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..)))
+        {
+            return false;
+        }
+
+        let later_inputs: Vec<NormalizedInput> = self.journal.inputs().collect();
+        for input in &later_inputs {
+            self.apply_to_facts_without_settling(input.key, input.old);
+        }
+        std::mem::swap(&mut self.journal, &mut self.deferred_geometry_journal);
+        self.flushing_deferred_geometry_journal = true;
+        true
+    }
+
+    /// Restore the local facts recorded after the geometry boundary once its transaction has been
+    /// consumed.
+    pub fn end_deferred_geometry_transaction_flush(&mut self) {
+        assert!(self.flushing_deferred_geometry_journal);
+        assert!(self.journal.is_empty());
+        assert!(self.tree_staging.is_empty());
+        assert!(!self.program_staging.is_dirty());
+        assert!(self.sheet_rule_replacement.is_none());
+        assert!(self.deferred_element_style_inputs.is_empty());
+
+        std::mem::swap(&mut self.journal, &mut self.deferred_geometry_journal);
+        let later_inputs: Vec<NormalizedInput> = self.journal.inputs().collect();
+        for input in later_inputs {
+            self.apply_to_facts_without_settling(input.key, input.new);
+        }
+        self.flushing_deferred_geometry_journal = false;
+    }
+
+    pub(super) fn merge_deferred_geometry_transaction(&mut self) {
+        if self.flushing_deferred_geometry_journal || self.deferred_geometry_journal.is_empty() {
+            return;
+        }
+        if self.journal.is_empty() {
+            std::mem::swap(&mut self.journal, &mut self.deferred_geometry_journal);
+            return;
+        }
+        self.deferred_geometry_journal
+            .absorb_newer(&mut self.journal, &mut self.memory, &mut self.counters);
+        std::mem::swap(&mut self.journal, &mut self.deferred_geometry_journal);
     }
 
     /// Record one member of a flat FFI batch without repeatedly settling the fact-store capacity.

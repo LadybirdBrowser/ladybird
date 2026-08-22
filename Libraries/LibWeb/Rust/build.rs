@@ -953,6 +953,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
 
     let mut levels = vec![0u8; (last_longhand - first_longhand + 1) as usize];
     let mut animation_types = vec![0u8; levels.len()];
+    let mut layout_geometry_effects = vec![false; levels.len()];
     let mut numeric_range_rows = vec![String::new(); levels.len()];
     let value_types = [
         "anchor",
@@ -1021,6 +1022,24 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             "none" => 4,
             other => return Err(format!("unknown animation-type '{other}' for {name}").into()),
         };
+
+        let metadata_flag = |field: &str, default| {
+            property_field(name, field)
+                .and_then(|value| value.as_bool())
+                .unwrap_or(default)
+        };
+        // Animation controls can select or retime an animation of any property, so their own
+        // direct layout metadata cannot bound the geometry they expose. Likewise, container-name
+        // can change which descendant container queries apply without changing its own box, and
+        // color can change SVG bounds when stroke resolves currentColor.
+        let may_affect_layout_geometry_indirectly = property_field(name, "style-group")
+            .is_some_and(|value| value.as_str() == Some("AnimationValues"))
+            || matches!(name.as_str(), "color" | "container-name");
+        layout_geometry_effects[index] = metadata_flag("affects-layout", true)
+            || metadata_flag("affects-accumulated-visual-contexts", false)
+            || metadata_flag("affects-scrollable-overflow", false)
+            || metadata_flag("affects-stacking-context", false)
+            || may_affect_layout_geometry_indirectly;
 
         let mut ranges = Vec::new();
         if let Some(valid_types) = property_field(name, "valid-types").and_then(|value| value.as_array().cloned()) {
@@ -1222,6 +1241,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_ANIMATION_TYPES: [u8; {}] = {:?};\n",
         animation_types.len(),
         animation_types
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY: [bool; {}] = {:?};\n",
+        layout_geometry_effects.len(),
+        layout_geometry_effects
     ));
     output.push_str(&format!(
         "pub(crate) static PROPERTY_NUMERIC_RANGES: [&[FfiPropertyNumericRange]; {}] = [\n{}\n];\n",
