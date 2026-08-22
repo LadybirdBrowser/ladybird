@@ -1128,6 +1128,25 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn clear_saved_committed_geometry(&self, id: NodeSlotId) {
+        let data = self.data(id);
+        let index = id.slot_index() as usize;
+        let mut slots = self.saved_committed_geometries.borrow_mut();
+        if let Some(slot) = slots.get_mut(index)
+            && slot.generation == id.generation()
+        {
+            *slot = SavedCommittedGeometrySlot::default();
+        }
+        drop(slots);
+
+        // SAFETY: data() established that id names a live slot in this arena,
+        // and layout/tree building serialize mutation on the owner thread.
+        unsafe {
+            let flags = &raw mut (*data).flags;
+            flags.write(flags.read() & !(NodeFlag::HasSavedCommittedGeometry as u32));
+        }
+    }
+
     pub(crate) fn set_text_content(
         &mut self,
         id: NodeSlotId,
@@ -1882,7 +1901,7 @@ mod tests {
         SLOTS_PER_CHUNK,
     };
     use crate::layout::node_data::{NodeFlag, NodeSlotId};
-    use crate::layout::{AvailableSize, CssPixels};
+    use crate::layout::{AvailableSize, CssPixels, FfiPaintableGeometry};
 
     #[test]
     fn node_data_addresses_remain_stable_when_chunks_are_added() {
@@ -1969,6 +1988,26 @@ mod tests {
         let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
         assert!(stale_read.is_err());
         arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn clearing_a_committed_box_evicts_its_saved_geometry() {
+        let mut arena = LayoutNodeArena::new();
+        let allocation = arena.allocate();
+        arena.set_saved_committed_geometry(allocation.data, FfiPaintableGeometry::default());
+        assert!(arena.saved_committed_geometry(allocation.data).is_some());
+
+        // SAFETY: arena is a live handle on this thread, and allocation names
+        // a live slot in it.
+        unsafe {
+            crate::painting::ffi::layout_arena_paintable_cleared_from_node(
+                std::ptr::from_mut(&mut arena).cast(),
+                allocation.slot,
+            );
+        }
+
+        assert!(arena.saved_committed_geometry(allocation.data).is_none());
+        arena.free(allocation.slot, allocation.generation);
     }
 
     #[test]
