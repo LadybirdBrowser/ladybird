@@ -285,7 +285,10 @@ fn parse_component(
 
 // https://drafts.csswg.org/css-values-5/#typedef-syntax
 pub(crate) fn parse_syntax(source: &[u16], limit_ident_to_custom_ident: bool) -> Option<SyntaxNode> {
-    let values = consume_a_list_of_component_values(&tokenize_for_parser(source)).ok()?;
+    let values = consume_a_list_of_component_values(tokenize_for_parser(
+        crate::css::css_tokenizer::TokenizerInput::Utf16(source),
+    ))
+    .ok()?;
     parse_syntax_values(&values, limit_ident_to_custom_ident)
 }
 
@@ -448,7 +451,10 @@ fn parse_node(context: &ParseContext, syntax: &SyntaxNode, tokens: &mut TokenStr
 
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
 pub(crate) fn parse_with_syntax(context: &ParseContext, source: &[u16], syntax: &SyntaxNode) -> Option<StyleValueData> {
-    let values = consume_a_list_of_component_values(&tokenize_for_parser(source)).ok()?;
+    let values = consume_a_list_of_component_values(tokenize_for_parser(
+        crate::css::css_tokenizer::TokenizerInput::Utf16(source),
+    ))
+    .ok()?;
     if matches!(syntax, SyntaxNode::Universal) {
         if !declaration_value_is_valid(&values) {
             return None;
@@ -493,7 +499,7 @@ pub unsafe extern "C" fn rust_parse_syntax_component(
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null_mut();
         };
-        let Some(values) = consume_a_list_of_component_values(&tokenize_for_parser(source)).ok() else {
+        let Some(values) = consume_a_list_of_component_values(tokenize_for_parser(source)).ok() else {
             return std::ptr::null_mut();
         };
         let mut position = 0;

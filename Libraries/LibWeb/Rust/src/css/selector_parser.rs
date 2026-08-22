@@ -351,6 +351,7 @@ impl<'a> SelectorParser<'a> {
                     let source = invalid_values
                         .iter()
                         .flat_map(|value| value.original_source_text.iter())
+                        .copied()
                         .collect::<Vec<_>>();
                     selectors.push(CompiledSelector::new(
                         vec![CompoundSelector {
@@ -360,10 +361,8 @@ impl<'a> SelectorParser<'a> {
                                 Combinator::Descendant
                             },
                             is_implicit_universal_anchor: false,
-                            simple_selectors: vec![SimpleSelector::Invalid(
-                                source.into_iter().copied().collect::<Vec<_>>().into_boxed_slice(),
-                            )]
-                            .into_boxed_slice(),
+                            simple_selectors: vec![SimpleSelector::Invalid(source.into_boxed_slice())]
+                                .into_boxed_slice(),
                         }]
                         .into_boxed_slice(),
                     ));
@@ -767,18 +766,19 @@ impl<'a> SelectorParser<'a> {
                     let mut stream = Stream::new(values);
                     stream.discard_whitespace();
                     let (value, is_string) = match &stream.next().ok_or(())?.kind {
-                        ComponentKind::Token(ParserTokenKind::Ident(value)) => (value.clone(), false),
-                        ComponentKind::Token(ParserTokenKind::String(value)) => (value.clone(), true),
+                        ComponentKind::Token(ParserTokenKind::Ident(value)) => {
+                            (value.to_vec().into_boxed_slice(), false)
+                        }
+                        ComponentKind::Token(ParserTokenKind::String(value)) => {
+                            (value.to_vec().into_boxed_slice(), true)
+                        }
                         _ => return Err(()),
                     };
                     stream.discard_whitespace();
                     if !stream.is_empty() {
                         return Err(());
                     }
-                    languages.push(LanguageRange {
-                        value: value.as_ref().to_vec().into_boxed_slice(),
-                        is_string,
-                    });
+                    languages.push(LanguageRange { value, is_string });
                 }
                 selector.languages = languages.into_boxed_slice();
             }
@@ -1059,13 +1059,13 @@ pub(crate) fn parse_selector_list<'a>(
     parsing_mode: SelectorParsingMode,
 ) -> Result<SelectorList, ()> {
     let tokens = tokenize_for_parser(input);
-    let values = consume_a_list_of_component_values(&tokens)?;
+    let values = consume_a_list_of_component_values(tokens.as_slice())?;
     SelectorParser::new(declared_namespaces).parse_selector_list(&values, selector_type, parsing_mode)
 }
 
 fn parse_pseudo_element_selector(input: TokenizerInput<'_>) -> Result<(Rc<CompiledSelector>, PseudoElementType), ()> {
     let tokens = tokenize_for_parser(input);
-    let values = consume_a_list_of_component_values(&tokens)?;
+    let values = consume_a_list_of_component_values(tokens.as_slice())?;
     let mut stream = Stream::new(&values);
     let simple = SelectorParser::new(&[]).parse_pseudo_element(&mut stream)?;
     if !stream.is_empty() {

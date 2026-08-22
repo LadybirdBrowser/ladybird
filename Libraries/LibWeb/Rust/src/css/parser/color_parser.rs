@@ -925,7 +925,7 @@ mod tests {
     }
 
     fn parse(source: &str) -> Option<StyleValueData> {
-        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         let mut stream = TokenStream::new(&values);
         let color = parse_color_value(&context(), 1, &mut stream, false)?;
         stream.discard_whitespace();
