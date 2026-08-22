@@ -160,7 +160,6 @@ public:
     Utf16String dump_site_isolation_process_tree();
     GC::Ref<WebIDL::Promise> flush_session_history_traversal_queue();
     bool has_html_parser_end_state(DOM::Document& document) { return document.has_html_parser_end_state(); }
-    void clobber_next_navigation_with_a_traversal();
 
     bool has_shadow_root(GC::Ref<DOM::Element>);
     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);

@@ -3,11 +3,12 @@
 <body>
 <a href="mailto:contact@ladybird.org">mailto link</a>
 <script>
-    // A navigation that fizzles without producing a document (e.g. an unhandled non-fetch scheme
-    // like mailto:) must not leave a stale ongoing navigation ID behind, or later same-document
-    // traversals consider themselves superseded and never complete.
+    // A navigation that will fizzle without producing a document (e.g. an unhandled non-fetch
+    // scheme like mailto:) is older than the traversal requested after it. The traversal must
+    // supersede it whether its asynchronous cleanup has run yet or not.
     asyncTest(async done => {
         history.pushState("pushed", "", "#pushed");
+        await internals.flushSessionHistoryTraversalQueue();
 
         window.addEventListener("popstate", () => {
             println("popstate after fizzled navigation");
@@ -15,12 +16,6 @@
         });
 
         document.querySelector("a").click();
-
-        // Give the fizzled navigation's event loop turns to run to completion; it performs no
-        // fetches, so a fixed number of turns suffices regardless of machine speed.
-        for (let i = 0; i < 32; ++i)
-            await new Promise(resolve => setTimeout(resolve, 0));
-
         history.back();
     });
 </script>
