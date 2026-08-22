@@ -60,11 +60,12 @@ public:
         Stage stage { Stage::ApplyingInWebContent };
     };
 
-    void enqueue_history_operation(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, OnHistoryOperationComplete = nullptr);
+    void enqueue_history_operation(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete = nullptr);
     // Appends plain algorithm steps; a requested traversal defers its target resolution to its queued position, the
     // way the specification's queued steps do, and then starts its operation at that position.
     void append_history_queue_steps(SessionHistoryTraversalSteps);
-    void run_history_operation_at_queue_position(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void run_history_operation_at_queue_position(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    u64 allocate_navigation_or_traversal_sequence_number() { return m_next_navigation_or_traversal_sequence_number++; }
     void abandon_history_operations();
 
     struct HistoryJobEndpoint {
@@ -124,7 +125,7 @@ private:
     HistoryOperation* find_history_operation(u64 operation_id);
     bool navigation_transaction_matches(HistoryOperation const&, WebContentClient const&, u64 page_id, Optional<Web::HTML::CrossProcessId> reply_navigable_id = {}) const;
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
-    bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob const&);
+    bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob&);
     void dispatch_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
     void dispatch_changing_navigable_history_step_continuation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
     void dispatch_crash_recovery_changing_job(HistoryOperation&, HistoryJobEndpoint, Web::HTML::HistoryObjectLengthAndIndex, Function<void()> on_complete);
@@ -132,7 +133,7 @@ private:
     void finish_deferred_history_operation_after_crash_recovery(u64 operation_id);
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
     void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, OnHistoryOperationComplete = nullptr);
-    void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, Function<void()> on_ready, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, u64 traversal_sequence_number, Function<void()> on_ready, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {});
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
@@ -146,6 +147,7 @@ private:
         };
 
         u64 generation { 0 };
+        u64 traversal_sequence_number { 0 };
         Vector<int> deltas;
         Optional<i32> target_step;
         Optional<u64> operation_id;
@@ -177,6 +179,7 @@ private:
     SessionHistoryTraversalQueue m_history_traversal_queue;
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_history_operation_id { 1 };
+    u64 m_next_navigation_or_traversal_sequence_number { 1 };
     u64 m_next_pending_browser_history_traversal_generation { 1 };
     HashMap<u64, NonnullOwnPtr<HistoryOperation>> m_history_operations;
     Optional<PendingBrowserHistoryTraversal> m_pending_browser_history_traversal;

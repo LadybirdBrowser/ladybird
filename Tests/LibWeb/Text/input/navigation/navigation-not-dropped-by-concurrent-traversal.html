@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // A cross-document navigation must not be silently dropped when a concurrent session-history traversal re-stamps
-    // the navigable's ongoing navigation while the cross-document load is still in its unload check.
-    // clobberNextNavigationWithATraversal() arms a one-shot that deterministically interrupts the next navigation's
-    // unload check with a synthetic traversal; the navigation must still run to completion instead of being dropped.
+    // A cross-document navigation admitted after a traversal must supersede that traversal. The history-queue flush
+    // makes the pushed entry deterministic; requesting back and navigation from one task then gives the UI process
+    // an ordered traversal followed by a newer navigation without rewriting LocalNavigable's state in a test hook.
     asyncTest(async (done) => {
         const server = httpTestServer();
 
@@ -18,17 +17,27 @@
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!doctype html><script>
-                addEventListener("message", (e) => { if (e.data === "go") location.href = "${victim}"; });
+                addEventListener("message", (e) => {
+                    if (e.data === "push") {
+                        history.pushState({}, "", "#pushed");
+                        top.postMessage("history-pushed", "*");
+                    } else if (e.data === "race") {
+                        history.back();
+                        location.href = "${victim}";
+                    }
+                });
                 top.postMessage("trigger-ready", "*");
             <\/script>`,
         });
 
         let iframe;
         let stallTimer;
-        window.addEventListener("message", (e) => {
+        window.addEventListener("message", async (e) => {
             if (e.data === "trigger-ready") {
-                internals.clobberNextNavigationWithATraversal();
-                iframe.contentWindow.postMessage("go", "*");
+                iframe.contentWindow.postMessage("push", "*");
+            } else if (e.data === "history-pushed") {
+                await internals.flushSessionHistoryTraversalQueue();
+                iframe.contentWindow.postMessage("race", "*");
                 stallTimer = setTimeout(() => {
                     println("FAIL: cross-document navigation was dropped");
                     done();

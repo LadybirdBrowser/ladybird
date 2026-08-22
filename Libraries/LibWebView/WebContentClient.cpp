@@ -521,11 +521,22 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
         return;
     }
 
+    auto sequence_number = target_navigable->top_level_traversable().allocate_navigation_or_traversal_sequence_number();
+    if (auto const& ongoing_navigation = target_navigable->ongoing_navigation(); ongoing_navigation.has_value()
+        && ongoing_navigation->sequence_number != 0
+        && ongoing_navigation->navigation_id == request.navigation_id) {
+        // A UI-initiated top-level load records its transaction, under a navigation ID the UI
+        // generated, before WebContent enters navigate(). Keep its original admission order now
+        // that WebContent has started the navigation.
+        sequence_number = ongoing_navigation->sequence_number;
+    }
+
     target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = request.url,
         .current_url = move(current_url),
         .target = target,
         .navigation_id = request.navigation_id,
+        .sequence_number = sequence_number,
         .is_uncommitted = target_navigable->is_top_level_traversable(),
         .phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck,
         .start_request = move(request),
@@ -606,6 +617,7 @@ void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML:
             .current_url = move(current_url),
             .target = target,
             .navigation_id = request.navigation_id,
+            .sequence_number = target_navigable->top_level_traversable().allocate_navigation_or_traversal_sequence_number(),
             .is_uncommitted = target_navigable->is_top_level_traversable(),
             .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
             .loader = NavigationLoader::create(m_is_private, move(request)),
