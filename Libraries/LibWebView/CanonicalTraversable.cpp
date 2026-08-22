@@ -1380,7 +1380,9 @@ static bool history_operation_is_direct(Web::HistoryOperationParameters const& p
         || parameters.has<Web::TraverseToStepHistoryOperationParameters>()
         || parameters.has<Web::NavigationAPITraverseHistoryOperationParameters>()
         || parameters.has<Web::FinalizeSameDocumentNavigationHistoryOperationParameters>()
-        || parameters.has<Web::NavigableDestructionHistoryOperationParameters>();
+        || parameters.has<Web::NavigableDestructionHistoryOperationParameters>()
+        || parameters.has<Web::CloseTopLevelTraversableHistoryOperationParameters>()
+        || parameters.has<Web::FlushSessionHistoryTraversalQueueOperationParameters>();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -1606,6 +1608,15 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
         },
         [&](Web::NavigableDestructionHistoryOperationParameters const&) {
             update_for_navigable_creation_or_destruction(operation);
+        },
+        [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) {
+            // Close applies no history step. Completing at the queue position is the one-way command that runs
+            // the unload and destruction steps in the requesting process.
+            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+        },
+        [&](Web::FlushSessionHistoryTraversalQueueOperationParameters const&) {
+            // Flush is a queue barrier; completing at the queue position is the whole operation.
+            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
         },
         [&](auto const&) {
             VERIFY_NOT_REACHED();
