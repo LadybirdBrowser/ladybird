@@ -55,7 +55,10 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId
                 continue;
             }
             let border_box_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
-            let padding_box_rect = piece.shrunken_by_present_edges(border_box_rect, data.border);
+            let padding_box_rect = piece.shrunken_by_present_edges(
+                border_box_rect,
+                crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable),
+            );
             let border_radii = recorder.piece_border_radii(paintable, piece);
             if !background_is_propagated_to_root {
                 background::paint_background_within(
@@ -99,7 +102,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId
                 },
             )
         };
-        let border = data.border;
+        let border = crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable);
         for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {

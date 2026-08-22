@@ -254,14 +254,12 @@ CSSPixels content_height(Layout::Node const& node)
 
 BoxModelMetrics box_model(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
+    auto metrics = Layout::RustFFI::layout_arena_paintable_box_model(node.arena_handle(), committed_row_slot(node));
     return {
-        .margin = pixel_box_from_ffi(row->margin),
-        .padding = pixel_box_from_ffi(row->padding),
-        .border = pixel_box_from_ffi(row->border),
-        .inset = pixel_box_from_ffi(row->inset),
+        .margin = pixel_box_from_ffi(metrics.margin),
+        .padding = pixel_box_from_ffi(metrics.padding),
+        .border = pixel_box_from_ffi(metrics.border),
+        .inset = pixel_box_from_ffi(metrics.inset),
     };
 }
 
@@ -407,8 +405,7 @@ bool has_non_invertible_css_transform(Layout::Node const& node)
 
 bool uses_collapsing_borders_model(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row && row->uses_collapsing_borders_model;
+    return Layout::RustFFI::layout_arena_paintable_uses_collapsing_borders_model(node.arena_handle(), committed_row_slot(node));
 }
 
 SelectionState selection_state(Layout::Node const& node)

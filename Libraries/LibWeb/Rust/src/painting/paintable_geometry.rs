@@ -25,6 +25,56 @@ pub fn content_size(data: &PaintableData) -> CssPixelSize {
     data.content_size.into()
 }
 
+pub(crate) fn committed_margin(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
+            top: link.fragment.margin_top,
+            right: link.fragment.margin_right,
+            bottom: link.fragment.margin_bottom,
+            left: link.fragment.margin_left,
+        })
+    })
+}
+
+pub(crate) fn committed_border(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
+            top: link.fragment.border_top,
+            right: link.fragment.border_right,
+            bottom: link.fragment.border_bottom,
+            left: link.fragment.border_left,
+        })
+    })
+}
+
+pub(crate) fn committed_padding(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
+            top: link.fragment.padding_top,
+            right: link.fragment.padding_right,
+            bottom: link.fragment.padding_bottom,
+            left: link.fragment.padding_left,
+        })
+    })
+}
+
+pub(crate) fn committed_inset(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
+            top: link.inset_top,
+            right: link.inset_right,
+            bottom: link.inset_bottom,
+            left: link.inset_left,
+        })
+    })
+}
+
+pub(crate) fn committed_uses_collapsing_borders_model(arena: &PaintableArena, slot: PaintableSlotId) -> bool {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.is_some_and(|link| link.fragment.uses_collapsing_borders_model)
+    })
+}
+
 pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;
@@ -61,7 +111,7 @@ pub fn absolute_padding_box_rect(arena: &PaintableArena, slot: PaintableSlotId) 
     if data.kind == PaintableKind::InlinePaintable {
         return CssPixelRect::from(data.local_padding_box_union).translated_by(absolute.location());
     }
-    let padding = data.padding;
+    let padding = committed_padding(arena, slot);
     CssPixelRect::new(
         absolute.x - padding.left,
         absolute.y - padding.top,
@@ -76,11 +126,12 @@ pub fn absolute_border_box_rect(arena: &PaintableArena, slot: PaintableSlotId) -
         return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());
     }
     let padded = absolute_padding_box_rect(arena, slot);
-    let mut border_top = data.border.top;
-    let mut border_bottom = data.border.bottom;
-    let mut border_left = data.border.left;
-    let mut border_right = data.border.right;
-    if data.uses_collapsing_borders_model {
+    let border = committed_border(arena, slot);
+    let mut border_top = border.top;
+    let mut border_bottom = border.bottom;
+    let mut border_left = border.left;
+    let mut border_right = border.right;
+    if committed_uses_collapsing_borders_model(arena, slot) {
         let two = CssPixels::from_integer(2);
         border_top = border_top.div_as_fraction(two).round();
         border_bottom = border_bottom.div_as_fraction(two).round();

@@ -43,10 +43,9 @@ fn css_border_top_width(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId)
 fn effective_border_top(recorder: &PaintRecorder<'_>, fieldset: PaintableSlotId) -> CssPixels {
     let css_border_top = css_border_top_width(recorder, fieldset);
     if let Some(legend) = legend_paintable(recorder, fieldset) {
-        let legend_data = recorder.data(legend);
-        let legend_margin_box_height = legend_data.margin.top
-            + absolute_border_box_rect(recorder.paintables, legend).height
-            + legend_data.margin.bottom;
+        let legend_margin = crate::painting::paintable_geometry::committed_margin(recorder.paintables, legend);
+        let legend_margin_box_height =
+            legend_margin.top + absolute_border_box_rect(recorder.paintables, legend).height + legend_margin.bottom;
         return css_border_top.max(legend_margin_box_height);
     }
     css_border_top

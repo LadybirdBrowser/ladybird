@@ -1140,8 +1140,9 @@ pub(crate) fn paint_box_borders_from_style(
         return;
     };
     let zero = CssPixels::from_raw(0);
+    let border = crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable);
     let borders_data = BordersDataDevicePixels {
-        top: if data.border.top == zero {
+        top: if border.top == zero {
             default_side
         } else {
             device_side(
@@ -1150,7 +1151,7 @@ pub(crate) fn paint_box_borders_from_style(
                 style.border_top_width(),
             )
         },
-        right: if data.border.right == zero {
+        right: if border.right == zero {
             default_side
         } else {
             device_side(
@@ -1159,7 +1160,7 @@ pub(crate) fn paint_box_borders_from_style(
                 style.border_right_width(),
             )
         },
-        bottom: if data.border.bottom == zero {
+        bottom: if border.bottom == zero {
             default_side
         } else {
             device_side(
@@ -1168,7 +1169,7 @@ pub(crate) fn paint_box_borders_from_style(
                 style.border_bottom_width(),
             )
         },
-        left: if data.border.left == zero {
+        left: if border.left == zero {
             default_side
         } else {
             device_side(
@@ -1179,22 +1180,22 @@ pub(crate) fn paint_box_borders_from_style(
         },
     };
     let css_border_widths = [
-        if data.border.top == zero {
+        if border.top == zero {
             zero
         } else {
             style.border_top_width()
         },
-        if data.border.right == zero {
+        if border.right == zero {
             zero
         } else {
             style.border_right_width()
         },
-        if data.border.bottom == zero {
+        if border.bottom == zero {
             zero
         } else {
             style.border_bottom_width()
         },
-        if data.border.left == zero {
+        if border.left == zero {
             zero
         } else {
             style.border_left_width()

@@ -75,12 +75,14 @@ fn with_highlight_context(
 
 fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
     let content_rect = paintable_geometry::absolute_rect(recorder.paintables, paintable);
-    let data = recorder.data(paintable);
+    let margin = paintable_geometry::committed_margin(recorder.paintables, paintable);
+    let border = paintable_geometry::committed_border(recorder.paintables, paintable);
+    let padding = paintable_geometry::committed_padding(recorder.paintables, paintable);
     let margin_rect = content_rect.inflated(
-        data.margin.top + data.border.top + data.padding.top,
-        data.margin.right + data.border.right + data.padding.right,
-        data.margin.bottom + data.border.bottom + data.padding.bottom,
-        data.margin.left + data.border.left + data.padding.left,
+        margin.top + border.top + padding.top,
+        margin.right + border.right + padding.right,
+        margin.bottom + border.bottom + padding.bottom,
+        margin.left + border.left + padding.left,
     );
     let border_rect = paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
     let padding_rect = paintable_geometry::absolute_padding_box_rect(recorder.paintables, paintable);

@@ -269,14 +269,13 @@ pub(crate) fn background_box_for(
     recorder: &PaintRecorder<'_>,
     paintable: PaintableSlotId,
 ) -> BackgroundBox {
-    let data = recorder.data(paintable);
     let mut background_box = border_box;
     if box_clip == css_enums::background_box::CONTENT_BOX {
-        let padding = data.padding;
+        let padding = crate::painting::paintable_geometry::committed_padding(recorder.paintables, paintable);
         background_box.shrink(padding.top, padding.right, padding.bottom, padding.left);
     }
     if box_clip == css_enums::background_box::CONTENT_BOX || box_clip == css_enums::background_box::PADDING_BOX {
-        let border = data.border;
+        let border = crate::painting::paintable_geometry::committed_border(recorder.paintables, paintable);
         background_box.shrink(border.top, border.right, border.bottom, border.left);
     }
     background_box

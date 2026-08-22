@@ -96,6 +96,20 @@ impl PaintableArena {
         self.chrome_state_callback = None;
     }
 
+    pub(crate) fn with_committed_fragment_link<R>(
+        &self,
+        slot: PaintableSlotId,
+        read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
+    ) -> R {
+        debug_assert!(self.is_live(slot));
+        let slots = self.committed_fragment_links.borrow();
+        read(
+            slots
+                .get(slot.slot_index() as usize)
+                .and_then(|entry| entry.link.as_deref()),
+        )
+    }
+
     pub(crate) fn committed_fragment_link_cloned(
         &self,
         layout_slot_index: u32,
