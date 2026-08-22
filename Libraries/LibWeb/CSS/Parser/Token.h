@@ -140,12 +140,6 @@ public:
         return number_value_for_type().is_integer();
     }
 
-    bool is_integer_with_explicit_sign() const
-    {
-        VERIFY(m_type == Type::Number || m_type == Type::Dimension || m_type == Type::Percentage);
-        return number_value_for_type().is_integer_with_explicit_sign();
-    }
-
     double number_value() const
     {
         VERIFY(m_type == Type::Number);
@@ -167,8 +161,6 @@ public:
         VERIFY(m_type == Type::Dimension);
         return clamp_to_single_precision(m_value.get<DimensionValue>().number.value());
     }
-    i32 dimension_value_int() const { return m_value.get<DimensionValue>().number.integer_value(); }
-
     double percentage() const
     {
         VERIFY(m_type == Type::Percentage);
@@ -186,7 +178,7 @@ public:
     Utf16String const& original_source_text() const { return m_original_source_text; }
     SourcePosition const& start_position() const { return m_start_position; }
     SourcePosition const& end_position() const { return m_end_position; }
-    void set_position_range(Badge<Tokenizer, RustTokenizer, RustSyntaxParser>, SourcePosition start, SourcePosition end);
+    void set_position_range(Badge<RustTokenizer, RustSyntaxParser>, SourcePosition start, SourcePosition end);
 
     bool operator==(Token const& other) const
     {

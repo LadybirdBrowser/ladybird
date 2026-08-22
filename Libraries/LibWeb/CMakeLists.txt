@@ -222,7 +222,6 @@ set(SOURCES
     CSS/Parser/SelectorParsing.cpp
     CSS/Parser/Syntax.cpp
     CSS/Parser/Token.cpp
-    CSS/Parser/Tokenizer.cpp
     CSS/Parser/Types.cpp
     CSS/Percentage.cpp
     CSS/PreferredColorScheme.cpp

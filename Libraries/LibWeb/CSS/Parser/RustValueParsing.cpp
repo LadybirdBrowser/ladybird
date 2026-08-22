@@ -59,140 +59,11 @@ static bool rust_font_tech_is_supported(u8 tech)
     return font_tech_is_supported(static_cast<FontTech>(tech));
 }
 
-static u8 number_type_for_ffi(Token const& token)
-{
-    if (token.is_integer_with_explicit_sign())
-        return to_underlying(Number::Type::IntegerWithExplicitSign);
-    if (token.is_integer())
-        return to_underlying(Number::Type::Integer);
-    return to_underlying(Number::Type::Number);
-}
-
-using FfiParserTokenValues = Vector<u16, 64>;
-
-static void set_ffi_token_value(ValueParserFFI::FfiParserToken& ffi_token, FfiParserTokenValues& ffi_token_values, Utf16View value)
-{
-    ffi_token.value_offset = ffi_token_values.size();
-    ffi_token.value_length = value.length_in_code_units();
-    ffi_token_values.ensure_capacity(ffi_token_values.size() + value.length_in_code_units());
-    for (size_t i = 0; i < value.length_in_code_units(); ++i)
-        ffi_token_values.unchecked_append(value.code_unit_at(i));
-}
-
-using FfiParserTokens = Vector<ValueParserFFI::FfiParserToken, 8>;
-
-static void set_token_for_ffi(ValueParserFFI::FfiParserToken& ffi_token, FfiParserTokenValues& ffi_token_values, Token const& token)
-{
-    ffi_token.token_type = to_underlying(token.type());
-    switch (token.type()) {
-    case Token::Type::Ident:
-        set_ffi_token_value(ffi_token, ffi_token_values, token.ident());
-        break;
-    case Token::Type::Function:
-        set_ffi_token_value(ffi_token, ffi_token_values, token.function());
-        break;
-    case Token::Type::AtKeyword:
-        set_ffi_token_value(ffi_token, ffi_token_values, token.at_keyword());
-        break;
-    case Token::Type::Hash:
-        ffi_token.hash_type = to_underlying(token.hash_type());
-        set_ffi_token_value(ffi_token, ffi_token_values, token.hash_value());
-        break;
-    case Token::Type::String:
-        set_ffi_token_value(ffi_token, ffi_token_values, token.string());
-        break;
-    case Token::Type::Url:
-        set_ffi_token_value(ffi_token, ffi_token_values, token.url());
-        break;
-    case Token::Type::Delim:
-        ffi_token.delim = token.delim();
-        break;
-    case Token::Type::Number:
-        ffi_token.number_type = number_type_for_ffi(token);
-        ffi_token.number_value = token.number_value();
-        break;
-    case Token::Type::Percentage:
-        ffi_token.number_type = number_type_for_ffi(token);
-        ffi_token.number_value = token.percentage();
-        break;
-    case Token::Type::Dimension:
-        ffi_token.number_type = number_type_for_ffi(token);
-        ffi_token.number_value = token.dimension_value();
-        set_ffi_token_value(ffi_token, ffi_token_values, token.dimension_unit());
-        break;
-    case Token::Type::Invalid:
-    case Token::Type::EndOfFile:
-        VERIFY_NOT_REACHED();
-    case Token::Type::BadString:
-    case Token::Type::BadUrl:
-    case Token::Type::Whitespace:
-    case Token::Type::CDO:
-    case Token::Type::CDC:
-    case Token::Type::Colon:
-    case Token::Type::Semicolon:
-    case Token::Type::Comma:
-    case Token::Type::OpenSquare:
-    case Token::Type::CloseSquare:
-    case Token::Type::OpenParen:
-    case Token::Type::CloseParen:
-    case Token::Type::OpenCurly:
-    case Token::Type::CloseCurly:
-        break;
-    }
-}
-
-static void append_token_for_ffi(FfiParserTokens& ffi_tokens, FfiParserTokenValues& ffi_token_values, Token const& token)
-{
-    ValueParserFFI::FfiParserToken ffi_token {};
-    set_token_for_ffi(ffi_token, ffi_token_values, token);
-    ffi_tokens.append(ffi_token);
-}
-
-static void append_component_values_for_ffi(FfiParserTokens& ffi_tokens, FfiParserTokenValues& ffi_token_values, ReadonlySpan<ComponentValue> values)
-{
-    for (auto const& value : values) {
-        if (value.is_token()) {
-            append_token_for_ffi(ffi_tokens, ffi_token_values, value.token());
-            continue;
-        }
-        if (value.is_function()) {
-            ValueParserFFI::FfiParserToken function_token {};
-            function_token.token_type = to_underlying(Token::Type::Function);
-            set_ffi_token_value(function_token, ffi_token_values, value.function().name);
-            ffi_tokens.append(function_token);
-            append_component_values_for_ffi(ffi_tokens, ffi_token_values, value.function().value.span());
-            ValueParserFFI::FfiParserToken closing_token {};
-            closing_token.token_type = to_underlying(Token::Type::CloseParen);
-            ffi_tokens.append(closing_token);
-            continue;
-        }
-        VERIFY(value.is_block());
-        ValueParserFFI::FfiParserToken opening_token {};
-        ValueParserFFI::FfiParserToken closing_token {};
-        if (value.block().is_square()) {
-            opening_token.token_type = to_underlying(Token::Type::OpenSquare);
-            closing_token.token_type = to_underlying(Token::Type::CloseSquare);
-        } else if (value.block().is_paren()) {
-            opening_token.token_type = to_underlying(Token::Type::OpenParen);
-            closing_token.token_type = to_underlying(Token::Type::CloseParen);
-        } else {
-            VERIFY(value.block().is_curly());
-            opening_token.token_type = to_underlying(Token::Type::OpenCurly);
-            closing_token.token_type = to_underlying(Token::Type::CloseCurly);
-        }
-        ffi_tokens.append(opening_token);
-        append_component_values_for_ffi(ffi_tokens, ffi_token_values, value.block().value.span());
-        ffi_tokens.append(closing_token);
-    }
-}
-
 static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust(ReadonlySpan<ComponentValue> values, SubstitutionFunctionsPresence& presence)
 {
-    FfiParserTokens ffi_tokens;
-    FfiParserTokenValues ffi_token_values;
-    append_component_values_for_ffi(ffi_tokens, ffi_token_values, values);
+    auto source = serialize_a_series_of_component_values(values);
     u8 rust_presence = 0;
-    if (!ValueParserFFI::rust_collect_arbitrary_substitution_function_presence(ffi_tokens.data(), ffi_tokens.size(), ffi_token_values.data(), ffi_token_values.size(), &rust_presence))
+    if (!ValueParserFFI::rust_collect_arbitrary_substitution_function_presence_from_source(ffi_utf16_view(source), &rust_presence))
         return Parser::ParseError::SyntaxError;
     presence.attr |= rust_presence & (1 << 0);
     presence.dashed_function |= rust_presence & (1 << 1);
@@ -215,10 +86,8 @@ Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_prese
 
 Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, ReadonlySpan<ComponentValue> values)
 {
-    FfiParserTokens ffi_tokens;
-    FfiParserTokenValues ffi_token_values;
-    append_component_values_for_ffi(ffi_tokens, ffi_token_values, values);
-    if (!ValueParserFFI::rust_validate_arbitrary_substitution_arguments(to_underlying(function), ffi_tokens.data(), ffi_tokens.size(), ffi_token_values.data(), ffi_token_values.size()))
+    auto source = serialize_a_series_of_component_values(values);
+    if (!ValueParserFFI::rust_validate_arbitrary_substitution_arguments_from_source(to_underlying(function), ffi_utf16_view(source)))
         return {};
 
     auto split_declaration_values = [](ReadonlySpan<ComponentValue> values, Token::Type separator) {
@@ -566,24 +435,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
-    FfiParserTokens ffi_tokens;
-    FfiParserTokenValues ffi_token_values;
-    ValueParserFFI::FfiParserToken single_ffi_token {};
     auto const remaining_tokens = tokens.remaining_tokens();
-    ValueParserFFI::FfiParserToken const* ffi_token_data;
-    size_t ffi_token_count;
-    if (remaining_tokens.size() == 1 && remaining_tokens[0].is_token()) {
-        set_token_for_ffi(single_ffi_token, ffi_token_values, remaining_tokens[0].token());
-        ffi_token_data = &single_ffi_token;
-        ffi_token_count = 1;
-    } else {
-        append_component_values_for_ffi(ffi_tokens, ffi_token_values, remaining_tokens);
-        ffi_token_data = ffi_tokens.data();
-        ffi_token_count = ffi_tokens.size();
-    }
-    auto const* parsed_value = ValueParserFFI::rust_parse_css_value_from_tokens(
-        &context, to_underlying(property_id), ffi_token_data, ffi_token_count,
-        ffi_token_values.data(), ffi_token_values.size(),
+    auto source = serialize_a_series_of_component_values(remaining_tokens);
+    auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
+        &context, to_underlying(property_id), ffi_utf16_view(source),
         ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), &status, &reason);
 
     if (status != ValueParserFFI::FfiParseStatus::Parsed) {
@@ -634,17 +489,8 @@ Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(F
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     void const* parsed_value = nullptr;
-    if (kind == FontDescriptorKind::SourceList) {
-        FfiParserTokens ffi_tokens;
-        FfiParserTokenValues ffi_token_values;
-        append_component_values_for_ffi(ffi_tokens, ffi_token_values, tokens.remaining_tokens());
-        parsed_value = ValueParserFFI::rust_parse_font_descriptor_from_tokens(
-            &context, static_cast<ValueParserFFI::FfiFontDescriptorKind>(kind), ffi_tokens.data(), ffi_tokens.size(),
-            ffi_token_values.data(), ffi_token_values.size(), &status);
-    } else {
-        parsed_value = ValueParserFFI::rust_parse_font_descriptor(
-            &context, static_cast<ValueParserFFI::FfiFontDescriptorKind>(kind), ffi_utf16_view(source), &status);
-    }
+    parsed_value = ValueParserFFI::rust_parse_font_descriptor(
+        &context, static_cast<ValueParserFFI::FfiFontDescriptorKind>(kind), ffi_utf16_view(source), &status);
     if (status == ValueParserFFI::FfiParseStatus::NotHandled) {
         warnln("Rust CSS value parser did not handle a font descriptor");
         return RefPtr<StyleValue const> {};
@@ -711,13 +557,10 @@ RefPtr<StyleValue const> Parser::parse_primitive_value(ValueType value_type, Tok
         .font_tech_is_supported = rust_font_tech_is_supported,
         .random_function_index = &m_random_function_index,
     };
-    FfiParserTokens ffi_tokens;
-    FfiParserTokenValues ffi_token_values;
-    append_component_values_for_ffi(ffi_tokens, ffi_token_values, tokens.remaining_tokens());
+    auto source = serialize_a_series_of_component_values(tokens.remaining_tokens());
     size_t consumed = 0;
-    auto const* parsed = ValueParserFFI::rust_parse_css_primitive_from_tokens(
-        &context, to_underlying(value_type), ffi_tokens.data(), ffi_tokens.size(),
-        ffi_token_values.data(), ffi_token_values.size(),
+    auto const* parsed = ValueParserFFI::rust_parse_css_primitive_from_source(
+        &context, to_underlying(value_type), ffi_utf16_view(source),
         accepted_range.min, accepted_range.max, &consumed);
     if (!parsed)
         return nullptr;
@@ -733,7 +576,7 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
 
 RefPtr<StyleValue const> Parser::parse_entirely_as_type(ValueType value_type)
 {
-    auto values = parse_a_list_of_component_values(m_token_stream);
+    auto values = parse_a_list_of_component_values(token_stream());
     TokenStream tokens { values };
     auto parsed = parse_primitive_value(value_type, tokens);
     tokens.discard_whitespace();
