@@ -1,0 +1,24 @@
+insertRule adds a CSS-connected FontFace: true
+inserted faces follow stylesheet order: true
+CSS-connected faces precede manually-added faces: true
+unaffected rules retain their FontFace object: true
+deleteRule removes the corresponding FontFace: true
+deleteRule disconnects the FontFace before deletion: true
+deleteRule FontFace is absent after deletion: true
+insertRule connects a face in a matching group: true
+nested deleteRule removes the corresponding FontFace: true
+a face in a non-matching group is not connected: true
+a face is connected when its group starts matching: true
+a face is disconnected when its group stops matching: true
+replaceSync adds a CSS-connected FontFace: true
+replaceSync removes the old FontFace: true
+replaceSync creates a new FontFace: true
+replaceSync disconnects the old FontFace before deletion: true
+replaceSync old FontFace is absent after deletion: true
+replace removes the previous FontFace: true
+replace creates a new FontFace: true
+removing a stylesheet removes its FontFace: true
+face matches before a font-family descriptor change: true
+face matches after a font-family descriptor change: true
+old family stops matching after a descriptor change: true
+moving a stylesheet updates font source order: true

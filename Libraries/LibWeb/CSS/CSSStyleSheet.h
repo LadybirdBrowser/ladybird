@@ -105,6 +105,7 @@ public:
     bool evaluate_media_queries(DOM::Document const&);
     bool evaluate_media_queries(DOM::Document const&, Function<void(CSSRule const&)> const& changed_rule_callback);
     void reload_fonts_after_media_query_change();
+    void synchronize_fonts_after_rule_change();
     void record_conditions_for_owners();
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
     void for_each_effective_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const;

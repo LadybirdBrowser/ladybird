@@ -907,6 +907,36 @@ void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
     did_load_font(key.family_name);
 }
 
+void FontComputer::synchronize_font_face_order(Vector<GC::Ref<FontFace>> const& font_source_order)
+{
+    for (auto& entry : m_font_faces) {
+        Vector<GC::Ref<FontFace>> ordered_faces;
+        for (auto& font_face : font_source_order) {
+            if (entry.value.contains_slow(font_face))
+                ordered_faces.append(font_face);
+        }
+        for (auto& font_face : entry.value) {
+            if (!ordered_faces.contains_slow(font_face))
+                ordered_faces.append(font_face);
+        }
+
+        bool order_changed = ordered_faces.size() != entry.value.size();
+        if (!order_changed) {
+            for (size_t index = 0; index < entry.value.size(); ++index) {
+                if (ordered_faces[index] != entry.value[index]) {
+                    order_changed = true;
+                    break;
+                }
+            }
+        }
+        if (!order_changed)
+            continue;
+
+        entry.value = move(ordered_faces);
+        did_load_font(entry.key.family_name);
+    }
+}
+
 GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
 {
     if (font_face.sources().is_empty()) {
@@ -965,21 +995,6 @@ static void for_each_nested_font_rule(CSSRuleList& rules, Function<void(CSSRule&
     }
 }
 
-static void for_each_effective_font_rule(CSSStyleSheet& sheet, Function<void(CSSRule&)> const& callback)
-{
-    GC::RootHashTable<CSSRule const*> effective_font_rules;
-    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        // Imported sheets are attached and load their fonts separately.
-        if (rule.parent_style_sheet() == &sheet && is_font_rule(rule))
-            effective_font_rules.set(&rule);
-    });
-
-    for_each_nested_font_rule(sheet.rules(), [&](CSSRule& rule) {
-        if (effective_font_rules.contains(&rule))
-            callback(rule);
-    });
-}
-
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
     begin_font_face_change_batch();
@@ -987,11 +1002,29 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
         end_font_face_change_batch();
     };
 
-    for_each_effective_font_rule(sheet, [&](auto& rule) {
+    GC::RootHashTable<CSSRule const*> effective_font_rules;
+    if (!sheet.disabled()) {
+        sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& effective_rule) {
+            // Imported sheets are attached and synchronize their fonts separately.
+            if (effective_rule.parent_style_sheet() == &sheet && is_font_rule(effective_rule))
+                effective_font_rules.set(&effective_rule);
+        });
+    }
+
+    for_each_nested_font_rule(sheet.rules(), [&](auto& rule) {
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
-            if (!font_face_rule->is_valid())
+            auto should_be_css_connected = effective_font_rules.contains(font_face_rule) && font_face_rule->is_valid();
+            if (!should_be_css_connected) {
+                font_face_rule->disconnect_font_face();
+                return;
+            }
+
+            if (font_face_rule->css_connected_font_face())
                 return;
 
+            // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+            // A CSS @font-face rule automatically defines a corresponding FontFace object, which is automatically
+            // placed in the document's font source when the rule is parsed. This FontFace object is CSS-connected.
             auto font_face = FontFace::create_css_connected(HTML::relevant_realm(document()), *font_face_rule);
             document().fonts()->add_css_connected_font(font_face);
         }
@@ -999,6 +1032,8 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
         if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
             font_feature_values_rule->clear_caches();
     });
+
+    document().fonts()->synchronize_css_connected_font_order();
 }
 
 void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
@@ -1011,9 +1046,8 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
     for_each_nested_font_rule(sheet.rules(), [&](auto& rule) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule))
             font_face_rule->disconnect_font_face();
-        }
 
         if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
             font_feature_values_rule->clear_caches();

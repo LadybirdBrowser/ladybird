@@ -218,6 +218,8 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(Utf16View rule, unsigne
             invalidate_rule_cache_for_style_sheet_owners(*this);
         else
             invalidate_owners();
+
+        synchronize_fonts_after_rule_change();
     }
 
     return result;
@@ -239,6 +241,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
         if (removed_rule)
             record_style_rule_removed(*this, *removed_rule);
         invalidate_owners();
+        synchronize_fonts_after_rule_change();
     }
     return result;
 }
@@ -278,6 +281,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(Utf16String text)
         m_rules->set_rules({}, rules_without_import);
         record_stylesheet_rules_replaced(*this);
         invalidate_owners();
+        synchronize_fonts_after_rule_change();
 
         // 4. Unset sheet’s disallow modification flag.
         set_disallow_modification(false);
@@ -314,6 +318,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(Utf16View text)
     m_rules->set_rules({}, rules_without_import);
     record_stylesheet_rules_replaced(*this);
     invalidate_owners();
+    synchronize_fonts_after_rule_change();
 
     return {};
 }
@@ -519,10 +524,20 @@ void CSSStyleSheet::invalidate_owners()
 
 void CSSStyleSheet::reload_fonts_after_media_query_change()
 {
-    if (auto document = owning_document(); document && has_document_owner()) {
-        document->font_computer().unload_fonts_from_sheet(*this);
+    synchronize_fonts_after_rule_change();
+}
+
+// https://drafts.csswg.org/css-font-loading/#document-font-face-set
+// As @font-face rules are added or removed from a stylesheet, or stylesheets containing @font-face rules are added or
+// removed, the corresponding CSS-connected FontFace objects must be added or removed from the document's font source,
+// and maintain this ordering.
+void CSSStyleSheet::synchronize_fonts_after_rule_change()
+{
+    if (!has_document_owner())
+        return;
+
+    if (auto document = owning_document())
         document->font_computer().load_fonts_from_sheet(*this);
-    }
 }
 
 bool CSSStyleSheet::has_document_owner() const

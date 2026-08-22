@@ -17,6 +17,8 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/BindingsGlue.h>
+#include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -111,6 +113,61 @@ void FontFaceSet::add_css_connected_font(GC::Ref<FontFace> face)
         // 2. Append font to the FontFaceSet’s [[LoadingFonts]] list.
         m_loading_fonts.append(*face);
     }
+}
+
+// https://drafts.csswg.org/css-font-loading/#document-font-face-set
+// The FontFaceSet entries for a document's font source must be initially populated with all the CSS-connected FontFace
+// objects from all of the CSS @font-face rules in the document or shadow root CSS style sheets, in document order. As
+// @font-face rules are added or removed, the corresponding objects must be added or removed and maintain this ordering.
+// Any manually-added FontFace objects must be ordered after the CSS-connected ones.
+void FontFaceSet::synchronize_css_connected_font_order()
+{
+    auto* window = HTML::window_from_global_object(relevant_settings_object().global_object());
+    if (!window)
+        return;
+
+    Vector<GC::Ref<FontFace>> ordered_font_faces;
+    Function<void(CSSStyleSheet&)> append_fonts_from_sheet = [&](CSSStyleSheet& sheet) {
+        sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
+            auto const* font_face_rule = as_if<CSSFontFaceRule>(rule);
+            if (!font_face_rule)
+                return;
+            auto font_face = font_face_rule->css_connected_font_face();
+            if (!font_face)
+                return;
+            GC::Ref<FontFace> font_face_ref { *font_face };
+            if (!ordered_font_faces.contains_slow(font_face_ref))
+                ordered_font_faces.append(font_face_ref);
+        });
+    };
+
+    auto& document = window->associated_document();
+    document.for_each_active_css_style_sheet(append_fonts_from_sheet);
+
+    for (auto& font_face : m_font_faces) {
+        if (font_face->is_css_connected() && !ordered_font_faces.contains_slow(font_face))
+            ordered_font_faces.append(font_face);
+    }
+    for (auto& font_face : m_font_faces) {
+        if (!font_face->is_css_connected())
+            ordered_font_faces.append(font_face);
+    }
+
+    bool order_changed = ordered_font_faces.size() != m_font_faces.size();
+    if (!order_changed) {
+        for (size_t index = 0; index < m_font_faces.size(); ++index) {
+            if (ordered_font_faces[index] != m_font_faces[index]) {
+                order_changed = true;
+                break;
+            }
+        }
+    }
+    if (!order_changed)
+        return;
+
+    m_font_faces = move(ordered_font_faces);
+    Bindings::did_reorder_font_faces(*this, m_font_faces);
+    document.font_computer().synchronize_font_face_order(m_font_faces);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
@@ -570,6 +627,15 @@ void did_remove_font_face(CSS::FontFaceSet const& font_face_set, GC::Ref<CSS::Fo
 {
     font_face_set_cache_for(font_face_set).for_each([&](auto& set_entries) {
         remove_font_face_from_set(set_entries, font_face);
+    });
+}
+
+void did_reorder_font_faces(CSS::FontFaceSet const& font_face_set, Vector<GC::Ref<CSS::FontFace>> const& font_faces)
+{
+    font_face_set_cache_for(font_face_set).for_each([&](auto& set_entries) {
+        set_entries.set_clear();
+        for (auto& font_face : font_faces)
+            add_font_face_to_set(set_entries, font_face);
     });
 }
 

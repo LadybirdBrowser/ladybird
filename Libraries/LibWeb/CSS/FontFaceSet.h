@@ -43,6 +43,7 @@ public:
 
     void add_css_connected_font(GC::Ref<FontFace>);
     void remove_css_connected_font(GC::Ref<FontFace>);
+    void synchronize_css_connected_font_order();
 
     void set_onloading(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloading();

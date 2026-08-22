@@ -52,5 +52,6 @@ WEB_API GC::Ref<JS::Set> setlike_entries(JS::Realm&, WrapperWorld const&, CSS::F
 WEB_API bool setlike_has(CSS::FontFaceSet const&, JS::Value);
 WEB_API void did_add_font_face(CSS::FontFaceSet const&, GC::Ref<CSS::FontFace>);
 WEB_API void did_remove_font_face(CSS::FontFaceSet const&, GC::Ref<CSS::FontFace>);
+WEB_API void did_reorder_font_faces(CSS::FontFaceSet const&, Vector<GC::Ref<CSS::FontFace>> const&);
 
 }

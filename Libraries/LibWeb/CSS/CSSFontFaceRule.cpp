@@ -10,6 +10,7 @@
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -158,12 +159,31 @@ void CSSFontFaceRule::handle_descriptor_change(Utf16FlyString const& property)
         return;
     }
 
-    if (property.equals_ignoring_ascii_case("src"_utf16_fly_string))
+    if (property.equals_ignoring_ascii_case("src"_utf16_fly_string)) {
         handle_src_descriptor_change();
+        return;
+    }
+
+    auto descriptor_affects_font_matching = property.equals_ignoring_ascii_case("font-family"_utf16_fly_string)
+        || property.equals_ignoring_ascii_case("font-weight"_utf16_fly_string)
+        || property.equals_ignoring_ascii_case("font-style"_utf16_fly_string)
+        || property.equals_ignoring_ascii_case("font-width"_utf16_fly_string)
+        || property.equals_ignoring_ascii_case("font-stretch"_utf16_fly_string);
+
+    FontComputer* font_computer = nullptr;
+    if (descriptor_affects_font_matching) {
+        if (auto document = parent_style_sheet() ? parent_style_sheet()->owning_document() : nullptr) {
+            font_computer = &document->font_computer();
+            font_computer->unregister_font_face(*m_css_connected_font_face);
+        }
+    }
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // any change made to a @font-face descriptor is immediately reflected in the corresponding FontFace attribute
     m_css_connected_font_face->reparse_connected_css_font_face_rule_descriptors();
+
+    if (font_computer)
+        font_computer->register_font_face(*m_css_connected_font_face);
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
@@ -190,6 +210,10 @@ void CSSFontFaceRule::handle_src_descriptor_change()
     document->fonts()->add_css_connected_font(new_font_face);
 }
 
+// https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+// If a @font-face rule is removed from the document, its corresponding FontFace object is no longer CSS-connected.
+// The connection is not restorable by any means (but adding the @font-face back to the stylesheet will create a
+// brand new FontFace object which is CSS-connected).
 void CSSFontFaceRule::disconnect_font_face()
 {
     if (!m_css_connected_font_face)

@@ -843,7 +843,8 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
         }
     });
 
-    return CSSFontFaceRule::create(CSSFontFaceDescriptors::create(descriptors.release_descriptors()));
+    auto font_face_descriptors = CSSFontFaceDescriptors::create(descriptors.release_descriptors());
+    return CSSFontFaceRule::create(font_face_descriptors);
 }
 
 GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(AtRule const& rule)
