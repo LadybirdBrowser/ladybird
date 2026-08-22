@@ -122,6 +122,7 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
 Node::Node(Document& document, NodeType type)
     : EventTarget()
     , m_document(&document)
+    , m_root(this)
     , m_type(type)
 {
     // A Document is its own shadow-including root, so it is always connected.
@@ -267,6 +268,7 @@ void Node::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     TreeNode::visit_edges(visitor);
     visitor.visit(m_document);
+    visitor.visit(m_root);
     if (m_rare_data)
         m_rare_data->visit_edges(visitor);
 }
@@ -3279,6 +3281,7 @@ void Node::append_child_impl(GC::Ref<Node> node)
         return;
 
     TreeNode::append_child(node);
+    node->set_root_for_subtree(root());
 }
 
 void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
@@ -3286,11 +3289,21 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
     if (!child)
         return append_child_impl(move(node));
     TreeNode::insert_before(node, child);
+    node->set_root_for_subtree(root());
 }
 
 void Node::remove_child_impl(GC::Ref<Node> node)
 {
     TreeNode::remove_child(node);
+    node->set_root_for_subtree(node);
+}
+
+void Node::set_root_for_subtree(Node& new_root)
+{
+    for_each_in_inclusive_subtree([&](Node& node) {
+        node.m_root = new_root;
+        return TraversalDecision::Continue;
+    });
 }
 
 void Node::build_accessibility_tree(AccessibilityTreeNode& parent)

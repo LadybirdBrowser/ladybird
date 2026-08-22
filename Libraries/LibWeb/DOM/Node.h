@@ -325,6 +325,9 @@ public:
         return const_cast<Node*>(this)->shadow_including_root();
     }
 
+    Node& root() { return *m_root; }
+    Node const& root() const { return *m_root; }
+
     bool is_closed_shadow_hidden_from(Node const&) const;
 
     bool is_connected() const { return m_is_connected; }
@@ -571,6 +574,7 @@ protected:
     virtual size_t external_memory_size() const override;
 
     GC::Ptr<Document> m_document;
+    GC::Ptr<Node> m_root;
     WeakPtr<Layout::Node> m_layout_node;
     NodeType m_type { NodeType::INVALID };
     bool m_needs_layout_tree_update { false };
@@ -594,6 +598,7 @@ private:
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
+    void set_root_for_subtree(Node&);
     void clear_committed_layout_box();
 
     static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
