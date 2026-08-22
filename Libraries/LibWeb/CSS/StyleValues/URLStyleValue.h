@@ -60,11 +60,6 @@ inline URL url_from_rust_data(StyleValueFFI::RetainedString const& url_string, u
 
 class URLStyleValue final : public StyleValueWithDefaultOperators<URLStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<URLStyleValue const> create(URL const& url)
-    {
-        return adopt_ref(*new (nothrow) URLStyleValue(url));
-    }
-
     virtual ~URLStyleValue() override = default;
 
     URL url() const
@@ -79,20 +74,6 @@ private:
     explicit URLStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::URL, data)
     {
-    }
-
-    URLStyleValue(URL const& url)
-        : StyleValueWithDefaultOperators(Type::URL, make_url_data(url))
-    {
-    }
-
-    static StyleValueFFI::StyleValueData const* make_url_data(URL const& url)
-    {
-        // The Rust allocation takes ownership of one leaked reference to each retained string.
-        auto modifiers = retain_url_modifiers_for_rust(url);
-        auto url_string = url.url();
-        auto url_bytes = url_string.bytes();
-        return StyleValueFFI::rust_style_value_create_url(url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), to_underlying(url.type()), modifiers.data(), modifiers.size());
     }
 };
 

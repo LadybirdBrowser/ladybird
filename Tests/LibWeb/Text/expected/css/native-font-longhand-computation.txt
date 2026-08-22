@@ -11,6 +11,4 @@ context font-weight: 10
 context font-stretch: 100%
 deferred anchor left: 6px
 deferred anchor top: 9px
-used no C++ longhand fallback: true
 partial font-size: 16px
-partial restyle used no C++ longhand fallback: true

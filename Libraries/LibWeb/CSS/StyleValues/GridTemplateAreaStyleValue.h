@@ -19,7 +19,6 @@ namespace Web::CSS {
 
 class GridTemplateAreaStyleValue final : public StyleValueWithDefaultOperators<GridTemplateAreaStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> create(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count);
     virtual ~GridTemplateAreaStyleValue() override = default;
 
     HashMap<Utf16FlyString, GridArea> grid_areas() const
@@ -44,32 +43,6 @@ private:
     explicit GridTemplateAreaStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::GridTemplateArea, data)
     {
-    }
-
-    explicit GridTemplateAreaStyleValue(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
-        : StyleValueWithDefaultOperators(Type::GridTemplateArea, make_grid_template_area_data(grid_areas, row_count, column_count))
-    {
-    }
-
-    static StyleValueFFI::StyleValueData const* make_grid_template_area_data(HashMap<Utf16FlyString, GridArea> const& grid_areas, size_t row_count, size_t column_count)
-    {
-        // The Rust allocation takes ownership of one leaked reference to each area name.
-        Vector<StyleValueFFI::RetainedGridArea> areas;
-        areas.ensure_capacity(grid_areas.size());
-        for (auto const& [name, area] : grid_areas) {
-            auto implicit_start_name = implicit_grid_line_name(name, "-start"sv);
-            auto implicit_end_name = implicit_grid_line_name(name, "-end"sv);
-            areas.unchecked_append({
-                { name.to_raw_leaked() },
-                { implicit_start_name.to_raw_leaked() },
-                { implicit_end_name.to_raw_leaked() },
-                area.row_start,
-                area.row_end,
-                area.column_start,
-                area.column_end,
-            });
-        }
-        return StyleValueFFI::rust_style_value_create_grid_template_area(areas.data(), areas.size(), row_count, column_count);
     }
 };
 

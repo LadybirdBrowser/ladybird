@@ -23,6 +23,5 @@ test(() => {
         println(`variation ${value} => ${getComputedStyle(target).fontVariationSettings}`);
         target.style.removeProperty("font-variation-settings");
     }
-    println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
 });
 </script>

@@ -146,7 +146,7 @@ TEST_CASE(rust_unresolved_value_retains_cached_parsed_value)
 {
     RefPtr<StyleValue const> parsed_value = NumberStyleValue::create(42);
     auto unresolved_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_unresolved(
-        0, nullptr, 0, 0, nullptr, 0, false, false, false, false, false, false, true,
+        0, nullptr, nullptr, 0, 0, nullptr, nullptr, 0, false, false, false, false, false, false, true,
         StyleValueFFI::rust_style_value_retain(parsed_value->rust_style_value_data())));
     parsed_value = nullptr;
 
@@ -974,12 +974,15 @@ TEST_CASE(rust_calculated_handles_create_typed_wrappers)
 TEST_CASE(rust_custom_property_stores_retain_value_data)
 {
     auto name = Utf16FlyString::from_utf8("--value"sv);
-    auto name_utf8 = MUST(name.view().to_utf8());
+    auto name_view = name.view();
     auto name_raw = name.to_raw_leaked();
     ComputedValuesFFI::FfiCustomPropertyStoreEntry entry {
         .name_raw = name_raw,
-        .name_utf8 = name_utf8.bytes().data(),
-        .name_utf8_length = name_utf8.bytes().size(),
+        .name = {
+            .ascii = name_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(name_view.ascii_span().data()) : nullptr,
+            .utf16 = name_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(name_view.utf16_span().data()),
+            .length = name_view.length_in_code_units(),
+        },
         .important = false,
         .data = StyleValueFFI::rust_style_value_create_number(1),
     };
@@ -2594,16 +2597,16 @@ TEST_CASE(radial_size_equality_is_deep)
 
 TEST_CASE(unresolved_equality_trims_only_ascii_whitespace)
 {
-    auto make_unresolved = [](String source_text) {
+    auto make_unresolved = [](Utf16String source_text) {
         return UnresolvedStyleValue::create({}, {}, move(source_text));
     };
 
     // U+00A0 has the Unicode White_Space property but is not ASCII whitespace; values differing
     // by it must not compare equal, or custom-property change detection misses the update.
-    auto plain = make_unresolved("foo"_string);
-    auto with_leading_nbsp = make_unresolved("\u00A0foo"_string);
+    auto plain = make_unresolved("foo"_utf16);
+    auto with_leading_nbsp = make_unresolved("\u00A0foo"_utf16);
 
-    EXPECT(plain->equals(*make_unresolved("foo"_string)));
+    EXPECT(plain->equals(*make_unresolved("foo"_utf16)));
     EXPECT(!plain->equals(*with_leading_nbsp));
 }
 

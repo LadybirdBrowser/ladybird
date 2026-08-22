@@ -16,7 +16,6 @@
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
-#include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -417,9 +416,14 @@ static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(Parse
     // 1. If num is a math function, reify a math expression from num and return the result.
     if (numeric_value.is_function()) {
         // AD-HOC: The only feasible way is to parse it as a StyleValue and rely on the reification code there.
-        auto parser = Parser::Parser::create(Parser::ParsingParams {}, ""sv);
-        if (auto calculation = parser.parse_calculated_value(numeric_value, {})) {
-            auto reified = calculation->reify({});
+        auto source = numeric_value.to_string();
+        for (auto value_type : { ValueType::Number, ValueType::Percentage, ValueType::Length, ValueType::LengthPercentage, ValueType::Angle, ValueType::Time, ValueType::Frequency, ValueType::Resolution, ValueType::Flex }) {
+            auto parser = Parser::Parser::create(Parser::ParsingParams {}, source);
+            auto parsed_value = parser.parse_as_type(value_type);
+            if (!parsed_value || !parsed_value->is_calculated())
+                continue;
+            auto const& calculation = parsed_value->as_calculated();
+            auto reified = calculation.reify({});
             // AD-HOC: Not all math functions can be reified. Until we have clear guidance on that, throw a SyntaxError.
             // See: https://github.com/w3c/css-houdini-drafts/issues/1090#issuecomment-3200229996
             if (auto* reified_numeric = as_if<CSSNumericValue>(*reified)) {
@@ -466,15 +470,10 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::VM& vm,
 
     // 2. If result is not a <number-token>, <percentage-token>, <dimension-token>, or a math function, throw a
     //    SyntaxError and abort this algorithm.
-    auto is_a_math_function = [](Parser::ComponentValue const& component_value) -> bool {
-        if (!component_value.is_function())
-            return false;
-        return math_function_from_string(component_value.function().name).has_value();
-    };
     if (!(result.is(Parser::Token::Type::Number)
             || result.is(Parser::Token::Type::Percentage)
             || result.is(Parser::Token::Type::Dimension)
-            || is_a_math_function(result))) {
+            || result.is_function())) {
         return WebIDL::SyntaxError::create("Input not a <number-token>, <percentage-token>, <dimension-token>, or a math function."_utf16);
     }
 

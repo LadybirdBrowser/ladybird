@@ -474,10 +474,10 @@ static bool should_preserve_original_source_text_for_custom_property(Parser::Com
         || component_value.is(Parser::Token::Type::Dimension);
 }
 
-String serialize_a_series_of_component_values_preserving_original_source_text(ReadonlySpan<Parser::ComponentValue> component_values)
+Utf16String serialize_a_series_of_component_values_preserving_original_source_text(ReadonlySpan<Parser::ComponentValue> component_values)
 {
     Parser::TokenStream tokens { component_values };
-    StringBuilder builder;
+    Utf16StringBuilder builder;
 
     while (tokens.has_next_token()) {
         auto const& current_token = tokens.consume_a_token();
@@ -485,16 +485,16 @@ String serialize_a_series_of_component_values_preserving_original_source_text(Re
         if (should_preserve_original_source_text_for_custom_property(current_token)) {
             auto original_source_text = current_token.original_source_text();
             if (original_source_text.is_empty())
-                return serialize_a_series_of_component_values(component_values).to_utf8();
+                return serialize_a_series_of_component_values(component_values);
             builder.append(original_source_text);
         } else {
             builder.append(current_token.to_string());
         }
         if (needs_comment_between(current_token, next_token))
-            builder.append("/**/"sv);
+            builder.append_ascii("/**/"sv);
     }
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 String serialize_a_positional_value_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values, SerializationMode mode)

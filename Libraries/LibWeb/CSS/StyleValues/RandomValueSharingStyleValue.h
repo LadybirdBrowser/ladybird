@@ -28,11 +28,6 @@ public:
         return adopt_ref(*new (nothrow) RandomValueSharingStyleValue({}, true, move(name), element_shared));
     }
 
-    static ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> create_dashed_ident(Utf16FlyString name, bool element_shared)
-    {
-        return adopt_ref(*new (nothrow) RandomValueSharingStyleValue({}, false, move(name), element_shared));
-    }
-
     virtual ~RandomValueSharingStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;

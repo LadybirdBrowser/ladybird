@@ -30,15 +30,6 @@ function (generate_css_implementation)
     )
 
     invoke_py_generator(
-        "MathFunctions.cpp"
-        "generate_libweb_css_math_functions.py"
-        "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
-        "CSS/MathFunctions.h"
-        "CSS/MathFunctions.cpp"
-        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MathFunctions.json"
-    )
-
-    invoke_py_generator(
         "MediaFeatureID.cpp"
         "generate_libweb_css_media_feature_id.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
@@ -176,7 +167,6 @@ function (generate_css_implementation)
        "CSS/GeneratedCSSStyleProperties.h"
        "CSS/GeneratedCSSNumericFactoryMethods.h"
        "CSS/Keyword.h"
-       "CSS/MathFunctions.h"
        "CSS/MediaFeatureID.h"
        "CSS/PropertyID.h"
        "CSS/PseudoClass.h"

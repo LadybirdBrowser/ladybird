@@ -15,9 +15,6 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor
 class AnchorStyleValue final : public AbstractNonMathCalcFunctionStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<AnchorStyleValue const> create(Optional<Utf16FlyString> const& anchor_name,
-        ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side,
-        ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorStyleValue() override = default;
 
     virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
@@ -44,8 +41,6 @@ private:
         : AbstractNonMathCalcFunctionStyleValue(Type::Anchor, data)
     {
     }
-
-    AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name, ValueComparingNonnullRefPtr<StyleValue const> const& anchor_side, ValueComparingRefPtr<StyleValue const> const& fallback_value);
 };
 
 }

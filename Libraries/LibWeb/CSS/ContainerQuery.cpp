@@ -225,7 +225,7 @@ NonnullOwnPtr<StyleFeature> StyleFeature::create_boolean(PropertyNameAndID prope
     }));
 }
 
-NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Vector<Parser::ComponentValue> value, Optional<String> original_value_text)
+NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Vector<Parser::ComponentValue> value, Optional<Utf16String> original_value_text)
 {
     return adopt_own(*new StyleFeature(StyleFeaturePlain {
         .property = move(property),
@@ -666,7 +666,7 @@ void StyleFeature::serialize_to(Utf16StringBuilder& builder) const
                 return;
             builder.append_ascii(": "sv);
             if (feature.original_value_text.has_value()) {
-                builder.append(feature.original_value_text->bytes_as_string_view());
+                builder.append(*feature.original_value_text);
             } else {
                 auto serialized_value = serialize_a_series_of_component_values(feature.value.value());
                 builder.append(serialized_value.utf16_view());

@@ -10,8 +10,12 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -690,150 +694,6 @@ Vector<ComponentValue> substitute_arbitrary_substitution_functions(AbstractOrHyp
     return new_values;
 }
 
-// FIXME: The spec defines this as a <declaration-value> but our <declaration-value> parser is in line with an older
-//        version of <declaration-value> (i.e. not supporting drafts.csswg.org/css-values-5/#free-form-productions)
-//        which all other users of <declaration-value> expect - so we parse it manually here.
-static Optional<ReadonlySpan<ComponentValue>> parse_dashed_function_argument(TokenStream<ComponentValue>& tokens)
-{
-    {
-        auto transaction = tokens.begin_transaction();
-        tokens.discard_whitespace();
-
-        auto peek = tokens.next_token();
-        if (peek.is_block() && peek.block().is_curly()) {
-            auto const& block = tokens.consume_a_token().block();
-
-            TokenStream block_stream { block.value };
-            block_stream.discard_whitespace();
-
-            auto parsed_arg = Parser::parse_declaration_value_as_span(block_stream);
-
-            if (!parsed_arg.has_value() || !block_stream.is_empty())
-                return OptionalNone {};
-
-            transaction.commit();
-            return parsed_arg;
-        }
-    }
-
-    return Parser::parse_declaration_value_as_span(tokens, Token::Type::Comma, Parser::DisallowTopLevelCurlyBlocks::Yes);
-}
-
-Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, ReadonlySpan<ComponentValue> values)
-{
-    // Equivalent to `<declaration-value> , <declaration-value>?`, used by multiple argument grammars.
-    auto parse_declaration_value_then_optional_declaration_value = [](TokenStream<ComponentValue>& tokens, Token::Type separator) -> Optional<DeclarationValueList> {
-        auto first_argument = Parser::parse_declaration_value_as_span(tokens, separator);
-        if (!first_argument.has_value())
-            return OptionalNone {};
-
-        if (!tokens.has_next_token())
-            return DeclarationValueList { first_argument.release_value() };
-
-        if (!tokens.next_token().is(separator))
-            return {};
-
-        tokens.discard_a_token(); // separator
-
-        auto second_argument = Parser::parse_declaration_value_as_span(tokens);
-
-        return DeclarationValueList { first_argument.release_value(), second_argument.value_or({}) };
-    };
-
-    TokenStream tokens { values };
-
-    auto return_if_no_remaining_tokens = [&](Optional<ArbitrarySubstitutionFunctionArguments> value) -> Optional<ArbitrarySubstitutionFunctionArguments> {
-        if (tokens.has_next_token())
-            return {};
-        return value;
-    };
-
-    switch (function) {
-    case ArbitrarySubstitutionFunction::Attr:
-        // https://drafts.csswg.org/css-values-5/#attr-notation
-        // <attr-args> = attr( <declaration-value> , <declaration-value>? )
-        // FIXME: It would be nice if we had a nice way to create an Optional<Variant<T>> from Optional<T> without these maps.
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
-    case ArbitrarySubstitutionFunction::DashedFunction: {
-        // https://drafts.csswg.org/css-mixins/#typedef-dashed-function
-        // <dashed-function> = --*( <declaration-value>#? )
-        tokens.discard_whitespace();
-
-        if (!tokens.has_next_token())
-            return DeclarationValueList {};
-
-        DeclarationValueList arguments;
-
-        auto first = parse_dashed_function_argument(tokens);
-        if (!first.has_value())
-            return {};
-
-        arguments.append(first.release_value());
-
-        tokens.discard_whitespace();
-
-        while (tokens.has_next_token()) {
-            if (!tokens.consume_a_token().is(Token::Type::Comma))
-                return {};
-
-            tokens.discard_whitespace();
-
-            if (auto argument = parse_dashed_function_argument(tokens); argument.has_value()) {
-                arguments.append(argument.release_value());
-                tokens.discard_whitespace();
-                continue;
-            }
-
-            return {};
-        }
-
-        return arguments;
-    }
-    case ArbitrarySubstitutionFunction::Env:
-        // https://drafts.csswg.org/css-env/#env-function
-        // AD-HOC: This doesn't have an argument-grammar definition.
-        //         However, it follows the same format of "some CVs, then an optional comma and a fallback".
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
-    case ArbitrarySubstitutionFunction::If: {
-        // https://drafts.csswg.org/css-values-5/#if-notation
-        // <if-args> = if( [ <if-args-branch> ; ]* <if-args-branch> ;? )
-        // <if-args-branch> = <declaration-value> : <declaration-value>?
-        IfArgs args;
-
-        while (tokens.has_next_token()) {
-            auto if_args_branch = parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Colon);
-
-            if (!if_args_branch.has_value())
-                break;
-
-            Optional<ReadonlySpan<ComponentValue>> value;
-            if (auto second_argument = if_args_branch->get(1); second_argument.has_value())
-                value = second_argument.value();
-            args.append({ if_args_branch->first(), value });
-
-            if (!tokens.next_token().is(Token::Type::Semicolon))
-                break;
-
-            tokens.discard_a_token(); // ;
-        }
-
-        if (args.is_empty())
-            return {};
-
-        return return_if_no_remaining_tokens(args);
-    }
-    case ArbitrarySubstitutionFunction::Inherit:
-        // https://drafts.csswg.org/css-values-5/#inherit-notation
-        // <inherit-args> = inherit( <declaration-value>, <declaration-value>? )
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
-    case ArbitrarySubstitutionFunction::Var:
-        // https://drafts.csswg.org/css-variables/#funcdef-var
-        // <var-args> = var( <declaration-value> , <declaration-value>? )
-        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://drafts.csswg.org/css-values-5/#replace-an-arbitrary-substitution-function
 Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypotheticalElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, ArbitrarySubstitutionFunction function, Utf16FlyString const& function_name, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -852,6 +712,106 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(AbstractOrHypo
         return replace_a_var_function(element, guarded_contexts, replacement_context, arguments);
     }
     VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingParams const& context, AbstractOrHypotheticalElement element, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved, Optional<GuardedSubstitutionContexts&> existing_guarded_contexts)
+{
+    auto parser = Parser::create(context, ""sv);
+    if (existing_guarded_contexts.has_value())
+        return parser.resolve_unresolved_style_value(element, *existing_guarded_contexts, replacement_context, property, unresolved);
+    GuardedSubstitutionContexts guarded_contexts;
+    return parser.resolve_unresolved_style_value(element, guarded_contexts, replacement_context, property, unresolved);
+}
+
+OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.mark();
+    auto expression = parse_boolean_expression(tokens, MatchResult::False, [&](TokenStream<ComponentValue>& test_tokens) -> OwnPtr<BooleanExpression> {
+        auto const& token = test_tokens.consume_a_token();
+        if (!token.is_function())
+            return nullptr;
+        auto const& function = token.function();
+        TokenStream arguments { function.value };
+        auto parse_entirely = [&arguments](auto parse) -> OwnPtr<BooleanExpression> {
+            auto transaction = arguments.begin_transaction();
+            auto parsed = parse(arguments);
+            arguments.discard_whitespace();
+            if (!parsed || arguments.has_next_token())
+                return nullptr;
+            transaction.commit();
+            return parsed.template release_nonnull<BooleanExpression>();
+        };
+        if (function.name.equals_ignoring_ascii_case("supports"sv)) {
+            if (auto declaration = parse_entirely([&](auto& tokens) {
+                    m_rule_context.append(RuleContext::SupportsCondition);
+                    auto supports = parse_supports_declaration(tokens);
+                    m_rule_context.take_last();
+                    return supports;
+                }))
+                return declaration;
+            return parse_entirely([&](auto& tokens) { return parse_supports_condition(tokens); });
+        }
+        if (function.name.equals_ignoring_ascii_case("media"sv)) {
+            if (auto feature = parse_entirely([&](auto& tokens) { return parse_media_feature(tokens); }))
+                return feature;
+            return parse_entirely([&](auto& tokens) { return parse_media_condition(tokens); });
+        }
+        if (function.name.equals_ignoring_ascii_case("style"sv))
+            return parse_entirely([&](auto& tokens) { return parse_style_query(tokens, MatchResult::False); });
+        return nullptr;
+    });
+    tokens.discard_whitespace();
+    if (expression && !tokens.has_next_token()) {
+        tokens.discard_a_mark();
+        transaction.commit();
+        return expression;
+    }
+    tokens.restore_a_mark();
+    if (parse_all_as_single_keyword_value(tokens, Keyword::Else)) {
+        transaction.commit();
+        return ConstantBooleanExpression::create(MatchResult::True);
+    }
+    return nullptr;
+}
+
+NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(AbstractOrHypotheticalElement element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionReplacementContext const& replacement_context, PropertyNameAndID const& property, UnresolvedStyleValue const& unresolved)
+{
+    if (unresolved.includes_attr_function())
+        element.abstract_element().element().set_style_uses_attr_css_function();
+    if (unresolved.includes_if_function())
+        element.abstract_element().element().set_style_uses_if_css_function();
+    if (unresolved.includes_inherit_function())
+        element.abstract_element().element().set_style_uses_inherit_css_function();
+    if (unresolved.includes_var_function())
+        element.abstract_element().element().set_style_uses_var_css_function();
+
+    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { PropertySubstitutionContextDependency::create(property.name().to_utf16_string(), element) });
+    if (contains_guaranteed_invalid_value(result))
+        return GuaranteedInvalidStyleValue::create();
+    if (property.is_custom_property()) {
+        if (unresolved.contains_arbitrary_substitution_function()) {
+            TokenStream keyword_tokens { result };
+            keyword_tokens.discard_whitespace();
+            if (keyword_tokens.has_next_token()) {
+                auto const& token = keyword_tokens.consume_a_token();
+                keyword_tokens.discard_whitespace();
+                if (!keyword_tokens.has_next_token() && token.is(Token::Type::Ident)) {
+                    auto keyword = keyword_from_string(token.token().ident());
+                    if (keyword.has_value() && is_css_wide_keyword(*keyword))
+                        return KeywordStyleValue::create(*keyword);
+                }
+            }
+        }
+        auto contains_attr_tainted_values = result.first_matching([](auto const& value) { return value.contains_attr_tainted_value(); }).has_value();
+        auto source_text_mode = unresolved.contains_arbitrary_substitution_function() && !contains_attr_tainted_values
+            ? UnresolvedStyleValue::SourceTextMode::TrimLeading
+            : UnresolvedStyleValue::SourceTextMode::Trim;
+        return UnresolvedStyleValue::create(move(result), {}, {}, source_text_mode, contains_attr_tainted_values);
+    }
+    TokenStream expanded_tokens { result };
+    auto parsed = parse_css_value(property.id(), expanded_tokens, {}, ValueIsSubstituted::Yes);
+    return parsed.is_error() ? GuaranteedInvalidStyleValue::create() : parsed.release_value();
 }
 
 }

@@ -41,6 +41,60 @@ static void log_parse_error(SourceLocation const& location = SourceLocation::cur
 
 namespace Web::CSS::Parser {
 
+enum class DeclarationValueNested : u8 {
+    No,
+    Yes,
+};
+
+static void consume_declaration_value(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type, DeclarationValueNested nested, Parser::DisallowTopLevelCurlyBlocks disallow_top_level_curly_blocks)
+{
+    while (tokens.has_next_token()) {
+        auto const& peek = tokens.next_token();
+        if (peek.is_block() || peek.is_function()) {
+            auto const& values = peek.is_block() ? peek.block().value : peek.function().value;
+            TokenStream nested_tokens { values };
+            consume_declaration_value(nested_tokens, end_token_type, DeclarationValueNested::Yes, disallow_top_level_curly_blocks);
+            if (peek.is_block() && peek.block().is_curly() && nested == DeclarationValueNested::No && disallow_top_level_curly_blocks == Parser::DisallowTopLevelCurlyBlocks::Yes)
+                break;
+            if (nested_tokens.has_next_token())
+                break;
+            tokens.discard_a_token();
+            continue;
+        }
+        if (!peek.is_token()) {
+            tokens.discard_a_token();
+            continue;
+        }
+        auto type = peek.token().type();
+        bool valid = !first_is_one_of(type, Token::Type::Invalid, Token::Type::EndOfFile, Token::Type::BadString, Token::Type::BadUrl,
+            Token::Type::Function, Token::Type::OpenCurly, Token::Type::OpenParen, Token::Type::OpenSquare,
+            Token::Type::CloseCurly, Token::Type::CloseParen, Token::Type::CloseSquare);
+        if (type == Token::Type::Semicolon)
+            valid = nested == DeclarationValueNested::Yes;
+        else if (type == Token::Type::Delim)
+            valid = nested == DeclarationValueNested::Yes || peek.token().delim() != '!';
+        else if (nested == DeclarationValueNested::No && end_token_type.has_value() && peek.is(*end_token_type))
+            valid = false;
+        if (!valid)
+            break;
+        tokens.discard_a_token();
+    }
+}
+
+Optional<ReadonlySpan<ComponentValue>> Parser::parse_declaration_value_as_span(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type, DisallowTopLevelCurlyBlocks disallow_top_level_curly_blocks)
+{
+    auto start = tokens.current_index();
+    consume_declaration_value(tokens, end_token_type, DeclarationValueNested::No, disallow_top_level_curly_blocks);
+    auto value = tokens.tokens_since(start);
+    return value.is_empty() ? OptionalNone {} : Optional<ReadonlySpan<ComponentValue>> { value };
+}
+
+Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<ComponentValue>& tokens, Optional<Token::Type> end_token_type)
+{
+    auto value = parse_declaration_value_as_span(tokens, end_token_type);
+    return value.has_value() ? Optional<Vector<ComponentValue>> { Vector<ComponentValue> { *value } } : OptionalNone {};
+}
+
 ParsingParams::ParsingParams(ParsingMode mode)
     : mode(mode)
 {
@@ -812,7 +866,7 @@ OwnPtr<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValu
     auto serialize_general_enclosed = [](ComponentValue const& component_value) {
         auto original_source_text = component_value.original_source_text();
         if (!original_source_text.is_empty())
-            return Utf16String::from_utf8_without_validation(original_source_text.bytes_as_string_view());
+            return original_source_text;
         return component_value.to_string();
     };
 
@@ -1579,11 +1633,11 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
     if (is_a_custom_property_name_string(declaration.name)) {
         // TODO: If we could reach inside the source string that the TokenStream uses, we could grab this as
         //       a single substring instead of having to reconstruct it.
-        StringBuilder original_text;
+        Utf16StringBuilder original_text;
         for (auto const& value : declaration.value) {
             original_text.append(value.original_source_text());
         }
-        declaration.original_value_text = original_text.to_string_without_validation();
+        declaration.original_value_text = original_text.to_string();
     }
     //    Otherwise, if decl’s value contains a top-level simple block with an associated token of <{-token>,
     //    and also contains any other non-<whitespace-token> value, return nothing.
@@ -2268,54 +2322,6 @@ RefPtr<StyleValue const> Parser::parse_source_size_value(TokenStream<ComponentVa
     return {};
 }
 
-bool Parser::context_allows_quirky_length() const
-{
-    if (!in_quirks_mode())
-        return false;
-
-    // https://drafts.csswg.org/css-values-4/#deprecated-quirky-length
-    // "When CSS is being parsed in quirks mode, <quirky-length> is a type of <length> that is only valid in certain properties:"
-    // (NOTE: List skipped for brevity; quirks data is assigned in Properties.json)
-    // "It is not valid in properties that include or reference these properties, such as the background shorthand,
-    // or inside functional notations such as calc(), except that they must be allowed in rect() in the clip property."
-
-    // So, it must be allowed in the top-level ValueParsingContext, and then not disallowed by any child contexts.
-
-    Optional<PropertyID> top_level_property;
-    if (!m_value_context.is_empty()) {
-        top_level_property = m_value_context.first().visit(
-            [](PropertyID const& property_id) -> Optional<PropertyID> { return property_id; },
-            [](auto const&) -> Optional<PropertyID> { return OptionalNone {}; });
-    }
-
-    bool unitless_length_allowed = top_level_property.has_value() && property_has_quirk(top_level_property.value(), Quirk::UnitlessLength);
-    for (auto i = 1u; i < m_value_context.size() && unitless_length_allowed; i++) {
-        unitless_length_allowed = m_value_context[i].visit(
-            [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
-            [top_level_property](FunctionContext const& function_context) {
-                return function_context.name == "rect"sv && top_level_property == PropertyID::Clip;
-            },
-            [](auto const&) { return false; });
-    }
-
-    return unitless_length_allowed;
-}
-
-bool Parser::context_allows_tree_counting_functions() const
-{
-    for (auto context : m_value_context) {
-        if (context.has<DescriptorContext>())
-            return false;
-
-        if (auto const* special_context = context.get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::CanvasContextGenericValue, SpecialContext::DOMMatrixInitString, SpecialContext::MediaCondition))
-            return false;
-
-        // TODO: Handle other contexts where tree counting functions are not allowed
-    }
-
-    return true;
-}
-
 bool Parser::context_allows_random_functions() const
 {
     if (auto const* special_context = m_value_context.first().get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::CanvasContextGenericValue, SpecialContext::OnScreenCanvasContextFontValue))
@@ -2489,55 +2495,6 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
 
     // 4. Return 100vw.
     return LengthStyleValue::create(Length(100, LengthUnit::Vw));
-}
-
-Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const& component_values, SubstitutionFunctionsPresence& presence)
-{
-    for (auto const& component_value : component_values) {
-        if (collect_arbitrary_substitution_function_presence(component_value, presence).is_error())
-            return ParseError::SyntaxError;
-    }
-
-    return {};
-}
-
-Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(ComponentValue const& component_value, SubstitutionFunctionsPresence& presence)
-{
-    if (component_value.is_function()) {
-        auto const& function = component_value.function();
-        if (auto arbitrary_substitution_function = to_arbitrary_substitution_function(function.name); arbitrary_substitution_function.has_value()) {
-            if (!parse_according_to_argument_grammar(arbitrary_substitution_function.value(), function.value).has_value())
-                return ParseError::SyntaxError;
-
-            switch (arbitrary_substitution_function.value()) {
-            case ArbitrarySubstitutionFunction::Attr:
-                presence.attr = true;
-                break;
-            case ArbitrarySubstitutionFunction::DashedFunction:
-                presence.dashed_function = true;
-                break;
-            case ArbitrarySubstitutionFunction::Env:
-                presence.env = true;
-                break;
-            case ArbitrarySubstitutionFunction::If:
-                presence.if_ = true;
-                break;
-            case ArbitrarySubstitutionFunction::Inherit:
-                presence.inherit = true;
-                break;
-            case ArbitrarySubstitutionFunction::Var:
-                presence.var = true;
-                break;
-            }
-        }
-
-        return collect_arbitrary_substitution_function_presence(function.value, presence);
-    }
-
-    if (component_value.is_block())
-        return collect_arbitrary_substitution_function_presence(component_value.block().value, presence);
-
-    return {};
 }
 
 bool Parser::has_ignored_vendor_prefix(Utf16View string)

@@ -19,9 +19,6 @@ public:
     static ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> create(CSS::GridTrackSizeList grid_track_size_list);
     virtual ~GridTrackSizeListStyleValue() override = default;
 
-    static ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> make_auto();
-    static ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> make_none();
-
     CSS::GridTrackSizeList grid_track_size_list() const;
 
     // NB: Reads the Rust data directly; grid_track_size_list() materializes the whole list.

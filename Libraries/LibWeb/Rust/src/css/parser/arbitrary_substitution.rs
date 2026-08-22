@@ -231,6 +231,32 @@ fn arguments_are_valid(function: ArbitrarySubstitutionFunction, values: &[Compon
     }
 }
 
+pub(crate) fn arguments_are_valid_for_ffi(function: u8, values: &[ComponentValue]) -> bool {
+    let function = match function {
+        0 => ArbitrarySubstitutionFunction::Attr,
+        1 => ArbitrarySubstitutionFunction::DashedFunction,
+        2 => ArbitrarySubstitutionFunction::Env,
+        3 => ArbitrarySubstitutionFunction::If,
+        4 => ArbitrarySubstitutionFunction::Inherit,
+        5 => ArbitrarySubstitutionFunction::Var,
+        _ => return false,
+    };
+    arguments_are_valid(function, values)
+}
+
+pub(crate) fn substitution_function_presence_bits(values: &[ComponentValue]) -> Option<u8> {
+    let mut presence = SubstitutionFunctionsPresence::default();
+    collect_arbitrary_substitution_function_presence(values, &mut presence).ok()?;
+    Some(
+        u8::from(presence.attr)
+            | (u8::from(presence.dashed_function) << 1)
+            | (u8::from(presence.env) << 2)
+            | (u8::from(presence.if_) << 3)
+            | (u8::from(presence.inherit) << 4)
+            | (u8::from(presence.var) << 5),
+    )
+}
+
 fn collect_presence_from_value(value: &ComponentValue, presence: &mut SubstitutionFunctionsPresence) -> Result<(), ()> {
     let nested_values = match &value.kind {
         ComponentKind::Function { name, values } => {

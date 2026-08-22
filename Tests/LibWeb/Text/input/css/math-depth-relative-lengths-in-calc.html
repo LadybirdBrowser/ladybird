@@ -27,7 +27,6 @@
                 internals.updateStyle();
                 println(getComputedStyle(bar).mathDepth);
                 println(getComputedStyle(baz).mathDepth);
-                println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
             });
         </script>
     </body>

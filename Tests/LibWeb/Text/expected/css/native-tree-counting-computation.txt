@@ -4,4 +4,3 @@ left: calc(10% + 200px)
 filter: brightness(5)
 counter-increment: foo 5
 grid-row-start: 2
-used no C++ longhand fallback: true

@@ -7,18 +7,12 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 class BorderRadiusRectStyleValue final : public StyleValueWithDefaultOperators<BorderRadiusRectStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<BorderRadiusRectStyleValue const> create_zero()
-    {
-        return create(BorderRadiusStyleValue::create_zero(), BorderRadiusStyleValue::create_zero(), BorderRadiusStyleValue::create_zero(), BorderRadiusStyleValue::create_zero());
-    }
-
     static ValueComparingNonnullRefPtr<BorderRadiusRectStyleValue const> create(NonnullRefPtr<StyleValue const> top_left, NonnullRefPtr<StyleValue const> top_right, NonnullRefPtr<StyleValue const> bottom_right, NonnullRefPtr<StyleValue const> bottom_left)
     {
         return adopt_ref(*new (nothrow) BorderRadiusRectStyleValue(move(top_left), move(top_right), move(bottom_right), move(bottom_left)));

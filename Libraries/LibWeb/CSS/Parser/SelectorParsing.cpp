@@ -45,11 +45,16 @@ Optional<SelectorList> Parser::parse_as_relative_selector(SelectorParsingMode mo
 
 Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_selector()
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     while (m_token_stream.has_next_token())
         builder.append(m_token_stream.consume_a_token().original_source_text());
-    auto input = builder.to_string_without_validation();
-    auto parsed = SelectorFFI::rust_selector_parse_pseudo_element(input.bytes().data(), input.bytes().size());
+    auto input = builder.to_string();
+    auto input_view = input.utf16_view();
+    auto parsed = SelectorFFI::rust_selector_parse_pseudo_element({
+        .ascii = input_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(input_view.ascii_span().data()) : nullptr,
+        .utf16 = input_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
+        .length = input_view.length_in_code_units(),
+    });
     if (!parsed.selector)
         return {};
     auto selector = Selector::create(parsed.selector);

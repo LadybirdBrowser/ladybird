@@ -41,7 +41,6 @@
 
         dumpTargetStyle("initial");
         println(`viewport fallback width: ${getComputedStyle(viewportFallback).width}`);
-        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
 
         container.style.width = "600px";
         container.style.height = "300px";

@@ -20,7 +20,6 @@ class WEB_API PositionStyleValue final : public StyleValueWithDefaultOperators<P
 public:
     static ValueComparingNonnullRefPtr<PositionStyleValue const> create(ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x, ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y);
     static ValueComparingNonnullRefPtr<PositionStyleValue const> create_center();
-    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_computed_center();
     virtual ~PositionStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return wrap_rust_child(m_value->position.edge_x)->as_edge(); }

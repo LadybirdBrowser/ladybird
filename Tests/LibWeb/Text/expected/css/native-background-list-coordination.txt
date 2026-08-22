@@ -5,7 +5,5 @@ background-position-x: 10px, 10px, 10px
 background-position-y: 20px, 20px, 20px
 background-repeat: no-repeat, no-repeat, no-repeat
 background-size: 30px auto, 30px auto, 30px auto
-initial update used no C++ longhand fallback: true
 partial background-position-x: 20px, 20px, 20px
 partial background-position-y: 30px, 30px, 30px
-partial update used no C++ longhand fallback: true

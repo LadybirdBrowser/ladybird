@@ -22,9 +22,4 @@ Utf16FlyString GridTemplateAreaStyleValue::cell_name_in(HashMap<Utf16FlyString, 
     return "."_utf16_fly_string;
 }
 
-ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> GridTemplateAreaStyleValue::create(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
-{
-    return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(move(grid_areas), row_count, column_count));
-}
-
 }

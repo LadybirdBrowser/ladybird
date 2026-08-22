@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/QueryValueType.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -556,10 +557,8 @@ Optional<FeatureValue> Parser::parse_feature_value(FeatureID feature, TokenStrea
                 // "Values of '0' can be written without units, even if the
                 // value type doesn't allow 'unitless zeroes'."
                 if (tokens.has_next_token()) {
-                    auto const& token = tokens.next_token();
-                    if (auto calc = parse_calculated_value(token, { .accepted_ranges_by_type = { { ValueType::Number, infinite_range } } }); calc && calc->as_calculated().resolves_to_number()) {
-                        if (auto resolved_number = calc->as_calculated().resolve_number({}); resolved_number.has_value() && *resolved_number == 0) {
-                            tokens.discard_a_token();
+                    if (auto number = parse_number_value(tokens, infinite_range); number && number->is_calculated() && number->as_calculated().resolves_to_number()) {
+                        if (auto resolved_number = number->as_calculated().resolve_number({}); resolved_number.has_value() && *resolved_number == 0) {
                             transaction.commit();
                             return FeatureValue(FeatureValue::Type::Length, LengthStyleValue::create(Length::make_px(0)));
                         }

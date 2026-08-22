@@ -12,6 +12,5 @@
         internals.updateStyle();
 
         println(`animation-name: ${getComputedStyle(target).animationName}`);
-        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

@@ -211,21 +211,18 @@ set(SOURCES
     CSS/Parser/DescriptorParsing.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/FastColorParsing.cpp
-    CSS/Parser/GradientParsing.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/RustTokenizer.cpp
-    CSS/Parser/PropertyParsing.cpp
+    CSS/Parser/RustValueParsing.cpp
     CSS/Parser/RuleContext.cpp
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Parser/Syntax.cpp
-    CSS/Parser/SyntaxParsing.cpp
     CSS/Parser/Token.cpp
     CSS/Parser/Tokenizer.cpp
     CSS/Parser/Types.cpp
-    CSS/Parser/ValueParsing.cpp
     CSS/Percentage.cpp
     CSS/PreferredColorScheme.cpp
     CSS/Ratio.cpp
@@ -251,7 +248,6 @@ set(SOURCES
     CSS/StyleSheetList.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AnchorStyleValue.cpp
-    CSS/StyleValues/AnchorSizeStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
     CSS/StyleValues/BackgroundSizeStyleValue.cpp
     CSS/StyleValues/BasicShapeStyleValue.cpp
@@ -282,7 +278,6 @@ set(SOURCES
     CSS/StyleValues/FontSourceStyleValue.cpp
     CSS/StyleValues/FontStyleStyleValue.cpp
     CSS/StyleValues/FrequencyStyleValue.cpp
-    CSS/StyleValues/GridAutoFlowStyleValue.cpp
     CSS/StyleValues/GridTemplateAreaStyleValue.cpp
     CSS/StyleValues/GridTrackPlacementStyleValue.cpp
     CSS/StyleValues/GridTrackSizeListStyleValue.cpp
@@ -303,7 +298,6 @@ set(SOURCES
     CSS/StyleValues/RandomValueSharingStyleValue.cpp
     CSS/StyleValues/RatioStyleValue.cpp
     CSS/StyleValues/RectStyleValue.cpp
-    CSS/StyleValues/RepeatStyleStyleValue.cpp
     CSS/StyleValues/ResolutionStyleValue.cpp
     CSS/StyleValues/ScrollbarColorStyleValue.cpp
     CSS/StyleValues/ShadowStyleValue.cpp
@@ -317,7 +311,6 @@ set(SOURCES
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TreeCountingFunctionStyleValue.cpp
     CSS/StyleValues/TupleStyleValue.cpp
-    CSS/StyleValues/UnicodeRangeStyleValue.cpp
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
@@ -1233,7 +1226,6 @@ set(GENERATED_SOURCES
     CSS/GeneratedCSSStyleProperties.cpp
     CSS/GeneratedCSSStyleProperties.idl
     CSS/Keyword.cpp
-    CSS/MathFunctions.cpp
     CSS/MediaFeatureID.cpp
     CSS/Parser/GeneratedValueTypesParsing.cpp
     CSS/PropertyID.cpp

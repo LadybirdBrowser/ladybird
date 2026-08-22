@@ -68,7 +68,7 @@ public:
     using StyleRangeValue = Variant<PropertyNameAndID, Vector<Parser::ComponentValue>>;
 
     static NonnullOwnPtr<StyleFeature> create_boolean(PropertyNameAndID);
-    static NonnullOwnPtr<StyleFeature> create_plain(PropertyNameAndID, Vector<Parser::ComponentValue> value, Optional<String> original_value_text = {});
+    static NonnullOwnPtr<StyleFeature> create_plain(PropertyNameAndID, Vector<Parser::ComponentValue> value, Optional<Utf16String> original_value_text = {});
     static NonnullOwnPtr<StyleFeature> create_range(StyleRangeValue left, FeatureComparison comparison, StyleRangeValue right);
     static NonnullOwnPtr<StyleFeature> create_range(StyleRangeValue left, FeatureComparison left_comparison, StyleRangeValue middle, FeatureComparison right_comparison, StyleRangeValue right);
 
@@ -80,7 +80,7 @@ public:
     struct StyleFeaturePlain {
         PropertyNameAndID property;
         Optional<Vector<Parser::ComponentValue>> value;
-        Optional<String> original_value_text;
+        Optional<Utf16String> original_value_text;
     };
 
     struct StyleRange {

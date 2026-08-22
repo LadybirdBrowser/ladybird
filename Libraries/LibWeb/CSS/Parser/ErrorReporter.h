@@ -29,12 +29,6 @@ struct UnknownRuleError {
     unsigned hash() const { return rule_name.hash(); }
 };
 
-struct UnknownMediaFeatureError {
-    Utf16FlyString media_feature_name;
-    bool operator==(UnknownMediaFeatureError const&) const = default;
-    unsigned hash() const { return media_feature_name.hash(); }
-};
-
 struct InvalidPropertyError {
     Utf16FlyString rule_name { "style"_utf16_fly_string };
     Utf16FlyString property_name;
@@ -90,7 +84,7 @@ struct InvalidRuleLocationError {
     }
 };
 
-using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, UnknownMediaFeatureError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidQueryError, InvalidRuleLocationError>;
+using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidQueryError, InvalidRuleLocationError>;
 
 String serialize_parsing_error(ParsingError const&);
 

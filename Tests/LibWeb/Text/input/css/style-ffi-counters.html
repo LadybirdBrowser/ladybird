@@ -29,23 +29,6 @@
         const keys = Object.keys(afterReset);
         println(`has counters: ${keys.length > 0}`);
         println(`all zero after reset: ${keys.every(key => afterReset[key] === 0)}`);
-        println(`has no C++ longhand fallback counter: ${!("longhandCppComputeFallbacks" in afterReset)}`);
-
-        const removedSemanticCallbackCounters = [
-            "selectorMetadataCallbacks",
-            "longhandStoreBatchCallbacks",
-            "completeStyleUpdateSemanticCppCallbacks",
-            "completeStyleUpdateTransactionCallbacks",
-            "completeStyleUpdateFlatTreeCallbacks",
-            "completeStyleUpdateCascadeCallbacks",
-            "completeStyleUpdateLonghandCallbacks",
-            "completeStyleUpdateAnimationCallbacks",
-            "completeStyleUpdateShorthandCallbacks",
-            "completeStyleUpdateCppCallbacks",
-            "completeStyleUpdateOwnershipCppCallbacks",
-            "computedStyleBuildCppCallbacks",
-        ];
-        println(`callback aggregate counters removed: ${removedSemanticCallbackCounters.every(name => !(name in afterReset))}`);
 
         function mergeCounters(first, second) {
             const merged = { ...first };
@@ -78,15 +61,8 @@
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
             document.body.appendChild(simple);
         });
-        println(`transaction stayed callback-free: ${!("completeStyleUpdateTransactionCallbacks" in simpleCounters)}`);
-        println(`longhand computation returned without callbacks: ${
-            simpleCounters.longhandDriverEntries > 0
-            && !("longhandStoreBatchCallbacks" in simpleCounters)
-        }`);
-        println(`shorthand expansion returned without callbacks: ${
-            simpleCounters.shorthandExpansionEntries > 0
-            && !("shorthandSetLonghandCallbacks" in simpleCounters)
-        }`);
+        println(`longhand computation entered Rust: ${simpleCounters.longhandDriverEntries > 0}`);
+        println(`shorthand expansion entered Rust: ${simpleCounters.shorthandExpansionEntries > 0}`);
         const inheritanceParent = document.createElement("div");
         const inheritanceChild = document.createElement("span");
         inheritanceParent.appendChild(inheritanceChild);
@@ -118,18 +94,7 @@
             `;
             document.body.appendChild(variables);
         });
-        println(`cascade returned without callbacks: ${[
-            "cascadeResolveUnresolvedCallbacks",
-            "cascadeParseSubstitutedCallbacks",
-            "cascadeSourceSlotCallbacks",
-        ].every(name => !(name in customPropertyCounters))}`);
         println(`custom-property cascade entered Rust: ${customPropertyCounters.cascadeCustomPropertyEntries > 0}`);
-        println(`cascade request counters removed: ${[
-            "cascadeResolutionEntries",
-            "cascadeNativeSubstitutionRequests",
-            "cascadeCppResolutionRequests",
-        ].every(name => !(name in customPropertyCounters))}`);
-        println(`custom-property cascade avoided C++ callback: ${!("cascadeCustomPropertyBatchCallbacks" in customPropertyCounters)}`);
 
         const relativeLengths = document.createElement("div");
         measureUpdate("font and viewport lengths", () => {

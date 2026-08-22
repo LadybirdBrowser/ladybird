@@ -114,7 +114,7 @@
 
 namespace Web::CSS {
 
-static ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
+[[maybe_unused]] static ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
 {
     return {
         .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
