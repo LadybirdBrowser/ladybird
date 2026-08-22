@@ -3944,8 +3944,7 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlySt
         return element;
 
     // 3. Let replacement element be the result of calling createElement(new name) on the ownerDocument of element.
-    auto replacement_name = Utf16String::from_utf16(new_name.view());
-    auto replacement_element = MUST(element->owner_document()->create_element(replacement_name, DOM::Document::ElementCreationOptions {}));
+    auto replacement_element = MUST(element->owner_document()->create_element(new_name, DOM::Document::ElementCreationOptions {}));
 
     // 4. Insert replacement element into element's parent immediately before element.
     insert_node_before(replacement_element, *element->parent(), element);
