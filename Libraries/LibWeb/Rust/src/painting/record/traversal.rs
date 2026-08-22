@@ -164,11 +164,11 @@ pub(crate) fn record_display_list(
 
 impl PaintRecorder<'_> {
     fn z_index(&mut self, paintable: NodeSlotId) -> Option<i32> {
-        crate::painting::style_queries::z_index(self.layout_arena, self.data(paintable).layout_node)
+        crate::painting::style_queries::z_index(self.layout_arena, paintable)
     }
 
     fn is_fragmented_inline(&self, paintable: NodeSlotId) -> bool {
-        fragment_ownership::node_is_fragmented_inline(self.layout_arena, self.data(paintable).layout_node)
+        fragment_ownership::node_is_fragmented_inline(self.layout_arena, paintable)
     }
 
     fn establishes_inline_level_painting_context(&self, paintable: NodeSlotId) -> bool {

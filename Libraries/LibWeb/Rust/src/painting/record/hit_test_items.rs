@@ -32,8 +32,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_generated_for_pseudo_element(&self, paintable: NodeSlotId) -> bool {
-        self.layout_arena
-            .node_is_generated_for_pseudo_element(self.data(paintable).layout_node)
+        self.layout_arena.node_is_generated_for_pseudo_element(paintable)
     }
 
     fn is_atomic_inline(&self, paintable: NodeSlotId) -> bool {
@@ -140,7 +139,7 @@ impl<'a> PaintRecorder<'a> {
         if !self.paintables.side(paintable).fragments.is_empty() {
             for target in self.host.line_break_caret_targets(self.layout_node_shell(paintable)) {
                 let rect = CssPixelRect::from(target.rect);
-                let caret_node = self.data(paintable).layout_node;
+                let caret_node = paintable;
                 self.append_empty_line_for_node(paintable, caret_node, target.caret_offset, rect, context);
             }
         }
@@ -175,7 +174,7 @@ impl<'a> PaintRecorder<'a> {
             // Hit-test precedence follows paint order: this box's own text loses to the box itself
             // (re-recorded so its z-order matches this box's paint order), while nested content
             // (e.g. a link inside this box) wins over it.
-            let own_layout_node = self.data(paintable).layout_node;
+            let own_layout_node = paintable;
             let mut nested_content_indices = Vec::new();
             filter.for_each_owned_fragment_index(fragment_count, |index| {
                 if self.fragment_is_block_level_box(root, index) {
@@ -361,25 +360,25 @@ impl<'a> PaintRecorder<'a> {
 
     fn writing_mode_of(&self, paintable: NodeSlotId) -> u8 {
         self.layout_arena
-            .node_style_if_live(self.data(paintable).layout_node)
+            .node_style_if_live(paintable)
             .map_or(css_enums::writing_mode::HORIZONTAL_TB, |style| style.writing_mode())
     }
 
     fn inline_axis_is_reverse_of(&self, paintable: NodeSlotId) -> bool {
         self.layout_arena
-            .node_style_if_live(self.data(paintable).layout_node)
+            .node_style_if_live(paintable)
             .is_some_and(|style| style.inline_axis_is_reverse())
     }
 
     fn block_axis_is_reverse_of(&self, paintable: NodeSlotId) -> bool {
         self.layout_arena
-            .node_style_if_live(self.data(paintable).layout_node)
+            .node_style_if_live(paintable)
             .is_some_and(|style| style.block_axis_is_reverse())
     }
 
     fn layout_containing_block_of(&self, paintable: NodeSlotId) -> NodeSlotId {
         self.layout_arena
-            .node_containing_block_if_live(self.data(paintable).layout_node)
+            .node_containing_block_if_live(paintable)
             .unwrap_or(NodeSlotId::INVALID)
     }
 
@@ -419,10 +418,11 @@ impl<'a> PaintRecorder<'a> {
                 None => (None, None),
             };
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
-            let negative_z = crate::painting::style_queries::effective_z_index(self.layout_arena, &self.data(target))
-                .unwrap_or(0)
-                < 0;
-            let target_node = self.data(target).layout_node;
+            let negative_z =
+                crate::painting::style_queries::effective_z_index(self.layout_arena, &self.data(target), target)
+                    .unwrap_or(0)
+                    < 0;
+            let target_node = target;
             !negative_z && self.node_has_dom_node(target_node) && self.paintable_facts(target).dom_node_has_parent
         };
         let item = HitTestItem {
@@ -567,7 +567,7 @@ impl<'a> PaintRecorder<'a> {
             rect,
             caret_rect: rect,
             block_container_margin_rect: self.margin_rect_for_paintable(paintable),
-            can_produce_caret_position: self.node_has_dom_node(self.data(paintable).layout_node),
+            can_produce_caret_position: self.node_has_dom_node(paintable),
             ..self.base_hit_test_item(HitTestItemKind::EmptyEditable, paintable, context)
         };
         self.list.append(item);

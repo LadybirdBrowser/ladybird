@@ -130,7 +130,6 @@ pub struct FfiOverflowData {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct PaintableData {
-    pub layout_node: NodeSlotId,
     pub containing_block: NodeSlotId,
     pub kind: PaintableKind,
     pub selection_state: u8,
@@ -167,7 +166,6 @@ pub struct PaintableData {
 impl Default for PaintableData {
     fn default() -> Self {
         Self {
-            layout_node: NodeSlotId::INVALID,
             containing_block: NodeSlotId::INVALID,
             kind: PaintableKind::None,
             selection_state: 0,

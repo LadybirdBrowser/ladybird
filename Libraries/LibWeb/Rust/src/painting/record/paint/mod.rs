@@ -98,7 +98,7 @@ pub(crate) fn border_radii_shrunk_for_borders(
     paintable: NodeSlotId,
 ) -> crate::painting::border_radii::BorderRadii {
     let mut radii = recorder.border_radii(paintable);
-    let layout_node = recorder.data(paintable).layout_node;
+    let layout_node = paintable;
     if let Some(style) = recorder.layout_arena.node_style_if_live(layout_node) {
         radii.shrink(
             style.border_top_width(),

@@ -82,10 +82,7 @@ impl PaintRecorder<'_> {
                     let mask_layer_area_is_empty = layer.area.is_empty();
                     any_svg_mask_layer_area_is_empty |= mask_layer_area_is_empty;
                     let stacking_context_site_consumes_the_layer = set == MaskLayerSet::CssAndSvg
-                        && crate::painting::style_queries::establishes_stacking_context(
-                            self.layout_arena,
-                            self.data(paintable).layout_node,
-                        );
+                        && crate::painting::style_queries::establishes_stacking_context(self.layout_arena, paintable);
                     if mask_layer_area_is_empty && !stacking_context_site_consumes_the_layer {
                         layers.push(PrerecordedMaskLayer {
                             origin: layer.origin,
@@ -174,17 +171,16 @@ impl PaintRecorder<'_> {
         }
 
         for node in self.layout_arena.svg_pattern_referencing_nodes() {
-            let paintable = self.paintables.populated_paintable_row_of_node(node);
-            if paintable.is_invalid() {
+            if !self.paintables.paintable_row_is_populated(node) {
                 continue;
             }
             if self.layout_node_is_inside_svg_resource_box(node) {
                 continue;
             }
-            if self.recorded_mask_entry_has_empty_svg_mask_layer_area(paintable) {
+            if self.recorded_mask_entry_has_empty_svg_mask_layer_area(node) {
                 continue;
             }
-            crate::painting::record::paint::svg::record_pattern_paint_styles(self, paintable);
+            crate::painting::record::paint::svg::record_pattern_paint_styles(self, node);
         }
     }
 
@@ -232,11 +228,10 @@ impl PaintRecorder<'_> {
 
     fn first_child_paintable_of_kind(&self, paintable: NodeSlotId, kind: NodeKind) -> Option<NodeSlotId> {
         let arena = self.layout_arena;
-        let mut child = arena.node_first_child_if_live(self.data(paintable).layout_node);
+        let mut child = arena.node_first_child_if_live(paintable);
         while let Some(node) = child {
             if arena.node_kind_if_live(node) == Some(kind) {
-                let candidate = self.paintables.populated_paintable_row_of_node(node);
-                return (!candidate.is_invalid()).then_some(candidate);
+                return self.paintables.paintable_row_is_populated(node).then_some(node);
             }
             child = arena.node_next_sibling_if_live(node);
         }
@@ -343,7 +338,7 @@ impl PaintRecorder<'_> {
     ) -> DisplayListResourceId {
         let mask_rect = CssPixelRect::new(CssPixels::default(), CssPixels::default(), area.width, area.height);
         let layout_arena = self.layout_arena;
-        let node = self.data(paintable).layout_node;
+        let node = paintable;
         let style = layout_arena
             .node_style_if_live(node)
             .expect("the mask recording target holds a live layout node");

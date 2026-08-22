@@ -505,12 +505,13 @@ pub(crate) fn z_index(arena: &LayoutNodeArena, node: NodeSlotId) -> Option<i32> 
 
 pub(crate) fn effective_z_index(
     arena: &LayoutNodeArena,
-    paintable: &crate::painting::paintable_data::PaintableData,
+    paintable_data: &crate::painting::paintable_data::PaintableData,
+    paintable: NodeSlotId,
 ) -> Option<i32> {
-    if !paintable.has_flag(crate::painting::paintable_data::PaintableFlag::Positioned) {
+    if !paintable_data.has_flag(crate::painting::paintable_data::PaintableFlag::Positioned) {
         return None;
     }
-    z_index(arena, paintable.layout_node)
+    z_index(arena, paintable)
 }
 
 pub(crate) fn establishes_stacking_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {

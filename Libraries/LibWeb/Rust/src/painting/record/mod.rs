@@ -112,7 +112,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn layout_node_shell(&self, paintable: NodeSlotId) -> *mut std::ffi::c_void {
-        self.layout_arena.shell_if_live(self.data(paintable).layout_node)
+        self.layout_arena.shell_if_live(paintable)
     }
 
     pub(crate) fn hit_test_facts(&mut self, paintable: NodeSlotId) -> FfiHitTestPaintableFacts {
@@ -213,14 +213,14 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn border_radii(&mut self, paintable: NodeSlotId) -> BorderRadii {
-        let Some(style) = self.layout_arena.node_style_if_live(self.data(paintable).layout_node) else {
+        let Some(style) = self.layout_arena.node_style_if_live(paintable) else {
             return BorderRadii::default();
         };
         crate::painting::visual_context::node_values::border_radii_data(style, self.paintables, paintable)
     }
 
     pub(crate) fn piece_border_radii(&mut self, paintable: NodeSlotId, piece: &InlineBoxPieceRecord) -> BorderRadii {
-        let Some(style) = self.layout_arena.node_style_if_live(self.data(paintable).layout_node) else {
+        let Some(style) = self.layout_arena.node_style_if_live(paintable) else {
             return BorderRadii::default();
         };
         crate::painting::visual_context::node_values::piece_border_radii_data(
@@ -238,8 +238,7 @@ impl<'a> PaintRecorder<'a> {
         {
             return facts;
         }
-        let data = self.data(paintable);
-        let Some(style) = self.layout_arena.node_style_if_live(data.layout_node) else {
+        let Some(style) = self.layout_arena.node_style_if_live(paintable) else {
             let facts = BasePaintFacts::default();
             self.base_paint_facts_cache[index] = Some((paintable, facts));
             return facts;
@@ -267,7 +266,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn layout_kind(&self, paintable: NodeSlotId) -> Option<NodeKind> {
-        self.layout_arena.node_kind_if_live(self.data(paintable).layout_node)
+        self.layout_arena.node_kind_if_live(paintable)
     }
 
     fn display(&self, paintable: NodeSlotId) -> crate::css::display::FfiDisplay {
@@ -276,7 +275,7 @@ impl<'a> PaintRecorder<'a> {
 
     fn visibility_is_visible(&self, paintable: NodeSlotId) -> bool {
         self.layout_arena
-            .node_style_if_live(self.data(paintable).layout_node)
+            .node_style_if_live(paintable)
             .is_none_or(|style| style.visibility() == css_enums::visibility::VISIBLE)
     }
 
@@ -311,14 +310,11 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn is_chrome_mirrored(&self, paintable: NodeSlotId) -> bool {
-        self.layout_arena
-            .node_style_if_live(self.data(paintable).layout_node)
-            .is_some_and(|style| {
-                let writing_mode = style.writing_mode();
-                (writing_mode == css_enums::writing_mode::HORIZONTAL_TB
-                    && style.direction() == css_enums::direction::RTL)
-                    || writing_mode == css_enums::writing_mode::VERTICAL_RL
-                    || writing_mode == css_enums::writing_mode::SIDEWAYS_RL
-            })
+        self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {
+            let writing_mode = style.writing_mode();
+            (writing_mode == css_enums::writing_mode::HORIZONTAL_TB && style.direction() == css_enums::direction::RTL)
+                || writing_mode == css_enums::writing_mode::VERTICAL_RL
+                || writing_mode == css_enums::writing_mode::SIDEWAYS_RL
+        })
     }
 }

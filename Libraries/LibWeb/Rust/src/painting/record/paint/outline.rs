@@ -14,7 +14,7 @@ use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersData
 use libgfx_rust::{CapStyle, Color, JoinStyle, ShouldAntiAlias};
 
 pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
-    let node = recorder.data(paintable).layout_node;
+    let node = paintable;
     let outline = crate::painting::style_queries::outline_data(
         recorder.layout_arena,
         node,

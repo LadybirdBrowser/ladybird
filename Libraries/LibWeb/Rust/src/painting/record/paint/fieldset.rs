@@ -15,7 +15,7 @@ use libgfx_rust::{Color, IntRect};
 
 fn rendered_legend(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> Option<NodeSlotId> {
     let arena = recorder.layout_arena;
-    let mut child = arena.node_first_child_if_live(recorder.data(fieldset).layout_node);
+    let mut child = arena.node_first_child_if_live(fieldset);
     while let Some(node) = child {
         if arena.node_kind_if_live(node) == Some(NodeKind::LegendBox) && !arena.node_is_out_of_flow_if_live(node) {
             return Some(node);
@@ -27,14 +27,13 @@ fn rendered_legend(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> Option
 
 fn legend_paintable(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> Option<NodeSlotId> {
     let legend = rendered_legend(recorder, fieldset)?;
-    let paintable = recorder.paintables.populated_paintable_row_of_node(legend);
-    (!paintable.is_invalid()).then_some(paintable)
+    recorder.paintables.paintable_row_is_populated(legend).then_some(legend)
 }
 
 fn css_border_top_width(recorder: &PaintRecorder<'_>, fieldset: NodeSlotId) -> CssPixels {
     recorder
         .layout_arena
-        .node_style_if_live(recorder.data(fieldset).layout_node)
+        .node_style_if_live(fieldset)
         .map(|style| style.border_top_width())
         .unwrap_or_default()
 }
@@ -78,10 +77,7 @@ pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotI
         super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
         return;
     };
-    let Some(style) = recorder
-        .layout_arena
-        .node_style_if_live(recorder.data(fieldset).layout_node)
-    else {
+    let Some(style) = recorder.layout_arena.node_style_if_live(fieldset) else {
         return;
     };
     let converter = recorder.converter;

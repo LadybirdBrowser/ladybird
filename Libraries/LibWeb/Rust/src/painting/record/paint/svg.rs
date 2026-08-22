@@ -70,7 +70,7 @@ fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (
         ..SvgPaintFacts::default()
     };
     let layout_arena = recorder.layout_arena;
-    let Some(style) = layout_arena.node_style_if_live(recorder.data(paintable).layout_node) else {
+    let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return (facts, Vec::new());
     };
     let svg = style.inherited_svg();

@@ -46,7 +46,7 @@ pub(crate) fn paint_box_shadow(
     border_radii: BorderRadii,
 ) {
     let layout_arena = recorder.layout_arena;
-    let Some(style) = layout_arena.node_style_if_live(recorder.data(paintable).layout_node) else {
+    let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return;
     };
     let layers = style.effects().box_shadows.as_slice();

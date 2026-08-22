@@ -72,7 +72,7 @@ pub(crate) fn transform_reference_box(
     match transform_box {
         CONTENT_BOX | FILL_BOX => paintable_geometry::absolute_rect(paintables, slot),
         VIEW_BOX => callbacks
-            .svg_transform_view_box_rect(layout_arena.shell_if_live(data.layout_node))
+            .svg_transform_view_box_rect(layout_arena.shell_if_live(slot))
             .map(CssPixelRect::from)
             .unwrap_or_else(|| paintable_geometry::absolute_border_box_rect(paintables, slot)),
         _ => paintable_geometry::absolute_border_box_rect(paintables, slot),
@@ -118,11 +118,9 @@ pub(crate) fn compute_transform(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
-    slot: NodeSlotId,
+    node: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(TransformData, bool)> {
-    let data = paintables.data_ref(slot);
-    let node = data.layout_node;
     let style = layout_arena.node_style_if_live(node)?;
     let node_kind = layout_arena.node_kind_if_live(node)?;
 
@@ -143,7 +141,7 @@ pub(crate) fn compute_transform(
 
     // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
     // offset properties as follows:
-    let reference_box = transform_reference_box(style, layout_arena, paintables, callbacks, slot);
+    let reference_box = transform_reference_box(style, layout_arena, paintables, callbacks, node);
     let origin_lp = |handle: &ComputedStyleValueHandle| {
         handle
             .length_percentage()
@@ -211,7 +209,7 @@ pub(crate) fn compute_perspective_data(
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<PerspectiveData> {
-    let node = paintables.data_ref(slot).layout_node;
+    let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let transform_values = style.transform();
     if !transform_values.has_perspective || !style_queries::is_transformable(layout_arena, node) {
@@ -260,7 +258,7 @@ pub(crate) fn compute_css_clip_data(
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<ClipData> {
-    let node = paintables.data_ref(slot).layout_node;
+    let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     if !style.effects().clip_is_rect || !style.is_absolutely_positioned() {
         return None;
@@ -431,7 +429,7 @@ fn overflow_property_applies(layout_arena: &LayoutNodeArena, paintables: &Painta
         return false;
     }
     let display = crate::css::display::FfiDisplay::from_raw(data.display);
-    if crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, data.layout_node) {
+    if crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, slot) {
         return false;
     }
     if display.is_ruby_inside() {
@@ -461,7 +459,7 @@ fn overflow_clip_edge_rect(
     let visual_box = if top_side.has_visual_box {
         top_side.visual_box
     } else {
-        let node_kind = layout_arena.node_kind_if_live(paintables.data_ref(slot).layout_node);
+        let node_kind = layout_arena.node_kind_if_live(slot);
         if node_kind.is_some_and(crate::layout::kind_is_replaced_box) {
             CONTENT_BOX
         } else {
@@ -518,8 +516,7 @@ pub(crate) fn compute_effects_data(
     slot: NodeSlotId,
 ) -> Option<EffectsData> {
     use crate::css::css_enums::mix_blend_mode;
-    let data = paintables.data_ref(slot);
-    let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(data.layout_node));
+    let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(slot));
     paintables.side(slot).svg_filter_bounds.set(
         resolved_filter
             .has_svg_filter_bounds
@@ -532,7 +529,7 @@ pub(crate) fn compute_effects_data(
         // SAFETY: The host hands over a heap-allocated Gfx::Filter for us to own.
         Some(std::rc::Rc::new(unsafe { super::FilterHandle::adopt(filter_raw) }))
     };
-    let style = layout_arena.node_style_if_live(data.layout_node)?;
+    let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
     if filter.is_none() && effects_values.opacity == 1.0 && effects_values.mix_blend_mode == mix_blend_mode::NORMAL {
         return None;
@@ -568,12 +565,10 @@ fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'
 
 pub(crate) fn wants_fixed_background_visual_context(
     layout_arena: &LayoutNodeArena,
-    paintables: &PaintableArena,
     root_background_source: crate::painting::host::FfiRootBackgroundSource,
-    slot: NodeSlotId,
+    node: NodeSlotId,
     may_be_root_element: bool,
 ) -> bool {
-    let node = paintables.data_ref(slot).layout_node;
     let is_root_element = may_be_root_element && style_queries::node_is_root_element(layout_arena, node);
     let mut background_layers_node = node;
     if is_root_element && root_background_source.use_body_background_properties {
@@ -645,7 +640,7 @@ pub(crate) fn mask_layer_presence(
     let mut layers = Vec::new();
     let data = paintables.data_ref(slot);
     if include_css_mask_layers {
-        let node = data.layout_node;
+        let node = slot;
         if let Some(style) = layout_arena.node_style_if_live(node)
             && style_queries::mask_layers_have_image(style.mask())
             && layout_arena
@@ -661,7 +656,7 @@ pub(crate) fn mask_layer_presence(
         }
     }
     if kind_overrides_svg_mask_virtuals(data.kind) {
-        let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(data.layout_node));
+        let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(slot));
         if svg_facts.has_mask_area {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgMask,
@@ -680,9 +675,8 @@ pub(crate) fn mask_layer_presence(
     layers
 }
 
-pub(crate) fn backface_hidden(layout_arena: &LayoutNodeArena, paintables: &PaintableArena, slot: NodeSlotId) -> bool {
+pub(crate) fn backface_hidden(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     use crate::css::css_enums::backface_visibility;
-    let node = paintables.data_ref(slot).layout_node;
     let Some(style) = layout_arena.node_style_if_live(node) else {
         return false;
     };
@@ -690,9 +684,8 @@ pub(crate) fn backface_hidden(layout_arena: &LayoutNodeArena, paintables: &Paint
         && style_queries::is_transformable(layout_arena, node)
 }
 
-pub(crate) fn may_have_clip(layout_arena: &LayoutNodeArena, paintables: &PaintableArena, slot: NodeSlotId) -> bool {
+pub(crate) fn may_have_clip(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     use crate::css::css_enums::{content_visibility, overflow};
-    let node = paintables.data_ref(slot).layout_node;
     let Some(style) = layout_arena.node_style_if_live(node) else {
         return false;
     };
@@ -710,7 +703,7 @@ pub(crate) fn compute_clip_data(
     pixel_ratio: f64,
 ) -> Option<ClipData> {
     use crate::css::css_enums::{content_visibility, overflow};
-    let node = paintables.data_ref(slot).layout_node;
+    let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let box_values = style.box_values();
     let mut overflow_x = box_values.overflow_x;

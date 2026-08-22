@@ -150,7 +150,7 @@ pub(crate) fn empty_line_caret_targets(
     if !text_preserves_newlines(layout_arena, text_layout_node) {
         return Vec::new();
     }
-    let block_node = paintables.data_ref(block).layout_node;
+    let block_node = block;
     let Some(block_style) = layout_arena.node_style_if_live(block_node) else {
         return Vec::new();
     };

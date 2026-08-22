@@ -56,7 +56,7 @@ impl HitTestList {
                 if !paintables.paintable_row_is_populated(item.paintable) {
                     return false;
                 }
-                let node = paintables.data_ref(item.paintable).layout_node;
+                let node = item.paintable;
                 callbacks.chrome_widget_contains(layout_arena.shell_if_live(node), item.chrome_widget_kind, local_point)
             }
         }

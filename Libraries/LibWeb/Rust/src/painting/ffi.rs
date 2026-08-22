@@ -72,11 +72,7 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         arena.clear_committed_fragment_link(layout_node);
-        let reset = {
-            let paintables = arena.paintables().borrow();
-            let slot = paintables.populated_paintable_row_of_node(layout_node);
-            paintables.prepare_node_cleared_reset(layout_node, slot)
-        };
+        let reset = arena.paintables().borrow().prepare_node_cleared_reset(layout_node);
         if let Some(reset) = reset {
             reset.invoke_callback();
             arena.paintables().borrow_mut().node_cleared(arena, reset);
@@ -127,7 +123,7 @@ pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
         let paintables = arena.paintables().borrow();
         let mut current = paintables.paintable_row_is_populated(slot).then_some(slot);
         while let Some(paintable) = current {
-            let layout_node = paintables.data_ref(paintable).layout_node;
+            let layout_node = paintable;
             let flags = arena.node_flags_if_live(layout_node);
             if flags & crate::layout::node_data::NodeFlag::Anonymous as u32 == 0 {
                 return arena.shell_if_live(layout_node);
@@ -149,7 +145,7 @@ pub unsafe extern "C" fn layout_arena_paintable_layout_node_shell(arena: *mut c_
         if !paintables.paintable_row_is_populated(slot) {
             return std::ptr::null_mut();
         }
-        arena.shell_if_live(paintables.data_ref(slot).layout_node)
+        arena.shell_if_live(slot)
     })
 }
 
@@ -539,10 +535,7 @@ pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
         let directions = if paintables.paintable_row_is_populated(paintable) {
-            crate::painting::scrollable_overflow::physical_overflow_directions(
-                arena,
-                paintables.data_ref(paintable).layout_node,
-            )
+            crate::painting::scrollable_overflow::physical_overflow_directions(arena, paintable)
         } else {
             crate::painting::scrollable_overflow::PhysicalOverflowDirections::default()
         };
@@ -2018,7 +2011,7 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_node(
             .nodes[index];
         crate::painting::host::FfiStackingContextNodeExport {
             layout_node_shell: if paintables.paintable_row_is_populated(node.paintable) {
-                arena.shell_if_live(paintables.data_ref(node.paintable).layout_node)
+                arena.shell_if_live(node.paintable)
             } else {
                 std::ptr::null_mut()
             },
@@ -2191,7 +2184,7 @@ fn paint_tree_dump_entries(
         entries: &mut Vec<crate::painting::host::FfiPaintTreeDumpEntry>,
     ) {
         entries.push(crate::painting::host::FfiPaintTreeDumpEntry {
-            layout_node_shell: arena.shell_if_live(paintables.data_ref(slot).layout_node),
+            layout_node_shell: arena.shell_if_live(slot),
             depth,
         });
         crate::painting::paint_order::for_each_paint_child(arena, paintables, slot, |current| {

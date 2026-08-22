@@ -264,7 +264,6 @@ impl PaintableArena {
         let data = self.data_mut_by_index(index);
         *data = PaintableData::default();
         data.slot_generation = generation;
-        data.layout_node = layout_node;
         self.side_data[index as usize] = PaintableSideData::default();
         self.paint_caches[index as usize].clear();
         self.absolute_rect_memo.get_mut()[index as usize] = None;
@@ -302,15 +301,9 @@ impl PaintableArena {
         self.reset_row(None, reset);
     }
 
-    pub(crate) fn prepare_node_cleared_reset(
-        &self,
-        layout_node: NodeSlotId,
-        id: NodeSlotId,
-    ) -> Option<PaintableRowReset> {
-        if id.is_invalid() || self.populated_paintable_row_of_node(layout_node) != id {
-            return None;
-        }
-        Some(self.prepare_row_reset(id, PaintableRowResetKind::Cleared))
+    pub(crate) fn prepare_node_cleared_reset(&self, layout_node: NodeSlotId) -> Option<PaintableRowReset> {
+        self.paintable_row_is_populated(layout_node)
+            .then(|| self.prepare_row_reset(layout_node, PaintableRowResetKind::Cleared))
     }
 
     pub(crate) fn node_cleared(&mut self, layout_arena: &LayoutNodeArena, reset: PaintableRowReset) {
@@ -413,10 +406,7 @@ impl PaintableArena {
     ) {
         loop {
             if self.paintable_row_is_populated(node) {
-                self.clear_descendant_subtree_caches_along_paint_chain(
-                    layout_arena,
-                    self.populated_paintable_row_of_node(node),
-                );
+                self.clear_descendant_subtree_caches_along_paint_chain(layout_arena, node);
                 return;
             }
             if !crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
@@ -438,7 +428,7 @@ impl PaintableArena {
         while let Some(current) = stack.pop() {
             let mut child = crate::painting::paint_order::first_paint_child(layout_arena, self, current);
             while let Some(child_slot) = child {
-                let child_layout_node = self.data_ref(child_slot).layout_node;
+                let child_layout_node = child_slot;
                 let child_flags = layout_arena.node_flags_if_live(child_layout_node);
                 if child_flags & NodeFlag::Anonymous as u32 != 0 {
                     self.paint_caches[child_slot.slot_index() as usize].clear();
@@ -478,7 +468,7 @@ impl PaintableArena {
             }
 
             let data = self.data_ref(current);
-            if crate::painting::style_queries::is_text_decoration_propagation_boundary(layout_arena, data.layout_node) {
+            if crate::painting::style_queries::is_text_decoration_propagation_boundary(layout_arena, current) {
                 continue;
             }
             // Only fragment-painting paintables record propagated decorations.
@@ -504,14 +494,6 @@ impl PaintableArena {
     pub fn side_mut(&mut self, id: NodeSlotId) -> &mut PaintableSideData {
         debug_assert!(self.paintable_row_is_populated(id));
         &mut self.side_data[id.slot_index() as usize]
-    }
-
-    pub fn populated_paintable_row_of_node(&self, layout_node: NodeSlotId) -> NodeSlotId {
-        if self.paintable_row_is_populated(layout_node) {
-            layout_node
-        } else {
-            NodeSlotId::INVALID
-        }
     }
 
     pub(crate) fn prepare_recommit_notification(&self, id: NodeSlotId) -> PaintableRowReset {

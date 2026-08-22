@@ -384,7 +384,7 @@ pub(crate) fn paint_border_image(
     border_box_rect: CssPixelRect,
 ) -> bool {
     let layout_arena = recorder.layout_arena;
-    let Some(style) = layout_arena.node_style_if_live(recorder.data(paintable).layout_node) else {
+    let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return false;
     };
     let border = style.border();

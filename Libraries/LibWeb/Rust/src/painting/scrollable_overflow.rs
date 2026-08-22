@@ -291,7 +291,7 @@ pub(crate) fn measure_scrollable_overflow(
         return data.overflow.rect.into();
     }
 
-    let box_node = data.layout_node;
+    let box_node = box_paintable;
     let paintable_absolute_padding_box = paintable_geometry::absolute_padding_box_rect(paintables, box_paintable);
     let paintable_absolute_content_box = paintable_geometry::absolute_rect(paintables, box_paintable);
 
@@ -374,8 +374,8 @@ pub(crate) fn measure_scrollable_overflow(
     //          its 3D rendering context. [CSS3-TRANSFORMS]
     if let Some(contained_boxes) = paintables.scrollable_overflow_contained_boxes.get(&box_node) {
         for &child_node in contained_boxes {
-            let child_paintable = paintables.populated_paintable_row_of_node(child_node);
-            if child_paintable.is_invalid() || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
+            if !paintables.paintable_row_is_populated(child_node)
+                || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
             {
                 continue;
             }
@@ -391,7 +391,7 @@ pub(crate) fn measure_scrollable_overflow(
                 continue;
             }
 
-            let child_data = paintables.data_ref(child_paintable);
+            let child_data = paintables.data_ref(child_node);
             let child_has_css_transform =
                 child_style.is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
             let child_is_flex_item = layout_arena.node_flags_if_live(child_node) & NodeFlag::IsFlexItem as u32 != 0;
@@ -404,14 +404,14 @@ pub(crate) fn measure_scrollable_overflow(
                 && !child_has_css_transform
                 && child_data.has_cached_overflow
             {
-                let border = crate::painting::paintable_geometry::committed_border(paintables, child_paintable);
+                let border = crate::painting::paintable_geometry::committed_border(paintables, child_node);
                 let zero = CssPixels::from_raw(0);
                 let has_border =
                     border.top != zero || border.right != zero || border.bottom != zero || border.left != zero;
                 if !has_border {
-                    let padding = crate::painting::paintable_geometry::committed_padding(paintables, child_paintable);
+                    let padding = crate::painting::paintable_geometry::committed_padding(paintables, child_node);
                     let content_size =
-                        crate::painting::paintable_geometry::committed_content_size(paintables, child_paintable);
+                        crate::painting::paintable_geometry::committed_content_size(paintables, child_node);
                     let content_box_relative_to_padding_box =
                         CssPixelRect::new(padding.left, padding.top, content_size.width, content_size.height);
                     // The committed line fragment already contributes this content box. A box with no border whose
@@ -422,13 +422,12 @@ pub(crate) fn measure_scrollable_overflow(
                 }
             }
 
-            let untransformed_child_border_box =
-                paintable_geometry::absolute_border_box_rect(paintables, child_paintable);
+            let untransformed_child_border_box = paintable_geometry::absolute_border_box_rect(paintables, child_node);
             let child_border_box = apply_css_transform_to_scrollable_overflow_rect(
                 layout_arena,
                 paintables,
                 visual_context_callbacks,
-                child_paintable,
+                child_node,
                 untransformed_child_border_box,
                 child_has_css_transform,
             );
@@ -478,13 +477,13 @@ pub(crate) fn measure_scrollable_overflow(
                     layout_arena,
                     paintables,
                     visual_context_callbacks,
-                    child_paintable,
+                    child_node,
                     measure_scrollable_overflow(
                         layout_arena,
                         paintables,
                         visual_context_callbacks,
                         overflow_callbacks,
-                        child_paintable,
+                        child_node,
                     ),
                     child_has_css_transform,
                 );

@@ -1124,7 +1124,6 @@ pub(crate) fn paint_box_borders_from_style(
     paintable: NodeSlotId,
     facts: &BasePaintFacts,
 ) {
-    let data = recorder.data(paintable);
     let converter = recorder.converter;
     let device_side = |color: u32, style: u8, width: CssPixels| BorderDataDevicePixels {
         color: Color(color),
@@ -1136,7 +1135,7 @@ pub(crate) fn paint_box_borders_from_style(
         line_style: line_style::NONE,
         width: 0,
     };
-    let Some(style) = recorder.layout_arena.node_style_if_live(data.layout_node) else {
+    let Some(style) = recorder.layout_arena.node_style_if_live(paintable) else {
         return;
     };
     let zero = CssPixels::from_raw(0);
