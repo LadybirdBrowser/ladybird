@@ -314,64 +314,54 @@ impl<'a> PaintableCommit<'a> {
             .collect()
     }
 
-    pub(crate) fn set_box_metrics(
+    pub(crate) fn replace_committed_fragment_link(
         &self,
+        node: Node,
         slot: PaintableSlotId,
         link: &FragmentLink,
         reuses_committed_subtree: bool,
     ) -> Option<(FfiCssPixelSize, FfiCssPixelSize)> {
-        let arena = self.arena.borrow();
-        let mut content_size_change = None;
         let fragment = &link.fragment;
-        arena.update_data(slot, |data| {
-            if data.layout_fragment_identity != fragment.identity {
-                data.layout_fragment_identity = fragment.identity;
-                data.cached_overflow = FfiOverflowData::default();
-                data.has_cached_overflow = false;
-            }
-            data.inset = FfiPixelBox {
-                top: link.inset_top,
-                right: link.inset_right,
-                bottom: link.inset_bottom,
-                left: link.inset_left,
+        let new_content_size = FfiCssPixelSize {
+            width: fragment.content_inline_size,
+            height: fragment.content_block_size,
+        };
+        let mut content_size_change = None;
+        {
+            let arena = self.arena.borrow();
+            let (old_identity, old_content_size) = arena.with_committed_fragment_link(slot, |old_link| {
+                old_link.map_or((0, FfiCssPixelSize::default()), |old_link| {
+                    (
+                        old_link.fragment.identity,
+                        FfiCssPixelSize {
+                            width: old_link.fragment.content_inline_size,
+                            height: old_link.fragment.content_block_size,
+                        },
+                    )
+                })
+            });
+            let previous_content_size_for_diff = if reuses_committed_subtree {
+                old_content_size
+            } else {
+                FfiCssPixelSize::default()
             };
-            data.padding = FfiPixelBox {
-                top: fragment.padding_top,
-                right: fragment.padding_right,
-                bottom: fragment.padding_bottom,
-                left: fragment.padding_left,
-            };
-            data.border = FfiPixelBox {
-                top: fragment.border_top,
-                right: fragment.border_right,
-                bottom: fragment.border_bottom,
-                left: fragment.border_left,
-            };
-            data.margin = FfiPixelBox {
-                top: fragment.margin_top,
-                right: fragment.margin_right,
-                bottom: fragment.margin_bottom,
-                left: fragment.margin_left,
-            };
-            let new_content_size = FfiCssPixelSize {
-                width: fragment.content_inline_size,
-                height: fragment.content_block_size,
-            };
-            if data.content_size != new_content_size {
+            if previous_content_size_for_diff != new_content_size {
                 assert!(
                     !reuses_committed_subtree,
                     "a reused committed subtree changed its content size"
                 );
-                content_size_change = Some((data.content_size, new_content_size));
+                content_size_change = Some((previous_content_size_for_diff, new_content_size));
             }
-            data.content_size = new_content_size;
-            data.offset = link.committed_offset;
-            if let Some(containing_line_box_index) = link.containing_line_box_index {
-                data.containing_line_box_index = containing_line_box_index;
-                data.has_containing_line_box_index = true;
-            }
-            data.uses_collapsing_borders_model = fragment.uses_collapsing_borders_model;
-        });
+            arena.update_data(slot, |data| {
+                if old_identity != fragment.identity {
+                    data.cached_overflow = FfiOverflowData::default();
+                    data.has_cached_overflow = false;
+                }
+                data.content_size = new_content_size;
+                data.offset = link.committed_offset;
+            });
+        }
+        self.callbacks.set_committed_fragment_link(node, link.clone());
         content_size_change
     }
 
@@ -574,79 +564,6 @@ impl<'a> PaintableCommit<'a> {
             dom_end_offset_with_trailing_whitespace,
             trailing_whitespace_length,
         )
-    }
-
-    pub(crate) fn set_svg_viewport_transform(
-        &self,
-        slot: PaintableSlotId,
-        transform: crate::layout::FfiAffineTransform,
-    ) {
-        let arena = self.arena.borrow();
-        arena.update_data(slot, |data| {
-            data.svg_viewport_transform = transform;
-            data.has_svg_viewport_transform = true;
-        });
-    }
-
-    pub(crate) fn set_svg_viewport_size(&self, slot: PaintableSlotId, size: FfiCssPixelSize) {
-        let arena = self.arena.borrow();
-        arena.update_data(slot, |data| {
-            if data.kind == PaintableKind::SVGSVGPaintable {
-                data.svg_viewport_size = size;
-            }
-        });
-    }
-
-    pub(crate) fn set_computed_svg_path(
-        &self,
-        slot: PaintableSlotId,
-        path: &std::rc::Rc<libgfx_rust::path::OwnedPath>,
-    ) {
-        let mut arena = self.arena.borrow_mut();
-        if arena.data_ref(slot).kind != PaintableKind::SVGPathPaintable {
-            return;
-        }
-        let side = arena.side_mut(slot);
-        if path.identity() != 0
-            && path.identity() == side.computed_svg_path_identity
-            && side.computed_svg_path.is_some()
-        {
-            return;
-        }
-        side.computed_svg_path = Some(path.clone());
-        side.computed_svg_path_identity = path.identity();
-    }
-
-    pub(crate) fn set_grid_layout_data(
-        &self,
-        slot: PaintableSlotId,
-        data: &std::rc::Rc<crate::layout::GridLayoutData>,
-    ) {
-        self.arena.borrow_mut().side_mut(slot).grid_layout_data = Some(data.clone());
-    }
-
-    pub(crate) fn set_flex_layout_data(
-        &self,
-        slot: PaintableSlotId,
-        data: &std::rc::Rc<crate::layout::FlexLayoutData>,
-    ) {
-        self.arena.borrow_mut().side_mut(slot).flex_layout_data = Some(data.clone());
-    }
-
-    pub(crate) fn set_used_grid_tracks(
-        &self,
-        slot: PaintableSlotId,
-        tracks: &std::rc::Rc<crate::layout::OwnedUsedGridTracks>,
-    ) {
-        self.arena.borrow_mut().side_mut(slot).used_grid_tracks = Some(tracks.clone());
-    }
-
-    pub(crate) fn set_collapsed_table_borders(
-        &self,
-        slot: PaintableSlotId,
-        borders: &std::rc::Rc<crate::layout::OwnedCollapsedTableBorders>,
-    ) {
-        self.arena.borrow_mut().side_mut(slot).collapsed_table_borders = Some(borders.clone());
     }
 
     pub(crate) fn stamp_containing_block(&self, node: Node, slot: PaintableSlotId) {

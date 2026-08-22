@@ -38,9 +38,17 @@ fn commit_subtree(
     if let Some(link) = entry
         && !paintable_slot.is_invalid()
     {
-        callbacks.set_committed_fragment_link(node, link.clone());
         let fragment = &link.fragment;
-        let content_size_change = paintables.set_box_metrics(paintable_slot, link, reuses_committed_subtree);
+        debug_assert!(
+            fragment.computed_svg_path.is_some()
+                || !matches!(
+                    callbacks.node_data(node).kind,
+                    NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox
+                ),
+            "committed path-like fragment carries no computed SVG path"
+        );
+        let content_size_change =
+            paintables.replace_committed_fragment_link(node, paintable_slot, link, reuses_committed_subtree);
         if prepared.row_existed_before_this_commit
             && let Some((old_content_size, new_content_size)) = content_size_change
         {
@@ -53,41 +61,6 @@ fn commit_subtree(
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
             has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
-        }
-
-        if !reuses_committed_subtree {
-            if let Some(transform) = fragment.svg_viewport_transform {
-                paintables.set_svg_viewport_transform(paintable_slot, transform);
-            }
-            if let Some(viewport_size) = fragment.svg_viewport_size {
-                paintables.set_svg_viewport_size(paintable_slot, viewport_size);
-            }
-            // The paintable keeps its committed path across relayout and only swaps it on an
-            // identity change, which is sound only while every committed path-like fragment
-            // carries a path.
-            debug_assert!(
-                fragment.computed_svg_path.is_some()
-                    || !matches!(
-                        callbacks.node_data(node).kind,
-                        NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox
-                    ),
-                "committed path-like fragment carries no computed SVG path"
-            );
-            if let Some(path) = &fragment.computed_svg_path {
-                paintables.set_computed_svg_path(paintable_slot, path);
-            }
-        }
-        if !reuses_committed_subtree && let Some(data) = &fragment.grid_layout_data {
-            paintables.set_grid_layout_data(paintable_slot, data);
-        }
-        if !reuses_committed_subtree && let Some(data) = &fragment.flex_layout_data {
-            paintables.set_flex_layout_data(paintable_slot, data);
-        }
-        if !reuses_committed_subtree && let Some(tracks) = &fragment.used_grid_tracks {
-            paintables.set_used_grid_tracks(paintable_slot, tracks);
-        }
-        if !reuses_committed_subtree && let Some(borders) = &fragment.collapsed_table_borders {
-            paintables.set_collapsed_table_borders(paintable_slot, borders);
         }
     }
 

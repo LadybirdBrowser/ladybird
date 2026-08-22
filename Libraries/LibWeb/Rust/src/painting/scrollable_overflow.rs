@@ -231,7 +231,7 @@ fn padding_inflated_scrollable_overflow(
 ) -> CssPixelRect {
     let content_box = paintable_geometry::absolute_rect(paintables, box_paintable);
     let padding_box = paintable_geometry::absolute_padding_box_rect(paintables, box_paintable);
-    let padding = paintables.data_ref(box_paintable).padding;
+    let padding = paintable_geometry::committed_padding(paintables, box_paintable);
     let overflow_directions = physical_overflow_directions(layout_arena, box_node);
 
     let mut left = in_flow_and_floated_content_bounds.left();
