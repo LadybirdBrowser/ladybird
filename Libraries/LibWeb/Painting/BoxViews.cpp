@@ -218,16 +218,6 @@ CSSPixelPoint absolute_position(Layout::Node const& node)
     return absolute_rect(node).location();
 }
 
-CSSPixels absolute_x(Layout::Node const& node)
-{
-    return absolute_rect(node).x();
-}
-
-CSSPixels absolute_y(Layout::Node const& node)
-{
-    return absolute_rect(node).y();
-}
-
 CSSPixelPoint offset(Layout::Node const& node)
 {
     auto offset = Layout::RustFFI::layout_arena_paintable_offset(node.arena_handle(), committed_row_slot(node));
@@ -279,14 +269,6 @@ Optional<OverflowData> overflow_data(Layout::Node const& node)
     if (!row || !row->has_overflow)
         return {};
     return OverflowData { from_ffi_css_pixel_rect(row->overflow.rect), row->overflow.has_scrollable_overflow };
-}
-
-Optional<CachedOverflowData> cached_overflow_data(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    if (!row || !row->has_cached_overflow)
-        return {};
-    return CachedOverflowData { from_ffi_css_pixel_rect(row->cached_overflow.rect), row->cached_overflow.has_scrollable_overflow };
 }
 
 static void measure_scrollable_overflow_if_missing(Layout::Node const& node, Layout::RustFFI::PaintableData const& row)
@@ -393,12 +375,6 @@ bool is_inline(Layout::Node const& node)
 bool has_css_transform(Layout::Node const& node)
 {
     return has_committed_box(node) && as<Layout::NodeWithStyle>(node).has_css_transform();
-}
-
-bool has_non_invertible_css_transform(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::HasNonInvertibleCssTransform);
 }
 
 bool uses_collapsing_borders_model(Layout::Node const& node)
@@ -538,12 +514,6 @@ bool is_svg_path_paintable(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
     return row && row->kind == Layout::RustFFI::PaintableKind::SVGPathPaintable;
-}
-
-bool is_svg_foreign_object_paintable(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && row->kind == Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable;
 }
 
 Optional<int> effective_z_index(Layout::Node const& node)
@@ -1009,23 +979,6 @@ Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPi
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_point_for_hit_test(
         VisualContextIndex { row->accumulated_visual_context_index }, position.to_type<float>() * pixel_ratio,
-        document.scroll_state_snapshot());
-    if (!result.has_value())
-        return {};
-    return (*result / pixel_ratio).to_type<CSSPixels>();
-}
-
-Optional<CSSPixelPoint> transform_point_to_local_for_descendants(Layout::Node const& node, CSSPixelPoint position)
-{
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    auto const& document = node.document();
-    if (!document.layout_node() || !has_committed_box(*document.layout_node()))
-        return position;
-    auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto result = document.visual_context_tree().transform_point_for_hit_test(
-        VisualContextIndex { row->accumulated_visual_context_for_descendants_index }, position.to_type<float>() * pixel_ratio,
         document.scroll_state_snapshot());
     if (!result.has_value())
         return {};
