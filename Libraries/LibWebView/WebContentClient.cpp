@@ -504,7 +504,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     auto child_frame = this->child_frame(page_id, frame_id);
     if (!child_frame.has_value())
         return;
-    if (!child_frame->has_matching_pending_navigation(url, CanonicalNavigable::HostLocality::Remote))
+    if (!child_frame->has_matching_ongoing_navigation(url, CanonicalNavigable::HostLocality::Remote))
         return;
 
     auto current_step = child_frame->top_level_traversable().session_history().current_step();
@@ -515,14 +515,18 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, frame_id, current_entry->document_state.id);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
-        child_frame->clear_pending_navigation();
+        child_frame->clear_ongoing_navigation();
         return;
     }
 
     auto remote_process = remote_process_or_error.release_value();
     auto remote_page_id = remote_process.page_id;
     auto remote_client = move(remote_process.client);
-    child_frame->record_pending_navigation(url, CanonicalNavigable::HostLocality::Remote, remote_page_id);
+    child_frame->ongoing_navigation() = CanonicalNavigable::OngoingNavigation {
+        .url = url,
+        .target_locality = CanonicalNavigable::HostLocality::Remote,
+        .remote_page_id = remote_page_id,
+    };
     remote_client->register_embedded_page(remote_page_id, *child_frame);
     remote_client->async_set_page_parent_context(remote_page_id, Web::Compositor::compositor_context_id_for_page(page_id));
     if (child_frame->viewport_rect().has_value()) {

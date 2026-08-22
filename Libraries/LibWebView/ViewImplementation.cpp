@@ -222,8 +222,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     set_loading_state(true);
-    ensure_ongoing_top_level_navigation().load = OngoingTopLevelNavigation::Load {
-        .navigation_id = {},
+    m_top_level_traversable.ongoing_navigation() = CanonicalNavigable::OngoingNavigation {
         .url = url,
         .uses_replacement_process = true,
         .is_uncommitted = true,
@@ -328,8 +327,7 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     m_is_showing_crash_page = false;
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
-    ensure_ongoing_top_level_navigation().load = OngoingTopLevelNavigation::Load {
-        .navigation_id = {},
+    m_top_level_traversable.ongoing_navigation() = CanonicalNavigable::OngoingNavigation {
         .url = url,
         .is_uncommitted = true,
     };
@@ -412,7 +410,7 @@ void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate i
 void ViewImplementation::load_html(StringView html)
 {
     set_loading_state(true);
-    clear_ongoing_top_level_navigation_load();
+    m_top_level_traversable.clear_ongoing_navigation();
     m_last_stopped_load_url.clear();
     m_is_showing_crash_page = false;
     m_should_suppress_history_for_current_load = false;
@@ -423,7 +421,7 @@ void ViewImplementation::load_html(StringView html)
 void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& crashed_url)
 {
     set_loading_state(true);
-    clear_ongoing_top_level_navigation_load();
+    m_top_level_traversable.clear_ongoing_navigation();
     m_last_stopped_load_url.clear();
     m_is_showing_crash_page = true;
     m_should_suppress_history_for_current_load = true;
@@ -456,10 +454,10 @@ void ViewImplementation::reload()
     }
 
     set_loading_state(true);
-    auto ongoing_url = m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()
-        ? move(m_ongoing_top_level_navigation->load->url)
+    auto ongoing_url = m_top_level_traversable.ongoing_navigation().has_value()
+        ? move(m_top_level_traversable.ongoing_navigation()->url)
         : Optional<URL::URL> {};
-    ensure_ongoing_top_level_navigation().load = OngoingTopLevelNavigation::Load { .navigation_id = {}, .url = move(ongoing_url) };
+    m_top_level_traversable.ongoing_navigation() = CanonicalNavigable::OngoingNavigation { .url = move(ongoing_url) };
     if (m_is_showing_crash_page) {
         m_is_showing_crash_page = false;
         m_should_suppress_history_for_current_load = false;
@@ -481,13 +479,13 @@ void ViewImplementation::stop_loading()
 {
     if (!m_is_loading)
         return;
-    m_last_stopped_load_url = m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()
-        ? m_ongoing_top_level_navigation->load->url
+    m_last_stopped_load_url = m_top_level_traversable.ongoing_navigation().has_value()
+        ? m_top_level_traversable.ongoing_navigation()->url
         : Optional<URL::URL> {};
     if (cancel_uncommitted_top_level_navigation("stop-loading"sv, true))
         return;
     set_loading_state(false);
-    clear_ongoing_top_level_navigation_load();
+    m_top_level_traversable.clear_ongoing_navigation();
     client().async_stop_loading(page_id());
 }
 
@@ -501,9 +499,8 @@ void ViewImplementation::traverse_the_history_by_delta(
 
 bool ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
 {
-    auto navigation_used_replacement_process = m_ongoing_top_level_navigation.has_value()
-        && m_ongoing_top_level_navigation->load.has_value()
-        && m_ongoing_top_level_navigation->load->uses_replacement_process;
+    auto navigation_used_replacement_process = m_top_level_traversable.ongoing_navigation().has_value()
+        && m_top_level_traversable.ongoing_navigation()->uses_replacement_process;
     auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true, ReconstructCanceledNavigation::No);
     VERIFY(canceled);
     return navigation_used_replacement_process;
@@ -522,9 +519,9 @@ void ViewImplementation::will_apply_history_traversal_step(u64 operation_id)
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
-    if (m_ongoing_top_level_navigation.has_value()
-        && m_ongoing_top_level_navigation->webdriver_completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
-        m_ongoing_top_level_navigation->history_operation_id = operation_id;
+    if (m_webdriver_navigation_observation.has_value()
+        && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
+        m_webdriver_navigation_observation->history_operation_id = operation_id;
     } else {
         begin_webdriver_navigation(WebDriverNavigationCompletionSource::HistoryTraversal, operation_id);
     }
@@ -534,19 +531,19 @@ void ViewImplementation::will_apply_history_traversal_step(u64 operation_id)
 
 void ViewImplementation::did_resume_history_traversal(u64 operation_id)
 {
-    if (m_ongoing_top_level_navigation.has_value()
-        && m_ongoing_top_level_navigation->webdriver_completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
-        m_ongoing_top_level_navigation->history_operation_id = operation_id;
+    if (m_webdriver_navigation_observation.has_value()
+        && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
+        m_webdriver_navigation_observation->history_operation_id = operation_id;
         return;
     }
 
-    if (!m_ongoing_top_level_navigation.has_value()
-        || m_ongoing_top_level_navigation->webdriver_completion_source != WebDriverNavigationCompletionSource::HistoryTraversal) {
+    if (!m_webdriver_navigation_observation.has_value()
+        || m_webdriver_navigation_observation->completion_source != WebDriverNavigationCompletionSource::HistoryTraversal) {
         begin_webdriver_navigation(WebDriverNavigationCompletionSource::HistoryTraversal, operation_id);
         return;
     }
 
-    m_ongoing_top_level_navigation->history_operation_id = operation_id;
+    m_webdriver_navigation_observation->history_operation_id = operation_id;
 }
 
 void ViewImplementation::did_apply_top_level_history_traversal_step(u64 operation_id)
@@ -1951,20 +1948,18 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
 
 void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const& url, bool is_redirect)
 {
-    auto& ongoing = ensure_ongoing_top_level_navigation();
-    if (!ongoing.load.has_value())
-        ongoing.load = OngoingTopLevelNavigation::Load {};
-    ongoing.load->navigation_id = move(navigation_id);
-    ongoing.load->url = url;
-    ongoing.load->has_started = true;
+    auto& ongoing = m_top_level_traversable.ensure_ongoing_navigation();
+    ongoing.navigation_id = move(navigation_id);
+    ongoing.url = url;
+    ongoing.has_started = true;
 
     set_loading_state(true);
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
         return;
 
-    if (ongoing.load->navigation_id.has_value() && !ongoing.load->is_uncommitted) {
-        ongoing.load->is_uncommitted = true;
-        ongoing.load->uses_replacement_process = false;
+    if (ongoing.navigation_id.has_value() && !ongoing.is_uncommitted) {
+        ongoing.is_uncommitted = true;
+        ongoing.uses_replacement_process = false;
     }
 
     auto was_showing_crash_page = exchange(m_is_showing_crash_page, false);
@@ -1984,8 +1979,9 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_i
 bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navigation_id)
 {
     // A cancel may arrive before a UI-issued load reports its start. A started navigation's cancel must name it.
-    auto stale = m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()
-        ? m_ongoing_top_level_navigation->load->has_started && navigation_id != m_ongoing_top_level_navigation->load->navigation_id
+    auto const& ongoing = m_top_level_traversable.ongoing_navigation();
+    auto stale = ongoing.has_value()
+        ? ongoing->has_started && navigation_id != ongoing->navigation_id
         : navigation_id.has_value();
     if (stale)
         return false;
@@ -1994,9 +1990,9 @@ bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navi
     if (cancel_uncommitted_top_level_navigation("did-cancel-navigation"sv, false))
         return true;
 
-    clear_ongoing_top_level_navigation_load();
-    if (m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->webdriver_completion_source.has_value()) {
-        auto webdriver_navigation_id = m_ongoing_top_level_navigation->webdriver_navigation_id;
+    m_top_level_traversable.clear_ongoing_navigation();
+    if (m_webdriver_navigation_observation.has_value()) {
+        auto webdriver_navigation_id = m_webdriver_navigation_observation->navigation_id;
         complete_webdriver_navigation(webdriver_navigation_id);
         return true;
     }
@@ -2007,58 +2003,25 @@ bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navi
 
 bool ViewImplementation::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
 {
-    if (!m_ongoing_top_level_navigation.has_value() || !m_ongoing_top_level_navigation->load.has_value())
-        return !navigation_id.has_value();
-    return m_ongoing_top_level_navigation->load->has_started
-        && navigation_id == m_ongoing_top_level_navigation->load->navigation_id;
-}
-
-ViewImplementation::OngoingTopLevelNavigation& ViewImplementation::ensure_ongoing_top_level_navigation()
-{
-    if (!m_ongoing_top_level_navigation.has_value())
-        m_ongoing_top_level_navigation = OngoingTopLevelNavigation {};
-    return *m_ongoing_top_level_navigation;
-}
-
-void ViewImplementation::clear_ongoing_top_level_navigation_load()
-{
-    if (!m_ongoing_top_level_navigation.has_value())
-        return;
-    m_ongoing_top_level_navigation->load.clear();
-    if (!m_ongoing_top_level_navigation->webdriver_completion_source.has_value())
-        m_ongoing_top_level_navigation.clear();
-}
-
-void ViewImplementation::clear_ongoing_navigation_webdriver_observation()
-{
-    if (!m_ongoing_top_level_navigation.has_value())
-        return;
-    auto& ongoing = *m_ongoing_top_level_navigation;
-    ongoing.webdriver_completion_source.clear();
-    ongoing.history_operation_id.clear();
-    ongoing.expected_url.clear();
-    ongoing.history_operation_completed = false;
-    ongoing.load_completed = false;
-    if (!ongoing.load.has_value())
-        m_ongoing_top_level_navigation.clear();
+    return m_top_level_traversable.matches_ongoing_navigation(navigation_id);
 }
 
 void ViewImplementation::did_finish_navigation(URL::URL const& url)
 {
     set_loading_state(false);
-    clear_ongoing_top_level_navigation_load();
+    m_top_level_traversable.clear_ongoing_navigation();
 
-    if (!m_ongoing_top_level_navigation.has_value() || !m_ongoing_top_level_navigation->webdriver_completion_source.has_value())
+    if (!m_webdriver_navigation_observation.has_value())
         return;
 
-    auto navigation_id = m_ongoing_top_level_navigation->webdriver_navigation_id;
-    switch (*m_ongoing_top_level_navigation->webdriver_completion_source) {
+    auto navigation_id = m_webdriver_navigation_observation->navigation_id;
+    switch (m_webdriver_navigation_observation->completion_source) {
     case WebDriverNavigationCompletionSource::CrashRecovery:
-        if (m_ongoing_top_level_navigation->expected_url.has_value()
-            && url != *m_ongoing_top_level_navigation->expected_url)
+        if (m_webdriver_navigation_observation->expected_url.has_value()
+            && url != *m_webdriver_navigation_observation->expected_url)
             break;
-        m_ongoing_top_level_navigation->load_completed = true;
-        if (m_ongoing_top_level_navigation->history_operation_completed)
+        m_webdriver_navigation_observation->load_completed = true;
+        if (m_webdriver_navigation_observation->history_operation_completed)
             complete_webdriver_navigation(navigation_id);
         break;
     case WebDriverNavigationCompletionSource::Load:
@@ -2080,19 +2043,19 @@ void ViewImplementation::set_loading_state(bool is_loading)
 
 bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading, ReconstructCanceledNavigation reconstruct)
 {
-    if (!has_uncommitted_top_level_navigation())
+    if (!m_top_level_traversable.has_uncommitted_navigation())
         return false;
 
-    auto navigation_used_replacement_process = m_ongoing_top_level_navigation->load->uses_replacement_process;
-    clear_ongoing_top_level_navigation_load();
+    auto navigation_used_replacement_process = m_top_level_traversable.ongoing_navigation()->uses_replacement_process;
+    m_top_level_traversable.clear_ongoing_navigation();
     set_loading_state(false);
     if (stop_loading)
         client().async_stop_loading(page_id());
 
     auto const* current_entry = m_top_level_traversable.session_history().current_entry();
     if (!current_entry) {
-        if (m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->webdriver_completion_source.has_value())
-            complete_webdriver_navigation(m_ongoing_top_level_navigation->webdriver_navigation_id);
+        if (m_webdriver_navigation_observation.has_value())
+            complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
         dump_session_history(reason);
         return true;
     }
@@ -2103,8 +2066,8 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
         return true;
     }
 
-    if (m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->webdriver_completion_source.has_value())
-        complete_webdriver_navigation(m_ongoing_top_level_navigation->webdriver_navigation_id);
+    if (m_webdriver_navigation_observation.has_value())
+        complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
     dump_session_history(reason);
     return true;
 }
@@ -2201,17 +2164,15 @@ void ViewImplementation::load_for_webdriver_navigation(URL::URL const& url)
 void ViewImplementation::did_start_webdriver_navigation()
 {
     set_loading_state(true);
-    auto& ongoing = ensure_ongoing_top_level_navigation();
-    if (!ongoing.load.has_value())
-        ongoing.load = OngoingTopLevelNavigation::Load {};
-    ongoing.load->navigation_id.clear();
-    ongoing.load->has_started = false;
+    auto& ongoing = m_top_level_traversable.ensure_ongoing_navigation();
+    ongoing.navigation_id.clear();
+    ongoing.has_started = false;
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
 }
 
 void ViewImplementation::wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)> on_complete)
 {
-    if (!m_ongoing_top_level_navigation.has_value() || !m_ongoing_top_level_navigation->webdriver_completion_source.has_value()) {
+    if (!m_webdriver_navigation_observation.has_value()) {
         on_complete(JsonValue {});
         return;
     }
@@ -2245,24 +2206,22 @@ void ViewImplementation::complete_webdriver_navigation_completion(u64 request_id
 
 u64 ViewImplementation::begin_webdriver_navigation(WebDriverNavigationCompletionSource completion_source, Optional<u64> history_operation_id, Optional<URL::URL> expected_url)
 {
-    auto& ongoing = ensure_ongoing_top_level_navigation();
-    ongoing.webdriver_completion_source = completion_source;
-    ongoing.webdriver_navigation_id = m_next_webdriver_navigation_id++;
-    ongoing.history_operation_id = history_operation_id;
-    ongoing.expected_url = move(expected_url);
-    ongoing.history_operation_completed = false;
-    ongoing.load_completed = false;
-    return ongoing.webdriver_navigation_id;
+    m_webdriver_navigation_observation = WebDriverNavigationObservation {
+        .completion_source = completion_source,
+        .navigation_id = m_next_webdriver_navigation_id++,
+        .history_operation_id = history_operation_id,
+        .expected_url = move(expected_url),
+    };
+    return m_webdriver_navigation_observation->navigation_id;
 }
 
 void ViewImplementation::complete_webdriver_navigation(u64 navigation_id)
 {
-    if (!m_ongoing_top_level_navigation.has_value()
-        || !m_ongoing_top_level_navigation->webdriver_completion_source.has_value()
-        || m_ongoing_top_level_navigation->webdriver_navigation_id != navigation_id)
+    if (!m_webdriver_navigation_observation.has_value()
+        || m_webdriver_navigation_observation->navigation_id != navigation_id)
         return;
 
-    clear_ongoing_navigation_webdriver_observation();
+    m_webdriver_navigation_observation.clear();
 
     Vector<u64> request_ids;
     request_ids.ensure_capacity(m_pending_webdriver_navigation_completion_requests.size());
@@ -2282,13 +2241,13 @@ void ViewImplementation::complete_webdriver_navigation(u64 navigation_id)
 
 void ViewImplementation::complete_webdriver_history_traversal(u64 operation_id)
 {
-    if (!m_ongoing_top_level_navigation.has_value()
-        || m_ongoing_top_level_navigation->webdriver_completion_source != WebDriverNavigationCompletionSource::HistoryTraversal
-        || m_ongoing_top_level_navigation->history_operation_id != operation_id) {
+    if (!m_webdriver_navigation_observation.has_value()
+        || m_webdriver_navigation_observation->completion_source != WebDriverNavigationCompletionSource::HistoryTraversal
+        || m_webdriver_navigation_observation->history_operation_id != operation_id) {
         return;
     }
 
-    complete_webdriver_navigation(m_ongoing_top_level_navigation->webdriver_navigation_id);
+    complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
 }
 
 JsonValue ViewImplementation::webdriver_session_history() const
@@ -2349,11 +2308,11 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
             if (current_entry)
                 set_url(current_entry->url);
 
-            if (m_ongoing_top_level_navigation.has_value()
-                && m_ongoing_top_level_navigation->webdriver_navigation_id == navigation_id
-                && m_ongoing_top_level_navigation->webdriver_completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
-                m_ongoing_top_level_navigation->history_operation_completed = true;
-                if (m_ongoing_top_level_navigation->load_completed)
+            if (m_webdriver_navigation_observation.has_value()
+                && m_webdriver_navigation_observation->navigation_id == navigation_id
+                && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
+                m_webdriver_navigation_observation->history_operation_completed = true;
+                if (m_webdriver_navigation_observation->load_completed)
                     complete_webdriver_navigation(navigation_id);
             }
         } else {
@@ -2507,9 +2466,9 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, u64 
         if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied)
             did_cancel_navigation({});
         if (finalizes_top_level_cross_document_navigation && result == Web::HTML::HistoryStepResult::Applied) {
-            if (m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()) {
-                m_ongoing_top_level_navigation->load->is_uncommitted = false;
-                m_ongoing_top_level_navigation->load->uses_replacement_process = false;
+            if (auto& ongoing = m_top_level_traversable.ongoing_navigation(); ongoing.has_value()) {
+                ongoing->is_uncommitted = false;
+                ongoing->uses_replacement_process = false;
             }
             if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
                 set_url(current_entry->url);
@@ -2616,10 +2575,10 @@ void ViewImplementation::did_reset_session_history_for_testing(
 {
     auto promise = move(m_pending_session_history_reset_for_testing);
     m_top_level_traversable.reset_session_history_for_testing(move(active_entry));
-    clear_ongoing_navigation_webdriver_observation();
-    if (m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()) {
-        m_ongoing_top_level_navigation->load->is_uncommitted = false;
-        m_ongoing_top_level_navigation->load->uses_replacement_process = false;
+    m_webdriver_navigation_observation.clear();
+    if (auto& ongoing = m_top_level_traversable.ongoing_navigation(); ongoing.has_value()) {
+        ongoing->is_uncommitted = false;
+        ongoing->uses_replacement_process = false;
     }
     update_navigation_action_state();
 
@@ -2639,9 +2598,9 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         client().pid(),
         reason,
         m_url,
-        has_uncommitted_top_level_navigation(),
-        m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()
-            ? m_ongoing_top_level_navigation->load->url
+        m_top_level_traversable.has_uncommitted_navigation(),
+        m_top_level_traversable.ongoing_navigation().has_value()
+            ? m_top_level_traversable.ongoing_navigation()->url
             : Optional<URL::URL> {},
         traversal.has_value() ? Optional<i32> { traversal->target_step } : Optional<i32> {},
         traversal.has_value() ? CanonicalTraversable::browser_history_traversal_stage_to_string(traversal->stage) : "none"sv,
@@ -2653,7 +2612,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
 {
     set_loading_state(false);
-    clear_ongoing_top_level_navigation_load();
+    m_top_level_traversable.clear_ongoing_navigation();
 
     auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);
     for (auto& request : pending_user_prompt_requests)

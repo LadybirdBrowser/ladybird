@@ -126,12 +126,6 @@ public:
     void reload();
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
-    bool has_uncommitted_top_level_navigation() const
-    {
-        return m_ongoing_top_level_navigation.has_value()
-            && m_ongoing_top_level_navigation->load.has_value()
-            && m_ongoing_top_level_navigation->load->is_uncommitted;
-    }
     bool cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
     struct SessionHistoryTraversalMenuItem {
@@ -496,10 +490,6 @@ protected:
     bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
     void did_finish_navigation(URL::URL const&);
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
-    struct OngoingTopLevelNavigation;
-    OngoingTopLevelNavigation& ensure_ongoing_top_level_navigation();
-    void clear_ongoing_top_level_navigation_load();
-    void clear_ongoing_navigation_webdriver_observation();
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     enum class WebDriverNavigationCompletionSource : u8 {
@@ -686,24 +676,17 @@ protected:
     bool m_can_undo { false };
     bool m_can_redo { false };
     bool m_is_loading { false };
-    struct OngoingTopLevelNavigation {
-        struct Load {
-            Optional<Utf16String> navigation_id;
-            Optional<URL::URL> url;
-            bool has_started { false };
-            bool uses_replacement_process { false };
-            bool is_uncommitted { false };
-        };
-        Optional<Load> load;
-
-        Optional<WebDriverNavigationCompletionSource> webdriver_completion_source;
-        u64 webdriver_navigation_id { 0 };
+    // WebDriver's observation of the top-level navigation completion state. The navigation itself is the
+    // canonical traversable's ongoing navigation record.
+    struct WebDriverNavigationObservation {
+        WebDriverNavigationCompletionSource completion_source;
+        u64 navigation_id { 0 };
         Optional<u64> history_operation_id;
         Optional<URL::URL> expected_url;
         bool history_operation_completed { false };
         bool load_completed { false };
     };
-    Optional<OngoingTopLevelNavigation> m_ongoing_top_level_navigation;
+    Optional<WebDriverNavigationObservation> m_webdriver_navigation_observation;
     u64 m_next_webdriver_navigation_id { 1 };
     Optional<URL::URL> m_last_stopped_load_url;
 
