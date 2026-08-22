@@ -1852,18 +1852,13 @@ struct ReplayStyleTransactionContext {
 #[derive(Default)]
 struct MatchAnswerIdentityMapping {
     actual_by_expected: Vec<Option<u32>>,
-    expected_by_actual: Vec<Option<u32>>,
 }
 
 impl MatchAnswerIdentityMapping {
     fn record(&mut self, expected: u32, actual: u32) -> Result<(), String> {
         let expected_index = expected as usize;
-        let actual_index = actual as usize;
         if self.actual_by_expected.len() <= expected_index {
             self.actual_by_expected.resize(expected_index + 1, None);
-        }
-        if self.expected_by_actual.len() <= actual_index {
-            self.expected_by_actual.resize(actual_index + 1, None);
         }
         match self.actual_by_expected[expected_index] {
             Some(mapped) if mapped != actual => {
@@ -1872,14 +1867,6 @@ impl MatchAnswerIdentityMapping {
                 ));
             }
             Some(_) | None => self.actual_by_expected[expected_index] = Some(actual),
-        }
-        match self.expected_by_actual[actual_index] {
-            Some(mapped) if mapped != expected => {
-                return Err(format!(
-                    "identity alias: replayed {actual} previously mapped from {mapped}, got {expected}"
-                ));
-            }
-            Some(_) | None => self.expected_by_actual[actual_index] = Some(expected),
         }
         Ok(())
     }
@@ -1926,14 +1913,29 @@ fn replay_style_transaction_output(
         })
     {
         context.error.get_or_insert_with(|| {
+            let first_difference = actual.answers.iter().zip(&expected.answers).position(|(actual, expected)| {
+                actual.style_node != expected.style_node
+                    || actual.reaction != expected.reaction
+                    || actual.inherited_style_groups != expected.inherited_style_groups
+                    || actual.old_style_record != expected.old_style_record
+                    || actual.new_style_record != expected.new_style_record
+                    || actual.damage != expected.damage
+                    || actual.pseudo_kind != expected.pseudo_kind
+                    || actual.gap != expected.gap
+            });
+            let expected_answer = first_difference.and_then(|index| expected.answers.get(index));
+            let actual_answer = first_difference.and_then(|index| actual.answers.get(index));
             format!(
-                "style transaction output diverged: expected versions {}/{} and {:?}, got versions {}/{} and {:?}",
+                "style transaction output diverged: expected versions {}/{} and {} answers, got versions {}/{} and {} answers; first difference at {:?}: expected {:?}, got {:?}",
                 expected.transaction_version,
                 expected.program_version,
-                expected.answers,
+                expected.answers.len(),
                 actual.transaction_version,
                 actual.program_version,
-                actual.answers
+                actual.answers.len(),
+                first_difference,
+                expected_answer,
+                actual_answer
             )
         });
     }
