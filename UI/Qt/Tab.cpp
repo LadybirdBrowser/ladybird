@@ -1038,7 +1038,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     auto* duplicate_tab_action = new QAction("&Duplicate Tab", this);
     QObject::connect(duplicate_tab_action, &QAction::triggered, this, [this]() {
-        m_window->new_tab_from_url(view().url(), Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_tab(*this));
+        m_window->duplicate_tab(*this);
     });
 
     auto* move_to_start_action = new QAction("Move to &Start", this);
