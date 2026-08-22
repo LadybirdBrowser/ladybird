@@ -14,6 +14,7 @@ pub mod fragment_ownership;
 pub mod hit_test;
 pub mod host;
 pub(crate) mod paint_order;
+pub mod paint_state;
 pub mod paintable_arena;
 pub mod paintable_build;
 pub mod paintable_data;

@@ -62,7 +62,7 @@ fn selection_offsets_for_fragment(
     if fragment.selection_state == SELECTION_STATE_NONE {
         return None;
     }
-    let range = recorder.paintables.selection?;
+    let range = recorder.paint_state.selection?;
     drop_degenerate(text_fragment::compute_selection_offsets(
         recorder.layout_arena,
         fragment,

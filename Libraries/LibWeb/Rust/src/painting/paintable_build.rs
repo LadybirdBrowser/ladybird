@@ -249,7 +249,11 @@ impl<'a> PaintableCommit<'a> {
             let mut arena = self.arena.borrow_mut();
             let slot = arena.row_for_node(node);
             if expected_kind == PaintableKind::ViewportPaintable {
-                arena.reset_visual_context_state();
+                self.callbacks
+                    .arena()
+                    .paint_state()
+                    .borrow_mut()
+                    .reset_visual_context_state();
             }
             drop(arena);
             let arena = self.arena.borrow();

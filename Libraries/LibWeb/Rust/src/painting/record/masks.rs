@@ -127,7 +127,7 @@ impl PaintRecorder<'_> {
                     }
                 }
             }
-        } else if let Some(tree) = &self.paintables.visual_context.tree {
+        } else if let Some(tree) = &self.paint_state.visual_context.tree {
             let data = self.data(paintable);
             for index in data.visual_context_nodes_begin..data.visual_context_nodes_end {
                 if let VisualContextData::Mask(mask) = &tree.nodes[index].data {
@@ -162,7 +162,7 @@ impl PaintRecorder<'_> {
     }
 
     pub(crate) fn prerecord_nested_display_lists(&mut self) {
-        let masked_paintables = self.paintables.visual_context.paintables_with_mask_nodes.clone();
+        let masked_paintables = self.paint_state.visual_context.paintables_with_mask_nodes.clone();
         for paintable in masked_paintables {
             if !self.paintables.paintable_row_is_populated(paintable) {
                 continue;

@@ -192,16 +192,11 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
         }
         // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
         let entries = unsafe { ffi_slice(entries, entry_count) };
-        crate::painting::selection::apply(
-            arena,
-            &mut paintables,
-            viewport,
-            entries,
-            crate::painting::selection::SelectionRange {
-                start_offset: range_start_offset,
-                end_offset: range_end_offset,
-            },
-        );
+        crate::painting::selection::apply(arena, &mut paintables, viewport, entries);
+        arena.paint_state().borrow_mut().selection = Some(crate::painting::selection::SelectionRange {
+            start_offset: range_start_offset,
+            end_offset: range_end_offset,
+        });
     });
 }
 
@@ -217,6 +212,7 @@ pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewpo
             return;
         }
         crate::painting::selection::clear(arena, &mut paintables, viewport);
+        arena.paint_state().borrow_mut().selection = None;
     });
 }
 
@@ -298,9 +294,11 @@ pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
         if !paintables.paintable_row_is_populated(box_paintable) {
             return;
         }
+        let paint_state = arena.paint_state().borrow();
         crate::painting::scrollable_overflow::measure_scrollable_overflow(
             arena,
             &paintables,
+            &paint_state.scrollable_overflow_contained_boxes,
             &visual_context_callbacks,
             &overflow_callbacks,
             box_paintable,
@@ -494,7 +492,7 @@ pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxe
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let mut contained_boxes_by_containing_block =
-            std::mem::take(&mut arena.paintables().borrow_mut().scrollable_overflow_contained_boxes);
+            std::mem::take(&mut arena.paint_state().borrow_mut().scrollable_overflow_contained_boxes);
         {
             let paintables = arena.paintables().borrow();
             crate::painting::scrollable_overflow::refill_contained_boxes_index(
@@ -504,7 +502,7 @@ pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxe
                 &mut contained_boxes_by_containing_block,
             );
         }
-        arena.paintables().borrow_mut().scrollable_overflow_contained_boxes = contained_boxes_by_containing_block;
+        arena.paint_state().borrow_mut().scrollable_overflow_contained_boxes = contained_boxes_by_containing_block;
     });
 }
 
@@ -516,7 +514,7 @@ pub unsafe extern "C" fn layout_arena_clear_scrollable_overflow_contained_boxes(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         arena
-            .paintables()
+            .paint_state()
             .borrow_mut()
             .scrollable_overflow_contained_boxes
             .clear();
@@ -560,8 +558,8 @@ pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_
             }
             crate::painting::stacking_context::build_stacking_context_tree(arena, &paintables, root)
         };
+        arena.paint_state().borrow_mut().stacking_context_tree = Some(tree);
         let mut paintables = arena.paintables().borrow_mut();
-        paintables.stacking_context_tree = Some(tree);
         crate::painting::fragment_ownership::assign_fragment_ownership(arena, &mut paintables, root);
     });
 }
@@ -595,9 +593,10 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
                 );
             (tree, scroll_state, paintables_with_mask_nodes, previous_assignments)
         };
-        let mut paintables = arena.paintables().borrow_mut();
+        let paintables = arena.paintables().borrow();
         let assignments_changed = previous_assignments != paintables.visual_context_assignments();
-        let state = &mut paintables.visual_context;
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let state = &mut paint_state.visual_context;
         state.build_count += 1;
         let is_compatible = !force_incompatible_rebuild
             && state
@@ -635,11 +634,11 @@ pub unsafe extern "C" fn layout_arena_update_visual_context_values(
         let arena = unsafe { arena_from_handle(arena) };
         let pixel_ratio = callbacks.tree_inputs().device_pixels_per_css_pixel;
         let mut tree = {
-            let mut paintables = arena.paintables().borrow_mut();
+            let paintables = arena.paintables().borrow();
             if !paintables.paintable_row_is_populated(paintable) {
                 return false;
             }
-            let Some(tree) = paintables.visual_context.tree.take() else {
+            let Some(tree) = arena.paint_state().borrow_mut().visual_context.tree.take() else {
                 return false;
             };
             tree
@@ -655,7 +654,7 @@ pub unsafe extern "C" fn layout_arena_update_visual_context_values(
                 pixel_ratio,
             )
         };
-        arena.paintables().borrow_mut().visual_context.tree = Some(tree);
+        arena.paint_state().borrow_mut().visual_context.tree = Some(tree);
         updated
     })
 }
@@ -670,8 +669,8 @@ pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
 ) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        let Some(tree) = &mut paintables.visual_context.tree else {
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let Some(tree) = &mut paint_state.visual_context.tree else {
             return false;
         };
         let inputs = callbacks.tree_inputs();
@@ -690,7 +689,7 @@ pub unsafe extern "C" fn layout_arena_set_needs_to_refresh_scroll_state(arena: *
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         arena
-            .paintables()
+            .paint_state()
             .borrow_mut()
             .visual_context
             .needs_to_refresh_scroll_state = value;
@@ -704,8 +703,8 @@ pub unsafe extern "C" fn layout_arena_set_needs_to_refresh_scroll_state(arena: *
 pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        let state = &mut paintables.visual_context;
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let state = &mut paint_state.visual_context;
         state.scroll_state.clear();
         state.scroll_state_snapshot.clear();
         state.needs_to_refresh_scroll_state = true;
@@ -719,11 +718,12 @@ pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
 pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(arena: *mut c_void) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        let mut scroll_state = std::mem::take(&mut paintables.visual_context.scroll_state);
+        let paintables = arena.paintables().borrow();
+        let mut scroll_state = std::mem::take(&mut arena.paint_state().borrow_mut().visual_context.scroll_state);
         crate::painting::visual_context::refresh::refresh_sticky_constraints(&paintables, &mut scroll_state);
-        paintables.visual_context.scroll_state = scroll_state;
-        paintables.visual_context.needs_to_refresh_scroll_state = true;
+        let mut paint_state = arena.paint_state().borrow_mut();
+        paint_state.visual_context.scroll_state = scroll_state;
+        paint_state.visual_context.needs_to_refresh_scroll_state = true;
     });
 }
 
@@ -738,12 +738,12 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let mut scroll_state = {
-            let mut paintables = arena.paintables().borrow_mut();
-            if !paintables.visual_context.needs_to_refresh_scroll_state {
+            let mut paint_state = arena.paint_state().borrow_mut();
+            if !paint_state.visual_context.needs_to_refresh_scroll_state {
                 return;
             }
-            paintables.visual_context.needs_to_refresh_scroll_state = false;
-            std::mem::take(&mut paintables.visual_context.scroll_state)
+            paint_state.visual_context.needs_to_refresh_scroll_state = false;
+            std::mem::take(&mut paint_state.visual_context.scroll_state)
         };
         {
             let paintables = arena.paintables().borrow();
@@ -755,9 +755,9 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
             );
         }
         let snapshot = scroll_state.snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
-        let mut paintables = arena.paintables().borrow_mut();
-        paintables.visual_context.scroll_state = scroll_state;
-        paintables.visual_context.scroll_state_snapshot = snapshot;
+        let mut paint_state = arena.paint_state().borrow_mut();
+        paint_state.visual_context.scroll_state = scroll_state;
+        paint_state.visual_context.scroll_state_snapshot = snapshot;
     });
 }
 
@@ -777,37 +777,39 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let arena = unsafe { arena_from_handle(arena) };
         let mut output = {
             let paintables = arena.paintables().borrow();
-            if !paintables.paintable_row_is_populated(viewport) || paintables.stacking_context_tree.is_none() {
+            let paint_state = arena.paint_state().borrow();
+            if !paintables.paintable_row_is_populated(viewport) || paint_state.stacking_context_tree.is_none() {
                 return 0;
             }
             let command_cache_source = (!inputs.should_show_line_box_borders)
-                .then(|| paintables.paint_command_cache_source.clone())
+                .then(|| paint_state.paint_command_cache_source.clone())
                 .flatten();
             crate::painting::record::traversal::record_display_list(
                 arena,
                 &paintables,
+                &paint_state,
                 &callbacks,
                 &paint_callbacks,
                 &visual_context_callbacks,
                 inputs,
-                paintables.hit_test_list_generation + 1,
+                paint_state.hit_test_list_generation + 1,
                 command_cache_source,
-                paintables.hit_test_item_cache_source.clone(),
+                paint_state.hit_test_item_cache_source.clone(),
             )
         };
-        let mut paintables = arena.paintables().borrow_mut();
-        paintables.hit_test_list_generation += 1;
-        debug_assert_eq!(output.hit_test_list.generation, paintables.hit_test_list_generation);
-        if paintables
+        let mut paint_state = arena.paint_state().borrow_mut();
+        paint_state.hit_test_list_generation += 1;
+        debug_assert_eq!(output.hit_test_list.generation, paint_state.hit_test_list_generation);
+        if paint_state
             .hit_test_item_cache_source
             .as_ref()
             .is_some_and(|source| source.visual_context_tree_version != output.compatible_visual_context_tree_version)
         {
-            paintables.hit_test_item_cache_source = None;
+            paint_state.hit_test_item_cache_source = None;
         }
         let list = std::mem::take(&mut output.hit_test_list);
         if inputs.paint_command_cache_read_write {
-            paintables.hit_test_item_cache_source = Some(std::rc::Rc::new(
+            paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
                 crate::painting::record::cache::HitTestItemCacheSource {
                     id: list.generation,
                     visual_context_tree_version: output.compatible_visual_context_tree_version,
@@ -815,13 +817,13 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 },
             ));
         }
-        paintables.hit_test_list = Some(list);
+        paint_state.hit_test_list = Some(list);
         let output = std::rc::Rc::new(output);
         if inputs.paint_command_cache_read_write {
-            paintables.paint_command_cache_source = Some(output.clone());
+            paint_state.paint_command_cache_source = Some(output.clone());
         }
-        paintables.last_recording = Some(output);
-        list_generation_of(&paintables)
+        paint_state.last_recording = Some(output);
+        list_generation_of(&paint_state)
     })
 }
 
@@ -1080,8 +1082,8 @@ pub unsafe extern "C" fn layout_arena_visual_context_tree_node(
 pub unsafe extern "C" fn layout_arena_last_recording_spliced_capture_count(arena: *mut c_void) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables
+        let paint_state = arena.paint_state().borrow();
+        paint_state
             .last_recording
             .as_ref()
             .map_or(0, |recording| recording.spliced_capture_count)
@@ -1095,8 +1097,8 @@ pub unsafe extern "C" fn layout_arena_last_recording_spliced_capture_count(arena
 pub unsafe extern "C" fn layout_arena_last_recording_has_blocking_wheel_event_listeners(arena: *mut c_void) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables
+        let paint_state = arena.paint_state().borrow();
+        paint_state
             .last_recording
             .as_ref()
             .is_some_and(|recording| recording.has_blocking_wheel_event_listeners)
@@ -1985,8 +1987,8 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
 pub unsafe extern "C" fn layout_arena_stacking_context_tree_node_count(arena: *mut c_void) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables
+        let paint_state = arena.paint_state().borrow();
+        paint_state
             .stacking_context_tree
             .as_ref()
             .map_or(0, |tree| tree.nodes.len())
@@ -2004,7 +2006,8 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_node(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let node = &paintables
+        let paint_state = arena.paint_state().borrow();
+        let node = &paint_state
             .stacking_context_tree
             .as_ref()
             .expect("no stacking context tree")
@@ -2033,8 +2036,8 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_child(
 ) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables
+        let paint_state = arena.paint_state().borrow();
+        paint_state
             .stacking_context_tree
             .as_ref()
             .expect("no stacking context tree")
@@ -2050,8 +2053,8 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_child(
 pub unsafe extern "C" fn layout_arena_main_visual_context_tree(arena: *mut c_void) -> *const c_void {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables
+        let paint_state = arena.paint_state().borrow();
+        paint_state
             .visual_context
             .tree
             .as_ref()
@@ -2071,8 +2074,8 @@ pub unsafe extern "C" fn layout_arena_scroll_state_snapshot(
 ) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        let snapshot = &paintables.visual_context.scroll_state_snapshot;
+        let paint_state = arena.paint_state().borrow();
+        let snapshot = &paint_state.visual_context.scroll_state_snapshot;
         let needed = snapshot.len() * 2;
         if !out.is_null() {
             for (index, offset) in snapshot.iter().enumerate() {
@@ -2101,8 +2104,8 @@ pub unsafe extern "C" fn layout_arena_cumulative_scroll_offset_for_node(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        let state = &paintables.visual_context;
+        let paint_state = arena.paint_state().borrow();
+        let state = &paint_state.visual_context;
         let offset = state.tree.as_ref().map_or_else(Default::default, |tree| {
             state
                 .scroll_state
@@ -2123,8 +2126,8 @@ pub unsafe extern "C" fn layout_arena_cumulative_scroll_offset_for_node(
 pub unsafe extern "C" fn layout_arena_hit_test_item_count(arena: *mut c_void) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables.hit_test_list.as_ref().map_or(0, |list| list.items.len())
+        let paint_state = arena.paint_state().borrow();
+        paint_state.hit_test_list.as_ref().map_or(0, |list| list.items.len())
     })
 }
 
@@ -2141,7 +2144,8 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let items = &paintables.hit_test_list.as_ref().expect("no hit-test list").items;
+        let paint_state = arena.paint_state().borrow();
+        let items = &paint_state.hit_test_list.as_ref().expect("no hit-test list").items;
         assert_eq!(items.len(), output_length);
         if items.is_empty() {
             return;
@@ -2245,8 +2249,8 @@ pub unsafe extern "C" fn layout_arena_export_paint_tree_dump_entries(
 pub unsafe extern "C" fn layout_arena_display_list_mask_registration_count(arena: *mut c_void) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        paintables
+        let paint_state = arena.paint_state().borrow();
+        paint_state
             .last_recording
             .as_ref()
             .map_or(0, |recording| recording.mask_display_lists.len())
@@ -2265,8 +2269,8 @@ pub unsafe extern "C" fn layout_arena_display_list_mask_registration(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        let (context_index, id) = paintables
+        let paint_state = arena.paint_state().borrow();
+        let (context_index, id) = paint_state
             .last_recording
             .as_ref()
             .expect("no recording")
@@ -2302,8 +2306,8 @@ pub unsafe extern "C" fn layout_arena_paint_push_bytes(sink: *mut c_void, bytes:
 pub unsafe extern "C" fn layout_arena_display_list_bytes(arena: *mut c_void, out_length: *mut usize) -> *const u8 {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        let Some(recording) = &paintables.last_recording else {
+        let paint_state = arena.paint_state().borrow();
+        let Some(recording) = &paint_state.last_recording else {
             // SAFETY: out_length is a live pointer for this synchronous call.
             unsafe { *out_length = 0 };
             return std::ptr::null();
@@ -2359,8 +2363,8 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_index(arena: *mut c_vo
     abort_on_panic(|| with_hit_test_list(arena, usize::MAX, |list, _| list.caret_item_indices[caret_item_index]))
 }
 
-fn list_generation_of(paintables: &crate::painting::paintable_arena::PaintableArena) -> u64 {
-    paintables.hit_test_list.as_ref().map_or(0, |list| list.generation)
+fn list_generation_of(paint_state: &crate::painting::paint_state::PaintState) -> u64 {
+    paint_state.hit_test_list.as_ref().map_or(0, |list| list.generation)
 }
 
 /// # Safety
@@ -2370,7 +2374,7 @@ fn list_generation_of(paintables: &crate::painting::paintable_arena::PaintableAr
 pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_void) -> u64 {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        list_generation_of(&arena.paintables().borrow())
+        list_generation_of(&arena.paint_state().borrow())
     })
 }
 
@@ -2382,16 +2386,17 @@ fn with_hit_test_list<R>(
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
     {
-        let mut paintables = arena.paintables().borrow_mut();
-        let Some(list) = paintables.hit_test_list.as_mut() else {
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let Some(list) = paint_state.hit_test_list.as_mut() else {
             return default;
         };
         list.build_derived_structures_if_needed();
     }
-    let paintables = arena.paintables().borrow();
-    let Some(list) = paintables.hit_test_list.as_ref() else {
+    let paint_state = arena.paint_state().borrow();
+    let Some(list) = paint_state.hit_test_list.as_ref() else {
         return default;
     };
+    let paintables = arena.paintables().borrow();
     query(list, &paintables)
 }
 

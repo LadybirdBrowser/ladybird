@@ -60,6 +60,7 @@ fn to_paint_phase(phase: StackingContextPaintPhase) -> PaintPhase {
 pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
+    paint_state: &crate::painting::paint_state::PaintState,
     host: &FfiHitTestHostCallbacks,
     paint_host: &FfiPaintHostCallbacks,
     visual_context_host: &FfiVisualContextHostCallbacks,
@@ -68,17 +69,17 @@ pub(crate) fn record_display_list(
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingOutput {
-    let stacking_contexts = paintables
+    let stacking_contexts = paint_state
         .stacking_context_tree
         .as_ref()
         .expect("recording needs a built stacking context tree");
-    let empty_effective_clips = paintables
+    let empty_effective_clips = paint_state
         .visual_context
         .tree
         .as_ref()
         .map(|tree| tree.nodes.iter().map(|node| node.has_empty_effective_clip).collect())
         .unwrap_or_default();
-    let visual_context_tree_version = paintables.visual_context.tree_version();
+    let visual_context_tree_version = paint_state.visual_context.tree_version();
     // NB: Some commands embed visual context indices in their payloads. Those indices can change
     //     when the visual context tree is rebuilt, so commands from an incompatible tree must be
     //     recorded and cached against the new tree.
@@ -89,6 +90,7 @@ pub(crate) fn record_display_list(
     let mut recorder = PaintRecorder {
         layout_arena,
         paintables,
+        paint_state,
         stacking_contexts,
         host,
         paint_host,

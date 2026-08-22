@@ -282,6 +282,7 @@ fn fragment_node_is_in_focused_text_control(
 pub(crate) fn measure_scrollable_overflow(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
+    contained_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
     visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
@@ -372,7 +373,7 @@ pub(crate) fn measure_scrollable_overflow(
     //   wholly in the negative scrollable overflow region,
     //   FIXME: accounting for 3D transforms by projecting each box onto the plane of the element that establishes
     //          its 3D rendering context. [CSS3-TRANSFORMS]
-    if let Some(contained_boxes) = paintables.scrollable_overflow_contained_boxes.get(&box_node) {
+    if let Some(contained_boxes) = contained_boxes_by_containing_block.get(&box_node) {
         for &child_node in contained_boxes {
             if !paintables.paintable_row_is_populated(child_node)
                 || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
@@ -481,6 +482,7 @@ pub(crate) fn measure_scrollable_overflow(
                     measure_scrollable_overflow(
                         layout_arena,
                         paintables,
+                        contained_boxes_by_containing_block,
                         visual_context_callbacks,
                         overflow_callbacks,
                         child_node,
