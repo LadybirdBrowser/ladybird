@@ -887,6 +887,26 @@ pub struct RetainedGridArea {
 }
 
 impl RetainedGridArea {
+    pub(crate) fn new(
+        name: RetainedUtf16FlyString,
+        implicit_start_name: RetainedUtf16FlyString,
+        implicit_end_name: RetainedUtf16FlyString,
+        row_start: usize,
+        row_end: usize,
+        column_start: usize,
+        column_end: usize,
+    ) -> Self {
+        Self {
+            name,
+            implicit_start_name,
+            implicit_end_name,
+            row_start,
+            row_end,
+            column_start,
+            column_end,
+        }
+    }
+
     pub(crate) fn name(&self) -> &RetainedUtf16FlyString {
         &self.name
     }
@@ -940,7 +960,7 @@ impl RetainedGridAreaList {
         Self { pointer, length }
     }
 
-    fn from_retained_elements(elements: Vec<RetainedGridArea>) -> Self {
+    pub(crate) fn from_retained_elements(elements: Vec<RetainedGridArea>) -> Self {
         let slice = elements.into_boxed_slice();
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
@@ -1151,6 +1171,79 @@ impl Clone for RetainedGridTrackEntryList {
 }
 
 impl RetainedGridTrackEntry {
+    pub(crate) fn line_names(names: Vec<RetainedUtf16FlyString>) -> Self {
+        Self {
+            kind: GridTrackEntryKind::LineNames,
+            names: RetainedUtf16FlyStringList::from_retained_strings(names),
+            size_value: RetainedStyleValueData::none(),
+            min_value: RetainedStyleValueData::none(),
+            max_value: RetainedStyleValueData::none(),
+            repeat_type: 0,
+            repeat_count: RetainedStyleValueData::none(),
+            repeat_is_subgrid: false,
+            repeat_preserve_line_name_sets: false,
+            repeat_entries_pointer: std::ptr::null_mut(),
+            repeat_entries_length: 0,
+        }
+    }
+
+    pub(crate) fn size(value: StyleValueData) -> Self {
+        Self {
+            kind: GridTrackEntryKind::Size,
+            names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            size_value: RetainedStyleValueData::from_owned(value),
+            min_value: RetainedStyleValueData::none(),
+            max_value: RetainedStyleValueData::none(),
+            repeat_type: 0,
+            repeat_count: RetainedStyleValueData::none(),
+            repeat_is_subgrid: false,
+            repeat_preserve_line_name_sets: false,
+            repeat_entries_pointer: std::ptr::null_mut(),
+            repeat_entries_length: 0,
+        }
+    }
+
+    pub(crate) fn minmax(min: StyleValueData, max: StyleValueData) -> Self {
+        Self {
+            kind: GridTrackEntryKind::MinMax,
+            names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            size_value: RetainedStyleValueData::none(),
+            min_value: RetainedStyleValueData::from_owned(min),
+            max_value: RetainedStyleValueData::from_owned(max),
+            repeat_type: 0,
+            repeat_count: RetainedStyleValueData::none(),
+            repeat_is_subgrid: false,
+            repeat_preserve_line_name_sets: false,
+            repeat_entries_pointer: std::ptr::null_mut(),
+            repeat_entries_length: 0,
+        }
+    }
+
+    pub(crate) fn repeat(
+        repeat_type: u8,
+        repeat_count: Option<StyleValueData>,
+        repeat_is_subgrid: bool,
+        repeat_preserve_line_name_sets: bool,
+        repeat_entries: Vec<Self>,
+    ) -> Self {
+        let repeat_entries = repeat_entries.into_boxed_slice();
+        let repeat_entries_length = repeat_entries.len();
+        let repeat_entries_pointer = Box::into_raw(repeat_entries).cast::<Self>();
+        Self {
+            kind: GridTrackEntryKind::Repeat,
+            names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            size_value: RetainedStyleValueData::none(),
+            min_value: RetainedStyleValueData::none(),
+            max_value: RetainedStyleValueData::none(),
+            repeat_type,
+            repeat_count: repeat_count.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+            repeat_is_subgrid,
+            repeat_preserve_line_name_sets,
+            repeat_entries_pointer,
+            repeat_entries_length,
+        }
+    }
+
     pub(crate) fn repeat_entries(&self) -> &[RetainedGridTrackEntry] {
         if self.repeat_entries_pointer.is_null() {
             return &[];

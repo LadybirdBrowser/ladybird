@@ -20,6 +20,7 @@ use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::parser::fonts_parser::{parse_font_descriptor, parse_font_property};
+use crate::css::parser::grid_parser::parse_grid_property;
 use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property};
 use crate::css::parser::positions_shapes_parser::{
     is_position_shape_function_name, parse_anchor_fit_property, parse_geometry_property, parse_position_property,
@@ -58,11 +59,11 @@ const INVALID_FFI_INPUT: NotHandledReason = NotHandledReason {
     label: "ffi:invalid-input",
     c_label: b"ffi:invalid-input\0",
 };
-const SUBSTITUTION_NOT_PORTED: NotHandledReason = NotHandledReason {
+pub(crate) const SUBSTITUTION_NOT_PORTED: NotHandledReason = NotHandledReason {
     label: "substitution",
     c_label: b"substitution\0",
 };
-const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
+pub(crate) const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
     label: "function:not-ported",
     c_label: b"function:not-ported\0",
 };
@@ -72,7 +73,7 @@ pub(crate) const VALUE_TYPE_ANGLE: u8 = 2;
 const VALUE_TYPE_COLOR: u8 = 6;
 const VALUE_TYPE_CUSTOM_IDENT: u8 = 10;
 const VALUE_TYPE_DASHED_IDENT: u8 = 11;
-const VALUE_TYPE_FLEX: u8 = 15;
+pub(crate) const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_FREQUENCY: u8 = 21;
 const VALUE_TYPE_IMAGE: u8 = 23;
 pub(crate) const VALUE_TYPE_INTEGER: u8 = 24;
@@ -632,7 +633,7 @@ fn parse_angle_percentage_value(
         .or_else(|| parse_percentage_value(value, accepted_percentage_range))
 }
 
-fn parse_flex_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
+pub(crate) fn parse_flex_value(value: &ComponentValue, accepted_range: NumericRange) -> Option<StyleValueData> {
     parse_dimension_value(value, VALUE_TYPE_FLEX, accepted_range)
 }
 
@@ -875,7 +876,7 @@ fn parse_opacity_value(value: &ComponentValue) -> Option<StyleValueData> {
     })
 }
 
-fn is_arbitrary_substitution_function(name: &[u16]) -> bool {
+pub(crate) fn is_arbitrary_substitution_function(name: &[u16]) -> bool {
     (name.len() >= 2 && name[0] == u16::from(b'-') && name[1] == u16::from(b'-'))
         || ["attr", "env", "if", "inherit", "var"]
             .iter()
@@ -1534,6 +1535,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     let font_outcome = parse_font_property(context, property_id, values);
     if !matches!(font_outcome, ParseOutcome::NotHandled(_)) {
         return font_outcome;
+    }
+    let grid_outcome = parse_grid_property(context, property_id, values);
+    if !matches!(grid_outcome, ParseOutcome::NotHandled(_)) {
+        return grid_outcome;
     }
     if let Some(reason) = unported_function_reason(values) {
         return ParseOutcome::NotHandled(reason);
