@@ -309,6 +309,16 @@ impl LayoutNodeArena {
         nodes.clone()
     }
 
+    /// Drops one node's cached intrinsic sizes outright, for the wrap of its epoch:
+    /// entries are stamped with the epoch they were measured under, so a stamp reused
+    /// after a full lap would match a pre-wrap entry.
+    pub(crate) fn drop_intrinsic_size_cache(&self, data: *const NodeData) {
+        let (index, _) = self.slot_for_data(data);
+        if let Some(slot) = self.intrinsic_size_caches.borrow_mut().get_mut(index as usize) {
+            *slot = IntrinsicSizeCacheSlot::default();
+        }
+    }
+
     pub(crate) fn fc_run_cache_store(&self) -> &crate::layout::FcRunCacheArenaStore {
         &self.fc_run_cache_store
     }
@@ -861,9 +871,6 @@ impl LayoutNodeArena {
             ),
             "block size cache kind must use the block axis"
         );
-        if data.intrinsic_cache_epoch == u16::MAX {
-            return None;
-        }
 
         let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
         let caches = self.intrinsic_size_caches.borrow();
@@ -880,10 +887,6 @@ impl LayoutNodeArena {
     }
 
     fn with_intrinsic_size_maps_mut(&self, data: &NodeData, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
-        if data.intrinsic_cache_epoch == u16::MAX {
-            return;
-        }
-
         let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
         let mut caches = self.intrinsic_size_caches.borrow_mut();
         if caches.len() <= index as usize {
@@ -927,9 +930,6 @@ impl LayoutNodeArena {
             ),
             "inline measurement cache kind must use the inline axis"
         );
-        if data.intrinsic_cache_epoch == u16::MAX {
-            return None;
-        }
 
         let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
         let caches = self.intrinsic_size_caches.borrow();
@@ -950,10 +950,6 @@ impl LayoutNodeArena {
         data: &NodeData,
         compute: impl FnOnce() -> bool,
     ) -> bool {
-        if data.intrinsic_cache_epoch == u16::MAX {
-            return compute();
-        }
-
         let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
         {
             let caches = self.intrinsic_size_caches.borrow();
@@ -1696,6 +1692,16 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_fc_run_cache_epochs_enabled() -> bool {
     crate::layout::fc_run_cache_mode_from_environment() != crate::layout::FcRunCacheMode::Disabled
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_drop_intrinsic_size_cache(arena: *mut c_void, data: *const NodeData) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &*arena.cast::<LayoutNodeArena>() }.drop_intrinsic_size_cache(data);
+    });
 }
 
 #[unsafe(no_mangle)]
