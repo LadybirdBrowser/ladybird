@@ -63,16 +63,14 @@ public:
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
-        Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
         GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
 
-        // Apply-time state, populated by the UI's per-navigable jobs. Operations initiated elsewhere (browser UI,
-        // another process) carry only this part; their record is created by the first job that references them.
-        Optional<Bindings::NavigationType> navigation_type {};
-        Optional<UserNavigationInvolvement> user_involvement {};
-        HashTable<CrossProcessId> claimed_navigables_awaiting_continuation {};
+        // In-flight job parking: claims and continuations held between a changing job and its continuation or the
+        // operation's completion. Operations initiated elsewhere (browser UI, another process) carry only this
+        // part; their record is created by the first job that references them.
+        HashMap<CrossProcessId, LocalNavigable::NavigationAPIAbortBehavior> claimed_navigables_awaiting_continuation {};
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations {};
     };
     void request_history_operation(HistoryOperationParameters);
@@ -153,9 +151,6 @@ private:
     struct LocalApplyChangingNavigableHistoryStepContinuation {
         HistoryObjectLengthAndIndex history_object_length_and_index;
         Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
-        Optional<Bindings::NavigationType> navigation_type;
-        LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
-        UserNavigationInvolvement user_involvement;
     };
     bool run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob, GC::Ptr<SourceSnapshotParams>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete>);
     void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete);
