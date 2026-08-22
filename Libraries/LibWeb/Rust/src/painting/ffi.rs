@@ -466,16 +466,12 @@ pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxe
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut contained_boxes_by_containing_block =
-            std::mem::take(&mut arena.paint_state().borrow_mut().scrollable_overflow_contained_boxes);
-        {
-            crate::painting::scrollable_overflow::refill_contained_boxes_index(
-                arena,
-                root,
-                &mut contained_boxes_by_containing_block,
-            );
-        }
-        arena.paint_state().borrow_mut().scrollable_overflow_contained_boxes = contained_boxes_by_containing_block;
+        let mut paint_state = arena.paint_state().borrow_mut();
+        crate::painting::scrollable_overflow::refill_contained_boxes_index(
+            arena,
+            root,
+            &mut paint_state.scrollable_overflow_contained_boxes,
+        );
     });
 }
 
@@ -596,26 +592,20 @@ pub unsafe extern "C" fn layout_arena_update_visual_context_values(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let pixel_ratio = callbacks.tree_inputs().device_pixels_per_css_pixel;
-        let mut tree = {
-            if !arena.paintable_row_is_populated(paintable) {
-                return false;
-            }
-            let Some(tree) = arena.paint_state().borrow_mut().visual_context.tree.take() else {
-                return false;
-            };
-            tree
+        if !arena.paintable_row_is_populated(paintable) {
+            return false;
+        }
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let Some(tree) = paint_state.visual_context.tree.as_mut() else {
+            return false;
         };
-        let updated = {
-            crate::painting::visual_context::build::update_visual_context_values(
-                arena,
-                &callbacks,
-                &mut tree,
-                paintable,
-                pixel_ratio,
-            )
-        };
-        arena.paint_state().borrow_mut().visual_context.tree = Some(tree);
-        updated
+        crate::painting::visual_context::build::update_visual_context_values(
+            arena,
+            &callbacks,
+            tree,
+            paintable,
+            pixel_ratio,
+        )
     })
 }
 
@@ -678,11 +668,10 @@ pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
 pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(arena: *mut c_void) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut scroll_state = std::mem::take(&mut arena.paint_state().borrow_mut().visual_context.scroll_state);
-        crate::painting::visual_context::refresh::refresh_sticky_constraints(arena, &mut scroll_state);
         let mut paint_state = arena.paint_state().borrow_mut();
-        paint_state.visual_context.scroll_state = scroll_state;
-        paint_state.visual_context.needs_to_refresh_scroll_state = true;
+        let state = &mut paint_state.visual_context;
+        crate::painting::visual_context::refresh::refresh_sticky_constraints(arena, &mut state.scroll_state);
+        state.needs_to_refresh_scroll_state = true;
     });
 }
 
@@ -696,21 +685,16 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut scroll_state = {
-            let mut paint_state = arena.paint_state().borrow_mut();
-            if !paint_state.visual_context.needs_to_refresh_scroll_state {
-                return;
-            }
-            paint_state.visual_context.needs_to_refresh_scroll_state = false;
-            std::mem::take(&mut paint_state.visual_context.scroll_state)
-        };
-        {
-            crate::painting::visual_context::refresh::refresh_scroll_state(arena, &callbacks, &mut scroll_state);
-        }
-        let snapshot = scroll_state.snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
         let mut paint_state = arena.paint_state().borrow_mut();
-        paint_state.visual_context.scroll_state = scroll_state;
-        paint_state.visual_context.scroll_state_snapshot = snapshot;
+        let state = &mut paint_state.visual_context;
+        if !state.needs_to_refresh_scroll_state {
+            return;
+        }
+        state.needs_to_refresh_scroll_state = false;
+        crate::painting::visual_context::refresh::refresh_scroll_state(arena, &callbacks, &mut state.scroll_state);
+        state.scroll_state_snapshot = state
+            .scroll_state
+            .snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
     });
 }
 
@@ -2290,17 +2274,11 @@ fn with_hit_test_list<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
-    {
-        let mut paint_state = arena.paint_state().borrow_mut();
-        let Some(list) = paint_state.hit_test_list.as_mut() else {
-            return default;
-        };
-        list.build_derived_structures_if_needed();
-    }
-    let paint_state = arena.paint_state().borrow();
-    let Some(list) = paint_state.hit_test_list.as_ref() else {
+    let mut paint_state = arena.paint_state().borrow_mut();
+    let Some(list) = paint_state.hit_test_list.as_mut() else {
         return default;
     };
+    list.build_derived_structures_if_needed();
     query(list, arena)
 }
 

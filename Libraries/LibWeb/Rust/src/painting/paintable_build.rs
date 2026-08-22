@@ -308,40 +308,38 @@ impl<'a> PaintableCommit<'a> {
             height: fragment.content_block_size,
         };
         let mut content_size_change = None;
-        {
-            let arena = self.arena();
-            let (old_identity, old_content_size) = arena.with_committed_fragment_link(node, |old_link| {
-                old_link.map_or((0, FfiCssPixelSize::default()), |old_link| {
-                    (
-                        old_link.fragment.identity,
-                        FfiCssPixelSize {
-                            width: old_link.fragment.content_inline_size,
-                            height: old_link.fragment.content_block_size,
-                        },
-                    )
-                })
-            });
-            let previous_content_size_for_diff = if reuses_committed_subtree {
-                old_content_size
-            } else {
-                FfiCssPixelSize::default()
-            };
-            if previous_content_size_for_diff != new_content_size {
-                assert!(
-                    !reuses_committed_subtree,
-                    "a reused committed subtree changed its content size"
-                );
-                content_size_change = Some((previous_content_size_for_diff, new_content_size));
-            }
-            arena.update_paintable_data(node, |data| {
-                if old_identity != fragment.identity {
-                    data.cached_overflow = FfiOverflowData::default();
-                    data.has_cached_overflow = false;
-                }
-                data.content_size = new_content_size;
-                data.offset = link.committed_offset;
-            });
+        let arena = self.arena();
+        let (old_identity, old_content_size) = arena.with_committed_fragment_link(node, |old_link| {
+            old_link.map_or((0, FfiCssPixelSize::default()), |old_link| {
+                (
+                    old_link.fragment.identity,
+                    FfiCssPixelSize {
+                        width: old_link.fragment.content_inline_size,
+                        height: old_link.fragment.content_block_size,
+                    },
+                )
+            })
+        });
+        let previous_content_size_for_diff = if reuses_committed_subtree {
+            old_content_size
+        } else {
+            FfiCssPixelSize::default()
+        };
+        if previous_content_size_for_diff != new_content_size {
+            assert!(
+                !reuses_committed_subtree,
+                "a reused committed subtree changed its content size"
+            );
+            content_size_change = Some((previous_content_size_for_diff, new_content_size));
         }
+        arena.update_paintable_data(node, |data| {
+            if old_identity != fragment.identity {
+                data.cached_overflow = FfiOverflowData::default();
+                data.has_cached_overflow = false;
+            }
+            data.content_size = new_content_size;
+            data.offset = link.committed_offset;
+        });
         self.callbacks.set_committed_fragment_link(node, link.clone());
         content_size_change
     }
