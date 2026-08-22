@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_tokenizer::{ParserString, ParserToken, ParserTokenKind};
+use crate::css::css_tokenizer::{ParserString, ParserToken, ParserTokenKind, SourcePosition};
 
 const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
 
@@ -25,6 +25,8 @@ pub(crate) enum ComponentKind {
 pub(crate) struct ComponentValue {
     pub kind: ComponentKind,
     pub original_source_text: Box<[u16]>,
+    pub start_position: SourcePosition,
+    pub end_position: SourcePosition,
 }
 
 impl ComponentValue {
@@ -32,6 +34,8 @@ impl ComponentValue {
         Self {
             kind: ComponentKind::Token(ParserTokenKind::EndOfFile),
             original_source_text: Box::new([]),
+            start_position: SourcePosition::default(),
+            end_position: SourcePosition::default(),
         }
     }
 
@@ -98,7 +102,8 @@ fn is_same_token_kind(left: &ParserTokenKind, right: &ParserTokenKind) -> bool {
 }
 
 fn consume_component_values(
-    tokens: &mut std::iter::Peekable<std::vec::IntoIter<ParserToken>>,
+    tokens: &[ParserToken],
+    position: &mut usize,
     ending: Option<&ParserTokenKind>,
     depth: usize,
 ) -> Result<Vec<ComponentValue>, ()> {
@@ -107,56 +112,77 @@ fn consume_component_values(
     }
 
     let mut values = Vec::new();
-    while let Some(token) = tokens.peek() {
+    while let Some(token) = tokens.get(*position) {
         if ending.is_some_and(|ending| is_same_token_kind(&token.kind, ending)) {
             break;
         }
 
-        let token = tokens.next().unwrap();
-        let mut original_source_text = token.source.to_vec();
-        let kind = match token.kind {
-            ParserTokenKind::Function(name) => {
-                let function_values = consume_component_values(tokens, Some(&ParserTokenKind::CloseParen), depth + 1)?;
-                append_original_source_text(&mut original_source_text, &function_values);
-                if let Some(closing) = tokens.peek()
-                    && matches!(closing.kind, ParserTokenKind::CloseParen)
-                {
-                    let closing = tokens.next().unwrap();
-                    closing.source.append_to(&mut original_source_text);
-                }
-                ComponentKind::Function {
-                    name,
-                    values: function_values.into_boxed_slice(),
-                }
-            }
-            opening @ (ParserTokenKind::OpenSquare | ParserTokenKind::OpenParen | ParserTokenKind::OpenCurly) => {
-                let ending = match opening {
-                    ParserTokenKind::OpenSquare => ParserTokenKind::CloseSquare,
-                    ParserTokenKind::OpenParen => ParserTokenKind::CloseParen,
-                    ParserTokenKind::OpenCurly => ParserTokenKind::CloseCurly,
-                    _ => unreachable!(),
-                };
-                let block_values = consume_component_values(tokens, Some(&ending), depth + 1)?;
-                append_original_source_text(&mut original_source_text, &block_values);
-                if let Some(closing) = tokens.peek()
-                    && is_same_token_kind(&closing.kind, &ending)
-                {
-                    let closing = tokens.next().unwrap();
-                    closing.source.append_to(&mut original_source_text);
-                }
-                ComponentKind::SimpleBlock {
-                    opening,
-                    values: block_values.into_boxed_slice(),
-                }
-            }
-            kind => ComponentKind::Token(kind),
-        };
-        values.push(ComponentValue {
-            kind,
-            original_source_text: original_source_text.into_boxed_slice(),
-        });
+        values.push(consume_a_component_value(tokens, position, depth)?);
     }
     Ok(values)
+}
+
+pub(crate) fn consume_a_component_value(
+    tokens: &[ParserToken],
+    position: &mut usize,
+    depth: usize,
+) -> Result<ComponentValue, ()> {
+    if depth > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
+        return Err(());
+    }
+    let token = tokens.get(*position).ok_or(())?.clone();
+    *position += 1;
+    let mut original_source_text = token.source.to_vec();
+    let start_position = token.start_position;
+    let mut end_position = token.end_position;
+    let kind = match token.kind {
+        ParserTokenKind::Function(name) => {
+            let function_values =
+                consume_component_values(tokens, position, Some(&ParserTokenKind::CloseParen), depth + 1)?;
+            append_original_source_text(&mut original_source_text, &function_values);
+            if let Some(closing) = tokens.get(*position)
+                && matches!(closing.kind, ParserTokenKind::CloseParen)
+            {
+                let closing = &tokens[*position];
+                *position += 1;
+                closing.source.append_to(&mut original_source_text);
+                end_position = closing.end_position;
+            }
+            ComponentKind::Function {
+                name,
+                values: function_values.into_boxed_slice(),
+            }
+        }
+        opening @ (ParserTokenKind::OpenSquare | ParserTokenKind::OpenParen | ParserTokenKind::OpenCurly) => {
+            let ending = match opening {
+                ParserTokenKind::OpenSquare => ParserTokenKind::CloseSquare,
+                ParserTokenKind::OpenParen => ParserTokenKind::CloseParen,
+                ParserTokenKind::OpenCurly => ParserTokenKind::CloseCurly,
+                _ => unreachable!(),
+            };
+            let block_values = consume_component_values(tokens, position, Some(&ending), depth + 1)?;
+            append_original_source_text(&mut original_source_text, &block_values);
+            if let Some(closing) = tokens.get(*position)
+                && is_same_token_kind(&closing.kind, &ending)
+            {
+                let closing = &tokens[*position];
+                *position += 1;
+                closing.source.append_to(&mut original_source_text);
+                end_position = closing.end_position;
+            }
+            ComponentKind::SimpleBlock {
+                opening,
+                values: block_values.into_boxed_slice(),
+            }
+        }
+        kind => ComponentKind::Token(kind),
+    };
+    Ok(ComponentValue {
+        kind,
+        original_source_text: original_source_text.into_boxed_slice(),
+        start_position,
+        end_position,
+    })
 }
 
 // https://drafts.csswg.org/css-syntax-3/#consume-list-of-component-values
@@ -177,7 +203,9 @@ impl ComponentValueTokens for &[ParserToken] {
 }
 
 pub(crate) fn consume_a_list_of_component_values(tokens: impl ComponentValueTokens) -> Result<Vec<ComponentValue>, ()> {
-    consume_component_values(&mut tokens.into_owned_tokens().into_iter().peekable(), None, 0)
+    let tokens = tokens.into_owned_tokens();
+    let mut position = 0;
+    consume_component_values(&tokens, &mut position, None, 0)
 }
 
 #[cfg(test)]
