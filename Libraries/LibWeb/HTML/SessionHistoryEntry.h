@@ -67,8 +67,9 @@ struct SessionHistoryEntryScrollPositionData {
 };
 
 struct SessionHistoryEntryPersistedState {
-    CrossProcessId document_state_id;
-    Utf16String navigation_api_key;
+    // AD-HOC: Persisted state crosses the process boundary separately from its entry, so retain the entry's full
+    // identity instead of relying on its Navigation API key, which replaceState() can share with another entry.
+    SessionHistoryEntryIdentity entry_identity;
     SessionHistoryEntryScrollPositionData scroll_position_data;
 };
 

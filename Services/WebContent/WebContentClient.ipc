@@ -185,9 +185,9 @@ endpoint WebContentClient
     did_update_primary_selection(u64 page_id, String text) =|
 
     did_create_top_level_traversable(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry) =|
-    did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state) =|
-    did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode) =|
-    did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Utf16String navigable_target_name) =|
+    did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state) =|
+    did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) =|
+    did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) =|
     did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) =|
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)

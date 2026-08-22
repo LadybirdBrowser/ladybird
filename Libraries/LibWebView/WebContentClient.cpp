@@ -2001,28 +2001,28 @@ void WebContentClient::did_create_top_level_traversable(u64 page_id, Web::HTML::
     view->did_create_top_level_traversable({}, move(initial_history_entry));
 }
 
-void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
+void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::StorageSerializationRecord navigation_api_state)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->top_level_traversable().update_session_history_entry_navigation_api_state(*navigable, navigation_api_key, move(navigation_api_state));
+    navigable->top_level_traversable().update_session_history_entry_navigation_api_state(*navigable, entry_identity, move(navigation_api_state));
 }
 
-void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
+void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, navigation_api_key, scroll_restoration_mode);
+    navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, entry_identity, scroll_restoration_mode);
 }
 
-void WebContentClient::did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Utf16String navigable_target_name)
+void WebContentClient::did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->top_level_traversable().update_session_history_entry_document_state_navigable_target_name(*navigable, navigation_api_key, move(navigable_target_name));
+    navigable->top_level_traversable().update_session_history_entry_document_state_navigable_target_name(*navigable, entry_identity, move(navigable_target_name));
 }
 
 void WebContentClient::did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending)

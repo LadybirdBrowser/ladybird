@@ -85,8 +85,7 @@ Optional<SessionHistoryEntryPersistedState> create_session_history_entry_persist
         return {};
 
     return SessionHistoryEntryPersistedState {
-        .document_state_id = document_state->cross_process_id(),
-        .navigation_api_key = entry.navigation_api_key(),
+        .entry_identity = session_history_entry_identity(entry),
         .scroll_position_data = entry.scroll_position_data(),
     };
 }
@@ -170,6 +169,14 @@ SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistory
         .navigation_api_id = entry.navigation_api_id(),
         .scroll_restoration_mode = entry.scroll_restoration_mode(),
         .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
+SessionHistoryEntryIdentity session_history_entry_identity(SameDocumentNavigationEntry const& entry)
+{
+    return {
+        .document_state_id = entry.document_state_id,
+        .navigation_api_id = entry.navigation_api_id,
     };
 }
 
@@ -310,8 +317,7 @@ ErrorOr<Web::HTML::SessionHistoryEntryScrollPositionData> IPC::decode(Decoder& d
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
 {
-    TRY(encoder.encode(persisted_state.document_state_id));
-    TRY(encoder.encode(persisted_state.navigation_api_key));
+    TRY(encoder.encode(persisted_state.entry_identity));
     TRY(encoder.encode(persisted_state.scroll_position_data));
     return {};
 }
@@ -320,8 +326,7 @@ template<>
 ErrorOr<Web::HTML::SessionHistoryEntryPersistedState> IPC::decode(Decoder& decoder)
 {
     return Web::HTML::SessionHistoryEntryPersistedState {
-        .document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .navigation_api_key = TRY(decoder.decode<Utf16String>()),
+        .entry_identity = TRY(decoder.decode<Web::HTML::SessionHistoryEntryIdentity>()),
         .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
     };
 }

@@ -2603,7 +2603,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
 
     auto traversal = m_top_level_traversable.browser_history_traversal_for_testing();
 
-    dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} back={} forward={} entries={}",
+    dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} pending_same_document_entries={} back={} forward={} entries={}",
         page_id(),
         client().pid(),
         reason,
@@ -2614,6 +2614,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
             : Optional<URL::URL> {},
         traversal.has_value() ? Optional<i32> { traversal->target_step } : Optional<i32> {},
         traversal.has_value() ? CanonicalTraversable::browser_history_traversal_stage_to_string(traversal->stage) : "none"sv,
+        m_top_level_traversable.pending_same_document_session_history_entries_for_debug(),
         m_navigate_back_action->enabled(),
         m_navigate_forward_action->enabled(),
         history_log_entries(m_top_level_traversable.session_history()));

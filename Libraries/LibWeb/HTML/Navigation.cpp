@@ -59,7 +59,7 @@ static void report_navigation_api_state_update(DOM::Document& document, SessionH
         return;
 
     auto traversable = navigable->traversable_navigable();
-    traversable->page().client().page_did_update_session_history_entry_navigation_api_state(navigable->id(), entry.navigation_api_key(), entry.navigation_api_state());
+    traversable->page().client().page_did_update_session_history_entry_navigation_api_state(navigable->id(), session_history_entry_identity(entry), entry.navigation_api_state());
 }
 
 NavigationAPIMethodTracker::NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,

@@ -1722,14 +1722,6 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
         {
             .local_target_navigable_id = target_navigable->id(),
             .local_target_entry = target_entry,
-            .pre_steps = GC::create_function(heap(), [target_navigable, target_entry](Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady> ready) {
-                if (target_navigable->has_been_destroyed()) {
-                    ready->function()(HistoryStepResult::Applied);
-                    return;
-                }
-
-                ready->function()(create_same_document_navigation_entry(target_entry));
-            }),
         });
 }
 

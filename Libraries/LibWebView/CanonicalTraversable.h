@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
@@ -64,7 +65,7 @@ public:
     // Appends plain algorithm steps; a requested traversal defers its target resolution to its queued position, the
     // way the specification's queued steps do, and then starts its operation at that position.
     void append_history_queue_steps(SessionHistoryTraversalSteps);
-    void run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void run_history_operation_at_queue_position(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters, WebContentClient* requesting_client, u64 requesting_page_id, Optional<u64> traversal_sequence_number, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     u64 allocate_navigation_or_traversal_sequence_number() { return m_next_navigation_or_traversal_sequence_number++; }
     void abandon_history_operations();
 
@@ -99,12 +100,13 @@ public:
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;
+    ByteString pending_same_document_session_history_entries_for_debug() const;
 
     void prepare_for_reload();
     void did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
-    bool update_session_history_entry_navigation_api_state(CanonicalNavigable const&, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state);
-    bool update_session_history_entry_scroll_restoration_mode(CanonicalNavigable const&, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode);
-    bool update_session_history_entry_document_state_navigable_target_name(CanonicalNavigable const&, Utf16String const& navigation_api_key, Utf16String navigable_target_name);
+    bool update_session_history_entry_navigation_api_state(CanonicalNavigable&, Web::HTML::SessionHistoryEntryIdentity const&, Web::HTML::StorageSerializationRecord navigation_api_state);
+    bool update_session_history_entry_scroll_restoration_mode(CanonicalNavigable&, Web::HTML::SessionHistoryEntryIdentity const&, Web::HTML::ScrollRestorationMode scroll_restoration_mode);
+    bool update_session_history_entry_document_state_navigable_target_name(CanonicalNavigable&, Web::HTML::SessionHistoryEntryIdentity const&, Utf16String navigable_target_name);
     bool set_session_history_entry_document_state_reload_pending(CanonicalNavigable const&, Utf16String const& navigation_api_key, bool reload_pending);
     Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
@@ -115,6 +117,7 @@ public:
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(Optional<HistoryJobEndpoint> crashed_endpoint, OnHistoryOperationComplete);
     void reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor);
+    bool initialize_session_history_for_testing(Vector<TraversableSessionHistory::Entry>, Vector<i32> used_steps, size_t current_used_step_index);
 
     static StringView browser_history_traversal_stage_to_string(BrowserHistoryTraversalDiagnostic::Stage);
 
@@ -123,6 +126,8 @@ private:
     void session_history_changed();
     HistoryOperation* find_history_operation(Web::HTML::CrossProcessId operation_id);
     bool navigation_transaction_matches(HistoryOperation const&, WebContentClient const&, u64 page_id, Optional<Web::HTML::CrossProcessId> reply_navigable_id = {}) const;
+    bool update_session_history_entry_persisted_state(CanonicalNavigable&, Web::HTML::SessionHistoryEntryPersistedState const&);
+    bool discard_pending_same_document_session_history_entries_for_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters const&);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint);
     bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob&);
     void dispatch_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
@@ -134,6 +139,7 @@ private:
     void run_direct_history_operation(HistoryOperation&);
     void traverse_the_history_by_a_delta_at_queue_position(HistoryOperation&, Web::TraverseByDeltaHistoryOperationParameters const&);
     void perform_a_navigation_api_traversal_at_queue_position(HistoryOperation&, Web::NavigationAPITraverseHistoryOperationParameters const&);
+    void finalize_a_same_document_navigation(HistoryOperation&, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&);
     void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, OnHistoryOperationComplete = nullptr);
     void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, u64 traversal_sequence_number, Function<void()> on_ready, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
