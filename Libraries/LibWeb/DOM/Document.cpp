@@ -3697,7 +3697,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Imp
 
     // 5. If registry is null, then set registry to the result of looking up a custom element registry given this.
     if (!registry)
-        registry = HTML::look_up_a_custom_element_registry(*this);
+        registry = custom_element_registry();
 
     // 6. Return the result of cloning a node given node with document set to this, subtree set to subtree, and
     //   fallbackRegistry set to registry.
@@ -9311,7 +9311,7 @@ void Document::run_csp_initialization() const
 WebIDL::ExceptionOr<Document::RegistryAndIs> Document::flatten_element_creation_options(ElementCreationOptions const& options) const
 {
     // 1. Let registry be the result of looking up a custom element registry given document.
-    GC::Ptr<HTML::CustomElementRegistry> registry = HTML::look_up_a_custom_element_registry(*this);
+    GC::Ptr<HTML::CustomElementRegistry> registry = custom_element_registry();
 
     // 2. Let is be null.
     Optional<Utf16FlyString> is;
