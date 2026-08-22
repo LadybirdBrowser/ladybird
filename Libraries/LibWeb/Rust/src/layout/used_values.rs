@@ -803,44 +803,42 @@ pub(crate) fn create_used_values(
     std::rc::Rc::new(used)
 }
 
-pub(crate) fn used_values_from_saved_committed_geometry(
+pub(crate) fn used_values_from_saved_committed_fragment(
     callbacks: &FfiLayoutFcCallbacks,
     node: Node,
 ) -> Option<std::rc::Rc<UsedValues>> {
-    let geometry = callbacks.saved_committed_geometry(node)?;
+    let link = callbacks.saved_committed_fragment(node)?;
+    let fragment = &link.fragment;
 
     // Skip normal node initialization: resolving computed sizes requires
     // percentage bases, and every resulting geometry field is replaced by
     // the previously committed value immediately.
     let used = UsedValues::default();
-    used.set_content_inline_size(geometry.content_inline_size);
-    used.set_content_block_size(geometry.content_block_size);
+    used.set_content_inline_size(fragment.content_inline_size);
+    used.set_content_block_size(fragment.content_block_size);
     used.has_definite_inline_size.set(true);
     used.has_definite_block_size.set(true);
-    used.content_offset.set(geometry.content_offset);
-    used.margin_left.set(geometry.margin_left);
-    used.margin_right.set(geometry.margin_right);
-    used.margin_top.set(geometry.margin_top);
-    used.margin_bottom.set(geometry.margin_bottom);
-    used.border_left.set(geometry.border_left);
-    used.border_right.set(geometry.border_right);
-    used.border_top.set(geometry.border_top);
-    used.border_bottom.set(geometry.border_bottom);
-    used.padding_left.set(geometry.padding_left);
-    used.padding_right.set(geometry.padding_right);
-    used.padding_top.set(geometry.padding_top);
-    used.padding_bottom.set(geometry.padding_bottom);
-    used.inset_left.set(geometry.inset_left);
-    used.inset_right.set(geometry.inset_right);
-    used.inset_top.set(geometry.inset_top);
-    used.inset_bottom.set(geometry.inset_bottom);
+    used.content_offset.set(link.committed_offset);
+    used.margin_left.set(fragment.margin_left);
+    used.margin_right.set(fragment.margin_right);
+    used.margin_top.set(fragment.margin_top);
+    used.margin_bottom.set(fragment.margin_bottom);
+    used.border_left.set(fragment.border_left);
+    used.border_right.set(fragment.border_right);
+    used.border_top.set(fragment.border_top);
+    used.border_bottom.set(fragment.border_bottom);
+    used.padding_left.set(fragment.padding_left);
+    used.padding_right.set(fragment.padding_right);
+    used.padding_top.set(fragment.padding_top);
+    used.padding_bottom.set(fragment.padding_bottom);
+    used.inset_left.set(link.inset_left);
+    used.inset_right.set(link.inset_right);
+    used.inset_top.set(link.inset_top);
+    used.inset_bottom.set(link.inset_bottom);
     // Materialization is this box's placement: the previously committed
     // geometry is final from the moment it is adopted.
     used.has_content_offset.set(true);
     used.seal_committed_box_metrics();
 
-    if NodeFacts::new(callbacks, node).is_svg_svg_box() {
-        used.rare_data_mut().svg_viewport_size = Some(geometry.svg_viewport_size);
-    }
     Some(std::rc::Rc::new(used))
 }

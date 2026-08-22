@@ -4,30 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct FfiPaintableGeometry {
-    pub content_inline_size: crate::layout::CssPixels,
-    pub content_block_size: crate::layout::CssPixels,
-    pub content_offset: crate::layout::FfiCssPixelPoint,
-    pub svg_viewport_size: crate::layout::FfiCssPixelSize,
-    pub margin_left: crate::layout::CssPixels,
-    pub margin_right: crate::layout::CssPixels,
-    pub margin_top: crate::layout::CssPixels,
-    pub margin_bottom: crate::layout::CssPixels,
-    pub border_left: crate::layout::CssPixels,
-    pub border_right: crate::layout::CssPixels,
-    pub border_top: crate::layout::CssPixels,
-    pub border_bottom: crate::layout::CssPixels,
-    pub padding_left: crate::layout::CssPixels,
-    pub padding_right: crate::layout::CssPixels,
-    pub padding_top: crate::layout::CssPixels,
-    pub padding_bottom: crate::layout::CssPixels,
-    pub inset_left: crate::layout::CssPixels,
-    pub inset_right: crate::layout::CssPixels,
-    pub inset_top: crate::layout::CssPixels,
-    pub inset_bottom: crate::layout::CssPixels,
-}
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiCommitSink {
@@ -57,36 +33,7 @@ fn commit_subtree(
         // SVG roots are the only non-abspos partial relayout boundaries; save their committed
         // geometry so a later subtree pass can seed itself without reading the old paintable.
         if callbacks.node_data(node).kind == NodeKind::SVGSVGBox {
-            let fragment = &link.fragment;
-            debug_assert!(
-                fragment.svg_viewport_size.is_some(),
-                "committed SVG root fragment carries no viewport size"
-            );
-            callbacks.set_saved_committed_geometry(
-                node,
-                FfiPaintableGeometry {
-                    content_inline_size: fragment.content_inline_size,
-                    content_block_size: fragment.content_block_size,
-                    content_offset: link.committed_offset,
-                    svg_viewport_size: fragment.svg_viewport_size.unwrap_or_default(),
-                    margin_left: fragment.margin_left,
-                    margin_right: fragment.margin_right,
-                    margin_top: fragment.margin_top,
-                    margin_bottom: fragment.margin_bottom,
-                    border_left: fragment.border_left,
-                    border_right: fragment.border_right,
-                    border_top: fragment.border_top,
-                    border_bottom: fragment.border_bottom,
-                    padding_left: fragment.padding_left,
-                    padding_right: fragment.padding_right,
-                    padding_top: fragment.padding_top,
-                    padding_bottom: fragment.padding_bottom,
-                    inset_left: link.inset_left,
-                    inset_right: link.inset_right,
-                    inset_top: link.inset_top,
-                    inset_bottom: link.inset_bottom,
-                },
-            );
+            callbacks.set_saved_committed_fragment(node, link.clone());
         }
     }
     let prepared = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree);
