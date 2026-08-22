@@ -17,7 +17,7 @@ use std::cell::RefCell;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PreparedPaintable {
-    pub(crate) slot: NodeSlotId,
+    pub(crate) has_paintable_row: bool,
     pub(crate) row_existed_before_this_commit: bool,
 }
 
@@ -182,17 +182,16 @@ impl<'a> PaintableCommit<'a> {
             if row_existed_before_this_commit {
                 let reset = {
                     let arena = self.arena.borrow();
-                    let existing_slot = arena.populated_paintable_row_of_node(node);
-                    arena.invalidate_paint_cache(self.callbacks.arena(), existing_slot);
+                    arena.invalidate_paint_cache(self.callbacks.arena(), node);
                     arena
-                        .prepare_node_cleared_reset(node, existing_slot)
+                        .prepare_node_cleared_reset(node)
                         .expect("live row for node could not be cleared")
                 };
                 reset.invoke_callback();
                 self.arena.borrow_mut().node_cleared(self.callbacks.arena(), reset);
             }
             return PreparedPaintable {
-                slot: NodeSlotId::INVALID,
+                has_paintable_row: false,
                 row_existed_before_this_commit: false,
             };
         }
@@ -205,13 +204,12 @@ impl<'a> PaintableCommit<'a> {
                 "a kept subtree root has no committed row"
             );
             let arena = self.arena.borrow();
-            let existing_slot = arena.populated_paintable_row_of_node(node);
             self.offsets_before_commit
                 .borrow_mut()
-                .insert(existing_slot, arena.data_ref(existing_slot).offset);
-            self.reused_subtree_roots.borrow_mut().push(existing_slot);
+                .insert(node, arena.data_ref(node).offset);
+            self.reused_subtree_roots.borrow_mut().push(node);
             return PreparedPaintable {
-                slot: existing_slot,
+                has_paintable_row: true,
                 row_existed_before_this_commit: true,
             };
         }
@@ -239,15 +237,14 @@ impl<'a> PaintableCommit<'a> {
         let is_item = data.flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
         let slot = if row_existed_before_this_commit {
             let arena = self.arena.borrow();
-            let existing_slot = arena.populated_paintable_row_of_node(node);
             self.offsets_before_commit
                 .borrow_mut()
-                .insert(existing_slot, arena.data_ref(existing_slot).offset);
-            let notification = arena.prepare_recommit_notification(existing_slot);
+                .insert(node, arena.data_ref(node).offset);
+            let notification = arena.prepare_recommit_notification(node);
             drop(arena);
             notification.invoke_callback();
-            self.arena.borrow_mut().begin_row_recommit(existing_slot);
-            existing_slot
+            self.arena.borrow_mut().begin_row_recommit(node);
+            node
         } else {
             let mut arena = self.arena.borrow_mut();
             let slot = arena.row_for_node(node);
@@ -257,7 +254,6 @@ impl<'a> PaintableCommit<'a> {
             drop(arena);
             let arena = self.arena.borrow();
             arena.update_data(slot, |paintable| {
-                paintable.layout_node = node;
                 paintable.kind = expected_kind;
             });
             slot
@@ -296,7 +292,7 @@ impl<'a> PaintableCommit<'a> {
             paintable.display = display.encoded();
         });
         PreparedPaintable {
-            slot,
+            has_paintable_row: true,
             row_existed_before_this_commit,
         }
     }
@@ -312,7 +308,6 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn replace_committed_fragment_link(
         &self,
         node: Node,
-        slot: NodeSlotId,
         link: &FragmentLink,
         reuses_committed_subtree: bool,
     ) -> Option<(FfiCssPixelSize, FfiCssPixelSize)> {
@@ -324,7 +319,7 @@ impl<'a> PaintableCommit<'a> {
         let mut content_size_change = None;
         {
             let arena = self.arena.borrow();
-            let (old_identity, old_content_size) = arena.with_committed_fragment_link(slot, |old_link| {
+            let (old_identity, old_content_size) = arena.with_committed_fragment_link(node, |old_link| {
                 old_link.map_or((0, FfiCssPixelSize::default()), |old_link| {
                     (
                         old_link.fragment.identity,
@@ -347,7 +342,7 @@ impl<'a> PaintableCommit<'a> {
                 );
                 content_size_change = Some((previous_content_size_for_diff, new_content_size));
             }
-            arena.update_data(slot, |data| {
+            arena.update_data(node, |data| {
                 if old_identity != fragment.identity {
                     data.cached_overflow = FfiOverflowData::default();
                     data.has_cached_overflow = false;
@@ -556,18 +551,18 @@ impl<'a> PaintableCommit<'a> {
         )
     }
 
-    pub(crate) fn stamp_containing_block(&self, node: Node, slot: NodeSlotId) {
+    pub(crate) fn stamp_containing_block(&self, node: Node) {
         let arena = self.arena.borrow();
-        if slot.is_invalid() {
+        if !arena.paintable_row_is_populated(node) {
             return;
         }
         let containing_block = self.callbacks.node_data(node).containing_block;
-        let containing_block = if containing_block.is_invalid() {
-            NodeSlotId::INVALID
+        let containing_block = if arena.paintable_row_is_populated(containing_block) {
+            containing_block
         } else {
-            arena.populated_paintable_row_of_node(containing_block)
+            NodeSlotId::INVALID
         };
-        arena.update_data(slot, |data| data.containing_block = containing_block);
+        arena.update_data(node, |data| data.containing_block = containing_block);
     }
 
     pub(crate) fn assign_inline_box_geometry(&self, slot: NodeSlotId) {
@@ -583,13 +578,13 @@ impl<'a> PaintableCommit<'a> {
             }
         }
         for (piece_node, piece_indices) in piece_indices_by_node {
-            let inline_paintable = arena.populated_paintable_row_of_node(piece_node);
-            if inline_paintable.is_invalid() || arena.data_ref(inline_paintable).kind != PaintableKind::InlinePaintable
+            if !arena.paintable_row_is_populated(piece_node)
+                || arena.data_ref(piece_node).kind != PaintableKind::InlinePaintable
             {
                 continue;
             }
-            let padding_widths = crate::painting::paintable_geometry::committed_padding(&arena, inline_paintable);
-            let border_widths = crate::painting::paintable_geometry::committed_border(&arena, inline_paintable);
+            let padding_widths = crate::painting::paintable_geometry::committed_padding(&arena, piece_node);
+            let border_widths = crate::painting::paintable_geometry::committed_border(&arena, piece_node);
             let mut content_union: Option<CssPixelRect> = None;
             let mut padding_union: Option<CssPixelRect> = None;
             let mut border_union: Option<CssPixelRect> = None;
@@ -640,14 +635,14 @@ impl<'a> PaintableCommit<'a> {
             };
             let padding_union = padding_union.expect("padding union set alongside content union");
             let border_union = border_union.expect("border union set alongside content union");
-            arena.update_data(inline_paintable, |data| {
+            arena.update_data(piece_node, |data| {
                 data.offset = content_union.location().into();
                 data.content_size = content_union.size().into();
                 data.local_padding_box_union = padding_union.translated(-content_union.x, -content_union.y).into();
                 data.local_border_box_union = border_union.translated(-content_union.x, -content_union.y).into();
             });
             // This box has at most one piece per line, so its piece indices are ordered by line.
-            arena.side_mut(inline_paintable).piece_indices = piece_indices;
+            arena.side_mut(piece_node).piece_indices = piece_indices;
         }
     }
 }

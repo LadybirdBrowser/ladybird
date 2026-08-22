@@ -35,7 +35,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     if phase == PaintPhase::Background && facts.is_visible {
         crate::painting::record::paint::paint_backdrop_filter(recorder, paintable, &facts);
         let background_is_propagated_to_root = {
-            let node_flags = recorder.layout_arena.node_flags_if_live(data.layout_node);
+            let node_flags = recorder.layout_arena.node_flags_if_live(paintable);
             node_flags & crate::layout::node_data::NodeFlag::IsBody as u32 != 0
                 && recorder
                     .paint_host
@@ -43,7 +43,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                     .use_body_background_properties
         };
         let has_borders = {
-            let style = recorder.layout_arena.node_style_if_live(data.layout_node);
+            let style = recorder.layout_arena.node_style_if_live(paintable);
             let zero = CssPixels::from_raw(0);
             style.is_some_and(|style| {
                 style.border_top_width() != zero
@@ -83,7 +83,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
 
     if phase == PaintPhase::Border && facts.is_visible {
         let converter = recorder.converter;
-        let Some(style) = recorder.layout_arena.node_style_if_live(data.layout_node) else {
+        let Some(style) = recorder.layout_arena.node_style_if_live(paintable) else {
             return;
         };
         let zero = CssPixels::from_raw(0);
@@ -156,7 +156,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     }
 
     if phase == PaintPhase::Outline && facts.is_visible {
-        let node = recorder.data(paintable).layout_node;
+        let node = paintable;
         let outline = crate::painting::style_queries::outline_data(
             recorder.layout_arena,
             node,

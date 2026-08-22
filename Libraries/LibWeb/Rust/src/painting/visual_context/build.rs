@@ -105,7 +105,7 @@ impl BoxFacts {
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
             default_scroll_shift_anchor: if may_have_default_scroll_shift_anchor {
-                let node = paintables.data_ref(slot).layout_node;
+                let node = slot;
                 callbacks.default_scroll_shift_anchor(layout_arena.shell_if_live(node))
             } else {
                 NodeSlotId::INVALID
@@ -121,8 +121,8 @@ impl BoxFacts {
             super::node_values::compute_perspective_data(layout_arena, paintables, callbacks, slot, pixel_ratio);
         facts.effects =
             super::node_values::compute_effects_data(layout_arena, paintables, callbacks, slot).map(std::rc::Rc::new);
-        facts.backface_hidden = super::node_values::backface_hidden(layout_arena, paintables, slot);
-        let node = paintables.data_ref(slot).layout_node;
+        facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
+        let node = slot;
         facts.establishes_or_extends_3d_rendering_context =
             crate::painting::style_queries::establishes_or_extends_a_3d_rendering_context(layout_arena, node);
         let (establishes_absolute, establishes_fixed) =
@@ -145,7 +145,7 @@ impl BoxFacts {
             })
             .collect();
         facts.css_clip = super::node_values::compute_css_clip_data(layout_arena, paintables, slot, pixel_ratio);
-        facts.may_have_clip = super::node_values::may_have_clip(layout_arena, paintables, slot);
+        facts.may_have_clip = super::node_values::may_have_clip(layout_arena, slot);
         facts.overflow_clip = if facts.may_have_clip {
             super::node_values::compute_clip_data(layout_arena, paintables, slot, pixel_ratio)
         } else {
@@ -235,10 +235,8 @@ impl Builder<'_> {
         if !self.may_have_default_scroll_shift_anchor {
             return NodeSlotId::INVALID;
         }
-        self.callbacks.default_scroll_shift_anchor(
-            self.layout_arena
-                .shell_if_live(self.paintables.data_ref(slot).layout_node),
-        )
+        self.callbacks
+            .default_scroll_shift_anchor(self.layout_arena.shell_if_live(slot))
     }
 
     fn register_scroll_node(&mut self, node_index: usize, paintable: NodeSlotId, parent_index: usize) {
@@ -251,7 +249,7 @@ impl Builder<'_> {
         }
         let data = self.paintables.data_ref(paintable);
         if data.kind != crate::painting::paintable_data::PaintableKind::ViewportPaintable
-            && let Some(style) = self.layout_arena.node_style_if_live(data.layout_node)
+            && let Some(style) = self.layout_arena.node_style_if_live(paintable)
         {
             use crate::css::css_enums::overflow;
             let box_values = style.box_values();
@@ -296,7 +294,7 @@ impl Builder<'_> {
                 data.has_flag(PaintableFlag::AbsolutelyPositioned),
                 data.has_flag(PaintableFlag::StickyPosition),
                 data.has_sticky_insets,
-                data.layout_node,
+                slot,
             )
         };
         self.paintables.update_data(slot, |data| {
@@ -361,9 +359,9 @@ impl Builder<'_> {
                 if anchor_node.is_invalid() {
                     break;
                 }
-                let box_paintable = self.paintables.populated_paintable_row_of_node(box_node);
-                let anchor_paintable = self.paintables.populated_paintable_row_of_node(anchor_node);
-                if box_paintable.is_invalid() || anchor_paintable.is_invalid() {
+                if !self.paintables.paintable_row_is_populated(box_node)
+                    || !self.paintables.paintable_row_is_populated(anchor_node)
+                {
                     break;
                 }
                 visited.push(box_node);
@@ -374,10 +372,10 @@ impl Builder<'_> {
                     compensate_vertical_scroll && box_flags & NodeFlag::CompensatesForVerticalScroll as u32 != 0;
                 let anchor_scroll_slot = self
                     .tree
-                    .scroll_state_slot_for_node(self.paintables.data_ref(anchor_paintable).enclosing_scroll_node_index);
+                    .scroll_state_slot_for_node(self.paintables.data_ref(anchor_node).enclosing_scroll_node_index);
                 let base_scroll_slot = self
                     .tree
-                    .scroll_state_slot_for_node(self.paintables.data_ref(box_paintable).enclosing_scroll_node_index);
+                    .scroll_state_slot_for_node(self.paintables.data_ref(box_node).enclosing_scroll_node_index);
                 let shared_scroll_slot = common_ancestor_slot_along_scroll_parent_chain(
                     &self.scroll_state,
                     anchor_scroll_slot,
@@ -410,7 +408,7 @@ impl Builder<'_> {
                     s = self.scroll_state.state_at_slot(s).parent_slot;
                 }
                 box_node = anchor_node;
-                anchor_node = self.default_scroll_shift_anchor(anchor_paintable);
+                anchor_node = self.default_scroll_shift_anchor(anchor_node);
             }
         }
 
@@ -593,7 +591,6 @@ impl Builder<'_> {
 
         if super::node_values::wants_fixed_background_visual_context(
             self.layout_arena,
-            self.paintables,
             self.root_background_source,
             slot,
             may_be_root_element,
@@ -836,8 +833,10 @@ pub(crate) fn build_visual_context_tree(
 
     let anchor_is_awaiting_build = |builder: &Builder<'_>, slot: NodeSlotId, awaiting: &HashSet<NodeSlotId>| {
         let anchor_node = builder.default_scroll_shift_anchor(slot);
-        let paintable = builder.paintables.populated_paintable_row_of_node(anchor_node);
-        let mut paintable = (!paintable.is_invalid()).then_some(paintable);
+        let mut paintable = builder
+            .paintables
+            .paintable_row_is_populated(anchor_node)
+            .then_some(anchor_node);
         while let Some(current) = paintable {
             if awaiting.contains(&current) {
                 return true;

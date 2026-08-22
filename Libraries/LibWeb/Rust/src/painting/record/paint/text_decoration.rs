@@ -198,7 +198,7 @@ pub(crate) fn decoration_sets_for_span(
         return sets;
     }
 
-    let block_node = recorder.data(block).layout_node;
+    let block_node = block;
     // https://drafts.csswg.org/css-text-decor-4/#decorating-box
     // When specified on or propagated to an inline box, that box becomes a decorating box for that decoration,
     // applying the decoration to all its box fragments.

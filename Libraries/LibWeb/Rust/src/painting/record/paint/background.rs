@@ -58,7 +58,7 @@ pub(crate) fn paint_background_within(
     border_radii: BorderRadii,
 ) {
     let layout_arena = recorder.layout_arena;
-    let Some(style) = layout_arena.node_style_if_live(recorder.data(paintable).layout_node) else {
+    let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return;
     };
     let resolved = crate::painting::record::paint::background_resolution::resolve_background_layers(
@@ -145,8 +145,7 @@ pub(crate) fn paint_resolved_background(
     // Shrink the effective clip rect to account for the bits the borders will definitely paint
     // over (if they all have alpha == 255).
     let (border_widths, borders_opaque) = {
-        let data = recorder.data(paintable);
-        let style = recorder.layout_arena.node_style_if_live(data.layout_node);
+        let style = recorder.layout_arena.node_style_if_live(paintable);
         match style {
             Some(style) => {
                 let opaque = libgfx_rust::Color(style.border_top_color()).alpha() == 255
@@ -447,7 +446,7 @@ fn paint_image_layer(
     let resolved_gradient = gradient_paint_value(&image).map(|gradient_value| {
         let style = recorder
             .layout_arena
-            .node_style_if_live(recorder.data(paintable).layout_node)
+            .node_style_if_live(paintable)
             .expect("a painted layer's layout node is live");
         crate::painting::record::paint::gradient_resolution::resolve_gradient_paint(
             style,

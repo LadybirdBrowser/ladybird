@@ -39,7 +39,7 @@ pub(crate) fn build_stacking_context_tree(
         parent: NO_STACKING_CONTEXT,
         children: Vec::new(),
         index_in_tree_order: 0,
-        effective_z_index: effective_z_index(layout_arena, &paintables.data_ref(root)),
+        effective_z_index: effective_z_index(layout_arena, &paintables.data_ref(root), root),
         positioned_descendants_and_stacking_contexts_with_stack_level_0: Vec::new(),
         non_positioned_floating_descendants: Vec::new(),
         contains_inline_or_replaced_descendants: false,
@@ -94,8 +94,8 @@ fn visit(
     );
 
     let establishes_stacking_context =
-        crate::painting::style_queries::establishes_stacking_context(layout_arena, data.layout_node);
-    let z_index = effective_z_index(layout_arena, &data);
+        crate::painting::style_queries::establishes_stacking_context(layout_arena, paintable);
+    let z_index = effective_z_index(layout_arena, &data, paintable);
     let positioned = data.has_flag(PaintableFlag::Positioned);
     {
         let parent = &mut tree.nodes[parent_context as usize];
@@ -107,7 +107,7 @@ fn visit(
         if !positioned && data.has_flag(PaintableFlag::Floating) {
             parent.non_positioned_floating_descendants.push(paintable);
         }
-        let layout_kind = layout_arena.node_kind_if_live(data.layout_node);
+        let layout_kind = layout_arena.node_kind_if_live(paintable);
         if !establishes_stacking_context
             && (data.has_flag(PaintableFlag::Inline) || layout_kind.is_some_and(crate::layout::kind_is_replaced_box))
         {

@@ -84,13 +84,12 @@ pub(crate) fn apply(
                 invalidate_self_painting_inline_box(layout_arena, paintables, entry.layout_node);
             }
         } else {
-            let slot = paintables.populated_paintable_row_of_node(entry.layout_node);
-            if slot.is_invalid() {
+            if !paintables.paintable_row_is_populated(entry.layout_node) {
                 continue;
             }
-            if paintables.data_ref(slot).selection_state != entry.state {
-                paintables.update_data(slot, |data| data.selection_state = entry.state);
-                paintables.invalidate_paint_cache(layout_arena, slot);
+            if paintables.data_ref(entry.layout_node).selection_state != entry.state {
+                paintables.update_data(entry.layout_node, |data| data.selection_state = entry.state);
+                paintables.invalidate_paint_cache(layout_arena, entry.layout_node);
             }
         }
     }

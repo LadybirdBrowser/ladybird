@@ -18,10 +18,10 @@ pub(crate) fn paint_parent(
         return None;
     }
 
-    let mut ancestor = layout_arena.node_parent_if_live(paintables.data_ref(slot).layout_node);
+    let mut ancestor = layout_arena.node_parent_if_live(slot);
     while let Some(node) = ancestor {
         if paintables.paintable_row_is_populated(node) {
-            return Some(paintables.populated_paintable_row_of_node(node));
+            return Some(node);
         }
         if !fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
             return None;
@@ -41,9 +41,8 @@ fn first_paintable_in_layout_siblings(
     while let Some(node) = current {
         let next_sibling = layout_arena.node_next_sibling_if_live(node);
         if paintables.paintable_row_is_populated(node) {
-            let paintable = paintables.populated_paintable_row_of_node(node);
-            if !paintables.data_ref(paintable).kind.forms_unconnected_subtree() {
-                return Some(paintable);
+            if !paintables.data_ref(node).kind.forms_unconnected_subtree() {
+                return Some(node);
             }
         } else if fragment_ownership::node_is_fragmented_inline(layout_arena, node)
             && let Some(first_child) = layout_arena.node_first_child_if_live(node)
@@ -67,11 +66,7 @@ pub(crate) fn first_paint_child(
     if !paintables.paintable_row_is_populated(slot) {
         return None;
     }
-    first_paintable_in_layout_siblings(
-        layout_arena,
-        paintables,
-        layout_arena.node_first_child_if_live(paintables.data_ref(slot).layout_node),
-    )
+    first_paintable_in_layout_siblings(layout_arena, paintables, layout_arena.node_first_child_if_live(slot))
 }
 
 pub(crate) fn next_paint_sibling(
@@ -83,7 +78,7 @@ pub(crate) fn next_paint_sibling(
         return None;
     }
 
-    let mut node = paintables.data_ref(slot).layout_node;
+    let mut node = slot;
     loop {
         if let Some(sibling) =
             first_paintable_in_layout_siblings(layout_arena, paintables, layout_arena.node_next_sibling_if_live(node))

@@ -17,14 +17,12 @@ pub(crate) fn containing_block_paintable_of_node(
     paintables: &PaintableArena,
     node: NodeSlotId,
 ) -> Option<NodeSlotId> {
-    let own = paintables.populated_paintable_row_of_node(node);
-    if !own.is_invalid() {
-        let block = paintables.data_ref(own).containing_block;
+    if paintables.paintable_row_is_populated(node) {
+        let block = paintables.data_ref(node).containing_block;
         return paintables.paintable_row_is_populated(block).then_some(block);
     }
     let block = layout_arena.node_containing_block_if_live(node)?;
-    let block_paintable = paintables.populated_paintable_row_of_node(block);
-    (!block_paintable.is_invalid()).then_some(block_paintable)
+    paintables.paintable_row_is_populated(block).then_some(block)
 }
 
 pub(crate) fn containing_block_paintable(

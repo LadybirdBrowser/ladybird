@@ -562,8 +562,7 @@ pub(crate) fn resolve_background_for_paint<'a>(
     paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
     let layout_arena = recorder.layout_arena;
-    let data = recorder.data(paintable);
-    let node = data.layout_node;
+    let node = paintable;
     let style = layout_arena.node_style_if_live(node)?;
 
     let node_flags = layout_arena.node_flags_if_live(node);

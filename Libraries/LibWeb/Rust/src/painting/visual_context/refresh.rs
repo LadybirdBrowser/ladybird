@@ -117,7 +117,7 @@ pub(crate) fn refresh_scroll_state(
             containing_block_region.bottom() - sticky_data.border_box_size.height,
         );
 
-        let scroll_ancestor_node = paintables.data_ref(scroll_ancestor).layout_node;
+        let scroll_ancestor_node = scroll_ancestor;
         let scroll_offset: CssPixelPoint = callbacks
             .scroll_offset(layout_arena.shell_if_live(scroll_ancestor_node))
             .into();
@@ -159,7 +159,7 @@ pub(crate) fn refresh_scroll_state(
         }
         let paintable = state.paintable;
         if paintables.paintable_row_is_populated(paintable) {
-            let node = paintables.data_ref(paintable).layout_node;
+            let node = paintable;
             let offset: CssPixelPoint = callbacks.scroll_offset(layout_arena.shell_if_live(node)).into();
             scroll_state.state_at_slot_mut(slot).own_offset = CssPixelPoint::new(-offset.x, -offset.y);
         }

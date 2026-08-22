@@ -100,9 +100,9 @@ pub(crate) fn nearest_self_painting_inline_box(
 ) -> Option<NodeSlotId> {
     let mut ancestor = nearest_fragmented_inline_ancestor(layout_arena, node);
     while let Some(candidate) = ancestor {
-        let paintable = paintables.populated_paintable_row_of_node(candidate);
-        if !paintable.is_invalid() && is_self_painting_inline(&paintables.data_ref(paintable)) {
-            return Some(paintable);
+        if paintables.paintable_row_is_populated(candidate) && is_self_painting_inline(&paintables.data_ref(candidate))
+        {
+            return Some(candidate);
         }
         ancestor = nearest_fragmented_inline_ancestor(layout_arena, candidate);
     }
@@ -141,9 +141,9 @@ fn assign_for_block(layout_arena: &LayoutNodeArena, paintables: &mut PaintableAr
         if node.is_invalid() || layout_arena.shell_if_live(node).is_null() {
             return None;
         }
-        let paintable = paintables.populated_paintable_row_of_node(node);
-        (!paintable.is_invalid() && paintables.data_ref(paintable).kind == PaintableKind::InlinePaintable)
-            .then_some(paintable)
+        (paintables.paintable_row_is_populated(node)
+            && paintables.data_ref(node).kind == PaintableKind::InlinePaintable)
+            .then_some(node)
     };
 
     // Start every piece's box from a clean slate.

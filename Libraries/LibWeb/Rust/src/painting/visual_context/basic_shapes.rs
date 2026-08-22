@@ -443,7 +443,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule, bool)> {
-    let node = paintables.data_ref(slot).layout_node;
+    let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
     let StyleValueData::BasicShape {

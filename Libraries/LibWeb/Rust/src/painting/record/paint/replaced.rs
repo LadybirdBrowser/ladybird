@@ -193,9 +193,7 @@ pub(crate) fn get_replaced_box_painting_area(
     // https://drafts.csswg.org/css-images/#the-object-position
     // The computed object-position stores offsets normalized to the left/top edges.
     let (offset_x, offset_y) = {
-        let style = recorder
-            .layout_arena
-            .node_style_if_live(recorder.data(paintable).layout_node);
+        let style = recorder.layout_arena.node_style_if_live(paintable);
         let zero = crate::css::css_pixels::CssPixels::from_raw(0);
         match style {
             Some(style) => {
@@ -230,7 +228,7 @@ fn replaced_facts(recorder: &PaintRecorder<'_>, paintable: NodeSlotId) -> FfiRep
 fn replaced_style(recorder: &PaintRecorder<'_>, paintable: NodeSlotId) -> (u8, u8) {
     recorder
         .layout_arena
-        .node_style_if_live(recorder.data(paintable).layout_node)
+        .node_style_if_live(paintable)
         .map_or((object_fit::FILL, image_rendering::AUTO), |style| {
             (style.misc_reset().object_fit, style.image_rendering())
         })

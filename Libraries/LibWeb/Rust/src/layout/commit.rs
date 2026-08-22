@@ -33,11 +33,10 @@ fn commit_subtree(
         callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
     }
     let prepared = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree);
-    let paintable_slot = prepared.slot;
 
     let mut has_pending_inline_box_geometry = false;
     if let Some(link) = entry
-        && !paintable_slot.is_invalid()
+        && prepared.has_paintable_row
     {
         let fragment = &link.fragment;
         debug_assert!(
@@ -49,7 +48,7 @@ fn commit_subtree(
             "committed path-like fragment carries no computed SVG path"
         );
         let content_size_change =
-            paintables.replace_committed_fragment_link(node, paintable_slot, link, reuses_committed_subtree);
+            paintables.replace_committed_fragment_link(node, link, reuses_committed_subtree);
         if prepared.row_existed_before_this_commit
             && let Some((old_content_size, new_content_size)) = content_size_change
         {
@@ -61,11 +60,11 @@ fn commit_subtree(
         }
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
-            has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
+            has_pending_inline_box_geometry = paintables.set_line_data(node, line_data, fragment.content_inline_size);
         }
     }
 
-    paintables.stamp_containing_block(node, paintable_slot);
+    paintables.stamp_containing_block(node);
 
     if reuses_committed_subtree {
         return;
@@ -82,7 +81,7 @@ fn commit_subtree(
         // Inline box geometry unites this block's piece rects with the box
         // models of its descendant inline paintables, which exist only now
         // that the whole subtree has committed.
-        paintables.assign_inline_box_geometry(paintable_slot);
+        paintables.assign_inline_box_geometry(node);
     }
 }
 
