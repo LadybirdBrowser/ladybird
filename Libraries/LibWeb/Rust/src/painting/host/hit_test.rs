@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::layout::node_data::NodeSlotId;
 use std::ffi::c_void;
-
-use crate::painting::paintable_data::PaintableSlotId;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
@@ -193,7 +192,7 @@ pub struct FfiAdjacentLine {
 #[repr(C)]
 pub struct FfiHitTestItemExport {
     pub kind: u8,
-    pub paintable: PaintableSlotId,
+    pub paintable: NodeSlotId,
     pub chrome_widget_kind: u8,
     pub has_text_fragment_index: bool,
     pub text_fragment_index: u32,

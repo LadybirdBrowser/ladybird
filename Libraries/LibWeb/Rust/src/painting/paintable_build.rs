@@ -17,7 +17,7 @@ use std::cell::RefCell;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PreparedPaintable {
-    pub(crate) slot: PaintableSlotId,
+    pub(crate) slot: NodeSlotId,
     pub(crate) row_existed_before_this_commit: bool,
 }
 
@@ -67,8 +67,8 @@ pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> 
 
 fn committed_offset_delta(
     arena: &PaintableArena,
-    offsets_before_commit: &std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>,
-    slot: PaintableSlotId,
+    offsets_before_commit: &std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
+    slot: NodeSlotId,
 ) -> FfiCssPixelPoint {
     let Some(offset_before_commit) = offsets_before_commit.get(&slot) else {
         return FfiCssPixelPoint::default();
@@ -82,15 +82,15 @@ fn committed_offset_delta(
 
 fn reused_subtree_absolute_position_delta(
     arena: &PaintableArena,
-    offsets_before_commit: &std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>,
-    root: PaintableSlotId,
+    offsets_before_commit: &std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
+    root: NodeSlotId,
 ) -> FfiCssPixelPoint {
     let mut delta = committed_offset_delta(arena, offsets_before_commit, root);
     if crate::painting::paintable_geometry::is_svg_paintable(arena.data_ref(root).kind) {
         return delta;
     }
     let mut block = arena.data_ref(root).containing_block;
-    while !block.is_invalid() && arena.is_live(block) {
+    while !block.is_invalid() && arena.paintable_row_is_populated(block) {
         let block_data = arena.data_ref(block);
         if block_data.kind == PaintableKind::SVGSVGPaintable
             || crate::painting::paintable_geometry::is_svg_paintable(block_data.kind)
@@ -111,8 +111,8 @@ fn reused_subtree_absolute_position_delta(
 pub(crate) struct PaintableCommit<'a> {
     callbacks: &'a FfiLayoutFcCallbacks,
     arena: &'a RefCell<PaintableArena>,
-    offsets_before_commit: RefCell<std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>>,
-    reused_subtree_roots: RefCell<Vec<PaintableSlotId>>,
+    offsets_before_commit: RefCell<std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>>,
+    reused_subtree_roots: RefCell<Vec<NodeSlotId>>,
     committed_navigable_container_viewports: RefCell<Vec<NodeSlotId>>,
 }
 
@@ -182,7 +182,7 @@ impl<'a> PaintableCommit<'a> {
             if row_existed_before_this_commit {
                 let reset = {
                     let arena = self.arena.borrow();
-                    let existing_slot = arena.paintable_of_node(node);
+                    let existing_slot = arena.populated_paintable_row_of_node(node);
                     arena.invalidate_paint_cache(self.callbacks.arena(), existing_slot);
                     arena
                         .prepare_node_cleared_reset(node, existing_slot)
@@ -192,7 +192,7 @@ impl<'a> PaintableCommit<'a> {
                 self.arena.borrow_mut().node_cleared(self.callbacks.arena(), reset);
             }
             return PreparedPaintable {
-                slot: PaintableSlotId::INVALID,
+                slot: NodeSlotId::INVALID,
                 row_existed_before_this_commit: false,
             };
         }
@@ -205,7 +205,7 @@ impl<'a> PaintableCommit<'a> {
                 "a kept subtree root has no committed row"
             );
             let arena = self.arena.borrow();
-            let existing_slot = arena.paintable_of_node(node);
+            let existing_slot = arena.populated_paintable_row_of_node(node);
             self.offsets_before_commit
                 .borrow_mut()
                 .insert(existing_slot, arena.data_ref(existing_slot).offset);
@@ -239,7 +239,7 @@ impl<'a> PaintableCommit<'a> {
         let is_item = data.flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
         let slot = if row_existed_before_this_commit {
             let arena = self.arena.borrow();
-            let existing_slot = arena.paintable_of_node(node);
+            let existing_slot = arena.populated_paintable_row_of_node(node);
             self.offsets_before_commit
                 .borrow_mut()
                 .insert(existing_slot, arena.data_ref(existing_slot).offset);
@@ -312,7 +312,7 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn replace_committed_fragment_link(
         &self,
         node: Node,
-        slot: PaintableSlotId,
+        slot: NodeSlotId,
         link: &FragmentLink,
         reuses_committed_subtree: bool,
     ) -> Option<(FfiCssPixelSize, FfiCssPixelSize)> {
@@ -360,12 +360,7 @@ impl<'a> PaintableCommit<'a> {
         content_size_change
     }
 
-    pub(crate) fn set_line_data(
-        &self,
-        slot: PaintableSlotId,
-        line_data: &LineData,
-        content_inline_size: CssPixels,
-    ) -> bool {
+    pub(crate) fn set_line_data(&self, slot: NodeSlotId, line_data: &LineData, content_inline_size: CssPixels) -> bool {
         let lines_and_fragments = {
             let arena = self.arena.borrow();
             if !arena.data_ref(slot).kind.has_lines() {
@@ -561,21 +556,21 @@ impl<'a> PaintableCommit<'a> {
         )
     }
 
-    pub(crate) fn stamp_containing_block(&self, node: Node, slot: PaintableSlotId) {
+    pub(crate) fn stamp_containing_block(&self, node: Node, slot: NodeSlotId) {
         let arena = self.arena.borrow();
         if slot.is_invalid() {
             return;
         }
         let containing_block = self.callbacks.node_data(node).containing_block;
         let containing_block = if containing_block.is_invalid() {
-            PaintableSlotId::INVALID
+            NodeSlotId::INVALID
         } else {
-            arena.paintable_of_node(containing_block)
+            arena.populated_paintable_row_of_node(containing_block)
         };
         arena.update_data(slot, |data| data.containing_block = containing_block);
     }
 
-    pub(crate) fn assign_inline_box_geometry(&self, slot: PaintableSlotId) {
+    pub(crate) fn assign_inline_box_geometry(&self, slot: NodeSlotId) {
         let mut arena = self.arena.borrow_mut();
         let mut piece_indices_by_node: Vec<(NodeSlotId, Vec<u32>)> = Vec::new();
         for (piece_index, piece) in arena.side(slot).inline_box_pieces.iter().enumerate() {
@@ -588,7 +583,7 @@ impl<'a> PaintableCommit<'a> {
             }
         }
         for (piece_node, piece_indices) in piece_indices_by_node {
-            let inline_paintable = arena.paintable_of_node(piece_node);
+            let inline_paintable = arena.populated_paintable_row_of_node(piece_node);
             if inline_paintable.is_invalid() || arena.data_ref(inline_paintable).kind != PaintableKind::InlinePaintable
             {
                 continue;

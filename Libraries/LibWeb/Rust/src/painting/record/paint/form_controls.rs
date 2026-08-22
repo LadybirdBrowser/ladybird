@@ -8,9 +8,9 @@ use libgfx_rust::path::{OwnedPath, PathBuilder};
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
 use crate::painting::host::FfiReplacedPaintFacts;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, IntRect, ShouldAntiAlias, WindingRule};
@@ -86,7 +86,7 @@ fn check_mark_path(checkbox_rect: IntRect) -> OwnedPath {
     path.copy_transformed([scale_x, 0.0, 0.0, scale_y, 0.0, 0.0])
 }
 
-pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let facts = recorder
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable));
@@ -180,7 +180,7 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
     }
 }
 
-pub(crate) fn paint_radio_button_foreground(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+pub(crate) fn paint_radio_button_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let facts = recorder
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable));

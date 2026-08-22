@@ -16,12 +16,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<Scrollbar> Scrollbar::create(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
+NonnullRefPtr<Scrollbar> Scrollbar::create(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot, ScrollDirection direction)
 {
     return adopt_ref(*new Scrollbar(arena, slot, direction));
 }
 
-Scrollbar::Scrollbar(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
+Scrollbar::Scrollbar(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot, ScrollDirection direction)
     : ChromeWidget(arena, slot)
     , m_direction(direction)
 {

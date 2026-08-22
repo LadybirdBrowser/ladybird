@@ -77,11 +77,11 @@ public:
     ChromeWidgetRegistry();
     ~ChromeWidgetRegistry();
 
-    RefPtr<Scrollbar> scrollbar(Layout::RustFFI::PaintableSlotId, ScrollDirection) const;
-    NonnullRefPtr<Scrollbar> get_or_create_scrollbar(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId, ScrollDirection);
-    RefPtr<ResizeHandle> resize_handle(Layout::RustFFI::PaintableSlotId) const;
-    NonnullRefPtr<ResizeHandle> get_or_create_resize_handle(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
-    void drop_widgets_for_slot(Layout::RustFFI::PaintableSlotId);
+    RefPtr<Scrollbar> scrollbar(Layout::RustFFI::NodeSlotId, ScrollDirection) const;
+    NonnullRefPtr<Scrollbar> get_or_create_scrollbar(Layout::NodeArena&, Layout::RustFFI::NodeSlotId, ScrollDirection);
+    RefPtr<ResizeHandle> resize_handle(Layout::RustFFI::NodeSlotId) const;
+    NonnullRefPtr<ResizeHandle> get_or_create_resize_handle(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
+    void drop_widgets_for_slot(Layout::RustFFI::NodeSlotId);
     void clear();
 
 private:
@@ -108,7 +108,7 @@ public:
     virtual Optional<CSS::CursorPredefined> cursor() const { return {}; }
 
 protected:
-    ChromeWidget(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
+    ChromeWidget(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
 
     Layout::Node* layout_node() const;
 
@@ -119,7 +119,7 @@ private:
     virtual void did_detach() { }
 
     NonnullRefPtr<Layout::NodeArena> m_arena;
-    Layout::RustFFI::PaintableSlotId m_slot;
+    Layout::RustFFI::NodeSlotId m_slot;
 };
 
 }

@@ -161,16 +161,14 @@ ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, La
     return result;
 }
 
-static_assert(Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX == Layout::RustFFI::INVALID_NODE_SLOT_INDEX);
-
-Layout::RustFFI::PaintableSlotId committed_row_slot(Layout::Node const& node)
+Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const& node)
 {
-    return { Layout::Node::slot_id(&node).index };
+    return Layout::Node::slot_id(&node);
 }
 
-Layout::RustFFI::PaintableSlotId viewport_row_slot(DOM::Document const& document)
+Layout::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const& document)
 {
-    return { Layout::Node::slot_id(document.unsafe_layout_node()).index };
+    return Layout::Node::slot_id(document.unsafe_layout_node());
 }
 
 Layout::RustFFI::PaintableData const* committed_row(Layout::Node const& node)
@@ -183,7 +181,7 @@ bool has_committed_box(Layout::Node const& node)
     return committed_row(node) != nullptr;
 }
 
-Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot)
 {
     return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena.handle(), slot));
 }
@@ -782,7 +780,7 @@ Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node
             cursor_position->affinity() == TextAffinity::Downstream);
         if (result.found && result.owner_paintable.index == committed_row_slot(block).index) {
             auto owner_slot = owner_inline ? committed_row_slot(*owner_inline)
-                                           : Layout::RustFFI::PaintableSlotId { Layout::RustFFI::INVALID_PAINTABLE_SLOT_INDEX };
+                                           : Layout::RustFFI::NodeSlotId { Layout::RustFFI::INVALID_NODE_SLOT_INDEX };
             if (result.nearest_self_painting_inline.index != owner_slot.index)
                 return {};
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);

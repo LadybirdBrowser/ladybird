@@ -9,9 +9,9 @@ use crate::css::css_enums::border_image_repeat;
 use crate::css::css_pixels::{CssPixelFraction, CssPixels};
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::css::style_value::StyleValueData;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ImageFrameResourceId;
 use crate::painting::host::FfiLayerImageList;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::to_gfx_scaling_mode;
 use crate::painting::style_queries;
@@ -379,7 +379,7 @@ fn resolve_border_image_geometry(
 
 pub(crate) fn paint_border_image(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     css_border_widths: [CssPixels; 4],
     border_box_rect: CssPixelRect,
 ) -> bool {

@@ -7,6 +7,7 @@
 use super::{PaintPhase, PaintRecorder};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeKind;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::VisualContextIndex;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
@@ -106,7 +107,7 @@ pub(crate) fn record_display_list(
         viewport: stacking_contexts
             .nodes
             .first()
-            .map_or(PaintableSlotId::INVALID, |root| root.paintable),
+            .map_or(NodeSlotId::INVALID, |root| root.paintable),
         has_blocking_wheel_event_listeners: false,
         spliced_capture_count: 0,
         uncacheable_paint_generation: 0,
@@ -162,15 +163,15 @@ pub(crate) fn record_display_list(
 }
 
 impl PaintRecorder<'_> {
-    fn z_index(&mut self, paintable: PaintableSlotId) -> Option<i32> {
+    fn z_index(&mut self, paintable: NodeSlotId) -> Option<i32> {
         crate::painting::style_queries::z_index(self.layout_arena, self.data(paintable).layout_node)
     }
 
-    fn is_fragmented_inline(&self, paintable: PaintableSlotId) -> bool {
+    fn is_fragmented_inline(&self, paintable: NodeSlotId) -> bool {
         fragment_ownership::node_is_fragmented_inline(self.layout_arena, self.data(paintable).layout_node)
     }
 
-    fn establishes_inline_level_painting_context(&self, paintable: PaintableSlotId) -> bool {
+    fn establishes_inline_level_painting_context(&self, paintable: NodeSlotId) -> bool {
         // CSS 2.2 painting order puts inline-block and inline-table boxes in the inline-level painting step and
         // says to paint each "as if it created a new stacking context", while keeping positioned descendants and
         // actual child stacking contexts in the parent stacking context:
@@ -180,7 +181,7 @@ impl PaintRecorder<'_> {
         display.is_inline_outside() && (display.is_flow_root_inside() || display.is_table_inside())
     }
 
-    fn is_pure_inline_box(&self, paintable: PaintableSlotId) -> bool {
+    fn is_pure_inline_box(&self, paintable: NodeSlotId) -> bool {
         let data = self.data(paintable);
         self.is_fragmented_inline(paintable)
             && !data.has_flag(PaintableFlag::Floating)
@@ -290,7 +291,7 @@ impl PaintRecorder<'_> {
         for &descendant in
             &stacking_contexts.nodes[index as usize].positioned_descendants_and_stacking_contexts_with_stack_level_0
         {
-            if !self.paintables.is_live(descendant) {
+            if !self.paintables.paintable_row_is_populated(descendant) {
                 continue;
             }
             let child_context = self.data(descendant).stacking_context;
@@ -321,7 +322,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn paint_subtree_backgrounds_and_borders(&mut self, paintable: PaintableSlotId) {
+    fn paint_subtree_backgrounds_and_borders(&mut self, paintable: NodeSlotId) {
         self.paint_node(paintable, PaintPhase::Background);
         self.paint_node(paintable, PaintPhase::Border);
         // A pure inline paintable paints its own background/border in the inline-level phase. Its block descendants, if
@@ -337,7 +338,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn paint_inline_level_non_positioned_descendant(&mut self, paintable: PaintableSlotId) {
+    fn paint_inline_level_non_positioned_descendant(&mut self, paintable: NodeSlotId) {
         self.paint_subtree_backgrounds_and_borders(paintable);
         // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
         // "For inline-block and inline-table elements: [...] treat the element as if it created a new stacking context,
@@ -348,7 +349,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn paint_node_as_stacking_context(&mut self, paintable: PaintableSlotId) {
+    fn paint_node_as_stacking_context(&mut self, paintable: NodeSlotId) {
         if self.data(paintable).kind == PaintableKind::SVGSVGPaintable {
             self.paint_svg(paintable, PaintPhase::Foreground);
             return;
@@ -365,7 +366,7 @@ impl PaintRecorder<'_> {
         self.paint_node(paintable, PaintPhase::Overlay);
     }
 
-    pub(crate) fn paint_svg(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    pub(crate) fn paint_svg(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if phase != PaintPhase::Foreground {
             return;
         }
@@ -377,7 +378,7 @@ impl PaintRecorder<'_> {
         self.paint_svg_box(paintable, phase);
     }
 
-    fn paint_descendants(&mut self, paintable: PaintableSlotId, phase: StackingContextPaintPhase) {
+    fn paint_descendants(&mut self, paintable: NodeSlotId, phase: StackingContextPaintPhase) {
         let paintables = self.paintables;
         let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintables, paintable);
         while let Some(child) = next_child {
@@ -395,7 +396,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn paint_descendant(&mut self, child: PaintableSlotId, phase: StackingContextPaintPhase) {
+    fn paint_descendant(&mut self, child: NodeSlotId, phase: StackingContextPaintPhase) {
         if self.has_stacking_context(child) {
             return;
         }
@@ -473,11 +474,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn append_cached_descendant_subtree(
-        &mut self,
-        paintable: PaintableSlotId,
-        phase: StackingContextPaintPhase,
-    ) -> bool {
+    fn append_cached_descendant_subtree(&mut self, paintable: NodeSlotId, phase: StackingContextPaintPhase) -> bool {
         if self.nested.is_some() {
             return false;
         }
@@ -521,7 +518,7 @@ impl PaintRecorder<'_> {
 
     fn cache_descendant_subtree(
         &self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         phase: StackingContextPaintPhase,
         command_start: usize,
         hit_test_start: usize,
@@ -543,7 +540,7 @@ impl PaintRecorder<'_> {
 
     fn set_cached_descendant_subtree(
         &self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         phase: StackingContextPaintPhase,
         command_range: CommandRange,
         hit_test_start: usize,
@@ -561,7 +558,7 @@ impl PaintRecorder<'_> {
         );
     }
 
-    fn paint_svg_box(&mut self, svg_box: PaintableSlotId, phase: PaintPhase) {
+    fn paint_svg_box(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
         let context_index = VisualContextIndex(self.own_context_index(svg_box));
         self.recorder.set_accumulated_visual_context(context_index);
 
@@ -594,7 +591,7 @@ impl PaintRecorder<'_> {
         self.svg_paint_descendants(svg_box, phase);
     }
 
-    fn svg_paint_descendants(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn svg_paint_descendants(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         if phase != PaintPhase::Foreground {
             return;
         }
@@ -610,7 +607,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn for_descendants_context_index(&self, paintable: PaintableSlotId) -> usize {
+    fn for_descendants_context_index(&self, paintable: NodeSlotId) -> usize {
         if let Some(nested) = &self.nested
             && let Some((_, for_descendants)) = nested.assignments.paintable_indices.get(&paintable.index)
         {
@@ -619,7 +616,7 @@ impl PaintRecorder<'_> {
         self.data(paintable).accumulated_visual_context_for_descendants_index
     }
 
-    fn context_index_for_phase(&self, paintable: PaintableSlotId, phase: PaintPhase) -> VisualContextIndex {
+    fn context_index_for_phase(&self, paintable: NodeSlotId, phase: PaintPhase) -> VisualContextIndex {
         let data = self.data(paintable);
         // Text fragments are content of the block container (or of a self-painting inline box).
         // They need the descendants' visual context, not the element's own visual context.
@@ -631,7 +628,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn paint_node(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn paint_node(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         let saved_nesting_level = std::mem::replace(&mut self.recorder.save_nesting_level, 0);
         let context_index = self.context_index_for_phase(paintable, phase);
         self.recorder.set_accumulated_visual_context(context_index);
@@ -750,7 +747,7 @@ impl PaintRecorder<'_> {
 
     fn valid_cached_commands(
         &self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         phase: PaintPhase,
         phase_has_empty_effective_clip: bool,
     ) -> Option<(Rc<RecordingOutput>, crate::painting::record::cache::CachedCommands)> {
@@ -767,7 +764,7 @@ impl PaintRecorder<'_> {
 
     fn valid_cached_hit_test_items(
         &self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         phase: PaintPhase,
         own_index: usize,
         for_descendants_index: usize,
@@ -786,7 +783,7 @@ impl PaintRecorder<'_> {
 
     fn set_cached_commands(
         &self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         phase: PaintPhase,
         range: CommandRange,
         recorded_context_index: usize,
@@ -806,7 +803,7 @@ impl PaintRecorder<'_> {
 
     fn set_cached_hit_test_items(
         &self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         phase: PaintPhase,
         start: usize,
         count: usize,
@@ -826,7 +823,7 @@ impl PaintRecorder<'_> {
         );
     }
 
-    fn paint(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
+    fn paint(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         crate::painting::record::paint::paint(self, paintable, phase);
     }
 }

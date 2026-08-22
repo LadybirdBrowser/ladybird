@@ -8,7 +8,6 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::{paintable_geometry, text_fragment};
 
 pub(crate) struct RecordVisualLine {
@@ -16,7 +15,7 @@ pub(crate) struct RecordVisualLine {
     pub end_offset: usize,
     pub end_offset_with_trailing_whitespace: usize,
     pub has_fragments: bool,
-    pub owner: PaintableSlotId,
+    pub owner: NodeSlotId,
     pub line_index: u32,
 }
 
@@ -119,7 +118,7 @@ pub(crate) fn collect_visual_lines(
                 end_offset: position,
                 end_offset_with_trailing_whitespace: position,
                 has_fragments: false,
-                owner: PaintableSlotId::INVALID,
+                owner: NodeSlotId::INVALID,
                 line_index: 0,
             });
             true
@@ -138,7 +137,7 @@ pub(crate) struct EmptyLineCaretTarget {
 pub(crate) fn empty_line_caret_targets(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    block: PaintableSlotId,
+    block: NodeSlotId,
 ) -> Vec<EmptyLineCaretTarget> {
     let side = paintables.side(block);
     if side.fragments.is_empty() || side.lines.is_empty() {
@@ -224,7 +223,7 @@ fn fragments_of_line(
     owner_paintable: u32,
     line_index: u32,
     node_slots: &[NodeSlotId],
-) -> Vec<(PaintableSlotId, u32)> {
+) -> Vec<(NodeSlotId, u32)> {
     let mut fragments = Vec::new();
     text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |block, index, fragment| {
         if block.index == owner_paintable && fragment.line_index == line_index {

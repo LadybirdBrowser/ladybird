@@ -5,7 +5,8 @@
  */
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
-use crate::painting::paintable_data::{FfiStickyInsets, PaintableSlotId};
+use crate::layout::node_data::NodeSlotId;
+use crate::painting::paintable_data::FfiStickyInsets;
 use libgfx_rust::FloatPoint;
 
 pub type ScrollStateSlot = usize;
@@ -31,7 +32,7 @@ pub struct StickyConstraints {
 // fixed-position ancestors.
 #[derive(Clone, Debug)]
 pub struct ScrollNodeState {
-    pub paintable: PaintableSlotId,
+    pub paintable: NodeSlotId,
     pub is_sticky: bool,
     pub node_index: usize,
     pub parent_slot: ScrollStateSlot,
@@ -69,7 +70,7 @@ impl ScrollState {
     pub fn register_scroll_node(
         &mut self,
         node_index: usize,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         parent_slot: ScrollStateSlot,
     ) -> ScrollStateSlot {
         self.append(ScrollNodeState {
@@ -85,7 +86,7 @@ impl ScrollState {
     pub fn register_sticky_node(
         &mut self,
         node_index: usize,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         parent_slot: ScrollStateSlot,
     ) -> ScrollStateSlot {
         self.append(ScrollNodeState {

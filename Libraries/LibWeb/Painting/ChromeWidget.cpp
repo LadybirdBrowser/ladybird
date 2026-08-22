@@ -24,7 +24,7 @@ ChromeWidgetRegistry::~ChromeWidgetRegistry()
     clear();
 }
 
-RefPtr<Scrollbar> ChromeWidgetRegistry::scrollbar(Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction) const
+RefPtr<Scrollbar> ChromeWidgetRegistry::scrollbar(Layout::RustFFI::NodeSlotId slot, ScrollDirection direction) const
 {
     auto entry = m_entries.find(slot.index);
     if (entry == m_entries.end())
@@ -32,7 +32,7 @@ RefPtr<Scrollbar> ChromeWidgetRegistry::scrollbar(Layout::RustFFI::PaintableSlot
     return direction == ScrollDirection::Horizontal ? entry->value.horizontal_scrollbar : entry->value.vertical_scrollbar;
 }
 
-NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::get_or_create_scrollbar(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
+NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::get_or_create_scrollbar(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot, ScrollDirection direction)
 {
     auto& entry = m_entries.ensure(slot.index);
     auto& scrollbar = direction == ScrollDirection::Horizontal ? entry.horizontal_scrollbar : entry.vertical_scrollbar;
@@ -41,7 +41,7 @@ NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::get_or_create_scrollbar(Layout::N
     return *scrollbar;
 }
 
-RefPtr<ResizeHandle> ChromeWidgetRegistry::resize_handle(Layout::RustFFI::PaintableSlotId slot) const
+RefPtr<ResizeHandle> ChromeWidgetRegistry::resize_handle(Layout::RustFFI::NodeSlotId slot) const
 {
     auto entry = m_entries.find(slot.index);
     if (entry == m_entries.end())
@@ -49,7 +49,7 @@ RefPtr<ResizeHandle> ChromeWidgetRegistry::resize_handle(Layout::RustFFI::Painta
     return entry->value.resize_handle;
 }
 
-NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::get_or_create_resize_handle(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::get_or_create_resize_handle(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot)
 {
     auto& entry = m_entries.ensure(slot.index);
     if (!entry.resize_handle)
@@ -57,7 +57,7 @@ NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::get_or_create_resize_handle(La
     return *entry.resize_handle;
 }
 
-void ChromeWidgetRegistry::drop_widgets_for_slot(Layout::RustFFI::PaintableSlotId slot)
+void ChromeWidgetRegistry::drop_widgets_for_slot(Layout::RustFFI::NodeSlotId slot)
 {
     auto entry = m_entries.take(slot.index);
     if (!entry.has_value())
@@ -83,7 +83,7 @@ void ChromeWidgetRegistry::clear()
     m_entries.clear();
 }
 
-ChromeWidget::ChromeWidget(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+ChromeWidget::ChromeWidget(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot)
     : m_arena(arena)
     , m_slot(slot)
 {
@@ -96,7 +96,7 @@ Layout::Node* ChromeWidget::layout_node() const
 
 void ChromeWidget::detach(Badge<ChromeWidgetRegistry>)
 {
-    m_slot = Layout::RustFFI::PaintableSlotId_INVALID;
+    m_slot = Layout::RustFFI::NodeSlotId_INVALID;
     did_detach();
 }
 

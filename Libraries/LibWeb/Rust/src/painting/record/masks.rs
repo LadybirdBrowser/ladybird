@@ -9,7 +9,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::DisplayListResourceId;
 use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::paintable_data::{PaintableKind, PaintableSlotId};
+use crate::painting::paintable_data::PaintableKind;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::{NestedRecordingState, PaintPhase, PaintRecorder};
 use crate::painting::visual_context::nested::build_nested_svg_visual_context_tree;
@@ -44,7 +44,7 @@ struct MaskLayerPresence {
 }
 
 impl PaintRecorder<'_> {
-    fn mask_layer_presence(&mut self, paintable: PaintableSlotId, set: MaskLayerSet) -> Vec<MaskLayerPresence> {
+    fn mask_layer_presence(&mut self, paintable: NodeSlotId, set: MaskLayerSet) -> Vec<MaskLayerPresence> {
         crate::painting::visual_context::node_values::mask_layer_presence(
             self.layout_arena,
             self.paintables,
@@ -61,7 +61,7 @@ impl PaintRecorder<'_> {
         .collect()
     }
 
-    fn record_mask_entry(&mut self, paintable: PaintableSlotId, set: MaskLayerSet) -> bool {
+    fn record_mask_entry(&mut self, paintable: NodeSlotId, set: MaskLayerSet) -> bool {
         let presence = self.mask_layer_presence(paintable, set);
         if presence.is_empty() {
             return false;
@@ -111,7 +111,7 @@ impl PaintRecorder<'_> {
         any_svg_mask_layer_area_is_empty
     }
 
-    pub(crate) fn register_mask_display_lists(&mut self, paintable: PaintableSlotId, set: MaskLayerSet) -> bool {
+    pub(crate) fn register_mask_display_lists(&mut self, paintable: NodeSlotId, set: MaskLayerSet) -> bool {
         let Some(layers) = self.prerecorded.mask_entries.get(&paintable.index).cloned() else {
             assert!(
                 self.mask_layer_presence(paintable, set).is_empty(),
@@ -167,14 +167,14 @@ impl PaintRecorder<'_> {
     pub(crate) fn prerecord_nested_display_lists(&mut self) {
         let masked_paintables = self.paintables.visual_context.paintables_with_mask_nodes.clone();
         for paintable in masked_paintables {
-            if !self.paintables.is_live(paintable) {
+            if !self.paintables.paintable_row_is_populated(paintable) {
                 continue;
             }
             self.record_mask_entry(paintable, MaskLayerSet::CssAndSvg);
         }
 
         for node in self.layout_arena.svg_pattern_referencing_nodes() {
-            let paintable = self.paintables.paintable_of_node(node);
+            let paintable = self.paintables.populated_paintable_row_of_node(node);
             if paintable.is_invalid() {
                 continue;
             }
@@ -188,7 +188,7 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn prerecord_nested_display_lists_for_svg_subtree(&mut self, root: PaintableSlotId) {
+    fn prerecord_nested_display_lists_for_svg_subtree(&mut self, root: NodeSlotId) {
         let has_mask_nodes = self
             .nested
             .as_ref()
@@ -221,7 +221,7 @@ impl PaintRecorder<'_> {
         false
     }
 
-    fn recorded_mask_entry_has_empty_svg_mask_layer_area(&self, paintable: PaintableSlotId) -> bool {
+    fn recorded_mask_entry_has_empty_svg_mask_layer_area(&self, paintable: NodeSlotId) -> bool {
         let Some(layers) = self.prerecorded.mask_entries.get(&paintable.index) else {
             return false;
         };
@@ -230,12 +230,12 @@ impl PaintRecorder<'_> {
             .any(|layer| layer.origin != MaskLayerOrigin::CssMaskLayers && layer.mask_layer_area_is_empty)
     }
 
-    fn first_child_paintable_of_kind(&self, paintable: PaintableSlotId, kind: NodeKind) -> Option<PaintableSlotId> {
+    fn first_child_paintable_of_kind(&self, paintable: NodeSlotId, kind: NodeKind) -> Option<NodeSlotId> {
         let arena = self.layout_arena;
         let mut child = arena.node_first_child_if_live(self.data(paintable).layout_node);
         while let Some(node) = child {
             if arena.node_kind_if_live(node) == Some(kind) {
-                let candidate = self.paintables.paintable_of_node(node);
+                let candidate = self.paintables.populated_paintable_row_of_node(node);
                 return (!candidate.is_invalid()).then_some(candidate);
             }
             child = arena.node_next_sibling_if_live(node);
@@ -243,7 +243,7 @@ impl PaintRecorder<'_> {
         None
     }
 
-    fn target_user_space_object_bounding_box(&self, target: PaintableSlotId) -> CssPixelRect {
+    fn target_user_space_object_bounding_box(&self, target: NodeSlotId) -> CssPixelRect {
         if self.data(target).kind == PaintableKind::SVGPathPaintable
             && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(self.paintables, target)
         {
@@ -258,7 +258,7 @@ impl PaintRecorder<'_> {
         absolute_border_box_rect(self.paintables, target)
     }
 
-    fn object_bounding_box_content_units_transform(&self, target: PaintableSlotId) -> AffineTransform {
+    fn object_bounding_box_content_units_transform(&self, target: NodeSlotId) -> AffineTransform {
         let bounding_box = self.target_user_space_object_bounding_box(target);
         AffineTransform {
             values: [
@@ -274,7 +274,7 @@ impl PaintRecorder<'_> {
 
     fn calculate_svg_mask_display_list(
         &mut self,
-        target: PaintableSlotId,
+        target: NodeSlotId,
         mask_device_rect: libgfx_rust::IntRect,
     ) -> Option<DisplayListResourceId> {
         let mask_paintable = self.first_child_paintable_of_kind(target, NodeKind::SVGMaskBox)?;
@@ -288,7 +288,7 @@ impl PaintRecorder<'_> {
 
     fn calculate_svg_clip_display_list(
         &mut self,
-        target: PaintableSlotId,
+        target: NodeSlotId,
         clip_device_rect: libgfx_rust::IntRect,
     ) -> Option<DisplayListResourceId> {
         let clip_paintable = self.first_child_paintable_of_kind(target, NodeKind::SVGClipBox)?;
@@ -303,7 +303,7 @@ impl PaintRecorder<'_> {
     fn paint_mask_or_clip_to_display_list(
         &mut self,
         content_units_transform: AffineTransform,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         mask_device_rect: libgfx_rust::IntRect,
         is_clip_path: bool,
     ) -> DisplayListResourceId {
@@ -338,7 +338,7 @@ impl PaintRecorder<'_> {
 
     fn paint_css_mask_layers_to_display_list(
         &mut self,
-        paintable: PaintableSlotId,
+        paintable: NodeSlotId,
         area: CssPixelRect,
     ) -> DisplayListResourceId {
         let mask_rect = CssPixelRect::new(CssPixels::default(), CssPixels::default(), area.width, area.height);
@@ -380,7 +380,7 @@ impl PaintRecorder<'_> {
 
     pub(crate) fn record_nested_svg_display_list(
         &mut self,
-        root: PaintableSlotId,
+        root: NodeSlotId,
         root_transform: TransformData,
         include_root_element_transform: bool,
         is_clip_path: bool,

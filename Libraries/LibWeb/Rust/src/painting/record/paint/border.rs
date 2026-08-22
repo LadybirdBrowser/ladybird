@@ -6,10 +6,10 @@
 
 use crate::css::css_enums::line_style;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::recorder::{
     DisplayListRecorder, FillPathParams, PaintStyleOrColor, StrokePathParams,
 };
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::record::{BasePaintFacts, PaintRecorder};
 use libgfx_rust::path::PathBuilder;
 use libgfx_rust::{
@@ -1121,7 +1121,7 @@ pub fn paint_all_borders(
 
 pub(crate) fn paint_box_borders_from_style(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     facts: &BasePaintFacts,
 ) {
     let data = recorder.data(paintable);
@@ -1216,7 +1216,7 @@ pub(crate) fn paint_box_borders_from_style(
 
 pub(crate) fn paint_box_borders(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     facts: &BasePaintFacts,
     border_box_rect: CssPixelRect,
     css_border_widths: [CssPixels; 4],

@@ -38,7 +38,7 @@ public:
     CSSPixelPoint cumulative_scroll_offset_for_node(DOM::Document const&, VisualContextIndex) const;
 
     void assign_accumulated_visual_contexts(DOM::Document&);
-    bool update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::PaintableSlotId);
+    bool update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::NodeSlotId);
     void update_visual_viewport_accumulated_visual_context(DOM::Document&);
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
@@ -55,8 +55,8 @@ public:
 
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
-    void set_boxes_with_auto_content_visibility(Vector<Layout::RustFFI::PaintableSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
-    Vector<Layout::RustFFI::PaintableSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
+    void set_boxes_with_auto_content_visibility(Vector<Layout::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
+    Vector<Layout::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
     AccumulatedVisualContextTree const& visual_context_tree(DOM::Document const&) const;
     AccumulatedVisualContextTree& visual_context_tree(DOM::Document&);
@@ -81,7 +81,7 @@ private:
     ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_needs_to_refresh_scroll_state { true };
 
-    Vector<Layout::RustFFI::PaintableSlotId> m_boxes_with_auto_content_visibility;
+    Vector<Layout::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
 
     RefPtr<DisplayList const> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;

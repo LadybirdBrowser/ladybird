@@ -5,6 +5,7 @@
  */
 
 use crate::layout::LayoutNodeArena;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
 use crate::painting::style_queries::effective_z_index;
@@ -12,13 +13,13 @@ use crate::painting::style_queries::effective_z_index;
 pub use crate::painting::paintable_data::NO_STACKING_CONTEXT;
 
 pub struct StackingContextNode {
-    pub paintable: PaintableSlotId,
+    pub paintable: NodeSlotId,
     pub parent: u32,
     pub children: Vec<u32>,
     pub index_in_tree_order: usize,
     pub effective_z_index: Option<i32>,
-    pub positioned_descendants_and_stacking_contexts_with_stack_level_0: Vec<PaintableSlotId>,
-    pub non_positioned_floating_descendants: Vec<PaintableSlotId>,
+    pub positioned_descendants_and_stacking_contexts_with_stack_level_0: Vec<NodeSlotId>,
+    pub non_positioned_floating_descendants: Vec<NodeSlotId>,
     pub contains_inline_or_replaced_descendants: bool,
 }
 
@@ -30,7 +31,7 @@ pub struct StackingContextTree {
 pub(crate) fn build_stacking_context_tree(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
-    root: PaintableSlotId,
+    root: NodeSlotId,
 ) -> StackingContextTree {
     let mut tree = StackingContextTree::default();
     tree.nodes.push(StackingContextNode {
@@ -46,7 +47,7 @@ pub(crate) fn build_stacking_context_tree(
     paintables.update_data(root, |data| data.stacking_context = 0);
 
     let mut index_in_tree_order = 1;
-    let mut stack: Vec<PaintableSlotId> = Vec::new();
+    let mut stack: Vec<NodeSlotId> = Vec::new();
     let mut child = crate::painting::paint_order::first_paint_child(layout_arena, paintables, root);
     while let Some(first) = child {
         stack.push(first);
@@ -72,7 +73,7 @@ fn visit(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     tree: &mut StackingContextTree,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     index_in_tree_order: &mut usize,
 ) {
     let data = paintables.data_ref(paintable);

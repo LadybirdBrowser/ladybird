@@ -123,7 +123,7 @@ void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& docum
     m_visual_context_tree_needs_compositor_update = true;
 }
 
-bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::PaintableSlotId paintable_slot)
+bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable_slot)
 {
     if (!m_visual_context_tree.has_value())
         return false;

@@ -5,15 +5,15 @@
  */
 
 use crate::css::css_pixels::CssPixels;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
 use libgfx_rust::{CapStyle, Color, JoinStyle, ShouldAntiAlias};
 
-pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let node = recorder.data(paintable).layout_node;
     let outline = crate::painting::style_queries::outline_data(
         recorder.layout_arena,
@@ -90,7 +90,7 @@ pub(crate) fn paint_outline(
 
 fn paint_focused_area_outline(
     recorder: &mut PaintRecorder<'_>,
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     facts: &crate::painting::host::FfiOutlineFacts,
 ) {
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area

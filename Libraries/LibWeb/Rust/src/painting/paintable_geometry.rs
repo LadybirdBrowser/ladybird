@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
 
@@ -21,7 +22,7 @@ pub(crate) fn is_svg_paintable(kind: PaintableKind) -> bool {
     )
 }
 
-pub(crate) fn committed_offset(arena: &PaintableArena, slot: PaintableSlotId) -> crate::layout::FfiCssPixelPoint {
+pub(crate) fn committed_offset(arena: &PaintableArena, slot: NodeSlotId) -> crate::layout::FfiCssPixelPoint {
     let data = arena.data_ref(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return data.offset;
@@ -31,7 +32,7 @@ pub(crate) fn committed_offset(arena: &PaintableArena, slot: PaintableSlotId) ->
     })
 }
 
-pub(crate) fn committed_content_size(arena: &PaintableArena, slot: PaintableSlotId) -> crate::layout::FfiCssPixelSize {
+pub(crate) fn committed_content_size(arena: &PaintableArena, slot: NodeSlotId) -> crate::layout::FfiCssPixelSize {
     let data = arena.data_ref(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return data.content_size;
@@ -46,7 +47,7 @@ pub(crate) fn committed_content_size(arena: &PaintableArena, slot: PaintableSlot
     })
 }
 
-pub(crate) fn committed_margin(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+pub(crate) fn committed_margin(arena: &PaintableArena, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.fragment.margin_top,
@@ -57,7 +58,7 @@ pub(crate) fn committed_margin(arena: &PaintableArena, slot: PaintableSlotId) ->
     })
 }
 
-pub(crate) fn committed_border(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+pub(crate) fn committed_border(arena: &PaintableArena, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.fragment.border_top,
@@ -68,7 +69,7 @@ pub(crate) fn committed_border(arena: &PaintableArena, slot: PaintableSlotId) ->
     })
 }
 
-pub(crate) fn committed_padding(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+pub(crate) fn committed_padding(arena: &PaintableArena, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.fragment.padding_top,
@@ -79,7 +80,7 @@ pub(crate) fn committed_padding(arena: &PaintableArena, slot: PaintableSlotId) -
     })
 }
 
-pub(crate) fn committed_inset(arena: &PaintableArena, slot: PaintableSlotId) -> FfiPixelBox {
+pub(crate) fn committed_inset(arena: &PaintableArena, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.inset_top,
@@ -90,7 +91,7 @@ pub(crate) fn committed_inset(arena: &PaintableArena, slot: PaintableSlotId) -> 
     })
 }
 
-pub(crate) fn committed_uses_collapsing_borders_model(arena: &PaintableArena, slot: PaintableSlotId) -> bool {
+pub(crate) fn committed_uses_collapsing_borders_model(arena: &PaintableArena, slot: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
         link.is_some_and(|link| link.fragment.uses_collapsing_borders_model)
     })
@@ -98,7 +99,7 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &PaintableArena, sl
 
 pub(crate) fn committed_grid_layout_data(
     arena: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<std::rc::Rc<crate::layout::GridLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.grid_layout_data.clone())
@@ -107,7 +108,7 @@ pub(crate) fn committed_grid_layout_data(
 
 pub(crate) fn committed_flex_layout_data(
     arena: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<std::rc::Rc<crate::layout::FlexLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.flex_layout_data.clone())
@@ -116,7 +117,7 @@ pub(crate) fn committed_flex_layout_data(
 
 pub(crate) fn committed_used_grid_tracks(
     arena: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<std::rc::Rc<crate::layout::OwnedUsedGridTracks>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.used_grid_tracks.clone())
@@ -125,7 +126,7 @@ pub(crate) fn committed_used_grid_tracks(
 
 pub(crate) fn committed_collapsed_table_borders(
     arena: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<std::rc::Rc<crate::layout::OwnedCollapsedTableBorders>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.collapsed_table_borders.clone())
@@ -134,7 +135,7 @@ pub(crate) fn committed_collapsed_table_borders(
 
 pub(crate) fn committed_svg_path(
     arena: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<std::rc::Rc<libgfx_rust::path::OwnedPath>> {
     if arena.data_ref(slot).kind != PaintableKind::SVGPathPaintable {
         return None;
@@ -144,21 +145,18 @@ pub(crate) fn committed_svg_path(
     })
 }
 
-pub(crate) fn committed_containing_line_box_index(arena: &PaintableArena, slot: PaintableSlotId) -> Option<usize> {
+pub(crate) fn committed_containing_line_box_index(arena: &PaintableArena, slot: NodeSlotId) -> Option<usize> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.containing_line_box_index))
 }
 
 pub(crate) fn committed_svg_viewport_transform(
     arena: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<crate::layout::FfiAffineTransform> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_viewport_transform))
 }
 
-pub(crate) fn committed_svg_viewport_size(
-    arena: &PaintableArena,
-    slot: PaintableSlotId,
-) -> crate::layout::FfiCssPixelSize {
+pub(crate) fn committed_svg_viewport_size(arena: &PaintableArena, slot: NodeSlotId) -> crate::layout::FfiCssPixelSize {
     if arena.data_ref(slot).kind != PaintableKind::SVGSVGPaintable {
         return crate::layout::FfiCssPixelSize::default();
     }
@@ -168,7 +166,7 @@ pub(crate) fn committed_svg_viewport_size(
     })
 }
 
-pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelRect {
+pub fn absolute_rect(arena: &PaintableArena, slot: NodeSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;
     }
@@ -182,7 +180,7 @@ pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelR
         return rect;
     }
     let mut block = data.containing_block;
-    while !block.is_invalid() && arena.is_live(block) {
+    while !block.is_invalid() && arena.paintable_row_is_populated(block) {
         let block_data = arena.data_ref(block);
         if block_data.kind == PaintableKind::SVGSVGPaintable || is_svg_paintable(block_data.kind) {
             break;
@@ -197,11 +195,11 @@ pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelR
     rect
 }
 
-pub fn absolute_position(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelPoint {
+pub fn absolute_position(arena: &PaintableArena, slot: NodeSlotId) -> CssPixelPoint {
     absolute_rect(arena, slot).location()
 }
 
-pub fn absolute_padding_box_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelRect {
+pub fn absolute_padding_box_rect(arena: &PaintableArena, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.data_ref(slot);
     let absolute = absolute_rect(arena, slot);
     if data.kind == PaintableKind::InlinePaintable {
@@ -217,7 +215,7 @@ pub fn absolute_padding_box_rect(arena: &PaintableArena, slot: PaintableSlotId) 
     )
 }
 
-pub fn absolute_border_box_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelRect {
+pub fn absolute_border_box_rect(arena: &PaintableArena, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.data_ref(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());
@@ -243,7 +241,7 @@ pub fn absolute_border_box_rect(arena: &PaintableArena, slot: PaintableSlotId) -
     )
 }
 
-pub fn scrollable_overflow_rect(arena: &PaintableArena, slot: PaintableSlotId) -> Option<CssPixelRect> {
+pub fn scrollable_overflow_rect(arena: &PaintableArena, slot: NodeSlotId) -> Option<CssPixelRect> {
     let data = arena.data_ref(slot);
     if data.has_overflow {
         return Some(data.overflow.rect.into());

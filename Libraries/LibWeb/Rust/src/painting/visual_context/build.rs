@@ -24,7 +24,7 @@ use std::collections::HashSet;
 // viewport box's position in its own recorded space together with the viewBox transform.
 pub fn compute_svg_viewport_transform_data(
     paintables: &PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
     viewbox_transform: AffineTransform,
     pixel_ratio: f64,
 ) -> TransformData {
@@ -48,7 +48,7 @@ pub fn compute_svg_viewport_transform_data(
 
 pub(crate) fn svg_viewport_transform_of(
     paintables: &crate::painting::paintable_arena::PaintableArena,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
 ) -> Option<AffineTransform> {
     let t = crate::painting::paintable_geometry::committed_svg_viewport_transform(paintables, slot)?;
     Some(AffineTransform {
@@ -86,7 +86,7 @@ impl BoxFacts {
         layout_arena: &LayoutNodeArena,
         paintables: &PaintableArena,
         callbacks: &FfiVisualContextHostCallbacks,
-        slot: PaintableSlotId,
+        slot: NodeSlotId,
         pixel_ratio: f64,
         may_have_default_scroll_shift_anchor: bool,
     ) -> Self {
@@ -224,14 +224,14 @@ struct Builder<'a> {
     callbacks: &'a FfiVisualContextHostCallbacks,
     tree: VisualContextTree,
     scroll_state: ScrollState,
-    paintables_with_mask_nodes: Vec<PaintableSlotId>,
+    paintables_with_mask_nodes: Vec<NodeSlotId>,
     pixel_ratio: f64,
     root_background_source: crate::painting::host::FfiRootBackgroundSource,
     may_have_default_scroll_shift_anchor: bool,
 }
 
 impl Builder<'_> {
-    fn default_scroll_shift_anchor(&self, slot: PaintableSlotId) -> NodeSlotId {
+    fn default_scroll_shift_anchor(&self, slot: NodeSlotId) -> NodeSlotId {
         if !self.may_have_default_scroll_shift_anchor {
             return NodeSlotId::INVALID;
         }
@@ -241,7 +241,7 @@ impl Builder<'_> {
         )
     }
 
-    fn register_scroll_node(&mut self, node_index: usize, paintable: PaintableSlotId, parent_index: usize) {
+    fn register_scroll_node(&mut self, node_index: usize, paintable: NodeSlotId, parent_index: usize) {
         let parent_slot = self.tree.scroll_state_slot_for_node(parent_index);
         let slot = self
             .scroll_state
@@ -263,7 +263,7 @@ impl Builder<'_> {
         }
     }
 
-    fn register_sticky_node(&mut self, node_index: usize, paintable: PaintableSlotId, parent_index: usize) {
+    fn register_sticky_node(&mut self, node_index: usize, paintable: NodeSlotId, parent_index: usize) {
         let parent_slot = self.tree.scroll_state_slot_for_node(parent_index);
         let slot = self
             .scroll_state
@@ -276,7 +276,7 @@ impl Builder<'_> {
 
     fn build_paintable_box(
         &mut self,
-        slot: PaintableSlotId,
+        slot: NodeSlotId,
         inherited: DescendantVisualContexts,
         may_be_root_element: bool,
     ) -> DescendantVisualContexts {
@@ -361,8 +361,8 @@ impl Builder<'_> {
                 if anchor_node.is_invalid() {
                     break;
                 }
-                let box_paintable = self.paintables.paintable_of_node(box_node);
-                let anchor_paintable = self.paintables.paintable_of_node(anchor_node);
+                let box_paintable = self.paintables.populated_paintable_row_of_node(box_node);
+                let anchor_paintable = self.paintables.populated_paintable_row_of_node(anchor_node);
                 if box_paintable.is_invalid() || anchor_paintable.is_invalid() {
                     break;
                 }
@@ -711,14 +711,14 @@ impl Builder<'_> {
         }
     }
 
-    fn has_default_scroll_shift_anchor(&self, slot: PaintableSlotId) -> bool {
+    fn has_default_scroll_shift_anchor(&self, slot: NodeSlotId) -> bool {
         !self.default_scroll_shift_anchor(slot).is_invalid()
     }
 }
 
 #[derive(Clone, Copy)]
 struct PendingPaintable {
-    paintable: PaintableSlotId,
+    paintable: NodeSlotId,
     inherited: DescendantVisualContexts,
     may_be_root_element: bool,
 }
@@ -727,8 +727,8 @@ pub(crate) fn build_visual_context_tree(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
-    viewport: PaintableSlotId,
-) -> (VisualContextTree, ScrollState, Vec<PaintableSlotId>) {
+    viewport: NodeSlotId,
+) -> (VisualContextTree, ScrollState, Vec<NodeSlotId>) {
     let inputs = callbacks.tree_inputs();
     let mut builder = Builder {
         layout_arena,
@@ -780,14 +780,14 @@ pub(crate) fn build_visual_context_tree(
     // their anchors, and an acceptable anchor may come later in tree order than the positioned box.
     // Building such boxes' subtrees is deferred until their anchors have been built.
     let mut deferred_anchor_positioned: Vec<PendingPaintable> = Vec::new();
-    let mut deferred_awaiting_build: HashSet<PaintableSlotId> = HashSet::new();
+    let mut deferred_awaiting_build: HashSet<NodeSlotId> = HashSet::new();
 
     fn build_deferring_anchor_positioned(
         builder: &mut Builder<'_>,
         stack: &mut Vec<PendingPaintable>,
-        exempt: Option<PaintableSlotId>,
+        exempt: Option<NodeSlotId>,
         deferred: &mut Vec<PendingPaintable>,
-        awaiting: &mut HashSet<PaintableSlotId>,
+        awaiting: &mut HashSet<NodeSlotId>,
     ) {
         while let Some(pending) = stack.pop() {
             if Some(pending.paintable) != exempt && builder.has_default_scroll_shift_anchor(pending.paintable) {
@@ -834,11 +834,9 @@ pub(crate) fn build_visual_context_tree(
         &mut deferred_awaiting_build,
     );
 
-    let anchor_is_awaiting_build = |builder: &Builder<'_>,
-                                    slot: PaintableSlotId,
-                                    awaiting: &HashSet<PaintableSlotId>| {
+    let anchor_is_awaiting_build = |builder: &Builder<'_>, slot: NodeSlotId, awaiting: &HashSet<NodeSlotId>| {
         let anchor_node = builder.default_scroll_shift_anchor(slot);
-        let paintable = builder.paintables.paintable_of_node(anchor_node);
+        let paintable = builder.paintables.populated_paintable_row_of_node(anchor_node);
         let mut paintable = (!paintable.is_invalid()).then_some(paintable);
         while let Some(current) = paintable {
             if awaiting.contains(&current) {
@@ -899,7 +897,7 @@ pub(crate) fn update_visual_context_values(
     paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     tree: &mut VisualContextTree,
-    slot: PaintableSlotId,
+    slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> bool {
     let (begin, end) = {

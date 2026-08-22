@@ -37,7 +37,7 @@ WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 WEB_API bool rust_assign_accumulated_visual_contexts(DOM::Document&, bool forced_incompatible_rebuild);
 WEB_API AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(DOM::Document&);
 WEB_API void patch_rust_visual_context_nodes(DOM::Document&, AccumulatedVisualContextTree&, size_t begin, size_t end);
-WEB_API bool rust_update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::PaintableSlotId);
+WEB_API bool rust_update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::NodeSlotId);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
 WEB_API void rust_measure_scrollable_overflow(Layout::Node const&);
 WEB_API CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const&, Layout::NodeWithStyle const&, CSSPixelSize);

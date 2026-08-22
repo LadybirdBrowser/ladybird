@@ -13,7 +13,7 @@ namespace Web::Painting {
 
 class ResizeHandle final : public ChromeWidget {
 public:
-    static NonnullRefPtr<ResizeHandle> create(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
+    static NonnullRefPtr<ResizeHandle> create(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
 
     virtual bool contains(CSSPixelPoint position, ChromeMetrics const&) const override;
 
@@ -24,7 +24,7 @@ public:
     virtual Optional<CSS::CursorPredefined> cursor() const override;
 
 private:
-    ResizeHandle(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
+    ResizeHandle(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
 
     GC::Weak<DOM::Element> m_element;
     OwnPtr<ElementResizeAction> m_resize_action;

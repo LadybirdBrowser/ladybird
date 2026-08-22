@@ -7,9 +7,9 @@
 use std::collections::HashMap;
 
 use crate::layout::LayoutNodeArena;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextHostCallbacks;
 use crate::painting::paintable_arena::PaintableArena;
-use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::visual_context::build::{
     BoxFacts, compute_svg_viewport_transform_data, svg_viewport_transform_of,
 };
@@ -31,7 +31,7 @@ struct NestedBuilder<'a> {
 }
 
 impl NestedBuilder<'_> {
-    fn build_subtree(&mut self, slot: PaintableSlotId, inherited_state: usize, include_element_transform: bool) {
+    fn build_subtree(&mut self, slot: NodeSlotId, inherited_state: usize, include_element_transform: bool) {
         let facts = BoxFacts::gather(
             self.layout_arena,
             self.paintables,
@@ -95,7 +95,7 @@ pub(crate) fn build_nested_svg_visual_context_tree(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
-    root: PaintableSlotId,
+    root: NodeSlotId,
     root_transform: TransformData,
     include_root_element_transform: bool,
     pixel_ratio: f64,
