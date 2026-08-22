@@ -13,11 +13,11 @@ namespace Web::DOM {
 
 static unsigned hash_impl(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
-    unsigned hash = local_name.hash();
+    unsigned hash = ptr_hash(local_name.raw_identity());
     if (prefix.has_value())
-        hash = pair_int_hash(hash, prefix->hash());
+        hash = pair_int_hash(hash, ptr_hash(prefix->raw_identity()));
     if (namespace_.has_value())
-        hash = pair_int_hash(hash, namespace_->hash());
+        hash = pair_int_hash(hash, ptr_hash(namespace_->raw_identity()));
     return hash;
 }
 
