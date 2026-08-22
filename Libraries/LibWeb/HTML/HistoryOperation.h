@@ -107,10 +107,6 @@ struct CloseTopLevelTraversableHistoryOperationParameters {
     HTML::CrossProcessId traversable_id;
 };
 
-struct ResetSessionHistoryForTestingOperationParameters {
-    HTML::CrossProcessId traversable_id;
-};
-
 struct FlushSessionHistoryTraversalQueueOperationParameters {
     HTML::CrossProcessId traversable_id;
 };
@@ -126,7 +122,6 @@ using HistoryOperationParameters = Variant<
     NavigableDestructionHistoryOperationParameters,
     FinalizeSameDocumentNavigationHistoryOperationParameters,
     CloseTopLevelTraversableHistoryOperationParameters,
-    ResetSessionHistoryForTestingOperationParameters,
     FlushSessionHistoryTraversalQueueOperationParameters>;
 
 }
@@ -197,11 +192,6 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::CloseTopLevelTraversableHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::ResetSessionHistoryForTestingOperationParameters const&);
-template<>
-WEB_API ErrorOr<Web::ResetSessionHistoryForTestingOperationParameters> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::FlushSessionHistoryTraversalQueueOperationParameters const&);

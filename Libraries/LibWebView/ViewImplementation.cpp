@@ -1885,6 +1885,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
             //     traversal queue can serve the new process.
             m_top_level_traversable.abandon_history_operations();
         }
+        // A queued session-history reset awaiting the previous process's reply can likewise never complete.
+        if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
+            queue_promise->resolve({});
 
         cancel_all_native_geolocation_requests();
 
@@ -2591,7 +2594,13 @@ void ViewImplementation::notify_session_history_changed()
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_for_testing()
 {
     m_pending_session_history_reset_for_testing = Core::Promise<Empty>::construct();
-    client().async_reset_session_history_for_testing(page_id());
+    // The algorithms this test control replaces run on the session history traversal queue. Keep that ordering by
+    // sending the reset at its queue position, and hold the queue until WebContent returns the retained active
+    // entry so canonical history is reset before anything queued behind the reset runs.
+    m_top_level_traversable.append_history_queue_steps([this](NonnullRefPtr<Core::Promise<Empty>> promise) {
+        m_pending_session_history_reset_queue_promise = move(promise);
+        client().async_reset_session_history_for_testing(page_id());
+    });
     return *m_pending_session_history_reset_for_testing;
 }
 
@@ -2661,6 +2670,8 @@ void ViewImplementation::did_reset_session_history_for_testing(
     }
     update_navigation_action_state();
 
+    if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
+        queue_promise->resolve({});
     if (promise)
         promise->resolve({});
 }
@@ -2722,6 +2733,8 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
             m_repeated_crash_timer->stop();
             for (auto command_id : pending_crash_command_ids)
                 Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent crashed repeatedly and was not restarted"sv));
+            if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
+                queue_promise->resolve({});
             return;
         }
         // In headless mode, always respawn - tests need a working WebContent for each test.

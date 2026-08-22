@@ -261,20 +261,6 @@ ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> IPC::decode(Dec
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::ResetSessionHistoryForTestingOperationParameters const& parameters)
-{
-    return encoder.encode(parameters.traversable_id);
-}
-
-template<>
-ErrorOr<Web::ResetSessionHistoryForTestingOperationParameters> IPC::decode(Decoder& decoder)
-{
-    return Web::ResetSessionHistoryForTestingOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-    };
-}
-
-template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::FlushSessionHistoryTraversalQueueOperationParameters const& parameters)
 {
     return encoder.encode(parameters.traversable_id);

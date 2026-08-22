@@ -87,7 +87,7 @@ public:
     void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
     bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
     bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, Web::ReconstructedChildNavigation);
-    void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
+    void reset_session_history_for_testing();
 
     enum class PromptToUnload : bool {
         No,
