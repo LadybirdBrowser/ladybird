@@ -367,7 +367,6 @@ public:
     u32 execution_generation() const { return m_execution_generation; }
     void finish_execution_generation() { ++m_execution_generation; }
     FlatPtr primitive_storage_cage_base() const { return m_primitive_storage_cage_base; }
-
     u32 register_native_function(NativeFunctionPointer, NativeFunctionType);
     NativeFunctionPointer native_function(u32 index, NativeFunctionType expected_type) const;
 
@@ -643,6 +642,7 @@ private:
 
     u32 m_execution_generation { 0 };
     FlatPtr m_primitive_storage_cage_base { 0 };
+    FlatPtr m_heap_region_base { 0 };
     Vector<NativeFunctionTableEntry> m_native_function_table;
     NativeFunctionTableEntry const* m_native_function_table_data { nullptr };
     u32 m_run_executable_depth { 0 };

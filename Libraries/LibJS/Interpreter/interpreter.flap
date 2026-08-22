@@ -31,6 +31,7 @@ inline fn check_tag_is_double(tag: inout ValueTag, else failure: Label) {
 
 inline fn box_cell(cell: Environment) -> Value {
     let bits: u64 = alias(cell);
+    bits = heap_region_offset(bits);
     bits = bits | SHIFTED_IS_CELL_PATTERN;
     # FIXME: Use a representation alias once it can coalesce with an inline
     #        function return without leaving its result uninitialized.
@@ -41,8 +42,7 @@ inline fn box_cell(cell: Environment) -> Value {
 
 inline fn box_object(object: Object) -> Value<Object> {
     let pointer: u64 = alias(object);
-    pointer = pointer << 16;
-    pointer = pointer >> 16;
+    pointer = heap_region_offset(pointer);
     pointer = pointer | OBJECT_TAG_SHIFTED;
     # FIXME: Use a representation alias once it can coalesce with an inline
     #        function return without leaving its result uninitialized.
@@ -271,6 +271,10 @@ inline fn caged_primitive_storage_address(
     scale: u8
 ) -> u64 {
     cage_base + ((cached_offset + alias(index) * alias(scale)) & PRIMITIVE_STORAGE_CAGE_OFFSET_MASK)
+}
+
+inline fn heap_region_offset(pointer: u64) -> u64 {
+    pointer & HEAP_REGION_OFFSET_MASK
 }
 
 inline fn load_caged_u8(cage_base: u64, cached_offset: u64, index: u32) -> u8 {

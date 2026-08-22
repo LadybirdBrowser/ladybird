@@ -1588,7 +1588,7 @@ CSYM(js_interpreter):
     mov x20, x3              // vm = VM*
     ldr x28, [x3, #15288]
     // x28 = exec_ctx
-    ldr x9, [x3, #16712]
+    ldr x9, [x3, #16720]
     cbz x9, .Lnormal_dispatch_table
     adrp x19, asm_debug_dispatch_table
     add x19, x19, :lo12:asm_debug_dispatch_table
@@ -2530,6 +2530,7 @@ asm_handler_End_hot_end:
 .p2align 4
 asm_handler_GetLexicalEnvironment:
     ldr x0, [x28, #32]
+    and x0, x0, #0x3ffffffffff
     movz x1, #0xfff8, lsl #48
     orr x0, x0, x1
     ldr w9, [x21, #4]
@@ -2544,7 +2545,9 @@ asm_handler_GetLexicalEnvironment_hot_end:
 asm_handler_SetLexicalEnvironment:
     ldr w0, [x21, #4]
     ldr x0, [x27, x0, lsl #3]
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     str x0, [x28, #32]
     ldrb w9, [x21, #8]
     add x21, x21, #8
@@ -3931,7 +3934,9 @@ asm_handler_PutByValue:
     cmp x9, x22
     b.ne .Lasm_PutByValue.ssa_block_1
     mov w0, w0
-    and x3, x3, #0xffffffffffff
+    and x3, x3, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x3, x3, x9
     ldrh w1, [x3, #10]
     tbnz x1, #3, .Lasm_PutByValue.ssa_block_7
     tbnz x1, #4, .Lasm_PutByValue.ssa_block_1
@@ -4177,7 +4182,9 @@ asm_handler_GetById:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_GetById.ssa_block_1
-    and x2, x2, #0xffffffffffff
+    and x2, x2, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x2, x2, x9
     ldr x1, [x2, #24]
     ldr x0, [x28, #80]
     ldr x0, [x0, #112]
@@ -4241,8 +4248,7 @@ asm_handler_GetById:
     cbz x0, .Lasm_GetById.ssa_block_3
     ldrh w1, [x0, #10]
     tbnz x1, #11, .Lasm_GetById.ssa_block_3
-    lsl x0, x0, #16
-    lsr x0, x0, #16
+    and x0, x0, #0x3ffffffffff
     movz x1, #0xfff9, lsl #48
     orr x0, x0, x1
 .Lasm_GetById.ssa_block_26:
@@ -4255,7 +4261,7 @@ asm_handler_GetById:
 .Lasm_GetById.ssa_block_14:
     ldr w3, [x1, #104]
     mov x0, x20
-    ldr x0, [x0, #16688]
+    ldr x0, [x0, #16696]
     lsl x3, x3, #4
     adds x3, x3, x0
     ldr w4, [x3, #8]
@@ -4282,8 +4288,7 @@ asm_handler_GetById:
     stp x1, x4, [x0, #32]
     ldr x1, [x28, #48]
     str x1, [x0, #48]
-    lsl x2, x2, #16
-    lsr x2, x2, #16
+    and x2, x2, #0x3ffffffffff
     movz x1, #0xfff9, lsl #48
     orr x2, x2, x1
     str x2, [x0, #72]
@@ -4359,7 +4364,9 @@ asm_handler_PutById:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_PutById.ssa_block_2
-    and x2, x2, #0xffffffffffff
+    and x2, x2, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x2, x2, x9
     ldr x1, [x2, #24]
     ldr x0, [x28, #80]
     ldr x0, [x0, #112]
@@ -4404,7 +4411,9 @@ asm_handler_GetByValue:
     cmp x9, x22
     b.ne .Lasm_GetByValue.ssa_block_1
     mov w0, w0
-    and x3, x3, #0xffffffffffff
+    and x3, x3, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x3, x3, x9
     ldrh w1, [x3, #10]
     tbnz x1, #3, .Lasm_GetByValue.ssa_block_13
     tbnz x1, #4, .Lasm_GetByValue.ssa_block_1
@@ -4577,7 +4586,9 @@ asm_handler_GetLength:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_GetLength.ssa_block_1
-    and x1, x1, #0xffffffffffff
+    and x1, x1, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x1, x1, x9
     ldrh w0, [x1, #10]
     tbz x0, #2, .Lasm_GetLength.ssa_block_5
     ldr w0, [x1, #16]
@@ -4754,7 +4765,9 @@ asm_handler_Call:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_Call.ssa_block_1
-    and x1, x1, #0xffffffffffff
+    and x1, x1, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x1, x1, x9
     ldrh w0, [x1, #10]
     tbz x0, #7, .Lasm_Call.ssa_block_1
     tbz x0, #6, .Lasm_Call.ssa_block_3
@@ -4777,8 +4790,7 @@ asm_handler_Call:
     ldr x3, [x3, #16]
     ldr x3, [x3, #40]
     ldr x6, [x3, #32]
-    lsl x6, x6, #16
-    lsr x6, x6, #16
+    and x6, x6, #0x3ffffffffff
     movz x3, #0xfff9, lsl #48
     orr x6, x6, x3
     b .Lasm_Call.ssa_block_9
@@ -4970,7 +4982,7 @@ asm_handler_Call:
     mov x28, x0
     add x27, x28, #120
     ldr w0, [x1, #104]
-    ldr x1, [x2, #16688]
+    ldr x1, [x2, #16696]
     lsl x0, x0, #4
     adds x0, x0, x1
     ldr w1, [x0, #8]
@@ -5019,7 +5031,9 @@ asm_handler_CallBuiltinMathAbs:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinMathAbs.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinMathAbs.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5065,7 +5079,9 @@ asm_handler_CallBuiltinMathFloor:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinMathFloor.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinMathFloor.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5117,7 +5133,9 @@ asm_handler_CallBuiltinMathCeil:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinMathCeil.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinMathCeil.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5169,7 +5187,9 @@ asm_handler_CallBuiltinMathSqrt:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinMathSqrt.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinMathSqrt.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5221,7 +5241,9 @@ asm_handler_CallBuiltinMathExp:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinMathExp.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinMathExp.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5252,7 +5274,9 @@ asm_handler_CallBuiltinStringFromCharCode:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinStringFromCharCode.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinStringFromCharCode.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5295,7 +5319,9 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldrb w9, [x0, #73]
@@ -5316,7 +5342,9 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     b.ne .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     sxtw x0, w0
     tbnz w0, #31, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_1
-    and x2, x2, #0xffffffffffff
+    and x2, x2, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x2, x2, x9
     ldrb w9, [x2, #10]
     cbnz w9, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldr x1, [x2, #16]
@@ -5359,7 +5387,9 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w1, [x0, #10]
     tbz x1, #7, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldrb w9, [x0, #73]
@@ -5380,7 +5410,9 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     b.ne .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     sxtw x0, w0
     tbnz w0, #31, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
-    and x2, x2, #0xffffffffffff
+    and x2, x2, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x2, x2, x9
     ldrb w9, [x2, #10]
     cbnz w9, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldr x1, [x2, #16]
@@ -5425,7 +5457,9 @@ asm_handler_ObjectPropertyIteratorNext:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrb w4, [x0, #168]
     cmp x4, #0
     b.eq .Lasm_ObjectPropertyIteratorNext.ssa_block_1
@@ -5517,7 +5551,9 @@ asm_handler_IsCallable:
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_IsCallable.ssa_block_1
-    and x0, x0, #0xffffffffffff
+    and x0, x0, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x0, x0, x9
     ldrh w0, [x0, #10]
     tbz x0, #7, .Lasm_IsCallable.ssa_block_1
     ldr w9, [x21, #4]
@@ -9201,7 +9237,9 @@ asm_handler_PutByValue_cold_end:
 asm_handler_GetById_cold:
 // Cold paths for GetById
 .Lasm_GetById.ssa_block_8:
-    and x1, x1, #0xffffffffffff
+    and x1, x1, #0x3ffffffffff
+    ldr x9, [x20, #16664]
+    add x1, x1, x9
     ldr x1, [x1, #16]
     cbz x1, .Lasm_GetById.ssa_block_5
     ldrh w3, [x1, #10]

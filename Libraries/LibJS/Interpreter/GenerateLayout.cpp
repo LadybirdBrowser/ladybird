@@ -10,6 +10,7 @@
 #include <AK/Format.h>
 #include <AK/StringBase.h>
 #include <AK/Utf16StringData.h>
+#include <LibGC/HeapRegion.h>
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Executable.h>
@@ -231,9 +232,11 @@ int main()
     EMIT_OFFSET(VM_STACK_INFO, VM, m_stack_info);
     EMIT_OFFSET(VM_EXECUTION_GENERATION, VM, m_execution_generation);
     EMIT_OFFSET(VM_PRIMITIVE_STORAGE_CAGE_BASE, VM, m_primitive_storage_cage_base);
+    EMIT_OFFSET(VM_HEAP_REGION_BASE, VM, m_heap_region_base);
     EMIT_OFFSET(VM_NATIVE_FUNCTION_TABLE_DATA, VM, m_native_function_table_data);
     EMIT_OFFSET(VM_BREAKPOINT_CONTROLLER, VM, m_debugger);
     outln("field VM.primitive_storage_cage_base u64 VM_PRIMITIVE_STORAGE_CAGE_BASE nonnull scalar");
+    outln("field VM.heap_region_base u64 VM_HEAP_REGION_BASE nonnull scalar");
     outln("field VM.native_function_table Sequence<NativeFunctionTableEntry> VM_NATIVE_FUNCTION_TABLE_DATA nonnull scalar");
     outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
     outln("const VM_INTERPRETER_STACK_LIMIT = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_limit));
@@ -478,6 +481,7 @@ int main()
     EMIT_FIELD(TYPED_ARRAY_CACHED_DATA_OFFSET, Object, typed_array_cached_data_offset, u64, TypedArrayBase, m_cached_data_offset, 8, nullable, scalar);
     outln("const TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID = 0x{:X}", static_cast<size_t>(TypedArrayBase::invalid_cached_data_offset));
     outln("const PRIMITIVE_STORAGE_CAGE_OFFSET_MASK = 0x{:X}", static_cast<size_t>(GC::PrimitiveStorage::cage_offset_mask));
+    outln("const HEAP_REGION_OFFSET_MASK = 0x{:X}", static_cast<size_t>(GC::HEAP_REGION_OFFSET_MASK));
 
     // ByteLength (Variant<Auto, Detached, u32>) layout
     outln("\n# ByteLength layout");

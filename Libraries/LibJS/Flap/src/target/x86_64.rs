@@ -507,8 +507,8 @@ fn emit_restored_registers(out: &mut String, fmt: ObjectFormat, abi: X86_64Abi) 
     }
 }
 
-const SYSV_VM_SLOT: &str = "[rbp - 48]";
-const WIN64_VM_SLOT: &str = "[rbp - 64]";
+pub(crate) const SYSV_VM_SLOT_OFFSET: i32 = -48;
+pub(crate) const WIN64_VM_SLOT_OFFSET: i32 = -64;
 pub(crate) const WIN64_RAW_NATIVE_RETURN_SLOT: i64 = -80;
 pub(crate) const WIN64_RAW_NATIVE_VARIANT_SLOT: i64 = -72;
 
@@ -674,8 +674,13 @@ fn emit_state_reload(out: &mut String, program: &Program, abi: X86_64Abi) {
     w!(out, "    mov r14, QWORD PTR [rcx + {exec_bytecode}]");
 }
 
-fn vm_slot(abi: X86_64Abi) -> &'static str {
-    if abi.is_win64() { WIN64_VM_SLOT } else { SYSV_VM_SLOT }
+fn vm_slot(abi: X86_64Abi) -> String {
+    let offset = if abi.is_win64() {
+        WIN64_VM_SLOT_OFFSET
+    } else {
+        SYSV_VM_SLOT_OFFSET
+    };
+    format!("[rbp - {}]", -offset)
 }
 
 fn emit_load_vm(out: &mut String, dst: &str, abi: X86_64Abi) {

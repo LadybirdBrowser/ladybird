@@ -190,7 +190,7 @@ fn finalize_value_operation(
         }
         Operation::UnboxObject => {
             let [destination, source] = operands.physical_registers();
-            backend.unbox_object(emit, destination, source);
+            backend.unbox_object(emit, destination, source)?;
         }
         _ => unreachable!(),
     }

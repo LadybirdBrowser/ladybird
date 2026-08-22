@@ -68,7 +68,12 @@ pub(crate) trait Backend: Sync {
 
     fn extract_tag(&self, emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister);
 
-    fn unbox_object(&self, emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister);
+    fn unbox_object(
+        &self,
+        emit: &mut Emit<'_>,
+        destination: PhysicalRegister,
+        source: PhysicalRegister,
+    ) -> Result<(), CompileError>;
 
     fn float_operation(
         &self,

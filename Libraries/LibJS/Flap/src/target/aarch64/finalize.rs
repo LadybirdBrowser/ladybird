@@ -30,7 +30,7 @@ use crate::target::ir::{
 use crate::target::machine_verify::emit_machine_instructions as emit;
 use crate::target::registers::{
     PhysicalRegister,
-    aarch64::{X21, X22, X23, X24, X25, X26, XZR},
+    aarch64::{X9, X20, X21, X22, X23, X24, X25, X26, XZR},
 };
 
 fn machine_instruction(opcode: Opcode, operands: Vec<MachineOperand>) -> MachineInstruction {
@@ -1097,8 +1097,33 @@ impl Backend for Aarch64Backend {
         );
     }
 
-    fn unbox_object(&self, emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister) {
-        emit!(emit.output, Aarch64; Opcode::And64Immediate => [register destination, register source, immediate 0xffff_ffff_ffff];);
+    fn unbox_object(
+        &self,
+        emit: &mut Emit<'_>,
+        destination: PhysicalRegister,
+        source: PhysicalRegister,
+    ) -> Result<(), CompileError> {
+        let heap_region_offset_mask = emit.constant(KnownLayoutConstant::HeapRegionOffsetMask)?;
+        let vm_heap_region_base = emit.constant(KnownLayoutConstant::VmHeapRegionBase)?;
+        emit!(emit.output, Aarch64;
+            Opcode::And64Immediate => [register destination, register source, immediate heap_region_offset_mask];
+        );
+        load(
+            emit,
+            MemoryWidth::DoubleWord,
+            false,
+            X9,
+            MachineMemoryAddress::offset(X20, vm_heap_region_base),
+            &[X9],
+        )
+        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+        emit!(emit.output, Aarch64;
+            Opcode::AddSubtractRegister {
+                operation: AddSubtractOperation::Add,
+                flags: FlagUpdate::Preserve,
+            } => [register destination, register destination, register X9];
+        );
+        Ok(())
     }
 
     fn float_operation(

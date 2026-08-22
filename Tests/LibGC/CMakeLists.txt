@@ -6,6 +6,7 @@ set(TEST_SOURCES
     TestGCIdleCollection.cpp
     TestPrimitiveStorage.cpp
     TestGCVisitor.cpp
+    TestNanBoxedValue.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)

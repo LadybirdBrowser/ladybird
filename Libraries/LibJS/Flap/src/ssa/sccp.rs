@@ -591,9 +591,9 @@ fn evaluate_value_operation(operation: ValueOperation, inputs: &[IntegerFacts], 
             | ValueOperation::ReinterpretUint64AsValue,
             [input],
         ) => exact_unary(*input, result, |value| value),
-        (ValueOperation::UnboxObject, [input]) => {
-            exact_unary(*input, result, |value| value & ((1 << VALUE_TAG_SHIFT) - 1))
-        }
+        // Cell payloads are offsets from a runtime heap-region base, so
+        // unboxing requires a dynamic base load and cannot be constant-folded.
+        (ValueOperation::UnboxObject, [_]) => result,
         (ValueOperation::LogicalNot, [input]) => exact_unary(*input, result, |value| u64::from(value == 0)),
         // A value's tag is the top of its bits, so knowing a value is knowing
         // its type. This is what lets the type check on a known value fold, and
