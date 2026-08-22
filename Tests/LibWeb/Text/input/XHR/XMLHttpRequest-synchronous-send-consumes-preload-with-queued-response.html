@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A variant of XMLHttpRequest-synchronous-send-consumes-in-flight-preload.html for the other ordering. Here, the
+    // preload's response arrives — and its response processing is scheduled against the event loop — while an earlier,
+    // unrelated sync XHR send() has the event loop paused. The send() for the preloaded URL then starts before any of
+    // that scheduled work has had a chance to run. Parking on the preload would deadlock: The scheduled work can’t
+    // run while send() blocks — and send() can't return until the response is handed over. So the XHR must perform an
+    // ordinary fetch of its own instead: send() returns the response — just not the preloaded copy of it.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const preloadUrl = await server.createEcho("GET", "/xhr-sync-preload-with-queued-response-preload", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain", "Cache-Control": "no-store" },
+            // Resolves while the unrelated send() below is blocked.
+            delay_ms: 100,
+            body: "ok",
+        });
+        const unrelatedUrl = await server.createEcho("GET", "/xhr-sync-preload-with-queued-response-unrelated", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain" },
+            // Blocks long enough that the preload's response certainly arrives during this send().
+            delay_ms: 400,
+            body: "unrelated",
+        });
+
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "fetch";
+        // The preload key must match the second XHR's request: XHR fetches with mode "cors" and credentials mode
+        // "same-origin", which is exactly what crossorigin="anonymous" gives the preload.
+        link.crossOrigin = "anonymous";
+        link.href = preloadUrl;
+        document.head.appendChild(link);
+
+        // Let the preload's fetch get under way, then block on an unrelated sync XHR while its response arrives.
+        setTimeout(() => {
+            const unrelated = new XMLHttpRequest();
+            unrelated.open("GET", unrelatedUrl, false);
+            unrelated.send();
+            println(`unrelated: status=${unrelated.status} body=${unrelated.responseText}`);
+
+            // Still the same task: nothing the preload scheduled against the event loop has been able to run yet.
+            // NB: A sync XHR in a Window context may not set a timeout. So, should this deadlock, send() blocks until
+            // the harness's per-test timeout fails the test — which is the hard failure we'd want.
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", preloadUrl, false);
+            xhr.send();
+            println(`preloaded url: status=${xhr.status} body=${xhr.responseText}`);
+            done();
+        }, 50);
+    });
+</script>

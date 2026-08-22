@@ -265,7 +265,8 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             request.mode(),
             request.credentials_mode(),
             request.integrity_metadata(),
-            on_preloaded_response_available);
+            on_preloaded_response_available,
+            fetch_params->task_destination());
 
         // 4. If foundPreloadedResource is true and fetchParams’s preloaded response candidate is null, then set
         //    fetchParams’s preloaded response candidate to "pending".
@@ -619,6 +620,13 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         }
         pending_response->when_loaded([&realm, &fetch_params, request, response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_response) mutable {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
+
+            // AD-HOC: Response processing from here on captures fetchParams's task destination as it schedules work
+            //         (the fully-read in step 22 below, and the tasks, body pipe and body read of fetch response
+            //         handover). Record that it’s begun — so consume_a_preloaded_resource() knows when re-targeting
+            //         this fetch's task destination can no longer reach that work.
+            fetch_params.controller()->set_response_processing_started();
+
             if (response_was_null)
                 response = resolved_response;
             // 14. If response is not a network error and response is not a filtered response, then:
