@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMedia/BitReader.h>
 #include <LibMedia/Codecs/CodecString.h>
 #include <LibMedia/Codecs/H265.h>
 
@@ -65,6 +66,37 @@ Optional<H265::Parameters> H265::parse_codec_parameters(GenericLexer& lexer)
     }
 
     if (!lexer.is_eof())
+        return {};
+    return parameters;
+}
+
+// Parameters holds the flags indexed by profile, where general_profile_compatibility_flag[i] is bit i.
+static u32 reverse_profile_compatibility_flag_bits(u32 flags)
+{
+    u32 reversed = 0;
+    for (size_t bit = 0; bit < 32; bit++)
+        reversed |= ((flags >> bit) & 1) << (31 - bit);
+    return reversed;
+}
+
+Optional<H265::Parameters> H265::parse_configuration_record(ReadonlyBytes record)
+{
+    BitReader reader { record };
+
+    auto version = reader.read_bits<u8>(8);
+    if (version != 1)
+        return {};
+
+    Parameters parameters {};
+    parameters.profile_space = reader.read_bits<u8>(2);
+    parameters.tier_flag = reader.read_bit();
+    parameters.profile_idc = reader.read_bits<u8>(5);
+    parameters.profile_compatibility_flags = reverse_profile_compatibility_flag_bits(reader.read_bits<u32>(32));
+    for (auto& constraint_indicator_flag : parameters.constraint_indicator_flags)
+        constraint_indicator_flag = reader.read_bits<u8>(8);
+    parameters.level_idc = reader.read_bits<u8>(8);
+
+    if (reader.has_overrun())
         return {};
     return parameters;
 }

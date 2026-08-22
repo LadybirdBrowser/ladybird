@@ -49,6 +49,35 @@ public:
 
     bool read_bit() { return read_bits<u8>(1) != 0; }
 
+    u64 read_exp_golomb()
+    {
+        static constexpr size_t MAXIMUM_LEADING_ZERO_COUNT = 32;
+        size_t leading_zero_count = 0;
+        while (!read_bit()) {
+            if (m_has_overrun)
+                return 0;
+            leading_zero_count++;
+            if (leading_zero_count == MAXIMUM_LEADING_ZERO_COUNT) {
+                m_has_overrun = true;
+                return 0;
+            }
+        }
+        return (static_cast<u64>(1) << leading_zero_count) - 1 + read_bits<u64>(leading_zero_count);
+    }
+
+    u64 read_leb128()
+    {
+        static constexpr size_t MAXIMUM_BYTE_COUNT = 8;
+        u64 value = 0;
+        for (size_t index = 0; index < MAXIMUM_BYTE_COUNT; index++) {
+            auto byte = read_bits<u8>(8);
+            value |= static_cast<u64>(byte & 0x7f) << (index * 7);
+            if ((byte & 0x80) == 0)
+                break;
+        }
+        return value;
+    }
+
     void skip_bits(size_t count)
     {
         if (count > bits_remaining()) {

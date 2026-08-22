@@ -103,3 +103,58 @@ TEST_CASE(reading_zero_bits_is_a_no_op)
     EXPECT_EQ(reader.bit_position(), 0u);
     EXPECT(!reader.has_overrun());
 }
+
+TEST_CASE(reads_exp_golomb_values)
+{
+    // 1 | 010 | 011 | 00100 | 00101, encoding 0, 1, 2, 3, 4.
+    Array<u8, 3> data { 0b1010'0110, 0b0100'0010, 0b1000'0000 };
+    Media::BitReader reader { data };
+
+    EXPECT_EQ(reader.read_exp_golomb(), 0u);
+    EXPECT_EQ(reader.read_exp_golomb(), 1u);
+    EXPECT_EQ(reader.read_exp_golomb(), 2u);
+    EXPECT_EQ(reader.read_exp_golomb(), 3u);
+    EXPECT_EQ(reader.read_exp_golomb(), 4u);
+    EXPECT(!reader.has_overrun());
+}
+
+TEST_CASE(exp_golomb_overruns_on_a_truncated_value)
+{
+    // Eight leading zeroes with no terminating one bit.
+    Array<u8, 1> data { 0 };
+    Media::BitReader reader { data };
+
+    EXPECT_EQ(reader.read_exp_golomb(), 0u);
+    EXPECT(reader.has_overrun());
+}
+
+TEST_CASE(exp_golomb_overruns_rather_than_shifting_out_of_range)
+{
+    // Thirty-two leading zeroes would make the value exceed what the encoding can represent.
+    Array<u8, 8> data { 0, 0, 0, 0, 0x80, 0, 0, 0 };
+    Media::BitReader reader { data };
+
+    EXPECT_EQ(reader.read_exp_golomb(), 0u);
+    EXPECT(reader.has_overrun());
+}
+
+TEST_CASE(reads_leb128_values)
+{
+    Array<u8, 1> single_byte { 0x7f };
+    EXPECT_EQ(Media::BitReader { single_byte }.read_leb128(), 127u);
+
+    // 0xe5 0x8e 0x26 encodes 624485.
+    Array<u8, 3> multiple_bytes { 0xe5, 0x8e, 0x26 };
+    Media::BitReader reader { multiple_bytes };
+    EXPECT_EQ(reader.read_leb128(), 624485u);
+    EXPECT(!reader.has_overrun());
+}
+
+TEST_CASE(leb128_stops_after_its_final_byte)
+{
+    Array<u8, 2> data { 0x01, 0xff };
+    Media::BitReader reader { data };
+
+    EXPECT_EQ(reader.read_leb128(), 1u);
+    EXPECT_EQ(reader.bit_position(), 8u);
+}

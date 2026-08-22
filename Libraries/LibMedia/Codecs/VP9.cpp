@@ -5,6 +5,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibMedia/BitReader.h>
 #include <LibMedia/Codecs/CodecString.h>
 #include <LibMedia/Codecs/VP9.h>
 
@@ -33,7 +34,7 @@ static bool profile_and_color_config_is_valid(u8 profile, u8 bit_depth, Subsampl
     }
 }
 
-static Optional<Subsampling> subsampling_from_codec_string_value(u8 value)
+static Optional<Subsampling> subsampling_from_encoded_value(u8 value)
 {
     switch (value) {
     case 0:
@@ -85,7 +86,7 @@ Optional<VP9::Parameters> VP9::parse_codec_parameters(GenericLexer& lexer)
         if (!parsed_chroma_subsampling.has_value() || !parsed_color_primaries.has_value() || !parsed_transfer_characteristics.has_value() || !parsed_matrix_coefficients.has_value() || !video_full_range.has_value() || !lexer.is_eof())
             return {};
 
-        auto subsampling = subsampling_from_codec_string_value(*parsed_chroma_subsampling);
+        auto subsampling = subsampling_from_encoded_value(*parsed_chroma_subsampling);
         if (!subsampling.has_value())
             return {};
         if (*video_full_range > 1)
@@ -116,6 +117,58 @@ Optional<VP9::Parameters> VP9::parse_codec_parameters(GenericLexer& lexer)
         *level,
         *bit_depth,
         color_parameters,
+    };
+}
+
+// https://www.webmproject.org/vp9/mp4/
+Optional<VP9::Parameters> VP9::parse_configuration_record(ReadonlyBytes record)
+{
+    BitReader reader { record };
+    auto profile = reader.read_bits<u8>(8);
+    auto level = reader.read_bits<u8>(8);
+    auto bit_depth = reader.read_bits<u8>(4);
+    auto subsampling = subsampling_from_encoded_value(reader.read_bits<u8>(3));
+    auto video_full_range = reader.read_bit() ? VideoFullRangeFlag::Full : VideoFullRangeFlag::Studio;
+    auto color_primaries = reader.read_bits<u8>(8);
+    auto transfer_characteristics = reader.read_bits<u8>(8);
+    auto matrix_coefficients = reader.read_bits<u8>(8);
+    auto codec_initialization_data_size = reader.read_bits<u16>(16);
+    if (reader.has_overrun())
+        return {};
+
+    // codecInitializationDataSize MUST be 0 for VP8 and VP9.
+    if (codec_initialization_data_size != 0)
+        return {};
+
+    if (!is_valid_level(level))
+        return {};
+
+    if (!first_is_one_of(bit_depth, 8, 10, 12))
+        return {};
+
+    if (!subsampling.has_value())
+        return {};
+
+    if (!profile_and_color_config_is_valid(profile, bit_depth, *subsampling))
+        return {};
+
+    auto cicp = CodingIndependentCodePoints {
+        static_cast<ColorPrimaries>(color_primaries),
+        static_cast<TransferCharacteristics>(transfer_characteristics),
+        static_cast<MatrixCoefficients>(matrix_coefficients),
+        video_full_range,
+    };
+    if (!cicp.is_valid_or_unspecified())
+        return {};
+    if (cicp.matrix_coefficients() == MatrixCoefficients::Identity && *subsampling != Subsampling::yuv444())
+        return {};
+
+    // Unlike a codec string, a record describes the file we were given, so an unknown level is not rejected.
+    return Parameters {
+        profile,
+        level,
+        bit_depth,
+        ColorParameters { *subsampling, cicp },
     };
 }
 
