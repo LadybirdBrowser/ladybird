@@ -39,7 +39,7 @@ def wrap_with_ce_reactions(includes: GeneratedIncludes, expression: str, this_ob
         // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
 
         // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
-        auto& reactions_stack = HTML::relevant_similar_origin_window_agent({this_object_realm}.global_object()).custom_element_reactions_stack;
+        auto& reactions_stack = Bindings::main_thread_similar_origin_window_agent().custom_element_reactions_stack;
         reactions_stack.element_queue_stack.append({{}});
 
         // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
