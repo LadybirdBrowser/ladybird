@@ -159,12 +159,6 @@ struct SavedAbsposLayoutInputsSlot {
 }
 
 #[derive(Default)]
-struct CommittedFragmentLinkSlot {
-    generation: u8,
-    link: Option<Box<crate::layout::FragmentLink>>,
-}
-
-#[derive(Default)]
 pub(crate) struct TextContent {
     pub(crate) text: Vec<u16>,
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
@@ -262,7 +256,6 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
-    committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
@@ -286,7 +279,6 @@ impl LayoutNodeArena {
             live_count: 0,
             intrinsic_size_caches: RefCell::new(Vec::new()),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
-            committed_fragment_links: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
@@ -436,9 +428,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
             *slot = SavedAbsposLayoutInputsSlot::default();
         }
-        if let Some(slot) = self.committed_fragment_links.get_mut().get_mut(index as usize) {
-            *slot = CommittedFragmentLinkSlot::default();
-        }
+        self.paintables.get_mut().reset_committed_fragment_link_slot(index);
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
             *slot = TextContentSlot::default();
         }
@@ -1076,11 +1066,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<crate::layout::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
-        let slots = self.committed_fragment_links.borrow();
-        let link = slots
-            .get(index as usize)
-            .filter(|slot| slot.generation == metadata.generation)
-            .and_then(|slot| slot.link.as_deref().cloned());
+        let link = self
+            .paintables
+            .borrow()
+            .committed_fragment_link_cloned(index, metadata.generation);
 
         // SAFETY: slot_for_data() established that data points to a live slot
         // in this arena.
@@ -1095,22 +1084,9 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_committed_fragment_link(&self, data: *mut NodeData, link: crate::layout::FragmentLink) {
         let (index, metadata) = self.slot_for_data(data);
-        let mut slots = self.committed_fragment_links.borrow_mut();
-        if slots.len() <= index as usize {
-            slots.resize_with(index as usize + 1, CommittedFragmentLinkSlot::default);
-        }
-        let slot = &mut slots[index as usize];
-        if slot.generation != metadata.generation {
-            *slot = CommittedFragmentLinkSlot {
-                generation: metadata.generation,
-                link: Some(Box::new(link)),
-            };
-        } else if let Some(retained_link) = &mut slot.link {
-            **retained_link = link;
-        } else {
-            slot.link = Some(Box::new(link));
-        }
-        drop(slots);
+        self.paintables
+            .borrow()
+            .set_committed_fragment_link(index, metadata.generation, link);
 
         // SAFETY: slot_for_data() established that data points to a live slot
         // in this arena, and layout/tree building serialize mutation on the
@@ -1123,13 +1099,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn take_committed_fragment_link(&self, data: *mut NodeData) -> Option<crate::layout::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
-        let mut slots = self.committed_fragment_links.borrow_mut();
-        let link = slots
-            .get_mut(index as usize)
-            .filter(|slot| slot.generation == metadata.generation)
-            .and_then(|slot| slot.link.take())
-            .map(|link| *link);
-        drop(slots);
+        let link = self
+            .paintables
+            .borrow()
+            .take_committed_fragment_link(index, metadata.generation);
 
         // SAFETY: slot_for_data() established that data points to a live slot
         // in this arena, and layout/tree building serialize mutation on the

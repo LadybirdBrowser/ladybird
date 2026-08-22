@@ -51,9 +51,16 @@ impl PaintableRowReset {
 }
 
 #[derive(Default)]
+struct CommittedFragmentLinkSlot {
+    layout_slot_generation: u8,
+    link: Option<Box<crate::layout::FragmentLink>>,
+}
+
+#[derive(Default)]
 pub struct PaintableArena {
     chunks: Vec<Box<Chunk>>,
     side_data: Vec<PaintableSideData>,
+    committed_fragment_links: std::cell::RefCell<Vec<CommittedFragmentLinkSlot>>,
     pub(crate) stacking_context_tree: Option<crate::painting::stacking_context::StackingContextTree>,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
@@ -87,6 +94,64 @@ impl PaintableArena {
 
     pub(crate) fn clear_chrome_state_callback(&mut self) {
         self.chrome_state_callback = None;
+    }
+
+    pub(crate) fn committed_fragment_link_cloned(
+        &self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+    ) -> Option<crate::layout::FragmentLink> {
+        self.committed_fragment_links
+            .borrow()
+            .get(layout_slot_index as usize)
+            .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
+            .and_then(|slot| slot.link.as_deref().cloned())
+    }
+
+    pub(crate) fn set_committed_fragment_link(
+        &self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+        link: crate::layout::FragmentLink,
+    ) {
+        let mut slots = self.committed_fragment_links.borrow_mut();
+        if slots.len() <= layout_slot_index as usize {
+            slots.resize_with(layout_slot_index as usize + 1, CommittedFragmentLinkSlot::default);
+        }
+        let slot = &mut slots[layout_slot_index as usize];
+        if slot.layout_slot_generation != layout_slot_generation {
+            *slot = CommittedFragmentLinkSlot {
+                layout_slot_generation,
+                link: Some(Box::new(link)),
+            };
+        } else if let Some(retained_link) = &mut slot.link {
+            **retained_link = link;
+        } else {
+            slot.link = Some(Box::new(link));
+        }
+    }
+
+    pub(crate) fn take_committed_fragment_link(
+        &self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+    ) -> Option<crate::layout::FragmentLink> {
+        self.committed_fragment_links
+            .borrow_mut()
+            .get_mut(layout_slot_index as usize)
+            .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
+            .and_then(|slot| slot.link.take())
+            .map(|link| *link)
+    }
+
+    pub(crate) fn reset_committed_fragment_link_slot(&mut self, layout_slot_index: u32) {
+        if let Some(slot) = self
+            .committed_fragment_links
+            .get_mut()
+            .get_mut(layout_slot_index as usize)
+        {
+            *slot = CommittedFragmentLinkSlot::default();
+        }
     }
 
     pub(crate) fn reset_visual_context_state(&mut self) {
