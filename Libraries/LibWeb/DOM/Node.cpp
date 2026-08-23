@@ -1170,6 +1170,23 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     return parent_layout_node->children_are_inline() && layout_node->is_inline_block() && !layout_node->is_out_of_flow();
 }
 
+static void pin_layout_style_records_for_removal(Node& node)
+{
+    node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
+        if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
+            layout_node->pin_style_record_for_detachment();
+
+        if (auto* element = as_if<Element>(inclusive_descendant)) {
+            element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+                if (auto* layout_node = pseudo_element.unsafe_layout_node())
+                    layout_node->pin_style_record_for_detachment();
+            });
+        }
+
+        return TraversalDecision::Continue;
+    });
+}
+
 // https://dom.spec.whatwg.org/#concept-node-remove
 void Node::remove(bool suppress_observers)
 {
@@ -1284,6 +1301,11 @@ void Node::remove(bool suppress_observers)
         // 2. Run assign slottables for a tree with node.
         assign_slottables_for_a_tree(*this);
     }
+
+    // NB: Removing steps may synchronously update layout. Preserve style records for the whole
+    //     removed subtree before a callback can replace an active animation overlay still held by
+    //     another detached layout node.
+    pin_layout_style_records_for_removal(*this);
 
     // 11. Run the removing steps with node, true, and parent.
     removed_from(IsSubtreeRoot::Yes, parent, parent_root);
