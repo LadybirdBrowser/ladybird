@@ -1,4 +1,0 @@
-disconnected style has a record: true
-equal disconnected styles share a record: true
-a disconnected style change replaces the record: true
-inserting the element keeps a record: true

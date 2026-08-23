@@ -702,6 +702,9 @@ static RequiredInvalidationAfterStyleChange materialize_style_for_targeted_updat
 
 static bool update_style_for_element(DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
+    if (!abstract_element.element().is_connected())
+        return false;
+
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
     ScopeGuard leave_complete_style_update = finish_complete_style_update;
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact

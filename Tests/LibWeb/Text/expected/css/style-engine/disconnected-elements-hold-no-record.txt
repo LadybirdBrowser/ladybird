@@ -1,0 +1,4 @@
+disconnected element holds no record: true
+layout metric read stores no record: true
+inserting the element materializes a record: true
+removing the element drops the record: true

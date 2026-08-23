@@ -4804,6 +4804,7 @@ void Element::update_animated_properties_for_abstract_element(Badge<Web::Animati
 
 void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
+    VERIFY(!style_record_identity || style_node_id() != 0);
     auto old_style_record_identity = m_style_record_identity;
     if (old_style_record_identity == style_record_identity)
         return;

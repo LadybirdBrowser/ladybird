@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const element = document.createElement("canvas");
+        element.getContext("2d").font = "bold 24px serif";
+        println(`disconnected element holds no record: ${internals.styleRecordIdentity(element) === 0}`);
+
+        element.clientTop;
+        println(`layout metric read stores no record: ${internals.styleRecordIdentity(element) === 0}`);
+
+        document.body.append(element);
+        getComputedStyle(element).color;
+        println(`inserting the element materializes a record: ${internals.styleRecordIdentity(element) !== 0}`);
+
+        element.remove();
+        println(`removing the element drops the record: ${internals.styleRecordIdentity(element) === 0}`);
+    });
+</script>
