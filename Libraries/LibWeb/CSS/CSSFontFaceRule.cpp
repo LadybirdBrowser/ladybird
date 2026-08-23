@@ -195,13 +195,12 @@ void CSSFontFaceRule::disconnect_font_face()
     if (!m_css_connected_font_face)
         return;
 
-    m_css_connected_font_face->disconnect_from_css_rule();
-
     if (auto* style_sheet = parent_style_sheet()) {
         if (auto document = style_sheet->owning_document())
-            document->fonts()->delete_(*m_css_connected_font_face);
+            document->fonts()->remove_css_connected_font(*m_css_connected_font_face);
     }
 
+    m_css_connected_font_face->disconnect_from_css_rule();
     m_css_connected_font_face = nullptr;
 }
 

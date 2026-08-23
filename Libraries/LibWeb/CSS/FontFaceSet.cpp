@@ -116,10 +116,23 @@ void FontFaceSet::add_css_connected_font(GC::Ref<FontFace> face)
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
 bool FontFaceSet::delete_(GC::Ref<FontFace> face)
 {
+    return remove_font_face(face, AllowCSSConnected::No);
+}
+
+void FontFaceSet::remove_css_connected_font(GC::Ref<FontFace> face)
+{
+    remove_font_face(face, AllowCSSConnected::Yes);
+}
+
+bool FontFaceSet::remove_font_face(GC::Ref<FontFace> face, AllowCSSConnected allow_css_connected)
+{
     // 1. If font is CSS-connected, return false and exit this algorithm immediately.
-    if (face->is_css_connected()) {
+    if (allow_css_connected == AllowCSSConnected::No && face->is_css_connected()) {
         return false;
     }
+
+    if (!m_font_faces.contains_slow(face))
+        return false;
 
     if (face->should_be_registered_with_font_computer()) {
         auto& global = relevant_settings_object().global_object();
@@ -129,10 +142,9 @@ bool FontFaceSet::delete_(GC::Ref<FontFace> face)
 
     // 2. Let deleted be the result of removing font from the FontFaceSet’s set entries.
     bool deleted = m_font_faces.remove_first_matching([&](auto const& entry) { return entry.ptr() == face.ptr(); });
-    if (deleted) {
-        Bindings::did_remove_font_face(*this, GC::Ref { *face });
-        face->remove_from_set(*this);
-    }
+    VERIFY(deleted);
+    Bindings::did_remove_font_face(*this, GC::Ref { *face });
+    face->remove_from_set(*this);
 
     // 3. If font is present in the FontFaceSet’s [[LoadedFonts]], or [[FailedFonts]] lists, remove it.
     m_loaded_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
