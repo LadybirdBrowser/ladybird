@@ -13,7 +13,15 @@
 
         let imageData = areaCtx.getImageData(0, 0, area.width, area.height);
 
-        if (imageData.data[0] == 0xff && imageData.data[1] == 0x80 && imageData.data[2] == 0x40 && imageData.data[3] == 0xff)
+        imageData.data[0] = 0;
+        const secondImageData = areaCtx.getImageData(0, 0, area.width, area.height);
+
+        areaCtx.fillStyle = "#4080ff";
+        areaCtx.fillRect(0, 0, 1, 1);
+        const imageDataAfterDraw = areaCtx.getImageData(0, 0, area.width, area.height);
+
+        if (secondImageData.data[0] == 0xff && secondImageData.data[1] == 0x80 && secondImageData.data[2] == 0x40 && secondImageData.data[3] == 0xff
+            && imageDataAfterDraw.data[0] == 0x40 && imageDataAfterDraw.data[1] == 0x80 && imageDataAfterDraw.data[2] == 0xff && imageDataAfterDraw.data[3] == 0xff)
             println("PASS");
         else
             println("FAIL");

@@ -84,6 +84,8 @@ void Canvas2DContextBase::visit_edges(Cell::Visitor& visitor)
 size_t Canvas2DContextBase::external_memory_size() const
 {
     auto size = Base::external_memory_size();
+    if (m_cached_readback)
+        size = JS::saturating_add_external_memory_size(size, m_cached_readback->size_in_bytes());
     if (!has_backing_storage())
         return size;
 
@@ -267,6 +269,7 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
 
 void Canvas2DContextBase::did_draw(Gfx::FloatRect const&)
 {
+    m_cached_readback = nullptr;
     // FIXME: Make use of the rect to reduce the invalidated area when possible.
     did_draw_hook();
 }
@@ -310,8 +313,19 @@ RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect)
 {
     if (!has_backing_storage())
         return nullptr;
+
+    // OPTIMIZATION: A remote readback requires a synchronous compositor IPC.
+    // Reuse the snapshot while no drawing command has changed its pixels.
+    if (m_cached_readback && m_cached_readback_rect == rect)
+        return m_cached_readback;
+
     m_transport->flush_shared_stream();
-    return m_transport->read_back_pixels(rect);
+    auto pixels = m_transport->read_back_pixels(rect);
+    if (pixels) {
+        m_cached_readback = pixels;
+        m_cached_readback_rect = rect;
+    }
+    return pixels;
 }
 
 void Canvas2DContextBase::set_size(Gfx::IntSize const& size)
@@ -341,6 +355,7 @@ void Canvas2DContextBase::notify_backing_storage_lost()
 {
     if (!has_backing_storage())
         return;
+    m_cached_readback = nullptr;
 
     // When the user agent detects that the backing storage associated with a canvas context has been lost, then it
     // must queue a global task on the DOM manipulation task source given canvas's relevant global object to run
@@ -396,6 +411,7 @@ void Canvas2DContextBase::ensure_backing_storage()
 
 void Canvas2DContextBase::discard_backing_storage()
 {
+    m_cached_readback = nullptr;
     if (m_transport) {
         // Flush the shared stream before destroying the context: it may still
         // hold commands targeting this canvas, and DrawCanvas commands from
