@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>color composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-color/#the-color-property">
+<meta name="assert" content="color supports animation by computed value type">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.target {
+  width: 40px;
+  height: 40px;
+  background-color: black;
+}
+.expected {
+  background-color: green;
+}
+</style>
+
+<body>
+<script>
+test_composition({
+  property: 'color',
+  underlying: 'rgb(50, 50, 50)',
+  addFrom: 'rgb(10, 10, 10)',
+  replaceTo: 'rgb(30, 30, 30)',
+}, [
+  {at: 0, expect: 'rgb(60, 60, 60)'},
+  {at: 0.2, expect: 'rgb(54, 54, 54)'},
+  {at: 1, expect: 'rgb(30, 30, 30)'},
+  {at: 1.2, expect: 'rgb(24, 24, 24)'},
+  {at: 1.5, expect: 'rgb(15, 15, 15)'},
+]);
+
+test_composition({
+  property: 'color',
+  underlying: 'rgb(60, 60, 60)',
+  addFrom: 'rgb(0, 0, 0)',
+  replaceTo: 'rgb(50, 50, 50)',
+}, [
+  {at: 0, expect: 'rgb(60, 60, 60)'},
+  {at: 0.5, expect: 'rgb(55, 55, 55)'},
+  {at: 1, expect: 'rgb(50, 50, 50)'},
+  {at: 1.2, expect: 'rgb(48, 48, 48)'},
+  {at: 1.5, expect: 'rgb(45, 45, 45)'},
+]);
+</script>
+</body>

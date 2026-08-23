@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Compositing CSS Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (0) should be [rgb(60, 60, 60)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (0.2) should be [rgb(54, 54, 54)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (1) should be [rgb(30, 30, 30)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (1.2) should be [rgb(24, 24, 24)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (1.5) should be [rgb(15, 15, 15)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (0) should be [rgb(60, 60, 60)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (0.2) should be [rgb(54, 54, 54)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (1) should be [rgb(30, 30, 30)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (1.2) should be [rgb(24, 24, 24)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(50, 50, 50)] from add [rgb(10, 10, 10)] to replace [rgb(30, 30, 30)] at (1.5) should be [rgb(15, 15, 15)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (0) should be [rgb(60, 60, 60)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (0.5) should be [rgb(55, 55, 55)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (1) should be [rgb(50, 50, 50)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (1.2) should be [rgb(48, 48, 48)]
+Pass	Compositing CSS Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (1.5) should be [rgb(45, 45, 45)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (0) should be [rgb(60, 60, 60)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (0.5) should be [rgb(55, 55, 55)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (1) should be [rgb(50, 50, 50)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (1.2) should be [rgb(48, 48, 48)]
+Pass	Compositing Web Animations: property <color> underlying [rgb(60, 60, 60)] from add [rgb(0, 0, 0)] to replace [rgb(50, 50, 50)] at (1.5) should be [rgb(45, 45, 45)]
