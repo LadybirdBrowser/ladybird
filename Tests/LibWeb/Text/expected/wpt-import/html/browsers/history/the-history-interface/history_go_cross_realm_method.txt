@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	history.go() uses this's associated document's browsing context to determine if navigation is allowed

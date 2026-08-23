@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>history.back() uses this's associated document's browsing context to determine if navigation is allowed</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/history.html#dom-history-back">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<iframe id="sandboxedIframe" srcdoc="hello" sandbox="allow-scripts allow-same-origin"></iframe>
+<script>
+const t = async_test();
+
+t.step(() => {
+  history.pushState({}, null, "?prev");
+  history.pushState({}, null, "?current");
+
+  sandboxedIframe.contentWindow.history.back.call(history);
+});
+
+window.onpopstate = t.step_func_done(() => {
+  assert_equals(location.search, "?prev");
+});
+</script>
