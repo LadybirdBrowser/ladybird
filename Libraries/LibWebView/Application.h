@@ -87,6 +87,9 @@ public:
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
+    bool claim_cpu_profiler(ProcessType);
+    void set_cpu_profiler_process(Core::Process);
+
     virtual Optional<String> system_font_family() const { return {}; }
 
     static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
@@ -453,6 +456,9 @@ private:
 
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
+    Optional<Core::Process> m_cpu_profiler_process;
+    bool m_cpu_profiler_claimed { false };
+    Vector<int> m_cpu_profiler_signal_handlers;
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;

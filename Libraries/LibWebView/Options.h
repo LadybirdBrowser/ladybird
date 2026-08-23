@@ -75,6 +75,11 @@ enum class DisableSandbox {
     Yes,
 };
 
+enum class ProfileTool {
+    Callgrind,
+    CPU,
+};
+
 struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -89,6 +94,8 @@ struct BrowserOptions {
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
     Vector<ProcessType> debug_helper_processes {};
     Optional<ProcessType> profile_helper_process {};
+    ProfileTool profile_tool { ProfileTool::Callgrind };
+    Optional<ByteString> profile_output {};
     Optional<ByteString> webdriver_browser_endpoint {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
