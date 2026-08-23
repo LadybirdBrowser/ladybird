@@ -17,6 +17,8 @@
     .pseudo-increment::before { counter-increment: direct-child-counter; content: ""; }
     .columns { columns: 2; }
     .list-item { display: list-item; }
+    .list-counter-value::after { content: counter(list-item); }
+    .list-item-after::after { content: ""; display: list-item; }
     .child { display: block; }
     .inline { display: inline; }
     .inline-block { display: inline-block; }
@@ -92,6 +94,33 @@
             markup: '<div class="parent"><div class="before list-item">before</div><div class="after list-item">after</div></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<div class="target list-item">target</div>'),
             tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "append final HTML list item to forward counter",
+            markup: '<ol class="parent"><li class="before">before</li></ol>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<li class="target">target</li>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "fall back when appending to reversed HTML list",
+            markup: '<ol class="parent" reversed><li class="before">before</li></ol>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<li class="target">target</li>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when list generated content follows appended item",
+            markup: '<ol class="parent list-counter-value"><li class="before">before</li></ol>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<li class="target">target</li>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when list-item after marker follows appended item",
+            markup: '<ol class="parent list-item-after"><li class="before">before</li></ol>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<li class="target">target</li>'),
+            tracked: ["parent"],
+            preserve: false,
         },
         {
             name: "fall back when inserted pseudo-element changes quote depth",
@@ -320,6 +349,34 @@
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "after"],
             expectNoBuild: true,
+        },
+        {
+            name: "remove final HTML list item from forward counter",
+            markup: '<ol class="parent"><li class="before">before</li><li class="target">target</li></ol>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "before"],
+            expectNoBuild: true,
+        },
+        {
+            name: "fall back when removing from reversed HTML list",
+            markup: '<ol class="parent" reversed><li class="before">before</li><li class="target">target</li></ol>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when list generated content follows removed item",
+            markup: '<ol class="parent list-counter-value"><li class="before">before</li><li class="target">target</li></ol>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when list-item after marker follows removed item",
+            markup: '<ol class="parent list-item-after"><li class="before">before</li><li class="target">target</li></ol>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
         },
         {
             name: "fall back when removed pseudo-element changes quote depth",

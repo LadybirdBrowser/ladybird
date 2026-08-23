@@ -20,6 +20,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/GeneratedContent.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
@@ -92,6 +93,53 @@
 #include <LibWeb/XLink/AttributeNames.h>
 
 namespace Web::DOM {
+
+static bool content_uses_list_item_counter(CSS::ComputedContentData const& content)
+{
+    auto item_uses_list_item_counter = [](CSS::ComputedContentItem const& item) {
+        auto const* counter = item.get_pointer<CSS::ComputedContentCounter>();
+        return counter && counter->name == CSS::list_item_counter_name();
+    };
+    return any_of(content.items, item_uses_list_item_counter)
+        || any_of(content.alt_text, item_uses_list_item_counter);
+}
+
+static bool style_after_list_items_depends_on_list_item_counter(Element const& list_owner)
+{
+    auto style_depends_on_list_item_counter = [](CSS::ComputedValues const& style) {
+        auto definitions_contain_list_item_counter = [](auto const& definitions) {
+            return any_of(definitions, [](auto const& definition) {
+                return definition.name == CSS::list_item_counter_name();
+            });
+        };
+        return style.display().is_list_item()
+            || content_uses_list_item_counter(style.computed_content())
+            || definitions_contain_list_item_counter(style.counter_increment())
+            || definitions_contain_list_item_counter(style.counter_reset())
+            || definitions_contain_list_item_counter(style.counter_set());
+    };
+
+    auto style = list_owner.computed_style(CSS::PseudoElement::After);
+    return style && style_depends_on_list_item_counter(*style);
+}
+
+static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
+{
+    auto list_owner = list_item.parent_element();
+    if (!list_owner || !list_owner->is_html_ol_ul_menu_element() || list_item.next_element_sibling())
+        return false;
+    if (style_after_list_items_depends_on_list_item_counter(*list_owner))
+        return false;
+
+    auto counters_set = list_owner->counters_set();
+    if (!counters_set.has_value())
+        return false;
+    for (auto const& counter : counters_set->counters().in_reverse()) {
+        if (counter.name == CSS::list_item_counter_name())
+            return !counter.reversed && counter.originating_element == DOM::AbstractElement(*list_owner);
+    }
+    return false;
+}
 
 static UniqueNodeID s_next_unique_id;
 static GC::WeakHashMap<UniqueNodeID, Node>& node_directory()
@@ -975,10 +1023,13 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         }
     }
 
-    // AD-HOC: An inserted list item renumbers the list-item counter for its list owner's whole list.
+    // AD-HOC: An inserted list item can renumber the list-item counter for its list owner's whole list.
+    //         Appending to a forward counter does not change any existing counter value.
     for (auto& inserted_node : nodes) {
         if (inserted_node->is_html_li_element()) {
-            static_cast<Element&>(*inserted_node).invalidate_list_item_counters_for_list_owner();
+            auto& list_item = static_cast<Element&>(*inserted_node);
+            if (!final_direct_list_item_does_not_renumber_existing_content(list_item))
+                list_item.invalidate_list_item_counters_for_list_owner();
             break;
         }
     }
@@ -1157,12 +1208,15 @@ void Node::remove(bool suppress_observers)
     // 6. Let oldNextSibling be node’s next sibling.
     GC::Ptr<Node> old_next_sibling = next_sibling();
 
-    // AD-HOC: A removed list item renumbers the list-item counter for its list owner's whole list.
+    // AD-HOC: A removed list item can renumber the list-item counter for its list owner's whole list.
+    //         Removing the final item from a forward counter does not change any surviving counter value.
     if (is_element()) {
         auto* this_element = static_cast<Element*>(this);
         auto style = this_element->computed_style();
-        if (is_html_li_element() || (style && style->display().is_list_item()))
+        if ((is_html_li_element() || (style && style->display().is_list_item()))
+            && !final_direct_list_item_does_not_renumber_existing_content(*this_element)) {
             this_element->invalidate_list_item_counters_for_list_owner();
+        }
     }
 
     if (is_connected()) {

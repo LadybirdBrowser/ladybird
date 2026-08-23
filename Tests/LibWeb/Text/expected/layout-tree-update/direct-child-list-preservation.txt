@@ -36,6 +36,19 @@ PASS: insert implicit list-item counter | preserve before
 PASS: insert implicit list-item counter | preserve after
 PASS: insert implicit list-item counter | layout tree builds=1
 PASS: insert implicit list-item counter | incremental tree matches full rebuild
+PASS: append final HTML list item to forward counter | preserve parent
+PASS: append final HTML list item to forward counter | preserve before
+PASS: append final HTML list item to forward counter | layout tree builds=1
+PASS: append final HTML list item to forward counter | incremental tree matches full rebuild
+PASS: fall back when appending to reversed HTML list | rebuild parent
+PASS: fall back when appending to reversed HTML list | layout tree builds=1
+PASS: fall back when appending to reversed HTML list | incremental tree matches full rebuild
+PASS: fall back when list generated content follows appended item | rebuild parent
+PASS: fall back when list generated content follows appended item | layout tree builds=1
+PASS: fall back when list generated content follows appended item | incremental tree matches full rebuild
+PASS: fall back when list-item after marker follows appended item | rebuild parent
+PASS: fall back when list-item after marker follows appended item | layout tree builds=1
+PASS: fall back when list-item after marker follows appended item | incremental tree matches full rebuild
 PASS: fall back when inserted pseudo-element changes quote depth | rebuild parent
 PASS: fall back when inserted pseudo-element changes quote depth | layout tree builds=1
 PASS: fall back when inserted pseudo-element changes quote depth | incremental tree matches full rebuild
@@ -198,6 +211,19 @@ PASS: remove implicit list-item counter | preserve parent
 PASS: remove implicit list-item counter | preserve after
 PASS: remove implicit list-item counter | layout tree builds=0
 PASS: remove implicit list-item counter | incremental tree matches full rebuild
+PASS: remove final HTML list item from forward counter | preserve parent
+PASS: remove final HTML list item from forward counter | preserve before
+PASS: remove final HTML list item from forward counter | layout tree builds=0
+PASS: remove final HTML list item from forward counter | incremental tree matches full rebuild
+PASS: fall back when removing from reversed HTML list | rebuild parent
+PASS: fall back when removing from reversed HTML list | layout tree builds=1
+PASS: fall back when removing from reversed HTML list | incremental tree matches full rebuild
+PASS: fall back when list generated content follows removed item | rebuild parent
+PASS: fall back when list generated content follows removed item | layout tree builds=1
+PASS: fall back when list generated content follows removed item | incremental tree matches full rebuild
+PASS: fall back when list-item after marker follows removed item | rebuild parent
+PASS: fall back when list-item after marker follows removed item | layout tree builds=1
+PASS: fall back when list-item after marker follows removed item | incremental tree matches full rebuild
 PASS: fall back when removed pseudo-element changes quote depth | rebuild parent
 PASS: fall back when removed pseudo-element changes quote depth | layout tree builds=1
 PASS: fall back when removed pseudo-element changes quote depth | incremental tree matches full rebuild
