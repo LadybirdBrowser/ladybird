@@ -16,21 +16,18 @@ SVGRectElement::SVGRectElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-Gfx::Path SVGRectElement::get_path(CSSPixelSize viewport_size)
+Gfx::Path SVGRectElement::get_path(CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values)
 {
-    auto computed_values = this->computed_style();
-    VERIFY(computed_values);
-
-    auto computed_width = computed_values->width();
-    auto computed_height = computed_values->height();
+    auto computed_width = computed_values.width();
+    auto computed_height = computed_values.height();
 
     // FIXME: to_px rounds prematurely here - we shouldn't round to fixed point CSSPixels until converting to CSS pixel
     //        space from SVG user space - this likely extends to other SVG geometry elements as well.
     auto width = computed_width.is_length_percentage() ? computed_width.length_percentage().to_px(viewport_size.width()).to_double() : 0.0;
     auto height = computed_height.is_length_percentage() ? computed_height.length_percentage().to_px(viewport_size.height()).to_double() : 0.0;
 
-    auto x = computed_values->x().to_px(viewport_size.width()).to_double();
-    auto y = computed_values->y().to_px(viewport_size.height()).to_double();
+    auto x = computed_values.x().to_px(viewport_size.width()).to_double();
+    auto y = computed_values.y().to_px(viewport_size.height()).to_double();
 
     Gfx::Path path;
     // Non-positive dimensions disable rendering. In particular, a negative
@@ -39,7 +36,7 @@ Gfx::Path SVGRectElement::get_path(CSSPixelSize viewport_size)
     if (width <= 0 || height <= 0)
         return path;
 
-    auto corner_radii = calculate_used_corner_radius_values(width, height);
+    auto corner_radii = calculate_used_corner_radius_values(computed_values, width, height);
     float rx = corner_radii.width();
     float ry = corner_radii.height();
 
@@ -92,15 +89,12 @@ Gfx::Path SVGRectElement::get_path(CSSPixelSize viewport_size)
     return path;
 }
 
-Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values(float used_width, float used_height) const
+Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values(CSS::ComputedValues const& computed_values, float used_width, float used_height) const
 {
     // The used values for rx and ry are determined from the computed values by following these steps in order:
 
-    auto computed_values = this->computed_style();
-    VERIFY(computed_values);
-
-    auto computed_rx = computed_values->rx();
-    auto computed_ry = computed_values->ry();
+    auto computed_rx = computed_values.rx();
+    auto computed_ry = computed_values.ry();
 
     // 1. If both rx and ry have a computed value of auto (since auto is the initial value for both properties, this
     //    will also occur if neither are specified by the author or if all author-supplied values are invalid), then

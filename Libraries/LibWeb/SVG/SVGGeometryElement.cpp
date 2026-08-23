@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     auto computed_values = computed_style();
     VERIFY(computed_values);
 
-    return get_path({ viewport_size.width(), viewport_size.height() }).length();
+    return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values).length();
 }
 
 GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distance)

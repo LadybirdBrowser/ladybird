@@ -276,7 +276,8 @@ static Gfx::Path compute_path_for_svg_text_path(Box const& text_path_box, CSSPix
     auto& font = text_path_box.first_available_font();
     auto text_contents = rendered_svg_text_contents(text_path_element);
 
-    auto shape_path = const_cast<SVG::SVGGeometryElement&>(*path_or_shape).get_path(viewport_size);
+    auto& shape_element = const_cast<SVG::SVGGeometryElement&>(*path_or_shape);
+    auto shape_path = shape_element.get_path(viewport_size, *shape_element.computed_style());
     auto start_offset = text_path_element.start_offset_for_path_length(shape_path.length());
 
     // FIXME: Take writing mode and text direction into account.
@@ -311,7 +312,8 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
 
     Gfx::Path path;
     if (graphics_box.is_svg_geometry_box()) {
-        path = as<SVG::SVGGeometryElement>(const_cast<DOM::Node&>(*graphics_box.dom_node())).get_path(viewport_size);
+        auto& geometry_element = as<SVG::SVGGeometryElement>(const_cast<DOM::Node&>(*graphics_box.dom_node()));
+        path = geometry_element.get_path(viewport_size, *geometry_element.computed_style());
     } else if (graphics_box.kind() == RustFFI::NodeKind::SVGTextBox) {
         auto const* text_box = &graphics_box;
         auto const& text_element = as<SVG::SVGTextPositioningElement>(*text_box->dom_node());

@@ -18,7 +18,7 @@ class SVGEllipseElement final : public SVGGeometryElement {
 public:
     virtual ~SVGEllipseElement() override = default;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
+    virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) override;
 
     // AD-HOC: The spec states that the cx, cy, rx and ry IDL attributes reflect the respective computed values and their
     //         corresponding presentation attributes but other browsers reflect the attribute values instead - see

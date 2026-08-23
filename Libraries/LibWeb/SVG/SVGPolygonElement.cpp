@@ -29,7 +29,7 @@ void SVGPolygonElement::attribute_changed(Utf16FlyString const& name, Optional<U
     }
 }
 
-Gfx::Path SVGPolygonElement::get_path(CSSPixelSize)
+Gfx::Path SVGPolygonElement::get_path(CSSPixelSize, CSS::ComputedValues const&)
 {
     Gfx::Path path;
 

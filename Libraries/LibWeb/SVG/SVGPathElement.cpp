@@ -21,11 +21,9 @@ SVGPathElement::SVGPathElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-Gfx::Path SVGPathElement::get_path(CSSPixelSize)
+Gfx::Path SVGPathElement::get_path(CSSPixelSize, CSS::ComputedValues const& computed_values)
 {
-    auto computed_values = this->computed_style();
-    VERIFY(computed_values);
-    auto computed_d = computed_values->d();
+    auto computed_d = computed_values.d();
 
     if (computed_d->is_keyword()) {
         VERIFY(computed_d->as_keyword().keyword() == CSS::Keyword::None);
