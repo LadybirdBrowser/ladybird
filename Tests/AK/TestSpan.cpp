@@ -8,6 +8,7 @@
 
 #include <AK/Checked.h>
 #include <AK/Span.h>
+#include <AK/StringView.h>
 #include <string.h>
 
 TEST_CASE(constexpr_default_constructor_is_empty)
@@ -210,4 +211,31 @@ TEST_CASE(index_of)
     EXPECT_EQ(0u, haystack.span().index_of(needle_3.span()));
     EXPECT_EQ(1u, haystack.span().index_of(needle_3.span(), 1));
     EXPECT(!haystack.span().index_of(needle_3.span(), 16).has_value());
+}
+
+TEST_CASE(index_of_trivial_multibyte_values)
+{
+    constexpr auto nan = bit_cast<float>(0x7fc00000u);
+    constexpr auto positive_zero = bit_cast<float>(0x00000000u);
+    constexpr auto negative_zero = bit_cast<float>(0x80000000u);
+    constexpr Array haystack { negative_zero, 1.0f, nan, 2.0f, positive_zero, 1.0f };
+    constexpr Array nan_needle { nan, 2.0f };
+    constexpr Array positive_zero_needle { positive_zero, 1.0f };
+
+    EXPECT_EQ(2u, haystack.span().index_of(nan_needle.span()).value());
+    EXPECT_EQ(4u, haystack.span().index_of(positive_zero_needle.span()).value());
+}
+
+TEST_CASE(index_of_bytes)
+{
+    constexpr StringView haystack = "nnnnneedle after needle"sv;
+    constexpr StringView needle = "needle"sv;
+
+    auto haystack_bytes = haystack.bytes();
+    auto needle_bytes = needle.bytes();
+
+    EXPECT_EQ(4u, haystack_bytes.index_of(needle_bytes).value());
+    EXPECT_EQ(17u, haystack_bytes.index_of(needle_bytes, 5).value());
+    EXPECT(!haystack_bytes.index_of("missing"sv.bytes()).has_value());
+    EXPECT_EQ(0u, haystack_bytes.index_of("n"sv.bytes()).value());
 }

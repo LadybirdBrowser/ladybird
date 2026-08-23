@@ -327,8 +327,20 @@ public:
         if (other.is_empty())
             return start_offset;
 
-        for (size_t index = start_offset; index <= size() - other.size(); ++index) {
-            if (TypedTransfer<T>::compare(data() + index, other.data(), other.size()))
+        auto last_possible_index = size() - other.size();
+        for (size_t index = start_offset; index <= last_possible_index; ++index) {
+            if constexpr (sizeof(T) == 1 && Traits<RemoveConst<T>>::is_trivial()) {
+                auto remaining_candidate_count = last_possible_index - index + 1;
+                auto first_byte = *reinterpret_cast<u8 const*>(other.data());
+                auto* candidate = static_cast<T const*>(__builtin_memchr(data() + index, first_byte, remaining_candidate_count));
+                if (!candidate)
+                    return {};
+                index = candidate - data();
+            } else if (!TypedTransfer<T>::compare(data() + index, other.data(), 1)) {
+                continue;
+            }
+
+            if (TypedTransfer<T>::compare(data() + index + 1, other.data() + 1, other.size() - 1))
                 return index;
         }
 
