@@ -303,6 +303,14 @@ impl FcRunCacheAttempt {
         root_cells: &UsedValuesCellState,
     ) -> Result<Self, std::rc::Rc<FcRunCacheEntry>> {
         let mode = fc_run_cache_mode_from_environment();
+        // A run this cache cannot describe still commits its subtree, so a stored entry would go on
+        // describing paintables that run has replaced. Measurement runs commit nothing and leave it alone.
+        let run_supersedes_stored_entry = layout_mode == LayoutMode::Normal && !purpose.is_measurement();
+        let drop_superseded_entry = || {
+            if run_supersedes_stored_entry {
+                callbacks.arena().fc_run_cache_store().remove_entry(box_.slot_index());
+            }
+        };
         if mode == FcRunCacheMode::Disabled
             || layout_mode != LayoutMode::Normal
             || purpose.is_measurement()
@@ -318,12 +326,14 @@ impl FcRunCacheAttempt {
                 && input.participation == ParticipationInParentFormattingContext::AtomicInline
                 && callbacks.first_child(box_).is_invalid())
         {
+            drop_superseded_entry();
             return Ok(Self::Bypass);
         }
         if fc_type == FfiFormattingContextType::Grid
             && parent_grid_is_present
             && grid_template_declares_a_subgrid_axis(callbacks, box_)
         {
+            drop_superseded_entry();
             return Ok(Self::Bypass);
         }
         // Structural invariants behind this root-flag check, to re-verify if it is ever
@@ -336,6 +346,7 @@ impl FcRunCacheAttempt {
         // resolves to None today, so inset properties are the only anchor dependency a
         // run can have.
         if has_flag(NodeFacts::new(callbacks, box_).data(), NodeFlag::InsetsUseAnchorFunctions) {
+            drop_superseded_entry();
             return Ok(Self::Bypass);
         }
         let key = Box::new(FcRunCacheKey {
@@ -397,13 +408,18 @@ impl FcRunCacheAttempt {
         else {
             return;
         };
+        // Every path out of here belongs to a run that has committed its subtree, so an entry left
+        // behind without being replaced would describe paintables that no longer exist.
+        let store = callbacks.arena().fc_run_cache_store();
         let Some(root) = &outputs.root else {
+            store.remove_entry(box_.slot_index());
             return;
         };
         // A committed-subtree hit omits that subtree's descendant fragments. Do not embed such a
         // skeletal result in an entry that exports an out-of-flow descendant: replaying the parent
         // has to rebuild its paintable subtree so the freshly laid-out descendant can commit.
         if !root.propagated_pending_abspos.is_empty() && !root.reused_subtree_roots.is_empty() {
+            store.remove_entry(box_.slot_index());
             return;
         }
         let mut fonts = Vec::new();
@@ -427,10 +443,7 @@ impl FcRunCacheAttempt {
         if let Some(cached) = shadow_entry {
             verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
         }
-        callbacks
-            .arena()
-            .fc_run_cache_store()
-            .store(box_.slot_index(), std::rc::Rc::new(entry));
+        store.store(box_.slot_index(), std::rc::Rc::new(entry));
     }
 }
 
