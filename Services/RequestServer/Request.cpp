@@ -20,12 +20,32 @@
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
+#include <openssl/ssl.h>
+#include <string.h>
 
 namespace RequestServer {
 
 extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
+
+static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, void*)
+{
+#if defined(SSL_OP_IGNORE_UNEXPECTED_EOF)
+    // Some HTTPS servers, including the Python server used by WPT, close the connection without sending the
+    // mandatory TLS close-notify alert. Other browsers treat such a post-handshake transport EOF as a clean TLS EOF
+    // for compatibility. Do the same while leaving curl responsible for detecting incomplete HTTP framing.
+    static auto const curl_uses_openssl = [] {
+        auto const* version_info = curl_version_info(CURLVERSION_NOW);
+        VERIFY(version_info);
+        return version_info->ssl_version && StringView { version_info->ssl_version, strlen(version_info->ssl_version) }.starts_with("OpenSSL/"sv);
+    }();
+
+    if (curl_uses_openssl)
+        SSL_CTX_set_options(static_cast<SSL_CTX*>(ssl_context), SSL_OP_IGNORE_UNEXPECTED_EOF);
+#endif
+    return CURLE_OK;
+}
 
 // https://everything.curl.dev/internals/content-encoding.html#supported-content-encodings
 static bool curl_supports_content_encoding(StringView encoding)
@@ -944,6 +964,8 @@ void Request::handle_connect_state()
 
     set_option(CURLOPT_NOSIGNAL, 1L);
 
+    set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
+
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
@@ -994,6 +1016,8 @@ void Request::handle_fetch_state()
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
+
+    set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
 
     if (m_content_decoding_disabled) {
         set_option(CURLOPT_ACCEPT_ENCODING, "identity");
@@ -1117,13 +1141,6 @@ void Request::handle_complete_state()
 {
     if (m_type == RequestType::Fetch) {
         VERIFY(m_curl_result_code.has_value());
-
-        // HTTPS servers might terminate their connection without proper notice of shutdown - i.e. they do not send
-        // a "close notify" alert. OpenSSL version 3.2 began treating this as an error, which curl translates to
-        // CURLE_RECV_ERROR in the absence of a Content-Length response header. The Python server used by WPT is one
-        // such server. We ignore this error if we were actually able to download some response data.
-        if (m_curl_result_code == CURLE_RECV_ERROR && m_bytes_transferred_to_client != 0 && !m_response_headers->contains("Content-Length"sv))
-            m_curl_result_code = CURLE_OK;
 
         if (m_curl_result_code != CURLE_OK) {
             m_network_error = curl_code_to_network_error(*m_curl_result_code);
