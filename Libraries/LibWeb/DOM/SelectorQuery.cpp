@@ -354,6 +354,9 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
             return cached_elements->is_empty() ? nullptr : cached_elements->first().ptr();
     }
 
+    if (m_can_match_in_dom)
+        return cache_result(first_match(root, [&](auto& element) { return matches_simple_selector_in_dom(element); }));
+
     if (!root.is_connected()) {
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
@@ -389,7 +392,9 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
     }
 
     Vector<GC::RawPtr<Element>> elements;
-    if (!root.is_connected()) {
+    if (m_can_match_in_dom) {
+        collect_matches(root, [&](auto& element) { return matches_simple_selector_in_dom(element); }, elements);
+    } else if (!root.is_connected()) {
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
             auto& engine = isolated_engine_for(tree_root);

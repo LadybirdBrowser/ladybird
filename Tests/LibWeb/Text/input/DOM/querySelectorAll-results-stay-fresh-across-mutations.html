@@ -172,6 +172,9 @@
         const fragmentFirst = fragmentProbe.querySelector(".fragment-probe");
         println(`fragment querySelector found first match: ${fragmentFirst === fragmentFirstElement}`);
         println(`querySelectorAll after fragment querySelector: ${fragmentProbe.querySelectorAll(".fragment-probe").length}`);
+        fragmentFirstElement.id = "fragment-first";
+        println(`fragment compound querySelector found first match: ${fragmentProbe.querySelector("span#fragment-first.fragment-probe") === fragmentFirstElement}`);
+        println(`fragment compound querySelectorAll count: ${fragmentProbe.querySelectorAll("span#fragment-first.fragment-probe").length}`);
 
         // Structural and character-data mutations invalidate first-only results too.
         const mutationProbe = document.createElement("div");
