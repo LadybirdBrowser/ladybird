@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<number>+ | <transform-list>",
+  inherits: false,
+  initialValue: "translateX(100px)"
+}, {
+  keyframes: ["200"],
+  expected: "200"
+}, 'Animating a custom property allowing multiple list types with two mismatching types');
+
+</script>

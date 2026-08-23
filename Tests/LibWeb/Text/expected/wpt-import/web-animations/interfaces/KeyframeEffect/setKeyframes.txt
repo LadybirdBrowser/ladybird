@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 80 tests
 
-67 Pass
-13 Fail
+69 Pass
+11 Fail
 Pass	Keyframes can be replaced with an empty keyframe
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification
 Pass	Keyframes can be replaced with a one shorthand property two value property-indexed keyframes specification
@@ -19,7 +19,7 @@ Pass	Keyframes can be replaced with a one property one value property-indexed ke
 Pass	Keyframes can be replaced with a one property one non-array value property-indexed keyframes specification
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification where the first value is invalid
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification where the second value is invalid
-Fail	Keyframes can be replaced with a property-indexed keyframes specification with a CSS variable as the property
+Pass	Keyframes can be replaced with a property-indexed keyframes specification with a CSS variable as the property
 Fail	Keyframes can be replaced with a property-indexed keyframe with a single offset
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too short
@@ -54,7 +54,7 @@ Pass	Keyframes can be replaced with a two property keyframe sequence where one p
 Pass	Keyframes can be replaced with a one property two keyframe sequence that needs to stringify its values
 Pass	Keyframes can be replaced with a keyframe sequence with a CSS variable reference
 Pass	Keyframes can be replaced with a keyframe sequence with a CSS variable reference in a shorthand property
-Fail	Keyframes can be replaced with a keyframe sequence with a CSS variable as its property
+Pass	Keyframes can be replaced with a keyframe sequence with a CSS variable as its property
 Pass	Keyframes can be replaced with a keyframe sequence with duplicate values for a given interior offset
 Pass	Keyframes can be replaced with a keyframe sequence with duplicate values for offsets 0 and 1
 Pass	Keyframes can be replaced with a two property four keyframe sequence

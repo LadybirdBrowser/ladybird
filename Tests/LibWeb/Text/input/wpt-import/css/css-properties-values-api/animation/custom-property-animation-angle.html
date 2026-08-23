@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<angle>",
+  inherits: false,
+  initialValue: "0deg"
+}, {
+  keyframes: ["100deg", "200deg"],
+  expected: "150deg"
+}, 'Animating a custom property of type <angle>');
+
+animation_test({
+  syntax: "<angle>",
+  inherits: false,
+  initialValue: "100deg"
+}, {
+  keyframes: "200deg",
+  expected: "150deg"
+}, 'Animating a custom property of type <angle> with a single keyframe');
+
+animation_test({
+  syntax: "<angle>",
+  inherits: false,
+  initialValue: "100deg"
+}, {
+  composite: "add",
+  keyframes: ["200deg", "300deg"],
+  expected: "350deg"
+}, 'Animating a custom property of type <angle> with additivity');
+
+animation_test({
+  syntax: "<angle>",
+  inherits: false,
+  initialValue: "100deg"
+}, {
+  composite: "add",
+  keyframes: "300deg",
+  expected: "250deg"
+}, 'Animating a custom property of type <angle> with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<angle>",
+  inherits: false,
+  initialValue: "100deg"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["0deg", "100deg"],
+  expected: "250deg"
+}, 'Animating a custom property of type <angle> with iterationComposite');
+
+</script>

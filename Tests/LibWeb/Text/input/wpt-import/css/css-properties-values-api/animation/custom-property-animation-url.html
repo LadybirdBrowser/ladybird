@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+discrete_animation_test("<url>", 'url("https://example.com/from")', 'url("https://example.com/to")');
+discrete_animation_test("<url>+", 'url("https://example.com/from1") url("https://example.com/from2")', 'url("https://example.com/to1") url("https://example.com/to2")');
+discrete_animation_test("<url>#", 'url("https://example.com/from1"), url("https://example.com/from2")', 'url("https://example.com/to1"), url("https://example.com/to2")');
+
+</script>

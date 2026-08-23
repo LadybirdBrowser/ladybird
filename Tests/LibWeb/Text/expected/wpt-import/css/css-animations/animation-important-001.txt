@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	Interpolated value is observable
 Pass	Important rules override animations
 Pass	Non-overriden interpolations are observable
 Pass	Important rules override animations (::before)
 Pass	Important rules do not override animations on :visited as seen from JS
 Pass	Standard property animations appearing via setKeyframes do not override important declarations
-Fail	Custom property animations appearing via setKeyframes do not override important declarations
+Pass	Custom property animations appearing via setKeyframes do not override important declarations
