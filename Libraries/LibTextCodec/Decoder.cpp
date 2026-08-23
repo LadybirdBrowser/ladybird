@@ -520,9 +520,9 @@ ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
     return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false, m_error_mode);
 }
 
-ErrorOr<Utf16String> StreamingDecoder::to_utf16(ReadonlyBytes input)
+ErrorOr<Utf16String> StreamingDecoder::to_utf16(ReadonlyBytes input, Flush flush)
 {
-    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false, m_error_mode);
+    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, flush == Flush::Yes, m_error_mode);
 }
 
 ErrorOr<String> StreamingDecoder::finish()

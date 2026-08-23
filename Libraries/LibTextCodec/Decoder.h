@@ -24,6 +24,11 @@ enum class IgnoreBOM {
     No,
 };
 
+enum class Flush {
+    No,
+    Yes,
+};
+
 // https://encoding.spec.whatwg.org/#concept-encoding-error-mode
 enum class ErrorMode {
     Replacement,
@@ -50,7 +55,7 @@ public:
     ~StreamingDecoder();
 
     ErrorOr<String> to_utf8(ReadonlyBytes);
-    ErrorOr<Utf16String> to_utf16(ReadonlyBytes);
+    ErrorOr<Utf16String> to_utf16(ReadonlyBytes, Flush = Flush::No);
     ErrorOr<String> finish();
     ErrorOr<Utf16String> finish_to_utf16();
 

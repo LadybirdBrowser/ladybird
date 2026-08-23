@@ -54,7 +54,7 @@ TextDecoder::TextDecoder(FlyString encoding, TextCodec::ErrorMode error_mode, bo
 
 TextDecoder::~TextDecoder() = default;
 
-WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> const& input, Optional<TextDecodeOptions> const& options) const
+WebIDL::ExceptionOr<Utf16String> TextDecoder::decode(Optional<WebIDL::BufferSourceVariant> const& input, Optional<TextDecodeOptions> const& options) const
 {
     Optional<ByteBuffer> data_buffer;
     if (input.has_value()) {
@@ -68,11 +68,11 @@ WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<WebIDL::BufferSourceVar
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
-WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<ReadonlyBytes> input, bool stream) const
+WebIDL::ExceptionOr<Utf16String> TextDecoder::decode(Optional<ReadonlyBytes> input, bool stream) const
 {
     auto& vm = JS::VM::the();
 
-    auto decode_bytes = [&](ErrorOr<String> decoded) -> WebIDL::ExceptionOr<String> {
+    auto decode_bytes = [&](ErrorOr<Utf16String> decoded) -> WebIDL::ExceptionOr<Utf16String> {
         if (decoded.is_error()) {
             // Decoder errors in fatal mode are reported as a TypeError. Only
             // allocation failures should become an internal out-of-memory
@@ -85,27 +85,15 @@ WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<ReadonlyBytes> input, b
     };
 
     if (stream)
-        return decode_bytes(m_decoder->to_utf8(input.has_value() ? input.value() : ReadonlyBytes {}));
+        return decode_bytes(m_decoder->to_utf16(input.has_value() ? input.value() : ReadonlyBytes {}));
 
     // A non-streaming decode signals end-of-queue to the decoder. This flushes any pending partial sequence.
     // encoding_rs permanently finishes a decoder after that operation, so replace it before returning; the
     // TextDecoder object must be reusable for a subsequent independent decode().
-    auto decoded_or_error = m_decoder->to_utf8(input.has_value() ? input.value() : ReadonlyBytes {});
-    if (decoded_or_error.is_error()) {
-        set_decoder_to_new_instance_of_encoding_decoder();
-        return decode_bytes(move(decoded_or_error));
-    }
-
-    auto final_or_error = m_decoder->finish();
+    auto decoded_or_error = m_decoder->to_utf16(input.has_value() ? input.value() : ReadonlyBytes {}, TextCodec::Flush::Yes);
     set_decoder_to_new_instance_of_encoding_decoder();
 
-    auto decoded = TRY(decode_bytes(move(decoded_or_error)));
-    auto final = TRY(decode_bytes(move(final_or_error)));
-
-    StringBuilder result;
-    TRY_OR_THROW_OOM(vm, result.try_append(decoded.bytes_as_string_view()));
-    TRY_OR_THROW_OOM(vm, result.try_append(final.bytes_as_string_view()));
-    return TRY_OR_THROW_OOM(vm, result.to_string());
+    return decode_bytes(move(decoded_or_error));
 }
 
 }

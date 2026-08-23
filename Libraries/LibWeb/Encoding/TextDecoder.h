@@ -30,8 +30,8 @@ public:
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(Optional<WebIDL::BufferSourceVariant> const& input, Optional<TextDecodeOptions> const&) const;
-    WebIDL::ExceptionOr<String> decode(Optional<ReadonlyBytes>, bool stream) const;
+    WebIDL::ExceptionOr<Utf16String> decode(Optional<WebIDL::BufferSourceVariant> const& input, Optional<TextDecodeOptions> const&) const;
+    WebIDL::ExceptionOr<Utf16String> decode(Optional<ReadonlyBytes>, bool stream) const;
 
 private:
     TextDecoder(FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
