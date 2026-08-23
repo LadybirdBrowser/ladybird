@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #churn-target, #later-removal-link { color: attr(data-color type(<color>)); }
+    #pseudo-target::before { content: ""; display: none; color: rgb(7, 8, 9); }
+</style>
+<div id="churn-target" data-color="rgb(0, 0, 0)"></div>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const fontUrl = await server.createEcho("GET", `/removing-stylesheet-preserves-non-layout-descendant-record-${token}.ttf`, {
+            status: 200,
+            headers: { "Content-Type": "font/ttf" },
+            body: "blocked font response",
+            wait_for_unblock: token,
+        });
+
+        const stylesheetUrl = await server.createEcho("GET", `/removing-stylesheet-preserves-non-layout-descendant-record-${token}.css`, {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `@font-face { font-family: SlowAhem; src: url("${fontUrl}"); }`,
+        });
+
+        const churnTarget = document.getElementById("churn-target");
+        let churnIndex = 1;
+        const churnOnce = () => {
+            churnTarget.dataset.color = `rgb(${churnIndex & 255}, ${(churnIndex >> 8) & 255}, ${(churnIndex >> 16) & 255})`;
+            ++churnIndex;
+            internals.updateStyle();
+        };
+
+        const sweepKey = () => {
+            const counters = internals.styleEngineCounters();
+            return `${counters.computedGroupsRetained}:${counters.computedGroupsReachable}`;
+        };
+
+        const container = document.createElement("div");
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = stylesheetUrl;
+        const linkLoaded = new Promise(resolve => link.onload = resolve);
+        container.append(link);
+
+        const target = document.createElement("div");
+        target.textContent = "X";
+        target.style.fontFamily = "SlowAhem";
+        container.append(target);
+
+        const laterLink = document.createElement("link");
+        laterLink.id = "later-removal-link";
+        laterLink.dataset.color = "rgb(4, 5, 6)";
+        container.append(laterLink);
+
+        const pseudoTarget = document.createElement("div");
+        pseudoTarget.id = "pseudo-target";
+        container.append(pseudoTarget);
+
+        const shadowHost = document.createElement("div");
+        const shadowRoot = shadowHost.attachShadow({ mode: "closed" });
+        const shadowStyle = document.createElement("style");
+        shadowStyle.textContent = `#shadow-later-removal-link { color: rgb(10, 11, 12); }`;
+        const shadowLaterLink = document.createElement("link");
+        shadowLaterLink.id = "shadow-later-removal-link";
+        shadowRoot.append(shadowStyle, shadowLaterLink);
+        container.append(shadowHost);
+
+        document.body.append(container);
+        await linkLoaded;
+
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000 });
+        animation.pause();
+        await animation.ready;
+        await new Promise(requestAnimationFrame);
+        internals.updateStyle();
+        target.offsetWidth;
+        const pseudoColor = getComputedStyle(pseudoTarget, "::before").color;
+        const fontLoadPromise = document.fonts.load("16px SlowAhem", "X").catch(() => {});
+
+        let sweepInterval = 0;
+        let sweeps = 0;
+        let iterationsSinceSweep = 0;
+        let lastSweepKey = sweepKey();
+        for (let count = 0; count < 20000; ++count) {
+            churnOnce();
+            ++iterationsSinceSweep;
+            const currentSweepKey = sweepKey();
+            if (currentSweepKey !== lastSweepKey) {
+                ++sweeps;
+                sweepInterval = iterationsSinceSweep;
+                iterationsSinceSweep = 0;
+                lastSweepKey = currentSweepKey;
+                if (sweeps === 2)
+                    break;
+            }
+        }
+        for (let count = 1; count < sweepInterval; ++count)
+            churnOnce();
+
+        println(`font status before removal: ${document.fonts.status}`);
+        println(`live overlays before removal: ${internals.styleEngineCounters().liveAnimationOverlayRecords}`);
+        println(`prepared style-record activity before removal: ${sweeps === 2}`);
+        println(`later link has style record before removal: ${internals.styleRecordIdentity(laterLink) !== 0}`);
+        println(`later link has layout before removal: ${internals.layoutNodeIdentity(laterLink) !== 0}`);
+        println(`non-layout pseudo-element has computed style before removal: ${pseudoColor === "rgb(7, 8, 9)"}`);
+        println(`shadow link has style record before removal: ${internals.styleRecordIdentity(shadowLaterLink) !== 0}`);
+        println(`shadow link has layout before removal: ${internals.layoutNodeIdentity(shadowLaterLink) !== 0}`);
+
+        await new Promise(requestAnimationFrame);
+        churnTarget.dataset.color = `rgb(${churnIndex & 255}, ${(churnIndex >> 8) & 255}, ${(churnIndex >> 16) & 255})`;
+        container.remove();
+        println("PASS (did not crash)");
+
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        await fontLoadPromise;
+    });
+</script>

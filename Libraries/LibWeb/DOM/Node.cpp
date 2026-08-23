@@ -12,6 +12,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
+#include <AK/Vector.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
@@ -1170,22 +1171,68 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     return parent_layout_node->children_are_inline() && layout_node->is_inline_block() && !layout_node->is_out_of_flow();
 }
 
-static void pin_layout_style_records_for_removal(Node& node)
-{
-    node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
-        if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
-            layout_node->pin_style_record_for_detachment();
+class RemovalStyleRecordPins {
+public:
+    explicit RemovalStyleRecordPins(CSS::StyleComputer const& style_computer)
+        : m_style_computer(style_computer)
+    {
+    }
 
-        if (auto* element = as_if<Element>(inclusive_descendant)) {
-            element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
-                if (auto* layout_node = pseudo_element.unsafe_layout_node())
-                    layout_node->pin_style_record_for_detachment();
-            });
-        }
+    ~RemovalStyleRecordPins()
+    {
+        release_dom_style_records();
+    }
 
-        return TraversalDecision::Continue;
-    });
-}
+    void pin_layout_style_records(Node& node)
+    {
+        node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
+            if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
+                layout_node->pin_style_record_for_detachment();
+
+            if (auto* element = as_if<Element>(inclusive_descendant)) {
+                element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+                    if (auto* layout_node = pseudo_element.unsafe_layout_node())
+                        layout_node->pin_style_record_for_detachment();
+                });
+            }
+
+            return TraversalDecision::Continue;
+        });
+    }
+
+    void pin_dom_style_records_for_removing_steps(Node& node)
+    {
+        node.for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
+            if (auto* element = as_if<Element>(inclusive_descendant)) {
+                pin_dom_style_record(element->style_record_identity());
+                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+                    pin_dom_style_record(pseudo_element.style_record_identity());
+                });
+            }
+
+            return TraversalDecision::Continue;
+        });
+    }
+
+    void release_dom_style_records()
+    {
+        for (auto style_record_identity : m_dom_style_record_pins)
+            m_style_computer->unpin_style_record(style_record_identity);
+        m_dom_style_record_pins.clear();
+    }
+
+private:
+    void pin_dom_style_record(CSS::StyleRecordID style_record_identity)
+    {
+        if (!style_record_identity)
+            return;
+        m_style_computer->pin_style_record(style_record_identity);
+        m_dom_style_record_pins.append(style_record_identity);
+    }
+
+    GC::Ref<CSS::StyleComputer const> m_style_computer;
+    Vector<CSS::StyleRecordID> m_dom_style_record_pins;
+};
 
 // https://dom.spec.whatwg.org/#concept-node-remove
 void Node::remove(bool suppress_observers)
@@ -1201,6 +1248,8 @@ void Node::remove(bool suppress_observers)
     VERIFY(parent);
 
     document().flush_deferred_style_change_event();
+    bool const was_connected = is_connected();
+    RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
 
     // 3. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
@@ -1228,7 +1277,13 @@ void Node::remove(bool suppress_observers)
         }
     }
 
-    if (is_connected()) {
+    if (was_connected) {
+        // NB: record_subtree_disconnecting() makes the style engine give up ownership of
+        //     disconnected records before removed_from() clears the DOM-held identities.
+        //     Preserve those identities only across the removing callback window.
+        removal_style_record_pins.pin_layout_style_records(*this);
+        removal_style_record_pins.pin_dom_style_records_for_removing_steps(*this);
+
         // A text or comment node leaving connects no element to record a delta from, but it can
         // leave its parent empty, and `:empty` is about the parent.
         if (!is<Element>(*this)) {
@@ -1302,10 +1357,10 @@ void Node::remove(bool suppress_observers)
         assign_slottables_for_a_tree(*this);
     }
 
-    // NB: Removing steps may synchronously update layout. Preserve style records for the whole
-    //     removed subtree before a callback can replace an active animation overlay still held by
-    //     another detached layout node.
-    pin_layout_style_records_for_removal(*this);
+    // NB: Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive
+    //     removing steps and keep their detachment pins.
+    if (!was_connected)
+        removal_style_record_pins.pin_layout_style_records(*this);
 
     // 11. Run the removing steps with node, true, and parent.
     removed_from(IsSubtreeRoot::Yes, parent, parent_root);
@@ -1340,6 +1395,8 @@ void Node::remove(bool suppress_observers)
 
         return TraversalDecision::Continue;
     });
+
+    removal_style_record_pins.release_dom_style_records();
 
     // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s
     //     registered observer list, if registered’s options["subtree"] is true, then append a new transient registered
