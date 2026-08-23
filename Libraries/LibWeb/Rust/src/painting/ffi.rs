@@ -419,6 +419,20 @@ pub unsafe extern "C" fn layout_arena_paintable_box_model(arena: *mut c_void, sl
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_is_positioned(arena: *mut c_void, slot: NodeSlotId) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        if !arena.paintable_row_is_populated(slot) {
+            return false;
+        }
+        crate::painting::style_queries::is_positioned(arena, slot)
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_uses_collapsing_borders_model(
     arena: *mut c_void,
     slot: NodeSlotId,

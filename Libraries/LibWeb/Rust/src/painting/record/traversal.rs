@@ -21,6 +21,7 @@ use crate::painting::paintable_data::*;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::masks::MaskLayerSet;
 use crate::painting::stacking_context::NO_STACKING_CONTEXT;
+use crate::painting::style_queries;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -182,10 +183,9 @@ impl PaintRecorder<'_> {
     }
 
     fn is_pure_inline_box(&self, paintable: NodeSlotId) -> bool {
-        let data = self.data(paintable);
         self.is_fragmented_inline(paintable)
-            && !data.has_flag(PaintableFlag::Floating)
-            && !data.has_flag(PaintableFlag::Positioned)
+            && !style_queries::is_floating(self.layout_arena, paintable)
+            && !style_queries::is_positioned(self.layout_arena, paintable)
     }
 
     fn paint_stacking_context(&mut self, index: u32) {
@@ -401,12 +401,11 @@ impl PaintRecorder<'_> {
         if self.has_stacking_context(child) {
             return;
         }
-        let child_data = self.data(child);
-        let positioned = child_data.has_flag(PaintableFlag::Positioned);
-        let floating = child_data.has_flag(PaintableFlag::Floating);
-        let inline = child_data.has_flag(PaintableFlag::Inline);
-        let child_kind = child_data.kind;
-        let is_item = child_data.has_flag(PaintableFlag::FlexOrGridItem);
+        let positioned = style_queries::is_positioned(self.layout_arena, child);
+        let floating = style_queries::is_floating(self.layout_arena, child);
+        let inline = style_queries::is_inline(self.layout_arena, child);
+        let child_kind = self.data(child).kind;
+        let is_item = style_queries::is_flex_or_grid_item(self.layout_arena, child);
 
         // Positioned descendants at stack level 0 are painted in a separate pass.
         if positioned && self.z_index(child).unwrap_or(0) == 0 {

@@ -347,16 +347,12 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             self.pixel_ratio,
             self.may_have_default_scroll_shift_anchor,
         );
-        let (is_fixed, is_absolute, is_sticky, has_sticky_insets, layout_node) = {
-            let data = self.layout_arena.paintable_data(slot);
-            (
-                data.has_flag(PaintableFlag::FixedPosition),
-                data.has_flag(PaintableFlag::AbsolutelyPositioned),
-                data.has_flag(PaintableFlag::StickyPosition),
-                data.has_sticky_insets,
-                slot,
-            )
-        };
+        let position = crate::painting::style_queries::position(self.layout_arena, slot);
+        let is_fixed = position == crate::css::css_enums::positioning::FIXED;
+        let is_absolute = position == crate::css::css_enums::positioning::ABSOLUTE;
+        let is_sticky = position == crate::css::css_enums::positioning::STICKY;
+        let has_sticky_insets = self.layout_arena.paintable_data(slot).has_sticky_insets;
+        let layout_node = slot;
         {
             let assignment = self.assignment_mut(slot);
             assignment.enclosing_scroll_node_index = 0;

@@ -5,9 +5,8 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsWrite;
-use crate::painting::style_queries::effective_z_index;
+use crate::painting::style_queries::{self, effective_z_index};
 
 pub use crate::painting::paintable_data::NO_STACKING_CONTEXT;
 
@@ -37,7 +36,7 @@ pub(crate) fn build_stacking_context_tree(
         parent: NO_STACKING_CONTEXT,
         children: Vec::new(),
         index_in_tree_order: 0,
-        effective_z_index: effective_z_index(layout_arena, layout_arena.paintable_data(root), root),
+        effective_z_index: effective_z_index(layout_arena, root),
         positioned_descendants_and_stacking_contexts_with_stack_level_0: Vec::new(),
         non_positioned_floating_descendants: Vec::new(),
         contains_inline_or_replaced_descendants: false,
@@ -89,15 +88,10 @@ fn visit(
 
     let establishes_stacking_context =
         crate::painting::style_queries::establishes_stacking_context(layout_arena, paintable);
-    let (z_index, positioned, floating, inline) = {
-        let data = layout_arena.paintable_data(paintable);
-        (
-            effective_z_index(layout_arena, data, paintable),
-            data.has_flag(PaintableFlag::Positioned),
-            data.has_flag(PaintableFlag::Floating),
-            data.has_flag(PaintableFlag::Inline),
-        )
-    };
+    let z_index = effective_z_index(layout_arena, paintable);
+    let positioned = style_queries::is_positioned(layout_arena, paintable);
+    let floating = style_queries::is_floating(layout_arena, paintable);
+    let inline = style_queries::is_inline(layout_arena, paintable);
     {
         let parent = &mut tree.nodes[parent_context as usize];
         if (positioned || establishes_stacking_context) && z_index.unwrap_or(0) == 0 {

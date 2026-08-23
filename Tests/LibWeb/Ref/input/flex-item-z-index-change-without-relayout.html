@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/flex-item-z-index-change-without-relayout-ref.html">
+<style>
+  body { margin: 0; }
+  .flex { display: flex; }
+  .a { width: 100px; height: 100px; background: green; }
+  .b { width: 100px; height: 100px; background: red; margin-left: -100px; }
+</style>
+<div class="flex"><div class="a" id="a"></div><div class="b"></div></div>
+<script>
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // z-index is not a layout-affecting property: this only rebuilds the
+      // stacking context tree over the already committed paintable rows.
+      document.getElementById("a").style.zIndex = "-1";
+      requestAnimationFrame(() => {
+        if (window.internals)
+          internals.signalTestIsDone("PASS");
+        else
+          document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+  });
+</script>
+</html>

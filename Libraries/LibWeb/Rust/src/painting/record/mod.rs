@@ -269,7 +269,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn display(&self, paintable: NodeSlotId) -> crate::css::display::FfiDisplay {
-        crate::css::display::FfiDisplay::from_raw(self.data(paintable).display)
+        crate::painting::style_queries::display(self.layout_arena, paintable)
     }
 
     fn visibility_is_visible(&self, paintable: NodeSlotId) -> bool {
@@ -287,8 +287,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_replaced_box(&self, paintable: NodeSlotId) -> bool {
-        self.data(paintable)
-            .has_flag(crate::painting::paintable_data::PaintableFlag::ReplacedBox)
+        crate::painting::style_queries::is_replaced_box(self.layout_arena, paintable)
     }
 
     pub(crate) fn own_context_index(&self, paintable: NodeSlotId) -> usize {

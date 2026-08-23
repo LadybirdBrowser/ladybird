@@ -58,11 +58,13 @@ impl FragmentOwnershipFilter {
     }
 }
 
-pub fn is_self_painting_inline(data: &PaintableData) -> bool {
+pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintableRowsRead, paintable: NodeSlotId) -> bool {
     // Whether this box paints its own foreground (fragments and caret) instead of the
     // containing block: it forms a group that content must be recorded inside.
+    let data = layout_arena.paintable_data(paintable);
     data.kind == PaintableKind::InlinePaintable
-        && (data.stacking_context != NO_STACKING_CONTEXT || data.has_flag(PaintableFlag::Positioned))
+        && (data.stacking_context != NO_STACKING_CONTEXT
+            || crate::painting::style_queries::is_positioned(layout_arena, paintable))
 }
 
 pub(crate) fn node_is_fragmented_inline(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
@@ -99,9 +101,7 @@ pub(crate) fn nearest_self_painting_inline_box(
 ) -> Option<NodeSlotId> {
     let mut ancestor = nearest_fragmented_inline_ancestor(layout_arena, node);
     while let Some(candidate) = ancestor {
-        if layout_arena.paintable_row_is_populated(candidate)
-            && is_self_painting_inline(layout_arena.paintable_data(candidate))
-        {
+        if layout_arena.paintable_row_is_populated(candidate) && is_self_painting_inline(layout_arena, candidate) {
             return Some(candidate);
         }
         ancestor = nearest_fragmented_inline_ancestor(layout_arena, candidate);
@@ -168,7 +168,7 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
         let Some(piece_paintable) = piece_paintable_of(piece.node) else {
             continue;
         };
-        if !is_self_painting_inline(layout_arena.paintable_data(piece_paintable)) {
+        if !is_self_painting_inline(layout_arena, piece_paintable) {
             continue;
         }
         let range = FragmentRange {

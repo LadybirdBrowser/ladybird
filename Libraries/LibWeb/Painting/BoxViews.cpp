@@ -186,11 +186,6 @@ Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Layout::R
     return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena.handle(), slot));
 }
 
-static bool has_flag(Layout::RustFFI::PaintableData const& row, Layout::RustFFI::PaintableFlag flag)
-{
-    return (row.flags & to_underlying(flag)) != 0;
-}
-
 static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
 {
     return { CSSPixels::from_raw(box.top), CSSPixels::from_raw(box.right), CSSPixels::from_raw(box.bottom), CSSPixels::from_raw(box.left) };
@@ -328,46 +323,19 @@ bool has_stacking_context(Layout::Node const& node)
 
 CSS::Display display(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row)
+    if (!has_committed_box(node))
         return {};
-    return CSS::display_from_ffi_display(CSS::decode_ffi_display(row->display));
+    return as<Layout::NodeWithStyle>(node).display();
 }
 
 bool is_positioned(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::Positioned);
+    return Layout::RustFFI::layout_arena_paintable_is_positioned(node.arena_handle(), committed_row_slot(node));
 }
 
 bool is_fixed_position(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::FixedPosition);
-}
-
-bool is_sticky_position(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::StickyPosition);
-}
-
-bool is_absolutely_positioned(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::AbsolutelyPositioned);
-}
-
-bool is_floating(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::Floating);
-}
-
-bool is_inline(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && has_flag(*row, Layout::RustFFI::PaintableFlag::Inline);
+    return has_committed_box(node) && as<Layout::NodeWithStyle>(node).is_fixed_position();
 }
 
 bool has_css_transform(Layout::Node const& node)
@@ -669,7 +637,7 @@ Layout::Node const* nearest_self_painting_inline_box(Layout::Node const& node)
     for (auto const* ancestor = node.nearest_fragmented_inline_ancestor(); ancestor; ancestor = ancestor->nearest_fragmented_inline_ancestor()) {
         auto const* row = committed_row(*ancestor);
         if (row && row->kind == Layout::RustFFI::PaintableKind::InlinePaintable
-            && (row->stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT || has_flag(*row, Layout::RustFFI::PaintableFlag::Positioned)))
+            && (row->stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT || is_positioned(*ancestor)))
             return ancestor;
     }
     return nullptr;

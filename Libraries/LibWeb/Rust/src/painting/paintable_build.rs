@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_enums;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
-use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::{
     FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, FragmentLink, LayoutNodeArena, LineData,
     Node, NodeFacts,
@@ -183,7 +182,7 @@ impl<'a> PaintableCommit<'a> {
         has_used_values: bool,
         reuses_committed_subtree: bool,
     ) -> PreparedPaintable {
-        let (expected_kind, wants_paintable, node_kind, node_flags, is_inline) = {
+        let (expected_kind, wants_paintable, node_kind) = {
             let facts = NodeFacts::new(self.callbacks, node);
             let data = self.callbacks.node_data(node);
             let expected_kind = paintable_kind_for_node(&facts, data.kind);
@@ -192,8 +191,6 @@ impl<'a> PaintableCommit<'a> {
                 (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
                     && expected_kind != PaintableKind::None,
                 data.kind,
-                data.flags,
-                facts.is_inline(),
             )
         };
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
@@ -234,25 +231,6 @@ impl<'a> PaintableCommit<'a> {
         if !has_used_values {
             self.arena().clear_committed_fragment_link(node);
         }
-        let style = self.callbacks.computed_values_view_if_styled(node);
-        let (position, floating, has_z_index, display) = match style {
-            Some(style) => {
-                let box_values = style.box_values();
-                (
-                    box_values.position,
-                    box_values.float_ != css_enums::float::NONE,
-                    box_values.has_z_index,
-                    style.display(),
-                )
-            }
-            None => (
-                css_enums::positioning::STATIC,
-                false,
-                false,
-                crate::css::display::FfiDisplay::none(),
-            ),
-        };
-        let is_item = node_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
         if row_existed_before_this_commit {
             let (offset, notification) = {
                 let paintable_rows = self.arena().paintable_rows();
@@ -273,40 +251,6 @@ impl<'a> PaintableCommit<'a> {
                 arena.paint_state().borrow_mut().reset_visual_context_state();
             }
             arena.paintable_rows_mut().paintable_data_mut(node).kind = expected_kind;
-        }
-        {
-            let mut paintable_rows = arena.paintable_rows_mut();
-            let paintable = paintable_rows.paintable_data_mut(node);
-            // Flex and grid items with a z-index other than auto behave as if positioned.
-            paintable.set_flag(
-                PaintableFlag::Positioned,
-                (is_item && has_z_index) || position != css_enums::positioning::STATIC,
-            );
-            paintable.set_flag(PaintableFlag::FixedPosition, position == css_enums::positioning::FIXED);
-            paintable.set_flag(
-                PaintableFlag::StickyPosition,
-                position == css_enums::positioning::STICKY,
-            );
-            paintable.set_flag(
-                PaintableFlag::AbsolutelyPositioned,
-                position == css_enums::positioning::ABSOLUTE,
-            );
-            paintable.set_flag(
-                PaintableFlag::Floating,
-                floating && node_flags & NodeFlag::IsFlexItem as u32 == 0,
-            );
-            paintable.set_flag(PaintableFlag::Inline, is_inline);
-            paintable.set_flag(PaintableFlag::Anonymous, node_flags & NodeFlag::Anonymous as u32 != 0);
-            paintable.set_flag(
-                PaintableFlag::Replaced,
-                node_flags & NodeFlag::IsReplacedElement as u32 != 0,
-            );
-            paintable.set_flag(PaintableFlag::FlexOrGridItem, is_item);
-            paintable.set_flag(
-                PaintableFlag::ReplacedBox,
-                crate::layout::kind_is_replaced_box(node_kind),
-            );
-            paintable.display = display.encoded();
         }
         PreparedPaintable {
             has_paintable_row: true,

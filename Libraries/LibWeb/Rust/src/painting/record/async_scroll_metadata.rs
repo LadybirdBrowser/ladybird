@@ -11,6 +11,7 @@ use crate::painting::display_list::commands::*;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
+use crate::painting::style_queries;
 use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
 use libgfx_rust::{FloatPoint, FloatRect, FloatSize, IntRect};
 
@@ -57,7 +58,7 @@ impl PaintRecorder<'_> {
             if self.could_be_scrolled_by_wheel_event(candidate) {
                 return Some(candidate);
             }
-            if self.data(candidate).has_flag(PaintableFlag::FixedPosition) {
+            if style_queries::is_fixed_position(self.layout_arena, candidate) {
                 return None;
             }
             candidate = self.data(candidate).containing_block;
@@ -111,7 +112,7 @@ impl PaintRecorder<'_> {
                 && self.layout_arena.paintable_row_is_populated(raw_containing_block))
             .then_some(raw_containing_block);
             if let Some(block) = containing_block
-                && self.data(block).has_flag(PaintableFlag::FixedPosition)
+                && style_queries::is_fixed_position(self.layout_arena, block)
             {
                 let block_own = self.data(block).own_scroll_node_index;
                 if block_own != 0 && self.could_be_scrolled_by_wheel_event(block) {
@@ -338,7 +339,7 @@ impl PaintRecorder<'_> {
         self.record_viewport_scrollbar_state(paintable, &facts);
 
         let sticky_node_index = self.data(paintable).enclosing_scroll_node_index;
-        if self.data(paintable).has_flag(PaintableFlag::StickyPosition) && sticky_node_index != 0 {
+        if style_queries::is_sticky_position(self.layout_arena, paintable) && sticky_node_index != 0 {
             let Some(tree) = &self.paint_state.visual_context.tree else {
                 return;
             };

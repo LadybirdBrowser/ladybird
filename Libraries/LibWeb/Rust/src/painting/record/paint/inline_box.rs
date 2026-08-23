@@ -30,7 +30,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     let piece_indices = &layout_arena.paintable_side_data(paintable).piece_indices;
     let root_pieces = &layout_arena.paintable_side_data(root).inline_box_pieces;
     let facts = recorder.base_paint_facts(paintable);
-    let self_painting_inline = crate::painting::fragment_ownership::is_self_painting_inline(recorder.data(paintable));
+    let self_painting_inline = crate::painting::fragment_ownership::is_self_painting_inline(layout_arena, paintable);
 
     if phase == PaintPhase::Background && facts.is_visible {
         crate::painting::record::paint::paint_backdrop_filter(recorder, paintable, &facts);

@@ -37,6 +37,34 @@ pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesV
     (style.is_floating() && !has_flag(data, NodeFlag::IsFlexItem)) || style.is_absolutely_positioned()
 }
 
+/// Painting treats flex and grid items with a z-index other than auto as if
+/// they were positioned, in addition to boxes whose position is not static.
+pub(crate) fn node_is_positioned(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+    let Some(style) = style else {
+        return false;
+    };
+    let box_values = style.box_values();
+    let is_flex_or_grid_item = has_flag(data, NodeFlag::IsFlexItem) || has_flag(data, NodeFlag::IsGridItem);
+    box_values.position != crate::css::css_enums::positioning::STATIC || (is_flex_or_grid_item && box_values.has_z_index)
+}
+
+pub(crate) fn node_position(style: Option<ComputedValuesView<'_>>) -> u8 {
+    style.map_or(crate::css::css_enums::positioning::STATIC, |style| style.box_values().position)
+}
+
+/// Flex items never float, whatever their computed float value says.
+pub(crate) fn node_is_floating(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+    style.is_some_and(|style| style.is_floating()) && !has_flag(data, NodeFlag::IsFlexItem)
+}
+
+pub(crate) fn node_is_inline_outside(style: Option<ComputedValuesView<'_>>) -> bool {
+    style.is_some_and(|style| style.display().is_inline_outside())
+}
+
+pub(crate) fn node_display(style: Option<ComputedValuesView<'_>>) -> crate::css::display::FfiDisplay {
+    style.map_or_else(crate::css::display::FfiDisplay::none, |style| style.display())
+}
+
 pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
     match data.kind {
         NodeKind::BreakNode => false,

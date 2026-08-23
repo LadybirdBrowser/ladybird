@@ -423,7 +423,7 @@ fn overflow_property_applies(layout_arena: &impl PaintableRowsRead, slot: NodeSl
     if paintable_geometry::is_svg_paintable(data.kind) {
         return false;
     }
-    let display = crate::css::display::FfiDisplay::from_raw(data.display);
+    let display = crate::painting::style_queries::display(layout_arena, slot);
     if crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, slot) {
         return false;
     }
