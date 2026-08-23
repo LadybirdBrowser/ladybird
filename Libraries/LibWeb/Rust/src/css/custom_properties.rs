@@ -2058,11 +2058,11 @@ mod tests {
 
     #[test]
     fn accepts_all_dimension_units_and_rejects_unknown_units() {
-        let Some((_, AttrSyntax::Unit(unit))) = parse_attr_syntax(&tokenize_owned(b"data-value FR")) else {
+        let Ok((_, AttrSyntax::Unit(unit))) = parse_attr_syntax(&tokenize_owned(b"data-value FR")) else {
             panic!("expected flex unit syntax");
         };
-        assert_eq!(unit, "FR");
-        assert!(parse_attr_syntax(&tokenize_owned(b"data-value unknown-unit")).is_none());
+        assert_eq!(unit, utf16("FR"));
+        assert!(parse_attr_syntax(&tokenize_owned(b"data-value unknown-unit")).is_err());
     }
 
     #[test]
