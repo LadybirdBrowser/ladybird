@@ -563,6 +563,7 @@ impl NormalizationJournal {
 
     /// Record one input change. `old` is the value before this mutation and is kept only if this is
     /// the first record for `key`; `new` replaces any previously pending value.
+    #[inline]
     pub fn record(
         &mut self,
         key: InputKey,
