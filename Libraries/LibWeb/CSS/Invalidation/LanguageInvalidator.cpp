@@ -95,6 +95,22 @@ void invalidate_style_after_slot_assignment_change(HTML::HTMLSlotElement& slot)
 // resolves to, for its whole subtree, because a directionality inherits.
 void invalidate_style_after_text_change_under(DOM::Element& parent_of_text)
 {
+    bool ancestor_chain_has_assigned_slot = false;
+    for (auto ancestor = GC::Ptr<DOM::Element> { parent_of_text }; ancestor; ancestor = ancestor->parent_element()) {
+        if (ancestor->assigned_slot_internal()) {
+            ancestor_chain_has_assigned_slot = true;
+            break;
+        }
+    }
+
+    if (!ancestor_chain_has_assigned_slot) {
+        for (auto ancestor = GC::Ptr<DOM::Element> { parent_of_text }; ancestor; ancestor = ancestor->parent_element()) {
+            if (ancestor->has_auto_directionality())
+                publish_language_and_directionality(*ancestor, true);
+        }
+        return;
+    }
+
     HashTable<DOM::Element*> visited;
     publish_directionality_dependent_ancestors(parent_of_text, visited);
 }
