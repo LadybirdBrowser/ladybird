@@ -171,28 +171,6 @@ pub extern "C" fn rust_property_metadata_animation_type(property_id: u16) -> u8 
     property_animation_type(property_id)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn layout_geometry_effects_include_direct_and_indirect_effects() {
-        assert!(!property_may_affect_layout_geometry(property_id::BACKGROUND_COLOR));
-        assert!(property_may_affect_layout_geometry(property_id::COLOR));
-        assert!(property_may_affect_layout_geometry(property_id::WIDTH));
-        assert!(property_may_affect_layout_geometry(property_id::TRANSFORM));
-        assert!(property_may_affect_layout_geometry(property_id::OPACITY));
-        assert!(property_may_affect_layout_geometry(property_id::TEXT_RENDERING));
-        assert!(property_may_affect_layout_geometry(property_id::STROKE));
-        assert!(property_may_affect_layout_geometry(property_id::STROKE_WIDTH));
-        assert!(property_may_affect_layout_geometry(property_id::ANIMATION_NAME));
-        assert!(property_may_affect_layout_geometry(property_id::TRANSITION_PROPERTY));
-        assert!(property_may_affect_layout_geometry(property_id::SCROLL_TIMELINE_NAME));
-        assert!(property_may_affect_layout_geometry(property_id::CONTAINER_NAME));
-        assert!(property_may_affect_layout_geometry(property_id::CUSTOM));
-    }
-}
-
 /// # Safety
 /// `out_length` must be a valid pointer.
 #[unsafe(no_mangle)]
@@ -290,6 +268,23 @@ pub extern "C" fn rust_animation_property_is_preferred(a: u16, b: u16) -> bool {
 mod tests {
     use super::*;
     use crate::css::css_enums::keyword;
+
+    #[test]
+    fn layout_geometry_effects_include_direct_and_indirect_effects() {
+        assert!(!property_may_affect_layout_geometry(property_id::BACKGROUND_COLOR));
+        assert!(property_may_affect_layout_geometry(property_id::COLOR));
+        assert!(property_may_affect_layout_geometry(property_id::WIDTH));
+        assert!(property_may_affect_layout_geometry(property_id::TRANSFORM));
+        assert!(property_may_affect_layout_geometry(property_id::OPACITY));
+        assert!(property_may_affect_layout_geometry(property_id::TEXT_RENDERING));
+        assert!(property_may_affect_layout_geometry(property_id::STROKE));
+        assert!(property_may_affect_layout_geometry(property_id::STROKE_WIDTH));
+        assert!(property_may_affect_layout_geometry(property_id::ANIMATION_NAME));
+        assert!(property_may_affect_layout_geometry(property_id::TRANSITION_PROPERTY));
+        assert!(property_may_affect_layout_geometry(property_id::SCROLL_TIMELINE_NAME));
+        assert!(property_may_affect_layout_geometry(property_id::CONTAINER_NAME));
+        assert!(property_may_affect_layout_geometry(property_id::CUSTOM));
+    }
 
     #[test]
     fn exposes_property_keyword_metadata() {
