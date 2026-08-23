@@ -59,8 +59,6 @@ public:
         Optional<Web::HTML::NavigationStartRequest> start_request {};
         u64 sequence_number { 0 };
         bool has_started { false };
-        bool uses_replacement_process { false };
-        bool is_uncommitted { false };
         Phase phase { Phase::Started };
         OwnPtr<NavigationLoader> loader {};
         WeakPtr<WebContentClient> population_worker_client {};
@@ -166,7 +164,7 @@ public:
     bool navigation_transaction_matches(Utf16String const&, WebContentClient const&, u64 page_id) const;
     bool cancel_navigation_transaction_for_client(WebContentClient&);
     void did_finish_navigation_transaction(Optional<Utf16String> const&, Web::HTML::HistoryStepResult);
-    bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value() && m_ongoing_navigation->is_uncommitted; }
+    bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value(); }
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
 
     ActiveDocumentLoad const& active_document_load() const { return m_active_document_load; }

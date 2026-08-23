@@ -1690,7 +1690,6 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
                     .navigation_id = navigation_id,
                     .sequence_number = next_sequence_number(),
                     .has_started = true,
-                    .is_uncommitted = true,
                     .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
                 };
                 child_navigable->set_ongoing_navigation(move(ongoing_navigation));
@@ -2112,6 +2111,7 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
                     if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
                         if (!Web::HTML::url_matches_about_blank(active_document_url) || !view->m_client_state.site_url.has_value())
                             view->m_client_state.site_url = move(active_document_url);
+                        view->m_client_state.hosts_committed_entry = true;
                         view->m_external_url_request_policy.clear_page_request_allowance();
                     }
                 }

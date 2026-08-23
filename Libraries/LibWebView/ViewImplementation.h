@@ -490,7 +490,7 @@ protected:
     void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&);
     void did_cancel_loading(Optional<Utf16String> const& navigation_id);
     bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
-    void did_finish_navigation(URL::URL const&);
+    void did_finish_navigation();
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
@@ -499,7 +499,7 @@ protected:
         Load,
         HistoryTraversal,
     };
-    u64 begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<Web::HTML::CrossProcessId> history_operation_id = {}, Optional<URL::URL> expected_url = {});
+    u64 begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<Web::HTML::CrossProcessId> history_operation_id = {});
     void complete_webdriver_navigation(u64 navigation_id);
     void complete_webdriver_history_traversal(Web::HTML::CrossProcessId operation_id);
     void update_navigation_action_state();
@@ -582,6 +582,11 @@ protected:
         Optional<URL::URL> site_url;
         u64 page_index { 0 };
         bool has_usable_bitmap { false };
+        // Whether this process hosts the document of the canonical current session history entry. A
+        // replacement process starts out not hosting it; hosting is established when a top-level
+        // activation commits in the process. Canceling a navigation must reconstruct the current entry
+        // exactly when the process does not host it.
+        bool hosts_committed_entry { true };
     } m_client_state;
 
     enum class HistoryOperationHandling : u8 {
@@ -694,7 +699,6 @@ protected:
         WebDriverNavigationCompletionSource completion_source;
         u64 navigation_id { 0 };
         Optional<Web::HTML::CrossProcessId> history_operation_id;
-        Optional<URL::URL> expected_url;
         bool history_operation_completed { false };
         bool load_completed { false };
     };

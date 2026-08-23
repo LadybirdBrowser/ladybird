@@ -542,7 +542,6 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
             .target = target,
             .navigation_id = navigation_id,
             .sequence_number = sequence_number,
-            .is_uncommitted = target_navigable->is_top_level_traversable(),
         });
         target_navigable->set_navigation_population_worker(*this, page_id);
         if (target_navigable->is_top_level_traversable()) {
@@ -559,7 +558,6 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
         .navigation_id = navigation_id,
         .start_request = move(start_request),
         .sequence_number = sequence_number,
-        .is_uncommitted = target_navigable->is_top_level_traversable(),
         .phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck,
     });
     target_navigable->set_navigation_population_worker(*this, page_id);
@@ -643,7 +641,6 @@ void WebContentClient::did_request_navigation_population(u64 page_id, Web::HTML:
             .target = target,
             .navigation_id = request.navigation_id,
             .sequence_number = target_navigable->top_level_traversable().next_sequence_number(),
-            .is_uncommitted = target_navigable->is_top_level_traversable(),
             .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
             .loader = NavigationLoader::create(m_is_private, move(request)),
         });
@@ -1043,7 +1040,7 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
                 Application::history_store(m_is_private).update_favicon(url, *view->favicon_hash());
         }
 
-        view->did_finish_navigation(client_url);
+        view->did_finish_navigation();
 
         if (view->on_load_finish)
             view->on_load_finish(client_url);
