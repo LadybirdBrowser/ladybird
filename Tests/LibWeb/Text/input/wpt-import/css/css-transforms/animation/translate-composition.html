@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>translate composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-translate">
+<meta name="assert" content="translate supports <length> and <percentage> animation.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<style>
+.target {
+  width: 100px;
+  height: 100px;
+}
+</style>
+<script>
+test_composition({
+  property: 'translate',
+  underlying: '100px 200px 300px',
+  addFrom: '-50px 50%',
+  addTo: '100%',
+}, [
+  {at: -1, expect: '-100% calc(200px + 100%) 300px'},
+  {at: 0, expect: 'calc(50px + 0%) calc(200px + 50%) 300px'},
+  {at: 0.25, expect: 'calc(62.5px + 25%) calc(200px + 37.5%) 300px'},
+  {at: 0.75, expect: 'calc(87.5px + 75%) calc(200px + 12.5%) 300px'},
+  {at: 1, expect: 'calc(100px + 100%) calc(200px + 0%) 300px'},
+  {at: 2, expect: 'calc(150px + 200%) calc(200px - 50%) 300px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: '100px 200px 300px',
+  addFrom: '50% 100px',
+  replaceTo: '200px 50% 100px',
+}, [
+  {at: -1, expect: '100% calc(600px - 50%) 500px'},
+  {at: 0, expect: 'calc(100px + 50%) calc(300px + 0%) 300px'},
+  {at: 0.25, expect: 'calc(125px + 37.5%) calc(225px + 12.5%) 250px'},
+  {at: 0.75, expect: 'calc(175px + 12.5%) calc(75px + 37.5%) 150px'},
+  {at: 1, expect: 'calc(200px + 0%) 50% 100px'},
+  {at: 2, expect: 'calc(300px - 50%) calc(-300px + 100%) -100px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: '100px 200px 300px',
+  replaceFrom: '50% 100px',
+  addTo: '200px 50% 100px',
+}, [
+  {at: -1, expect: 'calc(-300px + 100%) -50% -400px'},
+  {at: 0, expect: '50%  calc(100px + 0%)'},
+  {at: 0.25, expect: 'calc(75px + 37.5%) calc(125px + 12.5%) 100px'},
+  {at: 0.75, expect: 'calc(225px + 12.5%) calc(175px + 37.5%) 300px'},
+  {at: 1, expect: 'calc(300px + 0%) calc(200px + 50%) 400px'},
+  {at: 2, expect: 'calc(600px - 50%) calc(300px + 100%) 800px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: 'none',
+  replaceFrom: 'none',
+  addTo: '100px',
+}, [
+  {at: -1, expect: '-100px'},
+  {at: 0, expect: '0px'},
+  {at: 0.25, expect: '25px'},
+  {at: 0.75, expect: '75px'},
+  {at: 1, expect: '100px'},
+  {at: 2, expect: '200px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: 'none',
+  addFrom: 'none',
+  addTo: '100px',
+}, [
+  {at: -1, expect: '-100px'},
+  {at: 0, expect: '0px'},
+  {at: 0.25, expect: '25px'},
+  {at: 0.75, expect: '75px'},
+  {at: 1, expect: '100px'},
+  {at: 2, expect: '200px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: 'none',
+  replaceFrom: '0px 40px 60px',
+  replaceTo: 'none',
+}, [
+  {at: -1, expect: '0px 80px 120px'},
+  {at: 0, expect: '0px 40px 60px'},
+  {at: 0.25, expect: '0px 30px 45px'},
+  {at: 0.75, expect: '0px 10px 15px'},
+  {at: 1, expect: '0px'},
+  {at: 2, expect: '0px -40px -60px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: 'none',
+  replaceFrom: '0px 40px 60px',
+  addTo: 'none',
+}, [
+  {at: -1, expect: '0px 80px 120px'},
+  {at: 0, expect: '0px 40px 60px'},
+  {at: 0.25, expect: '0px 30px 45px'},
+  {at: 0.75, expect: '0px 10px 15px'},
+  {at: 1, expect: '0px'},
+  {at: 2, expect: '0px -40px -60px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: '80px 20px',
+  addFrom: 'none',
+  replaceTo: '0px 40px 60px',
+}, [
+  {at: -1, expect: '160px 0px -60px'},
+  {at: 0, expect: '80px 20px'},
+  {at: 0.25, expect: '60px 25px 15px'},
+  {at: 0.5, expect: '40px 30px 30px'},
+  {at: 0.75, expect: '20px 35px 45px'},
+  {at: 1, expect: '0px 40px 60px'},
+  {at: 2, expect: '-80px 60px 120px'},
+]);
+
+test_composition({
+  property: 'translate',
+  underlying: '80px 20px',
+  addFrom: '0px 40px 60px',
+  replaceTo: 'none',
+}, [
+  {at: -1, expect: '160px 120px 120px'},
+  {at: 0, expect: '80px 60px 60px'},
+  {at: 0.25, expect: '60px 45px 45px'},
+  {at: 0.5, expect: '40px 30px 30px'},
+  {at: 0.75, expect: '20px 15px 15px'},
+  {at: 1, expect: '0px'},
+  {at: 2, expect: '-80px -60px -60px'},
+]);
+</script>
+</body>
