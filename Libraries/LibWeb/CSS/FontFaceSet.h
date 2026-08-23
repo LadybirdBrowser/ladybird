@@ -42,6 +42,7 @@ public:
     void clear();
 
     void add_css_connected_font(GC::Ref<FontFace>);
+    void remove_css_connected_font(GC::Ref<FontFace>);
 
     void set_onloading(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloading();
@@ -68,8 +69,14 @@ public:
     void switch_to_loaded();
 
 private:
+    enum class AllowCSSConnected {
+        No,
+        Yes,
+    };
+
     explicit FontFaceSet(HTML::EnvironmentSettingsObject&);
     virtual void visit_edges(Cell::Visitor&) override;
+    bool remove_font_face(GC::Ref<FontFace>, AllowCSSConnected);
 
     Vector<GC::Ref<FontFace>> m_font_faces;
     GC::Ref<HTML::EnvironmentSettingsObject> m_environment;

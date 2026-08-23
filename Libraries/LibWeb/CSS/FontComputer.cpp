@@ -953,12 +953,6 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 
             auto font_face = FontFace::create_css_connected(HTML::relevant_realm(document()), *font_face_rule);
             document().fonts()->add_css_connected_font(font_face);
-
-            // Register the face for font matching without fetching anything. The fetch starts once the face is actually
-            // needed for rendering: When style computation first selects the face — or, for a face with a subsetting
-            // unicode-range, once a rendered codepoint falls within that range.
-            // INTEROP: Blink, Gecko, and WebKit similarly defer @font-face fetches.
-            register_font_face(font_face);
         }
 
         if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
@@ -972,8 +966,6 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
     for_each_nested_font_rule(sheet.rules(), [&](auto& rule) {
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
-            if (auto font_face = font_face_rule->css_connected_font_face())
-                unregister_font_face(*font_face);
             font_face_rule->disconnect_font_face();
         }
 
