@@ -885,6 +885,10 @@ AnimationUpdateContext::~AnimationUpdateContext()
             continue;
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
+        // Disconnected elements no longer have a style-engine row to publish refreshed
+        // animation style into.
+        if (target->style_node_id() == 0)
+            continue;
         // Provisionally started transitions are not associated with the element yet, so they are
         // never among the collected effects, but their values are already part of the published
         // style. Collect them first, in composite order below every associated effect, or this

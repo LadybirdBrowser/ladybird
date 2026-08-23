@@ -31,7 +31,9 @@
         document.body.append(container);
         await linkLoaded;
 
-        target.animate({ opacity: [0, 1] }, { duration: 10000 });
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000 });
+        animation.pause();
+        await animation.ready;
         await new Promise(requestAnimationFrame);
         internals.updateStyle();
         target.offsetWidth;
