@@ -1,15 +1,37 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <body><p id="p1"><b>Hello💨</b>😮 World</p>
+<div id="nested">zero<span>one<em>two</em>three</span>four<span>five</span>six</div>
 <script src="../include.js"></script>
 <script>
     test(() => {
         const p1 = document.getElementById("p1");
         const hello = p1.firstChild.firstChild;
         const world = p1.lastChild;
-        const range = document.createRange();
+        let range = document.createRange();
         range.setStart(hello, 2);
         range.setEnd(world, 5);
         println(range.toString());
+
+        const nested = document.getElementById("nested");
+        range = document.createRange();
+        range.selectNodeContents(nested);
+        println(range.toString());
+
+        range.setStart(nested.firstChild, 2);
+        range.setEnd(nested.lastChild, 2);
+        println(range.toString());
+
+        range.setStart(nested, 1);
+        range.setEnd(nested, 4);
+        println(range.toString());
+
+        const firstSpan = nested.firstElementChild;
+        range.setStart(firstSpan, 1);
+        range.setEnd(firstSpan, 2);
+        println(range.toString());
+
+        range.collapse();
+        println(`collapsed: "${range.toString()}"`);
     });
 </script>
