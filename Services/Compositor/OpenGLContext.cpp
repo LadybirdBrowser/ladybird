@@ -32,9 +32,9 @@ extern "C" {
 #endif
 #include <Compositor/OpenGLContext.h>
 
-// Enable WebGL if we're on macOS and can use Metal, if Linux can use ANGLE's
-// OpenGL backend for CPU-painting tests, or if we can use shareable Vulkan images.
-#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(USE_VULKAN_DMABUF_IMAGES)
+// Enable WebGL if we're on macOS and can use Metal, if Linux can use ANGLE's OpenGL backend for CPU-painting tests,
+// if Windows can use ANGLE's Direct3D 11 backend, or if we can use shareable Vulkan images.
+#if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE) || defined(USE_VULKAN_DMABUF_IMAGES)
 #    define ENABLE_WEBGL 1
 #endif
 
@@ -147,6 +147,10 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
 #ifdef ENABLE_WEBGL
 #    if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
     bool use_cpu_painting_surface = !skia_backend_context;
+#    elif defined(AK_OS_WINDOWS)
+    // FIXME: Share the drawing buffer with Skia's Direct3D 12 device (via an NT shared handle opened on ANGLE's
+    //        Direct3D 11 device) instead of reading it back to the CPU every frame.
+    bool use_cpu_painting_surface = true;
 #    else
     bool use_cpu_painting_surface = false;
 #    endif
@@ -169,6 +173,8 @@ OwnPtr<OpenGLContext> OpenGLContext::create(RefPtr<Gfx::SkiaBackendContext> skia
         EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE,
         EGL_PLATFORM_ANGLE_NATIVE_PLATFORM_TYPE_ANGLE,
         EGL_PLATFORM_SURFACELESS_MESA,
+#    elif defined(AK_OS_WINDOWS)
+        EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
 #    endif
         EGL_NONE,
     };
@@ -439,7 +445,7 @@ bool OpenGLContext::allocate_vkimage_painting_surface()
 }
 #endif
 
-#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
 void OpenGLContext::allocate_cpu_painting_surface()
 {
     m_painting_surface = Gfx::PaintingSurface::create_with_size(
@@ -563,7 +569,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 #        else
     (void)allocate_vkimage_painting_surface();
 #        endif
-#    elif defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+#    elif (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
     allocate_cpu_painting_surface();
 #    endif
     VERIFY(m_painting_surface);
@@ -627,11 +633,11 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
 #    elif defined(USE_VULKAN_DMABUF_IMAGES)
     // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from the surface
     glFinish();
-#    elif defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+#    elif (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
     glFinish();
 #    endif
 
-#    if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#    if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
     if (m_impl->uses_cpu_painting_surface)
         copy_default_framebuffer_to_cpu_painting_surface();
 #    endif

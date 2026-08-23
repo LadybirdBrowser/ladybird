@@ -19,6 +19,10 @@
 #    include <LibGfx/SharedImageBuffer.h>
 #endif
 
+#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)) || defined(AK_OS_WINDOWS)
+#    define ENABLE_WEBGL_CPU_PAINTING_SURFACE
+#endif
+
 namespace Compositor {
 
 class OpenGLContext : public Web::WebGL::GLFunctions {
@@ -74,7 +78,7 @@ private:
 #if defined(USE_VULKAN_DMABUF_IMAGES)
     bool allocate_vkimage_painting_surface();
 #endif
-#if defined(AK_OS_MACOS) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#if defined(ENABLE_WEBGL_CPU_PAINTING_SURFACE)
     void allocate_cpu_painting_surface();
     void copy_default_framebuffer_to_cpu_painting_surface();
 #endif
