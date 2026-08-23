@@ -38,6 +38,7 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyName.h>
@@ -53,6 +54,12 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::CSS::Parser {
+
+static bool should_verify_rust_query_parser()
+{
+    auto* value = getenv("LIBWEB_VERIFY_RUST_QUERY_PARSER");
+    return value && StringView { value, strlen(value) } == "1"sv;
+}
 
 // A helper that ensures only the last instance of each descriptor is included, while also handling shorthands.
 class DescriptorList {
@@ -915,7 +922,13 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    auto supports = parse_a_supports(supports_tokens);
+    auto supports = RustQueryParser::parse_supports(*this, rule.prelude_text);
+    if (should_verify_rust_query_parser()) {
+        auto cpp_supports = parse_a_supports(supports_tokens);
+        if (static_cast<bool>(supports) != static_cast<bool>(cpp_supports)
+            || (supports && supports->to_string() != cpp_supports->to_string()))
+            warnln("Rust supports parser mismatch: Rust `{}`, C++ `{}`", supports ? supports->to_string() : "<invalid>"_utf16, cpp_supports ? cpp_supports->to_string() : "<invalid>"_utf16);
+    }
     if (!supports) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@supports"_utf16_fly_string,
@@ -1214,47 +1227,58 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
         return nullptr;
     }
 
-    auto prelude_item_values = parse_a_comma_separated_list_of_component_values(prelude_stream);
-    if (prelude_item_values.is_empty()) {
+    auto rust_conditions = RustQueryParser::parse_container_condition_list(*this, rule.prelude_text);
+    if (!rust_conditions.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@container"_utf16_fly_string,
             .prelude = prelude_stream.dump_string(),
-            .description = "Empty prelude."_string,
+            .description = "Invalid container condition list."_string,
         });
         return nullptr;
     }
 
     Vector<CSSContainerRule::Condition> conditions;
-    conditions.ensure_capacity(prelude_item_values.size());
+    conditions.ensure_capacity(rust_conditions->size());
+    for (auto& condition : *rust_conditions)
+        conditions.unchecked_empend(move(condition.name), move(condition.query));
 
-    for (auto const& prelude_item : prelude_item_values) {
-        TokenStream item_tokens { prelude_item };
-        item_tokens.discard_whitespace();
-        // https://drafts.csswg.org/css-conditional-5/#container-name
-        // The keywords none, and, not, and or are excluded from this <custom-ident>.
-        auto container_name = parse_custom_ident(item_tokens, { { "none"sv, "and"sv, "not"sv, "or"sv } });
-        item_tokens.discard_whitespace();
-        auto container_query = parse_container_query(item_tokens);
-        if (!container_name.has_value() && !container_query) {
-            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@container"_utf16_fly_string,
-                .prelude = prelude_stream.dump_string(),
-                .description = "Missing container name or query."_string,
-            });
-            return nullptr;
-        }
-
-        item_tokens.discard_whitespace();
-        if (item_tokens.has_next_token()) {
-            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@container"_utf16_fly_string,
-                .prelude = prelude_stream.dump_string(),
-                .description = "Trailing tokens after name and query."_string,
-            });
-            return nullptr;
-        }
-
-        conditions.unchecked_empend(move(container_name), move(container_query));
+    if (should_verify_rust_query_parser()) {
+        auto cpp_conditions = [&]() -> Optional<Vector<CSSContainerRule::Condition>> {
+            auto prelude_item_values = parse_a_comma_separated_list_of_component_values(prelude_stream);
+            if (prelude_item_values.is_empty())
+                return {};
+            Vector<CSSContainerRule::Condition> cpp_conditions;
+            for (auto const& prelude_item : prelude_item_values) {
+                TokenStream item_tokens { prelude_item };
+                item_tokens.discard_whitespace();
+                auto container_name = parse_custom_ident(item_tokens, { { "none"sv, "and"sv, "not"sv, "or"sv } });
+                item_tokens.discard_whitespace();
+                auto container_query = parse_container_query(item_tokens);
+                item_tokens.discard_whitespace();
+                if ((!container_name.has_value() && !container_query) || item_tokens.has_next_token())
+                    return {};
+                cpp_conditions.empend(move(container_name), move(container_query));
+            }
+            return cpp_conditions;
+        }();
+        auto serialize_conditions = [](auto const& list) {
+            Utf16StringBuilder builder;
+            for (size_t index = 0; index < list.size(); ++index) {
+                if (index > 0)
+                    builder.append_ascii(", "sv);
+                auto const& condition = list[index];
+                if (condition.container_name.has_value())
+                    builder.append(*condition.container_name);
+                if (condition.container_query) {
+                    if (condition.container_name.has_value())
+                        builder.append_ascii(' ');
+                    builder.append(condition.container_query->to_string());
+                }
+            }
+            return builder.to_string();
+        };
+        if (!cpp_conditions.has_value() || serialize_conditions(conditions) != serialize_conditions(*cpp_conditions))
+            warnln("Rust container query parser mismatch: Rust `{}`, C++ `{}`", serialize_conditions(conditions), cpp_conditions.has_value() ? serialize_conditions(*cpp_conditions) : "<invalid>"_utf16);
     }
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;

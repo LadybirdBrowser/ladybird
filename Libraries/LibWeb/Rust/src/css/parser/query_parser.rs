@@ -9,6 +9,7 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
+use crate::css::parser::value_parser::is_valid_custom_ident;
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -842,6 +843,64 @@ where
     (!stream.has_next_token()).then_some(expression)
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ContainerCondition {
+    pub name: Option<ParserString>,
+    pub query: Option<Expression>,
+}
+
+fn parse_container_condition<R>(values: &[ComponentValue], resolve_feature: &R) -> Option<ContainerCondition>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let mut stream = TokenStream::new(values);
+    stream.discard_whitespace();
+    let name = stream.next_token().ident().and_then(|name| {
+        is_valid_custom_ident(name, &["none", "and", "not", "or"])
+            .then(|| ParserString::from(name.to_vec().into_boxed_slice()))
+    });
+    if name.is_some() {
+        stream.discard_a_token();
+        stream.discard_whitespace();
+    }
+    let query = if stream.has_next_token() {
+        Some(parse_boolean_expression(
+            &mut stream,
+            MatchResult::Unknown,
+            &|stream| parse_container_feature(stream, resolve_feature),
+        )?)
+    } else {
+        None
+    };
+    stream.discard_whitespace();
+    if stream.has_next_token() || name.is_none() && query.is_none() {
+        return None;
+    }
+    Some(ContainerCondition { name, query })
+}
+
+pub(crate) fn parse_container_condition_list<'a, R>(
+    source: impl Into<TokenizerInput<'a>>,
+    resolve_feature: &R,
+) -> Option<Vec<ContainerCondition>>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let values = components_from_source(source)?;
+    if trim_whitespace(&values).is_empty() {
+        return None;
+    }
+    let mut result = Vec::new();
+    let mut start = 0;
+    for index in 0..=values.len() {
+        if index == values.len() || values[index].is_comma() {
+            result.push(parse_container_condition(&values[start..index], resolve_feature)?);
+            start = index + 1;
+        }
+    }
+    Some(result)
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiQueryValue {
@@ -1134,6 +1193,23 @@ impl FfiQueryParse {
         });
     }
 
+    fn append_container_condition(&mut self, condition: &ContainerCondition) {
+        let (name_offset, name_length) = condition
+            .name
+            .as_ref()
+            .map_or((0, 0), |name| self.append_name(name.as_ref()));
+        let query = condition.query.as_ref().map(|query| self.append_expression(query));
+        self.media_queries.push(FfiMediaQuery {
+            negated: false,
+            valid: true,
+            has_media_type: condition.name.is_some(),
+            has_condition: query.is_some(),
+            media_type_offset: name_offset,
+            media_type_length: name_length,
+            condition: query.unwrap_or(0),
+        });
+    }
+
     fn data(&self) -> FfiQueryParseData {
         FfiQueryParseData {
             syntax: self.syntax.data(),
@@ -1219,6 +1295,28 @@ pub unsafe extern "C" fn rust_parse_container_query(
         };
         let mut parse = FfiQueryParse::new();
         parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_container_condition_list(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(conditions) = parse_container_condition_list(source, &ffi_resolver(resolve_feature)) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        for condition in &conditions {
+            parse.append_container_condition(condition);
+        }
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1309,6 +1407,13 @@ mod tests {
             parse_container_query(b"(width > 10px) and style(--theme: dark)".as_slice(), &resolver),
             Some(Expression::And(_))
         ));
+        let conditions =
+            parse_container_condition_list(b"card (width > 10px), style(--theme: dark)".as_slice(), &resolver).unwrap();
+        assert_eq!(conditions.len(), 2);
+        assert_eq!(
+            conditions[0].name.as_ref().map(AsRef::as_ref),
+            Some("card".encode_utf16().collect::<Vec<_>>().as_slice())
+        );
         assert!(matches!(
             parse_container_query(b"style(1 < --level < 3)".as_slice(), &resolver),
             Some(Expression::StyleFunction(_))
