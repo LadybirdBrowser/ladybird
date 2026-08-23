@@ -47,6 +47,24 @@ ErrorOr<ByteString> Utf16View::to_byte_string(AllowLonelySurrogates allow_lonely
     return TRY(to_utf8(allow_lonely_surrogates)).to_byte_string();
 }
 
+Optional<size_t> Utf16View::to_utf8_with_replacement_into(Bytes output) const
+{
+    if (has_ascii_storage()) {
+        if (output.size() < bytes().size())
+            return {};
+        return bytes().copy_to(output);
+    }
+
+    auto utf16 = utf16_span();
+    auto utf8_length = simdutf::utf8_length_from_utf16_with_replacement(utf16.data(), utf16.size()).count;
+    if (output.size() < utf8_length)
+        return {};
+
+    auto bytes_written = simdutf::convert_utf16_to_utf8_with_replacement(utf16.data(), utf16.size(), reinterpret_cast<char*>(output.data()));
+    VERIFY(bytes_written == utf8_length);
+    return bytes_written;
+}
+
 Utf16String Utf16View::to_ascii_lowercase() const
 {
     Utf16StringBuilder builder(length_in_code_units());

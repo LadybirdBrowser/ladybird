@@ -171,6 +171,7 @@ public:
 
     ErrorOr<String> to_utf8(AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
     ErrorOr<ByteString> to_byte_string(AllowLonelySurrogates = AllowLonelySurrogates::Yes) const;
+    [[nodiscard]] Optional<size_t> to_utf8_with_replacement_into(Bytes output) const;
 
     ALWAYS_INLINE String to_utf8_but_should_be_ported_to_utf16(AllowLonelySurrogates allow_lonely_surrogates = AllowLonelySurrogates::Yes) const
     {

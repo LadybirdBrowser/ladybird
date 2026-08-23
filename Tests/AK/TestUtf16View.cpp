@@ -67,6 +67,34 @@ TEST_CASE(encode_utf8)
     }
 }
 
+TEST_CASE(encode_utf8_with_replacement_into)
+{
+    {
+        Array<u8, 5> output {};
+        auto bytes_written = Utf16View { "Hello"sv }.to_utf8_with_replacement_into(output);
+        EXPECT_EQ(bytes_written, 5uz);
+        EXPECT_EQ(output, (Array<u8, 5> { 'H', 'e', 'l', 'l', 'o' }));
+    }
+    {
+        Array<u8, 5> output {};
+        auto bytes_written = Utf16View { u"A\U0001F600"sv }.to_utf8_with_replacement_into(output);
+        EXPECT_EQ(bytes_written, 5uz);
+        EXPECT_EQ(output, (Array<u8, 5> { 0x41, 0xf0, 0x9f, 0x98, 0x80 }));
+    }
+    {
+        Array<u8, 7> output {};
+        auto bytes_written = Utf16View { u"\xd834\u0041\xdf06"sv }.to_utf8_with_replacement_into(output);
+        EXPECT_EQ(bytes_written, 7uz);
+        EXPECT_EQ(output, (Array<u8, 7> { 0xef, 0xbf, 0xbd, 0x41, 0xef, 0xbf, 0xbd }));
+    }
+    {
+        Array<u8, 3> output { 0xaa, 0xbb, 0xcc };
+        auto bytes_written = Utf16View { u"\U0001F600"sv }.to_utf8_with_replacement_into(output);
+        EXPECT(!bytes_written.has_value());
+        EXPECT_EQ(output, (Array<u8, 3> { 0xaa, 0xbb, 0xcc }));
+    }
+}
+
 TEST_CASE(decode_utf16)
 {
     Utf16View view { u"Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv };
