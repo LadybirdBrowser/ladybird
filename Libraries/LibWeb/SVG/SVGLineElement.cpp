@@ -37,7 +37,7 @@ void SVGLineElement::attribute_changed(Utf16FlyString const& name, Optional<Utf1
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
 }
 
-Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size)
+Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&)
 {
     auto const viewport_width = viewport_size.width().to_float();
     auto const viewport_height = viewport_size.height().to_float();

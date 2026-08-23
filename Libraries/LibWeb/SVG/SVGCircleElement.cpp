@@ -28,16 +28,13 @@ static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
     return sqrt(((viewport_size.width() * viewport_size.width()) + (viewport_size.height() * viewport_size.height())) / 2);
 }
 
-Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
+Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values)
 {
-    auto computed_values = this->computed_style();
-    VERIFY(computed_values);
-
-    auto cx = float(computed_values->cx().to_px(viewport_size.width()));
-    auto cy = float(computed_values->cy().to_px(viewport_size.height()));
+    auto cx = float(computed_values.cx().to_px(viewport_size.width()));
+    auto cy = float(computed_values.cy().to_px(viewport_size.height()));
     // Percentages refer to the normalized diagonal of the current SVG viewport
     // (see Units: https://svgwg.org/svg2-draft/coords.html#Units)
-    auto r = float(computed_values->r().to_px(normalized_diagonal_length(viewport_size)));
+    auto r = float(computed_values.r().to_px(normalized_diagonal_length(viewport_size)));
 
     // A zero radius disables rendering.
     if (r == 0)

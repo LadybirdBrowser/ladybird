@@ -29,7 +29,7 @@ void SVGPolylineElement::attribute_changed(Utf16FlyString const& name, Optional<
     }
 }
 
-Gfx::Path SVGPolylineElement::get_path(CSSPixelSize)
+Gfx::Path SVGPolylineElement::get_path(CSSPixelSize, CSS::ComputedValues const&)
 {
     Gfx::Path path;
 
