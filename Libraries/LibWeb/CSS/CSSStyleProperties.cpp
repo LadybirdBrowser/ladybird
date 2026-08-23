@@ -130,12 +130,30 @@ size_t CSSStyleProperties::external_memory_size() const
     return size;
 }
 
+// https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
+static bool element_exposes_computed_style(DOM::Element const& element)
+{
+    // NB: This is a partial enforcement of step 5:
+    // If [...] elt is connected, part of the flat tree, and its shadow-including root has a browsing context which
+    // either doesn't have a browsing context container, or whose browsing context container is being rendered.
+    if (!element.is_connected())
+        return false;
+    if (!element.shadow_including_root().document().browsing_context())
+        return false;
+    // FIXME: Check if the element is part of the flat tree.
+    // FIXME: Check that the browsing context either doesn't have a browsing context container, or that its
+    //        browsing context container is being rendered.
+    return true;
+}
+
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-length
 size_t CSSStyleProperties::length() const
 {
     // The length attribute must return the number of CSS declarations in the declarations.
     if (is_computed()) {
         if (!owner_node().has_value())
+            return 0;
+        if (!element_exposes_computed_style(owner_node()->element()))
             return 0;
         return number_of_longhand_properties;
     }
@@ -704,19 +722,8 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Col
 // means the element cannot expose computed style at all (disconnected, or no browsing context).
 static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_property(DOM::AbstractElement abstract_element, PropertyID property_id)
 {
-    // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
-    // NB: This is a partial enforcement of step 5:
-    // If [...] elt is connected, part of the flat tree, and its shadow-including root has a browsing context which
-    // either doesn't have a browsing context container, or whose browsing context container is being rendered.
-    auto& element = abstract_element.element();
-    if (!element.is_connected())
+    if (!element_exposes_computed_style(abstract_element.element()))
         return {};
-    auto browsing_context = element.shadow_including_root().document().browsing_context();
-    if (!browsing_context)
-        return {};
-    // FIXME: Check if the element is part of the flat tree.
-    // FIXME: Check that the browsing context either doesn't have a browsing context container, or that its
-    //        browsing context container is being rendered.
 
     // NB: We grab the layout node before deciding whether update_layout() is needed.
     //     For properties that don't need layout or a layout node (the else branch below),

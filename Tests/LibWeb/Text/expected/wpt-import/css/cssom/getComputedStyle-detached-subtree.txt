@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+2 Pass
+4 Fail
+Pass	getComputedStyle returns no style for detached element
+Fail	getComputedStyle returns no style for element in non-rendered iframe (display: none)
+Fail	getComputedStyle returns no style for element in non-rendered iframe (display: none) from iframe's window
+Fail	getComputedStyle returns no style for element outside the flat tree
+Fail	getComputedStyle returns no style for descendant outside the flat tree
+Pass	getComputedStyle returns no style for shadow tree outside of flattened tree
