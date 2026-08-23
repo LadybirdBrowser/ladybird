@@ -60,7 +60,6 @@ use std::sync::{Arc, OnceLock};
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
-#[allow(dead_code)]
 pub(crate) fn is_dimension_unit(unit: &[u16]) -> bool {
     LENGTH_UNIT_NAMES
         .iter()

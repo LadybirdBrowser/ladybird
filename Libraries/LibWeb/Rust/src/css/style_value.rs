@@ -2010,32 +2010,6 @@ impl StyleValueData {
             Some(value_comparison_text.as_units())
         }
     }
-
-    pub(crate) fn unresolved_var_source(&self) -> Option<(TokenizerInput<'_>, bool)> {
-        let Self::Unresolved {
-            presence_attr,
-            presence_dashed_function,
-            presence_env,
-            presence_if,
-            presence_inherit,
-            presence_var,
-            contains_attr_tainted_values,
-            ..
-        } = self
-        else {
-            return None;
-        };
-        let cannot_resolve_natively = *presence_attr
-            || *presence_dashed_function
-            || *presence_env
-            || *presence_if
-            || *presence_inherit
-            || *contains_attr_tainted_values;
-        if cannot_resolve_natively {
-            return None;
-        }
-        Some((self.unresolved_token_source().unwrap_or_default(), *presence_var))
-    }
 }
 
 impl StyleValueData {

@@ -1,0 +1,9 @@
+custom function: 6px
+environment fallback: 4px
+conditional: 5px
+inherit function: 6
+attribute: 7px
+oracle callbacks: 2
+registered inherit initial: 8
+registered inherit mutation: 9
+registered oracle callbacks: 0
