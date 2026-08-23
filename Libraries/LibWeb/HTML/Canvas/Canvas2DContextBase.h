@@ -190,6 +190,8 @@ protected:
     virtual Gfx::Color resolve_drop_shadow_color(CSS::DropShadowFilterStyleValue const&) const = 0;
 
     RefPtr<RemoteCanvas2DTransport> m_transport;
+    RefPtr<Gfx::Bitmap> m_cached_readback;
+    Gfx::IntRect m_cached_readback_rect;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };
