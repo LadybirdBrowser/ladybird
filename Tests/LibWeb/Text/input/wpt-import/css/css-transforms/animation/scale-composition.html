@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>scale composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-scale">
+<meta name="assert" content="scale supports animation.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'scale',
+  underlying: '2 1',
+  addFrom: '3 1',
+  addTo: '4 1',
+}, [
+  {at: -0.5, expect: '5 1'},
+  {at: 0, expect: '6 1'},
+  {at: 0.25, expect: '6.5 1'},
+  {at: 0.5, expect: '7 1'},
+  {at: 0.75, expect: '7.5 1'},
+  {at: 1, expect: '8 1'},
+  {at: 1.5, expect: '9 1'},
+]);
+
+test_composition({
+  property: 'scale',
+  underlying: '1 2 3',
+  addFrom: '4 5 6',
+  replaceTo: '7 8 9',
+}, [
+  {at: -0.5, expect: '2.5 11 22.5'},
+  {at: 0, expect: '4 10 18'},
+  {at: 0.25, expect: '4.75 9.5 15.75'},
+  {at: 0.5, expect: '5.5 9 13.5'},
+  {at: 0.75, expect: '6.25 8.5 11.25'},
+  {at: 1, expect: '7 8 9'},
+  {at: 1.5, expect: '8.5 7 4.5'},
+]);
+
+test_composition({
+  property: 'scale',
+  underlying: 'none',
+  addFrom: 'none',
+  replaceTo: '1.5 1',
+}, [
+  {at: -1, expect: '0.5 1'},
+  {at: 0, expect: '1'},
+  {at: 0.25, expect: '1.125 1'},
+  {at: 0.75, expect: '1.375 1'},
+  {at: 1, expect: '1.5 1'},
+  {at: 2, expect: '2 1'},
+]);
+
+test_composition({
+  property: 'scale',
+  underlying: 'none',
+  addFrom: '4 5 6',
+  replaceTo: 'none',
+}, [
+  {at: -1, expect: '7 9 11'},
+  {at: 0, expect: '4 5 6'},
+  {at: 0.25, expect: '3.25 4 4.75'},
+  {at: 0.75, expect: '1.75 2 2.25'},
+  {at: 1, expect: '1'},
+  {at: 2, expect: '-2 -3 -4'},
+]);
+
+test_composition({
+  property: 'scale',
+  underlying: '1 2 3',
+  addFrom: 'none',
+  replaceTo: '7 8 9',
+}, [
+  {at: -0.5, expect: '-2 -1 0'},
+  {at: 0, expect: '1 2 3'},
+  {at: 0.25, expect: '2.5 3.5 4.5'},
+  {at: 0.5, expect: '4 5 6'},
+  {at: 0.75, expect: '5.5 6.5 7.5'},
+  {at: 1, expect: '7 8 9'},
+  {at: 1.5, expect: '10 11 12'},
+]);
+
+test_composition({
+  property: 'scale',
+  underlying: '1 2 3',
+  addFrom: '4 5 6',
+  replaceTo: 'none',
+}, [
+  {at: -0.5, expect: '5.5 14.5 26.5'},
+  {at: 0, expect: '4 10 18'},
+  {at: 0.25, expect: '3.25 7.75 13.75'},
+  {at: 0.5, expect: '2.5 5.5 9.5'},
+  {at: 0.75, expect: '1.75 3.25 5.25'},
+  {at: 1, expect: '1'},
+  {at: 1.5, expect: '-0.5 -3.5 -7.5'},
+]);
+</script>
+</body>

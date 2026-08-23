@@ -979,6 +979,33 @@ fn interpolate_display(
     discrete_value(context, from, to, delta)
 }
 
+fn decode_scale_components(value: &StyleValueData) -> Option<Vec<f64>> {
+    if matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword()) {
+        return Some(vec![1.0, 1.0]);
+    }
+    let StyleValueData::Transformation { values, .. } = value else {
+        return None;
+    };
+    if !matches!(values.as_slice().len(), 2 | 3) {
+        return None;
+    }
+    values
+        .as_slice()
+        .iter()
+        .map(|value| match value.data() {
+            StyleValueData::Number { value } => Some(*value),
+            StyleValueData::Percentage { value } => Some(*value / 100.0),
+            calculated @ StyleValueData::Calculated { .. } => {
+                crate::css::calc::resolve_calculated_number_without_context(calculated).or_else(|| {
+                    crate::css::calc::resolve_calculated_percentage_without_context(calculated)
+                        .map(|value| value / 100.0)
+                })
+            }
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()
+}
+
 fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
     let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
@@ -999,33 +1026,7 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
     // during serialization of specified and computed values.
     // When translate, rotate or scale are animating or transitioning, and the from value or to value (but not both) is
     // none, the value none is replaced by the equivalent identity value (0px for translate, 0deg for rotate, 1 for scale).
-    let decode = |value: &StyleValueData| {
-        if matches!(value, StyleValueData::Keyword { keyword } if *keyword == none) {
-            return Some(vec![1.0, 1.0]);
-        }
-        let StyleValueData::Transformation { values, .. } = value else {
-            return None;
-        };
-        if !matches!(values.as_slice().len(), 2 | 3) {
-            return None;
-        }
-        values
-            .as_slice()
-            .iter()
-            .map(|value| match value.data() {
-                StyleValueData::Number { value } => Some(*value),
-                StyleValueData::Percentage { value } => Some(*value / 100.0),
-                calculated @ StyleValueData::Calculated { .. } => {
-                    crate::css::calc::resolve_calculated_number_without_context(calculated).or_else(|| {
-                        crate::css::calc::resolve_calculated_percentage_without_context(calculated)
-                            .map(|value| value / 100.0)
-                    })
-                }
-                _ => None,
-            })
-            .collect::<Option<Vec<_>>>()
-    };
-    let (Some(mut from), Some(mut to)) = (decode(from), decode(to)) else {
+    let (Some(mut from), Some(mut to)) = (decode_scale_components(from), decode_scale_components(to)) else {
         return not_handled();
     };
     let is_3d = from.len() == 3 || to.len() == 3;
@@ -1213,6 +1214,25 @@ fn interpolate_translate_component(
     Some(retained_length_percentage_calculation(calculation, resolved_type))
 }
 
+fn decode_translate_components(value: &StyleValueData) -> Option<Vec<RetainedStyleValueData>> {
+    if matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword()) {
+        return Some(vec![retained_zero_px(), retained_zero_px()]);
+    }
+    let StyleValueData::Transformation { values, .. } = value else {
+        return None;
+    };
+    if !matches!(values.as_slice().len(), 2 | 3) {
+        return None;
+    }
+    Some(
+        values
+            .as_slice()
+            .iter()
+            .map(|value| value.clone_retained())
+            .collect::<Vec<_>>(),
+    )
+}
+
 fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
     let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
@@ -1232,32 +1252,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     // Otherwise, this specifies a 3d translation, equivalent to the translate3d() function.
     // When translate, rotate or scale are animating or transitioning, and the from value or to value (but not both) is
     // none, the value none is replaced by the equivalent identity value (0px for translate, 0deg for rotate, 1 for scale).
-    let decode = |value: &StyleValueData| {
-        let zero = || {
-            let zero = Arc::into_raw(Arc::new(StyleValueData::Length {
-                value: 0.0,
-                unit: crate::css::calc::canonical_pixel_unit(),
-            }));
-            unsafe { RetainedStyleValueData::from_retained_pointer(zero) }
-        };
-        if matches!(value, StyleValueData::Keyword { keyword } if *keyword == none) {
-            return Some(vec![zero(), zero()]);
-        }
-        let StyleValueData::Transformation { values, .. } = value else {
-            return None;
-        };
-        if !matches!(values.as_slice().len(), 2 | 3) {
-            return None;
-        }
-        Some(
-            values
-                .as_slice()
-                .iter()
-                .map(|value| value.clone_retained())
-                .collect::<Vec<_>>(),
-        )
-    };
-    let (Some(mut from), Some(mut to)) = (decode(from), decode(to)) else {
+    let (Some(mut from), Some(mut to)) = (decode_translate_components(from), decode_translate_components(to)) else {
         return not_handled();
     };
     let is_3d = from.len() == 3 || to.len() == 3;
@@ -2632,6 +2627,255 @@ fn composite_basic_shape(
     }
 }
 
+fn is_individual_transform_property(property: u16) -> bool {
+    matches!(
+        property,
+        crate::css::property_metadata::property_id::ROTATE
+            | crate::css::property_metadata::property_id::SCALE
+            | crate::css::property_metadata::property_id::TRANSLATE
+    )
+}
+
+// Decode a computed rotate property value into an unnormalized axis and an angle in degrees.
+fn decode_rotation(value: &StyleValueData) -> Option<([f64; 3], f64)> {
+    if matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword()) {
+        return Some(([0.0, 0.0, 1.0], 0.0));
+    }
+    let StyleValueData::Transformation {
+        transform_function,
+        values,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    match (*transform_function, values.as_slice()) {
+        (TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z, [angle]) => {
+            Some(([0.0, 0.0, 1.0], resolve_animation_angle(None, angle.data())?))
+        }
+        (TRANSFORM_FUNCTION_ROTATE_X, [angle]) => Some(([1.0, 0.0, 0.0], resolve_animation_angle(None, angle.data())?)),
+        (TRANSFORM_FUNCTION_ROTATE_Y, [angle]) => Some(([0.0, 1.0, 0.0], resolve_animation_angle(None, angle.data())?)),
+        (TRANSFORM_FUNCTION_ROTATE_3D, [x, y, z, angle]) => Some((
+            [
+                resolve_animation_number(None, x.data())?,
+                resolve_animation_number(None, y.data())?,
+                resolve_animation_number(None, z.data())?,
+            ],
+            resolve_animation_angle(None, angle.data())?,
+        )),
+        _ => None,
+    }
+}
+
+// Find a shared rotation axis for two rotations, treating a rotation with a zero axis or a zero
+// angle as contributing no rotation. Returns the shared normalized axis with both angles, or None
+// when the axes genuinely differ.
+fn common_rotation_axis(
+    underlying_axis: [f64; 3],
+    underlying_angle: f64,
+    animated_axis: [f64; 3],
+    animated_angle: f64,
+) -> Option<([f64; 3], f64, f64)> {
+    let epsilon = 1e-4;
+    let length_squared = |axis: [f64; 3]| axis.iter().map(|component| component * component).sum::<f64>();
+    let normalize = |axis: [f64; 3]| {
+        let length = length_squared(axis).sqrt();
+        [axis[0] / length, axis[1] / length, axis[2] / length]
+    };
+    let underlying_axis_is_zero = length_squared(underlying_axis) < epsilon * epsilon;
+    let animated_axis_is_zero = length_squared(animated_axis) < epsilon * epsilon;
+    let (underlying_is_zero, animated_is_zero) = if underlying_axis_is_zero || animated_axis_is_zero {
+        (underlying_axis_is_zero, animated_axis_is_zero)
+    } else {
+        (underlying_angle.abs() < epsilon, animated_angle.abs() < epsilon)
+    };
+    if underlying_is_zero && animated_is_zero {
+        return Some(([0.0, 0.0, 1.0], 0.0, 0.0));
+    }
+    if underlying_is_zero {
+        return Some((normalize(animated_axis), 0.0, animated_angle));
+    }
+    if animated_is_zero {
+        return Some((normalize(underlying_axis), underlying_angle, 0.0));
+    }
+    let dot = underlying_axis[0] * animated_axis[0]
+        + underlying_axis[1] * animated_axis[1]
+        + underlying_axis[2] * animated_axis[2];
+    if dot < 0.0 {
+        return None;
+    }
+    let error = (1.0 - (dot * dot) / (length_squared(underlying_axis) * length_squared(animated_axis))).abs();
+    if error > epsilon {
+        return None;
+    }
+    Some((normalize(underlying_axis), underlying_angle, animated_angle))
+}
+
+fn individual_rotation_value(axis: [f64; 3], angle_degrees: f64) -> StyleValueData {
+    let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
+        value: angle_degrees,
+        unit: 0,
+    }));
+    let angle = unsafe { RetainedStyleValueData::from_retained_pointer(angle) };
+    if axis == [0.0, 0.0, 1.0] {
+        return StyleValueData::Transformation {
+            property: crate::css::property_metadata::property_id::ROTATE,
+            transform_function: TRANSFORM_FUNCTION_ROTATE,
+            values: RetainedStyleValueDataList::from_retained_values(vec![angle]),
+        };
+    }
+    StyleValueData::Transformation {
+        property: crate::css::property_metadata::property_id::ROTATE,
+        transform_function: TRANSFORM_FUNCTION_ROTATE_3D,
+        values: RetainedStyleValueDataList::from_retained_values(vec![
+            retained_number(axis[0]),
+            retained_number(axis[1]),
+            retained_number(axis[2]),
+            angle,
+        ]),
+    }
+}
+
+fn composite_rotate(underlying: &StyleValueData, animated: &StyleValueData) -> Option<StyleValueData> {
+    let (underlying_axis, underlying_angle) = decode_rotation(underlying)?;
+    let (animated_axis, animated_angle) = decode_rotation(animated)?;
+
+    if let Some((axis, underlying_angle, animated_angle)) =
+        common_rotation_axis(underlying_axis, underlying_angle, animated_axis, animated_angle)
+    {
+        return Some(individual_rotation_value(axis, underlying_angle + animated_angle));
+    }
+
+    let to_quaternion = |axis: [f64; 3], angle_degrees: f64| {
+        let length = axis.iter().map(|component| component * component).sum::<f64>().sqrt();
+        let half_angle = angle_degrees.to_radians() / 2.0;
+        let sin_half_angle = half_angle.sin();
+        [
+            axis[0] / length * sin_half_angle,
+            axis[1] / length * sin_half_angle,
+            axis[2] / length * sin_half_angle,
+            half_angle.cos(),
+        ]
+    };
+    let [x1, y1, z1, w1] = to_quaternion(underlying_axis, underlying_angle);
+    let [x2, y2, z2, w2] = to_quaternion(animated_axis, animated_angle);
+
+    let mut product = [
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+    ];
+    if product[3] < 0.0 {
+        product = product.map(|component| -component);
+    }
+    let angle = 2.0 * product[3].clamp(-1.0, 1.0).acos();
+    let sin_half_angle = (1.0 - product[3] * product[3]).max(0.0).sqrt();
+    let axis = if sin_half_angle < 1e-5 {
+        [0.0, 0.0, 1.0]
+    } else {
+        [
+            product[0] / sin_half_angle,
+            product[1] / sin_half_angle,
+            product[2] / sin_half_angle,
+        ]
+    };
+    Some(individual_rotation_value(axis, angle.to_degrees()))
+}
+
+fn composite_scale(
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    let (Some(mut underlying), Some(mut animated)) =
+        (decode_scale_components(underlying), decode_scale_components(animated))
+    else {
+        return None;
+    };
+    let is_3d = underlying.len() == 3 || animated.len() == 3;
+    if is_3d {
+        underlying.resize(3, 1.0);
+        animated.resize(3, 1.0);
+    }
+    let values = underlying
+        .into_iter()
+        .zip(animated)
+        .map(|(underlying, animated)| {
+            let value = match operation {
+                FfiCompositeOperation::Accumulate => underlying + animated - 1.0,
+                _ => underlying * animated,
+            };
+            retained_number(value)
+        })
+        .collect();
+    Some(StyleValueData::Transformation {
+        property: crate::css::property_metadata::property_id::SCALE,
+        transform_function: if is_3d {
+            TRANSFORM_FUNCTION_SCALE_3D
+        } else {
+            TRANSFORM_FUNCTION_SCALE
+        },
+        values: RetainedStyleValueDataList::from_retained_values(values),
+    })
+}
+
+fn composite_translate(
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    let (Some(mut underlying), Some(mut animated)) = (
+        decode_translate_components(underlying),
+        decode_translate_components(animated),
+    ) else {
+        return None;
+    };
+    let is_3d = underlying.len() == 3 || animated.len() == 3;
+    if is_3d {
+        underlying.resize_with(3, retained_zero_px);
+        animated.resize_with(3, retained_zero_px);
+    }
+    let values = underlying
+        .iter()
+        .zip(animated.iter())
+        .map(|(underlying, animated)| {
+            let result = composite_scalar_value(underlying.data(), animated.data(), operation);
+            if !result.handled || result.value.is_null() {
+                return None;
+            }
+            Some(unsafe { RetainedStyleValueData::from_retained_pointer(result.value) })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(StyleValueData::Transformation {
+        property: crate::css::property_metadata::property_id::TRANSLATE,
+        transform_function: if is_3d {
+            TRANSFORM_FUNCTION_TRANSLATE_3D
+        } else {
+            TRANSFORM_FUNCTION_TRANSLATE
+        },
+        values: RetainedStyleValueDataList::from_retained_values(values),
+    })
+}
+
+fn composite_individual_transform(
+    property: u16,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    if property == crate::css::property_metadata::property_id::ROTATE {
+        return composite_rotate(underlying, animated);
+    }
+    if property == crate::css::property_metadata::property_id::SCALE {
+        return composite_scale(underlying, animated, operation);
+    }
+    if property == crate::css::property_metadata::property_id::TRANSLATE {
+        return composite_translate(underlying, animated, operation);
+    }
+    None
+}
+
 fn composite_scalar_value(
     underlying: &StyleValueData,
     animated: &StyleValueData,
@@ -3255,6 +3499,37 @@ fn composite_scalar_value(
                 preserve_line_name_sets: false,
                 entries: RetainedGridTrackEntryList::from_retained_entries(entries),
             })
+        }
+        (
+            StyleValueData::Transformation {
+                property: underlying_property,
+                ..
+            },
+            StyleValueData::Transformation {
+                property: animated_property,
+                ..
+            },
+        ) if underlying_property == animated_property && is_individual_transform_property(*underlying_property) => {
+            composite_individual_transform(*underlying_property, underlying, animated, operation)
+                .map_or_else(handled_without_value, owned)
+        }
+        // none is the identity value of the individual transform properties, so composing onto or
+        // with it yields the other value unchanged.
+        (StyleValueData::Keyword { keyword }, StyleValueData::Transformation { property, .. })
+            if *keyword == crate::css::style_compute::none_keyword() && is_individual_transform_property(*property) =>
+        {
+            FfiAnimationValueResult {
+                value: unsafe { crate::css::style_value::retain_style_value(animated) },
+                handled: true,
+            }
+        }
+        (StyleValueData::Transformation { property, .. }, StyleValueData::Keyword { keyword })
+            if *keyword == crate::css::style_compute::none_keyword() && is_individual_transform_property(*property) =>
+        {
+            FfiAnimationValueResult {
+                value: unsafe { crate::css::style_value::retain_style_value(underlying) },
+                handled: true,
+            }
         }
         _ => handled_without_value(),
     }
