@@ -885,6 +885,9 @@ pub struct FfiCascadeResolutionContext {
     pub attributes: *const crate::css::custom_properties::FfiSubstitutionAttribute,
     pub attribute_count: usize,
     pub attribute_names_are_ascii_case_insensitive: bool,
+    pub custom_functions: *const crate::css::custom_properties::FfiSubstitutionFunctionDefinition,
+    pub custom_function_count: usize,
+    pub custom_function_scope_identity: usize,
     pub callback_context: *mut c_void,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
@@ -1104,6 +1107,9 @@ fn resolve_cascade_value(
             resolution_context.attributes,
             resolution_context.attribute_count,
             resolution_context.attribute_names_are_ascii_case_insensitive,
+            resolution_context.custom_functions,
+            resolution_context.custom_function_count,
+            resolution_context.custom_function_scope_identity,
         )
     };
     if matches!(
@@ -1133,19 +1139,21 @@ fn resolve_cascade_value(
         unsafe { note_substitution(resolution_context.callback_context, unresolved_data) };
     }
 
-    let substitution_is_cacheable = !matches!(
-        native_resolution,
-        crate::css::custom_properties::NativeVarResolution::Resolved {
-            contains_attr_tainted_values: true,
-            ..
-        }
-    ) && !matches!(
-        unsafe { &*unresolved_data.cast::<StyleValueData>() },
-        StyleValueData::Unresolved {
-            presence_inherit: true,
-            ..
-        }
-    );
+    let substitution_is_cacheable = resolution_context.custom_function_count == 0
+        && !matches!(
+            native_resolution,
+            crate::css::custom_properties::NativeVarResolution::Resolved {
+                contains_attr_tainted_values: true,
+                ..
+            }
+        )
+        && !matches!(
+            unsafe { &*unresolved_data.cast::<StyleValueData>() },
+            StyleValueData::Unresolved {
+                presence_inherit: true,
+                ..
+            }
+        );
     if substitution_is_cacheable
         && style_engine_rule_id != 0
         && let Some(lookup) = resolution_context.lookup_cached_substitution

@@ -111,6 +111,46 @@ struct RegisteredCustomProperty {
     initial_source: Option<Vec<u16>>,
 }
 
+#[derive(Clone)]
+struct CustomFunctionParameter {
+    name: Vec<u16>,
+    syntax: SyntaxNode,
+    default_tokens: Option<Vec<OwnedToken>>,
+}
+
+#[derive(Clone)]
+struct CustomFunctionDefinition {
+    identity: usize,
+    scope_identity: usize,
+    name: Vec<u16>,
+    parameters: Vec<CustomFunctionParameter>,
+    return_syntax: SyntaxNode,
+    declarations: Vec<(Vec<u16>, Vec<OwnedToken>, bool)>,
+}
+
+struct CustomFunctionRegistry {
+    caller_scope_identity: usize,
+    definitions: Vec<CustomFunctionDefinition>,
+}
+
+#[derive(Clone)]
+struct FunctionLocalRegistration {
+    syntax: SyntaxNode,
+    initial_tokens: Option<Vec<OwnedToken>>,
+    is_result: bool,
+}
+
+#[derive(Clone)]
+struct FunctionLocalValue {
+    tokens: Vec<OwnedToken>,
+    includes_substitution: bool,
+}
+
+struct FunctionLocalScope {
+    values: HashMap<Vec<u16>, FunctionLocalValue>,
+    registrations: HashMap<Vec<u16>, FunctionLocalRegistration>,
+}
+
 #[repr(C)]
 pub struct FfiCustomPropertyRegistration {
     pub name: FfiUtf16View,
@@ -133,6 +173,31 @@ pub struct FfiCustomPropertyRegistryContext {
 pub struct FfiSubstitutionAttribute {
     pub name: FfiUtf16View,
     pub value: FfiUtf16View,
+}
+
+#[repr(C)]
+pub struct FfiSubstitutionFunctionParameter {
+    pub name: FfiUtf16View,
+    pub syntax: FfiUtf16View,
+    pub default_data: *const c_void,
+}
+
+#[repr(C)]
+pub struct FfiSubstitutionFunctionDeclaration {
+    pub name: FfiUtf16View,
+    pub data: *const c_void,
+}
+
+#[repr(C)]
+pub struct FfiSubstitutionFunctionDefinition {
+    pub identity: usize,
+    pub scope_identity: usize,
+    pub name: FfiUtf16View,
+    pub parameters: *const FfiSubstitutionFunctionParameter,
+    pub parameter_count: usize,
+    pub return_syntax: FfiUtf16View,
+    pub declarations: *const FfiSubstitutionFunctionDeclaration,
+    pub declaration_count: usize,
 }
 
 impl CustomPropertyRegistry {
@@ -206,6 +271,9 @@ struct VarResolutionContext<'a> {
     inheritance_store: Option<&'a CustomPropertyStore>,
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
+    custom_functions: Option<&'a CustomFunctionRegistry>,
+    active_functions: Vec<usize>,
+    function_local_scopes: Vec<FunctionLocalScope>,
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -238,6 +306,21 @@ fn find_top_level_comma(tokens: &[OwnedToken]) -> Option<usize> {
     let mut index = 0;
     while index < tokens.len() {
         if matches!(tokens[index].kind, OwnedTokenKind::Comma) {
+            return Some(index);
+        }
+        if matching_close(&tokens[index].kind).is_some() {
+            index = find_matching_close(tokens, index)? + 1;
+        } else {
+            index += 1;
+        }
+    }
+    None
+}
+
+fn find_top_level_source(tokens: &[OwnedToken], source: &[u8]) -> Option<usize> {
+    let mut index = 0;
+    while index < tokens.len() {
+        if tokens[index].source.equals_ascii(source) {
             return Some(index);
         }
         if matching_close(&tokens[index].kind).is_some() {
@@ -304,16 +387,108 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedT
         ..
     } = data
     {
-        if *presence_dashed_function || *presence_if || *contains_attr_tainted_values {
+        if *contains_attr_tainted_values {
             return None;
         }
         return Some((
             tokenize_owned(data.unresolved_token_source().unwrap_or_default()),
-            *presence_var || *presence_attr || *presence_env || *presence_inherit,
+            *presence_var
+                || *presence_attr
+                || *presence_dashed_function
+                || *presence_env
+                || *presence_if
+                || *presence_inherit,
         ));
     }
     let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
     Some((tokenize_owned(&source), false))
+}
+
+fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool)> {
+    if let StyleValueData::Unresolved {
+        presence_attr,
+        presence_dashed_function,
+        presence_env,
+        presence_if,
+        presence_inherit,
+        presence_var,
+        ..
+    } = data
+    {
+        return Some((
+            tokenize_owned(data.unresolved_token_source().unwrap_or_default()),
+            *presence_var
+                || *presence_attr
+                || *presence_dashed_function
+                || *presence_env
+                || *presence_if
+                || *presence_inherit,
+        ));
+    }
+    let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
+    Some((tokenize_owned(&source), false))
+}
+
+unsafe fn custom_function_registry_from_ffi(
+    definitions: *const FfiSubstitutionFunctionDefinition,
+    definition_count: usize,
+    caller_scope_identity: usize,
+) -> Option<CustomFunctionRegistry> {
+    let definitions = if definition_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(definitions, definition_count) }
+    };
+    let mut parsed_definitions = Vec::with_capacity(definitions.len());
+    for definition in definitions {
+        let name = unsafe { definition.name.to_utf16() }?;
+        let return_syntax = parse_syntax(&unsafe { definition.return_syntax.to_utf16() }?, true)?;
+        let parameters = if definition.parameter_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(definition.parameters, definition.parameter_count) }
+        };
+        let mut parsed_parameters = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let name = unsafe { parameter.name.to_utf16() }?;
+            let syntax = parse_syntax(&unsafe { parameter.syntax.to_utf16() }?, true)?;
+            let default_tokens = if parameter.default_data.is_null() {
+                None
+            } else {
+                let data = unsafe { &*parameter.default_data.cast::<StyleValueData>() };
+                Some(tokens_for_function_value(data)?.0)
+            };
+            parsed_parameters.push(CustomFunctionParameter {
+                name,
+                syntax,
+                default_tokens,
+            });
+        }
+        let declarations = if definition.declaration_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(definition.declarations, definition.declaration_count) }
+        };
+        let mut parsed_declarations = Vec::with_capacity(declarations.len());
+        for declaration in declarations {
+            let name = unsafe { declaration.name.to_utf16() }?;
+            let data = unsafe { &*declaration.data.cast::<StyleValueData>() };
+            let (tokens, includes_substitution) = tokens_for_function_value(data)?;
+            parsed_declarations.push((name, tokens, includes_substitution));
+        }
+        parsed_definitions.push(CustomFunctionDefinition {
+            identity: definition.identity,
+            scope_identity: definition.scope_identity,
+            name,
+            parameters: parsed_parameters,
+            return_syntax,
+            declarations: parsed_declarations,
+        });
+    }
+    Some(CustomFunctionRegistry {
+        caller_scope_identity,
+        definitions: parsed_definitions,
+    })
 }
 
 fn registration_accepts_tokens(
@@ -426,6 +601,92 @@ fn resolve_css_wide_keyword(
     )))
 }
 
+fn normalize_function_tokens(
+    registry: Option<&CustomPropertyRegistry>,
+    syntax: &SyntaxNode,
+    tokens: &[OwnedToken],
+) -> TokenResolution {
+    if matches!(syntax, SyntaxNode::Universal) {
+        return TokenResolution::Resolved(tokens.to_vec());
+    }
+    let Some(registry) = registry else {
+        return TokenResolution::NotHandled;
+    };
+    let source = serialize_tokens(tokens);
+    let mut random_function_index = 0;
+    let context = registry.parse_context(&mut random_function_index);
+    let Some(parsed) = parse_with_syntax(&context, &source, syntax) else {
+        return TokenResolution::Invalid;
+    };
+    let Some(source) = crate::css::serialize::serialize_style_value_to_utf16(&parsed) else {
+        return TokenResolution::Invalid;
+    };
+    TokenResolution::Resolved(tokenize_owned(&source))
+}
+
+fn resolve_function_local_property(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    name: &[u16],
+    value: Option<FunctionLocalValue>,
+    registration: FunctionLocalRegistration,
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    let Some(value) = value else {
+        return registration
+            .initial_tokens
+            .map_or(TokenResolution::Invalid, TokenResolution::Resolved);
+    };
+    let active_name = scoped_name(context.function_local_scopes.len(), name);
+    if context.cyclic_names.contains(&active_name) {
+        return TokenResolution::Invalid;
+    }
+    if let Some(cycle_start) = context.active_names.iter().position(|name| name == &active_name) {
+        context
+            .cyclic_names
+            .extend(context.active_names[cycle_start..].iter().cloned());
+        return TokenResolution::Cyclic;
+    }
+    context.active_names.push(active_name.clone());
+    let mut result = if value.includes_substitution {
+        substitute_tokens(store, registry, &value.tokens, context, recursion_depth + 1)
+    } else {
+        TokenResolution::Resolved(value.tokens)
+    };
+    let popped = context.active_names.pop().expect("active function-local property");
+    debug_assert_eq!(popped, active_name);
+    if context.cyclic_names.contains(&active_name) {
+        return TokenResolution::Cyclic;
+    }
+    if let TokenResolution::Resolved(tokens) = &result
+        && let Some(keyword) = single_css_wide_keyword(tokens)
+    {
+        if registration.is_result {
+            return result;
+        }
+        if keyword.eq_ignore_ascii_case("initial") {
+            return registration
+                .initial_tokens
+                .map_or(TokenResolution::Invalid, TokenResolution::Resolved);
+        }
+        if keyword.eq_ignore_ascii_case("inherit") {
+            let local_scope = context
+                .function_local_scopes
+                .pop()
+                .expect("function-local property scope");
+            result = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
+            context.function_local_scopes.push(local_scope);
+        } else {
+            return TokenResolution::Invalid;
+        }
+    }
+    match result {
+        TokenResolution::Resolved(tokens) => normalize_function_tokens(registry, &registration.syntax, &tokens),
+        other => other,
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum CustomPropertyLookup {
     Normal,
@@ -457,6 +718,26 @@ fn resolve_custom_property_with_lookup(
     recursion_depth: u32,
     lookup: CustomPropertyLookup,
 ) -> TokenResolution {
+    let local_value_and_registration = context.function_local_scopes.iter().rev().find_map(|local_scope| {
+        let value = local_scope.values.get(name).cloned();
+        let registration = local_scope.registrations.get(name).cloned();
+        (value.is_some() || registration.is_some()).then_some((value, registration))
+    });
+    if let Some((value, registration)) = local_value_and_registration {
+        return resolve_function_local_property(
+            store,
+            registry,
+            name,
+            value,
+            registration.unwrap_or(FunctionLocalRegistration {
+                syntax: SyntaxNode::Universal,
+                initial_tokens: None,
+                is_result: false,
+            }),
+            context,
+            recursion_depth,
+        );
+    }
     let registration = registry.and_then(|registry| registry.registrations.get(name));
     let entry_and_owner = store.and_then(|store| {
         if lookup == CustomPropertyLookup::ExplicitInheritance {
@@ -683,6 +964,545 @@ fn replace_env_function(
         return TokenResolution::Invalid;
     };
     substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ConditionEvaluation {
+    Match(bool),
+    Invalid,
+    Cyclic,
+    NotHandled,
+}
+
+#[derive(Debug)]
+enum ParsedBooleanExpression {
+    Test(Vec<OwnedToken>),
+    Not(Box<ParsedBooleanExpression>),
+    And(Vec<ParsedBooleanExpression>),
+    Or(Vec<ParsedBooleanExpression>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ConditionValidation {
+    Valid,
+    Invalid,
+    NotHandled,
+}
+
+fn parse_boolean_expression(
+    tokens: &[OwnedToken],
+    validate_test: &mut impl FnMut(&[OwnedToken]) -> ConditionValidation,
+) -> Result<ParsedBooleanExpression, ConditionValidation> {
+    let tokens = trim_whitespace(tokens);
+    if tokens.is_empty() {
+        return Err(ConditionValidation::Invalid);
+    }
+    match validate_test(tokens) {
+        ConditionValidation::Valid => return Ok(ParsedBooleanExpression::Test(tokens.to_vec())),
+        ConditionValidation::NotHandled => return Err(ConditionValidation::NotHandled),
+        ConditionValidation::Invalid => {}
+    }
+    if matches!(
+        tokens.first(),
+        Some(OwnedToken {
+            kind: OwnedTokenKind::Ident(keyword),
+            ..
+        }) if keyword.eq_ignore_ascii_case("not")
+    ) {
+        return Ok(ParsedBooleanExpression::Not(Box::new(parse_boolean_group(
+            &tokens[1..],
+            validate_test,
+        )?)));
+    }
+
+    let mut combinator = None;
+    let mut groups = Vec::new();
+    let mut group_start = 0;
+    let mut index = 0;
+    while index < tokens.len() {
+        if matching_close(&tokens[index].kind).is_some() {
+            let Some(close) = find_matching_close(tokens, index) else {
+                return Err(ConditionValidation::Invalid);
+            };
+            index = close + 1;
+            continue;
+        }
+        let current = match &tokens[index].kind {
+            OwnedTokenKind::Ident(keyword) if keyword.eq_ignore_ascii_case("and") => Some(true),
+            OwnedTokenKind::Ident(keyword) if keyword.eq_ignore_ascii_case("or") => Some(false),
+            _ => None,
+        };
+        if let Some(current) = current {
+            if combinator.is_some_and(|combinator| combinator != current) {
+                return Err(ConditionValidation::Invalid);
+            }
+            combinator = Some(current);
+            groups.push(parse_boolean_group(&tokens[group_start..index], validate_test)?);
+            group_start = index + 1;
+        }
+        index += 1;
+    }
+    let Some(combinator) = combinator else {
+        return parse_boolean_group(tokens, validate_test);
+    };
+    groups.push(parse_boolean_group(&tokens[group_start..], validate_test)?);
+    Ok(if combinator {
+        ParsedBooleanExpression::And(groups)
+    } else {
+        ParsedBooleanExpression::Or(groups)
+    })
+}
+
+fn parse_boolean_group(
+    tokens: &[OwnedToken],
+    validate_test: &mut impl FnMut(&[OwnedToken]) -> ConditionValidation,
+) -> Result<ParsedBooleanExpression, ConditionValidation> {
+    let tokens = trim_whitespace(tokens);
+    if matches!(tokens.first().map(|token| &token.kind), Some(OwnedTokenKind::OpenParen))
+        && find_matching_close(tokens, 0) == Some(tokens.len() - 1)
+    {
+        return parse_boolean_expression(&tokens[1..tokens.len() - 1], validate_test);
+    }
+    match validate_test(tokens) {
+        ConditionValidation::Valid => Ok(ParsedBooleanExpression::Test(tokens.to_vec())),
+        validation => Err(validation),
+    }
+}
+
+fn evaluate_parsed_boolean_expression(
+    expression: &ParsedBooleanExpression,
+    evaluate_test: &mut impl FnMut(&[OwnedToken]) -> ConditionEvaluation,
+) -> ConditionEvaluation {
+    match expression {
+        ParsedBooleanExpression::Test(tokens) => evaluate_test(tokens),
+        ParsedBooleanExpression::Not(child) => match evaluate_parsed_boolean_expression(child, evaluate_test) {
+            ConditionEvaluation::Match(value) => ConditionEvaluation::Match(!value),
+            other => other,
+        },
+        ParsedBooleanExpression::And(children) => {
+            for child in children {
+                match evaluate_parsed_boolean_expression(child, evaluate_test) {
+                    ConditionEvaluation::Match(true) => {}
+                    ConditionEvaluation::Match(false) => return ConditionEvaluation::Match(false),
+                    other => return other,
+                }
+            }
+            ConditionEvaluation::Match(true)
+        }
+        ParsedBooleanExpression::Or(children) => {
+            for child in children {
+                match evaluate_parsed_boolean_expression(child, evaluate_test) {
+                    ConditionEvaluation::Match(false) => {}
+                    ConditionEvaluation::Match(true) => return ConditionEvaluation::Match(true),
+                    other => return other,
+                }
+            }
+            ConditionEvaluation::Match(false)
+        }
+    }
+}
+
+fn registered_style_query_values_are_equal(
+    registry: &CustomPropertyRegistry,
+    registration: &RegisteredCustomProperty,
+    computed_tokens: &[OwnedToken],
+    query_tokens: &[OwnedToken],
+) -> bool {
+    let mut random_function_index = 0;
+    let context = registry.parse_context(&mut random_function_index);
+    let Some(computed) = parse_with_syntax(&context, &serialize_tokens(computed_tokens), &registration.syntax) else {
+        return false;
+    };
+    let Some(query) = parse_with_syntax(&context, &serialize_tokens(query_tokens), &registration.syntax) else {
+        return false;
+    };
+    let computed_color = crate::css::color_resolution::to_color(&computed, &crate::css::color_resolution::EMPTY_INPUT);
+    let query_color = crate::css::color_resolution::to_color(&query, &crate::css::color_resolution::EMPTY_INPUT);
+    if computed_color.is_some() || query_color.is_some() {
+        return computed_color.is_some() && computed_color == query_color;
+    }
+    computed == query
+}
+
+fn validate_style_feature(tokens: &[OwnedToken]) -> ConditionValidation {
+    let tokens = trim_whitespace(tokens);
+    if tokens.iter().any(|token| {
+        token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
+    }) {
+        return ConditionValidation::NotHandled;
+    }
+    let colon = find_top_level_source(tokens, b":");
+    let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
+    if !matches!(
+        name_tokens,
+        [OwnedToken {
+            kind: OwnedTokenKind::Ident(_),
+            ..
+        }]
+    ) {
+        return ConditionValidation::Invalid;
+    }
+    if let Some(colon) = colon {
+        let query = trim_whitespace(&tokens[colon + 1..]);
+        if query.iter().any(|token| {
+            token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
+        }) {
+            return ConditionValidation::Invalid;
+        }
+    }
+    ConditionValidation::Valid
+}
+
+fn evaluate_style_feature(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    tokens: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> ConditionEvaluation {
+    let tokens = trim_whitespace(tokens);
+    let colon = find_top_level_source(tokens, b":");
+    let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
+    let [
+        OwnedToken {
+            kind: OwnedTokenKind::Ident(name),
+            ..
+        },
+    ] = name_tokens
+    else {
+        return ConditionEvaluation::Invalid;
+    };
+    if !name.starts_with_ascii("--") {
+        return ConditionEvaluation::Match(false);
+    }
+
+    let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
+    let computed = match computed {
+        TokenResolution::Resolved(tokens) => Some(tokens),
+        TokenResolution::Invalid => None,
+        TokenResolution::Cyclic => return ConditionEvaluation::Cyclic,
+        TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
+    };
+    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    let Some(colon) = colon else {
+        return ConditionEvaluation::Match(computed.is_some());
+    };
+    let query = trim_whitespace(&tokens[colon + 1..]);
+
+    if let Some(keyword) = single_css_wide_keyword(query) {
+        if keyword.eq_ignore_ascii_case("revert") || keyword.eq_ignore_ascii_case("revert-layer") {
+            return ConditionEvaluation::Match(false);
+        }
+        let expected = if keyword.eq_ignore_ascii_case("initial")
+            || keyword.eq_ignore_ascii_case("unset") && registration.is_some_and(|registration| !registration.inherits)
+        {
+            registration.and_then(|registration| registration.initial_source.as_ref().map(tokenize_owned))
+        } else {
+            match resolve_custom_property(context.inheritance_store, registry, name, context, recursion_depth + 1) {
+                TokenResolution::Resolved(tokens) => Some(tokens),
+                TokenResolution::Invalid => None,
+                TokenResolution::Cyclic => return ConditionEvaluation::Cyclic,
+                TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
+            }
+        };
+        return ConditionEvaluation::Match(match (computed, expected) {
+            (None, None) => true,
+            (Some(computed), Some(expected)) if registration.is_some() => registered_style_query_values_are_equal(
+                registry.expect("registration requires registry"),
+                registration.expect("registered property"),
+                &computed,
+                &expected,
+            ),
+            (Some(computed), Some(expected)) => trim_whitespace(&computed) == trim_whitespace(&expected),
+            _ => false,
+        });
+    }
+
+    let Some(computed) = computed else {
+        return ConditionEvaluation::Match(false);
+    };
+    if let (Some(registry), Some(registration)) = (registry, registration) {
+        return ConditionEvaluation::Match(registered_style_query_values_are_equal(
+            registry,
+            registration,
+            &computed,
+            query,
+        ));
+    }
+    ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
+}
+
+fn evaluate_style_query(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    tokens: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> ConditionEvaluation {
+    let expression = match parse_boolean_expression(tokens, &mut validate_style_feature) {
+        Ok(expression) => expression,
+        Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
+        Err(ConditionValidation::NotHandled) => return ConditionEvaluation::NotHandled,
+        Err(ConditionValidation::Valid) => unreachable!(),
+    };
+    evaluate_parsed_boolean_expression(&expression, &mut |feature| {
+        evaluate_style_feature(store, registry, feature, context, recursion_depth + 1)
+    })
+}
+
+fn validate_if_test(tokens: &[OwnedToken]) -> ConditionValidation {
+    let test = trim_whitespace(tokens);
+    let Some(OwnedTokenKind::Function(name)) = test.first().map(|token| &token.kind) else {
+        return ConditionValidation::Invalid;
+    };
+    let Some(close) = find_matching_close(test, 0) else {
+        return ConditionValidation::Invalid;
+    };
+    if close != test.len() - 1 {
+        return ConditionValidation::Invalid;
+    }
+    if name.eq_ignore_ascii_case("style") {
+        return match parse_boolean_expression(&test[1..close], &mut validate_style_feature) {
+            Ok(_) => ConditionValidation::Valid,
+            Err(validation) => validation,
+        };
+    }
+    if name.eq_ignore_ascii_case("media") || name.eq_ignore_ascii_case("supports") {
+        return ConditionValidation::NotHandled;
+    }
+    ConditionValidation::Valid
+}
+
+fn evaluate_if_condition(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    tokens: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> ConditionEvaluation {
+    if matches!(
+        trim_whitespace(tokens),
+        [OwnedToken {
+            kind: OwnedTokenKind::Ident(keyword),
+            ..
+        }] if keyword.eq_ignore_ascii_case("else")
+    ) {
+        return ConditionEvaluation::Match(true);
+    }
+    let expression = match parse_boolean_expression(tokens, &mut validate_if_test) {
+        Ok(expression) => expression,
+        Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
+        Err(ConditionValidation::NotHandled) => return ConditionEvaluation::NotHandled,
+        Err(ConditionValidation::Valid) => unreachable!(),
+    };
+    evaluate_parsed_boolean_expression(&expression, &mut |test| {
+        let test = trim_whitespace(test);
+        let OwnedTokenKind::Function(name) = &test[0].kind else {
+            unreachable!("validated if condition test")
+        };
+        let close = test.len() - 1;
+        if name.eq_ignore_ascii_case("style") {
+            return evaluate_style_query(store, registry, &test[1..close], context, recursion_depth + 1);
+        }
+        if name.eq_ignore_ascii_case("media") || name.eq_ignore_ascii_case("supports") {
+            return ConditionEvaluation::NotHandled;
+        }
+        ConditionEvaluation::Match(false)
+    })
+}
+
+fn split_function_arguments(tokens: &[OwnedToken]) -> Option<Vec<&[OwnedToken]>> {
+    if trim_whitespace(tokens).is_empty() {
+        return Some(Vec::new());
+    }
+    let mut arguments = Vec::new();
+    let mut start = 0;
+    loop {
+        let remaining = &tokens[start..];
+        let Some(comma) = find_top_level_comma(remaining) else {
+            arguments.push(remaining);
+            break;
+        };
+        arguments.push(&remaining[..comma]);
+        start += comma + 1;
+        if start > tokens.len() {
+            return None;
+        }
+    }
+    Some(arguments)
+}
+
+fn replace_custom_function(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    name: &[u16],
+    arguments: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    let Some(functions) = context.custom_functions else {
+        return TokenResolution::NotHandled;
+    };
+    let caller_scope_identity = context
+        .active_functions
+        .last()
+        .and_then(|identity| {
+            functions
+                .definitions
+                .iter()
+                .find(|definition| definition.identity == *identity)
+                .map(|definition| definition.scope_identity)
+        })
+        .unwrap_or(functions.caller_scope_identity);
+    let definition = functions
+        .definitions
+        .iter()
+        .find(|definition| definition.name == name && definition.scope_identity == caller_scope_identity)
+        .or_else(|| functions.definitions.iter().find(|definition| definition.name == name))
+        .cloned();
+    let Some(definition) = definition else {
+        return TokenResolution::Invalid;
+    };
+    if context.active_functions.contains(&definition.identity) {
+        return TokenResolution::Cyclic;
+    }
+    let Some(argument_slices) = split_function_arguments(arguments) else {
+        return TokenResolution::Invalid;
+    };
+    if argument_slices.len() > definition.parameters.len() {
+        return TokenResolution::Invalid;
+    }
+    let mut substituted_arguments = Vec::with_capacity(argument_slices.len());
+    for argument in argument_slices {
+        substituted_arguments.push(substitute_tokens(
+            store,
+            registry,
+            argument,
+            context,
+            recursion_depth + 1,
+        ));
+    }
+
+    let mut values = HashMap::new();
+    let mut registrations = HashMap::new();
+    for (index, parameter) in definition.parameters.iter().enumerate() {
+        let argument = substituted_arguments.get(index);
+        let normalized_argument = match argument {
+            Some(TokenResolution::Resolved(tokens)) => normalize_function_tokens(registry, &parameter.syntax, tokens),
+            Some(TokenResolution::NotHandled) => return TokenResolution::NotHandled,
+            Some(TokenResolution::Cyclic) => TokenResolution::Cyclic,
+            Some(TokenResolution::Invalid) | None => TokenResolution::Invalid,
+        };
+        let tokens = match normalized_argument {
+            TokenResolution::Resolved(tokens) => tokens,
+            TokenResolution::Cyclic => return TokenResolution::Cyclic,
+            TokenResolution::NotHandled => return TokenResolution::NotHandled,
+            TokenResolution::Invalid => {
+                let Some(default) = &parameter.default_tokens else {
+                    return TokenResolution::Invalid;
+                };
+                let substituted_default =
+                    match substitute_tokens(store, registry, default, context, recursion_depth + 1) {
+                        TokenResolution::Resolved(tokens) => tokens,
+                        other => return other,
+                    };
+                match normalize_function_tokens(registry, &parameter.syntax, &substituted_default) {
+                    TokenResolution::Resolved(tokens) => tokens,
+                    other => return other,
+                }
+            }
+        };
+        values.insert(
+            parameter.name.clone(),
+            FunctionLocalValue {
+                tokens: tokens.clone(),
+                includes_substitution: false,
+            },
+        );
+        registrations.insert(
+            parameter.name.clone(),
+            FunctionLocalRegistration {
+                syntax: parameter.syntax.clone(),
+                initial_tokens: Some(tokens),
+                is_result: false,
+            },
+        );
+    }
+    registrations.insert(
+        b"result".iter().copied().map(u16::from).collect(),
+        FunctionLocalRegistration {
+            syntax: definition.return_syntax.clone(),
+            initial_tokens: None,
+            is_result: true,
+        },
+    );
+    for (name, tokens, includes_substitution) in &definition.declarations {
+        values.insert(
+            name.clone(),
+            FunctionLocalValue {
+                tokens: tokens.clone(),
+                includes_substitution: *includes_substitution,
+            },
+        );
+    }
+    context.active_functions.push(definition.identity);
+    context
+        .function_local_scopes
+        .push(FunctionLocalScope { values, registrations });
+    let result = resolve_custom_property(
+        store,
+        registry,
+        &[
+            b'r' as u16,
+            b'e' as u16,
+            b's' as u16,
+            b'u' as u16,
+            b'l' as u16,
+            b't' as u16,
+        ],
+        context,
+        recursion_depth + 1,
+    );
+    context.function_local_scopes.pop();
+    let active_function = context.active_functions.pop().expect("active custom function");
+    debug_assert_eq!(active_function, definition.identity);
+    result
+}
+
+fn replace_if_function(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    arguments: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    // https://drafts.csswg.org/css-values-5/#replace-an-if-function
+    let mut branch_start = 0;
+    while branch_start < arguments.len() {
+        let branch_length =
+            find_top_level_source(&arguments[branch_start..], b";").unwrap_or(arguments.len() - branch_start);
+        let branch_end = branch_start + branch_length;
+        let branch = &arguments[branch_start..branch_end];
+        let Some(colon) = find_top_level_source(branch, b":") else {
+            return TokenResolution::Invalid;
+        };
+        let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
+            TokenResolution::Resolved(tokens) => tokens,
+            TokenResolution::Invalid => Vec::new(),
+            TokenResolution::Cyclic => return TokenResolution::Cyclic,
+            TokenResolution::NotHandled => return TokenResolution::NotHandled,
+        };
+        match evaluate_if_condition(store, registry, &condition, context, recursion_depth + 1) {
+            ConditionEvaluation::Match(true) => {
+                return substitute_tokens(store, registry, &branch[colon + 1..], context, recursion_depth + 1);
+            }
+            ConditionEvaluation::Match(false) | ConditionEvaluation::Invalid => {}
+            ConditionEvaluation::Cyclic => return TokenResolution::Cyclic,
+            ConditionEvaluation::NotHandled => return TokenResolution::NotHandled,
+        }
+        branch_start = branch_end + 1;
+    }
+    TokenResolution::Resolved(Vec::new())
 }
 
 enum AttrSyntax {
@@ -926,6 +1746,12 @@ fn substitute_tokens(
             OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("env") => {
                 replace_env_function(store, registry, contents, context, recursion_depth)
             }
+            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("if") => {
+                replace_if_function(store, registry, contents, context, recursion_depth)
+            }
+            OwnedTokenKind::Function(name) if name.starts_with_ascii("--") => {
+                replace_custom_function(store, registry, name, contents, context, recursion_depth)
+            }
             _ => substitute_tokens(store, registry, contents, context, recursion_depth + 1),
         };
         let resolved = match resolved {
@@ -935,12 +1761,12 @@ fn substitute_tokens(
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
 
-        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("inherit"))
+        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
         {
             output.push(tokens[index].clone());
         }
         output.extend(resolved);
-        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("inherit"))
+        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
         {
             output.push(tokens[close_index].clone());
         }
@@ -1008,6 +1834,7 @@ fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u16> {
     output
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) unsafe fn resolve_vars(
     store: *const c_void,
     inheritance_store: *const c_void,
@@ -1016,6 +1843,9 @@ pub(crate) unsafe fn resolve_vars(
     attributes: *const FfiSubstitutionAttribute,
     attribute_count: usize,
     attribute_names_are_ascii_case_insensitive: bool,
+    custom_functions: *const FfiSubstitutionFunctionDefinition,
+    custom_function_count: usize,
+    custom_function_scope_identity: usize,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
         None
@@ -1052,10 +1882,16 @@ pub(crate) unsafe fn resolve_vars(
     if !includes_substitution {
         return NativeVarResolution::NotHandled;
     }
+    let Some(custom_functions) = (unsafe {
+        custom_function_registry_from_ffi(custom_functions, custom_function_count, custom_function_scope_identity)
+    }) else {
+        return NativeVarResolution::NotHandled;
+    };
     let mut context = VarResolutionContext {
         attributes: Some(&attributes),
         inheritance_store,
         attribute_names_are_ascii_case_insensitive,
+        custom_functions: Some(&custom_functions),
         ..Default::default()
     };
     match substitute_tokens(store, registry, &source, &mut context, 0) {
@@ -1137,6 +1973,43 @@ mod tests {
             panic!("expected environment fallback");
         };
         assert_eq!(serialize_tokens(&tokens), utf16(" 4px"));
+    }
+
+    #[test]
+    fn substitutes_unconditional_if_branches() {
+        let TokenResolution::Resolved(tokens) = substitute_without_custom_properties("if(else: 5px)") else {
+            panic!("expected unconditional branch substitution");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16(" 5px"));
+    }
+
+    #[test]
+    fn substitutes_custom_functions_from_a_snapshot() {
+        let functions = CustomFunctionRegistry {
+            caller_scope_identity: 1,
+            definitions: vec![CustomFunctionDefinition {
+                identity: 2,
+                scope_identity: 1,
+                name: utf16("--echo"),
+                parameters: vec![CustomFunctionParameter {
+                    name: utf16("--value"),
+                    syntax: SyntaxNode::Universal,
+                    default_tokens: None,
+                }],
+                return_syntax: SyntaxNode::Universal,
+                declarations: vec![(utf16("result"), tokenize_owned(b"var(--value)"), true)],
+            }],
+        };
+        let mut context = VarResolutionContext {
+            custom_functions: Some(&functions),
+            ..Default::default()
+        };
+        let TokenResolution::Resolved(tokens) =
+            substitute_tokens(None, None, &tokenize_owned(b"--echo(12px)"), &mut context, 0)
+        else {
+            panic!("expected custom function substitution");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16("12px"));
     }
 
     #[test]

@@ -4,6 +4,17 @@
     @function --double(--value <length>) {
         result: calc(var(--value) * 2);
     }
+    @function --attribute-default(--value: attr(data-size px)) {
+        result: var(--value);
+    }
+    @function --outer-attribute() {
+        --local: attr(data-size px);
+        result: --inner-attribute();
+    }
+    @function --inner-attribute() {
+        --local: inherit;
+        result: var(--local);
+    }
 </style>
 <script>
     test(() => {
@@ -13,9 +24,13 @@
         const element = document.createElement("div");
         element.setAttribute("data-size", "7");
         element.style.cssText = `
+            --if-value: yes;
             width: --double(3px);
             height: env(unknown-environment-variable, 4px);
-            margin-left: if(else: 5px);
+            margin-left: if(style(--if-value: yes): 5px; else: 6px);
+            padding-top: --attribute-default();
+            padding-right: --outer-attribute();
+            padding-bottom: if(style((--if-value: yes) and (not (--missing))): 7px; else: 8px);
             z-index: inherit(--inherited-order);
             padding-left: attr(data-size px);
         `;
@@ -29,9 +44,16 @@
         println(`custom function: ${style.width}`);
         println(`environment fallback: ${style.height}`);
         println(`conditional: ${style.marginLeft}`);
+        println(`custom function attribute default: ${style.paddingTop}`);
+        println(`custom function inherited attribute: ${style.paddingRight}`);
+        println(`compound conditional: ${style.paddingBottom}`);
         println(`inherit function: ${style.zIndex}`);
         println(`attribute: ${style.paddingLeft}`);
         println(`oracle callbacks: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
+        element.style.setProperty("--if-value", "no");
+        println(`conditional after mutation: ${getComputedStyle(element).marginLeft}`);
+        println(`compound conditional after mutation: ${getComputedStyle(element).paddingBottom}`);
+        println(`oracle callbacks after mutation: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
         parent.remove();
 
         CSS.registerProperty({

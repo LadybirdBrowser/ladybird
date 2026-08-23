@@ -998,6 +998,44 @@ Optional<StyleScope::FunctionDefinitionAndScope> StyleScope::get_function_defini
     });
 }
 
+void StyleScope::for_each_visible_function_definition(Function<void(FunctionDefinitionAndScope const&)> const& callback) const
+{
+    HashTable<Utf16FlyString> names;
+    Function<void(StyleScope const&)> collect_names = [&](StyleScope const& scope) {
+        Function<void(CSS::CSSStyleSheet&)> collect_from_stylesheet = [&](CSS::CSSStyleSheet& style_sheet) {
+            style_sheet.for_each_effective_function_at_rule([&](CSS::CSSFunctionRule const& function_rule) {
+                names.set(function_rule.name());
+            });
+        };
+        if (scope.m_node->is_document()) {
+            scope.for_each_stylesheet(CSS::CascadeOrigin::UserAgent, collect_from_stylesheet);
+            scope.for_each_stylesheet(CSS::CascadeOrigin::User, collect_from_stylesheet);
+        }
+        scope.for_each_stylesheet(CSS::CascadeOrigin::Author, collect_from_stylesheet);
+
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(*scope.m_node)) {
+            if (auto* host = shadow_root->host()) {
+                auto const& root = host->root();
+                if (root.is_shadow_root()) {
+                    auto const& parent_shadow_root = as<DOM::ShadowRoot>(root);
+                    if (parent_shadow_root.uses_document_style_sheets())
+                        collect_names(root.document().style_scope());
+                    else
+                        collect_names(parent_shadow_root.style_scope());
+                } else if (auto const* document = as_if<DOM::Document>(root)) {
+                    collect_names(document->style_scope());
+                }
+            }
+        }
+    };
+    collect_names(*this);
+
+    for (auto const& name : names) {
+        if (auto definition = get_function_definition(name); definition.has_value())
+            callback(*definition);
+    }
+}
+
 template<typename T>
 Optional<T> StyleScope::dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const
 {

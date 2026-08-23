@@ -227,6 +227,19 @@ static void for_each_effective_function_declarations_rule(CSSRuleList const& rul
     }
 }
 
+void CSSFunctionRule::for_each_effective_declaration(DOM::AbstractElement& root_element, Function<void(Utf16FlyString const&, NonnullRefPtr<StyleValue const> const&)> const& callback) const
+{
+    for_each_effective_function_declarations_rule(css_rules(), nullptr, [&](CSSFunctionDeclarations const& declarations, GC::Ptr<CSSContainerRule const> container_rule) {
+        if (container_rule) {
+            container_rule->mark_element_style_dependencies(root_element);
+            if (!container_rule->matches(root_element))
+                return;
+        }
+        for (auto const& descriptor : declarations.style()->descriptors())
+            callback(descriptor.descriptor_name_and_id.name(), descriptor.value);
+    });
+}
+
 // https://drafts.csswg.org/css-mixins/#evaluate-a-custom-function
 NonnullRefPtr<StyleValue const> CSSFunctionRule::evaluate_a_custom_function(Parser::GuardedSubstitutionContexts& guarded_contexts, Vector<Vector<Parser::ComponentValue>> const& arguments, CallingContext const& calling_context) const
 {
@@ -334,16 +347,8 @@ NonnullRefPtr<StyleValue const> CSSFunctionRule::evaluate_a_custom_function(Pars
     OrderedHashMap<Utf16FlyString, StyleProperty> body_rule;
 
     auto& root_element = calling_context.element.abstract_element();
-    for_each_effective_function_declarations_rule(css_rules(), nullptr, [&](CSSFunctionDeclarations const& declarations, GC::Ptr<CSSContainerRule const> container_rule) {
-        if (container_rule) {
-            container_rule->mark_element_style_dependencies(root_element);
-
-            if (!container_rule->matches(root_element))
-                return;
-        }
-
-        for (auto const& descriptor : declarations.style()->descriptors())
-            body_rule.set(descriptor.descriptor_name_and_id.name(), { .important = Important::No, .property_id = PropertyID::Custom, .value = descriptor.value });
+    for_each_effective_declaration(root_element, [&](Utf16FlyString const& name, NonnullRefPtr<StyleValue const> const& value) {
+        body_rule.set(name, { .important = Important::No, .property_id = PropertyID::Custom, .value = value });
     });
 
     // 11. For each custom property registration of registrations except the registration with the name "result", set
