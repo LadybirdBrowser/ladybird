@@ -1,0 +1,6 @@
+registered <angle> at 50%: 180deg
+unregistered at 50%: bbb
+registered <number> at 25%: 25
+declared value as implicit keyframe at 50%: 75px
+keyframe with initial keyword at 50%: 50
+important declaration suppresses animation: 10

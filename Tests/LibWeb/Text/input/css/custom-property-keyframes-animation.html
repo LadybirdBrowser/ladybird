@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<style>
+    @property --angle {
+        syntax: "<angle>";
+        inherits: false;
+        initial-value: 0deg;
+    }
+    @property --count {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 0;
+    }
+    @property --size {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    @property --reset {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 20;
+    }
+    @property --guarded {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+    @keyframes spin {
+        from { --angle: 0deg; --plain: aaa; }
+        to { --angle: 360deg; --plain: bbb; }
+    }
+    @keyframes count-up { to { --count: 100; } }
+    @keyframes grow { to { --size: 100px; } }
+    @keyframes to-initial {
+        from { --reset: 80; }
+        to { --reset: initial; }
+    }
+    @keyframes guarded-run { from { --guarded: 0; } to { --guarded: 100; } }
+    #halfway { animation: spin 10s linear -5s paused; }
+    #quarter { animation: count-up 10s linear -2.5s paused; }
+    #implicit { --size: 50px; animation: grow 10s linear -5s paused; }
+    #keyword { animation: to-initial 10s linear -5s paused; }
+    #important { --guarded: 10 !important; animation: guarded-run 10s linear -5s paused; }
+</style>
+<div id="halfway"></div>
+<div id="quarter"></div>
+<div id="implicit"></div>
+<div id="keyword"></div>
+<div id="important"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const valueAt = (id, name) => getComputedStyle(document.getElementById(id)).getPropertyValue(name);
+        println("registered <angle> at 50%: " + valueAt("halfway", "--angle"));
+        println("unregistered at 50%: " + valueAt("halfway", "--plain"));
+        println("registered <number> at 25%: " + valueAt("quarter", "--count"));
+        println("declared value as implicit keyframe at 50%: " + valueAt("implicit", "--size"));
+        println("keyframe with initial keyword at 50%: " + valueAt("keyword", "--reset"));
+        println("important declaration suppresses animation: " + valueAt("important", "--guarded"));
+    });
+</script>

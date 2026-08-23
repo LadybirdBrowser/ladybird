@@ -443,6 +443,15 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
                 }
 
+                for (auto const& [name, style_property] : keyframe_style.custom_properties()) {
+                    auto property = PropertyNameAndID::from_name(name);
+                    if (!property.has_value())
+                        continue;
+                    animated_properties.set(*property);
+                    resolved_keyframe.properties.set(*property,
+                        RustStyleValueHandle::retained(style_property.value->rust_style_value_data()));
+                }
+
                 for (auto const& key : keyframe.keys()) {
                     auto resolved_key = static_cast<u64>(key.value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
 

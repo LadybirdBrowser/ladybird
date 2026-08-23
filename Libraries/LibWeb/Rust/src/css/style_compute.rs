@@ -2758,6 +2758,7 @@ pub struct FfiAnimationKeyframeLonghandInput {
     pub font_length_resolution_context: *const FfiLengthResolutionContext,
     pub line_height_length_resolution_context: *const FfiLengthResolutionContext,
     pub remaining_length_resolution_context: *const FfiLengthResolutionContext,
+    pub custom_property_values: *const *const c_void,
 }
 
 #[repr(C)]
@@ -5272,6 +5273,9 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         };
         let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
         for (index, property) in properties.iter().enumerate() {
+            if property.custom_name_id != 0 {
+                continue;
+            }
             assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property.physical_property_id));
             assert!(!property.value.is_null());
             longhands_by_keyframe
@@ -5284,6 +5288,19 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         let mut values = std::iter::repeat_with(|| None)
             .take(properties.len())
             .collect::<Vec<_>>();
+        for (index, property) in properties.iter().enumerate() {
+            if property.custom_name_id == 0 {
+                continue;
+            }
+            assert!(!input.custom_property_values.is_null());
+            let value = unsafe { *input.custom_property_values.add(index) };
+            assert!(!value.is_null());
+            values[index] = Some(unsafe {
+                crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
+                    crate::css::style_value::retain_style_value(value.cast()),
+                )
+            });
+        }
         let mut depends_on_viewport_metrics = false;
         let mut font_metrics_depend_on_viewport_metrics = false;
         for indices in longhands_by_keyframe.values() {

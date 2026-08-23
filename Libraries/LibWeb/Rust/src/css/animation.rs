@@ -428,6 +428,7 @@ pub struct FfiAnimationKeyframeValue {
 #[repr(C)]
 pub struct FfiAnimationValueInput {
     pub property_id: u16,
+    pub custom_name_id: u32,
     pub result_of_transition: bool,
     pub underlying: *const StyleValueData,
     pub initial: *const StyleValueData,
@@ -457,6 +458,17 @@ pub struct FfiComputedAnimationBatch {
     pub computed_keyframe_storage: *mut std::ffi::c_void,
     pub underlying_longhand_table: *const std::ffi::c_void,
     pub overlay: *mut std::ffi::c_void,
+    pub custom_underlying_values: *const *const StyleValueData,
+    pub custom_initial_values: *const *const StyleValueData,
+    pub custom_value_count: usize,
+    pub custom_results: *mut FfiAnimatedCustomProperty,
+    pub custom_result_count: *mut usize,
+}
+
+#[repr(C)]
+pub struct FfiAnimatedCustomProperty {
+    pub custom_name_id: u32,
+    pub value: *const StyleValueData,
 }
 
 #[repr(C)]
@@ -477,6 +489,7 @@ pub struct FfiAnimationKeyframe {
 #[repr(C)]
 pub struct FfiAnimatedProperty {
     pub property_id: u16,
+    pub custom_name_id: u32,
     pub value: *const StyleValueData,
     pub progress: f32,
     pub start_index: usize,
@@ -510,6 +523,9 @@ impl FfiAnimationStyleSheetResourceContext {
 pub struct FfiAnimationDeclaration {
     pub keyframe_index: usize,
     pub property_id: u16,
+    pub custom_name_id: u32,
+    pub custom_is_inherited: bool,
+    pub custom_is_important: bool,
     pub value: *const StyleValueData,
     pub style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
     pub use_initial: bool,
@@ -519,6 +535,8 @@ pub struct FfiAnimationDeclaration {
 struct AnimationPropertyConflictCandidate {
     keyframe_index: usize,
     physical_property_id: u16,
+    custom_name_id: u32,
+    custom_is_inherited: bool,
     source_property_id: u16,
     source_longhand_id: u16,
     value: RetainedStyleValueData,
@@ -551,7 +569,7 @@ pub enum FfiAnimationSpecifiedValueSource {
     Underlying,
 }
 
-fn animation_specified_value_source(value: &StyleValueData, property_id: u16) -> FfiAnimationSpecifiedValueSource {
+fn animation_specified_value_source(value: &StyleValueData, is_inherited: bool) -> FfiAnimationSpecifiedValueSource {
     let StyleValueData::Keyword { keyword } = value else {
         return FfiAnimationSpecifiedValueSource::Value;
     };
@@ -567,7 +585,7 @@ fn animation_specified_value_source(value: &StyleValueData, property_id: u16) ->
     // If the cascaded value of a property is the unset keyword, then if it is an inherited
     // property, this is treated as inherit, and if it is not, this is treated as initial.
     if *keyword == crate::css::style_compute::keyword::UNSET {
-        return if crate::css::property_metadata::property_is_inherited(property_id) {
+        return if is_inherited {
             FfiAnimationSpecifiedValueSource::Inherited
         } else {
             FfiAnimationSpecifiedValueSource::Initial
@@ -598,11 +616,20 @@ fn resolve_animation_property_conflicts(
     assert_eq!(candidates.len(), value_sources.len());
     selected.fill(false);
     for (candidate, source) in candidates.iter().zip(value_sources.iter_mut()) {
-        *source = animation_specified_value_source(candidate.value.data(), candidate.physical_property_id);
+        let is_inherited = if candidate.custom_name_id != 0 {
+            candidate.custom_is_inherited
+        } else {
+            crate::css::property_metadata::property_is_inherited(candidate.physical_property_id)
+        };
+        *source = animation_specified_value_source(candidate.value.data(), is_inherited);
     }
-    let mut winners = std::collections::HashMap::<(usize, u16), usize>::new();
+    let mut winners = std::collections::HashMap::<(usize, u16, u32), usize>::new();
     for (candidate_index, candidate) in candidates.iter().enumerate() {
-        let key = (candidate.keyframe_index, candidate.physical_property_id);
+        let key = (
+            candidate.keyframe_index,
+            candidate.physical_property_id,
+            candidate.custom_name_id,
+        );
         let Some(&winner_index) = winners.get(&key) else {
             winners.insert(key, candidate_index);
             selected[candidate_index] = true;
@@ -630,6 +657,7 @@ fn resolve_animation_property_conflicts(
 pub struct FfiResolvedAnimationProperty {
     pub keyframe_index: usize,
     pub physical_property_id: u16,
+    pub custom_name_id: u32,
     pub source_longhand_id: u16,
     pub value: *const StyleValueData,
     pub value_source: FfiAnimationSpecifiedValueSource,
@@ -671,6 +699,26 @@ fn resolve_animation_declarations(
             !declaration.value.is_null(),
             "animation declaration value must not be null"
         );
+        if declaration.custom_name_id != 0 {
+            candidates.push(AnimationPropertyConflictCandidate {
+                keyframe_index: declaration.keyframe_index,
+                physical_property_id: declaration.property_id,
+                custom_name_id: declaration.custom_name_id,
+                custom_is_inherited: declaration.custom_is_inherited,
+                source_property_id: declaration.property_id,
+                source_longhand_id: declaration.property_id,
+                value: unsafe {
+                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                        declaration.value.cast(),
+                    ))
+                },
+                style_sheet_resource_context: declaration.style_sheet_resource_context,
+                use_initial: declaration.use_initial,
+                is_transition: declaration.is_transition,
+                suppressed_by_important: !declaration.is_transition && declaration.custom_is_important,
+            });
+            continue;
+        }
         crate::css::style_compute::expand_shorthands_with(
             declaration.property_id,
             declaration.value.cast(),
@@ -681,6 +729,8 @@ fn resolve_animation_declarations(
                 candidates.push(AnimationPropertyConflictCandidate {
                     keyframe_index: declaration.keyframe_index,
                     physical_property_id,
+                    custom_name_id: 0,
+                    custom_is_inherited: false,
                     source_property_id: declaration.property_id,
                     source_longhand_id: longhand_id,
                     value: unsafe {
@@ -714,6 +764,7 @@ fn resolve_animation_declarations(
             properties.push(FfiResolvedAnimationProperty {
                 keyframe_index: candidate.keyframe_index,
                 physical_property_id: candidate.physical_property_id,
+                custom_name_id: candidate.custom_name_id,
                 source_longhand_id: candidate.source_longhand_id,
                 value: candidate.value.pointer(),
                 value_source,
@@ -730,26 +781,28 @@ fn resolve_animation_declarations(
             .checked_add(effect.keyframe_count)
             .expect("animation keyframe range must not overflow");
         assert!(keyframe_end <= keyframes.len());
-        let mut properties_by_id = std::collections::BTreeMap::<u16, Vec<usize>>::new();
+        let mut properties_by_id = std::collections::BTreeMap::<(u16, u32), Vec<usize>>::new();
         for (index, property) in properties.iter().enumerate() {
             if (effect.first_keyframe_index..keyframe_end).contains(&property.keyframe_index) {
                 properties_by_id
-                    .entry(property.physical_property_id)
+                    .entry((property.physical_property_id, property.custom_name_id))
                     .or_default()
                     .push(index);
             }
         }
-        for (property_id, mut property_indices) in properties_by_id {
+        for ((property_id, custom_name_id), mut property_indices) in properties_by_id {
             if property_indices.len() < 2
-                || !(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
-                    ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
-                    .contains(&property_id)
+                || (custom_name_id == 0
+                    && !(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                        ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+                        .contains(&property_id))
             {
                 continue;
             }
             property_indices.sort_by_key(|index| properties[*index].keyframe_index);
             value_plans.push(AnimationValuePlan {
                 property_id,
+                custom_name_id,
                 result_of_transition: effect.result_of_transition,
                 current_key: effect.current_key,
                 property_indices,
@@ -763,6 +816,9 @@ fn resolve_animation_declarations(
     let mut random_sharing_sources = Vec::new();
     for property in &properties {
         if property.value_source != FfiAnimationSpecifiedValueSource::Value {
+            continue;
+        }
+        if property.custom_name_id != 0 {
             continue;
         }
         let value = unsafe { &*property.value };
@@ -824,6 +880,7 @@ struct ResolvedAnimationDeclarations {
 
 struct AnimationValuePlan {
     property_id: u16,
+    custom_name_id: u32,
     result_of_transition: bool,
     current_key: f64,
     property_indices: Vec<usize>,
@@ -891,6 +948,9 @@ pub enum FfiCompositeOperation {
 fn accepted_range(property_id: u16, value_type: u8, range_overrides: &[NumericRangeOverride]) -> Option<(f64, f64)> {
     if let Some(range) = range_overrides.iter().find(|range| range.value_type == value_type) {
         return Some((range.min, range.max));
+    }
+    if property_id == crate::css::property_metadata::property_id::CUSTOM {
+        return None;
     }
     property_numeric_ranges(property_id)
         .iter()
@@ -6587,6 +6647,15 @@ pub(crate) fn interpolate_value(
     to: &StyleValueData,
     delta: f32,
 ) -> FfiAnimationValueResult {
+    if property_id == crate::css::property_metadata::property_id::CUSTOM {
+        // https://drafts.css-houdini.org/css-properties-values-api/#animation-behavior-of-custom-properties
+        // When referenced by animations and transitions, custom property values interpolate by computed value, in accordance with the type that they parsed as.
+        let result = interpolate_scalar_value(property_id, from, to, delta, &[]);
+        if !result.handled || result.value.is_null() && context.is_some_and(|context| context.allow_discrete) {
+            return discrete_value(context, from, to, delta);
+        }
+        return result;
+    }
     let animation_type = property_animation_type(property_id);
     if animation_type == ANIMATION_TYPE_NONE {
         // https://www.w3.org/TR/web-animations-1/#not-animatable
@@ -6965,6 +7034,7 @@ fn evaluate_animation_value(
         if start_keyframe.value.is_null() {
             return FfiAnimatedProperty {
                 property_id: input.property_id,
+                custom_name_id: input.custom_name_id,
                 value: std::ptr::null(),
                 progress,
                 start_index,
@@ -6975,6 +7045,7 @@ fn evaluate_animation_value(
         }
         return FfiAnimatedProperty {
             property_id: input.property_id,
+            custom_name_id: input.custom_name_id,
             value: unsafe { crate::css::style_value::retain_style_value(start_keyframe.value) },
             progress,
             start_index,
@@ -6998,6 +7069,7 @@ fn evaluate_animation_value(
     assert!(result.handled);
     FfiAnimatedProperty {
         property_id: input.property_id,
+        custom_name_id: input.custom_name_id,
         value: result.value,
         progress,
         start_index,
@@ -7113,14 +7185,28 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
         }
         let mut inputs = Vec::with_capacity(resolved.value_plans.len());
         for (plan, keyframes) in resolved.value_plans.iter().zip(&keyframes_by_value) {
-            let underlying = underlying_longhand_table
-                .get(plan.property_id)
-                .expect("an animated longhand must have an underlying computed value");
+            let (underlying, initial) = if plan.custom_name_id != 0 {
+                let custom_index = (plan.custom_name_id - 1) as usize;
+                assert!(custom_index < computed.custom_value_count);
+                (
+                    unsafe { *computed.custom_underlying_values.add(custom_index) },
+                    unsafe { *computed.custom_initial_values.add(custom_index) },
+                )
+            } else {
+                let underlying = underlying_longhand_table
+                    .get(plan.property_id)
+                    .expect("an animated longhand must have an underlying computed value");
+                (
+                    underlying.pointer(),
+                    crate::css::style_compute::initial_value_data(plan.property_id),
+                )
+            };
             inputs.push(FfiAnimationValueInput {
                 property_id: plan.property_id,
+                custom_name_id: plan.custom_name_id,
                 result_of_transition: plan.result_of_transition,
-                underlying: underlying.pointer(),
-                initial: crate::css::style_compute::initial_value_data(plan.property_id),
+                underlying,
+                initial,
                 current_key: plan.current_key,
                 keyframes: keyframes.as_ptr(),
                 keyframe_count: keyframes.len(),
@@ -7131,20 +7217,32 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
         // https://www.w3.org/TR/web-animations-1/#effect-stacks
         // NB: Inputs arrive in composite order. Keep each result as the underlying value for the
         //     next effect affecting the same property.
-        let mut previous_values = Vec::<(u16, *const StyleValueData)>::new();
+        let mut custom_final_values = Vec::<(u32, RetainedStyleValueData)>::new();
+        let mut previous_values = Vec::<(u16, u32, *const StyleValueData)>::new();
         for input in &inputs {
             let previous_value = previous_values
                 .iter()
                 .rev()
-                .find(|(property_id, _)| *property_id == input.property_id)
-                .map(|(_, value)| unsafe { &**value });
+                .find(|(property_id, custom_name_id, _)| {
+                    *property_id == input.property_id && *custom_name_id == input.custom_name_id
+                })
+                .map(|(_, _, value)| unsafe { &**value });
             let result = evaluate_animation_value(&computed.context, input, previous_value);
             if !result.apply {
                 assert!(result.value.is_null());
                 continue;
             }
+            if input.custom_name_id != 0 {
+                if !result.value.is_null() {
+                    previous_values.push((input.property_id, input.custom_name_id, result.value));
+                    custom_final_values.push((input.custom_name_id, unsafe {
+                        RetainedStyleValueData::from_retained_pointer(result.value)
+                    }));
+                }
+                continue;
+            }
             if !result.value.is_null() {
-                previous_values.push((input.property_id, result.value));
+                previous_values.push((input.property_id, input.custom_name_id, result.value));
                 let value = unsafe { RetainedStyleValueData::from_retained_pointer(result.value) };
                 overlay.set_owned(input.property_id, value, false, input.result_of_transition);
             } else {
@@ -7158,6 +7256,28 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
                     input.result_of_transition,
                 );
             }
+        }
+        if !custom_final_values.is_empty() {
+            assert!(!computed.custom_results.is_null());
+            assert!(!computed.custom_result_count.is_null());
+            let mut final_by_name = std::collections::BTreeMap::<u32, RetainedStyleValueData>::new();
+            for (custom_name_id, value) in custom_final_values {
+                final_by_name.insert(custom_name_id, value);
+            }
+            let mut written = 0;
+            for (custom_name_id, value) in final_by_name {
+                assert!(written < computed.custom_value_count);
+                let pointer = value.pointer();
+                std::mem::forget(value);
+                unsafe {
+                    computed.custom_results.add(written).write(FfiAnimatedCustomProperty {
+                        custom_name_id,
+                        value: pointer,
+                    });
+                }
+                written += 1;
+            }
+            unsafe { computed.custom_result_count.write(written) };
         }
         overlay.refresh_ffi_entries();
         inputs.len()
@@ -7215,6 +7335,8 @@ mod tests {
         };
         let candidates = [
             AnimationPropertyConflictCandidate {
+                custom_name_id: 0,
+                custom_is_inherited: false,
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER,
@@ -7226,6 +7348,8 @@ mod tests {
                 is_transition: false,
             },
             AnimationPropertyConflictCandidate {
+                custom_name_id: 0,
+                custom_is_inherited: false,
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP,
@@ -7237,6 +7361,8 @@ mod tests {
                 is_transition: false,
             },
             AnimationPropertyConflictCandidate {
+                custom_name_id: 0,
+                custom_is_inherited: false,
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP_COLOR,
@@ -7248,6 +7374,8 @@ mod tests {
                 is_transition: false,
             },
             AnimationPropertyConflictCandidate {
+                custom_name_id: 0,
+                custom_is_inherited: false,
                 keyframe_index: 0,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER_TOP_COLOR,
@@ -7259,6 +7387,8 @@ mod tests {
                 is_transition: false,
             },
             AnimationPropertyConflictCandidate {
+                custom_name_id: 0,
+                custom_is_inherited: false,
                 keyframe_index: 1,
                 physical_property_id: property_id::BORDER_TOP_COLOR,
                 source_property_id: property_id::BORDER,
@@ -7283,27 +7413,45 @@ mod tests {
         let keyword_value = |keyword| StyleValueData::Keyword { keyword };
 
         assert_eq!(
-            animation_specified_value_source(&keyword_value(keyword::INHERIT), property_id::MARGIN_LEFT),
+            animation_specified_value_source(
+                &keyword_value(keyword::INHERIT),
+                crate::css::property_metadata::property_is_inherited(property_id::MARGIN_LEFT)
+            ),
             FfiAnimationSpecifiedValueSource::Inherited
         );
         assert_eq!(
-            animation_specified_value_source(&keyword_value(keyword::UNSET), property_id::COLOR),
+            animation_specified_value_source(
+                &keyword_value(keyword::UNSET),
+                crate::css::property_metadata::property_is_inherited(property_id::COLOR)
+            ),
             FfiAnimationSpecifiedValueSource::Inherited
         );
         assert_eq!(
-            animation_specified_value_source(&keyword_value(keyword::UNSET), property_id::MARGIN_LEFT),
+            animation_specified_value_source(
+                &keyword_value(keyword::UNSET),
+                crate::css::property_metadata::property_is_inherited(property_id::MARGIN_LEFT)
+            ),
             FfiAnimationSpecifiedValueSource::Initial
         );
         assert_eq!(
-            animation_specified_value_source(&keyword_value(keyword::INITIAL), property_id::COLOR),
+            animation_specified_value_source(
+                &keyword_value(keyword::INITIAL),
+                crate::css::property_metadata::property_is_inherited(property_id::COLOR)
+            ),
             FfiAnimationSpecifiedValueSource::Initial
         );
         assert_eq!(
-            animation_specified_value_source(&keyword_value(keyword::REVERT), property_id::COLOR),
+            animation_specified_value_source(
+                &keyword_value(keyword::REVERT),
+                crate::css::property_metadata::property_is_inherited(property_id::COLOR)
+            ),
             FfiAnimationSpecifiedValueSource::Underlying
         );
         assert_eq!(
-            animation_specified_value_source(&keyword_value(keyword::REVERT_LAYER), property_id::COLOR),
+            animation_specified_value_source(
+                &keyword_value(keyword::REVERT_LAYER),
+                crate::css::property_metadata::property_is_inherited(property_id::COLOR)
+            ),
             FfiAnimationSpecifiedValueSource::Underlying
         );
     }
@@ -7319,6 +7467,9 @@ mod tests {
         ];
         let declarations = [
             FfiAnimationDeclaration {
+                custom_name_id: 0,
+                custom_is_inherited: false,
+                custom_is_important: false,
                 keyframe_index: 0,
                 property_id: property_id::OPACITY,
                 value: Arc::as_ptr(&values[0]),
@@ -7327,6 +7478,9 @@ mod tests {
                 is_transition: false,
             },
             FfiAnimationDeclaration {
+                custom_name_id: 0,
+                custom_is_inherited: false,
+                custom_is_important: false,
                 keyframe_index: 1,
                 property_id: property_id::COLOR,
                 value: Arc::as_ptr(&values[1]),
@@ -7335,6 +7489,9 @@ mod tests {
                 is_transition: false,
             },
             FfiAnimationDeclaration {
+                custom_name_id: 0,
+                custom_is_inherited: false,
+                custom_is_important: false,
                 keyframe_index: 2,
                 property_id: property_id::OPACITY,
                 value: Arc::as_ptr(&values[2]),
@@ -7384,6 +7541,9 @@ mod tests {
         let declaration = FfiAnimationDeclaration {
             keyframe_index: 0,
             property_id: crate::css::property_metadata::property_id::BORDER,
+            custom_name_id: 0,
+            custom_is_inherited: false,
+            custom_is_important: false,
             value: &raw const *pending,
             style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
             use_initial: false,
@@ -7540,6 +7700,7 @@ mod tests {
         ];
         let input = FfiAnimationValueInput {
             property_id: crate::css::property_metadata::property_id::FLEX_GROW,
+            custom_name_id: 0,
             result_of_transition: false,
             underlying: &raw const underlying,
             initial: &raw const underlying,
@@ -7591,6 +7752,7 @@ mod tests {
             ];
             let input = FfiAnimationValueInput {
                 property_id: crate::css::property_metadata::property_id::FLEX_GROW,
+                custom_name_id: 0,
                 result_of_transition: false,
                 underlying: Arc::as_ptr(&underlying),
                 initial: Arc::as_ptr(&initial),

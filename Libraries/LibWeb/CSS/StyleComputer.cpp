@@ -715,10 +715,12 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
 {
     if (refresh == AnimationRefresh::No) {
         collect_animation_effects_into(abstract_element, effects, computed_properties);
+        publish_animated_custom_properties(computed_properties, abstract_element);
         return;
     }
     m_keyframes_inherited_non_inherited_style_groups = 0;
     collect_animation_effects_into(abstract_element, effects, computed_properties);
+    publish_animated_custom_properties(computed_properties, abstract_element);
     // An animation-only overlay update resolves keyframe values just like a full style computation does, so a
     // keyframe-borne `inherit` on a non-inherited property discovered here must leave the same invalidation
     // mark behind, or a later change to the parent's value never reaches this element's animated style.
@@ -801,6 +803,20 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                 };
             });
     };
+
+    auto base_custom_property_data = [&]() -> RefPtr<CustomPropertyData const> {
+        auto data = abstract_element.custom_property_data();
+        if (data && data->is_animation_overlay())
+            return data->parent();
+        return data;
+    }();
+    auto underlying_custom_property_value = [&](Utf16FlyString const& name) -> NonnullRefPtr<StyleValue const> {
+        if (base_custom_property_data) {
+            if (auto const* style_property = base_custom_property_data->get(name))
+                return *style_property->value;
+        }
+        return initial_custom_property_value(m_document->get_registered_custom_property(name), *m_document);
+    };
     for (auto effect : effects) {
         auto animation = effect->associated_animation();
         auto output_progress = effect->transformed_progress();
@@ -859,7 +875,11 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                 bool is_use_initial = false;
                 auto style_value = value.visit(
                     [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RustStyleValueHandle {
-                        if (!property.is_custom_property() && property_is_shorthand(property.id()))
+                        if (property.is_custom_property()) {
+                            is_use_initial = true;
+                            return RustStyleValueHandle::retained(underlying_custom_property_value(property.name())->rust_style_value_data());
+                        }
+                        if (property_is_shorthand(property.id()))
                             return {};
                         is_use_initial = true;
                         return RustStyleValueHandle::retained(computed_properties.property(property.id(), ComputedStyleWorkingSet::WithAnimationsApplied::No).rust_style_value_data());
@@ -871,13 +891,15 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                     // Substitution needs the typed facade, but only var()-bearing keyframes take this path,
                     // and those re-parse the value every frame anyway.
                     auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(style_value.data()));
-                    auto resolved = abstract_element.document().style_computer().resolve_unresolved_style_value(abstract_element, property, unresolved->as_unresolved());
-                    style_value = RustStyleValueHandle::retained(resolved->rust_style_value_data());
+                    if (!property.is_custom_property() || unresolved->as_unresolved().contains_arbitrary_substitution_function()) {
+                        auto resolved = abstract_element.document().style_computer().resolve_unresolved_style_value(abstract_element, property, unresolved->as_unresolved());
+                        style_value = RustStyleValueHandle::retained(resolved->rust_style_value_data());
+                    }
                 }
                 // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
                 // When substitution results in a guaranteed-invalid value, treat it as unset
                 // (i.e. inherit for inherited properties, initial for non-inherited properties).
-                if (style_value->tag == StyleValueFFI::StyleValueData::Tag::GuaranteedInvalid)
+                if (style_value->tag == StyleValueFFI::StyleValueData::Tag::GuaranteedInvalid && !property.is_custom_property())
                     continue;
                 keyframe_declarations.append({
                     .keyframe_index = keyframe_index,
@@ -902,12 +924,58 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     if (keyframe_declarations.is_empty())
         return;
 
+    Vector<PropertyNameAndID> custom_properties_by_name_id;
+    struct CustomPropertyAnimationInfo {
+        bool is_inherited { true };
+        bool is_important { false };
+    };
+    Vector<CustomPropertyAnimationInfo> custom_property_infos;
+    HashMap<Utf16FlyString, u32> custom_property_name_ids;
+    auto element_declares_own_custom_properties = [&] {
+        if (!base_custom_property_data)
+            return false;
+        auto inherit_from = abstract_element.element_to_inherit_style_from();
+        return !(inherit_from.has_value() && inherit_from->custom_property_data().ptr() == base_custom_property_data.ptr());
+    }();
+    auto custom_name_id_for = [&](PropertyNameAndID const& property) -> u32 {
+        return custom_property_name_ids.ensure(property.name(), [&] {
+            auto registration = m_document->get_registered_custom_property(property.name());
+            bool is_important = false;
+            if (element_declares_own_custom_properties) {
+                size_t declared_index = 0;
+                for (auto const& [name, style_property] : base_custom_property_data->own_values()) {
+                    if (declared_index++ >= base_custom_property_data->declared_count())
+                        break;
+                    if (name == property.name()) {
+                        is_important = style_property.important == Important::Yes;
+                        break;
+                    }
+                }
+            }
+            custom_properties_by_name_id.append(property);
+            custom_property_infos.append({
+                .is_inherited = !registration.has_value() || registration->inherit,
+                .is_important = is_important,
+            });
+            return static_cast<u32>(custom_properties_by_name_id.size());
+        });
+    };
+
     Vector<StyleValueFFI::FfiAnimationDeclaration> ffi_declarations;
     ffi_declarations.ensure_capacity(keyframe_declarations.size());
     for (auto const& declaration : keyframe_declarations) {
+        u32 custom_name_id = 0;
+        CustomPropertyAnimationInfo custom_property_info;
+        if (declaration.property.is_custom_property()) {
+            custom_name_id = custom_name_id_for(declaration.property);
+            custom_property_info = custom_property_infos[custom_name_id - 1];
+        }
         ffi_declarations.unchecked_append({
             .keyframe_index = declaration.keyframe_index,
             .property_id = to_underlying(declaration.property.id()),
+            .custom_name_id = custom_name_id,
+            .custom_is_inherited = custom_property_info.is_inherited,
+            .custom_is_important = custom_property_info.is_important,
             .value = declaration.value.data(),
             .style_sheet_resource_context = declaration.style_sheet_resource_context,
             .use_initial = declaration.use_initial,
@@ -918,12 +986,47 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     Vector<u8> important_property_bitmap;
     important_property_bitmap.append(computed_properties.property_importance_bitmap().data(), computed_properties.property_importance_bitmap().size());
 
+    Vector<NonnullRefPtr<StyleValue const>> custom_animation_value_storage;
+    Vector<StyleValueFFI::StyleValueData const*> custom_underlying_values;
+    Vector<StyleValueFFI::StyleValueData const*> custom_initial_values;
+    Vector<StyleValueFFI::FfiAnimatedCustomProperty> custom_results;
+    size_t custom_result_count = 0;
+
     auto compute_animation_values = [&](ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> resolved_properties, StyleValueFFI::FfiResolvedAnimationProperties const& resolved_batch) -> StyleValueFFI::FfiComputedAnimationBatch {
         VERIFY(computation_context_cache_is_empty());
         for (auto const& property : resolved_properties) {
+            if (property.custom_name_id != 0)
+                continue;
             auto source_longhand_id = static_cast<PropertyID>(property.source_longhand_id);
             if (property.value_source == StyleValueFFI::FfiAnimationSpecifiedValueSource::Inherited && !is_inherited_property(source_longhand_id))
                 m_keyframes_inherited_non_inherited_style_groups |= ComputedValues::style_group_bit_of_property(source_longhand_id);
+        }
+
+        Vector<NonnullRefPtr<StyleValue const>> custom_keyframe_value_storage;
+        Vector<void const*> custom_keyframe_values;
+        custom_keyframe_values.resize(resolved_properties.size());
+        for (size_t index = 0; index < resolved_properties.size(); ++index) {
+            auto const& property = resolved_properties[index];
+            if (property.custom_name_id == 0)
+                continue;
+            auto const& name = custom_properties_by_name_id[property.custom_name_id - 1].name();
+            auto registration = m_document->get_registered_custom_property(name);
+            auto specified_value = [&]() -> NonnullRefPtr<StyleValue const> {
+                switch (property.value_source) {
+                case StyleValueFFI::FfiAnimationSpecifiedValueSource::Inherited:
+                    return inherited_custom_property_value(registration, AbstractOrHypotheticalElement { abstract_element }, name, &computed_properties);
+                case StyleValueFFI::FfiAnimationSpecifiedValueSource::Initial:
+                    return initial_custom_property_value(registration, *m_document);
+                case StyleValueFFI::FfiAnimationSpecifiedValueSource::Underlying:
+                    return underlying_custom_property_value(name);
+                case StyleValueFFI::FfiAnimationSpecifiedValueSource::Value:
+                    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(property.value));
+                }
+                VERIFY_NOT_REACHED();
+            }();
+            auto computed_value = compute_animated_custom_property_value(name, move(specified_value), computed_properties, abstract_element);
+            custom_keyframe_values[index] = computed_value->rust_style_value_data();
+            custom_keyframe_value_storage.append(move(computed_value));
         }
 
         Optional<DOM::AbstractElement::TreeCountingFunctionResolutionContext> tree_counting_context;
@@ -996,6 +1099,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             .font_length_resolution_context = &font_length_resolution_context,
             .line_height_length_resolution_context = &line_height_length_resolution_context,
             .remaining_length_resolution_context = &remaining_length_resolution_context,
+            .custom_property_values = custom_keyframe_values.data(),
         };
         auto computed_keyframe_batch = ComputedValuesFFI::rust_compute_animation_keyframe_longhands(&keyframe_input);
         VERIFY(computed_keyframe_batch.value_count == resolved_properties.size());
@@ -1039,12 +1143,29 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             animation_context.transform_reference_box_width = reference_box.width().to_double();
             animation_context.transform_reference_box_height = reference_box.height().to_double();
         }
+        custom_underlying_values.ensure_capacity(custom_properties_by_name_id.size());
+        custom_initial_values.ensure_capacity(custom_properties_by_name_id.size());
+        for (auto const& property : custom_properties_by_name_id) {
+            auto underlying_value = underlying_custom_property_value(property.name());
+            auto initial_value = initial_custom_property_value(m_document->get_registered_custom_property(property.name()), *m_document);
+            custom_underlying_values.unchecked_append(underlying_value->rust_style_value_data());
+            custom_initial_values.unchecked_append(initial_value->rust_style_value_data());
+            custom_animation_value_storage.append(move(underlying_value));
+            custom_animation_value_storage.append(move(initial_value));
+        }
+        custom_results.resize(custom_properties_by_name_id.size());
+
         return StyleValueFFI::FfiComputedAnimationBatch {
             .context = animation_context,
             .resolved_animation_storage = resolved_batch.storage,
             .computed_keyframe_storage = computed_keyframe_batch.storage,
             .underlying_longhand_table = computed_properties.computed_longhand_table(),
             .overlay = computed_properties.prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer> {}),
+            .custom_underlying_values = custom_underlying_values.data(),
+            .custom_initial_values = custom_initial_values.data(),
+            .custom_value_count = custom_underlying_values.size(),
+            .custom_results = custom_results.data(),
+            .custom_result_count = &custom_result_count,
         };
     };
 
@@ -1068,9 +1189,66 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         resolved_properties);
     auto result_count = StyleValueFFI::rust_evaluate_animations(&computed_batch);
     VERIFY(result_count == resolved_properties.animation_value_count);
+    VERIFY(custom_result_count <= custom_results.size());
+    for (size_t index = 0; index < custom_result_count; ++index) {
+        auto const& result = custom_results[index];
+        VERIFY(result.custom_name_id != 0 && result.custom_name_id <= custom_properties_by_name_id.size());
+        auto const& property = custom_properties_by_name_id[result.custom_name_id - 1];
+        auto style_value = StyleValue::adopt_rust_style_value_data(result.value);
+        computed_properties.set_animated_custom_property(Badge<StyleComputer> {}, property.name(), move(style_value));
+    }
     computed_properties.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
 
     clear_computation_context_caches();
+}
+
+// https://drafts.css-houdini.org/css-properties-values-api/#calculation-of-computed-values
+NonnullRefPtr<StyleValue const> StyleComputer::compute_animated_custom_property_value(Utf16FlyString const& name, NonnullRefPtr<StyleValue const> specified_value, ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element) const
+{
+    auto registration = m_document->get_registered_custom_property(name);
+    if (!registration.has_value() || registration->syntax.is_universal())
+        return specified_value;
+
+    return finalize_custom_property_value(&computed_properties, AbstractOrHypotheticalElement { abstract_element }, name, move(specified_value));
+}
+
+void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet const& computed_properties, DOM::AbstractElement abstract_element) const
+{
+    auto data = abstract_element.custom_property_data();
+    RefPtr<CustomPropertyData const> base = data;
+    if (data && data->is_animation_overlay())
+        base = data->parent();
+
+    auto const& animated_values = computed_properties.animated_custom_properties();
+    if (animated_values.is_empty()) {
+        if (base.ptr() != data.ptr())
+            abstract_element.set_custom_property_data(base);
+        return;
+    }
+
+    if (data && data->is_animation_overlay() && data->own_values().size() == animated_values.size()) {
+        bool values_unchanged = true;
+        for (auto const& [name, value] : animated_values) {
+            auto existing = data->own_values().find(name);
+            if (existing == data->own_values().end() || !existing->value.value->equals(*value)) {
+                values_unchanged = false;
+                break;
+            }
+        }
+        if (values_unchanged)
+            return;
+    }
+
+    OrderedHashMap<Utf16FlyString, StyleProperty> overlay_values;
+    for (auto const& [name, value] : animated_values) {
+        overlay_values.set(name,
+            StyleProperty {
+                .important = Important::No,
+                .property_id = PropertyID::Custom,
+                .value = value,
+            });
+    }
+    abstract_element.set_custom_property_data(CustomPropertyData::create_animation_overlay(move(overlay_values), move(base)));
 }
 
 void StyleComputer::process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const& cascaded_properties, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions) const

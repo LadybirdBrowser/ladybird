@@ -88,6 +88,18 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
     return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), move(inheritance_parent), ancestor_count, declared_count, prebuilt_rust_store));
 }
 
+NonnullRefPtr<CustomPropertyData> CustomPropertyData::create_animation_overlay(
+    OrderedHashMap<Utf16FlyString, StyleProperty> animated_values,
+    RefPtr<CustomPropertyData const> base)
+{
+    auto declared_count = animated_values.size();
+    u8 ancestor_count = base ? base->m_ancestor_count + 1 : 0;
+    auto inheritance_parent = base;
+    auto data = adopt_ref(*new CustomPropertyData(move(animated_values), move(base), move(inheritance_parent), ancestor_count, declared_count, nullptr));
+    data->m_is_animation_overlay = true;
+    return data;
+}
+
 StyleProperty const* CustomPropertyData::get(Utf16FlyString const& name) const
 {
     if (auto it = m_own_values.find(name); it != m_own_values.end())
