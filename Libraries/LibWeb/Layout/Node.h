@@ -281,7 +281,6 @@ public:
 
     GC::Ptr<HTML::LocalNavigable> navigable() const;
 
-    Viewport const& root() const;
     Viewport& root();
 
     bool is_root_element() const;
@@ -291,22 +290,12 @@ public:
     bool has_style() const { return has_flag(RustFFI::NodeFlag::HasStyle); }
     bool has_style_or_parent_with_style() const;
 
-    bool can_have_children() const;
-
     bool is_inline() const;
 
     bool is_replaced_element() const;
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
     NodeWithStyle const* nearest_fragmented_inline_ancestor() const;
-
-    // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
-    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
-    bool is_out_of_flow() const;
-
-    // An element is called in-flow if it is not out-of-flow.
-    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
-    bool is_in_flow() const { return !is_out_of_flow(); }
 
     // These optimize hot is<T> variants for the surviving layout classes where dynamic_cast is too slow.
     virtual bool is_box() const { return false; }
@@ -317,7 +306,6 @@ public:
     virtual bool is_node_with_style() const { return false; }
 
     bool is_inline_node() const { return kind() == RustFFI::NodeKind::InlineNode; }
-    bool is_break_node() const { return kind() == RustFFI::NodeKind::BreakNode; }
     bool is_svg_box() const { return RustFFI::layout_node_kind_is_svg_box(kind()); }
     bool is_svg_geometry_box() const { return kind() == RustFFI::NodeKind::SVGGeometryBox; }
     bool is_svg_clip_box() const { return kind() == RustFFI::NodeKind::SVGClipBox; }
@@ -329,33 +317,12 @@ public:
     bool is_replaced_box() const { return RustFFI::layout_node_kind_is_replaced_box(kind()); }
     bool is_list_item_box() const { return kind() == RustFFI::NodeKind::ListItemBox; }
     bool is_list_item_marker_box() const { return kind() == RustFFI::NodeKind::ListItemMarkerBox; }
-    bool is_fieldset_box() const { return kind() == RustFFI::NodeKind::FieldSetBox; }
-    bool is_legend_box() const { return kind() == RustFFI::NodeKind::LegendBox; }
     bool is_table_wrapper() const { return kind() == RustFFI::NodeKind::TableWrapper; }
-
-    bool is_replaced_box_with_children() const { return is_replaced_box() && can_have_children(); }
 
     template<typename T>
     bool fast_is() const = delete;
 
     bool is_flex_item() const { return has_flag(RustFFI::NodeFlag::IsFlexItem); }
-
-    bool is_grid_item() const { return has_flag(RustFFI::NodeFlag::IsGridItem); }
-
-    bool vertical_align_applies() const
-    {
-        // https://drafts.csswg.org/css-flexbox/#flex-containers
-        // "vertical-align has no effect on a flex item"
-        if (is_flex_item())
-            return false;
-        // https://drafts.csswg.org/css-grid-1/#grid-container
-        // "vertical-align has no effect on a grid item"
-        if (is_grid_item())
-            return false;
-        // FIXME: Per-spec, vertical-align only applies to inline-level boxes and table cells; this should be narrowed
-        //        to that — rather than only excluding flex and grid items.
-        return true;
-    }
 
     // The containing block is computed inside the Rust arena
     // (layout_arena_recompute_containing_blocks); the stored slot is always a Box or invalid.
@@ -370,7 +337,6 @@ public:
     [[nodiscard]] NodeWithStyle const* find_inline_containing_block(Box const& containing_block) const;
 
     Gfx::Font const& first_available_font() const;
-    Gfx::Font const& font(float scale_factor) const;
 
     NodeWithStyle* parent();
     NodeWithStyle const* parent() const;
@@ -386,7 +352,6 @@ public:
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 
-    [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return has_flag(RustFFI::NodeFlag::HasBeenWrappedInTableWrapper); }
     void set_has_been_wrapped_in_table_wrapper(bool value) { set_flag(RustFFI::NodeFlag::HasBeenWrappedInTableWrapper, value); }
 
     enum class AttachToDOMNode {
@@ -805,12 +770,6 @@ inline Gfx::Font const& Node::first_available_font() const
     if (has_style())
         return static_cast<NodeWithStyle const*>(this)->first_available_font();
     return parent()->first_available_font();
-}
-
-inline Gfx::Font const& Node::font(float scale_factor) const
-{
-    auto const& font = first_available_font();
-    return font.with_size(font.point_size() * scale_factor);
 }
 
 inline NodeWithStyle const* Node::parent() const

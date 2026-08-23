@@ -96,11 +96,6 @@ void Node::set_node_kind(RustFFI::NodeKind kind)
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
 }
 
-bool Node::can_have_children() const
-{
-    return RustFFI::layout_node_data_can_have_children(m_data);
-}
-
 StringView Node::class_name() const
 {
 #define LAYOUT_NODE_KIND_NAME_CASE(kind_name) \
@@ -292,12 +287,6 @@ bool Node::is_pseudo_element_principal_box() const
 {
     auto pseudo_element = generated_for_pseudo_element();
     return pseudo_element.has_value() && pseudo_element_generator()->pseudo_element_unsafe_layout_node(*pseudo_element) == this;
-}
-
-bool Node::is_out_of_flow() const
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(*this);
-    return node_with_style && node_with_style->is_out_of_flow();
 }
 
 // https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
@@ -495,13 +484,6 @@ NodeWithStyle const* Node::find_inline_containing_block(Box const& containing_bl
 GC::Ptr<HTML::LocalNavigable> Node::navigable() const
 {
     return document().navigable();
-}
-
-Viewport const& Node::root() const
-{
-    // NB: Called during layout, which is in progress.
-    VERIFY(document().unsafe_layout_node());
-    return *document().unsafe_layout_node();
 }
 
 Viewport& Node::root()
