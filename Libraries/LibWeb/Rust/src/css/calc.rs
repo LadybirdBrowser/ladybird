@@ -885,9 +885,36 @@ fn combine_calculations(
         resolve_channel_keyword: &|_| None,
         absolutize_random_sharing: &|_| None,
     };
-    let simplified = root.simplify(&evaluation_context, &callbacks);
+    let simplified = drop_zero_length_terms(root.simplify(&evaluation_context, &callbacks));
     let numeric_type = simplified.numeric_type(&percentage_leaf_type)?;
     Some((simplified, FfiNumericType::from_calc(Some(numeric_type))))
+}
+
+// https://drafts.csswg.org/css-values-4/#combine-mixed
+// The computed value of a percentage-dimension mix is defined as [...] a computed percentage if
+// the dimension component is zero
+// NB: A zero-valued length term is therefore dropped from a combined sum. The reverse
+//     simplification is deliberately not applied: a zero-valued percentage term is kept, because
+//     the presence of a percentage component can affect how a value behaves when its percentage
+//     basis is indefinite.
+fn drop_zero_length_terms(node: Arc<CalcNode>) -> Arc<CalcNode> {
+    let CalcNode::Sum(children) = &*node else {
+        return node;
+    };
+    let remaining = children
+        .iter()
+        .filter(
+            |child| !matches!(&***child, CalcNode::Numeric(CalcNumericValue::Length { value, .. }) if *value == 0.0),
+        )
+        .cloned()
+        .collect::<Vec<_>>();
+    if remaining.is_empty() || remaining.len() == children.len() {
+        return node;
+    }
+    if let [child] = remaining.as_slice() {
+        return child.clone();
+    }
+    shared(CalcNode::Sum(remaining))
 }
 
 impl Drop for CalcNodeHandle {
