@@ -3694,7 +3694,8 @@ impl ElementFactStore {
         if Rc::ptr_eq(&self.rows.attribute_catalogs, &self.attribute_catalogs) {
             return;
         }
-        let rows = Rc::get_mut(&mut self.rows).expect("attribute catalog synchronization requires unique primary rows");
+        // A retained traversal may still share the old rows and their catalog snapshot.
+        let rows = Rc::make_mut(&mut self.rows);
         rows.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
     }
 
@@ -6400,6 +6401,39 @@ mod tests {
         store.apply_staged(&mut memory);
         assert_eq!(Rc::as_ptr(&store.rows), primary_rows);
         assert_eq!(store.primary().attribute_name_forms(name), forms);
+    }
+
+    #[test]
+    fn catalog_synchronization_preserves_a_retained_primary_fact_view() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut store = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        let name = StyleAtomID(20);
+        let forms = AttributeNameForms {
+            local: StyleAtomID(21),
+            folded_name: StyleAtomID(22),
+            folded_local: StyleAtomID(23),
+        };
+        store.ensure_row(node);
+        store.apply_staged(&mut memory);
+        store.release_staging(&mut memory);
+
+        let view = store.primary_view();
+        store.note_attribute_name_forms(name, forms);
+        store.set_tag(node, StyleAtomID(1), &mut memory);
+
+        let before = store.staged_before_facts();
+        store.apply_staged(&mut memory);
+
+        assert_eq!(before.attribute_name_forms(name), forms);
+        assert_eq!(store.primary().attribute_name_forms(name), forms);
+        assert_eq!(
+            view.attribute_name_forms(name),
+            AttributeNameForms {
+                folded_name: name,
+                ..AttributeNameForms::default()
+            }
+        );
     }
 
     #[test]
