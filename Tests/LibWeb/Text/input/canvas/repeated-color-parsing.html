@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<canvas id="canvas"></canvas>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+
+        for (let i = 0; i < 20; ++i)
+            context.fillStyle = i % 2 ? "rgba(54, 162, 235, 0.5)" : "#abcdef";
+        println(context.fillStyle);
+
+        context.strokeStyle = "#abcdef";
+        println(context.strokeStyle);
+
+        context.strokeStyle = " rgba(100%, 0%, 50%, 50%) ";
+        println(context.strokeStyle);
+
+        context.strokeStyle = `${" ".repeat(128)}red`;
+        println(context.strokeStyle);
+
+        context.fillStyle = "invalid";
+        context.fillStyle = "invalid";
+        println(context.fillStyle);
+
+        canvas.style.color = "red";
+        context.fillStyle = "currentcolor";
+        println(context.fillStyle);
+
+        canvas.style.color = "blue";
+        context.fillStyle = "#abcdef";
+        context.fillStyle = "currentcolor";
+        println(context.fillStyle);
+    });
+</script>
