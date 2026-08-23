@@ -102,6 +102,11 @@ ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source)
     if (es_array_buffer->is_detached())
         return ByteBuffer {};
 
+    // OPTIMIZATION: Copy non-shared data blocks in bulk.
+    // Shared data blocks use the element-wise path to preserve memory ordering.
+    if (!es_array_buffer->is_shared_array_buffer())
+        return es_array_buffer->copy_to_byte_buffer(offset, length);
+
     // 8. Let bytes be a new byte sequence of length equal to length.
     auto bytes = TRY(ByteBuffer::create_zeroed(length));
 
