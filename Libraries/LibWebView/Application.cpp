@@ -1042,6 +1042,8 @@ ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web
 {
     if (!m_compositor_client)
         return Error::from_string_literal("Compositor process is not available");
+    if (!web_content_client.is_open())
+        return {};
 
     auto web_content_connection_id = web_content_client.compositor_connection_id({});
     if (!web_content_connection_id.has_value()) {
