@@ -20,6 +20,7 @@ pub mod css_enums;
 pub mod css_pixels;
 pub(crate) mod css_tokenizer;
 pub mod custom_properties;
+pub(crate) mod descriptor_metadata;
 pub mod display;
 pub mod ffi_stats;
 pub mod ffi_support;
