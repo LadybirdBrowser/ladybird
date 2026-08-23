@@ -585,20 +585,49 @@ Utf16String Range::to_string() const
     if (start_text && start_container() == end_container())
         return MUST(start_text->substring_data(start_offset(), end_offset() - start_offset()));
 
+    auto next_after_subtree = [](GC::Ptr<Node> node) -> GC::Ptr<Node> {
+        while (node) {
+            if (auto* next_sibling = node->next_sibling())
+                return *next_sibling;
+            node = node->parent_node();
+        }
+        return nullptr;
+    };
+
+    GC::Ptr<Node> first_node = start_container();
+    if (!is<CharacterData>(*first_node)) {
+        if (auto* child = first_node->child_at_index(start_offset()))
+            first_node = *child;
+        else if (start_offset() != 0)
+            first_node = next_after_subtree(first_node);
+    }
+
+    GC::Ptr<Node> past_last_node = end_container();
+    if (is<CharacterData>(*past_last_node)) {
+        past_last_node = next_after_subtree(past_last_node);
+    } else if (auto* child = past_last_node->child_at_index(end_offset())) {
+        past_last_node = *child;
+    } else {
+        past_last_node = next_after_subtree(past_last_node);
+    }
+
     // 3. If this’s start node is a Text node, then append the substring of that node’s data from this’s start offset until the end to s.
-    if (start_text)
-        builder.append(MUST(start_text->substring_data(start_offset(), start_text->length_in_utf16_code_units() - start_offset())));
-
     // 4. Append the concatenation of the data of all Text nodes that are contained in this, in tree order, to s.
-    for_each_contained([&](GC::Ref<Node> node) {
-        if (auto* text_node = as_if<Text>(*node))
-            builder.append(text_node->data());
-        return IterationDecision::Continue;
-    });
-
     // 5. If this’s end node is a Text node, then append the substring of that node’s data from its start until this’s end offset to s.
-    if (auto* end_text = as_if<Text>(*end_container()))
-        builder.append(MUST(end_text->substring_data(0, end_offset())));
+    // OPTIMIZATION: Perform these steps in one tree-order traversal instead of testing every candidate node for
+    //               containment, which would repeatedly compare its boundaries with the range boundaries.
+    for (auto node = first_node; node != past_last_node; node = node->next_in_pre_order()) {
+        auto* text_node = as_if<Text>(*node);
+        if (!text_node)
+            continue;
+
+        if (node == start_container())
+            builder.append(MUST(text_node->substring_data(start_offset(), text_node->length_in_utf16_code_units() - start_offset())));
+        else if (node == end_container())
+            builder.append(MUST(text_node->substring_data(0, end_offset())));
+        else
+            builder.append(text_node->data());
+    }
 
     // 6. Return s.
     return builder.to_string();
