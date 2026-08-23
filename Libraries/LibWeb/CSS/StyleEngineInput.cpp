@@ -2165,6 +2165,17 @@ void record_stylesheet_detached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
 // inputs the engine already routes, not with a state transition published here.
 #include <LibWeb/StyleEngineStateFactsGenerated.inc>
 
+bool can_record_element_state_change(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine)
+        return false;
+    auto node = element.style_node_id();
+    if (node == no_style_node || has_pending_initial_features(element))
+        return false;
+    return true;
+}
+
 void record_element_state_changed(DOM::Element& element, PseudoClass pseudo_class, bool new_value)
 {
     auto* style_engine = style_engine_for(element);
