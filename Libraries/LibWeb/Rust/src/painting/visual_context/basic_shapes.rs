@@ -9,10 +9,10 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::normalize_border_radii_data;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::{paintable_geometry, style_queries};
 use libgfx_rust::WindingRule;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
@@ -437,7 +437,7 @@ fn svg_path_data_to_path(path_string: &crate::css::retained_fly_string::Retained
 }
 
 pub(crate) fn compute_basic_shape_clip_path_data(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule, bool)> {

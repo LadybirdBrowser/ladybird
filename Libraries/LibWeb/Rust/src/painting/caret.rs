@@ -5,9 +5,9 @@
  */
 
 use crate::css::css_pixels::CssPixelRect;
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::text_fragment::{self, CaretMatch};
 
 pub(crate) struct CaretRectResult {
@@ -18,7 +18,7 @@ pub(crate) struct CaretRectResult {
 }
 
 fn caret_rect_in_fragment(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     owner: NodeSlotId,
     fragment: &FragmentRecord,
     offset: usize,
@@ -32,7 +32,7 @@ fn caret_rect_in_fragment(
 }
 
 pub(crate) fn caret_rect_for_position(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     node_slots: &[NodeSlotId],
     offset: usize,
     affinity_is_downstream: bool,
@@ -60,7 +60,7 @@ pub(crate) fn caret_rect_for_position(
 }
 
 pub(crate) fn caret_rect_in_dom_range(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     node_slots: &[NodeSlotId],
     offset: usize,
 ) -> Option<CssPixelRect> {

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::fragment_ownership;
 use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_NONE};
+use crate::painting::paintable_rows::PaintableRowsMut;
 use crate::painting::text_fragment;
 
 #[derive(Clone, Copy, Debug)]
@@ -16,7 +16,7 @@ pub(crate) struct SelectionRange {
     pub end_offset: usize,
 }
 
-fn invalidate_block_and_ancestors(layout_arena: &LayoutNodeArena, block: NodeSlotId) {
+fn invalidate_block_and_ancestors(layout_arena: &PaintableRowsMut<'_>, block: NodeSlotId) {
     let mut current = Some(block);
     while let Some(slot) = current {
         layout_arena.invalidate_paint_cache(slot);
@@ -24,20 +24,20 @@ fn invalidate_block_and_ancestors(layout_arena: &LayoutNodeArena, block: NodeSlo
     }
 }
 
-fn invalidate_self_painting_inline_box(layout_arena: &LayoutNodeArena, node: NodeSlotId) {
+fn invalidate_self_painting_inline_box(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
     if let Some(inline_box) = fragment_ownership::nearest_self_painting_inline_box(layout_arena, node) {
         layout_arena.invalidate_paint_cache(inline_box);
     }
 }
 
-fn reset_states(layout_arena: &LayoutNodeArena, viewport: NodeSlotId) {
+fn reset_states(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
     let mut slots = Vec::new();
     crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
         slots.push(slot);
     });
     for current in slots {
         if layout_arena.paintable_data(current).selection_state != SELECTION_STATE_NONE {
-            layout_arena.update_paintable_data(current, |data| data.selection_state = SELECTION_STATE_NONE);
+            layout_arena.paintable_data_mut(current).selection_state = SELECTION_STATE_NONE;
             layout_arena.invalidate_paint_cache(current);
         }
         let mut changed_fragment_nodes: Vec<NodeSlotId> = Vec::new();
@@ -56,7 +56,7 @@ fn reset_states(layout_arena: &LayoutNodeArena, viewport: NodeSlotId) {
     }
 }
 
-pub(crate) fn apply(layout_arena: &LayoutNodeArena, viewport: NodeSlotId, entries: &[FfiSelectionEntry]) {
+pub(crate) fn apply(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId, entries: &[FfiSelectionEntry]) {
     reset_states(layout_arena, viewport);
     for entry in entries {
         if entry.is_text_node_entry {
@@ -79,13 +79,13 @@ pub(crate) fn apply(layout_arena: &LayoutNodeArena, viewport: NodeSlotId, entrie
                 continue;
             }
             if layout_arena.paintable_data(entry.layout_node).selection_state != entry.state {
-                layout_arena.update_paintable_data(entry.layout_node, |data| data.selection_state = entry.state);
+                layout_arena.paintable_data_mut(entry.layout_node).selection_state = entry.state;
                 layout_arena.invalidate_paint_cache(entry.layout_node);
             }
         }
     }
 }
 
-pub(crate) fn clear(layout_arena: &LayoutNodeArena, viewport: NodeSlotId) {
+pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotId) {
     reset_states(layout_arena, viewport);
 }
