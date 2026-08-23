@@ -47,6 +47,10 @@ public:
     Vector<FunctionParameter> get_parameters() const;
     Utf16String return_type() const;
 
+    ReadonlySpan<FunctionParameterInternal const> parameters_internal() const { return m_parameters; }
+    Parser::SyntaxNode const& return_type_internal() const { return m_return_type; }
+    void for_each_effective_declaration(DOM::AbstractElement&, Function<void(Utf16FlyString const&, NonnullRefPtr<StyleValue const> const&)> const&) const;
+
     Utf16String serialized() const override;
 
     // https://drafts.csswg.org/css-mixins/#calling-context

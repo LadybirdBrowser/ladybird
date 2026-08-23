@@ -119,6 +119,7 @@ public:
         StyleScope const& scope;
     };
     Optional<FunctionDefinitionAndScope> get_function_definition(Utf16FlyString const& name) const;
+    void for_each_visible_function_definition(Function<void(FunctionDefinitionAndScope const&)> const&) const;
 
     template<typename T>
     Optional<T> dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const;

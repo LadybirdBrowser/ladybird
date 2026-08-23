@@ -32,6 +32,7 @@
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
@@ -2635,6 +2636,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     Vector<ComputedValuesFFI::FfiCascadeDeclaration> all_declarations;
     Vector<ComputedValuesFFI::FfiCustomPropertyDeclaration> all_custom_property_declarations;
     bool has_unresolved_declarations = false;
+    bool has_custom_function_declarations = false;
     struct PendingBlock {
         ComputedValuesFFI::FfiCascadeBlock block;
         size_t declarations_offset { 0 };
@@ -2649,6 +2651,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         all_declarations.ensure_capacity(all_declarations.size() + properties.size());
         for (auto const& property : properties) {
             has_unresolved_declarations |= property.value->is_unresolved();
+            has_custom_function_declarations |= property.value->is_unresolved() && property.value->as_unresolved().includes_dashed_function();
             all_declarations.unchecked_append({
                 .property_id = to_underlying(property.property_id),
                 .important = property.important == Important::Yes,
@@ -2906,6 +2909,84 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             .value = ffi_utf16_view(attribute.value),
         });
     }
+    struct SubstitutionFunctionParameter {
+        Utf16String name;
+        Utf16String syntax;
+        void const* default_data { nullptr };
+    };
+    struct SubstitutionFunctionDeclaration {
+        Utf16String name;
+        void const* data { nullptr };
+    };
+    struct SubstitutionFunctionDefinition {
+        GC::Ptr<CSSFunctionRule const> function;
+        StyleScope const* scope { nullptr };
+        Utf16String name;
+        Vector<SubstitutionFunctionParameter> parameters;
+        Utf16String return_syntax;
+        Vector<SubstitutionFunctionDeclaration> declarations;
+        Vector<ComputedValuesFFI::FfiSubstitutionFunctionParameter> ffi_parameters;
+        Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
+    };
+    Vector<SubstitutionFunctionDefinition> substitution_functions;
+    if (has_custom_function_declarations) {
+        abstract_element.style_scope().for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+            SubstitutionFunctionDefinition snapshot {
+                .function = definition.function,
+                .scope = &definition.scope,
+                .name = definition.function->name(),
+                .parameters = {},
+                .return_syntax = definition.function->return_type_internal().to_string(),
+                .declarations = {},
+                .ffi_parameters = {},
+                .ffi_declarations = {},
+            };
+            snapshot.parameters.ensure_capacity(definition.function->parameters_internal().size());
+            for (auto const& parameter : definition.function->parameters_internal()) {
+                snapshot.parameters.unchecked_append({
+                    .name = parameter.name.to_utf16_string(),
+                    .syntax = parameter.type->to_string(),
+                    .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
+                });
+            }
+            definition.function->for_each_effective_declaration(abstract_element, [&](Utf16FlyString const& name, NonnullRefPtr<StyleValue const> const& value) {
+                snapshot.declarations.append({
+                    .name = name.to_utf16_string(),
+                    .data = value->rust_style_value_data(),
+                });
+            });
+            substitution_functions.append(move(snapshot));
+        });
+    }
+    Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_substitution_functions;
+    ffi_substitution_functions.ensure_capacity(substitution_functions.size());
+    for (auto& definition : substitution_functions) {
+        definition.ffi_parameters.ensure_capacity(definition.parameters.size());
+        for (auto const& parameter : definition.parameters) {
+            definition.ffi_parameters.unchecked_append({
+                .name = ffi_utf16_view(parameter.name),
+                .syntax = ffi_utf16_view(parameter.syntax),
+                .default_data = parameter.default_data,
+            });
+        }
+        definition.ffi_declarations.ensure_capacity(definition.declarations.size());
+        for (auto const& declaration : definition.declarations) {
+            definition.ffi_declarations.unchecked_append({
+                .name = ffi_utf16_view(declaration.name),
+                .data = declaration.data,
+            });
+        }
+        ffi_substitution_functions.unchecked_append({
+            .identity = bit_cast<FlatPtr>(definition.function),
+            .scope_identity = bit_cast<FlatPtr>(definition.scope),
+            .name = ffi_utf16_view(definition.name),
+            .parameters = definition.ffi_parameters.data(),
+            .parameter_count = definition.ffi_parameters.size(),
+            .return_syntax = ffi_utf16_view(definition.return_syntax),
+            .declarations = definition.ffi_declarations.data(),
+            .declaration_count = definition.ffi_declarations.size(),
+        });
+    }
     ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
         .parse_context = &parse_context,
         .custom_property_store = custom_property_store,
@@ -2914,6 +2995,9 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         .attributes = ffi_substitution_attributes.data(),
         .attribute_count = ffi_substitution_attributes.size(),
         .attribute_names_are_ascii_case_insensitive = abstract_element.element().namespace_uri() == Namespace::HTML && document.is_html_document(),
+        .custom_functions = ffi_substitution_functions.data(),
+        .custom_function_count = ffi_substitution_functions.size(),
+        .custom_function_scope_identity = bit_cast<FlatPtr>(&abstract_element.style_scope()),
         .callback_context = &bulk_context,
         .note_substitution = [](void* context, void const* unresolved_data) {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
