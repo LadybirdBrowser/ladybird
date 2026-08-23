@@ -65,6 +65,7 @@ pub struct CustomPropertyStore {
     own_values: HashMap<usize, CustomPropertyEntry>,
     own_names: HashMap<Vec<u16>, usize>,
     parent: Option<Rc<CustomPropertyStore>>,
+    inheritance_parent: Option<Rc<CustomPropertyStore>>,
 }
 
 pub struct CustomPropertyRegistry {
@@ -159,9 +160,10 @@ enum TokenResolution {
 }
 
 #[derive(Default)]
-struct VarResolutionContext {
+struct VarResolutionContext<'a> {
     active_names: Vec<Vec<u16>>,
     cyclic_names: HashSet<Vec<u16>>,
+    inheritance_store: Option<&'a CustomPropertyStore>,
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -235,6 +237,30 @@ fn is_single_css_wide_keyword(tokens: &[OwnedToken]) -> bool {
         || keyword.eq_ignore_ascii_case("revert-layer")
 }
 
+fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
+    let [
+        OwnedToken {
+            kind: OwnedTokenKind::Ident(keyword),
+            ..
+        },
+    ] = trim_whitespace(tokens)
+    else {
+        return None;
+    };
+    is_single_css_wide_keyword(tokens).then_some(keyword.as_slice())
+}
+
+fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool)> {
+    if let Some((source, includes_var)) = data.unresolved_var_source() {
+        return Some((tokenize_owned(source), includes_var));
+    }
+    if matches!(data, StyleValueData::Unresolved { .. }) {
+        return None;
+    }
+    let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
+    Some((tokenize_owned(&source), false))
+}
+
 fn registration_accepts_tokens(
     registry: &CustomPropertyRegistry,
     registration: &RegisteredCustomProperty,
@@ -259,21 +285,22 @@ fn registration_accepts_tokens(
 }
 
 fn registered_property_fallback(
-    owner: Option<&CustomPropertyStore>,
+    inheritance_store: Option<&CustomPropertyStore>,
     registry: &CustomPropertyRegistry,
     registration: &RegisteredCustomProperty,
     name: &[u16],
     recursion_depth: u32,
 ) -> TokenResolution {
     if registration.inherits
-        && let Some(parent) = owner.and_then(|owner| owner.parent.as_deref())
+        && let Some(parent) = inheritance_store
     {
-        return resolve_custom_property(
+        return resolve_custom_property_with_lookup(
             Some(parent),
             Some(registry),
             name,
             &mut VarResolutionContext::default(),
             recursion_depth + 1,
+            CustomPropertyLookup::ExplicitInheritance,
         );
     }
     registration
@@ -284,6 +311,72 @@ fn registered_property_fallback(
         })
 }
 
+fn resolve_css_wide_keyword(
+    owner: &CustomPropertyStore,
+    registry: Option<&CustomPropertyRegistry>,
+    name: &[u16],
+    keyword: &[u16],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+    lookup: CustomPropertyLookup,
+) -> TokenResolution {
+    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    // Mirror StyleComputer::resolve_css_wide_keyword_for_custom_property(). Revert keywords
+    // remain unresolved there pending custom-property revert support; typed `revert` then reaches
+    // the invalid-value fallback below.
+    if keyword.eq_ignore_ascii_case("initial") {
+        return registration
+            .and_then(|registration| registration.initial_source.as_ref())
+            .map_or(TokenResolution::Invalid, |source| {
+                TokenResolution::Resolved(tokenize_owned(source))
+            });
+    }
+    if keyword.eq_ignore_ascii_case("inherit")
+        || keyword.eq_ignore_ascii_case("unset") && registration.is_none_or(|registration| registration.inherits)
+    {
+        let inheritance_store = match lookup {
+            CustomPropertyLookup::Normal => context.inheritance_store,
+            CustomPropertyLookup::ExplicitInheritance => owner.inheritance_parent.as_deref(),
+        };
+        return resolve_custom_property_with_lookup(
+            inheritance_store,
+            registry,
+            name,
+            context,
+            recursion_depth + 1,
+            CustomPropertyLookup::ExplicitInheritance,
+        );
+    }
+    if keyword.eq_ignore_ascii_case("unset") {
+        return registration
+            .and_then(|registration| registration.initial_source.as_ref())
+            .map_or(TokenResolution::Invalid, |source| {
+                TokenResolution::Resolved(tokenize_owned(source))
+            });
+    }
+    // NB: The C++ oracle sends typed registered `revert` through the invalid-value fallback,
+    //     while `revert-layer` remains unresolved pending custom-property revert support.
+    if keyword.eq_ignore_ascii_case("revert")
+        && let (Some(registry), Some(registration)) = (registry, registration)
+        && !matches!(registration.syntax, SyntaxNode::Universal)
+    {
+        let inheritance_store = match lookup {
+            CustomPropertyLookup::Normal => context.inheritance_store,
+            CustomPropertyLookup::ExplicitInheritance => owner.inheritance_parent.as_deref(),
+        };
+        return registered_property_fallback(inheritance_store, registry, registration, name, recursion_depth);
+    }
+    TokenResolution::Resolved(tokenize_owned(crate::css::css_tokenizer::TokenizerInput::Utf16(
+        keyword,
+    )))
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CustomPropertyLookup {
+    Normal,
+    ExplicitInheritance,
+}
+
 fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
@@ -291,10 +384,33 @@ fn resolve_custom_property(
     context: &mut VarResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
+    resolve_custom_property_with_lookup(
+        store,
+        registry,
+        name,
+        context,
+        recursion_depth,
+        CustomPropertyLookup::Normal,
+    )
+}
+
+fn resolve_custom_property_with_lookup(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    name: &[u16],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+    lookup: CustomPropertyLookup,
+) -> TokenResolution {
     let registration = registry.and_then(|registry| registry.registrations.get(name));
-    let entry_and_owner = store.and_then(|store| match registration {
-        Some(registration) if !registration.inherits => store.get_own_by_name(name).map(|entry| (entry, store)),
-        _ => store.get_by_name_with_owner(name),
+    let entry_and_owner = store.and_then(|store| {
+        if lookup == CustomPropertyLookup::ExplicitInheritance {
+            return store.get_by_name_with_owner(name);
+        }
+        match registration {
+            Some(registration) if !registration.inherits => store.get_own_by_name(name).map(|entry| (entry, store)),
+            _ => store.get_by_name_with_owner(name),
+        }
     });
     let Some((entry, owner)) = entry_and_owner else {
         return registration
@@ -307,7 +423,7 @@ fn resolve_custom_property(
     if matches!(data, StyleValueData::GuaranteedInvalid) {
         return TokenResolution::Invalid;
     }
-    let Some((source, includes_var)) = data.unresolved_var_source() else {
+    let Some((source, includes_var)) = tokens_for_custom_property_value(data) else {
         return TokenResolution::NotHandled;
     };
     if context.cyclic_names.contains(name) {
@@ -324,32 +440,34 @@ fn resolve_custom_property(
     }
     context.active_names.push(name.to_owned());
     let result = if includes_var {
-        substitute_tokens(store, registry, &tokenize_owned(source), context, recursion_depth + 1)
+        substitute_tokens(store, registry, &source, context, recursion_depth + 1)
     } else {
-        TokenResolution::Resolved(tokenize_owned(source))
+        TokenResolution::Resolved(source)
     };
     let active_name = context.active_names.pop().expect("active custom property");
     debug_assert_eq!(active_name, name);
     if let TokenResolution::Resolved(tokens) = &result
-        && is_single_css_wide_keyword(tokens)
+        && let Some(keyword) = single_css_wide_keyword(tokens)
     {
-        // NB: A CSS-wide keyword produced by substitution must first take on its custom-property
-        // meaning. Keep this case on the C++ path until custom-property keyword resolution moves.
-        return TokenResolution::NotHandled;
+        return resolve_css_wide_keyword(owner, registry, name, keyword, context, recursion_depth, lookup);
     }
     if let (Some(registry), Some(registration)) = (registry, registration) {
+        let inheritance_store = match lookup {
+            CustomPropertyLookup::Normal => context.inheritance_store,
+            CustomPropertyLookup::ExplicitInheritance => owner.inheritance_parent.as_deref(),
+        };
         if context.cyclic_names.contains(name) {
             if !context.active_names.is_empty() {
                 return TokenResolution::Cyclic;
             }
-            return registered_property_fallback(Some(owner), registry, registration, name, recursion_depth);
+            return registered_property_fallback(inheritance_store, registry, registration, name, recursion_depth);
         }
         return match result {
             TokenResolution::Resolved(tokens) if registration_accepts_tokens(registry, registration, &tokens) => {
                 TokenResolution::Resolved(tokens)
             }
             TokenResolution::Resolved(_) | TokenResolution::Invalid | TokenResolution::Cyclic => {
-                registered_property_fallback(Some(owner), registry, registration, name, recursion_depth)
+                registered_property_fallback(inheritance_store, registry, registration, name, recursion_depth)
             }
             TokenResolution::NotHandled => TokenResolution::NotHandled,
         };
@@ -535,13 +653,11 @@ pub(crate) unsafe fn resolve_vars(
     if !includes_var {
         return NativeVarResolution::NotHandled;
     }
-    match substitute_tokens(
-        store,
-        registry,
-        &tokenize_owned(source),
-        &mut VarResolutionContext::default(),
-        0,
-    ) {
+    let mut context = VarResolutionContext {
+        inheritance_store: store.and_then(|store| store.inheritance_parent.as_deref()),
+        ..Default::default()
+    };
+    match substitute_tokens(store, registry, &tokenize_owned(source), &mut context, 0) {
         TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved(serialize_tokens(&tokens)),
         TokenResolution::Invalid | TokenResolution::Cyclic => NativeVarResolution::Invalid,
         TokenResolution::NotHandled => NativeVarResolution::NotHandled,
@@ -700,16 +816,18 @@ pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_
 }
 
 /// Creates one Rust store node. Each entry transfers a leaked fly-string reference and a
-/// strong style value data handle. The parent is another Rc raw pointer.
+/// strong style value data handle. The structural and inheritance parents are other Rc raw
+/// pointers; they can differ when the C++ store has compacted its structural chain.
 ///
 /// # Safety
-/// `entries` must point at `entry_count` valid entries and `parent` must be null or a pointer
-/// returned by this function that remains live for this call.
+/// `entries` must point at `entry_count` valid entries. Both parent pointers must be null or
+/// pointers returned by this function that remain live for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_create(
     entries: *const FfiCustomPropertyStoreEntry,
     entry_count: usize,
     parent: *const c_void,
+    inheritance_parent: *const c_void,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     abort_on_panic(|| {
@@ -724,6 +842,13 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             let parent = parent.cast::<CustomPropertyStore>();
             unsafe { Rc::increment_strong_count(parent) };
             Some(unsafe { Rc::from_raw(parent) })
+        };
+        let inheritance_parent = if inheritance_parent.is_null() {
+            None
+        } else {
+            let inheritance_parent = inheritance_parent.cast::<CustomPropertyStore>();
+            unsafe { Rc::increment_strong_count(inheritance_parent) };
+            Some(unsafe { Rc::from_raw(inheritance_parent) })
         };
         let mut own_names = HashMap::with_capacity(entries.len());
         let own_values = entries
@@ -745,6 +870,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             own_values,
             own_names,
             parent,
+            inheritance_parent,
         }))
         .cast()
     })
