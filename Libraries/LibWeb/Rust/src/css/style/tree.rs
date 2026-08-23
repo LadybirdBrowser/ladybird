@@ -488,6 +488,8 @@ pub struct StyleNodeTree {
     /// Allocated only once a shadow tree exists.
     shadow: Option<Box<ShadowRelations>>,
 
+    capacity_bytes: u64,
+
     #[cfg(test)]
     depth_recompute_visits: usize,
 }
@@ -519,6 +521,7 @@ impl StyleNodeTree {
             pending_reuse: Vec::new(),
             free_element_indexes: Vec::new(),
             shadow: None,
+            capacity_bytes: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
         };
@@ -528,7 +531,8 @@ impl StyleNodeTree {
         tree.next_element_sibling.push(None);
         tree.previous_element_sibling.push(None);
         tree.depth.push(0);
-        tree.charge(memory, 0);
+        tree.capacity_bytes = tree.recompute_capacity_bytes();
+        memory.reserve_required(MemoryCategory::RelationColumns, tree.capacity_bytes);
         tree
     }
 
@@ -556,8 +560,7 @@ impl StyleNodeTree {
     /// Allocate an element identity. Reuses a slot only once the epoch that could still observe its
     /// previous occupant has retired.
     pub fn allocate_element(&mut self, memory: &mut MemoryController) -> StyleNodeID {
-        let before = self.capacity_bytes();
-        let index = match self.free_element_indexes.pop() {
+        let (index, capacity_before_growth) = match self.free_element_indexes.pop() {
             Some(index) => {
                 self.parent[index as usize] = None;
                 self.first_element_child[index as usize] = None;
@@ -567,9 +570,10 @@ impl StyleNodeTree {
                 if let Some(column) = self.tree_scope.as_mut() {
                     column[index as usize] = TreeScopeID::DOCUMENT;
                 }
-                index
+                (index, None)
             }
             None => {
+                let capacity_before_growth = self.identity_capacity_bytes();
                 let index = u32::try_from(self.parent.len()).expect("element index space exhausted");
                 self.parent.push(None);
                 self.first_element_child.push(None);
@@ -579,19 +583,22 @@ impl StyleNodeTree {
                 if let Some(column) = self.tree_scope.as_mut() {
                     column.push(TreeScopeID::DOCUMENT);
                 }
-                index
+                (index, Some(capacity_before_growth))
             }
         };
         self.live.set(index as usize, true);
+        if let Some(capacity_before_growth) = capacity_before_growth {
+            let current = self.identity_capacity_bytes();
+            self.record_capacity_change(memory, capacity_before_growth, current);
+        }
         self.connected_element_count += 1;
-        self.charge(memory, before);
         StyleNodeID::element(index)
     }
 
     /// Retire an element identity. The slot stays reserved until [`Self::release_retired_identities`]
     /// runs at epoch retirement, so no reader can observe a reused identity.
     pub fn retire_element(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
-        let before = self.capacity_bytes();
+        let before = self.retirement_capacity_bytes();
         let index = node
             .element_index()
             .expect("retire_element requires an element identity");
@@ -610,14 +617,16 @@ impl StyleNodeTree {
         self.depth[index as usize] = 0;
         self.connected_element_count -= 1;
         self.pending_reuse.push(index);
-        self.charge(memory, before);
+        let current = self.retirement_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     /// Called once the read epoch that could still name the retired identities has retired.
     pub fn release_retired_identities(&mut self, memory: &mut MemoryController) {
-        let before = self.capacity_bytes();
+        let before = self.reuse_capacity_bytes();
         self.free_element_indexes.append(&mut self.pending_reuse);
-        self.charge(memory, before);
+        let current = self.reuse_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     #[must_use]
@@ -722,9 +731,12 @@ impl StyleNodeTree {
         if self.tree_scope.is_some() {
             return;
         }
-        let before = self.capacity_bytes();
         self.tree_scope = Some(vec![TreeScopeID::DOCUMENT; self.parent.len()]);
-        self.charge(memory, before);
+        let current = self
+            .tree_scope
+            .as_ref()
+            .map_or(0, |column| column.capacity() * size_of::<TreeScopeID>());
+        self.record_capacity_change(memory, 0, current as u64);
     }
 
     #[must_use]
@@ -755,7 +767,7 @@ impl StyleNodeTree {
 
     /// Record that `host` hosts `shadow_root`.
     pub fn set_shadow_root(&mut self, host: StyleNodeID, shadow_root: StyleNodeID, memory: &mut MemoryController) {
-        let before = self.capacity_bytes();
+        let before = self.shadow_capacity_bytes();
         let shadow = self.shadow_mut();
         if let Some(previous_root) = shadow.shadow_root.insert(host, shadow_root)
             && previous_root != shadow_root
@@ -769,7 +781,8 @@ impl StyleNodeTree {
         {
             shadow.shadow_root.remove(previous_host);
         }
-        self.charge(memory, before);
+        let current = self.shadow_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     #[must_use]
@@ -787,7 +800,7 @@ impl StyleNodeTree {
     /// Slot assignment changes flat-tree identity even when the DOM parent does not move, which is
     /// why it is its own relation rather than a derived view of the DOM tree.
     pub fn set_assigned_slot(&mut self, node: StyleNodeID, slot: Option<StyleNodeID>, memory: &mut MemoryController) {
-        let before = self.capacity_bytes();
+        let before = self.shadow_capacity_bytes();
         let shadow = self.shadow_mut();
         if let Some(previous) = shadow.assigned_slot.remove(node)
             && let Some(nodes) = shadow.assigned_nodes.get_mut(&previous)
@@ -798,7 +811,8 @@ impl StyleNodeTree {
             shadow.assigned_slot.insert(node, slot);
             shadow.assigned_nodes.entry(slot).or_default().push(node);
         }
-        self.charge(memory, before);
+        let current = self.shadow_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     /// The shadow host of the tree `node` is in, if it is in one.
@@ -834,14 +848,15 @@ impl StyleNodeTree {
         pairs: &[(StyleAtomID, StyleNodeID)],
         memory: &mut MemoryController,
     ) {
-        let before = self.capacity_bytes();
+        let before = self.shadow_capacity_bytes();
         let shadow = self.shadow_mut();
         if pairs.is_empty() {
             shadow.part_hosts.remove(&node);
         } else {
             shadow.part_hosts.insert(node, pairs.to_vec());
         }
-        self.charge(memory, before);
+        let current = self.shadow_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     /// Every (name, host) pair the element answers a `::part()` rule under.
@@ -987,6 +1002,10 @@ impl StyleNodeTree {
     /// Exact capacity of every column, charged to Tier 1.
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
+        self.capacity_bytes
+    }
+
+    fn identity_capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [
                 self.parent,
@@ -994,8 +1013,6 @@ impl StyleNodeTree {
                 self.next_element_sibling,
                 self.previous_element_sibling,
                 self.depth,
-                self.pending_reuse,
-                self.free_element_indexes,
             ];
             cached [];
             nested [
@@ -1003,19 +1020,39 @@ impl StyleNodeTree {
                     .as_ref()
                     .map_or(0, |column| column.capacity() * size_of::<TreeScopeID>()),
                 self.live.capacity_bytes(),
-                self.shadow.as_ref().map_or(0, |relations| relations.capacity_bytes()),
             ];
             skip [];
         }
     }
 
-    fn charge(&self, memory: &mut MemoryController, previous_bytes: u64) {
-        let current = self.capacity_bytes();
-        if current > previous_bytes {
-            memory.reserve_required(MemoryCategory::RelationColumns, current - previous_bytes);
-        } else if previous_bytes > current {
-            memory.release(MemoryCategory::RelationColumns, previous_bytes - current);
+    fn reuse_capacity_bytes(&self) -> u64 {
+        ((self.pending_reuse.capacity() + self.free_element_indexes.capacity()) * size_of::<u32>()) as u64
+    }
+
+    fn shadow_capacity_bytes(&self) -> u64 {
+        self.shadow.as_ref().map_or(0, |relations| relations.capacity_bytes())
+    }
+
+    fn retirement_capacity_bytes(&self) -> u64 {
+        (self.pending_reuse.capacity() * size_of::<u32>()) as u64 + self.shadow_capacity_bytes()
+    }
+
+    fn recompute_capacity_bytes(&self) -> u64 {
+        self.identity_capacity_bytes() + self.reuse_capacity_bytes() + self.shadow_capacity_bytes()
+    }
+
+    fn record_capacity_change(&mut self, memory: &mut MemoryController, previous: u64, current: u64) {
+        if current > previous {
+            let growth = current - previous;
+            self.capacity_bytes += growth;
+            memory.reserve_required(MemoryCategory::RelationColumns, growth);
+        } else if previous > current {
+            let shrinkage = previous - current;
+            self.capacity_bytes -= shrinkage;
+            memory.release(MemoryCategory::RelationColumns, shrinkage);
         }
+        #[cfg(test)]
+        assert_eq!(self.capacity_bytes, self.recompute_capacity_bytes());
     }
 
     fn element_index(&self, node: StyleNodeID) -> usize {
