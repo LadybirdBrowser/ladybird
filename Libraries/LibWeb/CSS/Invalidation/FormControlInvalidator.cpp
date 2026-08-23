@@ -36,6 +36,11 @@ void invalidate_style_after_placeholder_shown_change(DOM::Element& element)
 // now has, which is what lets a change that moved nothing publish nothing.
 static void record_validity_states(DOM::Element& element)
 {
+    // An element whose initial features are pending will publish its current state when those
+    // features are recorded. Computing that state here would be discarded by the style engine.
+    if (!can_record_element_state_change(element))
+        return;
+
     auto validity = SelectorMatching::element_validity_state(element);
     record_element_state_changed(element, PseudoClass::Valid, validity == SelectorMatching::ValidityState::Valid);
     record_element_state_changed(element, PseudoClass::Invalid, validity == SelectorMatching::ValidityState::Invalid);
