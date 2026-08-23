@@ -72,10 +72,11 @@ public:
     // The active document's load, tracked from the document's activation until WebContent reports that
     // the load finished, failed, or was canceled. Kept apart from the ongoing navigation because the two
     // overlap: a newer navigation can be admitted, and a traversal can run, while the active document's
-    // load is still in progress.
+    // load is still in progress. A navigable has an active document from birth, so this always exists;
+    // the navigation id is empty when no UI-recorded navigation produced the document (the initial
+    // about:blank, or a document populated by a traversal).
     struct ActiveDocumentLoad {
         Optional<Utf16String> navigation_id {};
-        Optional<URL::URL> url {};
     };
 
     CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id);
@@ -167,8 +168,8 @@ public:
     bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value() && m_ongoing_navigation->is_uncommitted; }
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
 
-    Optional<ActiveDocumentLoad> const& active_document_load() const { return m_active_document_load; }
-    void clear_active_document_load() { m_active_document_load.clear(); }
+    ActiveDocumentLoad const& active_document_load() const { return m_active_document_load; }
+    void clear_active_document_load() { m_active_document_load = {}; }
 
 private:
     Web::HTML::CrossProcessId m_id;
@@ -183,7 +184,7 @@ private:
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
-    Optional<ActiveDocumentLoad> m_active_document_load;
+    ActiveDocumentLoad m_active_document_load;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };
 

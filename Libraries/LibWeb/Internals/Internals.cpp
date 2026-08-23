@@ -594,7 +594,11 @@ void Internals::load_url(Utf16String const& url_string)
     VERIFY(url.has_value());
 
     Core::deferred_invoke([page = GC::make_root(page()), url = url.release_value()] {
-        page->load(url);
+        // This navigation originates inside WebContent, so it has no UI-recorded navigation id;
+        // the navigate algorithm generates one.
+        (void)page->top_level_traversable()->navigate({ .url = url,
+            .history_handling = Web::Bindings::NavigationHistoryBehavior::Auto,
+            .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
     });
 }
 

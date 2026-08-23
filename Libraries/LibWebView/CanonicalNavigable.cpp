@@ -332,7 +332,6 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
         if (active_document_changed) {
             m_active_document_load = ActiveDocumentLoad {
                 .navigation_id = m_ongoing_navigation.has_value() ? m_ongoing_navigation->navigation_id : Optional<Utf16String> {},
-                .url = m_ongoing_navigation.has_value() ? m_ongoing_navigation->url : Optional<URL::URL> {},
             };
         }
     }
@@ -428,9 +427,8 @@ void CanonicalNavigable::did_finish_navigation_transaction(Optional<Utf16String>
         clear_ongoing_navigation();
 
     if (result != Web::HTML::HistoryStepResult::Applied
-        && m_active_document_load.has_value()
-        && m_active_document_load->navigation_id == navigation_id) {
-        m_active_document_load.clear();
+        && m_active_document_load.navigation_id == navigation_id) {
+        clear_active_document_load();
     }
 }
 
@@ -441,10 +439,7 @@ bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const&
         return m_ongoing_navigation->has_started && navigation_id == m_ongoing_navigation->navigation_id;
 
     // Otherwise completion signals concern the active document's tracked load.
-    if (m_active_document_load.has_value())
-        return navigation_id == m_active_document_load->navigation_id;
-
-    return !navigation_id.has_value();
+    return navigation_id == m_active_document_load.navigation_id;
 }
 
 }

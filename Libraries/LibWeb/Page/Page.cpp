@@ -134,22 +134,23 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
         m_mouse_event_tracking_navigable = nullptr;
 }
 
-void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling, Optional<Utf16String> navigation_id)
+void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
 {
     (void)top_level_traversable()->navigate({ .url = url, .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI, .navigation_id = move(navigation_id) });
 }
 
-void Page::load_html(StringView html)
+void Page::load_html(StringView html, Utf16String navigation_id)
 {
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
     (void)top_level_traversable()->navigate({ .url = URL::about_srcdoc(),
         .document_resource = Utf16String::from_utf8(html),
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
+        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
+        .navigation_id = move(navigation_id) });
 }
 
-void Page::load_html(StringView html, URL::URL const& url)
+void Page::load_html(StringView html, URL::URL const& url, Utf16String navigation_id)
 {
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
@@ -165,7 +166,8 @@ void Page::load_html(StringView html, URL::URL const& url)
 
     HTML::LocalNavigable::NavigateParams params { .url = url,
         .response = response,
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI };
+        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
+        .navigation_id = move(navigation_id) };
 
     if (url == URL::about_srcdoc())
         params.document_resource = Utf16String::from_utf8(html);

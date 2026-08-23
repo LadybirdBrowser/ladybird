@@ -458,26 +458,36 @@ void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate i
 void ViewImplementation::load_html(StringView html)
 {
     set_loading_state(true);
-    m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.clear_active_document_load();
-    m_last_stopped_load_url.clear();
     m_is_showing_crash_page = false;
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
-    client().async_load_html(page_id(), html);
+    auto navigation_id = generate_navigation_id();
+    m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+        .url = URL::about_srcdoc(),
+        .navigation_id = navigation_id,
+        .sequence_number = m_top_level_traversable.allocate_navigation_or_traversal_sequence_number(),
+        .is_uncommitted = true,
+    });
+    m_last_stopped_load_url.clear();
+    client().async_load_html(page_id(), html, navigation_id.utf16_view());
 }
 
 void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& crashed_url)
 {
     set_loading_state(true);
-    m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.clear_active_document_load();
-    m_last_stopped_load_url.clear();
     m_is_showing_crash_page = true;
     m_should_suppress_history_for_current_load = true;
     m_should_suppress_history_for_next_load = true;
+    auto navigation_id = generate_navigation_id();
+    m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+        .url = crashed_url,
+        .navigation_id = navigation_id,
+        .sequence_number = m_top_level_traversable.allocate_navigation_or_traversal_sequence_number(),
+        .is_uncommitted = true,
+    });
+    m_last_stopped_load_url.clear();
     set_url(crashed_url);
-    client().async_load_html_with_url(page_id(), html, crashed_url);
+    client().async_load_html_with_url(page_id(), html, crashed_url, navigation_id.utf16_view());
 }
 
 void ViewImplementation::load_navigation_error_page(StringView text)
@@ -507,8 +517,8 @@ void ViewImplementation::reload()
     Optional<URL::URL> ongoing_url;
     if (m_top_level_traversable.ongoing_navigation().has_value())
         ongoing_url = move(m_top_level_traversable.ongoing_navigation()->url);
-    else if (m_top_level_traversable.active_document_load().has_value())
-        ongoing_url = m_top_level_traversable.active_document_load()->url;
+    else if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+        ongoing_url = current_entry->url;
     m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = move(ongoing_url),
         .sequence_number = m_top_level_traversable.next_sequence_number(),
@@ -534,10 +544,10 @@ void ViewImplementation::stop_loading()
 {
     if (!m_is_loading)
         return;
+    // Only a stopped navigation that never activated its document needs reissuing on reload; a stopped
+    // active-document load reloads through the session history.
     if (m_top_level_traversable.ongoing_navigation().has_value())
         m_last_stopped_load_url = m_top_level_traversable.ongoing_navigation()->url;
-    else if (m_top_level_traversable.active_document_load().has_value())
-        m_last_stopped_load_url = m_top_level_traversable.active_document_load()->url;
     else
         m_last_stopped_load_url = {};
     if (cancel_uncommitted_top_level_navigation("stop-loading"sv, true))
@@ -2117,14 +2127,9 @@ bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navi
 {
     // A cancel may arrive before a UI-issued load reports its start. A started navigation's cancel must name it.
     auto const& ongoing = m_top_level_traversable.ongoing_navigation();
-    auto const& active_document_load = m_top_level_traversable.active_document_load();
-    bool stale;
-    if (ongoing.has_value())
-        stale = ongoing->has_started && navigation_id != ongoing->navigation_id;
-    else if (active_document_load.has_value())
-        stale = navigation_id != active_document_load->navigation_id;
-    else
-        stale = navigation_id.has_value();
+    auto stale = ongoing.has_value()
+        ? ongoing->has_started && navigation_id != ongoing->navigation_id
+        : navigation_id != m_top_level_traversable.active_document_load().navigation_id;
     if (stale)
         return false;
 
@@ -2699,8 +2704,6 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
     Optional<URL::URL> loading_url;
     if (m_top_level_traversable.ongoing_navigation().has_value())
         loading_url = m_top_level_traversable.ongoing_navigation()->url;
-    else if (m_top_level_traversable.active_document_load().has_value())
-        loading_url = m_top_level_traversable.active_document_load()->url;
 
     dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} pending_same_document_entries={} back={} forward={} entries={}",
         page_id(),
