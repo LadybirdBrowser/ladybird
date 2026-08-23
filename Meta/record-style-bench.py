@@ -112,6 +112,12 @@ if (wanted !== null) {{
     for (const suite of Suites)
         suite.disabled = suite.name !== wanted;
 }}
+window.__styleBenchFinished = false;
+const didFinishLastIteration = benchmarkClient.didFinishLastIteration;
+benchmarkClient.didFinishLastIteration = function (...args) {{
+    window.__styleBenchFinished = true;
+    return didFinishLastIteration.apply(this, args);
+}};
 return {{ started: startBenchmark(), count: benchmarkClient.stepCount }};
 """
             started = request_json(
@@ -130,11 +136,13 @@ return {{ started: startBenchmark(), count: benchmarkClient.stepCount }};
                     "POST",
                     f"/session/{session}/execute/sync",
                     {
-                        "script": "return { finished: benchmarkClient._finishedTestCount, total: benchmarkClient.stepCount };",
+                        "script": "return { done: window.__styleBenchFinished === true, finished: benchmarkClient._finishedTestCount, total: benchmarkClient.stepCount };",
                         "args": [],
                     },
                 )["value"]
-                if state["finished"] == state["total"]:
+                # NB: _finishedTestCount overshoots stepCount (it counts more than one event per step),
+                #     so completion is signalled by didFinishLastIteration rather than by comparing counters.
+                if state["done"]:
                     break
                 time.sleep(0.25)
             else:
@@ -161,7 +169,12 @@ def main():
     parser.add_argument("--suite", help="record only this exact StyleBench suite name")
     parser.add_argument("--webdriver", default=DEFAULT_WEBDRIVER, help="WebDriver executable")
     parser.add_argument("--url", default=DEFAULT_URL, help="canonical StyleBench runner URL")
-    parser.add_argument("--timeout", type=float, default=600, help="benchmark timeout in seconds")
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=300,
+        help="benchmark timeout in seconds (a full StyleBench run takes well under a minute)",
+    )
     parser.add_argument("--keep-stderr", action="store_true", help="show browser stderr")
     record(parser.parse_args())
 
