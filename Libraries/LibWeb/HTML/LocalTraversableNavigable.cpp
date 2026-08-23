@@ -597,14 +597,12 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
     // AD-HOC: Unconditionally populating a document here could unload and re-navigate a frame because an unrelated
     //         navigable was created or destroyed — which no other engine does. So we skip such applying-the-target-
-    //         entry-would-cross-documents navigables here. A navigable still showing the initial about:blank
-    //         Document is the exception — activating its populated document is this update's job.
+    //         entry-would-cross-documents navigables here.
     //         https://github.com/whatwg/html/issues/12724
     if (!job.navigation_type.has_value()) {
         bool would_cross_documents = claimed_target_entry->document_state()->document_id() != navigable->active_document_id()
             || claimed_target_entry->document_state()->reload_pending();
-        auto active_document = navigable->active_document();
-        if (would_cross_documents && !(active_document && active_document->is_initial_about_blank())) {
+        if (would_cross_documents) {
             on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
             return false;
         }
@@ -1049,14 +1047,6 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
         // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
         queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
-    }
-    // AD-HOC: During navigable creation, the initial about:blank document can be
-    //         replaced by the container's initial navigation while applying the
-    //         creation/destruction history step. That hook passes a null
-    //         navigationType per spec, and there is no outgoing document to unload.
-    else if (!command.navigation_type.has_value() && displayed_document->is_initial_about_blank()) {
-        navigable->set_ongoing_navigation({}, command.navigation_api_abort_behavior);
-        after_potential_unload->function()();
     }
     // 11. Otherwise:
     else {
