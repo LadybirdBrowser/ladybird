@@ -395,6 +395,15 @@ bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client,
         && m_ongoing_navigation->host_page_id == page_id;
 }
 
+bool CanonicalNavigable::navigation_owner_matches(WebContentClient const& client, u64 page_id) const
+{
+    if (!m_ongoing_navigation.has_value())
+        return false;
+    auto population_worker_matches = m_ongoing_navigation->population_worker_client.ptr() == &client
+        && m_ongoing_navigation->population_worker_page_id == page_id;
+    return population_worker_matches || navigation_host_matches(client, page_id);
+}
+
 bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentClient const& client, u64 page_id) const
 {
     return m_ongoing_navigation.has_value()

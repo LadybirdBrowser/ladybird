@@ -465,7 +465,7 @@ void ViewImplementation::load_html(StringView html)
     m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = URL::about_srcdoc(),
         .navigation_id = navigation_id,
-        .sequence_number = m_top_level_traversable.allocate_navigation_or_traversal_sequence_number(),
+        .sequence_number = m_top_level_traversable.next_sequence_number(),
         .is_uncommitted = true,
     });
     m_last_stopped_load_url.clear();
@@ -482,7 +482,7 @@ void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& c
     m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = crashed_url,
         .navigation_id = navigation_id,
-        .sequence_number = m_top_level_traversable.allocate_navigation_or_traversal_sequence_number(),
+        .sequence_number = m_top_level_traversable.next_sequence_number(),
         .is_uncommitted = true,
     });
     m_last_stopped_load_url.clear();
