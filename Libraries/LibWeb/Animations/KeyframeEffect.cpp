@@ -1052,14 +1052,16 @@ void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext
     auto& style_computer = abstract_element.element().document().style_computer();
     auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer] {
         auto computed_values = abstract_element.computed_style();
-        VERIFY(computed_values);
+        if (!computed_values)
+            return AnimationUpdateContext::ElementData {};
         auto old_animated_properties = computed_values->animated_properties_snapshot();
         auto computed_properties = style_computer.reconstruct_computed_properties(*computed_values);
         computed_properties->reset_non_inherited_animated_properties({});
         return AnimationUpdateContext::ElementData { move(old_animated_properties), move(computed_properties) };
     });
 
-    VERIFY(element_data.target_style);
+    if (!element_data.target_style)
+        return;
     element_data.effects.append(*this);
 }
 

@@ -1,0 +1,3 @@
+font status before removal: loading
+live overlays before removal: 1
+PASS (did not crash)

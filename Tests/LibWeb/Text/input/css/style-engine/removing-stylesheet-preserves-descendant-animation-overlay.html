@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const fontUrl = await server.createEcho("GET", `/removing-stylesheet-preserves-descendant-animation-overlay-${token}.ttf`, {
+            status: 200,
+            headers: { "Content-Type": "font/ttf" },
+            body: "blocked font response",
+            wait_for_unblock: token,
+        });
+
+        const stylesheetUrl = await server.createEcho("GET", `/removing-stylesheet-preserves-descendant-animation-overlay-${token}.css`, {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `@font-face { font-family: SlowAhem; src: url("${fontUrl}"); }`,
+        });
+
+        const container = document.createElement("div");
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = stylesheetUrl;
+        const linkLoaded = new Promise(resolve => link.onload = resolve);
+        container.append(link);
+
+        const target = document.createElement("div");
+        target.textContent = "X";
+        target.style.fontFamily = "SlowAhem";
+        container.append(target);
+        document.body.append(container);
+        await linkLoaded;
+
+        target.animate({ opacity: [0, 1] }, { duration: 10000 });
+        await new Promise(requestAnimationFrame);
+        internals.updateStyle();
+        target.offsetWidth;
+        const fontLoadPromise = document.fonts.load("16px SlowAhem", "X").catch(() => {});
+        println(`font status before removal: ${document.fonts.status}`);
+        println(`live overlays before removal: ${internals.styleEngineCounters().liveAnimationOverlayRecords}`);
+
+        await new Promise(requestAnimationFrame);
+        container.remove();
+        println("PASS (did not crash)");
+
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        await fontLoadPromise;
+    });
+</script>
