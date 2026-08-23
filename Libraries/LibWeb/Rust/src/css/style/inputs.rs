@@ -1154,6 +1154,7 @@ impl StyleEngine {
         }
     }
 
+    #[inline]
     pub(super) fn stage_tree_row(
         &mut self,
         node: StyleNodeID,

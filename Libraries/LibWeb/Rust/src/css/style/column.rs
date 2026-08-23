@@ -215,6 +215,7 @@ impl<P: PagedColumnPage> PagedColumn<P> {
     }
 
     /// Publish one value and return the previous value and whether this allocated a page.
+    #[inline]
     pub(super) fn insert(&mut self, index: usize, value: P::Value) -> (Option<P::Value>, bool) {
         let page_index = index >> P::SHIFT;
         if self.pages.len() <= page_index {
