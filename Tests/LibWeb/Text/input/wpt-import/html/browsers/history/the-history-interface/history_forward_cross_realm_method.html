@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>history.forward() uses this's associated document's browsing context to determine if navigation is allowed</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/history.html#dom-history-forward">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<iframe id="sandboxedIframe" srcdoc="hello" sandbox="allow-scripts allow-same-origin"></iframe>
+<script>
+const t = async_test();
+
+t.step(() => {
+  history.pushState({}, null, "?prev");
+  history.pushState({}, null, "?current");
+  history.back();
+});
+
+let isCrossRealmForward = false;
+window.onpopstate = t.step_func(() => {
+  if (isCrossRealmForward) {
+    assert_equals(location.search, "?current");
+    t.done();
+  } else {
+    sandboxedIframe.contentWindow.history.forward.call(history);
+    isCrossRealmForward = true;
+  }
+});
+</script>
