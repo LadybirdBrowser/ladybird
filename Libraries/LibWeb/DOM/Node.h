@@ -451,6 +451,7 @@ public:
     WebIDL::ExceptionOr<void> unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>>, Utf16View);
 
     void replace_all(GC::Ptr<Node>);
+    void replace_all(Vector<GC::Root<Node>>);
     void string_replace_all(Utf16View);
     void string_replace_all(Utf16String);
 
@@ -596,6 +597,7 @@ private:
     void live_range_pre_remove();
 
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
+    void insert_nodes_before(Vector<GC::Root<Node>>, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
     void set_root_for_subtree(Node&);

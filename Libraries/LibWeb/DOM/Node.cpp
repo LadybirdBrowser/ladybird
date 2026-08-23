@@ -810,6 +810,13 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
     }
 
+    insert_nodes_before(move(nodes), child, suppress_observers, node, affects_elements);
+}
+
+void Node::insert_nodes_before(Vector<GC::Root<Node>> nodes, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements affects_elements)
+{
+    auto count = nodes.size();
+
     // 5. If child is non-null:
     if (child) {
         // 1. For each live range whose start node is parent and start offset is greater than child’s index:
@@ -930,7 +937,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     }
 
     // 9. Run the children changed steps for parent.
-    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, metadata_node, affects_elements };
     children_changed(metadata);
     invalidate_html_collection_caches_in_ancestors(affects_elements);
 
@@ -2667,6 +2674,27 @@ void Node::replace_all(GC::Ptr<Node> node)
     if (!added_nodes.is_empty() || !removed_nodes.is_empty()) {
         queue_tree_mutation_record(move(added_nodes), move(removed_nodes), nullptr, nullptr);
     }
+}
+
+void Node::replace_all(Vector<GC::Root<Node>> added_nodes)
+{
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
+    auto removed_nodes = children_as_vector();
+    auto added_nodes_for_mutation_record = added_nodes;
+
+    document().flush_deferred_style_change_event();
+    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
+    if (document().has_valid_html_collection_caches())
+        affects_elements = mutation_affects_elements(added_nodes.span());
+
+    remove_all_children(true);
+    if (!added_nodes.is_empty())
+        insert_nodes_before(move(added_nodes), nullptr, true, *this, affects_elements);
+
+    if (!added_nodes_for_mutation_record.is_empty() || !removed_nodes.is_empty())
+        queue_tree_mutation_record(move(added_nodes_for_mutation_record), move(removed_nodes), nullptr, nullptr);
 }
 
 void Node::string_replace_all(Utf16View string)
