@@ -522,16 +522,6 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
         return;
     }
 
-    // A javascript: navigation runs synchronously in the requesting process and never populates an entry; its
-    // admission carries no request to retain and just begins the recorded load.
-    if (!start_request.has_value()) {
-        if (target_navigable->is_top_level_traversable()) {
-            if (auto view = view_for_page_id(page_id); view.has_value())
-                begin_top_level_load(*view, page_id, move(navigation_id), url);
-        }
-        return;
-    }
-
     auto sequence_number = target_navigable->top_level_traversable().next_sequence_number();
     if (auto const& ongoing_navigation = target_navigable->ongoing_navigation(); ongoing_navigation.has_value()
         && ongoing_navigation->sequence_number != 0
@@ -540,6 +530,26 @@ void WebContentClient::did_request_navigation_start(u64 page_id, Web::HTML::Cros
         // generated, before WebContent enters navigate(). Keep its original admission order now
         // that WebContent has started the navigation.
         sequence_number = ongoing_navigation->sequence_number;
+    }
+
+    // A javascript: navigation runs synchronously in the requesting process and never populates an entry.
+    // Record its admission without population state, owned by the evaluating process, so its failure or
+    // produced document is validated against that process.
+    if (!start_request.has_value()) {
+        target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+            .url = url,
+            .current_url = move(current_url),
+            .target = target,
+            .navigation_id = navigation_id,
+            .sequence_number = sequence_number,
+            .is_uncommitted = target_navigable->is_top_level_traversable(),
+        });
+        target_navigable->set_navigation_population_worker(*this, page_id);
+        if (target_navigable->is_top_level_traversable()) {
+            if (auto view = view_for_page_id(page_id); view.has_value())
+                begin_top_level_load(*view, page_id, move(navigation_id), url);
+        }
+        return;
     }
 
     target_navigable->set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
@@ -728,22 +738,20 @@ void WebContentClient::did_fail_navigation_population(u64 page_id, Web::HTML::Cr
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
-    auto population_failure = navigable->navigation_transaction_matches(navigation_id, *this, page_id);
-    auto awaiting_unload_check = navigable->ongoing_navigation().has_value()
-        && navigable->ongoing_navigation()->navigation_id == navigation_id
-        && navigable->ongoing_navigation()->phase == CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck
-        && navigable->ongoing_navigation()->population_worker_client.ptr() == this
-        && navigable->ongoing_navigation()->population_worker_page_id == page_id;
-    // A javascript: navigation is admitted without population state, so its failure matches by the started
-    // navigation id alone. Only a failed population handoff owns the loader's response body; the loader of a
-    // navigation that already committed may still be feeding the active document.
-    if (!population_failure && !awaiting_unload_check && !navigable->matches_ongoing_navigation(navigation_id))
-        return;
 
-    if (population_failure) {
-        if (auto& ongoing_navigation = *navigable->ongoing_navigation(); ongoing_navigation.loader)
-            ongoing_navigation.loader->reclaim_response_body_after_failed_handoff();
+    // The failure must name the admitted transaction, and must come from a process that owns part of its
+    // outcome: the population worker (unload check, javascript: evaluation) or the population host.
+    auto& ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation.has_value()
+        || ongoing_navigation->navigation_id != navigation_id
+        || !navigable->navigation_owner_matches(*this, page_id)) {
+        return;
     }
+
+    // Only a failed population handoff owns the loader's response body.
+    if (ongoing_navigation->loader && navigable->navigation_host_matches(*this, page_id))
+        ongoing_navigation->loader->reclaim_response_body_after_failed_handoff();
+
     m_history_recorded_urls_for_current_load.remove(page_id);
     if (navigable->is_top_level_traversable()) {
         if (auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable()); view.has_value()) {

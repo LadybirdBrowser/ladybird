@@ -162,6 +162,7 @@ public:
     void did_finish_navigation_params_creation();
     void set_navigation_host(WebContentClient&, u64 page_id);
     bool navigation_host_matches(WebContentClient const&, u64 page_id) const;
+    bool navigation_owner_matches(WebContentClient const&, u64 page_id) const;
     bool navigation_transaction_matches(Utf16String const&, WebContentClient const&, u64 page_id) const;
     bool cancel_navigation_transaction_for_client(WebContentClient&);
     void did_finish_navigation_transaction(Optional<Utf16String> const&, Web::HTML::HistoryStepResult);
