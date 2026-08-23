@@ -26,7 +26,7 @@ static ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
-CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count, size_t declared_count)
+CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count)
     : m_own_values(move(own_values))
     , m_parent(move(parent))
     , m_ancestor_count(ancestor_count)
@@ -44,7 +44,8 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
         });
     }
     m_rust_store = ComputedValuesFFI::rust_custom_property_store_create(
-        entries.data(), entries.size(), m_parent ? m_parent->rust_store() : nullptr);
+        entries.data(), entries.size(), m_parent ? m_parent->rust_store() : nullptr,
+        inheritance_parent ? inheritance_parent->rust_store() : nullptr);
 }
 
 CustomPropertyData::~CustomPropertyData()
@@ -59,7 +60,9 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
 {
     auto declared_count = own_values.size();
     if (!parent)
-        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0, declared_count));
+        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, nullptr, 0, declared_count));
+
+    auto inheritance_parent = parent;
 
     if (allow_parent_own_value_absorption == AllowParentOwnValueAbsorption::Yes) {
         // If parent chain is too deep, flatten by copying all ancestor values into own.
@@ -67,7 +70,7 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
             parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
                 own_values.ensure(name, [&] { return property; });
             });
-            return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0, declared_count));
+            return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, move(inheritance_parent), 0, declared_count));
         }
 
         // If parent has few own values, absorb them to shorten the chain.
@@ -76,12 +79,12 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
                 own_values.ensure(name, [&] { return property; });
             auto grandparent = parent->m_parent;
             u8 ancestor_count = grandparent ? grandparent->m_ancestor_count + 1 : 0;
-            return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), ancestor_count, declared_count));
+            return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), move(inheritance_parent), ancestor_count, declared_count));
         }
     }
 
     u8 ancestor_count = parent->m_ancestor_count + 1;
-    return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), ancestor_count, declared_count));
+    return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), move(inheritance_parent), ancestor_count, declared_count));
 }
 
 StyleProperty const* CustomPropertyData::get(Utf16FlyString const& name) const

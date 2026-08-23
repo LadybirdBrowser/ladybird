@@ -115,7 +115,7 @@ public:
     }
 
 private:
-    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count, size_t declared_count);
+    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count);
 
     OrderedHashMap<Utf16FlyString, StyleProperty> m_own_values;
     RefPtr<CustomPropertyData const> m_parent;
