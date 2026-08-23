@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
@@ -383,34 +384,92 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             unresolved_source = serialize_a_series_of_component_values_preserving_original_source_text(tokens.remaining_tokens()).trim_ascii_whitespace();
     }
 
+    auto const remaining_tokens = tokens.remaining_tokens();
+    auto source = original_source_text.has_value()
+        ? *original_source_text
+        : serialize_a_series_of_component_values_for_retokenization(remaining_tokens);
+    auto parsed_value = TRY(parse_css_value_in_rust(property_id, source, unresolved_source, comparison_source, contains_attr_tainted_values, value_is_substituted));
+    while (tokens.has_next_token())
+        tokens.discard_a_token();
+    return parsed_value;
+}
+
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_from_source(PropertyID property_id, Utf16View source)
+{
+    bool needs_serialized_source = false;
+    bool needs_document_urls = false;
+    if (m_value_context.is_empty()) {
+        auto parsed_value = parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, true, !!m_document, &needs_serialized_source, &needs_document_urls, property_id);
+        if (!needs_serialized_source && !needs_document_urls)
+            return parsed_value;
+
+        if (needs_document_urls) {
+            parsed_value = parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, true, false, &needs_serialized_source, nullptr, property_id);
+            if (!needs_serialized_source)
+                return parsed_value;
+        }
+    } else {
+        auto context_guard = push_temporary_value_parsing_context(property_id);
+        auto parsed_value = parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, true, false, &needs_serialized_source);
+        if (!needs_serialized_source)
+            return parsed_value;
+    }
+
+    auto source_tokens = RustTokenizer::tokenize(source);
+    TokenStream source_token_stream { source_tokens };
+    auto component_values = parse_a_list_of_component_values(source_token_stream);
+    auto tokens = TokenStream(component_values);
+    return parse_css_value(property_id, tokens);
+}
+
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_rust(PropertyID property_id, Utf16View source, Utf16View unresolved_source, Utf16View comparison_source, bool contains_attr_tainted_values, ValueIsSubstituted value_is_substituted, bool retry_with_serialized_source, bool retry_without_document_urls, bool* needs_serialized_source, bool* needs_document_urls, Optional<PropertyID> direct_property_context)
+{
     Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-    value_contexts.ensure_capacity(m_value_context.size());
-    for (auto const& value_context : m_value_context) {
-        ValueParserFFI::FfiValueParsingContext ffi_context {};
-        value_context.visit(
-            [&](PropertyID context_property_id) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                ffi_context.value = to_underlying(context_property_id);
-            },
-            [&](FunctionContext const& function_context) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                ffi_context.name = ffi_utf16_view(function_context.name);
-            },
-            [&](DescriptorContext const& descriptor_context) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                ffi_context.value = to_underlying(descriptor_context.at_rule);
-                ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
-            },
-            [&](SpecialContext special_context) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                ffi_context.value = to_underlying(special_context);
-            });
-        value_contexts.append(ffi_context);
+    ValueParserFFI::FfiValueParsingContext single_property_context {};
+    ValueParserFFI::FfiValueParsingContext const* value_context_data;
+    size_t value_context_count;
+    if (direct_property_context.has_value()) {
+        VERIFY(m_value_context.is_empty());
+        single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+        single_property_context.value = to_underlying(*direct_property_context);
+        value_context_data = &single_property_context;
+        value_context_count = 1;
+    } else if (m_value_context.size() == 1 && m_value_context[0].has<PropertyID>()) {
+        single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+        single_property_context.value = to_underlying(m_value_context[0].get<PropertyID>());
+        value_context_data = &single_property_context;
+        value_context_count = 1;
+    } else {
+        value_contexts.ensure_capacity(m_value_context.size());
+        for (auto const& value_context : m_value_context) {
+            ValueParserFFI::FfiValueParsingContext ffi_context {};
+            value_context.visit(
+                [&](PropertyID context_property_id) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+                    ffi_context.value = to_underlying(context_property_id);
+                },
+                [&](FunctionContext const& function_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
+                    ffi_context.name = ffi_utf16_view(function_context.name);
+                },
+                [&](DescriptorContext const& descriptor_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
+                    ffi_context.value = to_underlying(descriptor_context.at_rule);
+                    ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
+                },
+                [&](SpecialContext special_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
+                    ffi_context.value = to_underlying(special_context);
+                });
+            value_contexts.append(ffi_context);
+        }
+        value_context_data = value_contexts.data();
+        value_context_count = value_contexts.size();
     }
 
     ReadonlyBytes document_url;
     ReadonlyBytes document_base_url;
-    if (m_document) {
+    if (m_document && !retry_without_document_urls) {
         if (!m_serialized_document_url.has_value())
             m_serialized_document_url = m_document->url().serialize();
         if (!m_serialized_document_base_url.has_value())
@@ -423,8 +482,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
         .is_substituted_value = value_is_substituted == ValueIsSubstituted::Yes,
         .contains_attr_tainted_values = contains_attr_tainted_values,
-        .value_contexts = value_contexts.data(),
-        .value_context_count = value_contexts.size(),
+        .value_contexts = value_context_data,
+        .value_context_count = value_context_count,
         .document_url = document_url.data(),
         .document_url_length = document_url.size(),
         .document_base_url = document_base_url.data(),
@@ -439,13 +498,13 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
-    auto const remaining_tokens = tokens.remaining_tokens();
-    auto source = original_source_text.has_value()
-        ? *original_source_text
-        : serialize_a_series_of_component_values_for_retokenization(remaining_tokens);
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
         &context, to_underlying(property_id), ffi_utf16_view(source),
-        ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), &status, &reason);
+        ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), retry_with_serialized_source, retry_without_document_urls, &status, &reason);
+    if (needs_serialized_source)
+        *needs_serialized_source = status == ValueParserFFI::FfiParseStatus::NeedsSerializedSource;
+    if (needs_document_urls)
+        *needs_document_urls = status == ValueParserFFI::FfiParseStatus::NeedsDocumentUrls;
 
     if (status != ValueParserFFI::FfiParseStatus::Parsed) {
         if (status == ValueParserFFI::FfiParseStatus::NotHandled)
@@ -454,10 +513,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     }
 
     VERIFY(parsed_value);
-    auto rust_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed_value));
-    while (tokens.has_next_token())
-        tokens.discard_a_token();
-    return rust_value;
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed_value));
 }
 
 Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(FontDescriptorKind kind, TokenStream<ComponentValue>& tokens)

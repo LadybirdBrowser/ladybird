@@ -29,7 +29,9 @@ use crate::css::parser::arbitrary_substitution::{
 };
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
-use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::component_value::{
+    ComponentKind, ComponentValue, consume_a_list_of_component_values, consume_a_small_list_of_component_values,
+};
 use crate::css::parser::fonts_parser::{parse_font_descriptor, parse_font_property};
 use crate::css::parser::grid_parser::parse_grid_property;
 use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property, parse_image_value};
@@ -5517,8 +5519,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     parse_css_value_with_source(context, property_id, values, &source, &[])
 }
 
-fn component_values_from_source<'a>(source: impl Into<TokenizerInput<'a>>) -> Result<Vec<ComponentValue>, ()> {
-    consume_a_list_of_component_values(tokenize_for_parser_without_source(source))
+fn component_values_from_source<'a>(
+    source: impl Into<TokenizerInput<'a>>,
+) -> Result<smallvec::SmallVec<[ComponentValue; 8]>, ()> {
+    consume_a_small_list_of_component_values(tokenize_for_parser_without_source(source))
 }
 
 pub(crate) fn svg_path_strings_from_source(source: &[u16]) -> Vec<Vec<u16>> {
@@ -5564,6 +5568,22 @@ pub enum FfiParseStatus {
     Parsed,
     Invalid,
     NotHandled,
+    NeedsSerializedSource,
+    NeedsDocumentUrls,
+}
+
+fn component_values_need_document_urls(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Token(ParserTokenKind::Url(_)) => true,
+        ComponentKind::Function { name, values } => {
+            [b"url".as_slice(), b"src", b"image-set", b"-webkit-image-set"]
+                .iter()
+                .any(|expected| equals_ascii_case_insensitive(name, expected))
+                || component_values_need_document_urls(values)
+        }
+        ComponentKind::SimpleBlock { values, .. } => component_values_need_document_urls(values),
+        _ => false,
+    })
 }
 
 unsafe fn ffi_parser_tokens<'a>(tokens: *const FfiParserToken, token_count: usize) -> Option<&'a [FfiParserToken]> {
@@ -5686,6 +5706,8 @@ pub unsafe extern "C" fn rust_parse_css_value(
     source: FfiUtf16View,
     unresolved_source: FfiUtf16View,
     comparison_source: FfiUtf16View,
+    retry_with_serialized_source: bool,
+    retry_without_document_urls: bool,
     out_status: *mut FfiParseStatus,
     out_reason: *mut *const u8,
 ) -> *const c_void {
@@ -5714,6 +5736,40 @@ pub unsafe extern "C" fn rust_parse_css_value(
         };
         let context = unsafe { &*context };
         let outcome = match component_values_from_source(source) {
+            Ok(values) if retry_with_serialized_source => {
+                if values
+                    .iter()
+                    .any(|value| matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
+                {
+                    ParseOutcome::Invalid
+                } else {
+                    let mut substitution_presence = SubstitutionFunctionsPresence::default();
+                    if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
+                        ParseOutcome::Invalid
+                    } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+                        unsafe {
+                            *out_status = FfiParseStatus::NeedsSerializedSource;
+                            *out_reason = std::ptr::null();
+                        }
+                        return std::ptr::null();
+                    } else if retry_without_document_urls && component_values_need_document_urls(&values) {
+                        unsafe {
+                            *out_status = FfiParseStatus::NeedsDocumentUrls;
+                            *out_reason = std::ptr::null();
+                        }
+                        return std::ptr::null();
+                    } else {
+                        parse_css_value_after_substitution_scan(
+                            context,
+                            property_id,
+                            &values,
+                            &[],
+                            &[],
+                            substitution_presence,
+                        )
+                    }
+                }
+            }
             Ok(values) => {
                 parse_css_value_with_source(context, property_id, &values, &unresolved_source, &comparison_source)
             }

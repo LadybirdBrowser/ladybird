@@ -26,6 +26,7 @@ enum class TokenizerInput {
 
 class WEB_API RustTokenizer {
 public:
+    static bool input_needs_normalization(Utf16View);
     static Utf16String normalize_input(StringView input, StringView encoding, TokenizerInput = TokenizerInput::DecodedText);
     static Utf16String normalize_input(Utf16View);
     static Vector<Token> tokenize(StringView input, StringView encoding, TokenizerInput = TokenizerInput::DecodedText);

@@ -43,17 +43,19 @@ Utf16String RustTokenizer::normalize_input(StringView input, StringView encoding
     return normalize_input(Utf16String::from_utf8_without_validation(decoded_input));
 }
 
+bool RustTokenizer::input_needs_normalization(Utf16View input)
+{
+    for (auto code_point : input) {
+        if (code_point == '\r' || code_point == '\f' || code_point == 0x00 || is_unicode_surrogate(code_point))
+            return true;
+    }
+    return false;
+}
+
 Utf16String RustTokenizer::normalize_input(Utf16View input)
 {
     // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering.
-    bool const contains_filterable = [&] {
-        for (auto code_point : input) {
-            if (code_point == '\r' || code_point == '\f' || code_point == 0x00 || is_unicode_surrogate(code_point))
-                return true;
-        }
-        return false;
-    }();
-    if (!contains_filterable)
+    if (!input_needs_normalization(input))
         return Utf16String::from_utf16(input);
 
     Utf16StringBuilder builder { input.length_in_code_units() };

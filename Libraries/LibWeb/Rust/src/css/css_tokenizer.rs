@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use smallvec::SmallVec;
 use std::ffi::c_void;
 use std::ops::Range;
 use std::ptr;
@@ -248,6 +249,7 @@ impl<'a> From<&'a Vec<u16>> for TokenizerInput<'a> {
 
 #[derive(Clone, Debug)]
 pub(crate) enum ParserString {
+    Inline(SmallVec<[u16; 16]>),
     Owned(Box<[u16]>),
     Shared { storage: Rc<[u16]>, range: Range<usize> },
     Pending(Range<usize>),
@@ -276,6 +278,7 @@ impl ParserString {
 impl AsRef<[u16]> for ParserString {
     fn as_ref(&self) -> &[u16] {
         match self {
+            Self::Inline(value) => value,
             Self::Owned(value) => value,
             Self::Shared { storage, range } => &storage[range.clone()],
             Self::Pending(_) => unreachable!(),
@@ -510,8 +513,68 @@ pub(crate) fn tokenize_for_parser<'a>(input: impl Into<TokenizerInput<'a>>) -> V
     tokenize_for_parser_internal(input, true)
 }
 
-pub(crate) fn tokenize_for_parser_without_source<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<ParserToken> {
-    tokenize_for_parser_internal(input, false)
+pub(crate) fn tokenize_for_parser_without_source<'a>(input: impl Into<TokenizerInput<'a>>) -> SmallParserTokenList {
+    tokenize_for_parser_without_source_internal(input)
+}
+
+pub(crate) type SmallParserTokenList = SmallVec<[ParserToken; 8]>;
+
+fn tokenize_for_parser_without_source_internal<'a>(input: impl Into<TokenizerInput<'a>>) -> SmallParserTokenList {
+    let input = input.into();
+    let mut tokens = SmallParserTokenList::new();
+    tokenize(input, |token, _| {
+        if matches!(token.token_type, TokenType::EndOfFile) {
+            return;
+        }
+        let string = |value: &TokenString| ParserString::Inline(value.clone());
+        let kind = match &token.token_type {
+            TokenType::Ident { value } => ParserTokenKind::Ident(string(value)),
+            TokenType::Function { name } => ParserTokenKind::Function(string(name)),
+            TokenType::AtKeyword { name } => ParserTokenKind::AtKeyword(string(name)),
+            TokenType::Hash { hash_type, value } => ParserTokenKind::Hash {
+                value: string(value),
+                is_id: *hash_type == CssHashType::Id,
+            },
+            TokenType::String { value } => ParserTokenKind::String(string(value)),
+            TokenType::BadString => ParserTokenKind::BadString,
+            TokenType::Url { value } => ParserTokenKind::Url(string(value)),
+            TokenType::BadUrl => ParserTokenKind::BadUrl,
+            TokenType::Delim { value } => ParserTokenKind::Delim(*value),
+            TokenType::Number { number } => ParserTokenKind::Number {
+                value: number.value,
+                number_type: number.number_type,
+            },
+            TokenType::Percentage { number } => ParserTokenKind::Percentage {
+                value: number.value,
+                number_type: number.number_type,
+            },
+            TokenType::Dimension { number, unit } => ParserTokenKind::Dimension {
+                value: number.value,
+                number_type: number.number_type,
+                unit: string(unit),
+            },
+            TokenType::Whitespace => ParserTokenKind::Whitespace,
+            TokenType::Cdo => ParserTokenKind::Cdo,
+            TokenType::Cdc => ParserTokenKind::Cdc,
+            TokenType::Colon => ParserTokenKind::Colon,
+            TokenType::Semicolon => ParserTokenKind::Semicolon,
+            TokenType::Comma => ParserTokenKind::Comma,
+            TokenType::OpenSquare => ParserTokenKind::OpenSquare,
+            TokenType::CloseSquare => ParserTokenKind::CloseSquare,
+            TokenType::OpenParen => ParserTokenKind::OpenParen,
+            TokenType::CloseParen => ParserTokenKind::CloseParen,
+            TokenType::OpenCurly => ParserTokenKind::OpenCurly,
+            TokenType::CloseCurly => ParserTokenKind::CloseCurly,
+            TokenType::EndOfFile => unreachable!(),
+        };
+        tokens.push(ParserToken {
+            kind,
+            source: ParserSource::Empty,
+            start_position: token.range.start,
+            end_position: token.range.end,
+        });
+    });
+    tokens
 }
 
 fn tokenize_for_parser_internal<'a>(
@@ -610,8 +673,8 @@ pub(crate) fn tokenize_owned<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<Ow
             return;
         }
         let kind = match &token.token_type {
-            TokenType::Ident { value } => OwnedTokenKind::Ident(value.clone()),
-            TokenType::Function { name } => OwnedTokenKind::Function(name.clone()),
+            TokenType::Ident { value } => OwnedTokenKind::Ident(value.to_vec()),
+            TokenType::Function { name } => OwnedTokenKind::Function(name.to_vec()),
             TokenType::AtKeyword { .. } => OwnedTokenKind::AtKeyword,
             TokenType::Hash { .. } => OwnedTokenKind::Hash,
             TokenType::Url { .. } => OwnedTokenKind::Url,
@@ -639,20 +702,22 @@ pub(crate) fn tokenize_owned<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<Ow
     tokens
 }
 
+type TokenString = SmallVec<[u16; 16]>;
+
 enum TokenType {
     EndOfFile,
-    Ident { value: Vec<u16> },
-    Function { name: Vec<u16> },
-    AtKeyword { name: Vec<u16> },
-    Hash { hash_type: CssHashType, value: Vec<u16> },
-    String { value: Vec<u16> },
+    Ident { value: TokenString },
+    Function { name: TokenString },
+    AtKeyword { name: TokenString },
+    Hash { hash_type: CssHashType, value: TokenString },
+    String { value: TokenString },
     BadString,
-    Url { value: Vec<u16> },
+    Url { value: TokenString },
     BadUrl,
     Delim { value: u32 },
     Number { number: NumericValue },
     Percentage { number: NumericValue },
-    Dimension { number: NumericValue, unit: Vec<u16> },
+    Dimension { number: NumericValue, unit: TokenString },
     Whitespace,
     Cdo,
     Cdc,
@@ -768,7 +833,7 @@ impl Token {
             | TokenType::Hash { value, .. }
             | TokenType::String { value }
             | TokenType::Url { value }
-            | TokenType::Dimension { unit: value, .. } => value.clone(),
+            | TokenType::Dimension { unit: value, .. } => value.to_vec(),
             _ => Vec::new(),
         }
     }
@@ -783,51 +848,20 @@ where
 
 struct Tokenizer<'a> {
     input: TokenizerInput<'a>,
-    code_points: Vec<(usize, u32)>,
     index: usize,
     prev_index: usize,
+    current_code_point: u32,
     position: SourcePosition,
     prev_position: SourcePosition,
 }
 
 impl<'a> Tokenizer<'a> {
     fn new(input: TokenizerInput<'a>) -> Self {
-        let mut code_points = Vec::with_capacity(input.len());
-        match input {
-            TokenizerInput::Ascii(units) => {
-                debug_assert!(units.is_ascii());
-                code_points.extend(
-                    units
-                        .iter()
-                        .enumerate()
-                        .map(|(offset, unit)| (offset, u32::from(*unit))),
-                );
-            }
-            TokenizerInput::Utf16(units) => {
-                let mut offset = 0;
-                while offset < units.len() {
-                    let start = offset;
-                    let first = units[offset];
-                    let code_point = if (0xD800..=0xDBFF).contains(&first)
-                        && let Some(second) = units.get(offset + 1)
-                        && (0xDC00..=0xDFFF).contains(second)
-                    {
-                        offset += 1;
-                        0x10000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(*second) - 0xDC00)
-                    } else {
-                        u32::from(first)
-                    };
-                    code_points.push((start, code_point));
-                    offset += 1;
-                }
-            }
-        }
-
         Self {
             input,
-            code_points,
             index: 0,
             prev_index: 0,
+            current_code_point: TOKENIZER_EOF,
             position: SourcePosition::default(),
             prev_position: SourcePosition::default(),
         }
@@ -851,27 +885,22 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn current_byte_offset(&self) -> usize {
-        if let Some((offset, _)) = self.code_points.get(self.index) {
-            *offset
-        } else {
-            self.input.len()
-        }
+        self.index
     }
 
     fn current_code_point(&self) -> u32 {
-        self.code_points[self.prev_index].1
+        self.current_code_point
     }
 
     fn consume_code_point(&mut self) -> u32 {
-        if self.index >= self.code_points.len() {
+        let Some((code_point, length)) = self.code_point_at(self.index) else {
             return TOKENIZER_EOF;
-        }
+        };
 
         self.prev_index = self.index;
         self.prev_position = self.position;
-
-        let (_, code_point) = self.code_points[self.index];
-        self.index += 1;
+        self.current_code_point = code_point;
+        self.index += length;
 
         if is_newline(code_point) {
             self.position.line += 1;
@@ -884,10 +913,38 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn peek_code_point(&self, offset: usize) -> u32 {
-        self.code_points
-            .get(self.index + offset)
-            .map(|(_, code_point)| *code_point)
+        let mut index = self.index;
+        for _ in 0..offset {
+            let Some((_, length)) = self.code_point_at(index) else {
+                return TOKENIZER_EOF;
+            };
+            index += length;
+        }
+        self.code_point_at(index)
+            .map(|(code_point, _)| code_point)
             .unwrap_or(TOKENIZER_EOF)
+    }
+
+    fn code_point_at(&self, index: usize) -> Option<(u32, usize)> {
+        match self.input {
+            TokenizerInput::Ascii(units) => {
+                debug_assert!(units.is_ascii());
+                units.get(index).map(|unit| (u32::from(*unit), 1))
+            }
+            TokenizerInput::Utf16(units) => {
+                let first = *units.get(index)?;
+                if (0xD800..=0xDBFF).contains(&first)
+                    && let Some(&second) = units.get(index + 1)
+                    && (0xDC00..=0xDFFF).contains(&second)
+                {
+                    return Some((
+                        0x10000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00),
+                        2,
+                    ));
+                }
+                Some((u32::from(first), 1))
+            }
+        }
     }
 
     fn peek_twin(&self) -> (u32, u32) {
@@ -975,7 +1032,7 @@ impl<'a> Tokenizer<'a> {
 
         // hex digit
         if is_hex_digit(input) {
-            let mut repr = Vec::new();
+            let mut repr = SmallVec::<[u8; 8]>::new();
             append_ascii_code_point(&mut repr, input);
 
             // Consume as many hex digits as possible, but no more than 5.
@@ -1085,7 +1142,7 @@ impl<'a> Tokenizer<'a> {
         // Execute the following steps in order:
 
         // 1. Initially set type to "integer". Let repr be the empty string.
-        let mut repr = Vec::new();
+        let mut repr = SmallVec::<[u8; 32]>::new();
         let mut number_type = CssNumberType::Integer;
 
         // 2. If the next input code point is U+002B PLUS SIGN (+) or U+002D HYPHEN-MINUS (-),
@@ -1161,7 +1218,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     // https://www.w3.org/TR/css-syntax-3/#consume-name
-    fn consume_an_ident_sequence(&mut self) -> Vec<u16> {
+    fn consume_an_ident_sequence(&mut self) -> TokenString {
         // This section describes how to consume an ident sequence from a stream of code points.
         // It returns a string containing the largest name that can be formed from adjacent
         // code points in the stream, starting from the first.
@@ -1172,7 +1229,7 @@ impl<'a> Tokenizer<'a> {
         // calling this algorithm.
 
         // Let result initially be an empty string.
-        let mut result = Vec::new();
+        let mut result = TokenString::new();
 
         // Repeatedly consume the next input code point from the stream:
         loop {
@@ -1217,7 +1274,7 @@ impl<'a> Tokenizer<'a> {
         // shouldn’t be called directly otherwise.
 
         // 1. Initially create a <url-token> with its value set to the empty string.
-        let mut value = Vec::new();
+        let mut value = TokenString::new();
 
         // 2. Consume as much whitespace as possible.
         self.consume_as_much_whitespace_as_possible();
@@ -1381,7 +1438,7 @@ impl<'a> Tokenizer<'a> {
 
         // Initially create a <string-token> with its value set to the empty string.
         let start_byte_offset = self.current_byte_offset() - 1;
-        let mut value = Vec::new();
+        let mut value = TokenString::new();
 
         // Repeatedly consume the next input code point from the stream:
         loop {
@@ -1730,19 +1787,18 @@ fn utf16_parts(code_units: &[u16]) -> (*const u16, usize) {
     }
 }
 
-fn append_code_point(builder: &mut Vec<u16>, code_point: u32) {
+fn append_code_point(builder: &mut impl Extend<u16>, code_point: u32) {
     if code_point < 0x10000 {
-        builder.push(code_point as u16);
+        builder.extend(std::iter::once(code_point as u16));
         return;
     }
     let value = code_point - 0x10000;
-    builder.push(0xD800 + (value >> 10) as u16);
-    builder.push(0xDC00 + (value & 0x3FF) as u16);
+    builder.extend([0xD800 + (value >> 10) as u16, 0xDC00 + (value & 0x3FF) as u16]);
 }
 
-fn append_ascii_code_point(builder: &mut Vec<u8>, code_point: u32) {
+fn append_ascii_code_point(builder: &mut impl Extend<u8>, code_point: u32) {
     debug_assert!(code_point <= 0x7f);
-    builder.push(code_point as u8);
+    builder.extend(std::iter::once(code_point as u8));
 }
 
 fn utf16_equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {

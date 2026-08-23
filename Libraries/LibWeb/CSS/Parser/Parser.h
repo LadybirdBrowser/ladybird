@@ -97,6 +97,7 @@ class Parser {
 public:
     static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
     static Parser create(ParsingParams const&, Utf16View input);
+    static RefPtr<StyleValue const> parse_css_value_from_filtered_source(ParsingParams const&, Utf16View, PropertyID);
 
     GC::RootVector<GC::Ref<CSSRule>> convert_rules(Vector<Rule> const& raw_rules);
     GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
@@ -330,7 +331,9 @@ private:
         No,
         Yes,
     };
+    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<Utf16String> original_source_text = {}, ValueIsSubstituted = ValueIsSubstituted::No);
+    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Utf16View unresolved_source, Utf16View comparison_source, bool contains_attr_tainted_values, ValueIsSubstituted, bool retry_with_serialized_source = false, bool retry_without_document_urls = false, bool* needs_serialized_source = nullptr, bool* needs_document_urls = nullptr, Optional<PropertyID> direct_property_context = {});
     enum class FontDescriptorKind : u8 {
         FamilyName,
         SourceList,
