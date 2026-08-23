@@ -295,7 +295,7 @@ impl OverflowAssignment {
 }
 
 fn store_overflow_data(
-    assignments: &mut [Option<OverflowAssignment>],
+    assignments: &mut Vec<OverflowAssignment>,
     box_paintable: NodeSlotId,
     paintable_absolute_padding_box: CssPixelRect,
     scrollable_overflow_rect: CssPixelRect,
@@ -303,7 +303,7 @@ fn store_overflow_data(
 ) {
     let rect_relative_to_padding_box =
         scrollable_overflow_rect.translated(-paintable_absolute_padding_box.x, -paintable_absolute_padding_box.y);
-    assignments[box_paintable.slot_index() as usize] = Some(OverflowAssignment {
+    assignments.push(OverflowAssignment {
         box_paintable,
         overflow: FfiOverflowData {
             rect: scrollable_overflow_rect.into(),
@@ -324,7 +324,9 @@ pub(crate) fn measure_scrollable_overflow(
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
 ) -> Vec<OverflowAssignment> {
-    let mut assignments = vec![None; layout_arena.paintable_row_count()];
+    // Each box occurs under only one containing block, so this traversal visits each box at most once and can stage
+    // assignments append-only.
+    let mut assignments = Vec::new();
     measure_scrollable_overflow_impl(
         layout_arena,
         contained_boxes_by_containing_block,
@@ -333,7 +335,7 @@ pub(crate) fn measure_scrollable_overflow(
         box_paintable,
         &mut assignments,
     );
-    assignments.into_iter().flatten().collect()
+    assignments
 }
 
 fn measure_scrollable_overflow_impl(
@@ -342,11 +344,8 @@ fn measure_scrollable_overflow_impl(
     visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
-    assignments: &mut [Option<OverflowAssignment>],
+    assignments: &mut Vec<OverflowAssignment>,
 ) -> CssPixelRect {
-    if let Some(assignment) = assignments[box_paintable.slot_index() as usize] {
-        return assignment.overflow.rect.into();
-    }
     let (kind, cached_overflow) = {
         let data = layout_arena.paintable_data(box_paintable);
         if data.has_overflow {
@@ -362,7 +361,7 @@ fn measure_scrollable_overflow_impl(
     if let Some(cached_overflow) = cached_overflow {
         let scrollable_overflow_rect =
             CssPixelRect::from(cached_overflow.rect).translated_by(paintable_absolute_padding_box.location());
-        assignments[box_paintable.slot_index() as usize] = Some(OverflowAssignment {
+        assignments.push(OverflowAssignment {
             box_paintable,
             overflow: FfiOverflowData {
                 rect: scrollable_overflow_rect.into(),
