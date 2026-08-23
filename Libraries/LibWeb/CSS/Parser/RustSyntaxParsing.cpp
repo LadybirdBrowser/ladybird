@@ -79,6 +79,8 @@ static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_p
             .document_base_url_length = document_base_url.size(),
             .intern_utf16_fly_string = retain_utf16_fly_string,
             .normalize_svg_path_data = normalize_svg_path_data,
+            .precomputed_svg_paths = nullptr,
+            .precomputed_svg_path_count = 0,
             .font_format_is_supported = rust_font_format_is_supported,
             .font_tech_is_supported = rust_font_tech_is_supported,
             .random_function_index = &random_function_index,

@@ -144,7 +144,6 @@ pub enum FfiValueParsingContextKind {
     Function,
     Descriptor,
     Special,
-    RelativeColor,
 }
 
 /// One entry in the C++ Parser's value-context stack.
@@ -158,8 +157,15 @@ pub struct FfiValueParsingContext {
     pub secondary_value: u16,
     /// Function name when `kind` is Function.
     pub name: FfiUtf16View,
-    /// The RelativeColorParseContext allowed-channel bitmap.
-    pub allowed_channels: u64,
+}
+
+/// Main-thread-normalized SVG path data available to a callback-free worker parse.
+#[repr(C)]
+pub struct FfiPrecomputedSvgPath {
+    pub source: *const u16,
+    pub source_length: usize,
+    pub normalized: *const u16,
+    pub normalized_length: usize,
 }
 
 /// Parser state required by CSS value parsing.
@@ -178,9 +184,32 @@ pub struct ParseContext {
     pub document_base_url_length: usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
+    pub precomputed_svg_paths: *const FfiPrecomputedSvgPath,
+    pub precomputed_svg_path_count: usize,
     pub font_format_is_supported: Option<unsafe extern "C" fn(*const u16, usize) -> bool>,
     pub font_tech_is_supported: Option<unsafe extern "C" fn(u8) -> bool>,
     pub random_function_index: *mut usize,
+}
+
+impl ParseContext {
+    pub(crate) fn precomputed_svg_path(&self, source: &[u16]) -> Option<Option<&[u16]>> {
+        if self.precomputed_svg_path_count == 0 {
+            return None;
+        }
+        let paths = unsafe { std::slice::from_raw_parts(self.precomputed_svg_paths, self.precomputed_svg_path_count) };
+        paths.iter().find_map(|path| {
+            let candidate = unsafe { std::slice::from_raw_parts(path.source, path.source_length) };
+            if candidate != source {
+                return None;
+            }
+            if path.normalized.is_null() {
+                return Some(None);
+            }
+            Some(Some(unsafe {
+                std::slice::from_raw_parts(path.normalized, path.normalized_length)
+            }))
+        })
+    }
 }
 
 #[repr(C)]
@@ -2727,7 +2756,10 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
         if !is_valid_custom_ident(identifier, &["normal"]) {
             return ParseOutcome::Invalid;
         }
-        schemes.push(retain_fly_string(context, identifier).expect("parse context supplies string interning"));
+        let Some(scheme) = retain_fly_string(context, identifier) else {
+            return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+        };
+        schemes.push(scheme);
         scheme_codes.push(if equals_ascii_case_insensitive(identifier, b"dark") {
             1
         } else if equals_ascii_case_insensitive(identifier, b"light") {
@@ -2787,7 +2819,9 @@ fn parse_counter_definitions_property(
             if !is_valid_custom_ident(identifier, &["none"]) {
                 return ParseOutcome::Invalid;
             }
-            let name = retain_fly_string(context, identifier).expect("parse context supplies string interning");
+            let Some(name) = retain_fly_string(context, identifier) else {
+                return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+            };
             tokens.discard_a_token();
             (name, false)
         } else if allow_reversed {
@@ -2803,7 +2837,9 @@ fn parse_counter_definitions_property(
             if !is_valid_custom_ident(identifier, &["none"]) {
                 return ParseOutcome::Invalid;
             }
-            let name = retain_fly_string(context, identifier).expect("parse context supplies string interning");
+            let Some(name) = retain_fly_string(context, identifier) else {
+                return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+            };
             tokens.discard_a_token();
             (name, true)
         } else {
@@ -5485,6 +5521,34 @@ fn component_values_from_source<'a>(source: impl Into<TokenizerInput<'a>>) -> Re
     consume_a_list_of_component_values(tokenize_for_parser_without_source(source))
 }
 
+pub(crate) fn svg_path_strings_from_source(source: &[u16]) -> Vec<Vec<u16>> {
+    fn collect(values: &[ComponentValue], paths: &mut Vec<Vec<u16>>) {
+        for value in values {
+            match &value.kind {
+                ComponentKind::Function { name, values } => {
+                    if equals_ascii_case_insensitive(name, b"path") {
+                        for path in values.iter().filter_map(ComponentValue::string) {
+                            if !paths.iter().any(|candidate| candidate == path) {
+                                paths.push(path.to_vec());
+                            }
+                        }
+                    }
+                    collect(values, paths);
+                }
+                ComponentKind::SimpleBlock { values, .. } => collect(values, paths),
+                ComponentKind::Token(_) => {}
+            }
+        }
+    }
+
+    let Ok(values) = component_values_from_source(source) else {
+        return Vec::new();
+    };
+    let mut paths = Vec::new();
+    collect(&values, &mut paths);
+    paths
+}
+
 /// Parses a UTF-16 property value whose component-value source is already serialized.
 pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
     match component_values_from_source(source) {
@@ -6182,6 +6246,8 @@ mod tests {
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
             normalize_svg_path_data: None,
+            precomputed_svg_paths: std::ptr::null(),
+            precomputed_svg_path_count: 0,
             font_format_is_supported: None,
             font_tech_is_supported: None,
             random_function_index: std::ptr::null_mut(),
@@ -6834,7 +6900,6 @@ mod tests {
             value: property_id::MATH_DEPTH,
             secondary_value: 0,
             name: FfiUtf16View::default(),
-            allowed_channels: 0,
         };
         random_context.value_contexts = &value_context;
         random_context.value_context_count = 1;
@@ -7165,7 +7230,6 @@ mod tests {
             value: property_id::OPACITY,
             secondary_value: 0,
             name: FfiUtf16View::default(),
-            allowed_channels: 0,
         };
         random_context.value_contexts = &property_context;
         random_context.value_context_count = 1;
@@ -7224,14 +7288,12 @@ mod tests {
                 value: 0,
                 secondary_value: 0,
                 name: FfiUtf16View::default(),
-                allowed_channels: 0,
             },
             FfiValueParsingContext {
                 kind: FfiValueParsingContextKind::Property,
                 value: property_id::COLOR,
                 secondary_value: 0,
                 name: FfiUtf16View::default(),
-                allowed_channels: 0,
             },
         ];
         let mut canvas_context = context();
@@ -7342,7 +7404,6 @@ mod tests {
                 value: property,
                 secondary_value: 0,
                 name: FfiUtf16View::default(),
-                allowed_channels: 0,
             }];
             function_contexts.extend(function_names.iter().map(|function_name| FfiValueParsingContext {
                 kind: FfiValueParsingContextKind::Function,
@@ -7353,7 +7414,6 @@ mod tests {
                     utf16: std::ptr::null(),
                     length: function_name.len(),
                 },
-                allowed_channels: 0,
             }));
             let mut parse_context = context();
             parse_context.value_contexts = function_contexts.as_ptr();

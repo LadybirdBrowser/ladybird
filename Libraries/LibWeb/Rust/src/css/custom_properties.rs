@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::abort_on_panic;
 use crate::css::css_tokenizer::OwnedToken;
@@ -94,9 +94,16 @@ struct CustomPropertyEntry {
 pub struct CustomPropertyStore {
     own_values: HashMap<usize, CustomPropertyEntry>,
     own_names: HashMap<Vec<u16>, usize>,
-    parent: Option<Rc<CustomPropertyStore>>,
-    inheritance_parent: Option<Rc<CustomPropertyStore>>,
+    parent: Option<Arc<CustomPropertyStore>>,
+    inheritance_parent: Option<Arc<CustomPropertyStore>>,
 }
+
+// SAFETY: Store nodes and their entries are immutable after construction. Style workers only
+// borrow the graph while resolving substitution text; the C++-owned raw Arc reference remains
+// alive until every worker in the blocking batch has joined, so destruction stays on the main
+// thread. The retained style values and names are likewise only read by workers.
+unsafe impl Send for CustomPropertyStore {}
+unsafe impl Sync for CustomPropertyStore {}
 
 pub struct CustomPropertyRegistry {
     registrations: HashMap<Vec<u16>, RegisteredCustomProperty>,
@@ -215,6 +222,8 @@ impl CustomPropertyRegistry {
             document_base_url_length: self.document_base_url.len(),
             intern_utf16_fly_string: self.intern_utf16_fly_string,
             normalize_svg_path_data: None,
+            precomputed_svg_paths: std::ptr::null(),
+            precomputed_svg_path_count: 0,
             font_format_is_supported: None,
             font_tech_is_supported: None,
             random_function_index,
@@ -506,7 +515,6 @@ fn registration_accepts_tokens(
         value: crate::css::property_metadata::property_id::CUSTOM,
         secondary_value: 0,
         name: Default::default(),
-        allowed_channels: 0,
     };
     let mut context = registry.parse_context(&mut random_function_index);
     context.value_contexts = &raw const value_context;
@@ -2168,7 +2176,7 @@ pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_
 }
 
 /// Creates one Rust store node. Each entry transfers a leaked fly-string reference and a
-/// strong style value data handle. The structural and inheritance parents are other Rc raw
+/// strong style value data handle. The structural and inheritance parents are other Arc raw
 /// pointers; they can differ when the C++ store has compacted its structural chain.
 ///
 /// # Safety
@@ -2192,15 +2200,15 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             None
         } else {
             let parent = parent.cast::<CustomPropertyStore>();
-            unsafe { Rc::increment_strong_count(parent) };
-            Some(unsafe { Rc::from_raw(parent) })
+            unsafe { Arc::increment_strong_count(parent) };
+            Some(unsafe { Arc::from_raw(parent) })
         };
         let inheritance_parent = if inheritance_parent.is_null() {
             None
         } else {
             let inheritance_parent = inheritance_parent.cast::<CustomPropertyStore>();
-            unsafe { Rc::increment_strong_count(inheritance_parent) };
-            Some(unsafe { Rc::from_raw(inheritance_parent) })
+            unsafe { Arc::increment_strong_count(inheritance_parent) };
+            Some(unsafe { Arc::from_raw(inheritance_parent) })
         };
         let mut own_names = HashMap::with_capacity(entries.len());
         let own_values = entries
@@ -2218,7 +2226,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
                 )
             })
             .collect();
-        Rc::into_raw(Rc::new(CustomPropertyStore {
+        Arc::into_raw(Arc::new(CustomPropertyStore {
             own_values,
             own_names,
             parent,
@@ -2236,7 +2244,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
-    abort_on_panic(|| drop(unsafe { Rc::from_raw(store.cast::<CustomPropertyStore>()) }));
+    abort_on_panic(|| drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) }));
 }
 
 #[repr(C)]

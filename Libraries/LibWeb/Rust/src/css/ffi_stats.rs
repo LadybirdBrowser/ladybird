@@ -59,6 +59,8 @@ define_ffi_ops! {
     StyleGroupFreeEntry => "styleGroupFreeEntries",
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
+    SubstitutionWorkerParse => "substitutionWorkerParses",
+    SubstitutionMainThreadParseRequest => "substitutionMainThreadParseRequests",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",

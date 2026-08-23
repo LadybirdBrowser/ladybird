@@ -1005,8 +1005,7 @@ impl FfiSyntaxParse {
             kind: FfiValueParsingContextKind::Property,
             value: property_id,
             secondary_value: 0,
-            name: FfiUtf16View::default(),
-            allowed_channels: 0,
+            name: Default::default(),
         });
         let mut context = *parse_context;
         context.value_contexts = value_contexts.as_ptr();
