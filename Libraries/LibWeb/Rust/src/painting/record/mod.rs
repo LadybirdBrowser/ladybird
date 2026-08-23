@@ -12,7 +12,6 @@ pub mod paint;
 pub mod traversal;
 
 use crate::css::css_enums;
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
@@ -24,6 +23,7 @@ use crate::painting::host::{
     FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
+use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::stacking_context::{NO_STACKING_CONTEXT, StackingContextTree};
 use crate::painting::visual_context::nested::NestedAssignments;
 use std::collections::HashMap;
@@ -59,7 +59,7 @@ pub(crate) struct NestedRecordingState {
 }
 
 pub struct PaintRecorder<'a> {
-    pub(crate) layout_arena: &'a LayoutNodeArena,
+    pub(crate) layout_arena: &'a PaintableRowsRef<'a>,
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
     stacking_contexts: &'a StackingContextTree,
     pub(crate) host: &'a FfiHitTestHostCallbacks,
@@ -106,7 +106,7 @@ impl<'a> PaintRecorder<'a> {
             .expect("uncacheable paint generation overflowed");
     }
 
-    pub(crate) fn data(&self, paintable: NodeSlotId) -> PaintableData {
+    pub(crate) fn data(&self, paintable: NodeSlotId) -> &PaintableData {
         self.layout_arena.paintable_data(paintable)
     }
 

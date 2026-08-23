@@ -30,7 +30,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     let piece_indices = &layout_arena.paintable_side_data(paintable).piece_indices;
     let root_pieces = &layout_arena.paintable_side_data(root).inline_box_pieces;
     let facts = recorder.base_paint_facts(paintable);
-    let data = recorder.data(paintable);
+    let self_painting_inline = crate::painting::fragment_ownership::is_self_painting_inline(recorder.data(paintable));
 
     if phase == PaintPhase::Background && facts.is_visible {
         crate::painting::record::paint::paint_backdrop_filter(recorder, paintable, &facts);
@@ -184,7 +184,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
         // Fragments (and the caret between their glyphs) are not gated on this box being
         // visible: descendants may set visibility: visible again under a hidden box, so each
         // fragment is filtered by its own node's visibility.
-        if crate::painting::fragment_ownership::is_self_painting_inline(&data) {
+        if self_painting_inline {
             text::paint_fragments_foreground(recorder, root, Some(paintable));
             text::paint_cursor(recorder, root, Some(paintable));
         }

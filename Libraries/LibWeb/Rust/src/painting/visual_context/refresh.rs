@@ -6,13 +6,13 @@
 
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot, StickyConstraints};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextHostCallbacks;
 use crate::painting::paintable_geometry;
+use crate::painting::paintable_rows::PaintableRowsRead;
 
 pub(crate) fn precompute_sticky_constraints(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     scroll_state: &mut ScrollState,
     sticky_slot: ScrollStateSlot,
     paintable: NodeSlotId,
@@ -57,7 +57,7 @@ pub(crate) fn precompute_sticky_constraints(
     });
 }
 
-pub(crate) fn refresh_sticky_constraints(layout_arena: &LayoutNodeArena, scroll_state: &mut ScrollState) {
+pub(crate) fn refresh_sticky_constraints(layout_arena: &impl PaintableRowsRead, scroll_state: &mut ScrollState) {
     for slot in 0..scroll_state.slot_count() {
         let state = scroll_state.state_at_slot(slot);
         if !state.is_sticky {
@@ -73,7 +73,7 @@ pub(crate) fn refresh_sticky_constraints(layout_arena: &LayoutNodeArena, scroll_
 }
 
 pub(crate) fn refresh_scroll_state(
-    layout_arena: &crate::layout::LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     scroll_state: &mut ScrollState,
 ) {

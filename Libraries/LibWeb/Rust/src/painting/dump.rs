@@ -5,11 +5,11 @@
  */
 
 use crate::css::css_pixels::CssPixels;
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::fragment_ownership;
 use crate::painting::paintable_data::FragmentRecord;
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::text_fragment;
 
 fn push_class_name(out: &mut Vec<u8>, kind: NodeKind) {
@@ -69,7 +69,7 @@ fn push_indent(out: &mut Vec<u8>, indent: usize) {
 
 fn dump_fragment(
     out: &mut Vec<u8>,
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     fragment: &FragmentRecord,
     fragment_index: usize,
     indent: usize,
@@ -127,7 +127,7 @@ fn dump_fragment(
 
 pub(crate) fn dump_block_fragments(
     out: &mut Vec<u8>,
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     block: NodeSlotId,
     indent: usize,
     interactive: bool,
@@ -146,7 +146,7 @@ pub(crate) fn dump_block_fragments(
 
 pub(crate) fn dump_inline_piece_fragments(
     out: &mut Vec<u8>,
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     inline_paintable: NodeSlotId,
     indent: usize,
     interactive: bool,

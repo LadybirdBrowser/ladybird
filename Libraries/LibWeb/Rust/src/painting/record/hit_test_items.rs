@@ -162,7 +162,7 @@ impl<'a> PaintRecorder<'a> {
             return;
         }
 
-        if fragment_ownership::is_self_painting_inline(&self.data(paintable)) {
+        if fragment_ownership::is_self_painting_inline(self.data(paintable)) {
             let Some(root) = self.inline_root(paintable) else {
                 return;
             };
@@ -422,7 +422,7 @@ impl<'a> PaintRecorder<'a> {
             };
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z =
-                crate::painting::style_queries::effective_z_index(self.layout_arena, &self.data(target), target)
+                crate::painting::style_queries::effective_z_index(self.layout_arena, self.data(target), target)
                     .unwrap_or(0)
                     < 0;
             let target_node = target;

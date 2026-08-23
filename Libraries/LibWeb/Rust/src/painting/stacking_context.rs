@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::*;
+use crate::painting::paintable_rows::PaintableRowsWrite;
 use crate::painting::style_queries::effective_z_index;
 
 pub use crate::painting::paintable_data::NO_STACKING_CONTEXT;
@@ -27,19 +27,22 @@ pub struct StackingContextTree {
     pub nodes: Vec<StackingContextNode>,
 }
 
-pub(crate) fn build_stacking_context_tree(layout_arena: &LayoutNodeArena, root: NodeSlotId) -> StackingContextTree {
+pub(crate) fn build_stacking_context_tree(
+    layout_arena: &mut impl PaintableRowsWrite,
+    root: NodeSlotId,
+) -> StackingContextTree {
     let mut tree = StackingContextTree::default();
     tree.nodes.push(StackingContextNode {
         paintable: root,
         parent: NO_STACKING_CONTEXT,
         children: Vec::new(),
         index_in_tree_order: 0,
-        effective_z_index: effective_z_index(layout_arena, &layout_arena.paintable_data(root), root),
+        effective_z_index: effective_z_index(layout_arena, layout_arena.paintable_data(root), root),
         positioned_descendants_and_stacking_contexts_with_stack_level_0: Vec::new(),
         non_positioned_floating_descendants: Vec::new(),
         contains_inline_or_replaced_descendants: false,
     });
-    layout_arena.update_paintable_data(root, |data| data.stacking_context = 0);
+    layout_arena.paintable_data_mut(root).stacking_context = 0;
 
     let mut index_in_tree_order = 1;
     let mut stack: Vec<NodeSlotId> = Vec::new();
@@ -63,12 +66,11 @@ pub(crate) fn build_stacking_context_tree(layout_arena: &LayoutNodeArena, root: 
 }
 
 fn visit(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &mut impl PaintableRowsWrite,
     tree: &mut StackingContextTree,
     paintable: NodeSlotId,
     index_in_tree_order: &mut usize,
 ) {
-    let data = layout_arena.paintable_data(paintable);
     let mut ancestor = crate::painting::paint_order::paint_parent(layout_arena, paintable);
     let mut parent_context = NO_STACKING_CONTEXT;
     while let Some(candidate) = ancestor {
@@ -87,8 +89,15 @@ fn visit(
 
     let establishes_stacking_context =
         crate::painting::style_queries::establishes_stacking_context(layout_arena, paintable);
-    let z_index = effective_z_index(layout_arena, &data, paintable);
-    let positioned = data.has_flag(PaintableFlag::Positioned);
+    let (z_index, positioned, floating, inline) = {
+        let data = layout_arena.paintable_data(paintable);
+        (
+            effective_z_index(layout_arena, data, paintable),
+            data.has_flag(PaintableFlag::Positioned),
+            data.has_flag(PaintableFlag::Floating),
+            data.has_flag(PaintableFlag::Inline),
+        )
+    };
     {
         let parent = &mut tree.nodes[parent_context as usize];
         if (positioned || establishes_stacking_context) && z_index.unwrap_or(0) == 0 {
@@ -96,18 +105,16 @@ fn visit(
                 .positioned_descendants_and_stacking_contexts_with_stack_level_0
                 .push(paintable);
         }
-        if !positioned && data.has_flag(PaintableFlag::Floating) {
+        if !positioned && floating {
             parent.non_positioned_floating_descendants.push(paintable);
         }
         let layout_kind = layout_arena.node_kind_if_live(paintable);
-        if !establishes_stacking_context
-            && (data.has_flag(PaintableFlag::Inline) || layout_kind.is_some_and(crate::layout::kind_is_replaced_box))
-        {
+        if !establishes_stacking_context && (inline || layout_kind.is_some_and(crate::layout::kind_is_replaced_box)) {
             parent.contains_inline_or_replaced_descendants = true;
         }
     }
     if !establishes_stacking_context {
-        layout_arena.update_paintable_data(paintable, |data| data.stacking_context = NO_STACKING_CONTEXT);
+        layout_arena.paintable_data_mut(paintable).stacking_context = NO_STACKING_CONTEXT;
         return;
     }
     let index = tree.nodes.len() as u32;
@@ -123,7 +130,7 @@ fn visit(
     });
     *index_in_tree_order += 1;
     tree.nodes[parent_context as usize].children.push(index);
-    layout_arena.update_paintable_data(paintable, |data| data.stacking_context = index);
+    layout_arena.paintable_data_mut(paintable).stacking_context = index;
 }
 
 fn sort(tree: &mut StackingContextTree, index: u32) {

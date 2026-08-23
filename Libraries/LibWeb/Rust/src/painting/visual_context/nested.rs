@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextHostCallbacks;
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::visual_context::build::{
     BoxFacts, compute_svg_viewport_transform_data, svg_viewport_transform_of,
 };
@@ -20,15 +20,15 @@ pub struct NestedAssignments {
     pub mask_node_indices: HashMap<u32, Vec<usize>>,
 }
 
-struct NestedBuilder<'a> {
-    layout_arena: &'a LayoutNodeArena,
+struct NestedBuilder<'a, Arena> {
+    layout_arena: &'a Arena,
     callbacks: &'a FfiVisualContextHostCallbacks,
     tree: VisualContextTree,
     assignments: NestedAssignments,
     pixel_ratio: f64,
 }
 
-impl NestedBuilder<'_> {
+impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
     fn build_subtree(&mut self, slot: NodeSlotId, inherited_state: usize, include_element_transform: bool) {
         let facts = BoxFacts::gather(self.layout_arena, self.callbacks, slot, self.pixel_ratio, false);
         let mut own_state = inherited_state;
@@ -83,7 +83,7 @@ impl NestedBuilder<'_> {
 }
 
 pub(crate) fn build_nested_svg_visual_context_tree(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     root: NodeSlotId,
     root_transform: TransformData,

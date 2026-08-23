@@ -11,12 +11,12 @@ use crate::css::css_enums;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::css::style_value::StyleValueData;
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
 use crate::painting::paintable_geometry;
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
 use libgfx_rust::{
     AffineTransform, CompositingAndBlendingOperator, CornerRadii, FloatPoint, affine_to_matrix, perspective_matrix,
@@ -47,7 +47,7 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
 
 pub(crate) fn transform_reference_box(
     style: ComputedValuesView<'_>,
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
 ) -> CssPixelRect {
@@ -113,7 +113,7 @@ fn resolved_transform_to_matrix(
 
 // https://drafts.csswg.org/css-transforms-2/#ctm
 pub(crate) fn compute_transform(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     node: NodeSlotId,
     pixel_ratio: f64,
@@ -200,7 +200,7 @@ pub(crate) fn compute_transform(
 
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
 pub(crate) fn compute_perspective_data(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
     pixel_ratio: f64,
@@ -249,7 +249,7 @@ pub(crate) fn compute_perspective_data(
 }
 
 pub(crate) fn compute_css_clip_data(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<ClipData> {
@@ -333,7 +333,7 @@ fn border_radius_is_initial(handle: &ComputedStyleValueHandle) -> bool {
 
 pub(crate) fn border_radii_data(
     style: ComputedValuesView<'_>,
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
 ) -> BorderRadii {
     let border = style.border();
@@ -414,7 +414,7 @@ pub(crate) fn piece_border_radii_data(
     crate::painting::border_radii::scale_radii_to_fit(border_rect, radii)
 }
 
-fn overflow_property_applies(layout_arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
+fn overflow_property_applies(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
     // https://drafts.csswg.org/css-overflow-3/#overflow-control
     // Overflow properties apply to block containers, flex containers and grid containers.
     // FIXME: Ideally we would check whether overflow applies positively rather than listing exceptions. However,
@@ -439,7 +439,7 @@ fn overflow_property_applies(layout_arena: &LayoutNodeArena, slot: NodeSlotId) -
 // https://drafts.csswg.org/css-overflow-4/#overflow-clip-edge
 fn overflow_clip_edge_rect(
     style: ComputedValuesView<'_>,
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
 ) -> CssPixelRect {
     use crate::css::css_enums::background_box::{BORDER_BOX, CONTENT_BOX};
@@ -504,7 +504,7 @@ pub(crate) fn mix_blend_mode_to_compositing_and_blending_operator(
 }
 
 pub(crate) fn compute_effects_data(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
 ) -> Option<EffectsData> {
@@ -557,7 +557,7 @@ fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'
 }
 
 pub(crate) fn wants_fixed_background_visual_context(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     root_background_source: crate::painting::host::FfiRootBackgroundSource,
     node: NodeSlotId,
     may_be_root_element: bool,
@@ -623,7 +623,7 @@ fn mask_kind_from(value: i32) -> libgfx_rust::MaskKind {
 }
 
 pub(crate) fn mask_layer_presence(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
     include_css_mask_layers: bool,
@@ -667,7 +667,7 @@ pub(crate) fn mask_layer_presence(
     layers
 }
 
-pub(crate) fn backface_hidden(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn backface_hidden(layout_arena: &impl PaintableRowsRead, node: NodeSlotId) -> bool {
     use crate::css::css_enums::backface_visibility;
     let Some(style) = layout_arena.node_style_if_live(node) else {
         return false;
@@ -676,7 +676,7 @@ pub(crate) fn backface_hidden(layout_arena: &LayoutNodeArena, node: NodeSlotId) 
         && style_queries::is_transformable(layout_arena, node)
 }
 
-pub(crate) fn may_have_clip(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn may_have_clip(layout_arena: &impl PaintableRowsRead, node: NodeSlotId) -> bool {
     use crate::css::css_enums::{content_visibility, overflow};
     let Some(style) = layout_arena.node_style_if_live(node) else {
         return false;
@@ -689,7 +689,7 @@ pub(crate) fn may_have_clip(layout_arena: &LayoutNodeArena, node: NodeSlotId) ->
 }
 
 pub(crate) fn compute_clip_data(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<ClipData> {

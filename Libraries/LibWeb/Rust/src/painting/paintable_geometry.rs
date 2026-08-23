@@ -9,6 +9,7 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::*;
+use crate::painting::paintable_rows::PaintableRowsRead;
 
 pub(crate) fn is_svg_paintable(kind: PaintableKind) -> bool {
     matches!(
@@ -22,7 +23,7 @@ pub(crate) fn is_svg_paintable(kind: PaintableKind) -> bool {
     )
 }
 
-pub(crate) fn committed_offset(arena: &LayoutNodeArena, slot: NodeSlotId) -> crate::layout::FfiCssPixelPoint {
+pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> crate::layout::FfiCssPixelPoint {
     let data = arena.paintable_data(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return data.offset;
@@ -32,7 +33,10 @@ pub(crate) fn committed_offset(arena: &LayoutNodeArena, slot: NodeSlotId) -> cra
     })
 }
 
-pub(crate) fn committed_content_size(arena: &LayoutNodeArena, slot: NodeSlotId) -> crate::layout::FfiCssPixelSize {
+pub(crate) fn committed_content_size(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> crate::layout::FfiCssPixelSize {
     let data = arena.paintable_data(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return data.content_size;
@@ -134,7 +138,7 @@ pub(crate) fn committed_collapsed_table_borders(
 }
 
 pub(crate) fn committed_svg_path(
-    arena: &LayoutNodeArena,
+    arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
 ) -> Option<std::rc::Rc<libgfx_rust::path::OwnedPath>> {
     if arena.paintable_data(slot).kind != PaintableKind::SVGPathPaintable {
@@ -156,7 +160,10 @@ pub(crate) fn committed_svg_viewport_transform(
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_viewport_transform))
 }
 
-pub(crate) fn committed_svg_viewport_size(arena: &LayoutNodeArena, slot: NodeSlotId) -> crate::layout::FfiCssPixelSize {
+pub(crate) fn committed_svg_viewport_size(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> crate::layout::FfiCssPixelSize {
     if arena.paintable_data(slot).kind != PaintableKind::SVGSVGPaintable {
         return crate::layout::FfiCssPixelSize::default();
     }
@@ -166,7 +173,7 @@ pub(crate) fn committed_svg_viewport_size(arena: &LayoutNodeArena, slot: NodeSlo
     })
 }
 
-pub(crate) fn absolute_rect(arena: &LayoutNodeArena, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;
     }
@@ -195,11 +202,11 @@ pub(crate) fn absolute_rect(arena: &LayoutNodeArena, slot: NodeSlotId) -> CssPix
     rect
 }
 
-pub(crate) fn absolute_position(arena: &LayoutNodeArena, slot: NodeSlotId) -> CssPixelPoint {
+pub(crate) fn absolute_position(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelPoint {
     absolute_rect(arena, slot).location()
 }
 
-pub(crate) fn absolute_padding_box_rect(arena: &LayoutNodeArena, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
     let absolute = absolute_rect(arena, slot);
     if data.kind == PaintableKind::InlinePaintable {
@@ -215,7 +222,7 @@ pub(crate) fn absolute_padding_box_rect(arena: &LayoutNodeArena, slot: NodeSlotI
     )
 }
 
-pub(crate) fn absolute_border_box_rect(arena: &LayoutNodeArena, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_border_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());
@@ -241,7 +248,7 @@ pub(crate) fn absolute_border_box_rect(arena: &LayoutNodeArena, slot: NodeSlotId
     )
 }
 
-pub(crate) fn scrollable_overflow_rect(arena: &LayoutNodeArena, slot: NodeSlotId) -> Option<CssPixelRect> {
+pub(crate) fn scrollable_overflow_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     let data = arena.paintable_data(slot);
     if data.has_overflow {
         return Some(data.overflow.rect.into());

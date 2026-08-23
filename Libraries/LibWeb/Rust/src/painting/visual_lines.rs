@@ -7,6 +7,7 @@
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::{paintable_geometry, text_fragment};
 
 pub(crate) struct RecordVisualLine {
@@ -76,7 +77,10 @@ fn has_empty_visual_line_positions(layout_arena: &LayoutNodeArena, node_slots: &
     found
 }
 
-pub(crate) fn collect_visual_lines(layout_arena: &LayoutNodeArena, node_slots: &[NodeSlotId]) -> Vec<RecordVisualLine> {
+pub(crate) fn collect_visual_lines(
+    layout_arena: &impl PaintableRowsRead,
+    node_slots: &[NodeSlotId],
+) -> Vec<RecordVisualLine> {
     let mut lines: Vec<RecordVisualLine> = Vec::new();
     text_fragment::for_each_fragment_of_nodes(layout_arena, node_slots, |block, _, fragment| {
         let dom_start = fragment.dom_start_offset_in_node;
@@ -129,7 +133,10 @@ pub(crate) struct EmptyLineCaretTarget {
     pub rect: CssPixelRect,
 }
 
-pub(crate) fn empty_line_caret_targets(layout_arena: &LayoutNodeArena, block: NodeSlotId) -> Vec<EmptyLineCaretTarget> {
+pub(crate) fn empty_line_caret_targets(
+    layout_arena: &impl PaintableRowsRead,
+    block: NodeSlotId,
+) -> Vec<EmptyLineCaretTarget> {
     let side = layout_arena.paintable_side_data(block);
     if side.fragments.is_empty() || side.lines.is_empty() {
         return Vec::new();
@@ -209,7 +216,7 @@ pub(crate) fn empty_line_caret_targets(layout_arena: &LayoutNodeArena, block: No
 }
 
 fn fragments_of_line(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     owner_paintable: u32,
     line_index: u32,
     node_slots: &[NodeSlotId],
@@ -225,7 +232,7 @@ fn fragments_of_line(
 }
 
 pub(crate) fn caret_inline_coordinate(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     owner_paintable: u32,
     line_index: u32,
     node_slots: &[NodeSlotId],
@@ -265,7 +272,7 @@ pub(crate) fn caret_inline_coordinate(
 }
 
 pub(crate) fn offset_closest_to_inline_coordinate(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintableRowsRead,
     owner_paintable: u32,
     line_index: u32,
     node_slots: &[NodeSlotId],

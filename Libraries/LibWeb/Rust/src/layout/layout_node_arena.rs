@@ -1619,6 +1619,13 @@ impl LayoutNodeArena {
         unsafe { &*arena.cast::<Self>() }
     }
 
+    pub(crate) unsafe fn from_handle_mut<'a>(arena: *mut c_void) -> &'a mut Self {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The caller guarantees exclusive access to the arena for the
+        // duration of the returned borrow.
+        unsafe { &mut *arena.cast::<Self>() }
+    }
+
     fn data_mut(&mut self, index: u32) -> &mut NodeData {
         let index = index as usize;
         let chunk = self
@@ -1682,7 +1689,10 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        let paintable_row_reset = unsafe { &mut *arena.cast::<LayoutNodeArena>() }.free(id, generation);
+        let paintable_row_reset = {
+            let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
+            arena.free(id, generation)
+        };
         if let Some(reset) = paintable_row_reset {
             reset.invoke_callback();
         }

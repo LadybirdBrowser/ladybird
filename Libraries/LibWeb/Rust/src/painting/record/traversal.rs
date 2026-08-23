@@ -85,8 +85,9 @@ pub(crate) fn record_display_list(
         .filter(|source| source.compatible_visual_context_tree_version == visual_context_tree_version);
     let item_cache_source =
         item_cache_source.filter(|source| source.visual_context_tree_version == visual_context_tree_version);
+    let paintable_rows = layout_arena.paintable_rows();
     let mut recorder = PaintRecorder {
-        layout_arena,
+        layout_arena: &paintable_rows,
         paint_state,
         stacking_contexts,
         host,
@@ -405,6 +406,7 @@ impl PaintRecorder<'_> {
         let floating = child_data.has_flag(PaintableFlag::Floating);
         let inline = child_data.has_flag(PaintableFlag::Inline);
         let child_kind = child_data.kind;
+        let is_item = child_data.has_flag(PaintableFlag::FlexOrGridItem);
 
         // Positioned descendants at stack level 0 are painted in a separate pass.
         if positioned && self.z_index(child).unwrap_or(0) == 0 {
@@ -416,7 +418,6 @@ impl PaintRecorder<'_> {
             return;
         }
 
-        let is_item = child_data.has_flag(PaintableFlag::FlexOrGridItem);
         // NOTE: Flex and grid items should be treated the same way as CSS2 defines for inline-blocks:
         //       - https://drafts.csswg.org/css-flexbox-1/#painting
         //       - https://www.w3.org/TR/css-grid-2/#z-order

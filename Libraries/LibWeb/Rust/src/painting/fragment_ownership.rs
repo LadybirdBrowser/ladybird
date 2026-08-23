@@ -7,6 +7,7 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::paintable_data::*;
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::stacking_context::NO_STACKING_CONTEXT;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -92,11 +93,14 @@ pub(crate) fn nearest_fragmented_inline_ancestor(
     None
 }
 
-pub(crate) fn nearest_self_painting_inline_box(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> Option<NodeSlotId> {
+pub(crate) fn nearest_self_painting_inline_box(
+    layout_arena: &impl PaintableRowsRead,
+    node: NodeSlotId,
+) -> Option<NodeSlotId> {
     let mut ancestor = nearest_fragmented_inline_ancestor(layout_arena, node);
     while let Some(candidate) = ancestor {
         if layout_arena.paintable_row_is_populated(candidate)
-            && is_self_painting_inline(&layout_arena.paintable_data(candidate))
+            && is_self_painting_inline(layout_arena.paintable_data(candidate))
         {
             return Some(candidate);
         }
@@ -105,7 +109,7 @@ pub(crate) fn nearest_self_painting_inline_box(layout_arena: &LayoutNodeArena, n
     None
 }
 
-pub(crate) fn assign_fragment_ownership(layout_arena: &LayoutNodeArena, viewport: NodeSlotId) {
+pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, viewport: NodeSlotId) {
     // Whether a box is self-painting depends on the stacking context tree, so this runs
     // whenever that tree is rebuilt.
     let mut stack = vec![viewport];
@@ -125,7 +129,7 @@ pub(crate) fn assign_fragment_ownership(layout_arena: &LayoutNodeArena, viewport
     }
 }
 
-fn assign_for_block(layout_arena: &LayoutNodeArena, block: NodeSlotId) {
+fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
     let pieces = layout_arena.paintable_side_data(block).inline_box_pieces.clone();
     let mut block_filter = FragmentOwnershipFilter::everything();
 
@@ -164,7 +168,7 @@ fn assign_for_block(layout_arena: &LayoutNodeArena, block: NodeSlotId) {
         let Some(piece_paintable) = piece_paintable_of(piece.node) else {
             continue;
         };
-        if !is_self_painting_inline(&layout_arena.paintable_data(piece_paintable)) {
+        if !is_self_painting_inline(layout_arena.paintable_data(piece_paintable)) {
             continue;
         }
         let range = FragmentRange {
@@ -191,7 +195,10 @@ fn assign_for_block(layout_arena: &LayoutNodeArena, block: NodeSlotId) {
     }
 }
 
-pub(crate) fn effective_filter(layout_arena: &LayoutNodeArena, paintable: NodeSlotId) -> FragmentOwnershipFilter {
+pub(crate) fn effective_filter(
+    layout_arena: &impl PaintableRowsRead,
+    paintable: NodeSlotId,
+) -> FragmentOwnershipFilter {
     if let Some(filter) = &layout_arena.paintable_side_data(paintable).fragment_ownership {
         return filter.clone();
     }
