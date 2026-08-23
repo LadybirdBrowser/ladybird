@@ -4358,16 +4358,25 @@ fn interpolate_rotate_3d(
                 half_angle.cos(),
             ]
         };
-        let from_quaternion = to_quaternion(from_axis_normalized, from_angle);
+        let mut from_quaternion = to_quaternion(from_axis_normalized, from_angle);
         let to_quaternion = to_quaternion(to_axis_normalized, to_angle);
 
         // https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
-        let product = from_quaternion
+        let mut product = from_quaternion
             .iter()
             .zip(to_quaternion)
             .map(|(from, to)| from * to)
             .sum::<f64>()
             .clamp(-1.0, 1.0);
+
+        // AD-HOC: The specification's slerp pseudocode interpolates the quaternions as given, but a
+        // quaternion and its negation represent the same rotation. A negative dot product means
+        // the interpolation would travel the long way around the sphere. Negate one input to take
+        // the shortest path, as other engines do.
+        if product < 0.0 {
+            from_quaternion = from_quaternion.map(|component| -component);
+            product = -product;
+        }
         let interpolated_quaternion = if product.abs() >= 1.0 {
             from_quaternion
         } else {
@@ -4394,6 +4403,9 @@ fn interpolate_rotate_3d(
         let angle = 2.0 * interpolated_quaternion[3].clamp(-1.0, 1.0).acos();
         if sin_half_angle >= epsilon {
             axis = axis.map(|component| component / sin_half_angle);
+        } else {
+            // The rotation angle is zero, so the axis is arbitrary.
+            axis = [0.0, 0.0, 1.0];
         }
         (axis, angle)
     };
