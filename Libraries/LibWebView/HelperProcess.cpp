@@ -5,6 +5,8 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/ScopeGuard.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibWebView/Application.h>
@@ -12,7 +14,136 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>
 
+#if defined(AK_OS_MACOS)
+#    include <notify.h>
+#    include <signal.h>
+#    include <sys/wait.h>
+#elif defined(AK_OS_LINUX)
+#    include <signal.h>
+#    include <sys/socket.h>
+#    include <sys/wait.h>
+#endif
+
 namespace WebView {
+
+static ErrorOr<Core::Process> launch_cpu_profiler(StringView server_name, pid_t pid, Optional<ByteString> const& configured_output)
+{
+#if defined(AK_OS_MACOS)
+    auto output = configured_output.value_or(ByteString::formatted("Ladybird-{}-{}.trace", server_name, pid));
+    auto notification_name = ByteString::formatted("org.ladybird.cpu-profiler-ready.{}.{}", Core::System::getpid(), pid);
+
+    int notification_token = 0;
+    if (notify_register_check(notification_name.characters(), &notification_token) != NOTIFY_STATUS_OK)
+        return Error::from_string_literal("Unable to register for the xctrace startup notification");
+    ScopeGuard cancel_notification = [&] { notify_cancel(notification_token); };
+
+    Vector<ByteString> arguments {
+        "record"sv,
+        "--template"sv,
+        "Time Profiler"sv,
+        "--attach"sv,
+        ByteString::number(pid),
+        "--output"sv,
+        output,
+        "--notify-tracing-started"sv,
+        notification_name,
+        "--no-prompt"sv,
+    };
+    auto profiler = TRY(Core::Process::spawn({
+        .executable = "xctrace"sv,
+        .search_for_executable_in_path = true,
+        .arguments = arguments,
+    }));
+    ArmedScopeGuard stop_profiler = [&] {
+        (void)Core::System::kill(profiler.pid(), SIGINT);
+        (void)profiler.wait_for_termination();
+    };
+
+    auto timer = Core::ElapsedTimer::start_new();
+    for (;;) {
+        int tracing_started = 0;
+        if (notify_check(notification_token, &tracing_started) != NOTIFY_STATUS_OK)
+            return Error::from_string_literal("Unable to check the xctrace startup notification");
+        if (tracing_started)
+            break;
+
+        auto wait_result = TRY(Core::System::waitpid(profiler.pid(), WNOHANG));
+        if (wait_result.pid != 0)
+            return Error::from_string_literal("xctrace exited before profiling started");
+        if (timer.elapsed_milliseconds() >= 30'000)
+            return Error::from_string_literal("Timed out waiting for xctrace to start profiling");
+        TRY(Core::System::sleep_ms(10));
+    }
+
+    dbgln("Launched {} process under Time Profiler; writing {}", server_name, output);
+    stop_profiler.disarm();
+    return profiler;
+#elif defined(AK_OS_LINUX)
+    auto output = configured_output.value_or(ByteString::formatted("perf.data.{}", pid));
+
+    Array<int, 2> control_socket;
+    Array<int, 2> acknowledgement_socket;
+    TRY(Core::System::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, control_socket.data()));
+    TRY(Core::System::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, acknowledgement_socket.data()));
+    TRY(Core::System::set_close_on_exec(control_socket[1], false));
+    TRY(Core::System::set_close_on_exec(acknowledgement_socket[1], false));
+    ScopeGuard close_sockets = [&] {
+        for (auto fd : control_socket)
+            (void)Core::System::close(fd);
+        for (auto fd : acknowledgement_socket)
+            (void)Core::System::close(fd);
+    };
+
+    Vector<ByteString> arguments {
+        "record"sv,
+        "--pid"sv,
+        ByteString::number(pid),
+        "--output"sv,
+        output,
+        "--delay=-1"sv,
+        ByteString::formatted("--control=fd:{},{}", control_socket[1], acknowledgement_socket[1]),
+    };
+    auto profiler = TRY(Core::Process::spawn({
+        .executable = "perf"sv,
+        .search_for_executable_in_path = true,
+        .arguments = arguments,
+    }));
+    TRY(Core::System::close(control_socket[1]));
+    control_socket[1] = -1;
+    TRY(Core::System::close(acknowledgement_socket[1]));
+    acknowledgement_socket[1] = -1;
+    ArmedScopeGuard stop_profiler = [&] {
+        (void)Core::System::kill(profiler.pid(), SIGINT);
+        (void)profiler.wait_for_termination();
+    };
+
+    // perf acknowledges this command only after it has attached and configured its events.
+    static constexpr Array<u8, 7> enable_command { 'e', 'n', 'a', 'b', 'l', 'e', '\n' };
+    auto sent = TRY(Core::System::send(control_socket[0], enable_command.span(), MSG_NOSIGNAL));
+    if (sent != enable_command.size())
+        return Error::from_string_literal("Unable to enable perf profiling");
+
+    Array<u8, 4> acknowledgement;
+    size_t received = 0;
+    while (received < acknowledgement.size()) {
+        auto bytes_read = TRY(Core::System::read(acknowledgement_socket[0], acknowledgement.span().slice(received)));
+        if (bytes_read == 0)
+            return Error::from_string_literal("perf exited before profiling started");
+        received += bytes_read;
+    }
+    if (acknowledgement != Array<u8, 4> { 'a', 'c', 'k', '\n' })
+        return Error::from_string_literal("perf returned an invalid startup acknowledgement");
+
+    dbgln("Launched {} process under perf; writing {}", server_name, output);
+    stop_profiler.disarm();
+    return profiler;
+#else
+    (void)server_name;
+    (void)pid;
+    (void)configured_output;
+    return Error::from_string_literal("CPU profiling is only supported on macOS and Linux");
+#endif
+}
 
 template<typename ClientType, typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
@@ -25,7 +156,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
     auto candidate_server_paths = TRY(get_paths_for_helper_process(server_name));
 
-    if (browser_options.profile_helper_process == process_type) {
+    if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
         arguments.prepend({
             "--tool=callgrind"sv,
             "--instr-atstart=no"sv,
@@ -39,7 +170,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     for (auto [i, path] : enumerate(candidate_server_paths)) {
         Core::ProcessSpawnOptions options { .name = server_name, .arguments = arguments };
 
-        if (browser_options.profile_helper_process == process_type) {
+        if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
             options.executable = "valgrind"sv;
             options.search_for_executable_in_path = true;
             arguments[2] = path;
@@ -53,6 +184,11 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         if (!result.is_error()) {
             auto&& [process, client] = result.release_value();
 
+            if (WebView::Application::the().claim_cpu_profiler(process_type)) {
+                auto profiler = TRY(launch_cpu_profiler(server_name, process.pid(), browser_options.profile_output));
+                WebView::Application::the().set_cpu_profiler_process(move(profiler));
+            }
+
             if constexpr (requires { client->set_pid(pid_t {}); })
                 client->set_pid(process.pid());
 
@@ -63,7 +199,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
             WebView::Application::the().add_child_process(move(process));
 
-            if (browser_options.profile_helper_process == process_type) {
+            if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
                 dbgln();
                 dbgln("\033[1;34mLaunched {} process under callgrind!\033[0m", server_name);
                 dbgln("\033[1;36mRun `\033[4mcallgrind_control -i on\033[24m` to start instrumentation and `\033[4mcallgrind_control -i off\033[24m` stop it again.\033[0m");

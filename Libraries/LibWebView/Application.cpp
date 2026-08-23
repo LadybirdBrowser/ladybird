@@ -63,6 +63,7 @@
 #endif
 
 #if !defined(AK_OS_WINDOWS)
+#    include <signal.h>
 #    include <sys/wait.h>
 #endif
 
@@ -175,11 +176,48 @@ Application::~Application()
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
 
+    if (m_cpu_profiler_process.has_value()) {
+#if !defined(AK_OS_WINDOWS)
+        for (auto handler : m_cpu_profiler_signal_handlers)
+            Core::EventLoop::unregister_signal(handler);
+        auto wait_result = Core::System::waitpid(m_cpu_profiler_process->pid(), WNOHANG);
+        while (wait_result.is_error() && wait_result.error().code() == EINTR)
+            wait_result = Core::System::waitpid(m_cpu_profiler_process->pid(), WNOHANG);
+        if (!wait_result.is_error() && wait_result.value().pid == 0) {
+            if (auto result = Core::System::kill(m_cpu_profiler_process->pid(), SIGINT); result.is_error())
+                warnln("Unable to stop CPU profiler: {}", result.error());
+            if (auto result = m_cpu_profiler_process->wait_for_termination(); result.is_error())
+                warnln("Unable to wait for CPU profiler: {}", result.error());
+        } else if (wait_result.is_error() && wait_result.error().code() != ECHILD) {
+            warnln("Unable to query CPU profiler: {}", wait_result.error());
+        }
+#endif
+        m_cpu_profiler_process.clear();
+    }
+
     m_spare_web_content_process = nullptr;
     m_process_manager = nullptr;
     m_browser_process = nullptr;
 
     s_the = nullptr;
+}
+
+bool Application::claim_cpu_profiler(ProcessType process_type)
+{
+    if (m_cpu_profiler_claimed || m_browser_options.profile_tool != ProfileTool::CPU || m_browser_options.profile_helper_process != process_type)
+        return false;
+    m_cpu_profiler_claimed = true;
+    return true;
+}
+
+void Application::set_cpu_profiler_process(Core::Process process)
+{
+    VERIFY(!m_cpu_profiler_process.has_value());
+    m_cpu_profiler_process = move(process);
+#if !defined(AK_OS_WINDOWS)
+    m_cpu_profiler_signal_handlers.append(Core::EventLoop::register_signal(SIGINT, [this](int) { m_event_loop->quit(0); }));
+    m_cpu_profiler_signal_handlers.append(Core::EventLoop::register_signal(SIGTERM, [this](int) { m_event_loop->quit(0); }));
+#endif
 }
 
 FaviconStore& Application::favicon_store(IsPrivate is_private)
@@ -276,6 +314,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<u16> devtools_port;
     Vector<StringView> debug_processes;
     Optional<StringView> profile_process;
+    Optional<StringView> profile_tool;
+    Optional<StringView> profile_output;
     Optional<StringView> webdriver_browser_endpoint;
     Optional<StringView> user_agent_preset;
     Optional<StringView> dns_server_address;
@@ -356,7 +396,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
             debug_processes.append(value);
             return true;
         } });
-    args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
+    args_parser.add_option(profile_process, "Profile the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
+    args_parser.add_option(profile_tool, "Select the profiler to use: 'callgrind' (default) or 'cpu'", "profile-tool", 0, "tool");
+    args_parser.add_option(profile_output, "Write CPU profiler output to the given path", "profile-output", 0, "path");
 #if defined(AK_OS_MACOS)
     args_parser.add_option(webdriver_browser_endpoint, "Mach server name for the browser's WebDriver IPC", "webdriver-browser-mach-server-name", 0, "name", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
 #else
@@ -529,6 +571,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     Vector<ProcessType> debug_process_types;
     Optional<ProcessType> profile_process_type;
+    auto selected_profile_tool = ProfileTool::Callgrind;
 
     for (auto& process_name : debug_processes) {
         auto type = process_type_from_name(process_name);
@@ -536,6 +579,18 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     }
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
+    if (profile_tool.has_value()) {
+        if (*profile_tool == "callgrind"sv)
+            selected_profile_tool = ProfileTool::Callgrind;
+        else if (*profile_tool == "cpu"sv)
+            selected_profile_tool = ProfileTool::CPU;
+        else
+            return Error::from_string_literal("--profile-tool must be 'callgrind' or 'cpu'");
+    }
+    if (profile_tool.has_value() && !profile_process.has_value())
+        return Error::from_string_literal("--profile-tool requires --profile-process");
+    if (profile_output.has_value() && selected_profile_tool != ProfileTool::CPU)
+        return Error::from_string_literal("--profile-output requires --profile-tool cpu");
 
     auto configured_content_blocker_list_paths = m_settings->config_variable_as_string_array(ConfigVariableID::ContentBlockerListPaths);
 
@@ -564,6 +619,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
         .debug_helper_processes = move(debug_process_types),
         .profile_helper_process = move(profile_process_type),
+        .profile_tool = selected_profile_tool,
+        .profile_output = profile_output.has_value() ? Optional<ByteString> { *profile_output } : OptionalNone {},
         .dns_settings = (dns_server_address.has_value()
                 ? Optional<DNSSettings> { use_dns_over_tls
                           ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port, validate_dnssec_locally))
