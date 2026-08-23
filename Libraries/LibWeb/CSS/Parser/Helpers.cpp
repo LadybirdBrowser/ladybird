@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustTokenizer.h>
 
 namespace Web {
 
@@ -73,6 +74,8 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& 
 {
     if (string.is_empty())
         return nullptr;
+    if (!CSS::Parser::RustTokenizer::input_needs_normalization(string))
+        return CSS::Parser::Parser::parse_css_value_from_filtered_source(context, string, property_id);
     return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
 }
 

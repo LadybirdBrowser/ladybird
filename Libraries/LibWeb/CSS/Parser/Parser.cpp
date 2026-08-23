@@ -2477,9 +2477,16 @@ Vector<ComponentValue> Parser::parse_as_list_of_component_values()
 
 RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)
 {
-    auto component_values = parse_a_list_of_component_values(token_stream());
-    auto tokens = TokenStream(component_values);
-    auto parsed_value = parse_css_value(property_id, tokens);
+    auto parsed_value = parse_css_value_from_source(property_id, m_source);
+    if (parsed_value.is_error())
+        return nullptr;
+    return parsed_value.release_value();
+}
+
+RefPtr<StyleValue const> Parser::parse_css_value_from_filtered_source(ParsingParams const& context, Utf16View source, PropertyID property_id)
+{
+    Parser parser { context, {} };
+    auto parsed_value = parser.parse_css_value_from_source(property_id, source);
     if (parsed_value.is_error())
         return nullptr;
     return parsed_value.release_value();

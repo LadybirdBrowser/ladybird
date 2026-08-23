@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_tokenizer::{ParserSource, ParserString, ParserToken, ParserTokenKind, SourcePosition};
+use crate::css::css_tokenizer::{
+    ParserSource, ParserString, ParserToken, ParserTokenKind, SmallParserTokenList, SourcePosition,
+};
+use smallvec::SmallVec;
 
 const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
 
@@ -265,6 +268,17 @@ pub(crate) fn consume_a_list_of_component_values(tokens: impl ComponentValueToke
     let mut tokens = tokens.into_owned_tokens();
     let mut position = 0;
     consume_component_values(&mut tokens, &mut position, None, 0, true)
+}
+
+pub(crate) fn consume_a_small_list_of_component_values(
+    mut tokens: SmallParserTokenList,
+) -> Result<SmallVec<[ComponentValue; 8]>, ()> {
+    let mut values = SmallVec::new();
+    let mut position = 0;
+    while position < tokens.len() {
+        values.push(consume_a_component_value(&mut tokens, &mut position, 0, true)?);
+    }
+    Ok(values)
 }
 
 #[cfg(test)]
