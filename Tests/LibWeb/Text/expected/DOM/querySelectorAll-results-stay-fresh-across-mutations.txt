@@ -43,6 +43,8 @@ shadow querySelector found first match: true
 querySelectorAll after shadow querySelector: 2
 fragment querySelector found first match: true
 querySelectorAll after fragment querySelector: 2
+fragment compound querySelector found first match: true
+fragment compound querySelectorAll count: 1
 querySelector before tree mutation found match: true
 querySelector after tree mutation found new first: true
 querySelectorAll after tree mutation: 2
