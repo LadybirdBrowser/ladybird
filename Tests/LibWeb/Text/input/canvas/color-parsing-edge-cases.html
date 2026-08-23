@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<canvas id="canvas"></canvas>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+
+        function testInvalidColor(color) {
+            context.fillStyle = "#123456";
+            context.fillStyle = color;
+            println(`${JSON.stringify(color)} -> ${context.fillStyle}`);
+        }
+
+        testInvalidColor("rgb(1.,2,3)");
+        testInvalidColor("rgb(1.e2,2,3)");
+        testInvalidColor("rgba(1,2,3,1.)");
+        testInvalidColor("rgba(1,2,3,1.e2)");
+
+        testInvalidColor("\vred");
+        testInvalidColor("red\v");
+        testInvalidColor("rgb(1,\v2,3)");
+        testInvalidColor("rgba(1,2,3,\v.5)");
+
+        context.fillStyle = "\fred\r";
+        println(`CSS whitespace -> ${context.fillStyle}`);
+
+        context.fillStyle = "rgb(1,\f2\r,3)";
+        println(`CSS component whitespace -> ${context.fillStyle}`);
+    });
+</script>
