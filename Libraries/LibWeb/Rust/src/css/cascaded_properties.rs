@@ -880,7 +880,11 @@ pub struct FfiCascadedCustomProperties {
 pub struct FfiCascadeResolutionContext {
     pub parse_context: *const c_void,
     pub custom_property_store: *const c_void,
+    pub inheritance_custom_property_store: *const c_void,
     pub custom_property_registry: *const c_void,
+    pub attributes: *const crate::css::custom_properties::FfiSubstitutionAttribute,
+    pub attribute_count: usize,
+    pub attribute_names_are_ascii_case_insensitive: bool,
     pub callback_context: *mut c_void,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
@@ -1094,14 +1098,19 @@ fn resolve_cascade_value(
     let native_resolution = unsafe {
         crate::css::custom_properties::resolve_vars(
             resolution_context.custom_property_store,
+            resolution_context.inheritance_custom_property_store,
             resolution_context.custom_property_registry,
             unresolved_data,
+            resolution_context.attributes,
+            resolution_context.attribute_count,
+            resolution_context.attribute_names_are_ascii_case_insensitive,
         )
     };
     if matches!(
-        native_resolution,
+        &native_resolution,
         crate::css::custom_properties::NativeVarResolution::NotHandled
     ) {
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionOracleCallback);
         let data = resolution_context
             .resolve_not_handled
             .map_or(std::ptr::null(), |resolve| unsafe {
@@ -1124,7 +1133,21 @@ fn resolve_cascade_value(
         unsafe { note_substitution(resolution_context.callback_context, unresolved_data) };
     }
 
-    if style_engine_rule_id != 0
+    let substitution_is_cacheable = !matches!(
+        native_resolution,
+        crate::css::custom_properties::NativeVarResolution::Resolved {
+            contains_attr_tainted_values: true,
+            ..
+        }
+    ) && !matches!(
+        unsafe { &*unresolved_data.cast::<StyleValueData>() },
+        StyleValueData::Unresolved {
+            presence_inherit: true,
+            ..
+        }
+    );
+    if substitution_is_cacheable
+        && style_engine_rule_id != 0
         && let Some(lookup) = resolution_context.lookup_cached_substitution
     {
         let cached = unsafe { lookup(resolution_context.callback_context, style_engine_rule_id, property_id) };
@@ -1145,7 +1168,10 @@ fn resolve_cascade_value(
     }
 
     let parsed = match native_resolution {
-        crate::css::custom_properties::NativeVarResolution::Resolved(source) => {
+        crate::css::custom_properties::NativeVarResolution::Resolved {
+            source,
+            contains_attr_tainted_values,
+        } => {
             let Some(base_context) = (unsafe { resolution_context.parse_context.cast::<ParseContext>().as_ref() })
             else {
                 return ResolvedStyleValue {
@@ -1153,13 +1179,14 @@ fn resolve_cascade_value(
                     has_style_sheet_context,
                 };
             };
-            let contains_attr_tainted_values = matches!(
-                unsafe { &*unresolved_data.cast::<StyleValueData>() },
-                StyleValueData::Unresolved {
-                    contains_attr_tainted_values: true,
-                    ..
-                }
-            );
+            let contains_attr_tainted_values = contains_attr_tainted_values
+                || matches!(
+                    unsafe { &*unresolved_data.cast::<StyleValueData>() },
+                    StyleValueData::Unresolved {
+                        contains_attr_tainted_values: true,
+                        ..
+                    }
+                );
             let mut random_function_index = 0;
             let value_context = FfiValueParsingContext {
                 kind: FfiValueParsingContextKind::Property,
@@ -1186,7 +1213,7 @@ fn resolve_cascade_value(
         }
         crate::css::custom_properties::NativeVarResolution::NotHandled => unreachable!(),
     };
-    if let Some(cache) = resolution_context.cache_parsed_substitution {
+    if substitution_is_cacheable && let Some(cache) = resolution_context.cache_parsed_substitution {
         unsafe {
             cache(
                 resolution_context.callback_context,

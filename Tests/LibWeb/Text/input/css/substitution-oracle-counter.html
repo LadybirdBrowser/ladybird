@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @function --double(--value <length>) {
+        result: calc(var(--value) * 2);
+    }
+</style>
+<script>
+    test(() => {
+        const parent = document.createElement("div");
+        parent.style.setProperty("--inherited-order", "6");
+
+        const element = document.createElement("div");
+        element.setAttribute("data-size", "7");
+        element.style.cssText = `
+            width: --double(3px);
+            height: env(unknown-environment-variable, 4px);
+            margin-left: if(else: 5px);
+            z-index: inherit(--inherited-order);
+            padding-left: attr(data-size px);
+        `;
+        parent.appendChild(element);
+        document.body.appendChild(parent);
+
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+
+        const style = getComputedStyle(element);
+        println(`custom function: ${style.width}`);
+        println(`environment fallback: ${style.height}`);
+        println(`conditional: ${style.marginLeft}`);
+        println(`inherit function: ${style.zIndex}`);
+        println(`attribute: ${style.paddingLeft}`);
+        println(`oracle callbacks: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
+        parent.remove();
+
+        CSS.registerProperty({
+            name: "--non-inherited-order",
+            syntax: "<integer>",
+            inherits: false,
+            initialValue: "0",
+        });
+        internals.updateStyle();
+        internals.resetStyleFfiCounters();
+        const registeredParent = document.createElement("div");
+        registeredParent.style.setProperty("--non-inherited-order", "8");
+        const registeredChild = document.createElement("div");
+        registeredChild.style.zIndex = "inherit(--non-inherited-order)";
+        registeredParent.appendChild(registeredChild);
+        document.body.appendChild(registeredParent);
+        println(`registered inherit initial: ${getComputedStyle(registeredChild).zIndex}`);
+        registeredParent.style.setProperty("--non-inherited-order", "9");
+        println(`registered inherit mutation: ${getComputedStyle(registeredChild).zIndex}`);
+
+        println(`registered oracle callbacks: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
+    });
+</script>

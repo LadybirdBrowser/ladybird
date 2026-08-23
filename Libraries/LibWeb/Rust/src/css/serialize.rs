@@ -226,6 +226,13 @@ pub(crate) fn serialize_style_value_to_utf16(value: &StyleValueData) -> Option<V
     serialize_style_value(&mut sink, value, SerializationMode::Normal).then(|| sink.into_utf16())
 }
 
+/// Serializes UTF-16 text as a CSS string token's source text.
+pub(crate) fn serialize_string(value: &[u16]) -> Vec<u16> {
+    let mut sink = TextSink::new();
+    serialize_a_string(&mut sink, &StringUnits::Utf16(value));
+    sink.into_utf16()
+}
+
 pub(crate) fn fly_string_raw_to_string(raw: usize) -> String {
     // SAFETY: Callers hold a retained fly-string owner while converting the raw value.
     match unsafe { ak::utf16_string_units(&raw) } {

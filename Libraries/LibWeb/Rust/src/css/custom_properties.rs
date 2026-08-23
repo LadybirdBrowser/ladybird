@@ -24,8 +24,11 @@ use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
 
+include!(concat!(env!("OUT_DIR"), "/environment_variables_generated.rs"));
+
 trait Utf16SliceExt {
     fn eq_ignore_ascii_case(&self, expected: &str) -> bool;
+    fn eq_ignore_ascii_case_utf16(&self, expected: &[u16]) -> bool;
     fn starts_with_ascii(&self, expected: &str) -> bool;
 }
 
@@ -45,6 +48,33 @@ impl Utf16SliceExt for [u16] {
                 .zip(expected.bytes())
                 .all(|(&left, right)| left == u16::from(right))
     }
+
+    fn eq_ignore_ascii_case_utf16(&self, expected: &[u16]) -> bool {
+        self.len() == expected.len()
+            && self.iter().zip(expected).all(|(&left, &right)| {
+                left == right
+                    || u8::try_from(left)
+                        .ok()
+                        .zip(u8::try_from(right).ok())
+                        .is_some_and(|(left, right)| left.eq_ignore_ascii_case(&right))
+            })
+    }
+}
+
+fn scoped_name(scope: usize, name: &[u16]) -> Vec<u16> {
+    let mut digits = Vec::new();
+    let mut value = scope;
+    loop {
+        digits.push(u16::from(b'0') + (value % 10) as u16);
+        value /= 10;
+        if value == 0 {
+            break;
+        }
+    }
+    digits.reverse();
+    digits.push(u16::from(b':'));
+    digits.extend_from_slice(name);
+    digits
 }
 
 #[repr(C)]
@@ -99,6 +129,12 @@ pub struct FfiCustomPropertyRegistryContext {
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
 }
 
+#[repr(C)]
+pub struct FfiSubstitutionAttribute {
+    pub name: FfiUtf16View,
+    pub value: FfiUtf16View,
+}
+
 impl CustomPropertyRegistry {
     fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
         ParseContext {
@@ -147,7 +183,10 @@ const MAX_SUBSTITUTED_TOKEN_COUNT: usize = 16384;
 const MAX_SUBSTITUTION_RECURSION_DEPTH: u32 = 64;
 
 pub(crate) enum NativeVarResolution {
-    Resolved(Vec<u16>),
+    Resolved {
+        source: Vec<u16>,
+        contains_attr_tainted_values: bool,
+    },
     Invalid,
     NotHandled,
 }
@@ -163,7 +202,10 @@ enum TokenResolution {
 struct VarResolutionContext<'a> {
     active_names: Vec<Vec<u16>>,
     cyclic_names: HashSet<Vec<u16>>,
+    attributes: Option<&'a HashMap<Vec<u16>, Vec<u16>>>,
     inheritance_store: Option<&'a CustomPropertyStore>,
+    attribute_names_are_ascii_case_insensitive: bool,
+    contains_attr_tainted_values: bool,
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -251,11 +293,24 @@ fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
 }
 
 fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool)> {
-    if let Some((source, includes_var)) = data.unresolved_var_source() {
-        return Some((tokenize_owned(source), includes_var));
-    }
-    if matches!(data, StyleValueData::Unresolved { .. }) {
-        return None;
+    if let StyleValueData::Unresolved {
+        presence_attr,
+        presence_dashed_function,
+        presence_env,
+        presence_if,
+        presence_inherit,
+        presence_var,
+        contains_attr_tainted_values,
+        ..
+    } = data
+    {
+        if *presence_dashed_function || *presence_if || *contains_attr_tainted_values {
+            return None;
+        }
+        return Some((
+            tokenize_owned(data.unresolved_token_source().unwrap_or_default()),
+            *presence_var || *presence_attr || *presence_env || *presence_inherit,
+        ));
     }
     let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
     Some((tokenize_owned(&source), false))
@@ -525,6 +580,317 @@ fn replace_var_function(
     substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
 }
 
+fn replace_inherit_function(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    arguments: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    // https://drafts.csswg.org/css-values-5/#replace-an-inherit-function
+    let comma = find_top_level_comma(arguments);
+    let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
+    let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
+        TokenResolution::Resolved(tokens) => tokens,
+        TokenResolution::Invalid | TokenResolution::Cyclic => Vec::new(),
+        TokenResolution::NotHandled => return TokenResolution::NotHandled,
+    };
+    let name = match trim_whitespace(&substituted_first) {
+        [
+            OwnedToken {
+                kind: OwnedTokenKind::Ident(name),
+                ..
+            },
+        ] if name.starts_with_ascii("--") => Some(name.as_slice()),
+        _ => None,
+    };
+    if let Some(name) = name {
+        match resolve_custom_property(context.inheritance_store, registry, name, context, recursion_depth + 1) {
+            TokenResolution::Invalid | TokenResolution::Cyclic => {}
+            result => return result,
+        }
+    }
+    let Some(comma) = comma else {
+        return TokenResolution::Invalid;
+    };
+    substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
+}
+
+fn replace_env_function(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    arguments: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    // https://drafts.csswg.org/css-env/#substitute-an-env
+    let comma = find_top_level_comma(arguments);
+    let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
+    let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
+        TokenResolution::Resolved(tokens) => tokens,
+        TokenResolution::Invalid | TokenResolution::Cyclic => Vec::new(),
+        TokenResolution::NotHandled => return TokenResolution::NotHandled,
+    };
+    let first_argument = trim_whitespace(&substituted_first);
+    let name = match first_argument.first() {
+        Some(OwnedToken {
+            kind: OwnedTokenKind::Ident(name),
+            ..
+        }) => Some(name.as_slice()),
+        _ => None,
+    };
+    let indices = name.and_then(|_| {
+        let mut indices = Vec::new();
+        for token in trim_whitespace(&first_argument[1..]) {
+            if matches!(token.kind, OwnedTokenKind::Whitespace) {
+                continue;
+            }
+            if !matches!(token.kind, OwnedTokenKind::Number) {
+                return None;
+            }
+            let source = token.source.to_vec();
+            let index = source.iter().try_fold(0i32, |value, &unit| {
+                let digit = unit.checked_sub(u16::from(b'0'))?;
+                (digit <= 9).then_some(value.checked_mul(10)?.checked_add(i32::from(digit))?)
+            })?;
+            if index < 0 {
+                return None;
+            }
+            indices.push(index);
+        }
+        Some(indices)
+    });
+
+    if let (Some(name), Some(indices)) = (name, indices) {
+        let variable = ENVIRONMENT_VARIABLES
+            .iter()
+            .find(|(known_name, _, _)| name.eq_ignore_ascii_case(known_name));
+        if let Some((_, dimension_count, value_type)) = variable
+            && *dimension_count == indices.len()
+        {
+            if *value_type == "<number>" {
+                return TokenResolution::Resolved(tokenize_owned(b"1"));
+            }
+            if *dimension_count == 0 {
+                return TokenResolution::Resolved(tokenize_owned(b"0px"));
+            }
+            // The C++ document oracle currently exposes no viewport segments, so every
+            // recognized two-dimensional viewport-segment lookup is guaranteed-invalid.
+            return TokenResolution::Invalid;
+        }
+    }
+    let Some(comma) = comma else {
+        return TokenResolution::Invalid;
+    };
+    substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
+}
+
+enum AttrSyntax {
+    Omitted,
+    RawString,
+    Number,
+    Unit(Vec<u16>),
+    Syntax(SyntaxNode),
+}
+
+enum AttrSyntaxParseFailure {
+    SyntaxOmitted,
+    SyntaxSpecified,
+}
+
+fn parse_attr_syntax(tokens: &[OwnedToken]) -> Result<(Vec<u16>, AttrSyntax), AttrSyntaxParseFailure> {
+    let tokens = trim_whitespace(tokens);
+    let Some(first) = tokens.first() else {
+        return Err(AttrSyntaxParseFailure::SyntaxOmitted);
+    };
+    let OwnedTokenKind::Ident(name) = &first.kind else {
+        return Err(AttrSyntaxParseFailure::SyntaxOmitted);
+    };
+    let rest = trim_whitespace(&tokens[1..]);
+    if rest.is_empty() {
+        return Ok((name.clone(), AttrSyntax::Omitted));
+    }
+    if let OwnedTokenKind::Ident(syntax) = &rest[0].kind {
+        let syntax = if syntax.eq_ignore_ascii_case("raw-string") {
+            AttrSyntax::RawString
+        } else if syntax.eq_ignore_ascii_case("number") {
+            AttrSyntax::Number
+        } else if crate::css::parser::value_parser::is_dimension_unit(syntax) {
+            AttrSyntax::Unit(syntax.clone())
+        } else {
+            return Err(AttrSyntaxParseFailure::SyntaxOmitted);
+        };
+        if rest.len() != 1 {
+            return Err(AttrSyntaxParseFailure::SyntaxSpecified);
+        }
+        return Ok((name.clone(), syntax));
+    }
+    if matches!(rest[0].kind, OwnedTokenKind::Delim(37)) {
+        if rest.len() != 1 {
+            return Err(AttrSyntaxParseFailure::SyntaxSpecified);
+        }
+        return Ok((name.clone(), AttrSyntax::Unit(vec![u16::from(b'%')])));
+    }
+    if matches!(&rest[0].kind, OwnedTokenKind::Function(function) if function.eq_ignore_ascii_case("type"))
+        && let Some(close) = find_matching_close(rest, 0)
+    {
+        let Some(syntax) = parse_syntax(&serialize_tokens(&rest[1..close]), false) else {
+            return Err(AttrSyntaxParseFailure::SyntaxOmitted);
+        };
+        if close != rest.len() - 1 {
+            return Err(AttrSyntaxParseFailure::SyntaxSpecified);
+        }
+        return Ok((name.clone(), AttrSyntax::Syntax(syntax)));
+    }
+    Err(AttrSyntaxParseFailure::SyntaxOmitted)
+}
+
+fn parse_attr_value_with_syntax(
+    registry: Option<&CustomPropertyRegistry>,
+    source: &[u16],
+    syntax: &SyntaxNode,
+) -> Option<Vec<OwnedToken>> {
+    let registry = registry?;
+    let mut random_function_index = 0;
+    let parsed = parse_with_syntax(&registry.parse_context(&mut random_function_index), source, syntax)?;
+    let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed)?;
+    Some(tokenize_owned(&serialized))
+}
+
+fn attr_fallback(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    arguments: &[OwnedToken],
+    comma: Option<usize>,
+    syntax_was_omitted: bool,
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    let Some(comma) = comma else {
+        if syntax_was_omitted {
+            return TokenResolution::Resolved(tokenize_owned(b"\"\""));
+        }
+        return TokenResolution::Invalid;
+    };
+    substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
+}
+
+fn replace_attr_function(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    arguments: &[OwnedToken],
+    context: &mut VarResolutionContext,
+    recursion_depth: u32,
+) -> TokenResolution {
+    // https://drafts.csswg.org/css-values-5/#replace-an-attr-function
+    let comma = find_top_level_comma(arguments);
+    let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
+    let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
+        TokenResolution::Resolved(tokens) => tokens,
+        TokenResolution::Invalid | TokenResolution::Cyclic => {
+            return attr_fallback(store, registry, arguments, comma, true, context, recursion_depth);
+        }
+        TokenResolution::NotHandled => return TokenResolution::NotHandled,
+    };
+    let (attribute_name, syntax) = match parse_attr_syntax(&substituted_first) {
+        Ok(parsed) => parsed,
+        Err(failure) => {
+            return attr_fallback(
+                store,
+                registry,
+                arguments,
+                comma,
+                matches!(failure, AttrSyntaxParseFailure::SyntaxOmitted),
+                context,
+                recursion_depth,
+            );
+        }
+    };
+    let syntax_was_omitted = matches!(syntax, AttrSyntax::Omitted);
+    let attribute_value = context.attributes.and_then(|attributes| {
+        attributes.get(&attribute_name).or_else(|| {
+            context.attribute_names_are_ascii_case_insensitive.then(|| {
+                attributes
+                    .iter()
+                    .find(|(name, _)| name.eq_ignore_ascii_case_utf16(&attribute_name))
+                    .map(|(_, value)| value)
+            })?
+        })
+    });
+    let Some(attribute_value) = attribute_value else {
+        return attr_fallback(
+            store,
+            registry,
+            arguments,
+            comma,
+            syntax_was_omitted,
+            context,
+            recursion_depth,
+        );
+    };
+
+    let resolved = match syntax {
+        AttrSyntax::Omitted | AttrSyntax::RawString => tokenize_owned(
+            crate::css::css_tokenizer::TokenizerInput::Utf16(&crate::css::serialize::serialize_string(attribute_value)),
+        ),
+        AttrSyntax::Number => {
+            if !matches!(
+                trim_whitespace(&tokenize_owned(attribute_value)),
+                [OwnedToken {
+                    kind: OwnedTokenKind::Number,
+                    ..
+                }]
+            ) {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            }
+            let syntax = SyntaxNode::Type(crate::css::parser::syntax::SyntaxType::Number);
+            let Some(tokens) = parse_attr_value_with_syntax(registry, attribute_value, &syntax) else {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            };
+            tokens
+        }
+        AttrSyntax::Unit(unit) => {
+            if !matches!(
+                trim_whitespace(&tokenize_owned(attribute_value)),
+                [OwnedToken {
+                    kind: OwnedTokenKind::Number,
+                    ..
+                }]
+            ) {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            }
+            let number_syntax = SyntaxNode::Type(crate::css::parser::syntax::SyntaxType::Number);
+            let Some(number) = parse_attr_value_with_syntax(registry, attribute_value, &number_syntax) else {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            };
+            let mut source = serialize_tokens(&number);
+            source.extend_from_slice(&unit);
+            tokenize_owned(crate::css::css_tokenizer::TokenizerInput::Utf16(&source))
+        }
+        AttrSyntax::Syntax(syntax) => {
+            let substituted = match substitute_tokens(
+                store,
+                registry,
+                &tokenize_owned(attribute_value),
+                context,
+                recursion_depth + 1,
+            ) {
+                TokenResolution::Resolved(tokens) => serialize_tokens(&tokens),
+                TokenResolution::Invalid | TokenResolution::Cyclic => {
+                    return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+                }
+                TokenResolution::NotHandled => return TokenResolution::NotHandled,
+            };
+            let Some(tokens) = parse_attr_value_with_syntax(registry, &substituted, &syntax) else {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            };
+            tokens
+        }
+    };
+    context.contains_attr_tainted_values = true;
+    TokenResolution::Resolved(resolved)
+}
+
 fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
@@ -551,6 +917,15 @@ fn substitute_tokens(
             OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("var") => {
                 replace_var_function(store, registry, contents, context, recursion_depth)
             }
+            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("attr") => {
+                replace_attr_function(store, registry, contents, context, recursion_depth)
+            }
+            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("inherit") => {
+                replace_inherit_function(store, registry, contents, context, recursion_depth)
+            }
+            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("env") => {
+                replace_env_function(store, registry, contents, context, recursion_depth)
+            }
             _ => substitute_tokens(store, registry, contents, context, recursion_depth + 1),
         };
         let resolved = match resolved {
@@ -560,11 +935,13 @@ fn substitute_tokens(
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
 
-        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.eq_ignore_ascii_case("var")) {
+        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("inherit"))
+        {
             output.push(tokens[index].clone());
         }
         output.extend(resolved);
-        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.eq_ignore_ascii_case("var")) {
+        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("inherit"))
+        {
             output.push(tokens[close_index].clone());
         }
         let remaining_token_count = tokens.len() - close_index - 1;
@@ -633,8 +1010,12 @@ fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u16> {
 
 pub(crate) unsafe fn resolve_vars(
     store: *const c_void,
+    inheritance_store: *const c_void,
     registry: *const c_void,
     value_data: *const c_void,
+    attributes: *const FfiSubstitutionAttribute,
+    attribute_count: usize,
+    attribute_names_are_ascii_case_insensitive: bool,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
         None
@@ -646,19 +1027,42 @@ pub(crate) unsafe fn resolve_vars(
     } else {
         Some(unsafe { &*registry.cast::<CustomPropertyRegistry>() })
     };
+    let inheritance_store = if inheritance_store.is_null() {
+        None
+    } else {
+        Some(unsafe { &*inheritance_store.cast::<CustomPropertyStore>() })
+    };
+    let attributes = if attribute_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(attributes, attribute_count) }
+    };
+    let attributes: HashMap<Vec<u16>, Vec<u16>> = attributes
+        .iter()
+        .filter_map(|attribute| {
+            Some((unsafe { attribute.name.to_utf16() }?, unsafe {
+                attribute.value.to_utf16()
+            }?))
+        })
+        .collect();
     let value_data = unsafe { &*value_data.cast::<StyleValueData>() };
-    let Some((source, includes_var)) = value_data.unresolved_var_source() else {
+    let Some((source, includes_substitution)) = tokens_for_custom_property_value(value_data) else {
         return NativeVarResolution::NotHandled;
     };
-    if !includes_var {
+    if !includes_substitution {
         return NativeVarResolution::NotHandled;
     }
     let mut context = VarResolutionContext {
-        inheritance_store: store.and_then(|store| store.inheritance_parent.as_deref()),
+        attributes: Some(&attributes),
+        inheritance_store,
+        attribute_names_are_ascii_case_insensitive,
         ..Default::default()
     };
-    match substitute_tokens(store, registry, &tokenize_owned(source), &mut context, 0) {
-        TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved(serialize_tokens(&tokens)),
+    match substitute_tokens(store, registry, &source, &mut context, 0) {
+        TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved {
+            source: serialize_tokens(&tokens),
+            contains_attr_tainted_values: context.contains_attr_tainted_values,
+        },
         TokenResolution::Invalid | TokenResolution::Cyclic => NativeVarResolution::Invalid,
         TokenResolution::NotHandled => NativeVarResolution::NotHandled,
     }
@@ -680,6 +1084,19 @@ mod tests {
             &mut VarResolutionContext::default(),
             0,
         )
+    }
+
+    fn substitute_with_attributes(source: &str, attributes: &[(&str, &str)]) -> (TokenResolution, bool) {
+        let attributes: HashMap<_, _> = attributes
+            .iter()
+            .map(|(name, value)| (utf16(name), utf16(value)))
+            .collect();
+        let mut context = VarResolutionContext {
+            attributes: Some(&attributes),
+            ..Default::default()
+        };
+        let result = substitute_tokens(None, None, &tokenize_owned(source.as_bytes()), &mut context, 0);
+        (result, context.contains_attr_tainted_values)
     }
 
     #[test]
@@ -708,6 +1125,21 @@ mod tests {
     }
 
     #[test]
+    fn substitutes_environment_values_and_fallbacks() {
+        let TokenResolution::Resolved(tokens) = substitute_without_custom_properties("env(safe-area-inset-top)") else {
+            panic!("expected safe-area environment substitution");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16("0px"));
+
+        let TokenResolution::Resolved(tokens) =
+            substitute_without_custom_properties("env(unknown-environment-variable, 4px)")
+        else {
+            panic!("expected environment fallback");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16(" 4px"));
+    }
+
+    #[test]
     fn serialization_preserves_token_boundaries() {
         let TokenResolution::Resolved(tokens) = substitute_without_custom_properties("var(--missing, 1)px") else {
             panic!("expected fallback substitution");
@@ -719,6 +1151,53 @@ mod tests {
     fn recognizes_substituted_css_wide_keywords() {
         assert!(is_single_css_wide_keyword(&tokenize_owned(b"  inherit ")));
         assert!(!is_single_css_wide_keyword(&tokenize_owned(b"inherit green")));
+    }
+
+    #[test]
+    fn substitutes_raw_attributes_and_marks_taint() {
+        let (TokenResolution::Resolved(tokens), contains_attr_tainted_values) =
+            substitute_with_attributes("attr(data-value)", &[("data-value", "hello")])
+        else {
+            panic!("expected attribute substitution");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16("\"hello\""));
+        assert!(contains_attr_tainted_values);
+    }
+
+    #[test]
+    fn missing_untyped_attribute_becomes_an_empty_string() {
+        let (TokenResolution::Resolved(tokens), contains_attr_tainted_values) =
+            substitute_with_attributes("attr(data-value)", &[])
+        else {
+            panic!("expected missing-attribute substitution");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16("\"\""));
+        assert!(!contains_attr_tainted_values);
+    }
+
+    #[test]
+    fn accepts_all_dimension_units_and_rejects_unknown_units() {
+        let Some((_, AttrSyntax::Unit(unit))) = parse_attr_syntax(&tokenize_owned(b"data-value FR")) else {
+            panic!("expected flex unit syntax");
+        };
+        assert_eq!(unit, "FR");
+        assert!(parse_attr_syntax(&tokenize_owned(b"data-value unknown-unit")).is_none());
+    }
+
+    #[test]
+    fn html_attribute_names_are_ascii_case_insensitive() {
+        let attributes = HashMap::from([(utf16("data-value"), utf16("hello"))]);
+        let mut context = VarResolutionContext {
+            attributes: Some(&attributes),
+            attribute_names_are_ascii_case_insensitive: true,
+            ..Default::default()
+        };
+        let TokenResolution::Resolved(tokens) =
+            substitute_tokens(None, None, &tokenize_owned(b"attr(DATA-VALUE)"), &mut context, 0)
+        else {
+            panic!("expected case-insensitive attribute substitution");
+        };
+        assert_eq!(serialize_tokens(&tokens), utf16("\"hello\""));
     }
 
     #[test]
