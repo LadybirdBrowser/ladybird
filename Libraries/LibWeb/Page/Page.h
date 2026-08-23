@@ -121,9 +121,9 @@ public:
     void set_focused_navigable(HTML::LocalNavigable&);
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
-    void load(URL::URL const&, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto, Optional<Utf16String> navigation_id = {});
-    void load_html(StringView);
-    void load_html(StringView, URL::URL const&);
+    void load(URL::URL const&, Bindings::NavigationHistoryBehavior, Utf16String navigation_id);
+    void load_html(StringView, Utf16String navigation_id);
+    void load_html(StringView, URL::URL const&, Utf16String navigation_id);
 
     void reload();
 

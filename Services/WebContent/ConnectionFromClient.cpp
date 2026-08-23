@@ -340,16 +340,16 @@ void ConnectionFromClient::populate_navigation(u64 page_id, Web::HTML::Navigatio
     page->populate_navigation(move(request), move(result));
 }
 
-void ConnectionFromClient::load_html(u64 page_id, ByteString html)
+void ConnectionFromClient::load_html(u64 page_id, ByteString html, Utf16String navigation_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().load_html(html);
+        page->page().load_html(html, move(navigation_id));
 }
 
-void ConnectionFromClient::load_html_with_url(u64 page_id, ByteString html, URL::URL url)
+void ConnectionFromClient::load_html_with_url(u64 page_id, ByteString html, URL::URL url, Utf16String navigation_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().load_html(html, url);
+        page->page().load_html(html, url, move(navigation_id));
 }
 
 void ConnectionFromClient::reload(u64 page_id)
