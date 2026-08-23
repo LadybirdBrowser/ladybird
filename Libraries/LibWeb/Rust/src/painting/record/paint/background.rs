@@ -832,11 +832,11 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotI
     let mut stack = vec![paintable];
     while let Some(current) = stack.pop() {
         if current != paintable {
-            let current_data = recorder.data(current);
-            let out_of_flow_not_floating = (current_data
-                .has_flag(crate::painting::paintable_data::PaintableFlag::AbsolutelyPositioned)
-                || current_data.has_flag(crate::painting::paintable_data::PaintableFlag::FixedPosition))
-                && !current_data.has_flag(crate::painting::paintable_data::PaintableFlag::Floating);
+            let out_of_flow_not_floating =
+                matches!(
+                    crate::painting::style_queries::position(recorder.layout_arena, current),
+                    crate::css::css_enums::positioning::ABSOLUTE | crate::css::css_enums::positioning::FIXED
+                ) && !crate::painting::style_queries::is_floating(recorder.layout_arena, current);
             if let Some(next) = crate::painting::paint_order::next_paint_sibling(recorder.layout_arena, current) {
                 stack.push(next);
             }

@@ -28,7 +28,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_anonymous(&self, paintable: NodeSlotId) -> bool {
-        self.data(paintable).has_flag(PaintableFlag::Anonymous)
+        crate::painting::style_queries::is_anonymous(self.layout_arena, paintable)
     }
 
     fn is_generated_for_pseudo_element(&self, paintable: NodeSlotId) -> bool {
@@ -36,7 +36,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_atomic_inline(&self, paintable: NodeSlotId) -> bool {
-        if self.data(paintable).has_flag(PaintableFlag::Replaced) {
+        if crate::painting::style_queries::is_replaced_element(self.layout_arena, paintable) {
             return true;
         }
         if self.layout_kind(paintable) == Some(NodeKind::ListItemMarkerBox) {
@@ -162,7 +162,7 @@ impl<'a> PaintRecorder<'a> {
             return;
         }
 
-        if fragment_ownership::is_self_painting_inline(self.data(paintable)) {
+        if fragment_ownership::is_self_painting_inline(self.layout_arena, paintable) {
             let Some(root) = self.inline_root(paintable) else {
                 return;
             };
@@ -422,9 +422,7 @@ impl<'a> PaintRecorder<'a> {
             };
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z =
-                crate::painting::style_queries::effective_z_index(self.layout_arena, self.data(target), target)
-                    .unwrap_or(0)
-                    < 0;
+                crate::painting::style_queries::effective_z_index(self.layout_arena, target).unwrap_or(0) < 0;
             let target_node = target;
             !negative_z && self.node_has_dom_node(target_node) && self.paintable_facts(target).dom_node_has_parent
         };

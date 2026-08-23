@@ -1526,13 +1526,17 @@ impl LayoutNodeArena {
         (!sibling.is_invalid()).then_some(sibling)
     }
 
-    pub(crate) fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
+    pub(crate) fn node_data_if_live(&self, id: NodeSlotId) -> Option<&NodeData> {
         if self.shell_if_live(id).is_null() {
-            return false;
+            return None;
         }
         // SAFETY: shell_if_live established a live slot of this generation.
-        let data = unsafe { &*self.data(id) };
-        crate::layout::node_is_out_of_flow(data, self.node_style_if_live(id))
+        Some(unsafe { &*self.data(id) })
+    }
+
+    pub(crate) fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
+        self.node_data_if_live(id)
+            .is_some_and(|data| crate::layout::node_is_out_of_flow(data, self.node_style_if_live(id)))
     }
 
     pub(crate) fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {

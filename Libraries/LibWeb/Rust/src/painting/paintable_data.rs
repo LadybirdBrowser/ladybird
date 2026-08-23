@@ -85,17 +85,7 @@ impl PaintableKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum PaintableFlag {
-    Positioned = 1 << 0,
-    FixedPosition = 1 << 1,
-    StickyPosition = 1 << 2,
-    AbsolutelyPositioned = 1 << 3,
-    Floating = 1 << 4,
-    Inline = 1 << 5,
-    HasNonInvertibleCssTransform = 1 << 6,
-    Anonymous = 1 << 8,
-    Replaced = 1 << 9,
-    FlexOrGridItem = 1 << 10,
-    ReplacedBox = 1 << 11,
+    HasNonInvertibleCssTransform = 1 << 0,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -135,7 +125,6 @@ pub struct PaintableData {
     pub selection_state: u8,
     pub slot_generation: u8,
     pub flags: u32,
-    pub display: u32,
 
     pub offset: FfiCssPixelPoint,
     pub content_size: FfiCssPixelSize,
@@ -171,7 +160,6 @@ impl Default for PaintableData {
             selection_state: 0,
             slot_generation: 0,
             flags: 0,
-            display: crate::css::display::FfiDisplay::none().encoded(),
             offset: FfiCssPixelPoint::default(),
             content_size: FfiCssPixelSize::default(),
             local_padding_box_union: FfiCssPixelRect::default(),
