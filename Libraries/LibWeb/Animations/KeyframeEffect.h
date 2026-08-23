@@ -48,7 +48,7 @@ StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto);
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {
     using UnparsedProperties = HashMap<Utf16FlyString, Utf16String>;
-    using ParsedProperties = HashMap<CSS::PropertyID, CSS::RustStyleValueHandle>;
+    using ParsedProperties = HashMap<CSS::PropertyNameAndID, CSS::RustStyleValueHandle>;
 
     Optional<double> offset {};
     EasingValue easing { "linear"_utf16 };

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 175 tests
 
-120 Pass
-55 Fail
+121 Pass
+54 Fail
 Pass	A KeyframeEffect can be constructed with no frames
 Pass	easing values are parsed correctly when passed to the KeyframeEffect constructor in KeyframeEffectOptions
 Pass	Invalid easing values are correctly rejected when passed to the KeyframeEffect constructor in KeyframeEffectOptions
@@ -38,8 +38,8 @@ Pass	A KeyframeEffect can be constructed with a one property two value property-
 Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification where the first value is invalid roundtrips
 Pass	A KeyframeEffect can be constructed with a one property two value property-indexed keyframes specification where the second value is invalid
 Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification where the second value is invalid roundtrips
-Fail	A KeyframeEffect can be constructed with a property-indexed keyframes specification with a CSS variable as the property
-Pass	A KeyframeEffect constructed with a property-indexed keyframes specification with a CSS variable as the property roundtrips
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframes specification with a CSS variable as the property
+Fail	A KeyframeEffect constructed with a property-indexed keyframes specification with a CSS variable as the property roundtrips
 Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with a single offset
 Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single offset roundtrips
 Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets
@@ -108,7 +108,7 @@ Pass	A KeyframeEffect can be constructed with a keyframe sequence with a CSS var
 Fail	A KeyframeEffect constructed with a keyframe sequence with a CSS variable reference roundtrips
 Pass	A KeyframeEffect can be constructed with a keyframe sequence with a CSS variable reference in a shorthand property
 Fail	A KeyframeEffect constructed with a keyframe sequence with a CSS variable reference in a shorthand property roundtrips
-Fail	A KeyframeEffect can be constructed with a keyframe sequence with a CSS variable as its property
+Pass	A KeyframeEffect can be constructed with a keyframe sequence with a CSS variable as its property
 Fail	A KeyframeEffect constructed with a keyframe sequence with a CSS variable as its property roundtrips
 Pass	A KeyframeEffect can be constructed with a keyframe sequence with duplicate values for a given interior offset
 Pass	A KeyframeEffect constructed with a keyframe sequence with duplicate values for a given interior offset roundtrips

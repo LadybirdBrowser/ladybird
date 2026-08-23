@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<color>",
+  inherits: false,
+  initialValue: "black"
+}, {
+  keyframes: ["rgb(100, 100, 100)", "rgb(200, 200, 200)"],
+  expected: "rgb(150, 150, 150)"
+}, 'Animating a custom property of type <color>');
+
+animation_test({
+  syntax: "<color>",
+  inherits: false,
+  initialValue: "rgb(100, 100, 100)"
+}, {
+  keyframes: "rgb(200, 200, 200)",
+  expected: "rgb(150, 150, 150)"
+}, 'Animating a custom property of type <color> with a single keyframe');
+
+animation_test({
+  syntax: "<color>",
+  inherits: false,
+  initialValue: "rgb(100, 100, 100)"
+}, {
+  composite: "add",
+  keyframes: ["rgb(50, 50, 50)", "rgb(150, 150, 150)"],
+  expected: "rgb(200, 200, 200)"
+}, 'Animating a custom property of type <color> with additivity');
+
+animation_test({
+  syntax: "<color>",
+  inherits: false,
+  initialValue: "rgb(100, 100, 100)"
+}, {
+  composite: "add",
+  keyframes: "rgb(150, 150, 150)",
+  expected: "rgb(175, 175, 175)"
+}, 'Animating a custom property of type <color> with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<color>",
+  inherits: false,
+  initialValue: "black"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["rgb(0, 0, 0)", "rgb(100, 100, 100)"],
+  expected: "rgb(250, 250, 250)"
+}, 'Animating a custom property of type <color> with iterationComposite');
+
+animation_test({
+  syntax: "<color>",
+  inherits: false,
+  initialValue: "contrast-color(white)"
+}, {
+  keyframes: "white",
+  expected: "rgb(128, 128, 128)"
+}, 'Animating a custom property of type <color> with single keyframe and initialValue contrast-color()');
+
+</script>

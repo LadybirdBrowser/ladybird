@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Animating a custom property of type <custom-ident> is discrete
+Pass	Animating a custom property of type <custom-ident>+ is discrete
+Pass	Animating a custom property of type <custom-ident># is discrete

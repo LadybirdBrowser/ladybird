@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+animation_test({
+  syntax: "<length>",
+  inherits: false,
+  initialValue: "0px"
+}, {
+  keyframes: ["100px", "200px"],
+  expected: "150px"
+}, 'Animating a custom property of type <length>');
+
+animation_test({
+  syntax: "<length>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  keyframes: "200px",
+  expected: "150px"
+}, 'Animating a custom property of type <length> with a single keyframe');
+
+animation_test({
+  syntax: "<length>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  composite: "add",
+  keyframes: ["200px", "300px"],
+  expected: "350px"
+}, 'Animating a custom property of type <length> with additivity');
+
+animation_test({
+  syntax: "<length>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  composite: "add",
+  keyframes: "300px",
+  expected: "250px"
+}, 'Animating a custom property of type <length> with a single keyframe and additivity');
+
+animation_test({
+  syntax: "<length>",
+  inherits: false,
+  initialValue: "100px"
+}, {
+  iterationComposite: "accumulate",
+  keyframes: ["0px", "100px"],
+  expected: "250px"
+}, 'Animating a custom property of type <length> with iterationComposite');
+
+</script>

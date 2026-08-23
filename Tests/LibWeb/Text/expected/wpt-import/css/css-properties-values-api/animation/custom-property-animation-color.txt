@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	Animating a custom property of type <color>
+Pass	Animating a custom property of type <color> with a single keyframe
+Pass	Animating a custom property of type <color> with additivity
+Fail	Animating a custom property of type <color> with a single keyframe and additivity
+Fail	Animating a custom property of type <color> with iterationComposite
+Pass	Animating a custom property of type <color> with single keyframe and initialValue contrast-color()

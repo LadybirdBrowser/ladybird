@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	CSS Animations neutral keyframes on registered custom properties should produce the underlying value

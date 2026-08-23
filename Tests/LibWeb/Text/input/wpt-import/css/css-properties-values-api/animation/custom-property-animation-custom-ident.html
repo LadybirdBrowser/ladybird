@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.css-houdini.org/css-properties-values-api-1">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../resources/utils.js"></script>
+<div id="target"></div>
+<script>
+
+discrete_animation_test("<custom-ident>", "from", "to");
+discrete_animation_test("<custom-ident>+", "from1 from2", "to1 to2");
+discrete_animation_test("<custom-ident>#", "from1, from2", "to1, to2");
+
+</script>

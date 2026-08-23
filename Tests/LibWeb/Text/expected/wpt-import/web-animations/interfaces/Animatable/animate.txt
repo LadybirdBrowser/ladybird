@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 153 tests
 
-139 Pass
-14 Fail
+141 Pass
+12 Fail
 Pass	Element.animate() creates an Animation object
 Pass	Element.animate() creates an Animation object in the relevant realm of the target element
 Pass	Element.animate() creates an Animation object with a KeyframeEffect
@@ -25,7 +25,7 @@ Pass	Element.animate() accepts a one property one value property-indexed keyfram
 Pass	Element.animate() accepts a one property one non-array value property-indexed keyframes specification
 Pass	Element.animate() accepts a one property two value property-indexed keyframes specification where the first value is invalid
 Pass	Element.animate() accepts a one property two value property-indexed keyframes specification where the second value is invalid
-Fail	Element.animate() accepts a property-indexed keyframes specification with a CSS variable as the property
+Pass	Element.animate() accepts a property-indexed keyframes specification with a CSS variable as the property
 Fail	Element.animate() accepts a property-indexed keyframe with a single offset
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too short
@@ -60,7 +60,7 @@ Pass	Element.animate() accepts a two property keyframe sequence where one proper
 Pass	Element.animate() accepts a one property two keyframe sequence that needs to stringify its values
 Pass	Element.animate() accepts a keyframe sequence with a CSS variable reference
 Pass	Element.animate() accepts a keyframe sequence with a CSS variable reference in a shorthand property
-Fail	Element.animate() accepts a keyframe sequence with a CSS variable as its property
+Pass	Element.animate() accepts a keyframe sequence with a CSS variable as its property
 Pass	Element.animate() accepts a keyframe sequence with duplicate values for a given interior offset
 Pass	Element.animate() accepts a keyframe sequence with duplicate values for offsets 0 and 1
 Pass	Element.animate() accepts a two property four keyframe sequence
