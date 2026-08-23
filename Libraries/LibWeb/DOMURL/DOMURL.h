@@ -24,7 +24,7 @@ class DOMURL : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
-    [[nodiscard]] static GC::Ref<DOMURL> create(URL::URL, GC::Ref<URLSearchParams> query);
+    [[nodiscard]] static GC::Ref<DOMURL> create(URL::URL);
     static WebIDL::ExceptionOr<GC::Ref<DOMURL>> create_from_url(Utf16String const& url, Optional<Utf16String> const& base = {});
 
     virtual ~DOMURL() override;
@@ -72,7 +72,7 @@ public:
     Utf16String search() const;
     void set_search(Utf16String const&);
 
-    GC::Ref<URLSearchParams const> search_params() const;
+    GC::Ref<URLSearchParams const> search_params();
 
     Utf16String hash() const;
     void set_hash(Utf16String const&);
@@ -85,14 +85,15 @@ public:
     virtual Optional<URL::Origin> extract_an_origin() const override;
 
 private:
-    DOMURL(URL::URL, GC::Ref<URLSearchParams> query);
+    explicit DOMURL(URL::URL);
 
     static GC::Ref<DOMURL> initialize_a_url(URL::URL const&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     URL::URL m_url;
-    GC::Ref<URLSearchParams> m_query;
+    // Most URL users never access searchParams, so avoid its parsing and allocation until needed.
+    GC::Ptr<URLSearchParams> m_query;
 };
 
 // https://url.spec.whatwg.org/#concept-url-parser
