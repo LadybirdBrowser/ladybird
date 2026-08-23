@@ -65,6 +65,15 @@ EncodeIntoResult TextEncoder::encode_into_result(Utf16String const& source, GC::
         return { 0, 0 };
     auto destination_byte_length = JS::typed_array_byte_length(destination_record);
 
+    // OPTIMIZATION: Encode directly into a non-shared destination when the input fits.
+    // Keep shared destinations on the existing path to avoid changing shared-memory write semantics.
+    auto& destination_buffer = *destination->viewed_array_buffer();
+    if (!destination_buffer.is_shared_array_buffer()) {
+        auto destination_bytes = Bytes { destination_buffer.data_at(destination->byte_offset()), destination_byte_length };
+        if (auto bytes_written = source.utf16_view().to_utf8_with_replacement_into(destination_bytes); bytes_written.has_value())
+            return { source.length_in_code_units(), *bytes_written };
+    }
+
     // 1. Let read be 0.
     WebIDL::UnsignedLongLong read = 0;
     // 2. Let written be 0.
