@@ -502,35 +502,29 @@ WebIDL::ExceptionOr<void> Node::normalize()
         while (current_node && current_node->is_exclusive_text()) {
             // 1. For each live range whose start node is currentNode, add length to its start offset and set its start
             //    node to node.
+            // 2. For each live range whose end node is currentNode, add length to its end offset and set its end node
+            //    to node.
+            // 3. For each live range whose start node is currentNode’s parent and start offset is currentNode’s index,
+            //    set its start node to node and its start offset to length.
+            // 4. For each live range whose end node is currentNode’s parent and end offset is currentNode’s index, set
+            //    its end node to node and its end offset to length.
+            // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
+            auto* current_node_parent = current_node->parent();
+            auto current_node_index = current_node->index();
             for (auto& range : Range::live_ranges()) {
                 if (range->start_container().ptr() == current_node) {
                     range->increase_start_offset(length);
                     range->set_start_node(node);
                 }
-            }
-
-            // 2. For each live range whose end node is currentNode, add length to its end offset and set its end node
-            //    to node.
-            for (auto& range : Range::live_ranges()) {
                 if (range->end_container().ptr() == current_node) {
                     range->increase_end_offset(length);
                     range->set_end_node(node);
                 }
-            }
-
-            // 3. For each live range whose start node is currentNode’s parent and start offset is currentNode’s index,
-            //    set its start node to node and its start offset to length.
-            for (auto& range : Range::live_ranges()) {
-                if (range->start_container().ptr() == current_node->parent() && range->start_offset() == current_node->index()) {
+                if (range->start_container().ptr() == current_node_parent && range->start_offset() == current_node_index) {
                     range->set_start_node(node);
                     range->set_start_offset(length);
                 }
-            }
-
-            // 4. For each live range whose end node is currentNode’s parent and end offset is currentNode’s index, set
-            //    its end node to node and its end offset to length.
-            for (auto& range : Range::live_ranges()) {
-                if (range->end_container().ptr() == current_node->parent() && range->end_offset() == current_node->index()) {
+                if (range->end_container().ptr() == current_node_parent && range->end_offset() == current_node_index) {
                     range->set_end_node(node);
                     range->set_end_offset(length);
                 }
@@ -869,15 +863,14 @@ void Node::insert_nodes_before(Vector<GC::Root<Node>> nodes, GC::Ptr<Node> child
     if (child) {
         // 1. For each live range whose start node is parent and start offset is greater than child’s index:
         //    increase its start offset by count.
-        for (auto& range : Range::live_ranges()) {
-            if (range->start_container().ptr() == this && range->start_offset() > child->index())
-                range->increase_start_offset(count);
-        }
-
         // 2. For each live range whose end node is parent and end offset is greater than child’s index:
         //    increase its end offset by count.
+        // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
+        auto child_index = child->index();
         for (auto& range : Range::live_ranges()) {
-            if (range->end_container().ptr() == this && range->end_offset() > child->index())
+            if (range->start_container().ptr() == this && range->start_offset() > child_index)
+                range->increase_start_offset(count);
+            if (range->end_container().ptr() == this && range->end_offset() > child_index)
                 range->increase_end_offset(count);
         }
     }
@@ -1105,26 +1098,18 @@ void Node::live_range_pre_remove()
     auto index = this->index();
 
     // 4. For each live range whose start node is an inclusive descendant of node, set its start to (parent, index).
+    // 5. For each live range whose end node is an inclusive descendant of node, set its end to (parent, index).
+    // 6. For each live range whose start node is parent and start offset is greater than index, decrease its start
+    //    offset by 1.
+    // 7. For each live range whose end node is parent and end offset is greater than index, decrease its end offset by 1.
+    // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
     for (auto* range : Range::live_ranges()) {
         if (range->start_container()->is_inclusive_descendant_of(*this))
             MUST(range->set_start(*parent, index));
-    }
-
-    // 5. For each live range whose end node is an inclusive descendant of node, set its end to (parent, index).
-    for (auto* range : Range::live_ranges()) {
         if (range->end_container()->is_inclusive_descendant_of(*this))
             MUST(range->set_end(*parent, index));
-    }
-
-    // 6. For each live range whose start node is parent and start offset is greater than index, decrease its start
-    //    offset by 1.
-    for (auto* range : Range::live_ranges()) {
         if (range->start_container().ptr() == parent && range->start_offset() > index)
             range->decrease_start_offset(1);
-    }
-
-    // 7. For each live range whose end node is parent and end offset is greater than index, decrease its end offset by 1.
-    for (auto* range : Range::live_ranges()) {
         if (range->end_container().ptr() == parent && range->end_offset() > index)
             range->decrease_end_offset(1);
     }
@@ -1664,15 +1649,14 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     if (child) {
         // 1. For each live range whose start node is newParent and start offset is greater than child’s index:
         //    increase its start offset by 1.
-        for (auto& range : Range::live_ranges()) {
-            if (range->start_container().ptr() == &new_parent && range->start_offset() > child->index())
-                range->increase_start_offset(1);
-        }
-
         // 2. For each live range whose end node is newParent and end offset is greater than child’s index:
         //    increase its end offset by 1.
+        // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
+        auto child_index = child->index();
         for (auto& range : Range::live_ranges()) {
-            if (range->end_container().ptr() == &new_parent && range->end_offset() > child->index())
+            if (range->start_container().ptr() == &new_parent && range->start_offset() > child_index)
+                range->increase_start_offset(1);
+            if (range->end_container().ptr() == &new_parent && range->end_offset() > child_index)
                 range->increase_end_offset(1);
         }
     }
