@@ -448,8 +448,14 @@ void ComputedStyleWorkingSet::did_apply_style_finalization_from_rust(u16 invalid
     invalidate(ComputedValuesFFI::FINALIZED_OVERFLOW_Y, PropertyID::OverflowY);
 }
 
+void ComputedStyleWorkingSet::set_animated_custom_property(Badge<StyleComputer>, Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
+{
+    m_animated_custom_properties.set(move(name), move(value));
+}
+
 void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
 {
+    m_animated_custom_properties.clear();
     if (!m_animated_properties)
         return;
 

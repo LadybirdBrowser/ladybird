@@ -30,7 +30,12 @@ public:
         RefPtr<CustomPropertyData const> parent,
         // Transfers one strong Rust store reference when non-null.
         void const* prebuilt_rust_store = nullptr);
+    static NonnullRefPtr<CustomPropertyData> create_animation_overlay(
+        OrderedHashMap<Utf16FlyString, StyleProperty> animated_values,
+        RefPtr<CustomPropertyData const> base);
     ~CustomPropertyData();
+
+    bool is_animation_overlay() const { return m_is_animation_overlay; }
 
     StyleProperty const* get(Utf16FlyString const& name) const;
     RefPtr<CustomPropertyData const> inheritable_impl(RefPtr<CustomPropertyData const> inheritable_parent, AK::Function<Optional<CustomPropertyRegistration const&>(Utf16FlyString const&)> get_custom_property_registration) const;
@@ -130,6 +135,7 @@ private:
     mutable PreferredColorScheme m_cached_resolution_color_scheme { PreferredColorScheme::Auto };
     mutable RefPtr<CustomPropertyData const> m_cached_resolution;
     mutable bool m_cached_resolution_is_self { false };
+    bool m_is_animation_overlay { false };
     void const* m_rust_store { nullptr };
 };
 

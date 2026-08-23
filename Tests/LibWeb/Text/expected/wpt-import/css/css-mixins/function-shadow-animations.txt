@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+2 Pass
+1 Fail
 Pass	Can animate standard property in shadow
 Fail	Can animate typed custom property in shadow
-Fail	Can animate untyped custom property in shadow
+Pass	Can animate untyped custom property in shadow
