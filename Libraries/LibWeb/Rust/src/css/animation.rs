@@ -2071,7 +2071,28 @@ fn legacy_srgb_components(value: &StyleValueData) -> Option<([f32; 4], [bool; 4]
     Some((components, missing))
 }
 
-fn interpolate_modern_color(from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+// How two colors are combined channel-wise: linear interpolation at a given progress, or addition
+// of both inputs for effect composition.
+#[derive(Clone, Copy)]
+enum ColorCombination {
+    Interpolate(f32),
+    Add,
+}
+
+impl ColorCombination {
+    fn combine(self, from: f32, to: f32) -> f32 {
+        match self {
+            ColorCombination::Interpolate(delta) => from + (to - from) * delta,
+            ColorCombination::Add => from + to,
+        }
+    }
+}
+
+fn combine_modern_color(
+    from: &StyleValueData,
+    to: &StyleValueData,
+    combination: ColorCombination,
+) -> Option<StyleValueData> {
     // https://drafts.csswg.org/css-color-4/#interpolation
     // 1. checking the two colors for analogous components and analogous sets which will be carried forward
     let from = native_color_components(from)?;
@@ -2095,11 +2116,12 @@ fn interpolate_modern_color(from: &StyleValueData, to: &StyleValueData, delta: f
 
     // 4. (if required) re-inserting carried forward values in the converted colors
     substitute_missing_components(&mut from_components, &mut to_components, from_missing, to_missing);
-    let interpolate = |from: f32, to: f32| from + (to - from) * delta;
-    let interpolated_alpha = interpolate(from_components[3], to_components[3]).clamp(0.0, 1.0);
+    let combined_alpha = combination
+        .combine(from_components[3], to_components[3])
+        .clamp(0.0, 1.0);
 
     // https://drafts.csswg.org/css-color-4/#interpolation
-    let result = if interpolated_alpha == 0.0 {
+    let result = if combined_alpha == 0.0 {
         // OPTIMIZATION: Fully transparent results can skip the premultiply/interpolate/unpremultiply cycle.
         [0.0, 0.0, 0.0, 0.0]
     } else {
@@ -2119,17 +2141,17 @@ fn interpolate_modern_color(from: &StyleValueData, to: &StyleValueData, delta: f
 
         // 7. linearly interpolating each component of the computed value of the color separately
         let premultiplied = [
-            interpolate(from_premultiplied[0], to_premultiplied[0]),
-            interpolate(from_premultiplied[1], to_premultiplied[1]),
-            interpolate(from_premultiplied[2], to_premultiplied[2]),
+            combination.combine(from_premultiplied[0], to_premultiplied[0]),
+            combination.combine(from_premultiplied[1], to_premultiplied[1]),
+            combination.combine(from_premultiplied[2], to_premultiplied[2]),
         ];
 
         // 8. undoing premultiplication
         [
-            premultiplied[0] / interpolated_alpha,
-            premultiplied[1] / interpolated_alpha,
-            premultiplied[2] / interpolated_alpha,
-            interpolated_alpha,
+            premultiplied[0] / combined_alpha,
+            premultiplied[1] / combined_alpha,
+            premultiplied[2] / combined_alpha,
+            combined_alpha,
         ]
     };
 
@@ -2164,7 +2186,11 @@ fn interpolate_modern_color(from: &StyleValueData, to: &StyleValueData, delta: f
     })
 }
 
-fn interpolate_legacy_rgb(from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+fn combine_legacy_rgb(
+    from: &StyleValueData,
+    to: &StyleValueData,
+    combination: ColorCombination,
+) -> Option<StyleValueData> {
     // https://drafts.csswg.org/css-color-4/#interpolation-space
     // If the host syntax does not define what color space interpolation should take place in, it defaults to Oklab.
     // However, user agents must handle interpolation between legacy sRGB color formats (hex colors, named colors,
@@ -2172,11 +2198,10 @@ fn interpolate_legacy_rgb(from: &StyleValueData, to: &StyleValueData, delta: f32
     let (mut from, from_missing) = legacy_srgb_components(from)?;
     let (mut to, to_missing) = legacy_srgb_components(to)?;
     substitute_missing_components(&mut from, &mut to, from_missing, to_missing);
-    let interpolate = |from: f32, to: f32| from + (to - from) * delta;
-    let interpolated_alpha = interpolate(from[3], to[3]).clamp(0.0, 1.0);
+    let combined_alpha = combination.combine(from[3], to[3]).clamp(0.0, 1.0);
 
     // https://drafts.csswg.org/css-color-4/#interpolation
-    let result = if interpolated_alpha == 0.0 {
+    let result = if combined_alpha == 0.0 {
         // OPTIMIZATION: Fully transparent results can skip the premultiply/interpolate/unpremultiply cycle.
         [0.0, 0.0, 0.0, 0.0]
     } else {
@@ -2188,17 +2213,17 @@ fn interpolate_legacy_rgb(from: &StyleValueData, to: &StyleValueData, delta: f32
 
         // 7. linearly interpolating each component of the computed value of the color separately
         let premultiplied = [
-            interpolate(from_premultiplied[0], to_premultiplied[0]),
-            interpolate(from_premultiplied[1], to_premultiplied[1]),
-            interpolate(from_premultiplied[2], to_premultiplied[2]),
+            combination.combine(from_premultiplied[0], to_premultiplied[0]),
+            combination.combine(from_premultiplied[1], to_premultiplied[1]),
+            combination.combine(from_premultiplied[2], to_premultiplied[2]),
         ];
 
         // 8. undoing premultiplication
         [
-            premultiplied[0] / interpolated_alpha,
-            premultiplied[1] / interpolated_alpha,
-            premultiplied[2] / interpolated_alpha,
-            interpolated_alpha,
+            premultiplied[0] / combined_alpha,
+            premultiplied[1] / combined_alpha,
+            premultiplied[2] / combined_alpha,
+            combined_alpha,
         ]
     };
 
@@ -2918,8 +2943,12 @@ fn composite_scalar_value(
 
     match (underlying, animated) {
         (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
-            // FIXME: Implement color addition and accumulation.
-            handled_without_value()
+            // AD-HOC: css-values-4 states that the <color> type is not additive, but other engines
+            // combine colors by adding their premultiplied components in the interpolation color space,
+            // and WPT css/css-color/animation/color-composition.html expects that behavior.
+            combine_legacy_rgb(underlying, animated, ColorCombination::Add)
+                .or_else(|| combine_modern_color(underlying, animated, ColorCombination::Add))
+                .map_or_else(handled_without_value, owned)
         }
         (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
             composite_basic_shape(underlying, animated, operation).map_or_else(handled_without_value, owned)
@@ -3592,8 +3621,8 @@ fn interpolate_scalar_value(
 
     match (from, to) {
         (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
-            interpolate_legacy_rgb(from, to, delta)
-                .or_else(|| interpolate_modern_color(from, to, delta))
+            combine_legacy_rgb(from, to, ColorCombination::Interpolate(delta))
+                .or_else(|| combine_modern_color(from, to, ColorCombination::Interpolate(delta)))
                 .map_or_else(not_handled, owned)
         }
         (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
