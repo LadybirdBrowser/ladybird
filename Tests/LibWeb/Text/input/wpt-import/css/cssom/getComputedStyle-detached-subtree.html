@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSOM: getComputedStyle returns no style for elements not in the tree</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<div id="host">
+  <div id="non-slotted">
+    <div id="non-slotted-descendant"></div>
+  </div>
+</div>
+<iframe srcdoc="<html></html>" style="display: none"></iframe>
+<script>
+function testNoComputedStyle(element, description, global) {
+  test(function() {
+    assert_true(!!element);
+    let style = (global ? global : window).getComputedStyle(element);
+    assert_true(!!style);
+    // Note that we avoid assert_equals below to get a stable failure message.
+    assert_true(style.length == 0);
+    assert_equals(style.color, "");
+  }, `getComputedStyle returns no style for ${description}`);
+}
+
+let detached = document.createElement('div');
+testNoComputedStyle(detached, "detached element");
+
+testNoComputedStyle(document.querySelector('iframe').contentDocument.documentElement,
+                    "element in non-rendered iframe (display: none)");
+
+testNoComputedStyle(document.querySelector('iframe').contentDocument.documentElement,
+                    "element in non-rendered iframe (display: none) from iframe's window",
+                    document.querySelector('iframe').contentWindow);
+
+host.attachShadow({ mode: "open" });
+testNoComputedStyle(document.getElementById('non-slotted'),
+                    "element outside the flat tree");
+
+testNoComputedStyle(document.getElementById('non-slotted-descendant'),
+                    "descendant outside the flat tree");
+
+let shadowRoot = detached.attachShadow({ mode: "open" });
+shadowRoot.innerHTML = `
+  <div id="detached-shadow-tree-descendant"></div>
+`;
+testNoComputedStyle(shadowRoot.getElementById('detached-shadow-tree-descendant'),
+                    "shadow tree outside of flattened tree");
+</script>
