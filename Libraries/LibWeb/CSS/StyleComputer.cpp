@@ -734,7 +734,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
 {
     struct KeyframeDeclaration {
         size_t keyframe_index { 0 };
-        PropertyID property_id;
+        PropertyNameAndID property;
         RustStyleValueHandle value;
         StyleValueFFI::FfiAnimationStyleSheetResourceContext style_sheet_resource_context {};
         bool use_initial { false };
@@ -855,14 +855,14 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                 .easing = to_ffi_easing(*easing, points),
                 .composite = to_ffi_composite_operation(composite_operation),
             });
-            for (auto const& [property_id, value] : it->properties) {
+            for (auto const& [property, value] : it->properties) {
                 bool is_use_initial = false;
                 auto style_value = value.visit(
                     [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RustStyleValueHandle {
-                        if (property_is_shorthand(property_id))
+                        if (!property.is_custom_property() && property_is_shorthand(property.id()))
                             return {};
                         is_use_initial = true;
-                        return RustStyleValueHandle::retained(computed_properties.property(property_id, ComputedStyleWorkingSet::WithAnimationsApplied::No).rust_style_value_data());
+                        return RustStyleValueHandle::retained(computed_properties.property(property.id(), ComputedStyleWorkingSet::WithAnimationsApplied::No).rust_style_value_data());
                     },
                     [](RustStyleValueHandle const& value) -> RustStyleValueHandle { return value; });
                 if (!style_value || style_value->tag == StyleValueFFI::StyleValueData::Tag::PendingSubstitution)
@@ -871,7 +871,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                     // Substitution needs the typed facade, but only var()-bearing keyframes take this path,
                     // and those re-parse the value every frame anyway.
                     auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(style_value.data()));
-                    auto resolved = abstract_element.document().style_computer().resolve_unresolved_style_value(abstract_element, PropertyNameAndID::from_id(property_id), unresolved->as_unresolved());
+                    auto resolved = abstract_element.document().style_computer().resolve_unresolved_style_value(abstract_element, property, unresolved->as_unresolved());
                     style_value = RustStyleValueHandle::retained(resolved->rust_style_value_data());
                 }
                 // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
@@ -881,7 +881,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                     continue;
                 keyframe_declarations.append({
                     .keyframe_index = keyframe_index,
-                    .property_id = property_id,
+                    .property = property,
                     .value = move(style_value),
                     .style_sheet_resource_context = style_sheet_resource_context,
                     .use_initial = is_use_initial,
@@ -907,7 +907,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     for (auto const& declaration : keyframe_declarations) {
         ffi_declarations.unchecked_append({
             .keyframe_index = declaration.keyframe_index,
-            .property_id = to_underlying(declaration.property_id),
+            .property_id = to_underlying(declaration.property.id()),
             .value = declaration.value.data(),
             .style_sheet_resource_context = declaration.style_sheet_resource_context,
             .use_initial = declaration.use_initial,

@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Compositor/VisualAnimation.h>
@@ -88,14 +89,14 @@ public:
         struct ResolvedKeyFrame {
             // These style values can be unresolved, as they may be generated from a @keyframes rule, well
             // before they are applied to an element
-            HashMap<CSS::PropertyID, Variant<UseInitial, CSS::RustStyleValueHandle>> properties {};
+            HashMap<CSS::PropertyNameAndID, Variant<UseInitial, CSS::RustStyleValueHandle>> properties {};
             CompositeOperationOrAuto composite { CompositeOperationOrAuto::Auto };
             Variant<Empty, CSS::EasingFunction, CSS::RustStyleValueHandle> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
         Optional<StyleSheetResourceContext> style_sheet_resource_context;
     };
-    static void generate_initial_and_final_frames(RefPtr<KeyFrameSet>, HashTable<CSS::PropertyID> const& animated_properties);
+    static void generate_initial_and_final_frames(RefPtr<KeyFrameSet>, HashTable<CSS::PropertyNameAndID> const& animated_properties);
 
     static int composite_order(GC::Ref<KeyframeEffect>, GC::Ref<KeyframeEffect>);
 

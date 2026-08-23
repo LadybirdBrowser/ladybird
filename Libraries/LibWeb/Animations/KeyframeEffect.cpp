@@ -599,7 +599,7 @@ WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_keyframes(JS::Realm& realm, GC
 }
 
 // https://www.w3.org/TR/css-animations-2/#keyframe-processing
-void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyframe_set, HashTable<CSS::PropertyID> const& animated_properties)
+void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyframe_set, HashTable<CSS::PropertyNameAndID> const& animated_properties)
 {
     // 1. Find or create the initial keyframe, a keyframe with a keyframe offset of 0%, default timing function
     //    as its keyframe timing function, and default composite as its keyframe composite.
@@ -611,13 +611,13 @@ void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyfr
         initial_keyframe = keyframe_set->keyframes_by_key.find(0);
     }
 
-    auto expanded_properties = [&](HashMap<CSS::PropertyID, Variant<KeyFrameSet::UseInitial, CSS::RustStyleValueHandle>>& properties) {
-        HashTable<CSS::PropertyID> result;
+    auto expanded_properties = [&](HashMap<CSS::PropertyNameAndID, Variant<KeyFrameSet::UseInitial, CSS::RustStyleValueHandle>>& properties) {
+        HashTable<CSS::PropertyNameAndID> result;
 
         for (auto property : properties) {
-            if (property_is_shorthand(property.key)) {
-                for (auto longhand : expanded_longhands_for_shorthand(property.key))
-                    result.set(longhand);
+            if (!property.key.is_custom_property() && property_is_shorthand(property.key.id())) {
+                for (auto longhand : expanded_longhands_for_shorthand(property.key.id()))
+                    result.set(CSS::PropertyNameAndID::from_id(longhand));
             } else {
                 result.set(property.key);
             }
@@ -1004,11 +1004,11 @@ void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
         auto key = static_cast<u64>(keyframe.computed_offset.value() * 100 * AnimationKeyFrameKeyScaleFactor);
 
         for (auto const& [property_id, property_value] : keyframe.parsed_properties()) {
-            resolved_keyframe.properties.set(property_id, property_value);
+            resolved_keyframe.properties.set(CSS::PropertyNameAndID::from_id(property_id), property_value);
             auto expansion = CSS::ComputedValuesFFI::rust_expand_property_shorthands(
                 to_underlying(property_id), property_value.data());
             for (size_t i = 0; i < expansion.count; ++i)
-                m_target_properties.set(static_cast<CSS::PropertyID>(expansion.properties[i].property_id));
+                m_target_properties.set(CSS::PropertyNameAndID::from_id(static_cast<CSS::PropertyID>(expansion.properties[i].property_id)));
             CSS::ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
         }
 
@@ -1095,7 +1095,7 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
     for (auto const& keyframe : key_frame_set->keyframes_by_key) {
         for (auto const& property : keyframe.properties) {
             has_animated_property = true;
-            if (!first_is_one_of(property.key,
+            if (!first_is_one_of(property.key.id(),
                     CSS::PropertyID::Transform,
                     CSS::PropertyID::Translate,
                     CSS::PropertyID::Rotate,
@@ -1189,7 +1189,7 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
     bool affects_display = false;
     if (auto const* key_frame_set = this->key_frame_set()) {
         for (auto it = key_frame_set->keyframes_by_key.begin(); !affects_display && it != key_frame_set->keyframes_by_key.end(); ++it)
-            affects_display = it->properties.contains(CSS::PropertyID::Display);
+            affects_display = it->properties.contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display));
     }
     if (!affects_display && target->has_inclusive_ancestor_with_display_none_ignoring_animations()) {
         // FIXME: Reaching this point means we failed to cancel animation for an element that started
