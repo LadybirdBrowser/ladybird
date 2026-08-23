@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/EasingFunction.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 
 namespace Web::CSS {
 
@@ -143,7 +144,7 @@ public:
 
     void normalize_specified_timing();
 
-    HashTable<CSS::PropertyID> const& target_properties() const { return m_target_properties; }
+    HashTable<CSS::PropertyNameAndID> const& target_properties() const { return m_target_properties; }
 
     virtual GC::Ptr<DOM::Element> target() const { return {}; }
     virtual bool is_keyframe_effect() const { return false; }
@@ -214,7 +215,7 @@ protected:
 
     // https://www.w3.org/TR/web-animations-1/#target-property
     // Note: Only modified by child classes
-    HashTable<CSS::PropertyID> m_target_properties;
+    HashTable<CSS::PropertyNameAndID> m_target_properties;
 };
 
 }
