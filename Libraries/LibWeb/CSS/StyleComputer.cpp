@@ -137,16 +137,6 @@ static size_t normalize_svg_path_data_for_substitution(u16 const* code_units, si
     return Utf16String::from_utf8(path.serialize()).to_raw_leaked();
 }
 
-static bool font_format_is_supported_for_substitution(u16 const* code_units, size_t length)
-{
-    return font_format_is_supported(Utf16View { reinterpret_cast<char16_t const*>(code_units), length });
-}
-
-static bool font_tech_is_supported_for_substitution(u8 tech)
-{
-    return font_tech_is_supported(static_cast<FontTech>(tech));
-}
-
 class Fnv1a64 {
 public:
     void add(u64 value)
@@ -2884,8 +2874,10 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         .document_base_url_length = document_base_url.bytes().size(),
         .intern_utf16_fly_string = retain_utf16_fly_string_for_substitution,
         .normalize_svg_path_data = normalize_svg_path_data_for_substitution,
-        .font_format_is_supported = font_format_is_supported_for_substitution,
-        .font_tech_is_supported = font_tech_is_supported_for_substitution,
+        .precomputed_svg_paths = nullptr,
+        .precomputed_svg_path_count = 0,
+        .font_format_is_supported = nullptr,
+        .font_tech_is_supported = nullptr,
         .random_function_index = nullptr,
     };
     struct SubstitutionAttribute {
@@ -3089,7 +3081,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         cascade_input.author_context_count,
         pseudo_element_to_ffi(abstract_element.pseudo_element()),
         unset_value.data(),
-        &resolution_context);
+        has_unresolved_declarations ? &resolution_context : nullptr);
     ScopeGuard destroy_cascade_result = [&] {
         ComputedValuesFFI::rust_cascade_result_destroy(cascade_result.storage, cascade_result.source_slot_assignment_count);
     };

@@ -638,6 +638,8 @@ mod tests {
             document_base_url_length: 0,
             intern_utf16_fly_string: None,
             normalize_svg_path_data: None,
+            precomputed_svg_paths: std::ptr::null(),
+            precomputed_svg_path_count: 0,
             font_format_is_supported: None,
             font_tech_is_supported: None,
             random_function_index,

@@ -851,12 +851,16 @@ pub(crate) fn parse_color_value(
             return Some(StyleValueData::Keyword { keyword });
         }
         if equals_ascii_case_insensitive(identifier, b"transparent") {
-            let color = make_legacy_color(context, [0, 0, 0, 0], Some(identifier))?;
+            // NB: The retained name only preserves source spelling during serialization. A
+            //     callback-free worker parse can omit it without changing computed color semantics.
+            let name = context.intern_utf16_fly_string.is_some().then_some(identifier);
+            let color = make_legacy_color(context, [0, 0, 0, 0], name)?;
             stream.discard_a_token();
             return Some(color);
         }
         if let Some(rgba) = named_color_from_name(identifier) {
-            let color = make_legacy_color(context, rgba, Some(identifier))?;
+            let name = context.intern_utf16_fly_string.is_some().then_some(identifier);
+            let color = make_legacy_color(context, rgba, name)?;
             stream.discard_a_token();
             return Some(color);
         }
@@ -918,6 +922,8 @@ mod tests {
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
             normalize_svg_path_data: None,
+            precomputed_svg_paths: std::ptr::null(),
+            precomputed_svg_path_count: 0,
             font_format_is_supported: None,
             font_tech_is_supported: None,
             random_function_index: std::ptr::null_mut(),

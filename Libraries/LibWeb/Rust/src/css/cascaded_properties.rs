@@ -21,7 +21,8 @@ use std::hash::Hasher;
 
 use crate::abort_on_panic;
 use crate::css::parser::value_parser::{
-    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
+    FfiPrecomputedSvgPath, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
+    parse_css_value_from_source, svg_path_strings_from_source,
 };
 use crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID;
 use crate::css::style_compute::expand_shorthands_with;
@@ -675,6 +676,159 @@ struct ResolvedStyleValue {
     has_style_sheet_context: bool,
 }
 
+struct PrecomputedSvgPath {
+    source: Vec<u16>,
+    normalized: Option<Vec<u16>>,
+}
+
+struct WorkerParseInput {
+    in_quirks_mode: bool,
+    is_svg_presentation_attribute: bool,
+    contains_attr_tainted_values: bool,
+    document_url: Vec<u8>,
+    document_base_url: Vec<u8>,
+    property_id: u16,
+    source: Vec<u16>,
+    svg_paths: Vec<PrecomputedSvgPath>,
+}
+
+struct WorkerParseOutcome {
+    outcome: ParseOutcome,
+    source: Vec<u16>,
+}
+
+// SAFETY: Worker parsing has no C++ callbacks and cannot create non-zero AK fly-string handles.
+// Parsed values contain immutable Rust-owned data or the zero fly-string sentinel, and the result
+// is transferred without being inspected or destroyed on the worker.
+unsafe impl Send for WorkerParseOutcome {}
+
+#[allow(clippy::arc_with_non_send_sync)]
+fn parse_substituted_on_worker(
+    base_context: &ParseContext,
+    property_id: u16,
+    source: Vec<u16>,
+    contains_attr_tainted_values: bool,
+) -> WorkerParseOutcome {
+    let svg_paths = svg_path_strings_from_source(&source)
+        .into_iter()
+        .map(|path| {
+            let normalized = base_context.normalize_svg_path_data.and_then(|normalize| {
+                let raw = unsafe { normalize(path.as_ptr(), path.len()) };
+                if raw == 0 {
+                    return None;
+                }
+                let normalized = unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) };
+                Some(match unsafe { ak::utf16_string_units(normalized.raw_word()) } {
+                    ak::Utf16StringUnits::Ascii(bytes) => bytes.iter().copied().map(u16::from).collect(),
+                    ak::Utf16StringUnits::Utf16(units) => units.to_vec(),
+                })
+            });
+            PrecomputedSvgPath {
+                source: path,
+                normalized,
+            }
+        })
+        .collect();
+    let input = WorkerParseInput {
+        in_quirks_mode: base_context.in_quirks_mode,
+        is_svg_presentation_attribute: base_context.is_svg_presentation_attribute,
+        contains_attr_tainted_values,
+        document_url: unsafe { crate::bytes_from_raw(base_context.document_url, base_context.document_url_length) }
+            .unwrap_or_default()
+            .to_vec(),
+        document_base_url: unsafe {
+            crate::bytes_from_raw(base_context.document_base_url, base_context.document_base_url_length)
+        }
+        .unwrap_or_default()
+        .to_vec(),
+        property_id,
+        source,
+        svg_paths,
+    };
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+    crate::css::worker_pool::run(vec![move || {
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionWorkerParse);
+        let ffi_svg_paths: Vec<_> = input
+            .svg_paths
+            .iter()
+            .map(|path| FfiPrecomputedSvgPath {
+                source: path.source.as_ptr(),
+                source_length: path.source.len(),
+                normalized: path.normalized.as_ref().map_or(std::ptr::null(), |path| path.as_ptr()),
+                normalized_length: path.normalized.as_ref().map_or(0, Vec::len),
+            })
+            .collect();
+        let mut random_function_index = 0;
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: input.property_id,
+            secondary_value: 0,
+            name: Default::default(),
+        };
+        let context = ParseContext {
+            in_quirks_mode: input.in_quirks_mode,
+            is_svg_presentation_attribute: input.is_svg_presentation_attribute,
+            is_substituted_value: true,
+            contains_attr_tainted_values: input.contains_attr_tainted_values,
+            value_contexts: &raw const value_context,
+            value_context_count: 1,
+            document_url: input.document_url.as_ptr(),
+            document_url_length: input.document_url.len(),
+            document_base_url: input.document_base_url.as_ptr(),
+            document_base_url_length: input.document_base_url.len(),
+            intern_utf16_fly_string: None,
+            normalize_svg_path_data: None,
+            precomputed_svg_paths: ffi_svg_paths.as_ptr(),
+            precomputed_svg_path_count: ffi_svg_paths.len(),
+            font_format_is_supported: None,
+            font_tech_is_supported: None,
+            random_function_index: &raw mut random_function_index,
+        };
+        let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {
+            // A callback-free parse can report Invalid when an Option-returning grammar could not
+            // retain a string. Let the main thread distinguish that from a genuinely invalid value.
+            ParseOutcome::Invalid => {
+                ParseOutcome::NotHandled(&crate::css::parser::value_parser::SUBSTITUTION_NOT_PORTED)
+            }
+            outcome => outcome,
+        };
+        sender
+            .send(WorkerParseOutcome {
+                outcome,
+                source: input.source,
+            })
+            .unwrap();
+    }]);
+    receiver.recv().unwrap()
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+fn parse_substituted_on_main_thread(
+    base_context: &ParseContext,
+    property_id: u16,
+    source: &[u16],
+    contains_attr_tainted_values: bool,
+) -> std::sync::Arc<StyleValueData> {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionMainThreadParseRequest);
+    let mut random_function_index = 0;
+    let value_context = FfiValueParsingContext {
+        kind: FfiValueParsingContextKind::Property,
+        value: property_id,
+        secondary_value: 0,
+        name: Default::default(),
+    };
+    let mut context = *base_context;
+    context.is_substituted_value = true;
+    context.contains_attr_tainted_values = contains_attr_tainted_values;
+    context.value_contexts = &raw const value_context;
+    context.value_context_count = 1;
+    context.random_function_index = &raw mut random_function_index;
+    match parse_css_value_from_source(&context, property_id, source) {
+        ParseOutcome::Parsed(value) => value,
+        ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
+    }
+}
+
 /// Applies one declaration block to the cascade: filters by importance and applicability,
 /// resolves arbitrary-substitution values, downgrades invalid-at-computed-value-time
 /// declarations to unset, expands shorthands, and routes each longhand to the store as a set,
@@ -1195,24 +1349,13 @@ fn resolve_cascade_value(
                         ..
                     }
                 );
-            let mut random_function_index = 0;
-            let value_context = FfiValueParsingContext {
-                kind: FfiValueParsingContextKind::Property,
-                value: property_id,
-                secondary_value: 0,
-                name: crate::css::ffi_support::FfiUtf16View::default(),
-                allowed_channels: 0,
-            };
-            let mut parse_context = *base_context;
-            parse_context.is_substituted_value = true;
-            parse_context.contains_attr_tainted_values = contains_attr_tainted_values;
-            parse_context.value_contexts = &raw const value_context;
-            parse_context.value_context_count = 1;
-            parse_context.random_function_index = &raw mut random_function_index;
-            match parse_css_value_from_source(&parse_context, property_id, &source) {
+            let WorkerParseOutcome { outcome, source } =
+                parse_substituted_on_worker(base_context, property_id, source, contains_attr_tainted_values);
+            match outcome {
                 ParseOutcome::Parsed(value) => value,
-                ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => {
-                    std::sync::Arc::new(StyleValueData::GuaranteedInvalid)
+                ParseOutcome::Invalid => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
+                ParseOutcome::NotHandled(_) => {
+                    parse_substituted_on_main_thread(base_context, property_id, &source, contains_attr_tainted_values)
                 }
             }
         }
@@ -1254,8 +1397,9 @@ fn resolve_cascade_value(
 /// `store` must be a valid store, `blocks` must point at `block_count` valid
 /// blocks whose declaration lists stay live for the call and whose nonzero
 /// layer names each transfer one leaked fly-string reference,
-/// and `resolution_context` must point at live parser and callback state for
-/// the duration of this call.
+/// and a non-null `resolution_context` must point at live parser and callback
+/// state for the duration of this call. `resolution_context` may only be null
+/// when none of the declarations contain an unresolved value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_cascade_matched_blocks(
     store: *mut CascadedPropertyStore,
@@ -1274,7 +1418,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
         } else {
             unsafe { std::slice::from_raw_parts(blocks, block_count) }
         };
-        let resolution_context = unsafe { &*resolution_context };
+        let resolution_context = unsafe { resolution_context.as_ref() };
 
         let application_order = cascade_application_order(blocks, author_context_count);
         let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
@@ -1316,7 +1460,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 &is_property_disallowed,
                 &mut |style_engine_rule_id, property_id, unresolved_data, has_style_sheet_context| {
                     resolve_cascade_value(
-                        resolution_context,
+                        resolution_context.expect("unresolved declarations require a resolution context"),
                         style_engine_rule_id,
                         property_id,
                         unresolved_data,
