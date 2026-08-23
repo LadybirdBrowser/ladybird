@@ -6,8 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/NodeOperations.h>
@@ -176,6 +178,29 @@ WebIDL::ExceptionOr<void> ParentNode::append(ReadonlySpan<Variant<GC::Ref<Node>,
 // https://dom.spec.whatwg.org/#dom-parentnode-replacechildren
 WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::Ref<Node>, Utf16String>> const& nodes)
 {
+    // OPTIMIZATION: A newly-created DocumentFragment is unobservable. When every argument is a
+    // detached node, insert the conceptual fragment's children as one batch without first running
+    // insertion and removal steps for the temporary fragment.
+    if (nodes.size() > 1 && !is<Document>(*this)) {
+        GC::WeakHashSet<Node> seen_nodes;
+        Vector<GC::Root<Node>> detached_nodes;
+        detached_nodes.ensure_capacity(nodes.size());
+        for (auto const& node_or_string : nodes) {
+            if (!node_or_string.has<GC::Ref<Node>>())
+                break;
+            auto node = node_or_string.get<GC::Ref<Node>>();
+            if (is<DocumentFragment>(*node) || node->parent() || &node->document() != &document() || seen_nodes.contains(*node))
+                break;
+            TRY(ensure_pre_insertion_validity(node, nullptr, true));
+            seen_nodes.set(*node);
+            detached_nodes.append(GC::make_root(*node));
+        }
+        if (detached_nodes.size() == nodes.size()) {
+            replace_all(move(detached_nodes));
+            return {};
+        }
+    }
+
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
 

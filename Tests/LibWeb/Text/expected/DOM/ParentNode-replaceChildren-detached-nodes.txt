@@ -1,0 +1,22 @@
+children: first-child, second-child
+child nodes: first-child, second-child
+mutation records: 1
+added: first-child, second-child
+removed: old-child
+duplicate child count: 1
+duplicate child preserved: true
+fragment children: fragment-first, fragment-second, after-fragment
+fragment was emptied: true
+fragment was not inserted: true
+empty fragment children: after-empty-fragment
+empty fragment was not inserted: true
+mixed children: "before", mixed-element, "after"
+parented children: parented-child, after-parented
+parented source was emptied: true
+adopted children: foreign-child, after-foreign
+foreign child was adopted: true
+invalid insertion exception: HierarchyRequestError
+invalid insertion preserved children: true
+invalid insertion preserved detached node: true
+document insertion exception: HierarchyRequestError
+document insertion preserved children: true

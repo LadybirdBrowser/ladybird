@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parent = document.createElement("div");
+        const oldChild = document.createElement("old-child");
+        parent.append(oldChild);
+
+        const first = document.createElement("first-child");
+        const second = document.createElement("second-child");
+        const cachedChildren = parent.children;
+        const cachedChildNodes = parent.childNodes;
+        const observer = new MutationObserver(() => {});
+        observer.observe(parent, { childList: true });
+
+        parent.replaceChildren(first, second);
+
+        println(`children: ${Array.from(cachedChildren, child => child.localName).join(", ")}`);
+        println(`child nodes: ${Array.from(cachedChildNodes, child => child.localName).join(", ")}`);
+        const records = observer.takeRecords();
+        println(`mutation records: ${records.length}`);
+        println(`added: ${Array.from(records[0].addedNodes, child => child.localName).join(", ")}`);
+        println(`removed: ${Array.from(records[0].removedNodes, child => child.localName).join(", ")}`);
+        const child = document.createElement("only-child");
+        parent.replaceChildren(child, child);
+        println(`duplicate child count: ${parent.childNodes.length}`);
+        println(`duplicate child preserved: ${parent.firstChild === child}`);
+
+        const fragment = document.createDocumentFragment();
+        fragment.append(document.createElement("fragment-first"), document.createElement("fragment-second"));
+        const afterFragment = document.createElement("after-fragment");
+        parent.replaceChildren(fragment, afterFragment);
+        println(`fragment children: ${Array.from(parent.children, child => child.localName).join(", ")}`);
+        println(`fragment was emptied: ${fragment.childNodes.length === 0}`);
+        println(`fragment was not inserted: ${Array.from(parent.childNodes).every(child => child.nodeType !== Node.DOCUMENT_FRAGMENT_NODE)}`);
+
+        const emptyFragment = document.createDocumentFragment();
+        const afterEmptyFragment = document.createElement("after-empty-fragment");
+        parent.replaceChildren(emptyFragment, afterEmptyFragment);
+        println(`empty fragment children: ${Array.from(parent.children, child => child.localName).join(", ")}`);
+        println(`empty fragment was not inserted: ${Array.from(parent.childNodes).every(child => child.nodeType !== Node.DOCUMENT_FRAGMENT_NODE)}`);
+
+        const mixedElement = document.createElement("mixed-element");
+        parent.replaceChildren("before", mixedElement, "after");
+        println(`mixed children: ${Array.from(parent.childNodes, child => child.localName || JSON.stringify(child.data)).join(", ")}`);
+
+        const source = document.createElement("source");
+        const parentedChild = document.createElement("parented-child");
+        source.append(parentedChild);
+        const afterParented = document.createElement("after-parented");
+        parent.replaceChildren(parentedChild, afterParented);
+        println(`parented children: ${Array.from(parent.children, child => child.localName).join(", ")}`);
+        println(`parented source was emptied: ${source.childNodes.length === 0}`);
+
+        const foreignDocument = document.implementation.createHTMLDocument("");
+        const foreignChild = foreignDocument.createElement("foreign-child");
+        const afterForeign = document.createElement("after-foreign");
+        parent.replaceChildren(foreignChild, afterForeign);
+        println(`adopted children: ${Array.from(parent.children, child => child.localName).join(", ")}`);
+        println(`foreign child was adopted: ${foreignChild.ownerDocument === document}`);
+
+        const preservedChildren = Array.from(parent.childNodes);
+        const detachedBeforeError = document.createElement("detached-before-error");
+        let exceptionName;
+        try {
+            parent.replaceChildren(detachedBeforeError, parent);
+        } catch (error) {
+            exceptionName = error.name;
+        }
+        println(`invalid insertion exception: ${exceptionName}`);
+        println(`invalid insertion preserved children: ${preservedChildren.length === parent.childNodes.length && preservedChildren.every((child, index) => child === parent.childNodes[index])}`);
+        println(`invalid insertion preserved detached node: ${detachedBeforeError.parentNode === null}`);
+
+        const replacementDocument = document.implementation.createHTMLDocument("");
+        const originalDocumentChildren = Array.from(replacementDocument.childNodes);
+        let documentExceptionName;
+        try {
+            replacementDocument.replaceChildren(replacementDocument.createElement("first-root"), replacementDocument.createElement("second-root"));
+        } catch (error) {
+            documentExceptionName = error.name;
+        }
+        println(`document insertion exception: ${documentExceptionName}`);
+        println(`document insertion preserved children: ${originalDocumentChildren.length === replacementDocument.childNodes.length && originalDocumentChildren.every((child, index) => child === replacementDocument.childNodes[index])}`);
+    });
+</script>
