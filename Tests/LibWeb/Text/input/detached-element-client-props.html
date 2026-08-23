@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const detached = document.createElement("div");
+        detached.style.cssText = "display: block; border: 10px solid red; width: 100px; height: 50px;";
+        println(`clientTop=${detached.clientTop}`);
+        println(`clientLeft=${detached.clientLeft}`);
+        println(`clientWidth=${detached.clientWidth}`);
+        println(`clientHeight=${detached.clientHeight}`);
+
+        const child = document.createElement("div");
+        child.style.cssText = "display: block; border: 7px solid blue;";
+        detached.appendChild(child);
+        println(`child clientTop=${child.clientTop}`);
+    });
+</script>

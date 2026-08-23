@@ -3108,7 +3108,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
     case PropertyID::MathDepth:
     case PropertyID::TextRendering: {
         auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
-        auto length_resolution_context = inheritance_parent.has_value() && inheritance_parent->element().navigable()
+        auto length_resolution_context = inheritance_parent.has_value() && inheritance_parent->has_style() && inheritance_parent->element().navigable()
             ? Length::ResolutionContext::for_element(inheritance_parent.value())
             : Length::ResolutionContext::for_document(m_document);
         length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
@@ -3125,7 +3125,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
         auto line_height_font_metrics = Length::FontMetrics {
             style.font_size(),
             style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-            inheritance_parent.has_value() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height()
+            inheritance_parent.has_value() && inheritance_parent->has_style() ? inheritance_parent->computed_style()->line_height() : InitialValues::line_height()
         };
 
         return {
@@ -6458,11 +6458,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
 }
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size)
 {
-    auto inherited_font_size = inheritance_parent.has_value()
+    auto inherited_font_size = inheritance_parent.has_value() && inheritance_parent->has_style()
         ? inheritance_parent->computed_style()->font_size()
         : initial_font_size;
 
-    auto inherited_math_depth = inheritance_parent.has_value()
+    auto inherited_math_depth = inheritance_parent.has_value() && inheritance_parent->has_style()
         ? inheritance_parent->computed_style()->math_depth()
         : InitialValues::math_depth();
 
@@ -6501,7 +6501,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent)
 {
-    auto inherited_font_weight = inheritance_parent.has_value()
+    auto inherited_font_weight = inheritance_parent.has_value() && inheritance_parent->has_style()
         ? inheritance_parent->computed_style()->font_weight()
         : InitialValues::font_weight();
 
@@ -6557,11 +6557,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr
 // https://w3c.github.io/mathml-core/#propdef-math-depth
 NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent)
 {
-    auto inherited_math_depth = inheritance_parent.has_value()
+    auto inherited_math_depth = inheritance_parent.has_value() && inheritance_parent->has_style()
         ? inheritance_parent->computed_style()->math_depth()
         : InitialValues::math_depth();
 
-    auto inherited_math_style = inheritance_parent.has_value()
+    auto inherited_math_style = inheritance_parent.has_value() && inheritance_parent->has_style()
         ? inheritance_parent->computed_style()->math_style()
         : InitialValues::math_style();
 

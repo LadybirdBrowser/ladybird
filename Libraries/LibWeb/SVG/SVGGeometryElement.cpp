@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
@@ -39,14 +40,14 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     auto viewport_size = viewport_size_for_percentage_resolution();
 
     // NB: Update style for the element so that the correct computed values are used to generate the path - this is done
-    //     separately from the layout update above since it may have been skipped if the element was display: none or
-    //     disconnected.
+    //     separately from the layout update above since it may have been skipped if the element was display: none.
     document().update_style_for_element(*this);
 
-    auto computed_values = computed_style();
-    VERIFY(computed_values);
+    if (auto computed_values = computed_style())
+        return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values).length();
 
-    return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values).length();
+    auto transient_values = document().style_computer().materialize_style_record({ *this });
+    return get_path({ viewport_size.width(), viewport_size.height() }, *transient_values).length();
 }
 
 GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distance)

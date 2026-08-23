@@ -1,0 +1,5 @@
+clientTop=0
+clientLeft=0
+clientWidth=0
+clientHeight=0
+child clientTop=0
