@@ -147,6 +147,7 @@ pub struct PaintableData {
     pub accumulated_visual_context_for_descendants_index: usize,
     pub fixed_background_visual_context: usize,
     pub has_fixed_background_visual_context: bool,
+    pub has_scroll_offset_dependent_background: bool,
     /// Range of visual context nodes this box appended during the last tree build.
     pub visual_context_nodes_begin: usize,
     pub visual_context_nodes_end: usize,
@@ -178,6 +179,7 @@ impl Default for PaintableData {
             accumulated_visual_context_for_descendants_index: 0,
             fixed_background_visual_context: 0,
             has_fixed_background_visual_context: false,
+            has_scroll_offset_dependent_background: false,
             visual_context_nodes_begin: 0,
             visual_context_nodes_end: 0,
         }

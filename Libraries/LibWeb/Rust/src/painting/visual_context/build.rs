@@ -28,6 +28,7 @@ pub(crate) struct PaintableVisualContextAssignment {
     accumulated_visual_context_for_descendants_index: usize,
     fixed_background_visual_context: usize,
     has_fixed_background_visual_context: bool,
+    has_scroll_offset_dependent_background: bool,
     visual_context_nodes_begin: usize,
     visual_context_nodes_end: usize,
     has_non_invertible_css_transform: bool,
@@ -44,6 +45,7 @@ impl PaintableVisualContextAssignment {
             accumulated_visual_context_for_descendants_index: data.accumulated_visual_context_for_descendants_index,
             fixed_background_visual_context: data.fixed_background_visual_context,
             has_fixed_background_visual_context: data.has_fixed_background_visual_context,
+            has_scroll_offset_dependent_background: data.has_scroll_offset_dependent_background,
             visual_context_nodes_begin: data.visual_context_nodes_begin,
             visual_context_nodes_end: data.visual_context_nodes_end,
             has_non_invertible_css_transform: data.has_flag(PaintableFlag::HasNonInvertibleCssTransform),
@@ -59,6 +61,7 @@ impl PaintableVisualContextAssignment {
         data.accumulated_visual_context_for_descendants_index = self.accumulated_visual_context_for_descendants_index;
         data.fixed_background_visual_context = self.fixed_background_visual_context;
         data.has_fixed_background_visual_context = self.has_fixed_background_visual_context;
+        data.has_scroll_offset_dependent_background = self.has_scroll_offset_dependent_background;
         data.visual_context_nodes_begin = self.visual_context_nodes_begin;
         data.visual_context_nodes_end = self.visual_context_nodes_end;
         data.set_flag(
@@ -359,6 +362,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             assignment.own_scroll_node_index = 0;
             assignment.fixed_background_visual_context = 0;
             assignment.has_fixed_background_visual_context = false;
+            assignment.has_scroll_offset_dependent_background = false;
         }
 
         let mut nearest_scroll_nodes_for_descendants = if is_fixed {
@@ -665,6 +669,15 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
                 assignment.fixed_background_visual_context = fixed_background_context;
                 assignment.has_fixed_background_visual_context = true;
             }
+        }
+
+        if super::node_values::background_depends_on_live_scroll_offset(
+            self.layout_arena,
+            self.root_background_source,
+            slot,
+            may_be_root_element,
+        ) {
+            self.assignment_mut(slot).has_scroll_offset_dependent_background = true;
         }
 
         // Build state for descendants: own state + perspective + clip + scroll.
