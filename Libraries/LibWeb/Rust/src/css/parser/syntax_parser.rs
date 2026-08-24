@@ -1433,7 +1433,6 @@ pub struct FfiSyntaxParse {
     prelude_items: Vec<FfiSyntaxPreludeItem>,
     parse_context: *const ParseContext,
     resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
-    retain_property_components: bool,
     preserve_property_source_text: bool,
 }
 
@@ -1467,7 +1466,6 @@ impl FfiSyntaxParse {
             prelude_items: Vec::new(),
             parse_context,
             resolve_property_id,
-            retain_property_components: std::env::var("LIBWEB_VERIFY_RUST_SYNTAX_PARSER").as_deref() == Ok("1"),
             preserve_property_source_text,
         }
     }
@@ -1584,7 +1582,7 @@ impl FfiSyntaxParse {
     fn append_declaration(&mut self, declaration: &Declaration) -> usize {
         let (name_offset, name_length) = self.append_value(declaration.name.as_ref());
         let value_source = component_list_source(&declaration.value);
-        let (values_start, value_count) = if declaration.is_property && !self.retain_property_components {
+        let (values_start, value_count) = if declaration.is_property {
             (0, 0)
         } else {
             self.append_component_list(&declaration.value)
