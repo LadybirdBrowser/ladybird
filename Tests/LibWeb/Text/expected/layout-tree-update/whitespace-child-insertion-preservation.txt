@@ -1,0 +1,16 @@
+PASS: append beside anonymous inline run | preserve
+PASS: append beside anonymous inline run | incremental tree matches full rebuild
+PASS: insert into anonymous inline run | preserve
+PASS: insert into anonymous inline run | incremental tree matches full rebuild
+PASS: insert between block children | preserve
+PASS: insert between block children | incremental tree matches full rebuild
+PASS: append to flex parent | preserve
+PASS: append to flex parent | incremental tree matches full rebuild
+PASS: append to grid parent | preserve
+PASS: append to grid parent | incremental tree matches full rebuild
+PASS: rebuild for preserved whitespace | rebuild
+PASS: rebuild for preserved whitespace | incremental tree matches full rebuild
+PASS: rebuild under first-letter | rebuild
+PASS: rebuild under first-letter | incremental tree matches full rebuild
+PASS: rebuild with concurrent descendant update | rebuild
+PASS: rebuild with concurrent descendant update | incremental tree matches full rebuild

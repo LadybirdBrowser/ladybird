@@ -1,0 +1,79 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .flex { display: flex; }
+    .grid { display: grid; }
+    .preserve { white-space-collapse: preserve; }
+    .first-letter::first-letter { color: red; }
+</style>
+<div id="fixture"></div>
+<script>
+    const cases = [
+        {
+            name: "append beside anonymous inline run",
+            markup: '<div class="parent"><div class="tracked"></div><span>inline</span></div>',
+            mutate: parent => parent.append(" ", document.createElement("script")),
+        },
+        {
+            name: "insert into anonymous inline run",
+            markup: '<div class="parent"><div class="tracked"></div><span class="before">before</span><span class="after">after</span></div>',
+            mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")),
+        },
+        {
+            name: "insert between block children",
+            markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
+            mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")),
+        },
+        {
+            name: "append to flex parent",
+            markup: '<div class="parent flex"><div class="tracked"></div></div>',
+            mutate: parent => parent.append(" "),
+        },
+        {
+            name: "append to grid parent",
+            markup: '<div class="parent grid"><div class="tracked"></div></div>',
+            mutate: parent => parent.append(" "),
+        },
+        {
+            name: "rebuild for preserved whitespace",
+            markup: '<div class="parent preserve"><div class="tracked"></div><span>inline</span></div>',
+            mutate: parent => parent.append(" "),
+            preserve: false,
+        },
+        {
+            name: "rebuild under first-letter",
+            markup: '<div class="parent first-letter"><div class="tracked"></div><span>inline</span></div>',
+            mutate: parent => parent.append(" "),
+            preserve: false,
+        },
+        {
+            name: "rebuild with concurrent descendant update",
+            markup: '<div class="parent"><div class="tracked first-letter"><span>old</span></div></div>',
+            mutate: parent => {
+                parent.firstElementChild.firstElementChild.firstChild.data = "new";
+                parent.append(" ");
+            },
+            preserve: false,
+        },
+    ];
+
+    test(() => {
+        for (const case_ of cases) {
+            fixture.innerHTML = case_.markup;
+            const parent = fixture.firstElementChild;
+            const tracked = parent.querySelector(".tracked");
+            document.body.offsetWidth;
+            const parentIdentity = internals.layoutNodeIdentity(parent);
+            const trackedIdentity = internals.layoutNodeIdentity(tracked);
+
+            case_.mutate(parent);
+            document.body.offsetWidth;
+
+            const preserved = internals.layoutNodeIdentity(parent) === parentIdentity
+                && internals.layoutNodeIdentity(tracked) === trackedIdentity;
+            const expectedPreserved = case_.preserve !== false;
+            println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${case_.name} | ${expectedPreserved ? "preserve" : "rebuild"}`);
+            println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
+        }
+    });
+</script>

@@ -116,25 +116,40 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!element || !layout_node || element->shadow_root() || is<HTML::HTMLSlotElement>(*element))
         return false;
 
+    auto const* first_letter_owner = node.first_letter_owner_for_layout_subtree_from(node);
+
     bool has_pending_unboxed_child = false;
-    bool pending_children_cannot_create_layout_nodes = true;
+    bool pending_children_can_preserve_parent = true;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
-        if (child->unsafe_layout_node() || !child->needs_layout_tree_update())
+        if (child->unsafe_layout_node()) {
+            if (child->needs_layout_tree_update() || child->child_needs_layout_tree_update()) {
+                pending_children_can_preserve_parent = false;
+                break;
+            }
+            continue;
+        }
+        if (!child->needs_layout_tree_update())
             continue;
         has_pending_unboxed_child = true;
+        if (auto const* text = as_if<DOM::Text>(*child); text && text->data().is_ascii_whitespace()
+            && layout_node->white_space_collapse() == CSS::WhiteSpaceCollapse::Collapse
+            && !first_letter_owner) {
+            continue;
+        }
         auto const* child_element = as_if<DOM::Element>(*child);
         if (!child_element) {
-            pending_children_cannot_create_layout_nodes = false;
+            pending_children_can_preserve_parent = false;
             break;
         }
         auto computed_style = child_element->computed_style();
         if (!computed_style || !computed_style->display().is_none()) {
-            pending_children_cannot_create_layout_nodes = false;
+            pending_children_can_preserve_parent = false;
             break;
         }
     }
-    if (has_pending_unboxed_child && pending_children_cannot_create_layout_nodes)
+    if (has_pending_unboxed_child && pending_children_can_preserve_parent) {
         return true;
+    }
 
     auto parent_display = layout_node->display();
     auto parent_has_children = layout_node->has_children();
@@ -146,7 +161,7 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!parent_lays_out_flex_or_grid_children && !parent_lays_out_inline_children && !parent_lays_out_block_children) {
         return false;
     }
-    if (node.first_letter_owner_for_layout_subtree_from(node))
+    if (first_letter_owner)
         return false;
 
     bool will_insert_inline_child = false;
@@ -1486,6 +1501,25 @@ static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, R
     VERIFY(mode == RustFFI::FfiInsertionMode::InDomOrder);
     auto* dom_node = child->dom_node();
     VERIFY(dom_node);
+
+    // An inline child of a block container with block children is placed in a newly appended
+    // anonymous wrapper. Move that empty wrapper to the child's DOM position before filling it.
+    if (parent.is_anonymous() && !parent.has_children()) {
+        if (auto* wrapper_parent = parent.parent()) {
+            for (auto* sibling = dom_node->next_sibling(); sibling; sibling = sibling->next_sibling()) {
+                auto* sibling_layout_node = sibling->unsafe_layout_node();
+                while (sibling_layout_node && sibling_layout_node->parent() != wrapper_parent)
+                    sibling_layout_node = sibling_layout_node->parent();
+                if (!sibling_layout_node || sibling_layout_node == &parent)
+                    continue;
+                NonnullRefPtr wrapper = parent;
+                wrapper_parent->remove_child(parent);
+                wrapper_parent->insert_before(move(wrapper), sibling_layout_node);
+                break;
+            }
+        }
+    }
+
     for (auto* sibling = dom_node->next_sibling(); sibling; sibling = sibling->next_sibling()) {
         auto* sibling_layout_node = sibling->unsafe_layout_node();
         if (sibling_layout_node && sibling_layout_node->parent() == &parent) {
