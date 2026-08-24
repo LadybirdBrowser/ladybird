@@ -29,6 +29,11 @@ set(INTERNAL_RESOURCES
 )
 list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/")
 
+set(SITE_COMPATIBILITY_RESOURCES
+    nytimes.com.json
+)
+list(TRANSFORM SITE_COMPATIBILITY_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/WebCompat/")
+
 set(ABOUT_PAGES
     about.html
     bookmarks.html
@@ -159,6 +164,10 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
+    copy_resource_set(ladybird/site-compatibility RESOURCES ${SITE_COMPATIBILITY_RESOURCES}
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+
     copy_resource_set(ladybird/about-pages RESOURCES ${ABOUT_PAGES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
@@ -200,6 +209,7 @@ function(install_ladybird_resources destination component)
     install(FILES ${128x128_ICONS} DESTINATION "${destination}/icons/128x128" COMPONENT ${component})
     install(FILES ${THEMES} DESTINATION "${destination}/themes" COMPONENT ${component})
     install(FILES ${INTERNAL_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
+    install(FILES ${SITE_COMPATIBILITY_RESOURCES} DESTINATION "${destination}/ladybird/site-compatibility" COMPONENT ${component})
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
     install(FILES ${ABOUT_SETTINGS_RESOURCES} DESTINATION "${destination}/ladybird/about-pages/settings" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
