@@ -98,89 +98,6 @@ Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<Com
     return value.has_value() ? Optional<Vector<ComponentValue>> { Vector<ComponentValue> { *value } } : OptionalNone {};
 }
 
-struct SyntaxDeclarationForVerification {
-    Utf16FlyString name;
-    Utf16String value;
-    Important important;
-
-    bool operator==(SyntaxDeclarationForVerification const&) const = default;
-};
-
-static void collect_syntax_declarations_for_verification(Rule const&, Vector<SyntaxDeclarationForVerification>&);
-
-static void collect_syntax_declarations_for_verification(ReadonlySpan<RuleOrListOfDeclarations> items, Vector<SyntaxDeclarationForVerification>& declarations)
-{
-    for (auto const& item : items) {
-        item.visit(
-            [&](Rule const& rule) { collect_syntax_declarations_for_verification(rule, declarations); },
-            [&](Vector<Declaration> const& declaration_list) {
-                for (auto const& declaration : declaration_list) {
-                    auto value = declaration.value_text;
-                    if (!declaration.value.is_empty())
-                        value = serialize_a_series_of_component_values(declaration.value);
-                    declarations.append({ declaration.name, move(value), declaration.important });
-                }
-            });
-    }
-}
-
-static void collect_syntax_declarations_for_verification(Rule const& rule, Vector<SyntaxDeclarationForVerification>& declarations)
-{
-    rule.visit(
-        [&](AtRule const& at_rule) {
-            collect_syntax_declarations_for_verification(at_rule.child_rules_and_lists_of_declarations, declarations);
-        },
-        [&](QualifiedRule const& qualified_rule) {
-            collect_syntax_declarations_for_verification(Vector<RuleOrListOfDeclarations> { qualified_rule.declarations }, declarations);
-            collect_syntax_declarations_for_verification(qualified_rule.child_rules, declarations);
-        });
-}
-
-static void verify_rust_syntax_declarations(ReadonlySpan<RuleOrListOfDeclarations> rust_items, ReadonlySpan<RuleOrListOfDeclarations> cpp_items)
-{
-    Vector<SyntaxDeclarationForVerification> rust_declarations;
-    Vector<SyntaxDeclarationForVerification> cpp_declarations;
-    collect_syntax_declarations_for_verification(rust_items, rust_declarations);
-    collect_syntax_declarations_for_verification(cpp_items, cpp_declarations);
-    if (rust_declarations == cpp_declarations)
-        return;
-    warnln("Rust CSS syntax parser mismatch: Rust produced {} declarations, C++ produced {}", rust_declarations.size(), cpp_declarations.size());
-    auto count = min(rust_declarations.size(), cpp_declarations.size());
-    for (size_t index = 0; index < count; ++index) {
-        if (rust_declarations[index] == cpp_declarations[index])
-            continue;
-        warnln("  first mismatch at {}: Rust '{}: {}' important={}, C++ '{}: {}' important={}",
-            index,
-            rust_declarations[index].name,
-            rust_declarations[index].value,
-            rust_declarations[index].important == Important::Yes,
-            cpp_declarations[index].name,
-            cpp_declarations[index].value,
-            cpp_declarations[index].important == Important::Yes);
-        break;
-    }
-}
-
-static void verify_rust_syntax_declarations(ReadonlySpan<Rule> rust_rules, ReadonlySpan<Rule> cpp_rules)
-{
-    Vector<RuleOrListOfDeclarations> rust_items;
-    Vector<RuleOrListOfDeclarations> cpp_items;
-    for (auto const& rule : rust_rules)
-        rust_items.append(rule);
-    for (auto const& rule : cpp_rules)
-        cpp_items.append(rule);
-    verify_rust_syntax_declarations(rust_items, cpp_items);
-}
-
-static bool should_verify_rust_syntax_parser()
-{
-    static bool const should_verify = [] {
-        auto* value = getenv("LIBWEB_VERIFY_RUST_SYNTAX_PARSER");
-        return value && StringView { value, strlen(value) } == "1"sv;
-    }();
-    return should_verify;
-}
-
 ParsingParams::ParsingParams(ParsingMode mode)
     : mode(mode)
 {
@@ -324,8 +241,6 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
 GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
 {
     auto rules = RustSyntaxParser::parse_stylesheet(*this);
-    if (should_verify_rust_syntax_parser())
-        verify_rust_syntax_declarations(rules, parse_a_stylesheet(token_stream(), {}).rules);
     return convert_rules(rules);
 }
 
@@ -337,9 +252,6 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
         .location = location,
         .rules = RustSyntaxParser::parse_stylesheet(*this),
     };
-    if (should_verify_rust_syntax_parser())
-        verify_rust_syntax_declarations(style_sheet.rules, parse_a_stylesheet(token_stream(), location).rules);
-
     auto rule_list = CSSRuleList::create(convert_rules(style_sheet.rules));
     if (!media_list)
         media_list = MediaList::create({});
@@ -1388,8 +1300,6 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
     auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context, PreservePropertySourceText::Yes);
-    if (should_verify_rust_syntax_parser())
-        verify_rust_syntax_declarations(declarations_and_at_rules, parse_a_blocks_contents(token_stream()));
 
     // 2. Let parsed declarations be a new empty list.
     PropertiesAndCustomProperties parsed_declarations;
