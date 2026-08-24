@@ -9,6 +9,7 @@
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
@@ -241,6 +242,15 @@ RefPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
         return nullptr;
 
     auto source = serialize_a_series_of_component_values_preserving_original_source_text(component_values);
+    auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
+    if (!syntax)
+        return nullptr;
+    ScopeGuard free_syntax = [&] { ValueParserFFI::rust_syntax_free(syntax); };
+    return syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_root(syntax));
+}
+
+RefPtr<SyntaxNode> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
+{
     auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
     if (!syntax)
         return nullptr;
@@ -899,6 +909,84 @@ RefPtr<StyleValue const> Parser::parse_nonnegative_integer_symbol_pair_value(Tok
         return nullptr;
     transaction.commit();
     return StyleValueList::create({ integer.release_nonnull(), symbol.release_nonnull() }, StyleValueList::Separator::Space);
+}
+
+Optional<Utf16FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
+{
+    auto is_valid_layer_name_part = [](auto& token) {
+        auto keyword = token.is(Token::Type::Ident) ? keyword_from_string(token.token().ident()) : Optional<Keyword> {};
+        return token.is(Token::Type::Ident) && (!keyword.has_value() || !is_css_wide_keyword(*keyword));
+    };
+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    if (!tokens.has_next_token() && allow_blank_layer_name == AllowBlankLayerName::Yes)
+        return Utf16FlyString {};
+
+    auto& first_name_token = tokens.consume_a_token();
+    if (!is_valid_layer_name_part(first_name_token))
+        return {};
+
+    Utf16StringBuilder builder;
+    builder.append(first_name_token.token().ident());
+    while (tokens.has_next_token()) {
+        if (!tokens.next_token().is_delim('.'))
+            break;
+        tokens.discard_a_token();
+        auto& name_token = tokens.consume_a_token();
+        if (!is_valid_layer_name_part(name_token))
+            return {};
+        builder.append_ascii('.');
+        builder.append(name_token.token().ident());
+    }
+
+    transaction.commit();
+    auto layer_name = builder.to_string();
+    return Utf16FlyString::from_utf16(layer_name.utf16_view());
+}
+
+Vector<Percentage> Parser::parse_keyframe_selectors(TokenStream<ComponentValue>& tokens)
+{
+    Vector<Percentage> selectors;
+    while (tokens.has_next_token()) {
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token())
+            break;
+        auto& next_token = tokens.next_token();
+        if (!next_token.is_token())
+            return {};
+        bool read_a_selector = false;
+        if (next_token.is_ident("from"_utf16)) {
+            tokens.discard_a_token();
+            selectors.append(Percentage { 0 });
+            read_a_selector = true;
+        } else if (next_token.is_ident("to"_utf16)) {
+            tokens.discard_a_token();
+            selectors.append(Percentage { 100 });
+            read_a_selector = true;
+        } else if (next_token.is(Token::Type::Percentage)) {
+            auto percentage_value = next_token.token().percentage();
+            if (percentage_value >= 0 && percentage_value <= 100) {
+                tokens.discard_a_token();
+                selectors.append(Percentage { percentage_value });
+                read_a_selector = true;
+            }
+        }
+        if (read_a_selector) {
+            tokens.discard_whitespace();
+            if (tokens.next_token().is(Token::Type::Comma)) {
+                tokens.discard_a_token();
+                tokens.discard_whitespace();
+                if (!tokens.has_next_token())
+                    return {};
+                continue;
+            }
+            if (!tokens.has_next_token())
+                break;
+        }
+        return {};
+    }
+    return selectors;
 }
 
 }

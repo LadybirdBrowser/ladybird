@@ -1,0 +1,5 @@
+@function --(): 1
+parameter named --: 0
+@property --: 0
+custom property --: ''
+custom property ---: 'green'

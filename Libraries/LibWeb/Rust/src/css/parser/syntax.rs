@@ -329,6 +329,15 @@ fn parse_syntax_values(values: &[ComponentValue], limit_ident_to_custom_ident: b
     }
 }
 
+pub(crate) fn parse_syntax_component_values(
+    values: &[ComponentValue],
+    limit_ident_to_custom_ident: bool,
+) -> Option<usize> {
+    let mut position = 0;
+    parse_component(values, &mut position, limit_ident_to_custom_ident)?;
+    Some(position)
+}
+
 fn identifier_matches(value: &[u16], expected: &[u16], case_sensitive: bool) -> bool {
     value.len() == expected.len()
         && value.iter().zip(expected).all(|(&left, &right)| {

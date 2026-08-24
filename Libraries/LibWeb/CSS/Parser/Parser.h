@@ -274,8 +274,18 @@ private:
         Vector<FunctionParameterInternal> parameters;
         NonnullRefPtr<SyntaxNode> return_type;
     };
-    Optional<FunctionPrelude> parse_function_prelude(TokenStream<ComponentValue>&);
-
+    struct ImportPrelude {
+        URL url;
+        Optional<Utf16FlyString> layer;
+        bool has_scope { false };
+        Optional<SelectorList> scope_start;
+        Optional<SelectorList> scope_end;
+        RefPtr<Supports> supports;
+        Vector<NonnullRefPtr<MediaQuery>> media_queries;
+    };
+    Optional<ImportPrelude> parse_import_prelude(AtRule const&);
+    Optional<Vector<u32>> parse_font_feature_values(Declaration const&, size_t max_value_count);
+    Optional<FunctionPrelude> parse_function_prelude(AtRule const&);
     bool is_valid_in_the_current_context(Declaration const&) const;
     bool is_valid_in_the_current_context(AtRule const&) const;
     bool is_valid_in_the_current_context(QualifiedRule const&) const;
