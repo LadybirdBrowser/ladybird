@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #flex { display: flex; align-items: flex-start; width: 300px; height: 100px; }
+    .item { padding: 5px; }
+    #dependent { min-height: 50%; box-sizing: border-box; }
+</style>
+<div id="flex"><div class="item">alpha beta</div><div class="item" id="dependent">gamma</div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const heightBefore = document.getElementById("dependent").getBoundingClientRect().height;
+        const measurementsBefore = internals.intrinsicMeasurementCount();
+
+        // The dependent item's percentage min-height observes the container's height, so its
+        // measurements are keyed on that basis and must be redone.
+        document.getElementById("flex").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`measured again: ${internals.intrinsicMeasurementCount() > measurementsBefore}`);
+        println(`dependent item height: ${heightBefore} -> ${document.getElementById("dependent").getBoundingClientRect().height}`);
+    });
+</script>

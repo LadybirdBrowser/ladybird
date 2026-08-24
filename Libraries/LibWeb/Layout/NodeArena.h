@@ -37,6 +37,7 @@ public:
     void* handle() const { return m_handle; }
     u64 formatting_context_run_cache_hit_count() const;
     u64 table_cell_measurement_cache_miss_count() const;
+    u64 intrinsic_measurement_count() const;
     void drop_intrinsic_size_cache(RustFFI::NodeData const&) const;
 
     void enroll_text_node_for_content_sync(TextNode const&);

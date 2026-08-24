@@ -720,6 +720,11 @@ WebIDL::UnsignedLongLong Internals::table_cell_measurement_cache_miss_count()
     return window().associated_document().layout_node_arena().table_cell_measurement_cache_miss_count();
 }
 
+WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
+{
+    return window().associated_document().layout_node_arena().intrinsic_measurement_count();
+}
+
 WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count()
 {
     auto& document = window().associated_document();
