@@ -136,8 +136,9 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(Utf16View medium)
 
 bool MediaList::evaluate(DOM::Document const& document)
 {
+    MediaEnvironmentSnapshot environment { document };
     for (auto& media : m_media)
-        media->evaluate(document);
+        media->evaluate(environment);
 
     return matches();
 }

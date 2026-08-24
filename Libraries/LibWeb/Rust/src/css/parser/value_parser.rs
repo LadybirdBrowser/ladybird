@@ -934,7 +934,7 @@ fn parse_ratio_value(values: &[&ComponentValue]) -> Option<StyleValueData> {
     })
 }
 
-fn parse_ratio_value_with_context(
+pub(crate) fn parse_ratio_value_with_context(
     context: &ParseContext,
     property: u16,
     values: &[&ComponentValue],

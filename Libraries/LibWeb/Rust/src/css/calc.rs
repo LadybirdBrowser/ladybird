@@ -3257,6 +3257,57 @@ pub(crate) fn resolve_calculated_integer_without_context(
     Some((value + 0.5).floor().clamp(i32::MIN as f64, i32::MAX as f64) as i32)
 }
 
+/// Resolves a calculated value that must produce an integer using length metrics for math
+/// functions whose intermediate values contain relative lengths.
+pub(crate) fn resolve_calculated_integer_with_context(
+    calculated: &crate::css::style_value::StyleValueData,
+    context: &crate::css::style_compute::FfiLengthResolutionContext,
+) -> Option<i32> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        None,
+        LengthResolution {
+            context: Some(context),
+            fallback: None,
+        },
+    )?;
+    if !numeric_type.matches_number(resolve_as) {
+        return None;
+    }
+    if value.is_nan() {
+        return Some(0);
+    }
+    if value.is_infinite() {
+        return Some(if value > 0.0 { i32::MAX } else { i32::MIN });
+    }
+    Some((value + 0.5).floor().clamp(i32::MIN as f64, i32::MAX as f64) as i32)
+}
+
+/// Resolves a calculated value that must produce a resolution. Returns dots per pixel.
+pub(crate) fn resolve_calculated_resolution_without_context(
+    calculated: &crate::css::style_value::StyleValueData,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    numeric_type.matches_dimension(4, resolve_as).then_some(value)
+}
+
+/// Resolves a calculated resolution using length metrics for math functions whose intermediate
+/// values contain relative lengths. Returns dots per pixel.
+pub(crate) fn resolve_calculated_resolution_with_context(
+    calculated: &crate::css::style_value::StyleValueData,
+    context: &crate::css::style_compute::FfiLengthResolutionContext,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        None,
+        LengthResolution {
+            context: Some(context),
+            fallback: None,
+        },
+    )?;
+    numeric_type.matches_dimension(4, resolve_as).then_some(value)
+}
+
 /// Resolves a calculated value that must produce a flex value, with no
 /// external context; the equivalent of the C++ resolve_flex with an empty
 /// context. Returns the value in fr.

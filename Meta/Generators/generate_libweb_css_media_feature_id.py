@@ -39,12 +39,18 @@ namespace Web::CSS {{
 
 enum class MediaFeatureID : {underlying_type} {{""")
 
-    for name in media_feature_data:
-        out.write(f"""
-    {title_casify(name)},""")
+    out.writelines(
+        f"""
+    {title_casify(name)},"""
+        for name in media_feature_data
+    )
 
     out.write("""
 };
+
+inline constexpr size_t media_feature_count = """)
+    out.write(str(len(media_feature_data)))
+    out.write(""";
 
 Optional<MediaFeatureID> media_feature_id_from_string(Utf16View);
 StringView string_from_media_feature_id(MediaFeatureID);
@@ -69,11 +75,13 @@ namespace Web::CSS {
 Optional<MediaFeatureID> media_feature_id_from_string(Utf16View string)
 {""")
 
-    for name in media_feature_data:
-        out.write(f"""
+    out.writelines(
+        f"""
     if (string.equals_ignoring_ascii_case("{name}"sv))
         return MediaFeatureID::{title_casify(name)};
-""")
+"""
+        for name in media_feature_data
+    )
 
     out.write("""
     return {};
@@ -83,10 +91,12 @@ StringView string_from_media_feature_id(MediaFeatureID media_feature_id)
 {
     switch (media_feature_id) {""")
 
-    for name in media_feature_data:
-        out.write(f"""
+    out.writelines(
+        f"""
     case MediaFeatureID::{title_casify(name)}:
-        return "{name}"sv;""")
+        return "{name}"sv;"""
+        for name in media_feature_data
+    )
 
     out.write("""
     }
@@ -195,9 +205,11 @@ bool media_feature_keyword_is_falsey(MediaFeatureID media_feature_id, Keyword ke
         out.write(f"""
     case MediaFeatureID::{title_casify(name)}:
         switch (keyword) {{""")
-        for false_keyword in false_keywords:
-            out.write(f"""
-        case Keyword::{title_casify(false_keyword)}:""")
+        out.writelines(
+            f"""
+        case Keyword::{title_casify(false_keyword)}:"""
+            for false_keyword in false_keywords
+        )
         out.write("""
             return true;
         default:
