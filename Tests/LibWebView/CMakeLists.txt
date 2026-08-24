@@ -15,6 +15,7 @@ set(TEST_SOURCES
     TestSessionHistorySnapshotStorage.cpp
     TestSessionHistoryTraversalQueue.cpp
     TestSessionStore.cpp
+    TestSiteCompatibilityDataLoading.cpp
     TestStorageJar.cpp
     TestWebViewURL.cpp
 )

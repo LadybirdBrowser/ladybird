@@ -8,10 +8,11 @@
 
 #include <AK/Error.h>
 #include <AK/JsonValue.h>
+#include <AK/StringView.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
 
-WEBVIEW_API ErrorOr<JsonValue> load_site_compatibility_data();
+WEBVIEW_API ErrorOr<JsonValue> load_site_compatibility_data(StringView directory_uri = "resource://ladybird/site-compatibility"sv);
 
 }
