@@ -224,6 +224,7 @@ public:
     //     explicit discard. Consume them synchronously before asking the engine anything else.
     bool take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&&);
     PublishedStyleTransaction take_style_transaction(StyleNodeID root);
+    void sort_style_deltas_for_direct_application(Span<PublishedStyleDelta>) const;
     void discard_style_transaction_outputs();
 
     using RuleMatch = StyleEngineFFI::FfiRuleMatch;
