@@ -1,3 +1,5 @@
 parent preserved: true
 child preserved: true
+transient parent preserved: true
+transient child preserved: true
 incremental tree matches: true

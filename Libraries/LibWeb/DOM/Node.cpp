@@ -1769,6 +1769,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         }
     }
     if (is_connected()) {
+        set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 

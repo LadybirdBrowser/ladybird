@@ -1,19 +1,29 @@
 <!doctype html>
 <script src="../include.js"></script>
 <div id="parent"><div id="before"></div><span>inline</span></div>
+<div id="transient-parent"><div id="transient-before"></div><span>inline</span></div>
 <script>
     test(() => {
         const parentElement = document.getElementById("parent");
         const beforeElement = document.getElementById("before");
+        const transientParent = document.getElementById("transient-parent");
+        const transientBefore = document.getElementById("transient-before");
         document.body.offsetWidth;
         const parentIdentity = internals.layoutNodeIdentity(parentElement);
         const beforeIdentity = internals.layoutNodeIdentity(beforeElement);
+        const transientParentIdentity = internals.layoutNodeIdentity(transientParent);
+        const transientBeforeIdentity = internals.layoutNodeIdentity(transientBefore);
 
         parentElement.insertAdjacentHTML("beforeend", '<script></' + 'script>');
+        const transientScript = document.createElement("script");
+        transientParent.append(transientScript);
+        transientScript.remove();
         document.body.offsetWidth;
 
         println(`parent preserved: ${internals.layoutNodeIdentity(parentElement) === parentIdentity}`);
         println(`child preserved: ${internals.layoutNodeIdentity(beforeElement) === beforeIdentity}`);
+        println(`transient parent preserved: ${internals.layoutNodeIdentity(transientParent) === transientParentIdentity}`);
+        println(`transient child preserved: ${internals.layoutNodeIdentity(transientBefore) === transientBeforeIdentity}`);
         println(`incremental tree matches: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
     });
 </script>
