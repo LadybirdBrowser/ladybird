@@ -8134,6 +8134,43 @@ fn adding_a_live_selector_program_keeps_existing_routing() {
 }
 
 #[test]
+fn detachment_routing_rebuild_excludes_retired_rules() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let retained_sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    let detached_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    engine.attach_sheet(retained_sheet, TreeScopeID::DOCUMENT);
+    engine.attach_sheet(detached_sheet, TreeScopeID::DOCUMENT);
+    let program = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(1))]));
+
+    let retained_rule = engine.append_rule(retained_sheet, None, RuleKind::Style);
+    let group = engine.append_rule(retained_sheet, None, RuleKind::Media);
+    let retired_rule = engine.append_rule(retained_sheet, Some(group), RuleKind::Style);
+    let detached_rule = engine.append_rule(detached_sheet, None, RuleKind::Style);
+    for rule in [retained_rule, retired_rule, detached_rule] {
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+    }
+    discard_transaction(&mut engine);
+    assert_eq!(engine.routing.len(), 3);
+
+    engine.remove_rule(group);
+    engine.detach_sheet(detached_sheet, TreeScopeID::DOCUMENT);
+    discard_transaction(&mut engine);
+
+    assert_eq!(engine.routing.len(), 1);
+    assert_eq!(
+        engine
+            .routing
+            .rule_of(engine.routing.routes_for(RoutingKey::Class(StyleAtomID(1)))[0]),
+        retained_rule
+    );
+}
+
+#[test]
 fn a_declaration_edit_journals_only_the_declaration_field() {
     let (mut engine, _, rule) = authoring_engine();
     let mut contents = engine.program().rule_version(rule);
