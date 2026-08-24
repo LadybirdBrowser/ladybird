@@ -5,6 +5,6 @@ cycle --y: []
 fallback-cycle margin: 5px
 fallback-cycle --p: [5px]
 declared values resolved: 10
-value computations: 15
+value computations: 13
 computations answered from finished values: 6
 values resolved inside a reference cycle: 4
