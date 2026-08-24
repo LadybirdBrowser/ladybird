@@ -5760,6 +5760,8 @@ pub unsafe extern "C" fn rust_parse_css_value(
         let Some(source) = (unsafe { source.units() }) else {
             return invalid_ffi_result();
         };
+        let mut source_utf16 = Vec::with_capacity(source.len());
+        source.append_to(&mut source_utf16);
         let Some(unresolved_source) = (unsafe { unresolved_source.to_utf16() }) else {
             return invalid_ffi_result();
         };
@@ -5969,6 +5971,54 @@ pub unsafe extern "C" fn rust_collect_arbitrary_substitution_function_presence_f
         };
         unsafe { *out_presence = presence };
         true
+    })
+}
+
+fn parse_font_feature_values_from_source(source: TokenizerInput<'_>, maximum_value_count: usize) -> Option<Vec<u32>> {
+    let values = component_values_from_source(source).ok()?;
+    let values = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(|value| match value.kind {
+            ComponentKind::Token(ParserTokenKind::Number {
+                value,
+                number_type: CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign,
+            }) if value >= 0.0 && value <= f64::from(u32::MAX) => Some(value as u32),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (!values.is_empty() && values.len() <= maximum_value_count).then_some(values)
+}
+
+/// Parses the non-negative integer list used by font feature value rules.
+///
+/// Returns `usize::MAX` for invalid input. Otherwise returns the value count and
+/// writes it when the provided output has sufficient capacity.
+///
+/// # Safety
+/// The source pointer must be valid for its accompanying length. A non-null
+/// output pointer must be writable for `output_capacity` values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_font_feature_values(
+    source: FfiUtf16View,
+    maximum_value_count: usize,
+    output: *mut u32,
+    output_capacity: usize,
+) -> usize {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return usize::MAX;
+        };
+        let Some(values) = parse_font_feature_values_from_source(source, maximum_value_count) else {
+            return usize::MAX;
+        };
+        if output_capacity >= values.len() {
+            if output.is_null() {
+                return usize::MAX;
+            }
+            unsafe { std::ptr::copy_nonoverlapping(values.as_ptr(), output, values.len()) };
+        }
+        values.len()
     })
 }
 
@@ -6398,6 +6448,21 @@ mod tests {
         let mut result = Vec::new();
         source.as_units().append_to(&mut result);
         result
+    }
+
+    #[test]
+    fn parses_font_feature_value_integer_lists() {
+        assert_eq!(
+            parse_font_feature_values_from_source(utf16(" 1 +2 0").as_slice().into(), 3),
+            Some(vec![1, 2, 0])
+        );
+        assert!(parse_font_feature_values_from_source(utf16("1 2").as_slice().into(), 1).is_none());
+        for source in ["", "-1", "1.5", "1 ident"] {
+            assert!(
+                parse_font_feature_values_from_source(utf16(source).as_slice().into(), usize::MAX).is_none(),
+                "{source}"
+            );
+        }
     }
 
     fn context() -> ParseContext {

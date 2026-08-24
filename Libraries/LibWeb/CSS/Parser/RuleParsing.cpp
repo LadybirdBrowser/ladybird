@@ -46,6 +46,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
 
@@ -1177,21 +1178,20 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
 
 Optional<Vector<u32>> Parser::parse_font_feature_values(Declaration const& declaration, size_t max_value_count)
 {
-    TokenStream tokens { declaration.value };
     if (declaration.important == Important::Yes)
         return {};
-    tokens.discard_whitespace();
-    if (!tokens.has_next_token())
+    auto source = declaration.value_text.utf16_view();
+    ValueParserFFI::FfiUtf16View ffi_source {
+        .ascii = source.has_ascii_storage() ? reinterpret_cast<u8 const*>(source.ascii_span().data()) : nullptr,
+        .utf16 = source.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(source.utf16_span().data()),
+        .length = source.length_in_code_units(),
+    };
+    auto count = ValueParserFFI::rust_parse_font_feature_values(ffi_source, max_value_count, nullptr, 0);
+    if (count == NumericLimits<size_t>::max())
         return {};
     Vector<u32> values;
-    while (tokens.has_next_token()) {
-        auto token = tokens.consume_a_token();
-        if (!token.is(Token::Type::Number) || !token.token().is_integer() || token.token().to_integer() < 0)
-            return {};
-        values.append(token.token().to_integer());
-        tokens.discard_whitespace();
-    }
-    if (values.size() > max_value_count)
+    values.resize(count);
+    if (ValueParserFFI::rust_parse_font_feature_values(ffi_source, max_value_count, values.data(), values.size()) != count)
         return {};
     return values;
 }

@@ -45,6 +45,13 @@ Utf16String serialize_style_value_for_tokenization(StyleValue const& value)
     return serialize_a_series_of_component_values_for_retokenization(value.tokenize());
 }
 
+Utf16String serialize_style_value_components(StyleValue const& value)
+{
+    if (value.is_unresolved())
+        return value.as_unresolved().serialized_components();
+    return serialize_a_series_of_component_values(value.tokenize());
+}
+
 static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<ComponentValue>);
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-var

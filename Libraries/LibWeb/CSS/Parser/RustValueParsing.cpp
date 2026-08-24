@@ -251,7 +251,8 @@ RefPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
 
 RefPtr<SyntaxNode> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
-    auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
+    auto normalized_source = RustTokenizer::normalize_input(source);
+    auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(normalized_source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
     if (!syntax)
         return nullptr;
     ScopeGuard free_syntax = [&] { ValueParserFFI::rust_syntax_free(syntax); };
@@ -261,6 +262,11 @@ RefPtr<SyntaxNode> parse_as_syntax(Utf16View source, LimitSingleComponentIdentTo
 NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Vector<ComponentValue> const& input, SyntaxNode const& syntax)
 {
     return Parser::create(parsing_params, ""sv).parse_with_a_syntax(input, syntax);
+}
+
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Utf16View input, SyntaxNode const& syntax)
+{
+    return Parser::create(parsing_params, input).parse_with_a_syntax(syntax);
 }
 
 static bool syntax_contains_case_sensitive_identifier(SyntaxNode const& syntax)
@@ -287,6 +293,11 @@ static bool syntax_contains_case_sensitive_identifier(SyntaxNode const& syntax)
 NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax)
 {
     auto source = serialize_a_series_of_component_values_preserving_original_source_text(input);
+    return parse_with_a_syntax(source, syntax);
+}
+
+NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, SyntaxNode const& syntax)
+{
     auto serialized_syntax = syntax.to_string();
 
     Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
@@ -408,30 +419,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 
 Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_from_source(PropertyID property_id, Utf16View source)
 {
-    bool needs_serialized_source = false;
-    bool needs_document_urls = false;
     if (m_value_context.is_empty()) {
-        auto parsed_value = parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, true, !!m_document, &needs_serialized_source, &needs_document_urls, property_id);
-        if (!needs_serialized_source && !needs_document_urls)
-            return parsed_value;
-
-        if (needs_document_urls) {
-            parsed_value = parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, true, false, &needs_serialized_source, nullptr, property_id);
-            if (!needs_serialized_source)
-                return parsed_value;
-        }
-    } else {
-        auto context_guard = push_temporary_value_parsing_context(property_id);
-        auto parsed_value = parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, true, false, &needs_serialized_source);
-        if (!needs_serialized_source)
-            return parsed_value;
+        return parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, false, false, nullptr, nullptr, property_id);
     }
 
-    auto source_tokens = RustTokenizer::tokenize(source);
-    TokenStream source_token_stream { source_tokens };
-    auto component_values = parse_a_list_of_component_values(source_token_stream);
-    auto tokens = TokenStream(component_values);
-    return parse_css_value(property_id, tokens);
+    auto context_guard = push_temporary_value_parsing_context(property_id);
+    return parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No);
 }
 
 Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_rust(PropertyID property_id, Utf16View source, Utf16View unresolved_source, Utf16View comparison_source, bool contains_attr_tainted_values, ValueIsSubstituted value_is_substituted, bool retry_with_serialized_source, bool retry_without_document_urls, bool* needs_serialized_source, bool* needs_document_urls, Optional<PropertyID> direct_property_context)
@@ -724,11 +717,7 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
 
 RefPtr<StyleValue const> Parser::parse_entirely_as_type(ValueType value_type)
 {
-    auto values = parse_a_list_of_component_values(token_stream());
-    TokenStream tokens { values };
-    auto parsed = parse_primitive_value(value_type, tokens);
-    tokens.discard_whitespace();
-    return parsed && !tokens.has_next_token() ? parsed : nullptr;
+    return parse_primitive_value_from_source(value_type, m_source);
 }
 
 RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)

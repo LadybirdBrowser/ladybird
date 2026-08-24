@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            CSS.registerProperty({
+                name: "--carriage-return",
+                syntax: "<string>",
+                inherits: false,
+                initialValue: "\"a\rb\"",
+            });
+            println("registered");
+        } catch (error) {
+            println(error.name);
+        }
+    });
+</script>

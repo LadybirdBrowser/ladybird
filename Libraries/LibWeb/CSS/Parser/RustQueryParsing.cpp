@@ -176,11 +176,7 @@ static Optional<StyleFeature::StyleRangeValue> style_range_value(FfiQueryParseDa
         return StyleFeature::StyleRangeValue { property.release_value() };
     }
     VERIFY(value.value_type == 0);
-    auto components = Parser::create(ParsingParams {}, utf16_value(data.syntax, value.source_offset, value.source_length)).parse_as_list_of_component_values();
-    TokenStream stream { components };
-    if (!Parser::parse_declaration_value_as_span(stream).has_value() || !stream.is_empty())
-        return {};
-    return StyleFeature::StyleRangeValue { move(components) };
+    return StyleFeature::StyleRangeValue { Utf16String::from_utf16(utf16_value(data.syntax, value.source_offset, value.source_length)) };
 }
 
 static bool at_rule_is_supported(Utf16View name)
@@ -286,8 +282,7 @@ static OwnPtr<BooleanExpression> expression(Parser& parser, FfiQueryParseData co
         if (!name.has_value()) {
             return GeneralEnclosed::create(Utf16String::from_utf16(utf16_value(data.syntax, node.children_start, node.child_count)), MatchResult::Unknown);
         }
-        auto components = Parser::create(ParsingParams {}, utf16_value(data.syntax, value.source_offset, value.source_length)).parse_as_list_of_component_values();
-        return StyleFeature::create_plain(name.release_value(), move(components), move(original_text));
+        return StyleFeature::create_plain(name.release_value(), Utf16String::from_utf16(utf16_value(data.syntax, value.source_offset, value.source_length)), move(original_text));
     }
     case 15: {
         auto left = style_range_value(data, node.values_start);
@@ -488,9 +483,7 @@ static Optional<FeatureValue> parse_feature_value_from_source(Parser& parser, Ut
 
     if (source.trim_ascii_whitespace().is_empty())
         return {};
-    auto source_text = Utf16String::from_utf16(source);
-    auto components = Parser::create(ParsingParams {}, source).parse_as_list_of_component_values();
-    return FeatureValue(FeatureValue::Type::Unknown, UnresolvedStyleValue::create(move(components), {}, move(source_text)));
+    return FeatureValue(FeatureValue::Type::Unknown, UnresolvedStyleValue::create(Utf16String::from_utf16(source), {}));
 }
 
 Optional<FeatureValue> RustQueryParser::parse_media_feature_value(Parser& parser, MediaFeatureID id, Utf16View source)

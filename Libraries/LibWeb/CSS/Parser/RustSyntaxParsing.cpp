@@ -266,14 +266,10 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     Optional<PropertyID> parsed_property_id;
     Optional<DescriptorID> parsed_descriptor_id;
     RefPtr<StyleValue const> parsed_value;
-    Vector<ComponentValue> values;
     if (declaration.is_property) {
-        if (declaration.value_count > 0)
-            values = RustSyntaxParser::component_values(data, declaration.values_start, declaration.value_count);
         if (declaration.property_id != NumericLimits<u16>::max())
             parsed_property_id = static_cast<PropertyID>(declaration.property_id);
     } else {
-        values = RustSyntaxParser::component_values(data, declaration.values_start, declaration.value_count);
         if (declaration.descriptor_id != NumericLimits<u8>::max())
             parsed_descriptor_id = static_cast<DescriptorID>(declaration.descriptor_id);
     }
@@ -285,7 +281,7 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     }
     return Declaration {
         .name = Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)),
-        .value = move(values),
+        .value = {},
         .important = declaration.important ? Important::Yes : Important::No,
         .original_value_text = move(original_value_text),
         .original_full_text = optional_text(declaration.original_full_text_offset, declaration.original_full_text_length),
