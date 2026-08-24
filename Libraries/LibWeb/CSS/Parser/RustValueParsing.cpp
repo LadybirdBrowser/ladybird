@@ -690,8 +690,6 @@ RefPtr<StyleValue const> Parser::parse_primitive_value_from_source(ValueType val
         .precomputed_svg_path_count = 0,
         .font_format_is_supported = rust_font_format_is_supported,
         .font_tech_is_supported = rust_font_tech_is_supported,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
         .random_function_index = &m_random_function_index,
     };
     auto const* parsed = ValueParserFFI::rust_parse_entire_css_primitive_from_source(

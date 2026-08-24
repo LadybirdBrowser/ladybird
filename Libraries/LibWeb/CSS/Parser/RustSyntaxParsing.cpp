@@ -358,11 +358,6 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
 
 Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, Utf16View source, ReadonlySpan<RuleContext> contexts, PreservePropertySourceText preserve_property_source_text)
 {
-    return parse_block_contents(parser, parser.m_source, contexts, preserve_property_source_text);
-}
-
-Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, Utf16View source, ReadonlySpan<RuleContext> contexts, PreservePropertySourceText preserve_property_source_text)
-{
     static_assert(sizeof(RuleContext) == sizeof(u8));
     ReadonlyBytes document_url;
     ReadonlyBytes document_base_url;

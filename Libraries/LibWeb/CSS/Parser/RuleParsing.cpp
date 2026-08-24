@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
@@ -54,12 +55,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::CSS::Parser {
-
-static bool should_verify_rust_query_parser()
-{
-    auto* value = getenv("LIBWEB_VERIFY_RUST_QUERY_PARSER");
-    return value && StringView { value, strlen(value) } == "1"sv;
-}
 
 // A helper that ensures only the last instance of each descriptor is included, while also handling shorthands.
 class DescriptorList {
@@ -891,6 +886,39 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 }
 
 template<typename NestedDeclarationsRule>
+GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested nested)
+{
+    m_rule_context.append(RuleContext::AtMedia);
+    ScopeGuard guard = [&] {
+        [[maybe_unused]] auto last = m_rule_context.take_last();
+        VERIFY(last == RuleContext::AtMedia);
+    };
+
+    if (!rule.is_block_rule) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@media"_utf16_fly_string,
+            .prelude = rule.prelude_text.to_utf8(),
+            .description = "Expected a block."_string,
+        });
+        return nullptr;
+    }
+
+    auto media_list = MediaList::create(RustQueryParser::parse_media_query_list(*this, rule.prelude_text));
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
+    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
+        child.visit(
+            [&](Rule const& rule) {
+                if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
+                    child_rules.append(*child_rule);
+            },
+            [&](Vector<Declaration> const& declarations) {
+                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
+            });
+    }
+    return CSSMediaRule::create(media_list, CSSRuleList::create(child_rules));
+}
+
+template<typename NestedDeclarationsRule>
 GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
 {
     m_rule_context.append(RuleContext::AtSupports);
@@ -923,12 +951,6 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     }
 
     auto supports = RustQueryParser::parse_supports(*this, rule.prelude_text);
-    if (should_verify_rust_query_parser()) {
-        auto cpp_supports = parse_a_supports(supports_tokens);
-        if (static_cast<bool>(supports) != static_cast<bool>(cpp_supports)
-            || (supports && supports->to_string() != cpp_supports->to_string()))
-            warnln("Rust supports parser mismatch: Rust `{}`, C++ `{}`", supports ? supports->to_string() : "<invalid>"_utf16, cpp_supports ? cpp_supports->to_string() : "<invalid>"_utf16);
-    }
     if (!supports) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@supports"_utf16_fly_string,
@@ -1241,45 +1263,6 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
     conditions.ensure_capacity(rust_conditions->size());
     for (auto& condition : *rust_conditions)
         conditions.unchecked_empend(move(condition.name), move(condition.query));
-
-    if (should_verify_rust_query_parser()) {
-        auto cpp_conditions = [&]() -> Optional<Vector<CSSContainerRule::Condition>> {
-            auto prelude_item_values = parse_a_comma_separated_list_of_component_values(prelude_stream);
-            if (prelude_item_values.is_empty())
-                return {};
-            Vector<CSSContainerRule::Condition> cpp_conditions;
-            for (auto const& prelude_item : prelude_item_values) {
-                TokenStream item_tokens { prelude_item };
-                item_tokens.discard_whitespace();
-                auto container_name = parse_custom_ident(item_tokens, { { "none"sv, "and"sv, "not"sv, "or"sv } });
-                item_tokens.discard_whitespace();
-                auto container_query = parse_container_query(item_tokens);
-                item_tokens.discard_whitespace();
-                if ((!container_name.has_value() && !container_query) || item_tokens.has_next_token())
-                    return {};
-                cpp_conditions.empend(move(container_name), move(container_query));
-            }
-            return cpp_conditions;
-        }();
-        auto serialize_conditions = [](auto const& list) {
-            Utf16StringBuilder builder;
-            for (size_t index = 0; index < list.size(); ++index) {
-                if (index > 0)
-                    builder.append_ascii(", "sv);
-                auto const& condition = list[index];
-                if (condition.container_name.has_value())
-                    builder.append(*condition.container_name);
-                if (condition.container_query) {
-                    if (condition.container_name.has_value())
-                        builder.append_ascii(' ');
-                    builder.append(condition.container_query->to_string());
-                }
-            }
-            return builder.to_string();
-        };
-        if (!cpp_conditions.has_value() || serialize_conditions(conditions) != serialize_conditions(*cpp_conditions))
-            warnln("Rust container query parser mismatch: Rust `{}`, C++ `{}`", serialize_conditions(conditions), cpp_conditions.has_value() ? serialize_conditions(*cpp_conditions) : "<invalid>"_utf16);
-    }
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
@@ -1938,6 +1921,8 @@ template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSFunctionDeclarations>(Rule 
 
 template GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule<CSSNestedDeclarations>(AtRule const&, Nested);
 template GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
+template GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule<CSSNestedDeclarations>(AtRule const&, Nested);
+template GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
 template GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule<CSSNestedDeclarations>(AtRule const&, Nested);
 template GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
 

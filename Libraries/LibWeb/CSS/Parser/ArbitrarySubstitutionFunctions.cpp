@@ -725,6 +725,146 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(ParsingPa
     return parser.resolve_unresolved_style_value(element, guarded_contexts, replacement_context, property, unresolved);
 }
 
+OwnPtr<BooleanExpression> Parser::parse_boolean_expression(TokenStream<ComponentValue>& tokens, MatchResult result_for_general_enclosed, ParseTest parse_test)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    if (tokens.next_token().is_ident("not"_utf16)) {
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+        if (auto child = parse_boolean_expression_group(tokens, result_for_general_enclosed, parse_test)) {
+            tokens.discard_whitespace();
+            transaction.commit();
+            return BooleanNotExpression::create(child.release_nonnull());
+        }
+        return {};
+    }
+
+    Vector<NonnullOwnPtr<BooleanExpression>> children;
+    enum class Combinator : u8 {
+        And,
+        Or,
+    };
+    Optional<Combinator> combinator;
+    auto as_combinator = [](auto& token) -> Optional<Combinator> {
+        if (!token.is(Token::Type::Ident))
+            return {};
+        auto ident = token.token().ident();
+        if (ident.equals_ignoring_ascii_case("and"sv))
+            return Combinator::And;
+        if (ident.equals_ignoring_ascii_case("or"sv))
+            return Combinator::Or;
+        return {};
+    };
+
+    while (tokens.has_next_token()) {
+        if (!children.is_empty()) {
+            auto maybe_combinator = as_combinator(tokens.consume_a_token());
+            if (!maybe_combinator.has_value())
+                return {};
+            if (!combinator.has_value())
+                combinator = maybe_combinator.value();
+            else if (maybe_combinator != combinator)
+                return {};
+        }
+
+        tokens.discard_whitespace();
+        if (auto child = parse_boolean_expression_group(tokens, result_for_general_enclosed, parse_test))
+            children.append(child.release_nonnull());
+        else
+            return {};
+        tokens.discard_whitespace();
+    }
+
+    if (children.is_empty())
+        return {};
+    transaction.commit();
+    if (children.size() == 1)
+        return children.take_first();
+    VERIFY(combinator.has_value());
+    return *combinator == Combinator::And
+        ? OwnPtr<BooleanExpression> { BooleanAndExpression::create(move(children)) }
+        : OwnPtr<BooleanExpression> { BooleanOrExpression::create(move(children)) };
+}
+
+OwnPtr<BooleanExpression> Parser::parse_boolean_expression_group(TokenStream<ComponentValue>& tokens, MatchResult result_for_general_enclosed, ParseTest parse_test)
+{
+    auto const& first_token = tokens.next_token();
+    if (first_token.is_block() && first_token.block().is_paren()) {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+        TokenStream child_tokens { first_token.block().value };
+        if (auto expression = parse_boolean_expression(child_tokens, result_for_general_enclosed, parse_test)) {
+            if (child_tokens.has_next_token())
+                return {};
+            transaction.commit();
+            return BooleanExpressionInParens::create(expression.release_nonnull());
+        }
+    }
+
+    if (auto test = parse_test(tokens))
+        return test.release_nonnull();
+    if (auto general_enclosed = parse_general_enclosed(tokens, result_for_general_enclosed))
+        return general_enclosed.release_nonnull();
+    return {};
+}
+
+OwnPtr<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValue>& tokens, MatchResult result)
+{
+    auto contains_only_any_value = [](auto const& values, auto&& contains_only_any_value) -> bool {
+        for (auto const& value : values) {
+            if (value.is_function()) {
+                if (!contains_only_any_value(value.function().value, contains_only_any_value))
+                    return false;
+                continue;
+            }
+            if (value.is_block()) {
+                if (!contains_only_any_value(value.block().value, contains_only_any_value))
+                    return false;
+                continue;
+            }
+            if (!value.is_token())
+                continue;
+            switch (value.token().type()) {
+            case Token::Type::Invalid:
+            case Token::Type::EndOfFile:
+            case Token::Type::BadString:
+            case Token::Type::BadUrl:
+            case Token::Type::Function:
+            case Token::Type::OpenCurly:
+            case Token::Type::OpenParen:
+            case Token::Type::OpenSquare:
+            case Token::Type::CloseCurly:
+            case Token::Type::CloseParen:
+            case Token::Type::CloseSquare:
+                return false;
+            default:
+                break;
+            }
+        }
+        return true;
+    };
+
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    auto const& first_token = tokens.consume_a_token();
+    auto serialize = [](ComponentValue const& value) {
+        auto original_source_text = value.original_source_text();
+        return original_source_text.is_empty() ? value.to_string() : original_source_text;
+    };
+    if (first_token.is_function() && contains_only_any_value(first_token.function().value, contains_only_any_value)) {
+        transaction.commit();
+        return GeneralEnclosed::create(serialize(first_token), result);
+    }
+    if (first_token.is_block() && first_token.block().is_paren() && contains_only_any_value(first_token.block().value, contains_only_any_value)) {
+        transaction.commit();
+        return GeneralEnclosed::create(serialize(first_token), result);
+    }
+    return {};
+}
+
 OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();

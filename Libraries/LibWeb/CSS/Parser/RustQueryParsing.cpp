@@ -176,12 +176,15 @@ static Optional<StyleFeature::StyleRangeValue> style_range_value(FfiQueryParseDa
         return StyleFeature::StyleRangeValue { property.release_value() };
     }
     VERIFY(value.value_type == 0);
-    return StyleFeature::StyleRangeValue { Utf16String::from_utf16(utf16_value(data.syntax, value.source_offset, value.source_length)) };
+    auto components = Parser::create(ParsingParams {}, utf16_value(data.syntax, value.source_offset, value.source_length)).parse_as_list_of_component_values();
+    TokenStream stream { components };
+    if (!Parser::parse_declaration_value_as_span(stream).has_value() || !stream.is_empty())
+        return {};
+    return StyleFeature::StyleRangeValue { move(components) };
 }
 
 static bool at_rule_is_supported(Utf16View name)
 {
-    // NB: Keep this list in sync with the C++ oracle in Parser.cpp while the verifier exists.
     if (name.equals_ignoring_ascii_case("charset"sv))
         return false;
     if (name.equals_ignoring_ascii_case("container"sv)
@@ -283,7 +286,8 @@ static OwnPtr<BooleanExpression> expression(Parser& parser, FfiQueryParseData co
         if (!name.has_value()) {
             return GeneralEnclosed::create(Utf16String::from_utf16(utf16_value(data.syntax, node.children_start, node.child_count)), MatchResult::Unknown);
         }
-        return StyleFeature::create_plain(name.release_value(), Utf16String::from_utf16(utf16_value(data.syntax, value.source_offset, value.source_length)), move(original_text));
+        auto components = Parser::create(ParsingParams {}, utf16_value(data.syntax, value.source_offset, value.source_length)).parse_as_list_of_component_values();
+        return StyleFeature::create_plain(name.release_value(), move(components), move(original_text));
     }
     case 15: {
         auto left = style_range_value(data, node.values_start);
@@ -335,6 +339,21 @@ Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser
         queries.unchecked_append(move(query));
     }
     return queries;
+}
+
+Vector<NonnullRefPtr<MediaQuery>> Parser::parse_as_media_query_list()
+{
+    return RustQueryParser::parse_media_query_list(*this, m_source);
+}
+
+RefPtr<MediaQuery> Parser::parse_as_media_query()
+{
+    auto media_query_list = parse_as_media_query_list();
+    if (media_query_list.is_empty())
+        return MediaQuery::create_not_all();
+    if (media_query_list.size() == 1)
+        return media_query_list.first();
+    return nullptr;
 }
 
 static OwnPtr<BooleanExpression> adopt_root_expression(Parser& parser, FfiQueryParse* parse, QueryFeatureKind kind)
@@ -469,7 +488,9 @@ static Optional<FeatureValue> parse_feature_value_from_source(Parser& parser, Ut
 
     if (source.trim_ascii_whitespace().is_empty())
         return {};
-    return FeatureValue(FeatureValue::Type::Unknown, UnresolvedStyleValue::create(Utf16String::from_utf16(source), {}));
+    auto source_text = Utf16String::from_utf16(source);
+    auto components = Parser::create(ParsingParams {}, source).parse_as_list_of_component_values();
+    return FeatureValue(FeatureValue::Type::Unknown, UnresolvedStyleValue::create(move(components), {}, move(source_text)));
 }
 
 Optional<FeatureValue> RustQueryParser::parse_media_feature_value(Parser& parser, MediaFeatureID id, Utf16View source)
