@@ -25,6 +25,7 @@ class RustSyntaxParser {
 public:
     static Vector<Rule> parse_stylesheet(Parser&);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
+    static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, Utf16View, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static Vector<ComponentValue> component_values(ValueParserFFI::FfiSyntaxParseData const&, size_t start, size_t count);
     static void set_token_position(Token&, SourcePosition, SourcePosition);
 };

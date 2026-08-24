@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/MediaQuery.h>
-#include <LibWeb/CSS/Parser/TokenStream.h>
 
 namespace Web::CSS::Parser {
 
@@ -25,12 +24,18 @@ public:
     };
 
     static Vector<NonnullRefPtr<MediaQuery>> parse_media_query_list(Parser&, Utf16View);
+    static OwnPtr<BooleanExpression> parse_media_condition(Parser&, Utf16View);
+    static OwnPtr<BooleanExpression> parse_media_feature(Parser&, Utf16View);
     static RefPtr<Supports> parse_supports(Parser&, Utf16View);
+    static OwnPtr<BooleanExpression> parse_supports_condition(Parser&, Utf16View);
+    static OwnPtr<BooleanExpression> parse_supports_declaration(Parser&, Utf16View);
+    static OwnPtr<BooleanExpression> parse_style_query(Parser&, Utf16View);
     static Optional<Vector<ContainerCondition>> parse_container_condition_list(Parser&, Utf16View);
-    static Optional<FeatureValue> parse_media_feature_value(Parser&, MediaFeatureID, TokenStream<ComponentValue>&);
-    static Optional<FeatureValue> parse_size_feature_value(Parser&, SizeFeatureID, TokenStream<ComponentValue>&);
-    static OwnPtr<BooleanExpression> parse_supports_declaration(Parser&, Vector<ComponentValue>);
-    static OwnPtr<BooleanExpression> parse_supports_selector(Parser&, Vector<ComponentValue>);
+    static RefPtr<StyleValue const> parse_source_size_value(Parser&, Utf16View);
+    static Optional<FeatureValue> parse_media_feature_value(Parser&, MediaFeatureID, Utf16View);
+    static Optional<FeatureValue> parse_size_feature_value(Parser&, SizeFeatureID, Utf16View);
+    static OwnPtr<BooleanExpression> supports_declaration_feature(Parser&, Utf16View);
+    static OwnPtr<BooleanExpression> supports_selector_feature(Parser&, Utf16View);
 };
 
 }

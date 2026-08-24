@@ -17,6 +17,7 @@ use std::ffi::c_void;
 pub(crate) enum QueryKind {
     Media,
     Size,
+    Style,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -89,6 +90,8 @@ pub(crate) enum StyleFeature {
     Plain {
         name: ParserString,
         value: Vec<ComponentValue>,
+        original_source: ParserString,
+        original_value_source: ParserString,
     },
     Range {
         left: StyleRangeValue,
@@ -106,6 +109,10 @@ pub(crate) enum Expression {
     InParens(Box<Expression>),
     GeneralEnclosed {
         component: ComponentValue,
+        result: MatchResult,
+    },
+    GeneralEnclosedValues {
+        components: Vec<ComponentValue>,
         result: MatchResult,
     },
     QueryFeature(QueryFeature),
@@ -158,6 +165,16 @@ fn trim_whitespace(values: &[ComponentValue]) -> &[ComponentValue] {
     &values[start..end]
 }
 
+fn original_source(values: &[ComponentValue]) -> ParserString {
+    ParserString::from(
+        values
+            .iter()
+            .flat_map(|component| component.original_source_text.iter())
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    )
+}
+
 fn components_from_source<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Vec<ComponentValue>> {
     consume_a_list_of_component_values(tokenize_for_parser(source)).ok()
 }
@@ -181,6 +198,36 @@ fn contains_only_any_value(values: &[ComponentValue]) -> bool {
         ) => false,
         ComponentKind::Token(_) => true,
     })
+}
+
+fn contains_only_declaration_value(values: &[ComponentValue]) -> bool {
+    contains_only_any_value(values)
+        && values.iter().all(|value| {
+            !matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)) && !value.is_delim(b'!')
+        })
+}
+
+fn strip_important(values: &[ComponentValue]) -> &[ComponentValue] {
+    let values = trim_whitespace(values);
+    let Some(last) = values.last() else {
+        return values;
+    };
+    let Some(name) = last.ident() else {
+        return values;
+    };
+    if !equals_ascii_case_insensitive(name, b"important") {
+        return values;
+    }
+    let important_start = values[..values.len() - 1]
+        .iter()
+        .rposition(|value| !value.is_whitespace());
+    let Some(important_start) = important_start else {
+        return values;
+    };
+    if !values[important_start].is_delim(b'!') {
+        return values;
+    }
+    trim_whitespace(&values[..important_start])
 }
 
 fn parse_general_enclosed(stream: &mut TokenStream<'_>, result: MatchResult) -> Option<Expression> {
@@ -217,11 +264,21 @@ where
         transaction.discard_a_token();
         transaction.discard_whitespace();
         let mut child_stream = TokenStream::new(values);
-        if let Some(expression) = parse_boolean_expression(&mut child_stream, result_for_general_enclosed, parse_test)
+        if let Some(mut expression) =
+            parse_boolean_expression(&mut child_stream, result_for_general_enclosed, parse_test)
             && child_stream.is_empty()
         {
+            if let Expression::GeneralEnclosedValues { components, .. } = &mut expression {
+                *components = values.to_vec();
+            }
             transaction.commit();
             return Some(Expression::InParens(Box::new(expression)));
+        }
+        if trim_whitespace(values)
+            .first()
+            .is_some_and(|value| is_ident(value, b"not"))
+        {
+            return None;
         }
     }
 
@@ -537,6 +594,20 @@ where
     (!stream.has_next_token()).then_some(expression)
 }
 
+fn parse_media_feature_from_source<'a, R>(
+    source: impl Into<TokenizerInput<'a>>,
+    resolve_feature: &R,
+) -> Option<Expression>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let values = components_from_source(source)?;
+    let mut stream = TokenStream::new(&values);
+    let expression = Expression::QueryFeature(parse_query_feature(&mut stream, QueryKind::Media, resolve_feature)?);
+    stream.discard_whitespace();
+    (!stream.has_next_token()).then_some(expression)
+}
+
 fn invalid_media_query() -> MediaQuery {
     MediaQuery {
         negated: true,
@@ -661,12 +732,30 @@ fn single_ident(values: &[ComponentValue]) -> Option<ParserString> {
         .map(|name| ParserString::from(name.to_vec().into_boxed_slice()))
 }
 
+fn looks_like_supports_declaration(values: &[ComponentValue]) -> bool {
+    let values = trim_whitespace(values);
+    let Some((name, remainder)) = values.split_first() else {
+        return false;
+    };
+    let Some(colon_index) = remainder.iter().position(|value| !value.is_whitespace()) else {
+        return false;
+    };
+    let colon = &remainder[colon_index];
+    let value = &remainder[colon_index + 1..];
+    name.ident().is_some()
+        && colon.is_colon()
+        && value
+            .iter()
+            .all(|value| !matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
+}
+
 fn parse_supports_feature(stream: &mut TokenStream<'_>) -> Option<Expression> {
     let mut transaction = stream.begin_transaction();
     transaction.discard_whitespace();
     let first = transaction.consume_a_token().clone();
     if let Some(values) = parenthesized_values(&first) {
-        if !trim_whitespace(values).is_empty() && contains_only_any_value(values) {
+        let values = trim_whitespace(values);
+        if looks_like_supports_declaration(values) && contains_only_any_value(values) {
             transaction.commit();
             return Some(Expression::InParens(Box::new(Expression::SupportsFeature(
                 SupportsFeature::Declaration(values.to_vec()),
@@ -707,9 +796,16 @@ pub(crate) fn parse_supports_condition<'a>(source: impl Into<TokenizerInput<'a>>
     (!stream.has_next_token()).then_some(expression)
 }
 
+fn parse_supports_declaration_from_source<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Expression> {
+    let values = components_from_source(source)?;
+    let trimmed = trim_whitespace(&values);
+    (looks_like_supports_declaration(trimmed) && contains_only_any_value(&values))
+        .then_some(Expression::SupportsFeature(SupportsFeature::Declaration(values)))
+}
+
 fn parse_style_range_value(values: &[ComponentValue]) -> Option<StyleRangeValue> {
     let values = trim_whitespace(values);
-    if values.is_empty() || !contains_only_any_value(values) {
+    if values.is_empty() || !contains_only_declaration_value(values) {
         return None;
     }
     if let [value] = values
@@ -724,8 +820,12 @@ fn parse_style_range_value(values: &[ComponentValue]) -> Option<StyleRangeValue>
     Some(StyleRangeValue::Components(values.to_vec()))
 }
 
-fn parse_style_feature(stream: &mut TokenStream<'_>) -> Option<Expression> {
-    let values = trim_whitespace(&stream.values[stream.position..]);
+fn parse_style_feature<R>(stream: &mut TokenStream<'_>, resolve_feature: &R) -> Option<Expression>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let original_values = &stream.values[stream.position..];
+    let values = trim_whitespace(original_values);
     if values.is_empty() {
         return None;
     }
@@ -772,9 +872,15 @@ fn parse_style_feature(stream: &mut TokenStream<'_>) -> Option<Expression> {
 
     if let Some(colon) = values.iter().position(ComponentValue::is_colon) {
         let name = single_ident(&values[..colon])?;
-        let value = trim_whitespace(&values[colon + 1..]);
-        if value.is_empty()
-            || !contains_only_any_value(value)
+        if resolve_feature(QueryKind::Style, name.as_ref()).is_none() {
+            stream.position = stream.values.len();
+            return Some(Expression::GeneralEnclosedValues {
+                components: original_values.to_vec(),
+                result: MatchResult::Unknown,
+            });
+        }
+        let value = strip_important(&values[colon + 1..]);
+        if !contains_only_declaration_value(value)
             || value
                 .iter()
                 .any(|value| value.is_delim(b'<') || value.is_delim(b'>') || value.is_delim(b'='))
@@ -785,12 +891,37 @@ fn parse_style_feature(stream: &mut TokenStream<'_>) -> Option<Expression> {
         return Some(Expression::StyleFeature(StyleFeature::Plain {
             name,
             value: value.to_vec(),
+            original_source: original_source(original_values),
+            original_value_source: original_source(value),
         }));
     }
 
     let name = single_ident(values)?;
+    if resolve_feature(QueryKind::Style, name.as_ref()).is_none() {
+        stream.position = stream.values.len();
+        return Some(Expression::GeneralEnclosedValues {
+            components: original_values.to_vec(),
+            result: MatchResult::Unknown,
+        });
+    }
     stream.position = stream.values.len();
     Some(Expression::StyleFeature(StyleFeature::Boolean(name)))
+}
+
+fn parse_style_query_from_source<'a, R>(
+    source: impl Into<TokenizerInput<'a>>,
+    resolve_feature: &R,
+) -> Option<Expression>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let values = components_from_source(source)?;
+    let mut stream = TokenStream::new(&values);
+    let expression = parse_boolean_expression(&mut stream, MatchResult::False, &|stream| {
+        parse_style_feature(stream, resolve_feature)
+    })?;
+    stream.discard_whitespace();
+    (!stream.has_next_token()).then_some(expression)
 }
 
 fn parse_container_feature<R>(stream: &mut TokenStream<'_>, resolve_feature: &R) -> Option<Expression>
@@ -816,11 +947,18 @@ where
     {
         transaction.discard_a_token();
         let mut inner = TokenStream::new(values);
-        let expression = parse_boolean_expression(&mut inner, MatchResult::Unknown, &parse_style_feature)?;
+        let parsed_expression = parse_boolean_expression(&mut inner, MatchResult::Unknown, &|stream| {
+            parse_style_feature(stream, resolve_feature)
+        });
         inner.discard_whitespace();
-        if inner.has_next_token() {
-            return None;
-        }
+        let expression = parsed_expression.filter(|_| !inner.has_next_token()).or_else(|| {
+            (!trim_whitespace(values).is_empty() && contains_only_any_value(values)).then_some(
+                Expression::GeneralEnclosedValues {
+                    components: values.to_vec(),
+                    result: MatchResult::Unknown,
+                },
+            )
+        })?;
         transaction.commit();
         return Some(Expression::StyleFunction(Box::new(expression)));
     }
@@ -905,8 +1043,8 @@ where
 #[repr(C)]
 pub struct FfiQueryValue {
     pub value_type: u8,
-    pub component_start: usize,
-    pub component_count: usize,
+    pub source_offset: usize,
+    pub source_length: usize,
     pub name_offset: usize,
     pub name_length: usize,
 }
@@ -982,21 +1120,25 @@ impl FfiQueryParse {
     }
 
     fn append_query_value(&mut self, value: &StyleRangeValue) -> usize {
-        let (value_type, component_start, component_count, name_offset, name_length) = match value {
+        let (value_type, source_offset, source_length, name_offset, name_length) = match value {
             StyleRangeValue::Property(name) => {
                 let (name_offset, name_length) = self.append_name(name.as_ref());
                 (1, 0, 0, name_offset, name_length)
             }
             StyleRangeValue::Components(components) => {
-                let (component_start, component_count) = self.syntax.append_component_list(components);
-                (0, component_start, component_count, 0, 0)
+                let source = crate::css::serialize::serialize_component_values_to_utf16(
+                    components,
+                    crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+                );
+                let (source_offset, source_length) = self.syntax.append_value(&source);
+                (0, source_offset, source_length, 0, 0)
             }
         };
         let index = self.query_values.len();
         self.query_values.push(FfiQueryValue {
             value_type,
-            component_start,
-            component_count,
+            source_offset,
+            source_length,
             name_offset,
             name_length,
         });
@@ -1004,7 +1146,20 @@ impl FfiQueryParse {
     }
 
     fn append_feature_value(&mut self, value: &QueryFeatureValue) -> usize {
-        self.append_query_value(&StyleRangeValue::Components(value.components.clone()))
+        let source = crate::css::serialize::serialize_component_values_to_utf16(
+            &value.components,
+            crate::css::parser::component_value::ComponentSerializationMode::PreserveNumericSource,
+        );
+        let (source_offset, source_length) = self.syntax.append_value(&source);
+        let index = self.query_values.len();
+        self.query_values.push(FfiQueryValue {
+            value_type: 0,
+            source_offset,
+            source_length,
+            name_offset: 0,
+            name_length: 0,
+        });
+        index
     }
 
     fn append_children(&mut self, children: &[Expression]) -> (usize, usize) {
@@ -1062,6 +1217,15 @@ impl FfiQueryParse {
                     .syntax
                     .append_value(&component.original_source_text.iter().collect::<Vec<_>>());
             }
+            Expression::GeneralEnclosedValues { components, result } => {
+                node.node_type = 4;
+                node.match_result = *result as u8;
+                let source = components
+                    .iter()
+                    .flat_map(|component| component.original_source_text.iter())
+                    .collect::<Vec<_>>();
+                (node.name_offset, node.name_length) = self.syntax.append_value(&source);
+            }
             Expression::QueryFeature(feature) => {
                 node.node_type = 5;
                 match feature {
@@ -1112,13 +1276,17 @@ impl FfiQueryParse {
                 };
                 match feature {
                     SupportsFeature::Declaration(components) | SupportsFeature::Selector(components) => {
-                        let (start, count) = self.syntax.append_component_list(components);
+                        let source = components
+                            .iter()
+                            .flat_map(|component| component.original_source_text.iter())
+                            .collect::<Vec<_>>();
+                        let (source_offset, source_length) = self.syntax.append_value(&source);
                         node.values_start = self.query_values.len();
                         node.value_count = 1;
                         self.query_values.push(FfiQueryValue {
                             value_type: 0,
-                            component_start: start,
-                            component_count: count,
+                            source_offset,
+                            source_length,
                             name_offset: 0,
                             name_length: 0,
                         });
@@ -1143,11 +1311,20 @@ impl FfiQueryParse {
                     node.node_type = 13;
                     (node.name_offset, node.name_length) = self.append_name(name.as_ref());
                 }
-                StyleFeature::Plain { name, value } => {
+                StyleFeature::Plain {
+                    name,
+                    value,
+                    original_source,
+                    original_value_source,
+                } => {
                     node.node_type = 14;
                     (node.name_offset, node.name_length) = self.append_name(name.as_ref());
                     node.values_start = self.append_query_value(&StyleRangeValue::Components(value.clone()));
                     node.value_count = 1;
+                    (node.children_start, node.child_count) = self.append_name(original_source.as_ref());
+                    let (offset, length) = self.append_name(original_value_source.as_ref());
+                    self.query_values[node.values_start].name_offset = offset;
+                    self.query_values[node.values_start].name_length = length;
                 }
                 StyleFeature::Range {
                     left,
@@ -1265,12 +1442,92 @@ pub unsafe extern "C" fn rust_parse_media_query_list(
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_media_condition(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(values) = components_from_source(source) else {
+            return std::ptr::null_mut();
+        };
+        let Some(expression) = parse_media_condition(&values, &ffi_resolver(resolve_feature)) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_media_feature(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(expression) = parse_media_feature_from_source(source, &ffi_resolver(resolve_feature)) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_supports_condition(source: FfiUtf16View) -> *mut FfiQueryParse {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null_mut();
         };
         let Some(expression) = parse_supports_condition(source) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_supports_declaration(source: FfiUtf16View) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(expression) = parse_supports_declaration_from_source(source) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_style_query(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(expression) = parse_style_query_from_source(source, &ffi_resolver(resolve_feature)) else {
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
@@ -1349,9 +1606,13 @@ mod tests {
     use super::*;
 
     fn resolver(kind: QueryKind, name: &[u16]) -> Option<(u8, bool)> {
+        if kind == QueryKind::Style && name.starts_with(&[u16::from(b'-'), u16::from(b'-')]) {
+            return Some((5, false));
+        }
         let names: &[(&[u8], u8, bool)] = match kind {
             QueryKind::Media => &[(b"width", 1, true), (b"orientation", 2, false)],
             QueryKind::Size => &[(b"width", 3, true), (b"orientation", 4, false)],
+            QueryKind::Style => &[],
         };
         names
             .iter()
@@ -1381,6 +1642,7 @@ mod tests {
         ));
         let values = components_from_source(b"(width) and (orientation) or (width)".as_slice()).unwrap();
         assert!(parse_media_condition(&values, &resolver).is_none());
+        assert!(!parse_media_query_list(b"(not (width) and (orientation))".as_slice(), &resolver).unwrap()[0].valid);
     }
 
     #[test]
@@ -1394,6 +1656,9 @@ mod tests {
             Some(Expression::SupportsFeature(SupportsFeature::FontTech(_)))
         ));
         assert!(parse_supports_condition(b"(display: grid) or (color: red) and (width: 1px)".as_slice()).is_none());
+        assert!(parse_supports_condition(b"(--: a)".as_slice()).is_some());
+        assert!(parse_supports_condition(b"(display : grid)".as_slice()).is_some());
+        assert!(parse_supports_declaration_from_source(b"display : grid".as_slice()).is_some());
     }
 
     #[test]
@@ -1416,6 +1681,14 @@ mod tests {
         );
         assert!(matches!(
             parse_container_query(b"style(1 < --level < 3)".as_slice(), &resolver),
+            Some(Expression::StyleFunction(_))
+        ));
+        assert!(matches!(
+            parse_container_query(b"style(--foo: bar;)".as_slice(), &resolver),
+            Some(Expression::StyleFunction(_))
+        ));
+        assert!(matches!(
+            parse_container_query(b"style(10px < 10em !)".as_slice(), &resolver),
             Some(Expression::StyleFunction(_))
         ));
     }

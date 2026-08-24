@@ -6186,6 +6186,61 @@ pub unsafe extern "C" fn rust_parse_css_primitive_from_source(
     })
 }
 
+/// Parses an entire CSS source as one value of a primitive CSS value type.
+///
+/// # Safety
+/// All pointers must be valid for their accompanying lengths.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
+    context: *const ParseContext,
+    value_type: u8,
+    source: FfiUtf16View,
+    range_min: f64,
+    range_max: f64,
+) -> *const c_void {
+    crate::abort_on_panic(|| {
+        if context.is_null() {
+            return std::ptr::null();
+        }
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null();
+        };
+        let Ok(values) = component_values_from_source(source) else {
+            return std::ptr::null();
+        };
+        let Some((parsed, consumed)) =
+            parse_css_primitive_values(unsafe { &*context }, value_type, &values, range_min, range_max)
+        else {
+            return std::ptr::null();
+        };
+        if values[consumed..].iter().all(ComponentValue::is_whitespace) {
+            Arc::into_raw(Arc::new(parsed)).cast()
+        } else {
+            std::ptr::null()
+        }
+    })
+}
+
+/// Parses an entire CSS source as one known keyword, or returns `u16::MAX`.
+///
+/// # Safety
+/// All pointers must be valid for their accompanying lengths.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_css_keyword_from_source(source: FfiUtf16View) -> u16 {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return u16::MAX;
+        };
+        let Ok(values) = component_values_from_source(source) else {
+            return u16::MAX;
+        };
+        single_non_whitespace_value(&values)
+            .and_then(ComponentValue::ident)
+            .and_then(keyword_from_ascii_case_insensitive)
+            .unwrap_or(u16::MAX)
+    })
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_font_descriptor_from_tokens(
     context: *const ParseContext,
