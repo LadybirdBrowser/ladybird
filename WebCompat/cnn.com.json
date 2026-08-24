@@ -1,0 +1,9 @@
+{
+    "matches": [
+        "https://cnn.com/*",
+        "https://*.cnn.com/*"
+    ],
+    "user_agent": [
+        "hide_Ladybird"
+    ]
+}
