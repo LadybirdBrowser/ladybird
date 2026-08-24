@@ -690,6 +690,7 @@ set(SOURCES
     HTML/PotentialCORSRequest.cpp
     HTML/PreloadEntry.cpp
     HTML/PromiseRejectionEvent.cpp
+    HTML/RadioButtonGroupRegistry.cpp
     HTML/RadioNodeList.cpp
     HTML/ReplicatedNavigableState.cpp
     HTML/SandboxingFlagSet.cpp

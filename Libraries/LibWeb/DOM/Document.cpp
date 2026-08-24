@@ -171,6 +171,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/PopStateEvent.h>
+#include <LibWeb/HTML/RadioButtonGroupRegistry.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -814,6 +815,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         visitor.visit(form_associated_element->form_associated_element_to_html_element());
+
+    visitor.visit(m_radio_button_group_registry);
 
     visitor.visit(m_potentially_named_elements);
     m_anchor_name_map.visit_edges(visitor);
@@ -7634,6 +7637,13 @@ GC::Ptr<Element> Document::element_by_anchor_name(Utf16FlyString const& name, No
             return {};
     }
     return m_anchor_name_map.last_element_by_name_matching(name, is_acceptable);
+}
+
+HTML::RadioButtonGroupRegistry& Document::ensure_radio_button_group_registry()
+{
+    if (!m_radio_button_group_registry)
+        m_radio_button_group_registry = heap().allocate<HTML::RadioButtonGroupRegistry>();
+    return *m_radio_button_group_registry;
 }
 
 void Document::add_form_associated_element_with_form_attribute(HTML::FormAssociatedElement& form_associated_element)

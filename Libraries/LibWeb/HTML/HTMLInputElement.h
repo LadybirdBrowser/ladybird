@@ -205,6 +205,9 @@ public:
     virtual void clear_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;
+    virtual void form_associated_element_was_removed(DOM::Node*) override;
+    virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>) override;
+    virtual void form_associated_element_form_owner_changed() override;
     virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
@@ -282,6 +285,8 @@ private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
+    RadioButtonGroupRegistry* radio_button_group_registry();
+    void update_radio_button_group_registration();
     virtual void computed_properties_changed() override;
     virtual void prepare_for_style_computation() override { create_shadow_tree_if_needed(); }
 
@@ -407,6 +412,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
     bool m_user_validity { false };
+
+    GC::Ptr<RadioButtonGroupRegistry> m_radio_button_group_registry;
+    Utf16FlyString m_radio_button_group_name;
 
     // https://html.spec.whatwg.org/multipage/input.html#the-input-element:legacy-pre-activation-behavior
     bool m_before_legacy_pre_activation_behavior_checked { false };

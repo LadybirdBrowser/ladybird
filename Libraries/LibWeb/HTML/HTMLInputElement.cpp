@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/RadioButtonGroupRegistry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
@@ -130,6 +131,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_file_button);
     visitor.visit(m_file_label);
     visitor.visit(m_legacy_pre_activation_behavior_checked_element_in_group);
+    visitor.visit(m_radio_button_group_registry);
     visitor.visit(m_selected_files);
     visitor.visit(m_slider_runnable_track);
     visitor.visit(m_slider_progress_element);
@@ -213,25 +215,23 @@ void HTMLInputElement::set_checked(bool checked)
     // Checkedness decides value-missing validity: for a checkbox its own, and for a radio button
     // that of every member of its radio button group.
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
-    if (type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
+
+    set_needs_repaint();
+
+    if (m_radio_button_group_registry) {
+        m_radio_button_group_registry->checked_state_changed(m_radio_button_group_name, *this);
+    } else if (checked && type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
         root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
-            if (&element != this && is_in_same_radio_button_group_as(element))
-                CSS::Invalidation::invalidate_style_after_validity_change(element);
+            if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
+                element.set_checked(false);
             return TraversalDecision::Continue;
         });
     }
 
-    set_needs_repaint();
-
-    // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
-    if (type_state() == TypeAttributeState::RadioButton && checked) {
-        // No point iterating the tree if we have an empty name.
-        if (!name().has_value() || name()->is_empty())
-            return;
-
+    if (type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
         root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
-            if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
-                element.set_checked(false);
+            if (is_in_same_radio_button_group_as(element))
+                CSS::Invalidation::invalidate_style_after_validity_change(element);
             return TraversalDecision::Continue;
         });
     }
@@ -1686,6 +1686,11 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
         // through the replaced-content facts; nothing else schedules a relayout.
         if (old_value != value)
             set_needs_layout_update(DOM::SetNeedsLayoutReason::DefaultPreferredSizeAttributeChange);
+    } else if (name == HTML::AttributeNames::name) {
+        update_radio_button_group_registration();
+    } else if (name == HTML::AttributeNames::required) {
+        if (m_radio_button_group_registry && old_value.has_value() != value.has_value())
+            m_radio_button_group_registry->required_state_changed(m_radio_button_group_name, *this);
     }
 
     // AD-HOC: A change to any of these attributes can change whether the element satisfies its constraints, and
@@ -1741,6 +1746,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
 
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
+    update_radio_button_group_registration();
     if (auto* form = this->form())
         form->default_button_state_maybe_changed(*this, was_default);
     else
@@ -1787,6 +1793,10 @@ void HTMLInputElement::signal_a_type_change()
     // the checkedness state of all the other elements in the same radio button group must be set to false:
     // ...
     // - A type change is signalled for the element.
+    // NB: Registering the element with its new radio button group has already unchecked the other members of the
+    //     group. The tree walk below is a fallback for radio buttons that have no registry.
+    if (m_radio_button_group_registry)
+        return;
     if (type_state() == TypeAttributeState::RadioButton && checked()) {
         root().for_each_in_inclusive_subtree_of_type<HTMLInputElement>([&](auto& element) {
             if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
@@ -2166,26 +2176,74 @@ void HTMLInputElement::clear_algorithm()
     update_shadow_tree();
 }
 
+RadioButtonGroupRegistry* HTMLInputElement::radio_button_group_registry()
+{
+    // NB: A radio button group is scoped to the members' common form owner when they have one, and to the root of
+    //     the tree that contains them otherwise. Radio buttons in a detached subtree that is neither a shadow tree
+    //     nor the tree containing their form owner have no registry.
+    if (type_state() != TypeAttributeState::RadioButton)
+        return nullptr;
+    if (!name().has_value() || name()->is_empty())
+        return nullptr;
+    auto& root = this->root();
+    if (auto* form = this->form()) {
+        if (&form->root() != &root)
+            return nullptr;
+        return &form->ensure_radio_button_group_registry();
+    }
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(root))
+        return &shadow_root->ensure_radio_button_group_registry();
+    if (auto* document = as_if<DOM::Document>(root))
+        return &document->ensure_radio_button_group_registry();
+    return nullptr;
+}
+
+void HTMLInputElement::update_radio_button_group_registration()
+{
+    auto* registry = radio_button_group_registry();
+    auto group_name = registry ? name().value() : Utf16FlyString {};
+    if (registry == m_radio_button_group_registry.ptr() && group_name == m_radio_button_group_name)
+        return;
+
+    if (m_radio_button_group_registry)
+        m_radio_button_group_registry->remove_button(m_radio_button_group_name, *this);
+    m_radio_button_group_registry = registry;
+    m_radio_button_group_name = move(group_name);
+    if (m_radio_button_group_registry)
+        m_radio_button_group_registry->add_button(m_radio_button_group_name, *this);
+}
+
 void HTMLInputElement::form_associated_element_was_inserted()
 {
     // NB: The user-agent shadow tree is rendering state. It is created when a connected control first participates in
     //     a style update, before computed properties are assigned. Creating it in the insertion steps would also
     //     materialize controls in detached and short-lived trees.
 
-    if (is_connected()) {
-        // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
-        // When any of the following phenomena occur, if the element's checkedness state is true after the occurrence,
-        // the checkedness state of all the other elements in the same radio button group must be set to false:
-        // ...
-        // - The element becomes connected.
-        if (type_state() == TypeAttributeState::RadioButton && checked()) {
-            root().for_each_in_inclusive_subtree_of_type<HTMLInputElement>([&](auto& element) {
-                if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
-                    element.set_checked(false);
-                return TraversalDecision::Continue;
-            });
-        }
-    }
+    // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
+    // When any of the following phenomena occur, if the element's checkedness state is true after the occurrence,
+    // the checkedness state of all the other elements in the same radio button group must be set to false:
+    // ...
+    // - The element becomes connected.
+    // NB: Registering the element with its radio button group sets the checkedness of the other elements in the
+    //     group to false.
+    update_radio_button_group_registration();
+}
+
+void HTMLInputElement::form_associated_element_was_removed(DOM::Node* old_parent)
+{
+    FormAssociatedElement::form_associated_element_was_removed(old_parent);
+    update_radio_button_group_registration();
+}
+
+void HTMLInputElement::form_associated_element_was_moved(GC::Ptr<DOM::Node> old_parent)
+{
+    FormAssociatedElement::form_associated_element_was_moved(old_parent);
+    update_radio_button_group_registration();
+}
+
+void HTMLInputElement::form_associated_element_form_owner_changed()
+{
+    update_radio_button_group_registration();
 }
 
 EventResult HTMLInputElement::handle_return_key(Utf16FlyString const&)
@@ -2328,13 +2386,17 @@ void HTMLInputElement::legacy_pre_activation_behavior()
     //    element's radio button group that has its checkedness set to true, if any, and then set this element's
     //    checkedness to true.
     if (type_state() == TypeAttributeState::RadioButton) {
-        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
-            if (element.checked() && is_in_same_radio_button_group_as(element)) {
-                m_legacy_pre_activation_behavior_checked_element_in_group = &element;
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
+        if (m_radio_button_group_registry) {
+            m_legacy_pre_activation_behavior_checked_element_in_group = m_radio_button_group_registry->checked_button(m_radio_button_group_name);
+        } else {
+            root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+                if (element.checked() && is_in_same_radio_button_group_as(element)) {
+                    m_legacy_pre_activation_behavior_checked_element_in_group = &element;
+                    return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
+            });
+        }
 
         set_checked(true);
     }
@@ -3678,6 +3740,8 @@ bool HTMLInputElement::suffering_from_being_missing() const
         // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type%3Dradio)%3Asuffering-from-being-missing
         // If an element in the radio button group is required, and all of the input elements in the radio button group
         // have a checkedness that is false, then the element is suffering from being missing.
+        if (m_radio_button_group_registry)
+            return m_radio_button_group_registry->group_is_suffering_from_being_missing(m_radio_button_group_name);
         root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
             if (is_in_same_radio_button_group_as(element)) {
                 if (element.checked())

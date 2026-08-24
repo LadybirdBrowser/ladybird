@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/RadioButtonGroupRegistry.h>
 #include <LibWeb/HTML/RadioNodeList.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SubmitEvent.h>
@@ -62,6 +63,14 @@ void HTMLFormElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_planned_navigation);
     visitor.visit(m_rel_list);
     visitor.visit(m_past_names_map);
+    visitor.visit(m_radio_button_group_registry);
+}
+
+RadioButtonGroupRegistry& HTMLFormElement::ensure_radio_button_group_registry()
+{
+    if (!m_radio_button_group_registry)
+        m_radio_button_group_registry = heap().allocate<RadioButtonGroupRegistry>();
+    return *m_radio_button_group_registry;
 }
 
 void HTMLFormElement::inserted()
