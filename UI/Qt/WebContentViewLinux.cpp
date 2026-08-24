@@ -773,11 +773,13 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 
     virtual void releaseSwapChainResources() override
     {
+        m_view.m_vulkan_window_supports_alpha_blending.clear();
         m_renderer.release_pipeline();
     }
 
     virtual void releaseResources() override
     {
+        m_view.m_vulkan_window_supports_alpha_blending.clear();
         m_renderer.release();
     }
 
@@ -1072,12 +1074,17 @@ void WebContentView::update_vulkan_alpha_blending_support()
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &capabilities) != VK_SUCCESS)
         return;
 
-    // Our transparent tab-column holes only reach the screen if the surface is blended per-pixel. QVulkanWindow (given
-    // our alpha format) picks a pre/post-multiplied mode when offered (the Wayland case), otherwise INHERIT, which
-    // blends against the window's ARGB visual on X11 while a compositor runs. If only OPAQUE is offered there is no
-    // blending at all, so the feature stays disabled.
-    static constexpr auto blending_modes = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
-    m_vulkan_window_supports_alpha_blending = (capabilities.supportedCompositeAlpha & blending_modes) != 0;
+    // Our transparent tab-column holes only reach the screen if the resolved swapchain format has alpha and the surface
+    // supports per-pixel blending. QVulkanWindow picks a pre/post-multiplied mode when offered. On X11 it may instead
+    // select INHERIT, where the window's ARGB visual and bounding mask provide the native compositing mechanism.
+    auto color_format = m_vulkan_window->colorFormat();
+    bool color_format_has_alpha = color_format == VK_FORMAT_B8G8R8A8_UNORM || color_format == VK_FORMAT_R8G8B8A8_UNORM;
+
+    VkCompositeAlphaFlagsKHR blending_modes = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR;
+    if (QGuiApplication::platformName() == "xcb")
+        blending_modes |= VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+
+    m_vulkan_window_supports_alpha_blending = color_format_has_alpha && (capabilities.supportedCompositeAlpha & blending_modes) != 0;
 
     // The window mask was computed while support was still unknown; refresh it now that any stored insets can apply.
     update_vulkan_window_mask();
