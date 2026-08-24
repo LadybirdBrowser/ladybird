@@ -179,6 +179,10 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // NB: Called during DOM text mutation, layout is stale.
     if (is<Text>(*this)) {
+        if (auto* parent = this->parent()) {
+            if (auto* first_letter_owner = parent->first_letter_owner_for_layout_subtree_from(*parent))
+                first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
+        }
         if (is<Layout::TextSliceNode>(unsafe_layout_node())) {
             // NB: Slice nodes cache data that is calculated at layout tree construction time.
             // So for them, we need to invalidate the layout tree, not just layout.
