@@ -1437,6 +1437,9 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
         }
 
         set_flag(RustFFI::NodeFlag::NeedsLayoutUpdate, true);
+        // Relayout may rebuild an identical fragment whose cached paint output the commit diff
+        // then keeps, even when what this node paints changed (its image data arrived).
+        invalidate_paint_caches(*this);
     }
 
     if (auto* box = as_if<Box>(this))
