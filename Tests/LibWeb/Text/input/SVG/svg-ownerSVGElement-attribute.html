@@ -2,6 +2,22 @@
 <script src="../include.js"></script>
 <svg xmlns="http://www.w3.org/2000/svg" id="svg-element">
     <linearGradient id="linear-gradient-element" />
+    <svg id="nested-svg"></svg>
+    <use id="use-element" href="#nested-svg" />
+    <foreignObject>
+        <svg id="foreign-object-svg"></svg>
+        <div id="shadow-host">
+            <template shadowrootmode="open">
+                <svg id="shadow-svg">
+                    <foreignObject>
+                        <!-- NB: This keeps the slot in the HTML namespace while retaining a shadow-tree SVG ancestor. -->
+                        <slot name="test"></slot>
+                    </foreignObject>
+                </svg>
+            </template>
+            <svg id="slotted-svg" slot="test"></svg>
+        </div>
+    </foreignObject>
 </svg>
 <script>
     test(() => {
@@ -11,5 +27,24 @@
         const linearGradientElement = document.getElementById("linear-gradient-element");
         println(`linearGradient.ownerSVGElement = '${linearGradientElement.ownerSVGElement}'`);
         println(`linearGradient.ownerSVGElement == svg = '${linearGradientElement.ownerSVGElement === svgElement}'`);
+
+        const nestedSVG = document.getElementById("nested-svg");
+        println(`nestedSVG.ownerSVGElement == svg = '${nestedSVG.ownerSVGElement === svgElement}'`);
+
+        const foreignObjectSVG = document.getElementById("foreign-object-svg");
+        println(`foreignObjectSVG.ownerSVGElement = '${foreignObjectSVG.ownerSVGElement}'`);
+
+        const shadowSVG = document.getElementById("shadow-host").shadowRoot.getElementById("shadow-svg");
+        println(`shadowSVG.ownerSVGElement = '${shadowSVG.ownerSVGElement}'`);
+
+        const useShadowSVG = internals.getShadowRoot(document.getElementById("use-element")).firstElementChild;
+        println(`useShadowSVG.ownerSVGElement == svg = '${useShadowSVG.ownerSVGElement === svgElement}'`);
+
+        const detachedSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        println(`detachedSVG.ownerSVGElement = '${detachedSVG.ownerSVGElement}'`);
+
+        const slottedSVG = document.getElementById("slotted-svg");
+        println(`slottedSVG is assigned to the named slot = '${slottedSVG.assignedSlot?.name === "test"}'`);
+        println(`slottedSVG.ownerSVGElement = '${slottedSVG.ownerSVGElement}'`);
     });
 </script>
