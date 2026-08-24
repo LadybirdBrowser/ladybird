@@ -82,8 +82,10 @@ pub(crate) fn record_display_list(
     // NB: Some commands embed visual context indices in their payloads. Those indices can change
     //     when the visual context tree is rebuilt, so commands from an incompatible tree must be
     //     recorded and cached against the new tree.
-    let command_cache_source = command_cache_source
-        .filter(|source| source.compatible_visual_context_tree_version == visual_context_tree_version);
+    let command_cache_source = command_cache_source.filter(|source| {
+        source.compatible_visual_context_tree_version == visual_context_tree_version
+            && source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel
+    });
     let item_cache_source =
         item_cache_source.filter(|source| source.visual_context_tree_version == visual_context_tree_version);
     let paintable_rows = layout_arena.paintable_rows();
@@ -155,6 +157,7 @@ pub(crate) fn record_display_list(
     RecordingOutput {
         id: inputs.display_list_id,
         compatible_visual_context_tree_version: visual_context_tree_version,
+        recorded_device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
         hit_test_list,
         display_list_bytes: recorder.recorder.into_builder().into_bytes(),
         has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,

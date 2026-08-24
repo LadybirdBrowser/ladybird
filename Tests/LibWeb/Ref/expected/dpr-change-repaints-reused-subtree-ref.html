@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<style>
+    body { margin: 0; font: 16px/1.5 monospace; }
+    #outer { width: 300px; display: flow-root; }
+    #inner { display: flow-root; background: #eef; border: 1px solid #446; }
+</style>
+<div id="outer"><div id="inner">Scale sensitive text<br>more text lines here</div></div>
+<script>
+    internals.setDevicePixelRatio(2);
+</script>
+</html>
