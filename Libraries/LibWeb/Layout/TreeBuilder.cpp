@@ -116,6 +116,41 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!element || !layout_node || element->shadow_root() || is<HTML::HTMLSlotElement>(*element))
         return false;
 
+    auto collapsing_whitespace_can_be_inserted = [&](DOM::Text const& text) {
+        enum class SiblingDirection {
+            Previous,
+            Next,
+        };
+        auto can_place_next_to_sibling = [&](DOM::Node const* sibling, SiblingDirection direction) {
+            for (; sibling; sibling = direction == SiblingDirection::Next ? sibling->next_sibling() : sibling->previous_sibling()) {
+                if (auto const* sibling_element = as_if<DOM::Element>(*sibling)) {
+                    auto computed_style = sibling_element->computed_style();
+                    if (computed_style && computed_style->display().is_contents())
+                        return false;
+                }
+
+                auto const* sibling_layout_node = sibling->unsafe_layout_node();
+                if (!sibling_layout_node)
+                    continue;
+                while (sibling_layout_node->parent() && sibling_layout_node->parent() != layout_node)
+                    sibling_layout_node = sibling_layout_node->parent();
+                if (sibling_layout_node->parent() != layout_node)
+                    return false;
+                if (!sibling_layout_node->is_anonymous())
+                    return true;
+
+                // Incremental inline insertion can only join the trailing anonymous wrapper.
+                // A full rebuild joins whitespace to an adjacent earlier inline run instead.
+                return !sibling_layout_node->next_sibling()
+                    && sibling_layout_node->children_are_inline();
+            }
+            return true;
+        };
+
+        return can_place_next_to_sibling(text.previous_sibling(), SiblingDirection::Previous)
+            && can_place_next_to_sibling(text.next_sibling(), SiblingDirection::Next);
+    };
+
     auto const* first_letter_owner = node.first_letter_owner_for_layout_subtree_from(node);
 
     bool pending_children_can_preserve_parent = true;
@@ -130,7 +165,8 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             continue;
         if (auto const* text = as_if<DOM::Text>(*child); text && text->data().is_ascii_whitespace()
             && layout_node->white_space_collapse() == CSS::WhiteSpaceCollapse::Collapse
-            && !first_letter_owner) {
+            && !first_letter_owner
+            && collapsing_whitespace_can_be_inserted(*text)) {
             continue;
         }
         auto const* child_element = as_if<DOM::Element>(*child);
