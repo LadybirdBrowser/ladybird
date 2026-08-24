@@ -1034,8 +1034,8 @@ void WebContentView::update_vulkan_window_mask()
     if (!m_vulkan_window || !m_vulkan_window_container)
         return;
 
-    // Match the native window mask to the strips painted transparent for hover-expanded vertical tabs. On X11, the mask
-    // clips the window's bounding shape; on Wayland, it excludes those strips from the window's input region.
+    // On X11, the native window's bounding shape exposes the strips painted transparent for hover-expanded vertical
+    // tabs. Wayland instead uses the renderer's alpha output and empties the native window's input region separately.
     auto size = m_vulkan_window_container->size();
     QRegion window_mask { QRect { QPoint { 0, 0 }, size } };
 
@@ -1085,6 +1085,10 @@ void WebContentView::update_vulkan_alpha_blending_support()
         blending_modes |= VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
     m_vulkan_window_supports_alpha_blending = color_format_has_alpha && (capabilities.supportedCompositeAlpha & blending_modes) != 0;
+
+    // Route pointer input through QWidget when it can also display widgets beneath the Vulkan surface. QWidget's
+    // implicit mouse capture then preserves move and release events while the pointer is outside the browser window.
+    m_vulkan_window->setFlag(Qt::WindowTransparentForInput, *m_vulkan_window_supports_alpha_blending);
 
     // The window mask was computed while support was still unknown; refresh it now that any stored insets can apply.
     update_vulkan_window_mask();
