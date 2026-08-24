@@ -1,0 +1,19 @@
+<!doctype html>
+<style>
+    #name {
+        padding-top: env("safe-area-inset-top", 10px);
+    }
+
+    #index {
+        padding-top: env(safe-area-inset-top 1.5, 10px);
+    }
+</style>
+<div id="name"></div>
+<div id="index"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(document.getElementById("name")).paddingTop);
+        println(getComputedStyle(document.getElementById("index")).paddingTop);
+    });
+</script>
