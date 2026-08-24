@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+983 Pass
+17 Fail
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Fail	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["outdent",""]] "<blockquote style=\"margin-right: 0px;\" dir=\"ltr\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p style=\"margin-left: 40px\">baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p style=\"margin-left: 40px\">b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar]</p><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<p style=\"margin-left: 40px\">foo[bar</p><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p><p>baz</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p><p>b]az</p></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar]</p></blockquote><p>baz</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra": execCommand("outdent", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandState("outdent") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["outdent",""]] "<blockquote class=\"webkit-indent-blockquote\" style=\"margin: 0 0 0 40px; border: none; padding: 0px;\"><p>foo[bar</p></blockquote><p>b]az</p><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def>foo[bar]baz</blockquote></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote>foo[bar]baz</blockquote></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><div>foo[bar]baz</div></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><div id=abc>foo[bar]baz</div></blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc>foo[bar]baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\">foo[bar]baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote data-abc=def><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote data-abc=def><blockquote><p>foo[bar]<p>baz</blockquote></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><div><p>foo[bar]<p>baz</div></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><div id=abc><p>foo[bar]<p>baz</div></blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote id=abc><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote style=\"color: blue\"><p>foo[bar]<p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><b>foo[bar]</b><p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><strong>foo[bar]</strong><p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p><span>foo[bar]</span><p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><blockquote style=\"color: blue\"><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote style=\"color: blue\"><blockquote><p>foo[bar]</blockquote><p>baz</blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<li>[bar]<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol data-start=1 data-end=2><li>foo<li>bar<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" compare innerHTML
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<ol><li>foo</ol>[bar]" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]<br>bar<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>foo<br>[bar]<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li><div>[foo]</div>bar<li>baz</ol>" queryCommandValue("outdent") after
