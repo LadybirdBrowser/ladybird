@@ -174,6 +174,7 @@ public:
 
 private:
     friend class RustSyntaxParser;
+    friend class RustQueryParser;
     Parser(ParsingParams const&, Utf16String source);
     TokenStream<Token>& token_stream();
 

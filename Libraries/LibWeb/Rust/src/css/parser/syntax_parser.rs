@@ -801,7 +801,7 @@ fn component_list_source(values: &[ComponentValue]) -> Cow<'_, [u16]> {
 }
 
 impl FfiSyntaxParse {
-    fn new(
+    pub(crate) fn new(
         parse_context: *const ParseContext,
         resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
         preserve_property_source_text: bool,
@@ -822,7 +822,7 @@ impl FfiSyntaxParse {
         }
     }
 
-    fn append_value(&mut self, value: &[u16]) -> (usize, usize) {
+    pub(crate) fn append_value(&mut self, value: &[u16]) -> (usize, usize) {
         let offset = self.values.len();
         self.values.extend_from_slice(value);
         (offset, value.len())
@@ -838,7 +838,7 @@ impl FfiSyntaxParse {
         (offset, source.len())
     }
 
-    fn append_component_list(&mut self, values: &[ComponentValue]) -> (usize, usize) {
+    pub(crate) fn append_component_list(&mut self, values: &[ComponentValue]) -> (usize, usize) {
         let indices = values
             .iter()
             .map(|value| self.append_component(value))
@@ -1121,7 +1121,7 @@ impl FfiSyntaxParse {
         self.roots = items.iter().map(|item| self.append_item(item)).collect();
     }
 
-    fn data(&self) -> FfiSyntaxParseData {
+    pub(crate) fn data(&self) -> FfiSyntaxParseData {
         FfiSyntaxParseData {
             values: self.values.as_ptr(),
             value_count: self.values.len(),

@@ -2135,6 +2135,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiValueParsingContext".to_string(),
         "FfiValueParsingContextKind".to_string(),
         "FfiUtf16View".to_string(),
+        "FfiQueryNode".to_string(),
+        "FfiQueryParseData".to_string(),
+        "FfiQueryValue".to_string(),
+        "FfiMediaQuery".to_string(),
         "ParseContext".to_string(),
     ];
 
@@ -2144,6 +2148,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/parser/value_parser.rs"),
             manifest_dir.join("src/css/parser/syntax.rs"),
             manifest_dir.join("src/css/parser/syntax_parser.rs"),
+            manifest_dir.join("src/css/parser/query_parser.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
         ],
         &out_dir,

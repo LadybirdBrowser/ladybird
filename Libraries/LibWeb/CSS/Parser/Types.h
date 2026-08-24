@@ -31,6 +31,7 @@ using DeclarationVisitor = AK::Function<void(Declaration const&)>;
 struct AtRule {
     Utf16FlyString name;
     Vector<ComponentValue> prelude;
+    Utf16String prelude_text;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
 
