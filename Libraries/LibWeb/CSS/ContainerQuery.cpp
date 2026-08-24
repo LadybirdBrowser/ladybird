@@ -812,7 +812,12 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
 
 Utf16String ContainerQuery::to_string() const
 {
-    return m_condition->to_string();
+    Utf16String serialized;
+    auto set_serialized_query = [](void* context, u16 const* code_units, size_t length) {
+        *static_cast<Utf16String*>(context) = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(code_units), length });
+    };
+    VERIFY(Parser::ValueParserFFI::css_query_serialize_condition(m_rust_query_handle.data(), &serialized, set_serialized_query));
+    return serialized;
 }
 
 void ContainerQuery::dump(StringBuilder& builder, int indent_levels) const
