@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { display: table; font-size: 12px; }
+</style>
+<div id="outer">words words words</div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+
+        const outer = document.getElementById("outer");
+        const widthBefore = outer.getBoundingClientRect().width;
+
+        outer.style.fontSize = "24px";
+        const widthAfter = outer.getBoundingClientRect().width;
+
+        println(`grew: ${widthAfter > widthBefore}`);
+        println(`width ratio: ${widthAfter / widthBefore}`);
+    });
+</script>
