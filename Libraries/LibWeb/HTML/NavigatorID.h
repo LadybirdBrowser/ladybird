@@ -8,11 +8,14 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibURL/URL.h>
 
 namespace Web::HTML {
 
 class NavigatorIDMixin {
 public:
+    virtual ~NavigatorIDMixin() = default;
+
     // WARNING: Any information in this API that varies from user to user can be used to profile the user. In fact, if
     // enough such information is available, a user can actually be uniquely identified. For this reason, user agent
     // implementers are strongly urged to include as little information in this API as possible.
@@ -47,6 +50,9 @@ public:
     // FIXME: If the navigator compatibility mode is Gecko, then the user agent must also support the following partial interface:
     //       bool taint_enabled()
     //       ByteString oscpu()
+
+protected:
+    virtual URL::URL navigator_id_url() const = 0;
 };
 
 }

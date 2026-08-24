@@ -47,6 +47,11 @@ Navigator::Navigator(Window& window)
 
 Navigator::~Navigator() = default;
 
+URL::URL Navigator::navigator_id_url() const
+{
+    return m_window->associated_document().url();
+}
+
 EnvironmentSettingsObject& Navigator::navigator_storage_settings_object() const
 {
     return relevant_settings_object(*m_window);

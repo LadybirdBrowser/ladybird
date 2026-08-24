@@ -680,6 +680,21 @@ WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& pat
     return {};
 }
 
+WebIDL::ExceptionOr<void> Internals::set_site_compatibility_data(Utf16String const& source)
+{
+    auto source_utf8 = TRY_OR_THROW_OOM(window().principal_realm().vm(), source.utf16_view().to_utf8());
+    auto json = JsonValue::from_string(source_utf8);
+    if (json.is_error())
+        return window().principal_realm().vm().throw_completion<JS::InternalError>("Could not parse site compatibility data"_utf16);
+
+    auto data = SiteCompatibilityData::from_json(json.value());
+    if (data.is_error())
+        return window().principal_realm().vm().throw_completion<JS::InternalError>(Utf16String::formatted("Could not set site compatibility data: {}", data.error()));
+
+    ResourceLoader::the().set_site_compatibility_data(data.release_value());
+    return {};
+}
+
 void Internals::set_content_blocking_enabled(bool enabled)
 {
     page().set_content_blocking_enabled(enabled);

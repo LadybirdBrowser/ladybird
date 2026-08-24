@@ -92,6 +92,7 @@ interface Internals {
     undefined simulateRequestServerConnectionLoss();
     undefined simulateWorkerRequestServerConnectionLoss();
     undefined setContentBlockers(Utf16DOMString patterns);
+    undefined setSiteCompatibilityData(Utf16DOMString source);
     undefined setContentBlockingEnabled(boolean enabled);
     unsigned long long partialLayoutCount();
     unsigned long long fullLayoutCount();

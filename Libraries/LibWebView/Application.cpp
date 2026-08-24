@@ -43,6 +43,7 @@
 #include <LibWebView/Menu.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/SessionStore.h>
+#include <LibWebView/SiteCompatibility.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -286,6 +287,7 @@ Requests::RequestClient& Application::request_server_client(IsPrivate is_private
 ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 {
     TRY(handle_attached_debugger());
+    TRY(reload_site_compatibility_data());
     m_arguments = arguments;
 
 #if !defined(AK_OS_WINDOWS)
@@ -825,6 +827,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
         client->assign_view({}, *view);
 
     client->async_connect_to_request_server(request_server_handle);
+    client->async_set_site_compatibility_data(m_site_compatibility_data);
     client->async_connect_to_image_decoder(image_decoder_handle);
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     client->async_connect_to_wasm_compiler(wasm_compiler_handle);
@@ -832,6 +835,19 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     TRY(Application::the().connect_web_content_to_compositor(*client));
 
     return client;
+}
+
+ErrorOr<void> Application::reload_site_compatibility_data()
+{
+    auto data = TRY(load_site_compatibility_data());
+    m_site_compatibility_data = move(data);
+
+    WebContentClient::for_each_client([&](auto& client) {
+        client.async_set_site_compatibility_data(m_site_compatibility_data);
+        return IterationDecision::Continue;
+    });
+    WorkerProcessManager::the().update_site_compatibility_data(m_site_compatibility_data);
+    return {};
 }
 
 u64 Application::allocate_page_id()

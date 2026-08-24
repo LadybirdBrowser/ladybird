@@ -88,6 +88,7 @@ private:
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle) override;
+    virtual void set_site_compatibility_data(JsonValue data) override;
     virtual void compositor_process_reconnected() override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;

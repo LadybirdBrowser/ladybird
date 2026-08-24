@@ -122,6 +122,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
 #endif
 
     client->async_connect_to_request_server(request_server_handle);
+    client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
     client->async_connect_to_image_decoder(image_decoder_handle);
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     client->async_connect_to_wasm_compiler(wasm_compiler_handle);
@@ -164,6 +165,12 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type);
 
     return agent_id;
+}
+
+void WorkerProcessManager::update_site_compatibility_data(JsonValue const& data)
+{
+    for (auto const& agent : m_agents)
+        agent.value.client->async_set_site_compatibility_data(data);
 }
 
 void WorkerProcessManager::close_worker_agent(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

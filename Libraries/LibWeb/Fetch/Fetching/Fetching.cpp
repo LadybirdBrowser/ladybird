@@ -1767,7 +1767,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 15. If httpRequest’s header list does not contain `User-Agent`, then user agents should append
         //     (`User-Agent`, default `User-Agent` value) to httpRequest’s header list.
         if (!http_request->header_list()->contains("User-Agent"sv))
-            http_request->header_list()->append({ "User-Agent"sv, Infrastructure::default_user_agent_value() });
+            http_request->header_list()->append({ "User-Agent"sv, Infrastructure::default_user_agent_value(http_request->current_url()) });
 
         // 16. If httpRequest’s cache mode is "default" and httpRequest’s header list contains `If-Modified-Since`,
         //     `If-None-Match`, `If-Unmodified-Since`, `If-Match`, or `If-Range`, then set httpRequest’s cache mode to
