@@ -177,7 +177,7 @@ static Token token_from_component(FfiSyntaxParseData const& data, FfiSyntaxCompo
 
 static ComponentValue component_value(FfiSyntaxParseData const&, size_t);
 
-static Vector<ComponentValue> component_values(FfiSyntaxParseData const& data, size_t start, size_t count)
+Vector<ComponentValue> RustSyntaxParser::component_values(FfiSyntaxParseData const& data, size_t start, size_t count)
 {
     VERIFY(start <= data.component_index_count);
     VERIFY(count <= data.component_index_count - start);
@@ -195,7 +195,7 @@ static ComponentValue component_value(FfiSyntaxParseData const& data, size_t ind
     if (component.component_type == 0)
         return ComponentValue { token_from_component(data, component) };
 
-    auto children = component_values(data, component.children_start, component.child_count);
+    auto children = RustSyntaxParser::component_values(data, component.children_start, component.child_count);
     if (component.component_type == 1) {
         auto name_token = token_from_component(data, component);
         auto end_token = token_from_component(data, component, true);
@@ -237,7 +237,7 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     Vector<ComponentValue> values;
     if (declaration.is_property) {
         if (declaration.value_count > 0)
-            values = component_values(data, declaration.values_start, declaration.value_count);
+            values = RustSyntaxParser::component_values(data, declaration.values_start, declaration.value_count);
         if (declaration.property_id != NumericLimits<u16>::max())
             parsed_property_id = static_cast<PropertyID>(declaration.property_id);
         if (declaration.parse_status == FfiParseStatus::Parsed) {
@@ -247,7 +247,7 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
             VERIFY(!declaration.parsed_value);
         }
     } else {
-        values = component_values(data, declaration.values_start, declaration.value_count);
+        values = RustSyntaxParser::component_values(data, declaration.values_start, declaration.value_count);
     }
     return Declaration {
         .name = Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)),
@@ -299,13 +299,14 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
 {
     VERIFY(index < data.rule_count);
     auto const& rule = data.rules[index];
-    auto prelude = component_values(data, rule.prelude_start, rule.prelude_count);
+    auto prelude = RustSyntaxParser::component_values(data, rule.prelude_start, rule.prelude_count);
     auto prelude_text = Utf16String::from_utf16(utf16_value(data, rule.prelude_source_offset, rule.prelude_source_length));
     auto children = items(data, rule.children_start, rule.child_count);
     if (rule.rule_type == 0) {
         return AtRule {
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
             .prelude = move(prelude),
+            .prelude_text = move(prelude_text),
             .child_rules_and_lists_of_declarations = move(children),
             .is_block_rule = rule.has_block,
         };

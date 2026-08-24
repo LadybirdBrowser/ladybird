@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
@@ -1056,8 +1057,12 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
     AtRule rule {
         .name = ((Token)input.consume_a_token()).at_keyword(),
         .prelude = {},
+        .prelude_text = {},
         .child_rules_and_lists_of_declarations = {},
         .is_block_rule = false,
+    };
+    auto preserve_prelude_text = [&] {
+        rule.prelude_text = serialize_a_series_of_component_values_preserving_original_source_text(rule.prelude);
     };
 
     // Process input:
@@ -1069,6 +1074,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
         if (token.is(Token::Type::Semicolon) || token.is(Token::Type::EndOfFile)) {
             // Discard a token from input. If rule is valid in the current context, return it; otherwise return nothing.
             input.discard_a_token();
+            preserve_prelude_text();
             if (is_valid_in_the_current_context(rule))
                 return rule;
             return {};
@@ -1079,6 +1085,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
             // If nested is true:
             if (nested == Nested::Yes) {
                 // If rule is valid in the current context, return it.
+                preserve_prelude_text();
                 if (is_valid_in_the_current_context(rule))
                     return rule;
                 // Otherwise, return nothing.
@@ -1100,6 +1107,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
             m_rule_context.take_last();
 
             // If rule is valid in the current context, return it. Otherwise, return nothing.
+            preserve_prelude_text();
             if (is_valid_in_the_current_context(rule))
                 return rule;
             return {};

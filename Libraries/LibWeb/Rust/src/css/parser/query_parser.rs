@@ -5,8 +5,11 @@
  */
 
 use crate::css::css_tokenizer::{ParserString, ParserTokenKind, TokenizerInput, tokenize_for_parser};
+use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
+use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -520,6 +523,7 @@ where
     Some(Expression::QueryFeature(feature))
 }
 
+#[allow(dead_code)] // Source-size media conditions use this in the next query-parser slice.
 pub(crate) fn parse_media_condition<R>(values: &[ComponentValue], resolve_feature: &R) -> Option<Expression>
 where
     R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
@@ -837,6 +841,410 @@ where
     stream.discard_whitespace();
     (!stream.has_next_token()).then_some(expression)
 }
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiQueryValue {
+    pub value_type: u8,
+    pub component_start: usize,
+    pub component_count: usize,
+    pub name_offset: usize,
+    pub name_length: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiQueryNode {
+    pub node_type: u8,
+    pub feature_id: u8,
+    pub feature_type: u8,
+    pub match_result: u8,
+    pub first_comparison: u8,
+    pub second_comparison: u8,
+    pub name_offset: usize,
+    pub name_length: usize,
+    pub children_start: usize,
+    pub child_count: usize,
+    pub values_start: usize,
+    pub value_count: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiMediaQuery {
+    pub negated: bool,
+    pub valid: bool,
+    pub has_media_type: bool,
+    pub has_condition: bool,
+    pub media_type_offset: usize,
+    pub media_type_length: usize,
+    pub condition: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiQueryParseData {
+    pub syntax: FfiSyntaxParseData,
+    pub nodes: *const FfiQueryNode,
+    pub node_count: usize,
+    pub node_indices: *const usize,
+    pub node_index_count: usize,
+    pub query_values: *const FfiQueryValue,
+    pub query_value_count: usize,
+    pub media_queries: *const FfiMediaQuery,
+    pub media_query_count: usize,
+    pub root: usize,
+    pub has_root: bool,
+}
+
+pub struct FfiQueryParse {
+    syntax: FfiSyntaxParse,
+    nodes: Vec<FfiQueryNode>,
+    node_indices: Vec<usize>,
+    query_values: Vec<FfiQueryValue>,
+    media_queries: Vec<FfiMediaQuery>,
+    root: Option<usize>,
+}
+
+impl FfiQueryParse {
+    fn new() -> Self {
+        Self {
+            syntax: FfiSyntaxParse::new(std::ptr::null(), None, false),
+            nodes: Vec::new(),
+            node_indices: Vec::new(),
+            query_values: Vec::new(),
+            media_queries: Vec::new(),
+            root: None,
+        }
+    }
+
+    fn append_name(&mut self, name: &[u16]) -> (usize, usize) {
+        self.syntax.append_value(name)
+    }
+
+    fn append_query_value(&mut self, value: &StyleRangeValue) -> usize {
+        let (value_type, component_start, component_count, name_offset, name_length) = match value {
+            StyleRangeValue::Property(name) => {
+                let (name_offset, name_length) = self.append_name(name.as_ref());
+                (1, 0, 0, name_offset, name_length)
+            }
+            StyleRangeValue::Components(components) => {
+                let (component_start, component_count) = self.syntax.append_component_list(components);
+                (0, component_start, component_count, 0, 0)
+            }
+        };
+        let index = self.query_values.len();
+        self.query_values.push(FfiQueryValue {
+            value_type,
+            component_start,
+            component_count,
+            name_offset,
+            name_length,
+        });
+        index
+    }
+
+    fn append_feature_value(&mut self, value: &QueryFeatureValue) -> usize {
+        self.append_query_value(&StyleRangeValue::Components(value.components.clone()))
+    }
+
+    fn append_children(&mut self, children: &[Expression]) -> (usize, usize) {
+        let indices = children
+            .iter()
+            .map(|child| self.append_expression(child))
+            .collect::<Vec<_>>();
+        let start = self.node_indices.len();
+        self.node_indices.extend(indices);
+        (start, children.len())
+    }
+
+    fn append_expression(&mut self, expression: &Expression) -> usize {
+        let mut node = FfiQueryNode {
+            node_type: 0,
+            feature_id: 0,
+            feature_type: 0,
+            match_result: 0,
+            first_comparison: 0,
+            second_comparison: 0,
+            name_offset: 0,
+            name_length: 0,
+            children_start: 0,
+            child_count: 0,
+            values_start: 0,
+            value_count: 0,
+        };
+        match expression {
+            Expression::Not(child) => {
+                node.node_type = 0;
+                let child = self.append_expression(child);
+                node.children_start = self.node_indices.len();
+                node.child_count = 1;
+                self.node_indices.push(child);
+            }
+            Expression::And(children) => {
+                node.node_type = 1;
+                (node.children_start, node.child_count) = self.append_children(children);
+            }
+            Expression::Or(children) => {
+                node.node_type = 2;
+                (node.children_start, node.child_count) = self.append_children(children);
+            }
+            Expression::InParens(child) => {
+                node.node_type = 3;
+                let child = self.append_expression(child);
+                node.children_start = self.node_indices.len();
+                node.child_count = 1;
+                self.node_indices.push(child);
+            }
+            Expression::GeneralEnclosed { component, result } => {
+                node.node_type = 4;
+                node.match_result = *result as u8;
+                (node.name_offset, node.name_length) = self
+                    .syntax
+                    .append_value(&component.original_source_text.iter().collect::<Vec<_>>());
+            }
+            Expression::QueryFeature(feature) => {
+                node.node_type = 5;
+                match feature {
+                    QueryFeature::Boolean { id } => {
+                        node.feature_id = *id;
+                        node.feature_type = 0;
+                    }
+                    QueryFeature::Plain { id, name_type, value } => {
+                        node.feature_id = *id;
+                        node.feature_type = match name_type {
+                            FeatureNameType::Normal => 1,
+                            FeatureNameType::Min => 2,
+                            FeatureNameType::Max => 3,
+                        };
+                        node.values_start = self.append_feature_value(value);
+                        node.value_count = 1;
+                    }
+                    QueryFeature::Range { id, left, right } => {
+                        node.feature_id = *id;
+                        node.feature_type = 4;
+                        let start = self.query_values.len();
+                        if let Some((value, comparison)) = left {
+                            node.first_comparison = *comparison as u8;
+                            self.append_feature_value(value);
+                        }
+                        if let Some((comparison, value)) = right {
+                            if left.is_some() {
+                                node.second_comparison = *comparison as u8;
+                            } else {
+                                node.first_comparison = *comparison as u8;
+                            }
+                            self.append_feature_value(value);
+                        }
+                        node.values_start = start;
+                        node.value_count = self.query_values.len() - start;
+                        node.match_result = u8::from(left.is_some()) | (u8::from(right.is_some()) << 1);
+                    }
+                }
+            }
+            Expression::SupportsFeature(feature) => {
+                node.node_type = match feature {
+                    SupportsFeature::Declaration(_) => 6,
+                    SupportsFeature::Selector(_) => 7,
+                    SupportsFeature::FontTech(_) => 8,
+                    SupportsFeature::FontFormat(_) => 9,
+                    SupportsFeature::AtRule(_) => 10,
+                    SupportsFeature::Env(_) => 11,
+                };
+                match feature {
+                    SupportsFeature::Declaration(components) | SupportsFeature::Selector(components) => {
+                        let (start, count) = self.syntax.append_component_list(components);
+                        node.values_start = self.query_values.len();
+                        node.value_count = 1;
+                        self.query_values.push(FfiQueryValue {
+                            value_type: 0,
+                            component_start: start,
+                            component_count: count,
+                            name_offset: 0,
+                            name_length: 0,
+                        });
+                    }
+                    SupportsFeature::FontTech(name)
+                    | SupportsFeature::FontFormat(name)
+                    | SupportsFeature::AtRule(name)
+                    | SupportsFeature::Env(name) => {
+                        (node.name_offset, node.name_length) = self.append_name(name.as_ref());
+                    }
+                }
+            }
+            Expression::StyleFunction(child) => {
+                node.node_type = 12;
+                let child = self.append_expression(child);
+                node.children_start = self.node_indices.len();
+                node.child_count = 1;
+                self.node_indices.push(child);
+            }
+            Expression::StyleFeature(feature) => match feature {
+                StyleFeature::Boolean(name) => {
+                    node.node_type = 13;
+                    (node.name_offset, node.name_length) = self.append_name(name.as_ref());
+                }
+                StyleFeature::Plain { name, value } => {
+                    node.node_type = 14;
+                    (node.name_offset, node.name_length) = self.append_name(name.as_ref());
+                    node.values_start = self.append_query_value(&StyleRangeValue::Components(value.clone()));
+                    node.value_count = 1;
+                }
+                StyleFeature::Range {
+                    left,
+                    left_comparison,
+                    middle,
+                    right,
+                } => {
+                    node.node_type = 15;
+                    node.first_comparison = *left_comparison as u8;
+                    node.values_start = self.query_values.len();
+                    self.append_query_value(left);
+                    self.append_query_value(middle);
+                    if let Some((comparison, right)) = right {
+                        node.second_comparison = *comparison as u8;
+                        self.append_query_value(right);
+                    }
+                    node.value_count = self.query_values.len() - node.values_start;
+                }
+            },
+        }
+        let index = self.nodes.len();
+        self.nodes.push(node);
+        index
+    }
+
+    fn append_media_query(&mut self, query: &MediaQuery) {
+        let (media_type_offset, media_type_length) = query
+            .media_type
+            .as_ref()
+            .map_or((0, 0), |name| self.append_name(name.as_ref()));
+        let condition = query
+            .condition
+            .as_ref()
+            .map(|condition| self.append_expression(condition));
+        self.media_queries.push(FfiMediaQuery {
+            negated: query.negated,
+            valid: query.valid,
+            has_media_type: query.media_type.is_some(),
+            has_condition: condition.is_some(),
+            media_type_offset,
+            media_type_length,
+            condition: condition.unwrap_or(0),
+        });
+    }
+
+    fn data(&self) -> FfiQueryParseData {
+        FfiQueryParseData {
+            syntax: self.syntax.data(),
+            nodes: self.nodes.as_ptr(),
+            node_count: self.nodes.len(),
+            node_indices: self.node_indices.as_ptr(),
+            node_index_count: self.node_indices.len(),
+            query_values: self.query_values.as_ptr(),
+            query_value_count: self.query_values.len(),
+            media_queries: self.media_queries.as_ptr(),
+            media_query_count: self.media_queries.len(),
+            root: self.root.unwrap_or(0),
+            has_root: self.root.is_some(),
+        }
+    }
+}
+
+type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
+
+fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
+    move |kind, name| {
+        // SAFETY: The name slice remains live for the duration of the callback.
+        let result = unsafe { callback(kind as u8, name.as_ptr(), name.len()) };
+        if result == u16::MAX {
+            return None;
+        }
+        Some(((result & 0xff) as u8, result & 0x100 != 0))
+    }
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_media_query_list(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(queries) = parse_media_query_list(source, &ffi_resolver(resolve_feature)) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        for query in &queries {
+            parse.append_media_query(query);
+        }
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_supports_condition(source: FfiUtf16View) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(expression) = parse_supports_condition(source) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// # Safety
+/// The source pointers must identify readable storage for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_container_query(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+) -> *mut FfiQueryParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let Some(expression) = parse_container_query(source, &ffi_resolver(resolve_feature)) else {
+            return std::ptr::null_mut();
+        };
+        let mut parse = FfiQueryParse::new();
+        parse.root = Some(parse.append_expression(&expression));
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// Returns borrowed arena slices which remain live until `rust_query_parse_free`.
+///
+/// # Safety
+/// `parse` must be a live pointer returned by a query parsing function.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_query_parse_data(parse: *const FfiQueryParse) -> FfiQueryParseData {
+    crate::abort_on_panic(|| unsafe { &*parse }.data())
+}
+
+/// # Safety
+/// `parse` must be null or a live pointer returned by a query parsing function, and may be freed once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_query_parse_free(parse: *mut FfiQueryParse) {
+    crate::abort_on_panic(|| {
+        if !parse.is_null() {
+            drop(unsafe { Box::from_raw(parse) });
+        }
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_query_parser_abi_anchor(_: *const c_void) {}
 
 #[cfg(test)]
 mod tests {

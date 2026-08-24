@@ -18,6 +18,12 @@
 
 namespace Web::CSS {
 
+namespace Parser {
+
+class RustQueryParser;
+
+}
+
 // https://www.w3.org/TR/mediaqueries-4/#mq-features
 class MediaFeature final : public FeatureQuery<MediaFeature, MediaFeatureID> {
 public:
@@ -40,6 +46,7 @@ private:
 
 class MediaQuery : public RefCounted<MediaQuery> {
     friend class Parser::Parser;
+    friend class Parser::RustQueryParser;
 
 public:
     ~MediaQuery() = default;

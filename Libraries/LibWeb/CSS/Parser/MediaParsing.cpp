@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/QueryValueType.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -24,9 +25,23 @@
 
 namespace Web::CSS::Parser {
 
+static bool should_verify_rust_query_parser()
+{
+    auto* value = getenv("LIBWEB_VERIFY_RUST_QUERY_PARSER");
+    return value && StringView { value, strlen(value) } == "1"sv;
+}
+
 Vector<NonnullRefPtr<MediaQuery>> Parser::parse_as_media_query_list()
 {
-    return parse_a_media_query_list(token_stream());
+    auto media_queries = RustQueryParser::parse_media_query_list(*this, m_source);
+    if (should_verify_rust_query_parser()) {
+        auto cpp_media_queries = parse_a_media_query_list(token_stream());
+        auto rust_serialized = serialize_a_media_query_list(media_queries);
+        auto cpp_serialized = serialize_a_media_query_list(cpp_media_queries);
+        if (rust_serialized != cpp_serialized)
+            warnln("Rust media query parser mismatch: Rust `{}`, C++ `{}`", rust_serialized, cpp_serialized);
+    }
+    return media_queries;
 }
 
 template<typename T>
@@ -685,8 +700,15 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
         return nullptr;
     }
 
-    auto media_query_tokens = TokenStream { rule.prelude };
-    auto media_query_list = parse_a_media_query_list(media_query_tokens);
+    auto media_query_list = RustQueryParser::parse_media_query_list(*this, rule.prelude_text);
+    if (should_verify_rust_query_parser()) {
+        auto media_query_tokens = TokenStream { rule.prelude };
+        auto cpp_media_query_list = parse_a_media_query_list(media_query_tokens);
+        auto rust_serialized = serialize_a_media_query_list(media_query_list);
+        auto cpp_serialized = serialize_a_media_query_list(cpp_media_query_list);
+        if (rust_serialized != cpp_serialized)
+            warnln("Rust media query parser mismatch: Rust `{}`, C++ `{}`", rust_serialized, cpp_serialized);
+    }
     auto media_list = MediaList::create(move(media_query_list));
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;

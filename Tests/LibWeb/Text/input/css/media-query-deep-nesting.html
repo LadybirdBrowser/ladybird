@@ -1,0 +1,8 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const deeplyNestedQuery = "(".repeat(300) + "width: 1px" + ")".repeat(300);
+        println(`deeply nested query matches: ${matchMedia(deeplyNestedQuery).matches}`);
+    });
+</script>

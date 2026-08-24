@@ -215,6 +215,7 @@ set(SOURCES
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/RustTokenizer.cpp
+    CSS/Parser/RustQueryParsing.cpp
     CSS/Parser/RustValueParsing.cpp
     CSS/Parser/RustSyntaxParsing.cpp
     CSS/Parser/RuleContext.cpp
