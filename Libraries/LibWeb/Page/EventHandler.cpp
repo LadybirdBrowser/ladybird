@@ -206,6 +206,15 @@ static Layout::Node* layout_node_for_target(DOM::Document& document, Layout::Rus
     return Painting::layout_node_for_committed_slot(document.layout_node_arena(), box);
 }
 
+static CSS::PointerEvents pointer_events_for_hit_target(bool is_text_fragment, DOM::Node const* hit_dom_node, Layout::Node const& target_layout_node)
+{
+    if (is_text_fragment && hit_dom_node) {
+        if (auto const* text_layout_node = hit_dom_node->layout_node(); text_layout_node && text_layout_node->parent())
+            return text_layout_node->parent()->pointer_events();
+    }
+    return as<Layout::NodeWithStyle>(target_layout_node).pointer_events();
+}
+
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     if (m_mouse_selection_target)
@@ -316,9 +325,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (!target_layout_node)
         return EventResult::Dropped;
 
-    auto pointer_events = as<Layout::NodeWithStyle>(*target_layout_node).pointer_events();
+    auto pointer_events = pointer_events_for_hit_target(target->is_text_fragment, target->dom_node.ptr(), *target_layout_node);
     // FIXME: Handle other values for pointer-events.
-    VERIFY(pointer_events != CSS::PointerEvents::None);
+    if (pointer_events == CSS::PointerEvents::None)
+        return EventResult::Cancelled;
 
     if (!node)
         return EventResult::Dropped;
@@ -502,6 +512,11 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (!target_layout_node)
             return EventResult::Dropped;
 
+        auto pointer_events = pointer_events_for_hit_target(target->is_text_fragment, target->dom_node.ptr(), *target_layout_node);
+        // FIXME: Handle other values for pointer-events.
+        if (pointer_events == CSS::PointerEvents::None)
+            return EventResult::Cancelled;
+
         auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
             return event_handler.handle_mousemove(position, screen_position, buttons, modifiers);
         });
@@ -509,10 +524,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             clear_cursor.disarm();
             return *dispath_result;
         }
-
-        auto pointer_events = as<Layout::NodeWithStyle>(*target_layout_node).pointer_events();
-        // FIXME: Handle other values for pointer-events.
-        VERIFY(pointer_events != CSS::PointerEvents::None);
 
         // NB: Search for the first parent of the hit target that's an element.
         //
@@ -633,7 +644,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (!target_layout_node)
         return EventResult::Dropped;
 
-    auto pointer_events = as<Layout::NodeWithStyle>(*target_layout_node).pointer_events();
+    auto pointer_events = pointer_events_for_hit_target(target->is_text_fragment, target->dom_node.ptr(), *target_layout_node);
     if (pointer_events == CSS::PointerEvents::None)
         return EventResult::Cancelled;
 

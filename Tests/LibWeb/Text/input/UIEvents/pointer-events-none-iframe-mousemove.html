@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    iframe { position: absolute; left: 0; top: 0; width: 300px; height: 200px; border: 0; pointer-events: none }
+</style>
+<iframe id="frame" srcdoc="<body style='margin: 0'>inner</body>"></iframe>
+<script>
+    asyncTest(done => {
+        // An iframe with pointer-events:none must not deliver pointer events to its own document.
+        const frame = document.getElementById('frame');
+        frame.onload = () => {
+            const received = [];
+            frame.contentDocument.addEventListener('mousemove', () => received.push('iframe document'));
+            document.addEventListener('mousemove', () => received.push('outer document'));
+
+            internals.mouseMove(100, 100);
+
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                println(received.length ? `mousemove delivered to: ${received.join(', ')}`
+                                        : 'mousemove delivered to nothing');
+                done();
+            }));
+        };
+    });
+</script>

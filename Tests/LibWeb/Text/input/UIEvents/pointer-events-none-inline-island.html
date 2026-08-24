@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    #none { position: absolute; left: 0; top: 0; width: 300px; height: 100px; pointer-events: none; font: 40px/100px monospace }
+    #island { pointer-events: auto }
+</style>
+<div id="none"><span id="island">ISLAND</span></div>
+<script>
+    asyncTest(done => {
+        // A pointer-events:auto inline inside a pointer-events:none block must still receive mouse events. The hit-test
+        // item for the text carries the line-root block as its box — so reading pointer-events from that box would
+        // wrongly report none.
+        const seen = [];
+        document.addEventListener('mousemove', event => seen.push(event.target.id || event.target.nodeName), true);
+        internals.mouseMove(60, 50);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            println(`mousemove delivered to: ${seen.length ? seen.join(', ') : 'nothing'}`);
+            done();
+        }));
+    });
+</script>
