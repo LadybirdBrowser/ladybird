@@ -190,6 +190,8 @@ pub struct ParseContext {
     pub precomputed_svg_path_count: usize,
     pub font_format_is_supported: Option<unsafe extern "C" fn(*const u16, usize) -> bool>,
     pub font_tech_is_supported: Option<unsafe extern "C" fn(u8) -> bool>,
+    pub descriptor_integer_resolution_context: *const c_void,
+    pub resolve_descriptor_integer: Option<unsafe extern "C" fn(*const c_void, *const c_void, *mut i32) -> bool>,
     pub random_function_index: *mut usize,
 }
 
@@ -6361,6 +6363,8 @@ mod tests {
             precomputed_svg_path_count: 0,
             font_format_is_supported: None,
             font_tech_is_supported: None,
+            descriptor_integer_resolution_context: std::ptr::null(),
+            resolve_descriptor_integer: None,
             random_function_index: std::ptr::null_mut(),
         }
     }

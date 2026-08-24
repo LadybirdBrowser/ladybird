@@ -356,6 +356,8 @@ NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValu
         .precomputed_svg_path_count = 0,
         .font_format_is_supported = nullptr,
         .font_tech_is_supported = nullptr,
+        .descriptor_integer_resolution_context = nullptr,
+        .resolve_descriptor_integer = nullptr,
         .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::Invalid };
@@ -504,6 +506,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in
         .precomputed_svg_path_count = 0,
         .font_format_is_supported = rust_font_format_is_supported,
         .font_tech_is_supported = rust_font_tech_is_supported,
+        .descriptor_integer_resolution_context = nullptr,
+        .resolve_descriptor_integer = nullptr,
         .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
@@ -561,6 +565,8 @@ Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(F
         .precomputed_svg_path_count = 0,
         .font_format_is_supported = rust_font_format_is_supported,
         .font_tech_is_supported = rust_font_tech_is_supported,
+        .descriptor_integer_resolution_context = nullptr,
+        .resolve_descriptor_integer = nullptr,
         .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
@@ -633,6 +639,8 @@ RefPtr<StyleValue const> Parser::parse_primitive_value(ValueType value_type, Tok
         .precomputed_svg_path_count = 0,
         .font_format_is_supported = rust_font_format_is_supported,
         .font_tech_is_supported = rust_font_tech_is_supported,
+        .descriptor_integer_resolution_context = nullptr,
+        .resolve_descriptor_integer = nullptr,
         .random_function_index = &m_random_function_index,
     };
     auto source = serialize_a_series_of_component_values_for_retokenization(tokens.remaining_tokens());

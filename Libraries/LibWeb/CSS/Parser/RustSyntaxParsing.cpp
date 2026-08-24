@@ -11,6 +11,8 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/StyleValueRustFFI.h>
@@ -59,11 +61,38 @@ static u16 resolve_property_id(u16 const* code_units, size_t length)
     return property.has_value() ? to_underlying(property->id()) : NumericLimits<u16>::max();
 }
 
+static bool resolve_descriptor_integer(void const* document_pointer, void const* value_pointer, i32* result)
+{
+    auto const* document = static_cast<DOM::Document const*>(document_pointer);
+    if (!document || !result)
+        return false;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+        static_cast<StyleValueFFI::StyleValueData const*>(value_pointer)));
+    if (value->is_integer()) {
+        *result = value->as_integer().integer();
+        return true;
+    }
+    if (!value->is_calculated())
+        return false;
+    auto absolutized = value->absolutized(ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) });
+    if (absolutized->is_integer()) {
+        *result = absolutized->as_integer().integer();
+        return true;
+    }
+    if (!absolutized->is_calculated())
+        return false;
+    auto resolved = absolutized->as_calculated().resolve_integer({});
+    if (!resolved.has_value())
+        return false;
+    *result = resolved.value();
+    return true;
+}
+
 struct ParseContextStorage {
     ValueParserFFI::ParseContext context {};
 };
 
-static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_presentation_attribute, ReadonlyBytes document_url, ReadonlyBytes document_base_url, size_t& random_function_index)
+static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_presentation_attribute, ReadonlyBytes document_url, ReadonlyBytes document_base_url, DOM::Document const* document, size_t& random_function_index)
 {
     return {
         .context = {
@@ -83,6 +112,8 @@ static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_p
             .precomputed_svg_path_count = 0,
             .font_format_is_supported = rust_font_format_is_supported,
             .font_tech_is_supported = rust_font_tech_is_supported,
+            .descriptor_integer_resolution_context = document,
+            .resolve_descriptor_integer = resolve_descriptor_integer,
             .random_function_index = &random_function_index,
         },
     };
@@ -233,6 +264,7 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         original_value_text = Utf16String::from_utf16(utf16_value(data, declaration.original_value_offset, declaration.original_value_length));
     auto value_text = Utf16String::from_utf16(utf16_value(data, declaration.value_source_offset, declaration.value_source_length));
     Optional<PropertyID> parsed_property_id;
+    Optional<DescriptorID> parsed_descriptor_id;
     RefPtr<StyleValue const> parsed_value;
     Vector<ComponentValue> values;
     if (declaration.is_property) {
@@ -240,14 +272,16 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
             values = RustSyntaxParser::component_values(data, declaration.values_start, declaration.value_count);
         if (declaration.property_id != NumericLimits<u16>::max())
             parsed_property_id = static_cast<PropertyID>(declaration.property_id);
-        if (declaration.parse_status == FfiParseStatus::Parsed) {
-            VERIFY(declaration.parsed_value);
-            parsed_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value));
-        } else {
-            VERIFY(!declaration.parsed_value);
-        }
     } else {
         values = RustSyntaxParser::component_values(data, declaration.values_start, declaration.value_count);
+        if (declaration.descriptor_id != NumericLimits<u8>::max())
+            parsed_descriptor_id = static_cast<DescriptorID>(declaration.descriptor_id);
+    }
+    if (declaration.parse_status == FfiParseStatus::Parsed) {
+        VERIFY(declaration.parsed_value);
+        parsed_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value));
+    } else {
+        VERIFY(!declaration.parsed_value);
     }
     return Declaration {
         .name = Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)),
@@ -258,6 +292,7 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         .source_position = source_position(declaration.start_line, declaration.start_column),
         .value_text = move(value_text),
         .parsed_property_id = parsed_property_id,
+        .parsed_descriptor_id = parsed_descriptor_id,
         .parsed_value = move(parsed_value),
     };
 }
@@ -364,7 +399,7 @@ Vector<Rule> RustSyntaxParser::parse_stylesheet(Parser& parser)
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     auto* parse = rust_parse_css_stylesheet_syntax(ffi_utf16_view(parser.m_source), &context.context, resolve_property_id);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
@@ -388,7 +423,7 @@ Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleCon
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     static_assert(sizeof(RuleContext) == sizeof(u8));
     auto* parse = rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context, resolve_property_id);
     VERIFY(parse);
@@ -422,7 +457,7 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, resolve_property_id, preserve_property_source_text == PreservePropertySourceText::Yes);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
@@ -439,6 +474,25 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
             result.unchecked_append(declarations(data, item.start, item.count));
     }
     return result;
+}
+
+RefPtr<StyleValue const> RustSyntaxParser::parse_descriptor(Parser& parser, AtRuleID at_rule_id, DescriptorNameAndID const& descriptor)
+{
+    ReadonlyBytes document_url;
+    ReadonlyBytes document_base_url;
+    if (parser.m_document) {
+        if (!parser.m_serialized_document_url.has_value())
+            parser.m_serialized_document_url = parser.m_document->url().serialize();
+        if (!parser.m_serialized_document_base_url.has_value())
+            parser.m_serialized_document_base_url = parser.m_document->base_url().serialize();
+        document_url = parser.m_serialized_document_url->bytes();
+        document_base_url = parser.m_serialized_document_base_url->bytes();
+    }
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto* value = rust_parse_css_descriptor(&context.context, to_underlying(at_rule_id), ffi_utf16_view(descriptor.name()), ffi_utf16_view(parser.m_source));
+    if (!value)
+        return nullptr;
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(value));
 }
 
 }

@@ -226,6 +226,8 @@ impl CustomPropertyRegistry {
             precomputed_svg_path_count: 0,
             font_format_is_supported: None,
             font_tech_is_supported: None,
+            descriptor_integer_resolution_context: std::ptr::null(),
+            resolve_descriptor_integer: None,
             random_function_index,
         }
     }

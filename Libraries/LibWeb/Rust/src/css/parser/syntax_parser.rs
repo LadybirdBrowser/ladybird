@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
 use crate::css::css_tokenizer::{
     ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_component_value};
+use crate::css::parser::descriptor_parser::parse_descriptor;
 use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
     is_valid_custom_ident, parse_css_value_with_utf16_source,
@@ -79,6 +81,7 @@ pub(crate) struct Declaration {
     pub original_full_text: Option<Box<[u16]>>,
     pub source_position: SourcePosition,
     pub is_property: bool,
+    pub rule_context: RuleContext,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -328,7 +331,12 @@ fn parse_font_family_names(values: &[ComponentValue]) -> ParsedRulePrelude {
             let Some(parts) = values.iter().map(|value| value.ident()).collect::<Option<Vec<_>>>() else {
                 return ParsedRulePrelude::Invalid;
             };
-            if parts.is_empty() || parts.len() == 1 && !is_valid_custom_ident(parts[0], &[]) {
+            if parts.is_empty()
+                || parts.len() == 1
+                    && (!is_valid_custom_ident(parts[0], &[])
+                        || keyword_from_ascii_case_insensitive(parts[0])
+                            .is_some_and(|keyword| keyword_to_generic_font_family(keyword).is_some()))
+            {
                 return ParsedRulePrelude::Invalid;
             }
             let mut name = Vec::new();
@@ -1155,6 +1163,12 @@ impl Parser {
                 .collect::<Vec<_>>()
                 .into_boxed_slice()
         });
+        let is_property = self.declaration_is_property();
+        let rule_context = if !is_property && self.rule_context.contains(&RuleContext::AtFunction) {
+            RuleContext::AtFunction
+        } else {
+            self.rule_context.last().copied().unwrap_or(RuleContext::Unknown)
+        };
         Some(Declaration {
             name,
             value,
@@ -1162,7 +1176,8 @@ impl Parser {
             original_value_text,
             original_full_text,
             source_position: token.start_position,
-            is_property: self.declaration_is_property(),
+            is_property,
+            rule_context,
         })
     }
 
@@ -1334,6 +1349,7 @@ pub struct FfiSyntaxDeclaration {
     pub start_line: usize,
     pub start_column: usize,
     pub property_id: u16,
+    pub descriptor_id: u8,
     pub parse_status: FfiParseStatus,
     pub parsed_value: *const c_void,
 }
@@ -1577,7 +1593,7 @@ impl FfiSyntaxParse {
             self.append_optional_value(declaration.original_value_text.as_deref());
         let (original_full_text_offset, original_full_text_length) =
             self.append_optional_value(declaration.original_full_text.as_deref());
-        let (property_id, parse_status, parsed_value) =
+        let (property_id, descriptor_id, parse_status, parsed_value) =
             self.parse_declaration_value(declaration, value_source.as_ref());
         let needs_value_text = self.preserve_property_source_text
             || parse_status != FfiParseStatus::Parsed
@@ -1604,6 +1620,7 @@ impl FfiSyntaxParse {
             start_line: declaration.source_position.line,
             start_column: declaration.source_position.column,
             property_id,
+            descriptor_id,
             parse_status,
             parsed_value,
         });
@@ -1614,17 +1631,43 @@ impl FfiSyntaxParse {
         &self,
         declaration: &Declaration,
         source_utf16: &[u16],
-    ) -> (u16, FfiParseStatus, *const c_void) {
-        if !declaration.is_property || self.parse_context.is_null() {
-            return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+    ) -> (u16, u8, FfiParseStatus, *const c_void) {
+        if self.parse_context.is_null() {
+            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+        }
+        if !declaration.is_property {
+            let at_rule = match declaration.rule_context {
+                RuleContext::AtFontFace => 0,
+                RuleContext::AtPage => 1,
+                RuleContext::AtProperty => 2,
+                RuleContext::AtCounterStyle => 3,
+                RuleContext::AtFunction => 4,
+                _ => return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
+            };
+            let parse_context = unsafe { &*self.parse_context };
+            return match parse_descriptor(
+                parse_context,
+                at_rule,
+                declaration.name.as_ref(),
+                &declaration.value,
+                source_utf16,
+            ) {
+                Some(descriptor) => (
+                    u16::MAX,
+                    descriptor.id,
+                    FfiParseStatus::Parsed,
+                    Arc::into_raw(descriptor.value).cast::<c_void>(),
+                ),
+                None => (u16::MAX, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
+            };
         }
         let Some(resolve_property_id) = self.resolve_property_id else {
-            return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         };
         // SAFETY: The declaration name remains live for this callback and the caller owns the callback.
         let property_id = unsafe { resolve_property_id(declaration.name.as_ptr(), declaration.name.len()) };
         if property_id == u16::MAX {
-            return (property_id, FfiParseStatus::NotHandled, std::ptr::null());
+            return (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         }
 
         let parse_context = unsafe { &*self.parse_context };
@@ -1652,11 +1695,12 @@ impl FfiSyntaxParse {
         match outcome {
             ParseOutcome::Parsed(value) => (
                 property_id,
+                u8::MAX,
                 FfiParseStatus::Parsed,
                 Arc::into_raw(value).cast::<c_void>(),
             ),
-            ParseOutcome::Invalid => (property_id, FfiParseStatus::Invalid, std::ptr::null()),
-            ParseOutcome::NotHandled(_) => (property_id, FfiParseStatus::NotHandled, std::ptr::null()),
+            ParseOutcome::Invalid => (property_id, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
+            ParseOutcome::NotHandled(_) => (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
         }
     }
 
