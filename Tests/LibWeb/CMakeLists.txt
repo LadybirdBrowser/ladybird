@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestSiteCompatibility.cpp
     TestAccumulatedVisualContext.cpp
     TestContentBlocker.cpp
     TestControlMessageQueue.cpp
@@ -59,6 +60,7 @@ endforeach()
 ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
 
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
+target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestDisplayListDamage PRIVATE LibGfx)
 target_link_libraries(TestDownloadReader PRIVATE LibGC LibJS LibURL)
