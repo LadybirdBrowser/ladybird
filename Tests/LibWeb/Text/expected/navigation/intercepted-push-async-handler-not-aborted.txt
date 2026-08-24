@@ -1,0 +1,5 @@
+navigate push destination=?pushed canIntercept=true
+handler start
+handler done
+navigatesuccess at ?pushed
+final location=?pushed index=1
