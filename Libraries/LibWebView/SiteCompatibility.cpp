@@ -12,12 +12,9 @@
 
 namespace WebView {
 
-ErrorOr<JsonValue> load_site_compatibility_data()
+ErrorOr<JsonValue> load_site_compatibility_data(StringView directory_uri)
 {
-    auto directory_or_error = Core::Resource::load_from_uri("resource://ladybird/site-compatibility"sv);
-    if (directory_or_error.is_error())
-        return JsonValue { JsonArray {} };
-    auto directory = directory_or_error.release_value();
+    auto directory = TRY(Core::Resource::load_from_uri(directory_uri));
     auto children = directory->children();
     quick_sort(children);
 

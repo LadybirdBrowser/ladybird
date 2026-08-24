@@ -159,6 +159,7 @@ static Vector<AutocompleteBookmark> autocomplete_bookmark_snapshot(BookmarkStore
 }
 
 Application::Application(Optional<ByteString> ladybird_binary_path)
+    : m_site_compatibility_data(JsonArray {})
 {
     VERIFY(!s_the);
     s_the = this;
@@ -287,7 +288,8 @@ Requests::RequestClient& Application::request_server_client(IsPrivate is_private
 ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 {
     TRY(handle_attached_debugger());
-    TRY(reload_site_compatibility_data());
+    if (auto result = reload_site_compatibility_data(); result.is_error())
+        warnln("\033[31;1mUnable to load site compatibility data:\033[0m {}", result.error());
     m_arguments = arguments;
 
 #if !defined(AK_OS_WINDOWS)
