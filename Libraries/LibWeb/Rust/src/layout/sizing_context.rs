@@ -779,11 +779,111 @@ impl SizingContext {
             constraints.quirks_mode_percentage_basis_block_size
         };
 
+        let forwarded_a_block_basis = (!used.has_definite_block_size()
+            && should_forward_indefinite_basis
+            && constraints.percentage_basis_block_size.is_some())
+            || (quirks_block.is_some()
+                && quirks_block == constraints.quirks_mode_percentage_basis_block_size
+                && facts.document_in_quirks_mode()
+                && !facts.is_viewport()
+                && !facts.is_table_cell()
+                && style.height().is_auto()
+                && !facts.is_absolutely_positioned()
+                && facts.is_block_container()
+                && !facts.is_table_wrapper());
+        debug_assert!(
+            !forwarded_a_block_basis || self.passes_percentage_block_size_through_to_children(containing_block),
+            "a containing block that forwards a percentage block basis must report it to dependency tracking"
+        );
+
         ContainingBlockConstraints {
             percentage_basis_inline_size: inline,
             percentage_basis_block_size: block,
             quirks_mode_percentage_basis_block_size: quirks_block,
         }
+    }
+
+    pub(crate) fn own_style_depends_on_percentage_block_size(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        if facts.is_text_node() {
+            return false;
+        }
+        let style = self.style(node);
+        let size_reads_block_axis_input = |size: &ComputedSize| size.contains_percentage() || size.is_fit_content();
+        let quirks_fill_viewport_rule_reads_block_basis = facts.document_in_quirks_mode()
+            && style.height().is_auto()
+            && (facts.is_html_html_element() || facts.is_html_body_element());
+        let table_cell_vertical_padding_resolves_against_block_basis = facts.is_table_cell()
+            && (style.padding_top().contains_percentage() || style.padding_bottom().contains_percentage());
+        size_reads_block_axis_input(style.height())
+            || size_reads_block_axis_input(style.min_height())
+            || size_reads_block_axis_input(style.max_height())
+            || quirks_fill_viewport_rule_reads_block_basis
+            || table_cell_vertical_padding_resolves_against_block_basis
+    }
+
+    pub(crate) fn passes_percentage_block_size_through_to_children(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        if facts.is_text_node() {
+            return false;
+        }
+        let table_formatting_context_resolves_participants_against_its_input_basis =
+            facts.is_table_wrapper() || facts.is_table_box();
+        if table_formatting_context_resolves_participants_against_its_input_basis {
+            return true;
+        }
+        let style = self.style(node);
+        let in_quirks_mode = facts.document_in_quirks_mode();
+        let svg_root_forwards_quirks_basis = facts.is_svg_svg_box() && in_quirks_mode;
+        let forwards_block_basis_as_anonymous_box = facts.is_box()
+            && facts.is_anonymous()
+            && !facts.is_table_cell()
+            && !facts.has_auto_content_box_size()
+            && self.records.used_values_if_owned(node).is_some_and(|used| {
+                used.inline_size_constraint.get() == SizeConstraint::None
+                    && used.block_size_constraint.get() == SizeConstraint::None
+            });
+        let forwards_quirks_basis_as_auto_height_block_container = in_quirks_mode
+            && !facts.is_viewport()
+            && !facts.is_table_cell()
+            && style.height().is_auto()
+            && !facts.is_absolutely_positioned()
+            && facts.is_block_container()
+            && !facts.is_table_wrapper();
+        svg_root_forwards_quirks_basis
+            || forwards_block_basis_as_anonymous_box
+            || forwards_quirks_basis_as_auto_height_block_container
+    }
+
+    pub(crate) fn resolve_percentage_block_size_dependency(&self, node: Node) -> bool {
+        let used = self.used(node);
+        let depends_on_percentage_block_size = used.depends_on_percentage_block_size.get()
+            || self.own_style_depends_on_percentage_block_size(node)
+            || (used.has_descendant_that_depends_on_percentage_block_size.get()
+                && self.passes_percentage_block_size_through_to_children(node));
+        used.depends_on_percentage_block_size.set(depends_on_percentage_block_size);
+        depends_on_percentage_block_size
+    }
+
+    pub(crate) fn skipped_child_depends_on_percentage_block_size(&self, node: Node) -> bool {
+        let unvisited_content_below_a_forwarding_box_is_assumed_dependent =
+            self.has_children(node) && self.passes_percentage_block_size_through_to_children(node);
+        self.own_style_depends_on_percentage_block_size(node)
+            || unvisited_content_below_a_forwarding_box_is_assumed_dependent
+    }
+
+    pub(crate) fn charge_measurement_dependency_to_measured_box_and_containing_block(
+        &self,
+        node: Node,
+        depends_on_percentage_block_size: bool,
+    ) {
+        if !depends_on_percentage_block_size {
+            return;
+        }
+        if let Some(record) = self.records.used_values_if_owned(node) {
+            record.depends_on_percentage_block_size.set(true);
+        }
+        propagate_percentage_block_size_dependency_to_containing_block(&self.records, &self.callbacks, node, true);
     }
 
     pub(crate) fn should_treat_inline_size_as_auto(&self, node: Node, available_space: AvailableSpace) -> bool {
@@ -1279,10 +1379,16 @@ impl SizingContext {
         node: Node,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
-    ) -> Option<CssPixels> {
-        self.callbacks
+    ) -> Option<IntrinsicBlockSizeMeasurement> {
+        let measurement = self
+            .callbacks
             .arena()
-            .intrinsic_block_size_cache_get(self.callbacks.node_data(node), kind, key)
+            .intrinsic_block_size_cache_get(self.callbacks.node_data(node), kind, key)?;
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            measurement.depends_on_percentage_block_size,
+        );
+        Some(measurement)
     }
 
     fn intrinsic_block_cache_put(
@@ -1290,7 +1396,7 @@ impl SizingContext {
         node: Node,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
-        value: CssPixels,
+        value: IntrinsicBlockSizeMeasurement,
     ) {
         self.callbacks
             .arena()
@@ -1303,11 +1409,16 @@ impl SizingContext {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
-        self.callbacks.arena().intrinsic_inline_size_measurement_cache_get(
+        let measurement = self.callbacks.arena().intrinsic_inline_size_measurement_cache_get(
             self.callbacks.node_data(node),
             kind,
             key,
-        )
+        )?;
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            measurement.depends_on_percentage_block_size,
+        );
+        Some(measurement)
     }
 
     fn intrinsic_inline_measurement_cache_put(
@@ -1353,6 +1464,7 @@ impl SizingContext {
                 first_baseline: used.first_baseline.get(),
                 has_last_baseline: used.has_last_baseline.get(),
                 last_baseline: used.last_baseline.get(),
+                depends_on_percentage_block_size: result.depends_on_percentage_block_size,
             },
         );
     }
@@ -1775,6 +1887,10 @@ impl SizingContext {
             .min_content_inline_size_from_max_content_layout
             .map(clamp_to_max_dimension_value);
         let value = result.automatic_content_inline_size;
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            result.depends_on_percentage_block_size,
+        );
         self.cache_intrinsic_inline_measurement(node, kind, key, &root, result, block_size);
         value
     }
@@ -1794,7 +1910,7 @@ impl SizingContext {
         };
         let key = cache_key(Some(inline_size), None, constraints);
         if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
-            return cached;
+            return cached.size;
         }
 
         let measurement = MeasurementState::create(self.callbacks);
@@ -1815,7 +1931,19 @@ impl SizingContext {
             ),
         );
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
-        self.intrinsic_block_cache_put(node, kind, key, value);
+        self.charge_measurement_dependency_to_measured_box_and_containing_block(
+            node,
+            result.depends_on_percentage_block_size,
+        );
+        self.intrinsic_block_cache_put(
+            node,
+            kind,
+            key,
+            IntrinsicBlockSizeMeasurement {
+                size: value,
+                depends_on_percentage_block_size: result.depends_on_percentage_block_size,
+            },
+        );
         value
     }
 

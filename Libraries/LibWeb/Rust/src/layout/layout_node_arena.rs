@@ -142,6 +142,13 @@ pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) first_baseline: CssPixels,
     pub(crate) has_last_baseline: bool,
     pub(crate) last_baseline: CssPixels,
+    pub(crate) depends_on_percentage_block_size: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IntrinsicBlockSizeMeasurement {
+    pub(crate) size: CssPixels,
+    pub(crate) depends_on_percentage_block_size: bool,
 }
 
 #[derive(Default)]
@@ -150,13 +157,16 @@ struct IntrinsicSizeMaps {
     inline_size_depends_on_block_size: Option<bool>,
     min_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
     max_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
-    min_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
-    max_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+    min_content_block_size: HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>,
+    max_content_block_size: HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>,
     table_cell_measurements: HashMap<TableCellMeasurementKey, TableCellMeasurement>,
 }
 
 impl IntrinsicSizeMaps {
-    fn block_sizes(&self, kind: IntrinsicSizeCacheKind) -> Option<&HashMap<IntrinsicSizeCacheKey, CssPixels>> {
+    fn block_sizes(
+        &self,
+        kind: IntrinsicSizeCacheKind,
+    ) -> Option<&HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
             IntrinsicSizeCacheKind::MinContentBlock => Some(&self.min_content_block_size),
@@ -167,7 +177,7 @@ impl IntrinsicSizeMaps {
     fn block_sizes_mut(
         &mut self,
         kind: IntrinsicSizeCacheKind,
-    ) -> Option<&mut HashMap<IntrinsicSizeCacheKey, CssPixels>> {
+    ) -> Option<&mut HashMap<IntrinsicSizeCacheKey, IntrinsicBlockSizeMeasurement>> {
         match kind {
             IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
             IntrinsicSizeCacheKind::MinContentBlock => Some(&mut self.min_content_block_size),
@@ -918,7 +928,7 @@ impl LayoutNodeArena {
         data: &NodeData,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
-    ) -> Option<CssPixels> {
+    ) -> Option<IntrinsicBlockSizeMeasurement> {
         assert!(
             matches!(
                 kind,
@@ -963,7 +973,7 @@ impl LayoutNodeArena {
         data: &NodeData,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
-        value: CssPixels,
+        value: IntrinsicBlockSizeMeasurement,
     ) {
         self.with_intrinsic_size_maps_mut(data, |maps| {
             maps.block_sizes_mut(kind)
@@ -1989,8 +1999,8 @@ mod tests {
     use std::cell::Cell;
 
     use crate::layout::layout_node_arena::{
-        Chunk, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena,
-        SLOTS_PER_CHUNK, TableCellMeasurement, TableCellMeasurementKey,
+        Chunk, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey,
+        IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK, TableCellMeasurement, TableCellMeasurementKey,
     };
     use crate::layout::node_data::{NodeFlag, NodeSlotId};
     use crate::layout::{
@@ -2176,7 +2186,10 @@ mod tests {
             measured_at_inline_size: Some(CssPixels::from_raw(64)),
             ..Default::default()
         };
-        let value = CssPixels::from_raw(128);
+        let value = IntrinsicBlockSizeMeasurement {
+            size: CssPixels::from_raw(128),
+            depends_on_percentage_block_size: false,
+        };
         let inline_measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(192),
             min_content_inline_size_from_max_content_layout: Some(CssPixels::from_raw(96)),
@@ -2189,6 +2202,7 @@ mod tests {
             first_baseline: CssPixels::from_raw(64),
             has_last_baseline: true,
             last_baseline: CssPixels::from_raw(128),
+            depends_on_percentage_block_size: false,
         };
         let dependency_computations = Cell::new(0);
 

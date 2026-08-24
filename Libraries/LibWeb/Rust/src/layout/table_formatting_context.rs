@@ -1146,15 +1146,24 @@ impl TableFormattingContext {
             }));
     }
 
+    // Participants resolve percentages against the table's input basis inside this context, so
+    // their dependency is charged here rather than through child runs.
     fn seed_table_participant_used_values(&mut self) {
-        for group in self.matching_children(self.table_box, |display| display.is_table_row_group_kind()) {
-            self.create_used_values(group, self.participant_constraints);
-        }
-        for row in &self.rows {
-            self.create_used_values(row.box_, self.participant_constraints);
-        }
-        for cell in &self.cells {
-            self.create_used_values(cell.box_, self.participant_constraints);
+        let participants: Vec<Node> = self
+            .matching_children(self.table_box, |display| display.is_table_row_group_kind())
+            .into_iter()
+            .chain(self.rows.iter().map(|row| row.box_))
+            .chain(self.cells.iter().map(|cell| cell.box_))
+            .collect();
+        let sizing = self.sizing();
+        let table_record = self.used_values(self.table_box);
+        for participant in participants {
+            self.create_used_values(participant, self.participant_constraints);
+            if sizing.own_style_depends_on_percentage_block_size(participant) {
+                table_record
+                    .has_descendant_that_depends_on_percentage_block_size
+                    .set(true);
+            }
         }
     }
 

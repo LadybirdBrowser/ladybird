@@ -1654,6 +1654,12 @@ impl BlockFormattingContext {
             // Keep the C++ behavior: diagnose and skip this unsupported box after its
             // vertical metrics have been resolved.
             eprintln!("FIXME: Block-level box is not BlockContainer but does not create formatting context");
+            crate::layout::propagate_percentage_block_size_dependency_to_containing_block(
+                &run.records,
+                &self.callbacks,
+                node,
+                self.sizing().resolve_percentage_block_size_dependency(node),
+            );
             return;
         }
 
@@ -1919,6 +1925,16 @@ impl BlockFormattingContext {
                 node,
                 inline_space_used_before_children_formatted,
                 list_item_first_baseline,
+            );
+        }
+
+        let dependency_was_not_reported_by_a_child_run = !has_independent_formatting_context;
+        if dependency_was_not_reported_by_a_child_run {
+            crate::layout::propagate_percentage_block_size_dependency_to_containing_block(
+                &run.records,
+                &self.callbacks,
+                node,
+                self.sizing().resolve_percentage_block_size_dependency(node),
             );
         }
 
