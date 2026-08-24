@@ -631,7 +631,7 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
         state.scroll_state_snapshot.clear();
         state.needs_to_refresh_scroll_state = true;
         if assignments_changed {
-            arena.clear_descendant_subtree_caches();
+            arena.mark_all_descendant_subtree_caches_dirty();
         }
         is_compatible
     })
@@ -794,7 +794,8 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             let command_cache_source = (!inputs.should_show_line_box_borders)
                 .then(|| paint_state.paint_command_cache_source.clone())
                 .flatten();
-            crate::painting::record::traversal::record_display_list(
+            arena.set_paint_recording_in_progress(true);
+            let output = crate::painting::record::traversal::record_display_list(
                 arena,
                 &paint_state,
                 &callbacks,
@@ -804,7 +805,9 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 paint_state.hit_test_list_generation + 1,
                 command_cache_source,
                 paint_state.hit_test_item_cache_source.clone(),
-            )
+            );
+            arena.set_paint_recording_in_progress(false);
+            output
         };
         let mut paint_state = arena.paint_state().borrow_mut();
         paint_state.hit_test_list_generation += 1;
@@ -830,6 +833,8 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let output = std::rc::Rc::new(output);
         if inputs.paint_command_cache_read_write {
             paint_state.paint_command_cache_source = Some(output.clone());
+            // Read-only recordings commit nothing and must not age dirty stamps out.
+            arena.note_paint_record_completed_with_cache_writes();
         }
         paint_state.last_recording = Some(output);
         list_generation_of(&paint_state)
@@ -1151,7 +1156,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(arena: *m
 pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_void) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.clear_all_paintable_paint_caches();
+        arena.mark_all_paint_caches_dirty();
     });
 }
 

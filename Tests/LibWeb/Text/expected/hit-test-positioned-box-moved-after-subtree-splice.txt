@@ -1,0 +1,2 @@
+hit at moved position:
+<DIV id="target">
