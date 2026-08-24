@@ -1024,27 +1024,32 @@ void WebContentView::update_vulkan_window_geometry()
 {
     if (m_vulkan_window_container)
         m_vulkan_window_container->setGeometry(rect());
-    update_vulkan_window_input_region();
+    update_vulkan_window_mask();
 }
 
-void WebContentView::update_vulkan_window_input_region()
+void WebContentView::update_vulkan_window_mask()
 {
     if (!m_vulkan_window || !m_vulkan_window_container)
         return;
 
-    // The strips overlaid by hover-expanded vertical tabs are painted transparent, but this native window still captures
-    // the pointer there. Exclude those strips from the input region so clicks fall through to the tab column beneath.
+    // Match the native window mask to the strips painted transparent for hover-expanded vertical tabs. On X11, the mask
+    // clips the window's bounding shape; on Wayland, it excludes those strips from the window's input region.
     auto size = m_vulkan_window_container->size();
-    QRegion input_region { QRect { QPoint { 0, 0 }, size } };
+    QRegion window_mask { QRect { QPoint { 0, 0 }, size } };
 
     if (m_vulkan_window_supports_alpha_blending.value_or(false)) {
         if (m_vertical_tab_overlay_left > 0)
-            input_region -= QRect { 0, 0, m_vertical_tab_overlay_left, size.height() };
+            window_mask -= QRect { 0, 0, m_vertical_tab_overlay_left, size.height() };
         if (m_vertical_tab_overlay_right > 0)
-            input_region -= QRect { size.width() - m_vertical_tab_overlay_right, 0, m_vertical_tab_overlay_right, size.height() };
+            window_mask -= QRect { size.width() - m_vertical_tab_overlay_right, 0, m_vertical_tab_overlay_right, size.height() };
     }
 
-    m_vulkan_window->setMask(input_region);
+    // QWindow interprets an empty mask as clearing the mask. Use a non-empty region outside the window to produce an
+    // empty effective bounding shape when the overlay strips cover the entire window.
+    if (window_mask.isEmpty() && !size.isEmpty())
+        window_mask += QRect { size.width(), size.height(), 1, 1 };
+
+    m_vulkan_window->setMask(window_mask);
 }
 
 void WebContentView::update_vulkan_alpha_blending_support()
@@ -1074,8 +1079,8 @@ void WebContentView::update_vulkan_alpha_blending_support()
     static constexpr auto blending_modes = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
     m_vulkan_window_supports_alpha_blending = (capabilities.supportedCompositeAlpha & blending_modes) != 0;
 
-    // The input mask was computed while support was still unknown; refresh it now that any stored insets can apply.
-    update_vulkan_window_input_region();
+    // The window mask was computed while support was still unknown; refresh it now that any stored insets can apply.
+    update_vulkan_window_mask();
 }
 
 void WebContentView::set_vulkan_window_cursor(QCursor const& cursor)

@@ -943,7 +943,7 @@ void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, 
     m_vertical_tab_overlay_left = left;
     m_vertical_tab_overlay_right = right;
 
-    update_vulkan_window_input_region();
+    update_vulkan_window_mask();
     schedule_repaint();
 #endif
 }

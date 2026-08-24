@@ -234,7 +234,7 @@ private:
 
     void create_vulkan_window();
     void destroy_vulkan_window();
-    void update_vulkan_window_input_region();
+    void update_vulkan_window_mask();
     void update_vulkan_alpha_blending_support();
     bool current_paintable_can_use_vulkan_window() const;
     void schedule_vulkan_window_update();
