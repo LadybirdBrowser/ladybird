@@ -118,19 +118,16 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
 
     auto const* first_letter_owner = node.first_letter_owner_for_layout_subtree_from(node);
 
-    bool has_pending_unboxed_child = false;
     bool pending_children_can_preserve_parent = true;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
         if (child->unsafe_layout_node()) {
             if (child->needs_layout_tree_update() || child->child_needs_layout_tree_update()) {
                 pending_children_can_preserve_parent = false;
-                break;
             }
             continue;
         }
         if (!child->needs_layout_tree_update())
             continue;
-        has_pending_unboxed_child = true;
         if (auto const* text = as_if<DOM::Text>(*child); text && text->data().is_ascii_whitespace()
             && layout_node->white_space_collapse() == CSS::WhiteSpaceCollapse::Collapse
             && !first_letter_owner) {
@@ -147,9 +144,10 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             break;
         }
     }
-    if (has_pending_unboxed_child && pending_children_can_preserve_parent) {
+    // An empty set means every insertion was canceled before layout. Moves are marked dirty at
+    // their destination, so they still enter one of the rejection paths above.
+    if (pending_children_can_preserve_parent)
         return true;
-    }
 
     auto parent_display = layout_node->display();
     auto parent_has_children = layout_node->has_children();
