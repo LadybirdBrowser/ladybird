@@ -39,12 +39,12 @@ bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) c
 
 MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
-    if (type == UIEvents::EventNames::pointermove) {
+    if (type == UIEvents::EventNames::pointermove || type == UIEvents::EventNames::pointerup) {
         if (!m_thumb_grab_position.has_value())
             return MouseAction::None;
-    } else if (button != UIEvents::MouseButton::Primary) {
-        return MouseAction::None;
     }
+    if (type != UIEvents::EventNames::pointermove && button != UIEvents::MouseButton::Primary)
+        return MouseAction::None;
 
     auto* node = layout_node();
     if (!node) {
