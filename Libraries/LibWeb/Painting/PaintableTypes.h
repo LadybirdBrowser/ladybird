@@ -67,7 +67,7 @@ struct SelectionStyle {
 };
 
 struct OverflowData {
-    CSSPixelRect scrollable_overflow_rect;
+    CSSPixelRect scrollable_overflow_rect_relative_to_padding_box;
     bool has_scrollable_overflow { false };
 };
 

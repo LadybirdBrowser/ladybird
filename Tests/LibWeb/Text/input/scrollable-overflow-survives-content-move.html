@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<div id="spacer" style="height: 50px;"></div>
+<div id="scroller" style="width: 200px; height: 100px; overflow: scroll;">
+    <div style="width: 350px; height: 700px;"></div>
+</div>
+<script src="include.js"></script>
+<script>
+    // Scrollable overflow is stored relative to the box's padding-box origin, so a box that
+    // merely moves (here: pushed down by a growing sibling while its own layout is reused)
+    // must keep identical scroll metrics without any stored-rect fixup.
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        scroller.scrollTop = 1e6;
+        scroller.scrollLeft = 1e6;
+        const before = {
+            scrollWidth: scroller.scrollWidth,
+            scrollHeight: scroller.scrollHeight,
+            scrollTop: scroller.scrollTop,
+            scrollLeft: scroller.scrollLeft,
+            offsetTop: scroller.offsetTop,
+        };
+
+        document.getElementById("spacer").style.height = "187px";
+        const movedBy = scroller.offsetTop - before.offsetTop;
+
+        println(`moved-by=${movedBy}`);
+        println(`scrollWidth unchanged: ${scroller.scrollWidth === before.scrollWidth}`);
+        println(`scrollHeight unchanged: ${scroller.scrollHeight === before.scrollHeight}`);
+        println(`clamped scrollTop unchanged: ${scroller.scrollTop === before.scrollTop}`);
+        println(`clamped scrollLeft unchanged: ${scroller.scrollLeft === before.scrollLeft}`);
+        println(`scrollWidth=${scroller.scrollWidth} scrollHeight=${scroller.scrollHeight}`);
+        println(`scrollTop=${scroller.scrollTop} scrollLeft=${scroller.scrollLeft}`);
+    });
+</script>

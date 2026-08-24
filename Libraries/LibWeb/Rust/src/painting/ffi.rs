@@ -248,9 +248,7 @@ pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut 
         let arena = unsafe { arena_from_handle_mut(arena) };
         let mut paintable_rows = arena.paintable_rows_mut();
         if paintable_rows.paintable_row_is_populated(slot) {
-            let data = paintable_rows.paintable_data_mut(slot);
-            data.overflow = FfiOverflowData::default();
-            data.has_overflow = false;
+            paintable_rows.paintable_data_mut(slot).overflow_measured_this_commit = false;
         }
     });
 }
@@ -264,9 +262,7 @@ pub unsafe extern "C" fn layout_arena_paintable_clear_cached_overflow_data(arena
         let arena = unsafe { arena_from_handle_mut(arena) };
         let mut paintable_rows = arena.paintable_rows_mut();
         if paintable_rows.paintable_row_is_populated(slot) {
-            let data = paintable_rows.paintable_data_mut(slot);
-            data.cached_overflow = FfiOverflowData::default();
-            data.has_cached_overflow = false;
+            paintable_rows.paintable_data_mut(slot).overflow_valid_across_recommits = false;
         }
     });
 }

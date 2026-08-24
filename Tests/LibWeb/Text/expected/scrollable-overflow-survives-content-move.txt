@@ -1,0 +1,7 @@
+moved-by=137
+scrollWidth unchanged: true
+scrollHeight unchanged: true
+clamped scrollTop unchanged: true
+clamped scrollLeft unchanged: true
+scrollWidth=350 scrollHeight=700
+scrollTop=600 scrollLeft=150

@@ -146,7 +146,7 @@ impl<'a> PaintableCommit<'a> {
         }
         let offsets_before_commit = std::mem::take(&mut self.offsets_before_commit);
         let arena = self.arena_mut();
-        let mut paintable_rows = arena.paintable_rows_mut();
+        let paintable_rows = arena.paintable_rows_mut();
         for root in roots {
             let delta = reused_subtree_absolute_position_delta(&paintable_rows, &offsets_before_commit, root);
             if delta == FfiCssPixelPoint::default() {
@@ -157,11 +157,6 @@ impl<'a> PaintableCommit<'a> {
                 slots.push(slot);
             });
             for slot in slots {
-                let data = paintable_rows.paintable_data_mut(slot);
-                if data.has_overflow {
-                    data.overflow.rect.x += delta.x;
-                    data.overflow.rect.y += delta.y;
-                }
                 paintable_rows.invalidate_paint_cache(slot);
             }
         }
@@ -305,8 +300,7 @@ impl<'a> PaintableCommit<'a> {
             let mut paintable_rows = arena.paintable_rows_mut();
             let data = paintable_rows.paintable_data_mut(node);
             if old_identity != fragment.identity {
-                data.cached_overflow = FfiOverflowData::default();
-                data.has_cached_overflow = false;
+                data.overflow_valid_across_recommits = false;
             }
             data.content_size = new_content_size;
             data.offset = link.committed_offset;

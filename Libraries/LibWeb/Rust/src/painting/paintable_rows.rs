@@ -310,8 +310,7 @@ where
             let data = self.paintable_data_mut(id);
             data.offset = FfiCssPixelPoint::default();
             data.content_size = FfiCssPixelSize::default();
-            data.overflow = FfiOverflowData::default();
-            data.has_overflow = false;
+            data.overflow_measured_this_commit = false;
             data.sticky_insets = FfiStickyInsets::default();
             data.has_sticky_insets = false;
             data.local_padding_box_union = FfiCssPixelRect::default();
