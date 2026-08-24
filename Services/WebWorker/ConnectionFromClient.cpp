@@ -87,6 +87,16 @@ void ConnectionFromClient::set_system_font_family(String family)
     Web::Platform::FontPlugin::the().set_system_font_family(FlyString { family });
 }
 
+void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
+{
+    auto parsed_data = Web::SiteCompatibilityData::from_json(data);
+    if (parsed_data.is_error()) {
+        warnln("Ignoring invalid site compatibility data: {}", parsed_data.error());
+        return;
+    }
+    Web::ResourceLoader::the().set_site_compatibility_data(parsed_data.release_value());
+}
+
 void ConnectionFromClient::close_worker()
 {
     async_did_close_worker();

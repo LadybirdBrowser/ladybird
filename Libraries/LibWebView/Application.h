@@ -8,6 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/Optional.h>
@@ -86,6 +87,8 @@ public:
     static BrowserOptions const& browser_options() { return the().m_browser_options; }
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
+    JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
+    ErrorOr<void> reload_site_compatibility_data();
 
     bool claim_cpu_profiler(ProcessType);
     void set_cpu_profiler_process(Core::Process);
@@ -461,6 +464,7 @@ private:
     Vector<int> m_cpu_profiler_signal_handlers;
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
+    JsonValue m_site_compatibility_data;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
 
     RefPtr<WebDriverBrowserConnection> m_webdriver_browser_connection;

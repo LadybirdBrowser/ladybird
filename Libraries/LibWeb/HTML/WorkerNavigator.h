@@ -51,6 +51,8 @@ public:
 private:
     explicit WorkerNavigator(WorkerGlobalScope&);
 
+    virtual URL::URL navigator_id_url() const override;
+
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^StorageAPI::NavigatorStorage

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const testID = crypto.randomUUID();
+
+        async function redirectedUserAgent(name, initialMatches, finalMatches, explicitUserAgent) {
+            const initialPath = `/site-compatibility-user-agent-${name}-initial-${testID}`;
+            const finalPath = `/site-compatibility-user-agent-${name}-final-${testID}`;
+            const finalURL = await server.createEcho("GET", finalPath, {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+                reflect_headers_in_body: true,
+            });
+            const initialURL = await server.createEcho("GET", initialPath, {
+                status: 302,
+                headers: { Location: finalURL },
+            });
+
+            const matches = [];
+            if (initialMatches)
+                matches.push(initialURL);
+            if (finalMatches)
+                matches.push(finalURL);
+            internals.setSiteCompatibilityData(JSON.stringify([{
+                matches,
+                user_agent: ["hide_Ladybird"],
+            }]));
+
+            const options = explicitUserAgent
+                ? { headers: { "User-Agent": explicitUserAgent } }
+                : {};
+            const response = await fetch(initialURL, options);
+            return (await response.json())["User-Agent"][0];
+        }
+
+        try {
+            const matchingTarget = await redirectedUserAgent("matching-target", false, true);
+            println(`non-matching to matching: ${matchingTarget.includes("Ladybird/") ? "FAIL" : "PASS"}`);
+
+            const nonMatchingTarget = await redirectedUserAgent("non-matching-target", true, false);
+            println(`matching to non-matching: ${nonMatchingTarget.includes("Ladybird/") ? "PASS" : "FAIL"}`);
+
+            const explicit = await redirectedUserAgent("explicit", true, true, "CustomAgent/42");
+            println(`explicit User-Agent preserved: ${explicit === "CustomAgent/42" ? "PASS" : "FAIL"}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            internals.setSiteCompatibilityData("[]");
+        }
+    });
+</script>

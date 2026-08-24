@@ -21,6 +21,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/NavigatorCompatibilityMode.h>
+#include <LibWeb/Loader/SiteCompatibility.h>
 
 namespace Web {
 
@@ -50,7 +51,10 @@ public:
     static bool is_known_hsts_host(Page&, String const& host);
 
     String const& user_agent() const { return m_user_agent; }
+    String user_agent_for_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_url(url, m_user_agent); }
+    String user_agent_for_websocket_url(URL::URL const& url) const { return m_site_compatibility_data.user_agent_for_websocket_url(url, m_user_agent); }
     void set_user_agent(String user_agent) { m_user_agent = move(user_agent); }
+    void set_site_compatibility_data(SiteCompatibilityData data) { m_site_compatibility_data = move(data); }
 
     String const& platform() const { return m_platform; }
     void set_platform(String platform) { m_platform = move(platform); }
@@ -92,6 +96,7 @@ private:
     HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
 
     String m_user_agent;
+    SiteCompatibilityData m_site_compatibility_data;
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;

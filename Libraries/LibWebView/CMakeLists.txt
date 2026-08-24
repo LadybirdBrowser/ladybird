@@ -46,6 +46,7 @@ set(SOURCES
     SessionHistoryTraversalQueue.cpp
     SessionStore.cpp
     Settings.cpp
+    SiteCompatibility.cpp
     SiteIsolation.cpp
     SiteIsolationManager.cpp
     SourceHighlighter.cpp

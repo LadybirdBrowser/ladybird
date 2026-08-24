@@ -21,7 +21,6 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CloseEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
@@ -194,7 +193,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         additional_headers->append({ "Cookie"sv, cookies.to_byte_string() });
     }
 
-    additional_headers->append({ "User-Agent"sv, Fetch::Infrastructure::default_user_agent_value() });
+    additional_headers->append({ "User-Agent"sv, ResourceLoader::the().user_agent_for_websocket_url(url_record).to_byte_string() });
 
     auto request_client = ResourceLoader::the().request_client();
 
