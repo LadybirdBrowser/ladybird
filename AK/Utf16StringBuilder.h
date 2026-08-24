@@ -81,12 +81,15 @@ public:
     void append(Utf16View const&);
     void append_ascii(char);
     void append_ascii(StringView);
+    void append_ascii_without_validation(ReadonlyBytes);
     void append_code_unit(char16_t);
     void append_code_point(u32);
     void append_repeated_ascii(char, size_t);
     void append_repeated(Utf16View const&, size_t);
     void append_escaped_for_json(StringView);
     void append_escaped_for_json(Utf16View const&);
+    void append_quoted_escaped_for_json(StringView);
+    void append_quoted_escaped_for_json(Utf16View const&);
 
     ErrorOr<void> try_append(char);
     ErrorOr<void> try_append(StringView);
