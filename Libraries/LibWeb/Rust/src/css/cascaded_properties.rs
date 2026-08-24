@@ -1049,10 +1049,10 @@ pub struct FfiCascadeResolutionContext {
     pub callback_context: *mut c_void,
     pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     pub evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
+    pub lookup_final_custom_property: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> *const c_void>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
     pub cache_parsed_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16, *const c_void)>,
-    pub resolve_not_handled: Option<unsafe extern "C" fn(*mut c_void, u16, *const c_void) -> *const c_void>,
 }
 
 /// Source assignments produced by a completed cascade.
@@ -1253,52 +1253,30 @@ pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(storage: *mut c
 #[allow(clippy::arc_with_non_send_sync)]
 fn resolve_cascade_value(
     resolution_context: &FfiCascadeResolutionContext,
+    resolution_environment: Option<&mut crate::css::custom_properties::VarResolutionEnvironment>,
     style_engine_rule_id: u32,
     property_id: u16,
     unresolved_data: *const c_void,
     has_style_sheet_context: bool,
 ) -> ResolvedStyleValue {
-    let native_resolution = unsafe {
-        crate::css::custom_properties::resolve_vars(
-            resolution_context.custom_property_store,
-            resolution_context.inheritance_custom_property_store,
-            resolution_context.custom_property_registry,
-            resolution_context.root_custom_property_name,
-            unresolved_data,
-            resolution_context.attributes,
-            resolution_context.attribute_count,
-            resolution_context.attribute_names_are_ascii_case_insensitive,
-            resolution_context.custom_functions,
-            resolution_context.custom_function_count,
-            resolution_context.custom_function_scope_identity,
-            resolution_context.resolve_custom_function,
-            resolution_context.callback_context,
-            resolution_context.evaluate_condition,
-        )
+    let native_resolution = match resolution_environment {
+        Some(resolution_environment) => unsafe {
+            crate::css::custom_properties::resolve_vars(
+                resolution_context.custom_property_store,
+                resolution_context.inheritance_custom_property_store,
+                resolution_context.custom_property_registry,
+                resolution_context.root_custom_property_name,
+                unresolved_data,
+                resolution_environment,
+                resolution_context.attribute_names_are_ascii_case_insensitive,
+                resolution_context.resolve_custom_function,
+                resolution_context.callback_context,
+                resolution_context.evaluate_condition,
+                resolution_context.lookup_final_custom_property,
+            )
+        },
+        None => crate::css::custom_properties::NativeVarResolution::NotHandled,
     };
-    if matches!(
-        &native_resolution,
-        crate::css::custom_properties::NativeVarResolution::NotHandled
-    ) {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionOracleCallback);
-        let data = resolution_context
-            .resolve_not_handled
-            .map_or(std::ptr::null(), |resolve| unsafe {
-                resolve(resolution_context.callback_context, property_id, unresolved_data)
-            });
-        let value = if data.is_null() {
-            RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
-        } else {
-            unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
-            }
-        };
-        return ResolvedStyleValue {
-            value,
-            has_style_sheet_context,
-        };
-    }
-
     if let Some(note_substitution) = resolution_context.note_substitution {
         unsafe { note_substitution(resolution_context.callback_context, unresolved_data) };
     }
@@ -1372,7 +1350,9 @@ fn resolve_cascade_value(
         crate::css::custom_properties::NativeVarResolution::Invalid => {
             std::sync::Arc::new(StyleValueData::GuaranteedInvalid)
         }
-        crate::css::custom_properties::NativeVarResolution::NotHandled => unreachable!(),
+        crate::css::custom_properties::NativeVarResolution::NotHandled => {
+            std::sync::Arc::new(StyleValueData::GuaranteedInvalid)
+        }
     };
     if substitution_is_cacheable && let Some(cache) = resolution_context.cache_parsed_substitution {
         unsafe {
@@ -1402,7 +1382,23 @@ pub unsafe extern "C" fn rust_resolve_unresolved_style_value(
 ) -> *const c_void {
     crate::abort_on_panic(|| {
         let resolution_context = unsafe { &*resolution_context };
-        let resolved = resolve_cascade_value(resolution_context, 0, property_id, unresolved_data, false);
+        let mut resolution_environment = unsafe {
+            crate::css::custom_properties::prepare_var_resolution_environment(
+                resolution_context.attributes,
+                resolution_context.attribute_count,
+                resolution_context.custom_functions,
+                resolution_context.custom_function_count,
+                resolution_context.custom_function_scope_identity,
+            )
+        };
+        let resolved = resolve_cascade_value(
+            resolution_context,
+            resolution_environment.as_mut(),
+            0,
+            property_id,
+            unresolved_data,
+            false,
+        );
         let pointer = resolved.value.pointer().cast();
         std::mem::forget(resolved.value);
         pointer
@@ -1448,6 +1444,15 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             unsafe { std::slice::from_raw_parts(blocks, block_count) }
         };
         let resolution_context = unsafe { resolution_context.as_ref() };
+        let mut resolution_environment = resolution_context.and_then(|resolution_context| unsafe {
+            crate::css::custom_properties::prepare_var_resolution_environment(
+                resolution_context.attributes,
+                resolution_context.attribute_count,
+                resolution_context.custom_functions,
+                resolution_context.custom_function_count,
+                resolution_context.custom_function_scope_identity,
+            )
+        });
 
         let application_order = cascade_application_order(blocks, author_context_count);
         let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
@@ -1490,6 +1495,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 &mut |style_engine_rule_id, property_id, unresolved_data, has_style_sheet_context| {
                     resolve_cascade_value(
                         resolution_context.expect("unresolved declarations require a resolution context"),
+                        resolution_environment.as_mut(),
                         style_engine_rule_id,
                         property_id,
                         unresolved_data,

@@ -1,0 +1,16 @@
+<!doctype html>
+<div id="parent">
+    <div id="child"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parentElement = document.getElementById("parent");
+        const childElement = document.getElementById("child");
+        parentElement.style.setProperty("--x", "green");
+        childElement.style.setProperty("--x", "var(--y)");
+        childElement.style.setProperty("--y", "inherit(--x)");
+
+        println(getComputedStyle(childElement).getPropertyValue("--x"));
+    });
+</script>

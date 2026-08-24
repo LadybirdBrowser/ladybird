@@ -2318,6 +2318,13 @@ pub unsafe extern "C" fn rust_style_value_computed_percentage(value: *const c_vo
 }
 
 impl StyleValueData {
+    pub(crate) fn unresolved_authored_source(&self) -> Option<TokenizerInput<'_>> {
+        let Self::Unresolved { source_text, .. } = self else {
+            return None;
+        };
+        Some(source_text.as_units())
+    }
+
     pub(crate) fn unresolved_token_source(&self) -> Option<TokenizerInput<'_>> {
         let Self::Unresolved {
             source_text,
