@@ -1,0 +1,21 @@
+append sheet with multiple CSS-connected faces: 1
+Batch face count after append: 4
+Document target width after BatchFamilyA loads: 100
+remove sheet with multiple CSS-connected faces: 1
+Batch face count after removal: 0
+append first repeated sheet: 1
+RepeatedBatch face count after first append: 2
+append second repeated sheet: 1
+RepeatedBatch face count after second append: 4
+remove first repeated sheet: 1
+RepeatedBatch face count after first removal: 2
+remove second repeated sheet: 1
+RepeatedBatch face count after second removal: 0
+append shadow sheet with multiple CSS-connected faces: 1
+ShadowBatch face count after append: 2
+Shadow target width after ShadowBatchA loads: 100
+remove shadow sheet with multiple CSS-connected faces: 1
+ShadowBatch face count after removal: 0
+add unloaded script-created face: 0
+load script-created face: 1
+delete loaded script-created face: 1

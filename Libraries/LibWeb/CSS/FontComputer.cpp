@@ -10,6 +10,7 @@
 
 #include "FontComputer.h"
 #include <AK/Platform.h>
+#include <AK/ScopeGuard.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
@@ -749,7 +750,7 @@ Gfx::Font const& FontComputer::initial_font() const
     return font;
 }
 
-static bool style_value_references_font_family(StyleValue const& font_family_value, Utf16FlyString const& family_name)
+static bool style_value_references_any_font_family(StyleValue const& font_family_value, Vector<Utf16FlyString> const& family_names)
 {
     if (!font_family_value.is_value_list())
         return false;
@@ -760,37 +761,46 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
 
         auto item_family_name = string_from_style_value(*item);
 
-        if (item_family_name.equals_ignoring_ascii_case(family_name))
+        if (any_of(family_names, [&](auto const& family_name) { return item_family_name.equals_ignoring_ascii_case(family_name); }))
             return true;
     }
     return false;
 }
 
-static bool computed_font_families_reference_family(ReadonlySpan<ComputedFontFamily const> font_families, Utf16FlyString const& family_name)
+static bool computed_font_families_reference_any_family(ReadonlySpan<ComputedFontFamily const> font_families, Vector<Utf16FlyString> const& family_names)
 {
     return any_of(font_families, [&](ComputedFontFamily const& family) {
         return family.has<ComputedFontFamilyName>()
-            && family.get<ComputedFontFamilyName>().name.equals_ignoring_ascii_case(family_name);
+            && any_of(family_names, [&](auto const& family_name) { return family.get<ComputedFontFamilyName>().name.equals_ignoring_ascii_case(family_name); });
     });
 }
 
-static bool font_values_reference_font_family(ComputedValues::FontValues const& font_values, Utf16FlyString const& family_name)
+static bool font_values_reference_any_font_family(ComputedValues::FontValues const& font_values, Vector<Utf16FlyString> const& family_names)
 {
     auto font_family = font_values.font_family_style_value();
-    return font_family && style_value_references_font_family(*font_family, family_name);
+    return font_family && style_value_references_any_font_family(*font_family, family_names);
 }
 
 void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 {
+    Vector<Utf16FlyString> family_names;
+    family_names.append(family_name);
+    clear_computed_font_cache_for_families(family_names);
+}
+
+void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names)
+{
+    VERIFY(!family_names.is_empty());
+
     // Only clear cache entries that reference the loaded font family.
     m_computed_font_cache.remove_all_matching([&](auto const& key, auto const&) {
-        return computed_font_families_reference_family(key.font_families, family_name);
+        return computed_font_families_reference_any_family(key.font_families, family_names);
     });
 
     auto element_uses_font_family = [&](DOM::Element const& element) {
         // Check the element's own font-family.
         if (auto const* values = element.style_group<ComputedValues::FontValues>()) {
-            if (font_values_reference_font_family(*values, family_name))
+            if (font_values_reference_any_font_family(*values, family_names))
                 return true;
         }
 
@@ -798,7 +808,7 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
         bool synthetic_pseudo_element_uses_font_family = false;
         element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element, Web::DOM::SyntheticPseudoElement const&) {
             if (auto const* values = element.style_group<ComputedValues::FontValues>(pseudo_element)) {
-                if (font_values_reference_font_family(*values, family_name)) {
+                if (font_values_reference_any_font_family(*values, family_names)) {
                     synthetic_pseudo_element_uses_font_family = true;
                     return IterationDecision::Break;
                 }
@@ -831,10 +841,36 @@ void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_
 
 void FontComputer::did_load_font(Utf16FlyString const& family_name)
 {
+    if (m_font_face_change_batch_depth > 0) {
+        if (!any_of(m_batched_font_face_change_families, [&](auto const& existing_family_name) { return existing_family_name.equals_ignoring_ascii_case(family_name); }))
+            m_batched_font_face_change_families.append(family_name);
+        return;
+    }
+
     // What a computation resolves a family to is not named by any word of a style input record, so
     // the records taken before this font arrived answer for nothing.
     m_document->bump_style_environment_version();
     clear_computed_font_cache(family_name);
+}
+
+void FontComputer::begin_font_face_change_batch()
+{
+    ++m_font_face_change_batch_depth;
+}
+
+void FontComputer::end_font_face_change_batch()
+{
+    VERIFY(m_font_face_change_batch_depth > 0);
+    --m_font_face_change_batch_depth;
+
+    if (m_font_face_change_batch_depth > 0 || m_batched_font_face_change_families.is_empty())
+        return;
+
+    // What a computation resolves a family to is not named by any word of a style input record, so
+    // the records taken before these fonts arrived answer for nothing.
+    m_document->bump_style_environment_version();
+    clear_computed_font_cache_for_families(m_batched_font_face_change_families);
+    m_batched_font_face_change_families.clear();
 }
 
 void FontComputer::register_font_face(GC::Ref<FontFace> face)
@@ -946,6 +982,11 @@ static void for_each_effective_font_rule(CSSStyleSheet& sheet, Function<void(CSS
 
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
+    begin_font_face_change_batch();
+    ScopeGuard finish_font_face_change_batch = [&] {
+        end_font_face_change_batch();
+    };
+
     for_each_effective_font_rule(sheet, [&](auto& rule) {
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
             if (!font_face_rule->is_valid())
@@ -962,6 +1003,11 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 
 void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
 {
+    begin_font_face_change_batch();
+    ScopeGuard finish_font_face_change_batch = [&] {
+        end_font_face_change_batch();
+    };
+
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
     for_each_nested_font_rule(sheet.rules(), [&](auto& rule) {
