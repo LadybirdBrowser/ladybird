@@ -9,8 +9,8 @@
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/ContainerQuery.h>
-#include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/RustQueryHandle.h>
 
 namespace Web::CSS::Parser {
 
@@ -29,17 +29,15 @@ public:
     };
 
     static Vector<NonnullRefPtr<MediaQuery>> parse_media_query_list(Parser&, Utf16View);
-    static OwnPtr<BooleanExpression> parse_media_condition(Parser&, Utf16View);
-    static OwnPtr<BooleanExpression> parse_media_feature(Parser&, Utf16View);
+    static Optional<RustQueryHandle> parse_media_condition(Parser&, Utf16View);
+    static Optional<RustQueryHandle> parse_media_feature(Parser&, Utf16View);
     static RefPtr<Supports> parse_supports(Parser&, Utf16View);
-    static OwnPtr<BooleanExpression> parse_supports_condition(Parser&, Utf16View);
-    static OwnPtr<BooleanExpression> parse_supports_declaration(Parser&, Utf16View);
-    static OwnPtr<BooleanExpression> parse_style_query(Parser&, Utf16View);
+    static Optional<RustQueryHandle> parse_supports_condition(Parser&, Utf16View);
+    static Optional<RustQueryHandle> parse_supports_declaration(Parser&, Utf16View);
+    static Optional<RustQueryHandle> parse_style_query(Parser&, Utf16View);
     static Optional<Vector<ContainerCondition>> parse_container_condition_list(Parser&, Utf16View);
     static RefPtr<StyleValue const> parse_source_size_value(Parser&, Utf16View);
     static Optional<Vector<SizesAttributeEntry>> split_sizes_attribute(Utf16View);
-    static Optional<FeatureValue> parse_media_feature_value(Parser&, MediaFeatureID, Utf16View);
-    static Optional<FeatureValue> parse_size_feature_value(Parser&, SizeFeatureID, Utf16View);
     static bool evaluate_supports_feature(void*, ValueParserFFI::FfiSupportsFeatureKind, ValueParserFFI::FfiUtf16View);
 };
 

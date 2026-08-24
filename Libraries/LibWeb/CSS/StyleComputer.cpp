@@ -295,26 +295,30 @@ static u8 evaluate_condition_for_substitution(AbstractOrHypotheticalElement elem
 {
     auto source_view = utf16_view(source);
     auto parser = Parser::Parser::create(Parser::ParsingParams { element.document() }, source_view);
-    OwnPtr<BooleanExpression> expression;
+    Optional<RustQueryHandle> query;
     if (kind == 0) {
-        expression = Parser::RustQueryParser::parse_media_feature(parser, source_view);
-        if (!expression)
-            expression = Parser::RustQueryParser::parse_media_condition(parser, source_view);
+        query = Parser::RustQueryParser::parse_media_feature(parser, source_view);
+        if (!query.has_value())
+            query = Parser::RustQueryParser::parse_media_condition(parser, source_view);
     } else if (kind == 1) {
-        expression = Parser::RustQueryParser::parse_supports_declaration(parser, source_view);
-        if (!expression)
-            expression = Parser::RustQueryParser::parse_supports_condition(parser, source_view);
+        query = Parser::RustQueryParser::parse_supports_declaration(parser, source_view);
+        if (!query.has_value())
+            query = Parser::RustQueryParser::parse_supports_condition(parser, source_view);
     } else {
         VERIFY(kind == 2);
-        expression = Parser::RustQueryParser::parse_style_query(parser, source_view);
+        query = Parser::RustQueryParser::parse_style_query(parser, source_view);
     }
-    if (!expression)
+    if (!query.has_value())
         return 2;
     prepare_for_style_query_evaluation();
-    auto matches = expression->evaluate_to_boolean({
-        .document = &element.document(),
-        .style_query_element = element,
-    });
+    bool matches = false;
+    if (kind == 0) {
+        matches = evaluate_media_condition(*query, MediaEnvironmentSnapshot { element.document() }) == MatchResult::True;
+    } else if (kind == 1) {
+        matches = Parser::ValueParserFFI::css_query_evaluate_supports(query->data()) == to_underlying(MatchResult::True);
+    } else {
+        matches = evaluate_style_query(*query, element) == MatchResult::True;
+    }
     return style_query_cycle_detected() ? 3 : matches;
 }
 

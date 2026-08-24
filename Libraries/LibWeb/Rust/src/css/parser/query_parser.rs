@@ -11,7 +11,6 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
 };
-use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, NumericRange, ParseContext, equals_ascii_case_insensitive,
@@ -1189,64 +1188,6 @@ where
     Some(result)
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiQueryValue {
-    pub value_type: u8,
-    pub source_offset: usize,
-    pub source_length: usize,
-    pub name_offset: usize,
-    pub name_length: usize,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiQueryNode {
-    pub node_type: u8,
-    pub feature_id: u8,
-    pub feature_type: u8,
-    pub match_result: u8,
-    pub first_comparison: u8,
-    pub second_comparison: u8,
-    pub name_offset: usize,
-    pub name_length: usize,
-    pub children_start: usize,
-    pub child_count: usize,
-    pub values_start: usize,
-    pub value_count: usize,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiMediaQuery {
-    pub negated: bool,
-    pub valid: bool,
-    pub has_media_type: bool,
-    pub has_condition: bool,
-    pub media_type_offset: usize,
-    pub media_type_length: usize,
-    pub condition: usize,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiQueryParseData {
-    pub syntax: FfiSyntaxParseData,
-    pub nodes: *const FfiQueryNode,
-    pub node_count: usize,
-    pub node_indices: *const usize,
-    pub node_index_count: usize,
-    pub query_values: *const FfiQueryValue,
-    pub query_value_count: usize,
-    pub media_queries: *const FfiMediaQuery,
-    pub media_query_count: usize,
-    pub query_handles: *const *const FfiQueryHandle,
-    pub query_handle_count: usize,
-    pub root: usize,
-    pub has_root: bool,
-    pub root_handle: *const FfiQueryHandle,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 enum QueryTree {
     MediaQuery(MediaQuery),
@@ -2353,380 +2294,15 @@ fn evaluate_media_query(
     result
 }
 
-pub struct FfiQueryParse {
-    syntax: FfiSyntaxParse,
-    nodes: Vec<FfiQueryNode>,
-    node_indices: Vec<usize>,
-    query_values: Vec<FfiQueryValue>,
-    media_queries: Vec<FfiMediaQuery>,
-    query_handles: Vec<*const FfiQueryHandle>,
-    root: Option<usize>,
-    root_handle: *const FfiQueryHandle,
-}
-
-// Query handles are confined to the WebContent thread. Arc provides an FFI-friendly atomic
-// reference count, while the parser's immutable component tree still uses thread-local Rc storage.
-#[allow(clippy::arc_with_non_send_sync)]
-impl FfiQueryParse {
-    fn new() -> Self {
-        Self {
-            syntax: FfiSyntaxParse::new(std::ptr::null(), None, false),
-            nodes: Vec::new(),
-            node_indices: Vec::new(),
-            query_values: Vec::new(),
-            media_queries: Vec::new(),
-            query_handles: Vec::new(),
-            root: None,
-            root_handle: std::ptr::null(),
-        }
-    }
-
-    fn append_name(&mut self, name: &[u16]) -> (usize, usize) {
-        self.syntax.append_value(name)
-    }
-
-    fn append_query_value(&mut self, value: &StyleRangeValue) -> usize {
-        let (value_type, source_offset, source_length, name_offset, name_length) = match value {
-            StyleRangeValue::Property(name) => {
-                let (name_offset, name_length) = self.append_name(name.as_ref());
-                (1, 0, 0, name_offset, name_length)
-            }
-            StyleRangeValue::Components(components) => {
-                let source = crate::css::serialize::serialize_component_values_to_utf16(
-                    components,
-                    crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-                );
-                let (source_offset, source_length) = self.syntax.append_value(&source);
-                (0, source_offset, source_length, 0, 0)
-            }
-        };
-        let index = self.query_values.len();
-        self.query_values.push(FfiQueryValue {
-            value_type,
-            source_offset,
-            source_length,
-            name_offset,
-            name_length,
-        });
-        index
-    }
-
-    fn append_feature_value(&mut self, value: &QueryFeatureValue) -> usize {
-        let source = crate::css::serialize::serialize_component_values_to_utf16(
-            &value.components,
-            crate::css::parser::component_value::ComponentSerializationMode::PreserveNumericSource,
-        );
-        let (source_offset, source_length) = self.syntax.append_value(&source);
-        let index = self.query_values.len();
-        self.query_values.push(FfiQueryValue {
-            value_type: 0,
-            source_offset,
-            source_length,
-            name_offset: 0,
-            name_length: 0,
-        });
-        index
-    }
-
-    fn append_children(&mut self, children: &[Expression]) -> (usize, usize) {
-        let indices = children
-            .iter()
-            .map(|child| self.append_expression(child))
-            .collect::<Vec<_>>();
-        let start = self.node_indices.len();
-        self.node_indices.extend(indices);
-        (start, children.len())
-    }
-
-    fn append_expression(&mut self, expression: &Expression) -> usize {
-        let mut node = FfiQueryNode {
-            node_type: 0,
-            feature_id: 0,
-            feature_type: 0,
-            match_result: 0,
-            first_comparison: 0,
-            second_comparison: 0,
-            name_offset: 0,
-            name_length: 0,
-            children_start: 0,
-            child_count: 0,
-            values_start: 0,
-            value_count: 0,
-        };
-        match expression {
-            Expression::Not(child) => {
-                node.node_type = 0;
-                let child = self.append_expression(child);
-                node.children_start = self.node_indices.len();
-                node.child_count = 1;
-                self.node_indices.push(child);
-            }
-            Expression::And(children) => {
-                node.node_type = 1;
-                (node.children_start, node.child_count) = self.append_children(children);
-            }
-            Expression::Or(children) => {
-                node.node_type = 2;
-                (node.children_start, node.child_count) = self.append_children(children);
-            }
-            Expression::InParens(child) => {
-                node.node_type = 3;
-                let child = self.append_expression(child);
-                node.children_start = self.node_indices.len();
-                node.child_count = 1;
-                self.node_indices.push(child);
-            }
-            Expression::GeneralEnclosed { component, result } => {
-                node.node_type = 4;
-                node.match_result = *result as u8;
-                (node.name_offset, node.name_length) = self
-                    .syntax
-                    .append_value(&component.original_source_text.iter().collect::<Vec<_>>());
-            }
-            Expression::GeneralEnclosedValues { components, result } => {
-                node.node_type = 4;
-                node.match_result = *result as u8;
-                let source = components
-                    .iter()
-                    .flat_map(|component| component.original_source_text.iter())
-                    .collect::<Vec<_>>();
-                (node.name_offset, node.name_length) = self.syntax.append_value(&source);
-            }
-            Expression::QueryFeature(feature) => {
-                node.node_type = 5;
-                match feature {
-                    QueryFeature::Boolean { id } => {
-                        node.feature_id = *id;
-                        node.feature_type = 0;
-                    }
-                    QueryFeature::Plain { id, name_type, value } => {
-                        node.feature_id = *id;
-                        node.feature_type = match name_type {
-                            FeatureNameType::Normal => 1,
-                            FeatureNameType::Min => 2,
-                            FeatureNameType::Max => 3,
-                        };
-                        node.values_start = self.append_feature_value(value);
-                        node.value_count = 1;
-                    }
-                    QueryFeature::Range { id, left, right } => {
-                        node.feature_id = *id;
-                        node.feature_type = 4;
-                        let start = self.query_values.len();
-                        if let Some((value, comparison)) = left {
-                            node.first_comparison = *comparison as u8;
-                            self.append_feature_value(value);
-                        }
-                        if let Some((comparison, value)) = right {
-                            if left.is_some() {
-                                node.second_comparison = *comparison as u8;
-                            } else {
-                                node.first_comparison = *comparison as u8;
-                            }
-                            self.append_feature_value(value);
-                        }
-                        node.values_start = start;
-                        node.value_count = self.query_values.len() - start;
-                        node.match_result = u8::from(left.is_some()) | (u8::from(right.is_some()) << 1);
-                    }
-                }
-            }
-            Expression::SupportsFeature(feature) => {
-                node.node_type = match feature {
-                    SupportsFeature::Declaration { .. } => 6,
-                    SupportsFeature::Selector { .. } => 7,
-                    SupportsFeature::FontTech { .. } => 8,
-                    SupportsFeature::FontFormat { .. } => 9,
-                    SupportsFeature::AtRule { .. } => 10,
-                    SupportsFeature::Env { .. } => 11,
-                };
-                node.match_result = match feature {
-                    SupportsFeature::Declaration { matches, .. }
-                    | SupportsFeature::Selector { matches, .. }
-                    | SupportsFeature::FontTech { matches, .. }
-                    | SupportsFeature::FontFormat { matches, .. }
-                    | SupportsFeature::AtRule { matches, .. }
-                    | SupportsFeature::Env { matches, .. } => {
-                        if *matches {
-                            MatchResult::True as u8
-                        } else {
-                            MatchResult::False as u8
-                        }
-                    }
-                };
-                match feature {
-                    SupportsFeature::Declaration { components, .. } | SupportsFeature::Selector { components, .. } => {
-                        let source = components
-                            .iter()
-                            .flat_map(|component| component.original_source_text.iter())
-                            .collect::<Vec<_>>();
-                        let (source_offset, source_length) = self.syntax.append_value(&source);
-                        node.values_start = self.query_values.len();
-                        node.value_count = 1;
-                        self.query_values.push(FfiQueryValue {
-                            value_type: 0,
-                            source_offset,
-                            source_length,
-                            name_offset: 0,
-                            name_length: 0,
-                        });
-                    }
-                    SupportsFeature::FontTech { name, .. }
-                    | SupportsFeature::FontFormat { name, .. }
-                    | SupportsFeature::AtRule { name, .. }
-                    | SupportsFeature::Env { name, .. } => {
-                        (node.name_offset, node.name_length) = self.append_name(name.as_ref());
-                    }
-                }
-            }
-            Expression::StyleFunction(child) => {
-                node.node_type = 12;
-                let child = self.append_expression(child);
-                node.children_start = self.node_indices.len();
-                node.child_count = 1;
-                self.node_indices.push(child);
-            }
-            Expression::StyleFeature(feature) => match feature {
-                StyleFeature::Boolean(name) => {
-                    node.node_type = 13;
-                    (node.name_offset, node.name_length) = self.append_name(name.as_ref());
-                }
-                StyleFeature::Plain {
-                    name,
-                    value,
-                    original_source,
-                    original_value_source,
-                } => {
-                    node.node_type = 14;
-                    (node.name_offset, node.name_length) = self.append_name(name.as_ref());
-                    node.values_start = self.append_query_value(&StyleRangeValue::Components(value.clone()));
-                    node.value_count = 1;
-                    (node.children_start, node.child_count) = self.append_name(original_source.as_ref());
-                    let (offset, length) = self.append_name(original_value_source.as_ref());
-                    self.query_values[node.values_start].name_offset = offset;
-                    self.query_values[node.values_start].name_length = length;
-                }
-                StyleFeature::Range {
-                    left,
-                    left_comparison,
-                    middle,
-                    right,
-                } => {
-                    node.node_type = 15;
-                    node.first_comparison = *left_comparison as u8;
-                    node.values_start = self.query_values.len();
-                    self.append_query_value(left);
-                    self.append_query_value(middle);
-                    if let Some((comparison, right)) = right {
-                        node.second_comparison = *comparison as u8;
-                        self.append_query_value(right);
-                    }
-                    node.value_count = self.query_values.len() - node.values_start;
-                }
-            },
-        }
-        let index = self.nodes.len();
-        self.nodes.push(node);
-        index
-    }
-
-    fn append_media_query(&mut self, query: &MediaQuery) {
-        let (media_type_offset, media_type_length) = query
-            .media_type
-            .as_ref()
-            .map_or((0, 0), |name| self.append_name(name.as_ref()));
-        let condition = query
-            .condition
-            .as_ref()
-            .map(|condition| self.append_expression(condition));
-        self.media_queries.push(FfiMediaQuery {
-            negated: query.negated,
-            valid: query.valid,
-            has_media_type: query.media_type.is_some(),
-            has_condition: condition.is_some(),
-            media_type_offset,
-            media_type_length,
-            condition: condition.unwrap_or(0),
-        });
-        self.query_handles.push(Arc::into_raw(Arc::new(FfiQueryHandle {
-            tree: QueryTree::MediaQuery(query.clone()),
-        })));
-    }
-
-    fn append_container_condition(&mut self, condition: &ContainerCondition) {
-        let (name_offset, name_length) = condition
-            .name
-            .as_ref()
-            .map_or((0, 0), |name| self.append_name(name.as_ref()));
-        let query = condition.query.as_ref().map(|query| self.append_expression(query));
-        self.media_queries.push(FfiMediaQuery {
-            negated: false,
-            valid: true,
-            has_media_type: condition.name.is_some(),
-            has_condition: query.is_some(),
-            media_type_offset: name_offset,
-            media_type_length: name_length,
-            condition: query.unwrap_or(0),
-        });
-        self.query_handles
-            .push(condition.query.as_ref().map_or(std::ptr::null(), |query| {
-                Arc::into_raw(Arc::new(FfiQueryHandle {
-                    tree: QueryTree::Expression {
-                        expression: query.clone(),
-                        kind: QueryKind::Size,
-                    },
-                }))
-            }));
-    }
-
-    fn data(&self) -> FfiQueryParseData {
-        FfiQueryParseData {
-            syntax: self.syntax.data(),
-            nodes: self.nodes.as_ptr(),
-            node_count: self.nodes.len(),
-            node_indices: self.node_indices.as_ptr(),
-            node_index_count: self.node_indices.len(),
-            query_values: self.query_values.as_ptr(),
-            query_value_count: self.query_values.len(),
-            media_queries: self.media_queries.as_ptr(),
-            media_query_count: self.media_queries.len(),
-            query_handles: self.query_handles.as_ptr(),
-            query_handle_count: self.query_handles.len(),
-            root: self.root.unwrap_or(0),
-            has_root: self.root.is_some(),
-            root_handle: self.root_handle,
-        }
-    }
-
-    fn set_root(&mut self, expression: &Expression, kind: QueryKind) {
-        self.root = Some(self.append_expression(expression));
-        self.root_handle = Arc::into_raw(Arc::new(FfiQueryHandle {
-            tree: QueryTree::Expression {
-                expression: expression.clone(),
-                kind,
-            },
-        }));
-    }
-}
-
-impl Drop for FfiQueryParse {
-    fn drop(&mut self) {
-        for handle in &self.query_handles {
-            if !handle.is_null() {
-                drop(unsafe { Arc::from_raw(*handle) });
-            }
-        }
-        if !self.root_handle.is_null() {
-            drop(unsafe { Arc::from_raw(self.root_handle) });
-        }
-    }
-}
-
 type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
 
 type EvaluateSupportsFeature = unsafe extern "C" fn(*mut c_void, FfiSupportsFeatureKind, FfiUtf16View) -> bool;
 
 type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
+
+type VisitQueryHandle = unsafe extern "C" fn(*mut c_void, *const FfiQueryHandle);
+
+type VisitContainerCondition = unsafe extern "C" fn(*mut c_void, *const u16, usize, bool, *const FfiQueryHandle);
 
 type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
 
@@ -2787,26 +2363,41 @@ fn ffi_supports_evaluator(
     }
 }
 
+/// Parses a media-query list and visits each resulting retained query tree.
+///
 /// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
+/// The source pointers must identify readable storage for the duration of the call. The callback
+/// must be valid and may retain a query handle with `css_query_ref`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_media_query_list(
+#[allow(clippy::arc_with_non_send_sync)]
+pub unsafe extern "C" fn rust_visit_media_query_list(
     source: FfiUtf16View,
     resolve_feature: ResolveQueryFeature,
-) -> *mut FfiQueryParse {
+    context: *mut c_void,
+    visit: VisitQueryHandle,
+) -> bool {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
+            return false;
         };
         let Some(queries) = parse_media_query_list(source, &ffi_resolver(resolve_feature)) else {
-            return std::ptr::null_mut();
+            return false;
         };
-        let mut parse = FfiQueryParse::new();
-        for query in &queries {
-            parse.append_media_query(query);
+        for query in queries {
+            let handle = Arc::new(FfiQueryHandle {
+                tree: QueryTree::MediaQuery(query),
+            });
+            unsafe { visit(context, Arc::as_ptr(&handle)) };
         }
-        Box::into_raw(Box::new(parse))
+        true
     })
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+fn create_expression_handle(expression: Expression, kind: QueryKind) -> *const FfiQueryHandle {
+    Arc::into_raw(Arc::new(FfiQueryHandle {
+        tree: QueryTree::Expression { expression, kind },
+    }))
 }
 
 /// # Safety
@@ -2815,20 +2406,18 @@ pub unsafe extern "C" fn rust_parse_media_query_list(
 pub unsafe extern "C" fn rust_parse_media_condition(
     source: FfiUtf16View,
     resolve_feature: ResolveQueryFeature,
-) -> *mut FfiQueryParse {
+) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(values) = components_from_source(source) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(expression) = parse_media_condition(&values, &ffi_resolver(resolve_feature)) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
-        let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression, QueryKind::Media);
-        Box::into_raw(Box::new(parse))
+        create_expression_handle(expression, QueryKind::Media)
     })
 }
 
@@ -2838,17 +2427,15 @@ pub unsafe extern "C" fn rust_parse_media_condition(
 pub unsafe extern "C" fn rust_parse_media_feature(
     source: FfiUtf16View,
     resolve_feature: ResolveQueryFeature,
-) -> *mut FfiQueryParse {
+) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(expression) = parse_media_feature_from_source(source, &ffi_resolver(resolve_feature)) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
-        let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression, QueryKind::Media);
-        Box::into_raw(Box::new(parse))
+        create_expression_handle(expression, QueryKind::Media)
     })
 }
 
@@ -2859,18 +2446,16 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
     source: FfiUtf16View,
     context: *mut c_void,
     evaluate_feature: EvaluateSupportsFeature,
-) -> *mut FfiQueryParse {
+) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(expression) = parse_supports_condition(source, &ffi_supports_evaluator(context, evaluate_feature))
         else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
-        let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression, QueryKind::Supports);
-        Box::into_raw(Box::new(parse))
+        create_expression_handle(expression, QueryKind::Supports)
     })
 }
 
@@ -2881,19 +2466,17 @@ pub unsafe extern "C" fn rust_parse_supports_declaration(
     source: FfiUtf16View,
     context: *mut c_void,
     evaluate_feature: EvaluateSupportsFeature,
-) -> *mut FfiQueryParse {
+) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(expression) =
             parse_supports_declaration_from_source(source, &ffi_supports_evaluator(context, evaluate_feature))
         else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
-        let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression, QueryKind::Supports);
-        Box::into_raw(Box::new(parse))
+        create_expression_handle(expression, QueryKind::Supports)
     })
 }
 
@@ -2903,49 +2486,60 @@ pub unsafe extern "C" fn rust_parse_supports_declaration(
 pub unsafe extern "C" fn rust_parse_style_query(
     source: FfiUtf16View,
     resolve_feature: ResolveQueryFeature,
-) -> *mut FfiQueryParse {
+) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(expression) = parse_style_query_from_source(source, &ffi_resolver(resolve_feature)) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
-        let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression, QueryKind::Style);
-        Box::into_raw(Box::new(parse))
+        create_expression_handle(expression, QueryKind::Style)
     })
 }
 
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_container_condition_list(
-    source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
-) -> *mut FfiQueryParse {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(conditions) = parse_container_condition_list(source, &ffi_resolver(resolve_feature)) else {
-            return std::ptr::null_mut();
-        };
-        let mut parse = FfiQueryParse::new();
-        for condition in &conditions {
-            parse.append_container_condition(condition);
-        }
-        Box::into_raw(Box::new(parse))
-    })
-}
-
-/// Returns borrowed arena slices which remain live until `rust_query_parse_free`.
+/// Parses a container-condition list and visits each condition name and optional retained tree.
 ///
 /// # Safety
-/// `parse` must be a live pointer returned by a query parsing function.
+/// The source pointers must identify readable storage for the duration of the call. The callback
+/// must be valid and may retain a query handle with `css_query_ref`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_query_parse_data(parse: *const FfiQueryParse) -> FfiQueryParseData {
-    crate::abort_on_panic(|| unsafe { &*parse }.data())
+#[allow(clippy::arc_with_non_send_sync)]
+pub unsafe extern "C" fn rust_visit_container_condition_list(
+    source: FfiUtf16View,
+    resolve_feature: ResolveQueryFeature,
+    context: *mut c_void,
+    visit: VisitContainerCondition,
+) -> bool {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return false;
+        };
+        let Some(conditions) = parse_container_condition_list(source, &ffi_resolver(resolve_feature)) else {
+            return false;
+        };
+        for condition in conditions {
+            let query_handle = condition.query.map(|expression| {
+                Arc::new(FfiQueryHandle {
+                    tree: QueryTree::Expression {
+                        expression,
+                        kind: QueryKind::Size,
+                    },
+                })
+            });
+            let (name, has_name) = condition.name.as_deref().map_or((&[][..], false), |name| (name, true));
+            unsafe {
+                visit(
+                    context,
+                    name.as_ptr(),
+                    name.len(),
+                    has_name,
+                    query_handle.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
+                );
+            };
+        }
+        true
+    })
 }
 
 /// Adds one strong reference to a borrowed query handle.
@@ -3138,13 +2732,12 @@ pub unsafe extern "C" fn css_query_evaluate_container(handle: *const FfiQueryHan
         let Some(handle) = (unsafe { handle.as_ref() }) else {
             return MatchResult::Unknown as u8;
         };
-        let QueryTree::Expression {
-            expression,
-            kind: QueryKind::Size,
-        } = &handle.tree
-        else {
+        let QueryTree::Expression { expression, kind } = &handle.tree else {
             return MatchResult::Unknown as u8;
         };
+        if !matches!(kind, QueryKind::Size | QueryKind::Style) {
+            return MatchResult::Unknown as u8;
+        }
         if !facts.container_available {
             return MatchResult::Unknown as u8;
         }
@@ -3182,17 +2775,6 @@ pub unsafe extern "C" fn css_query_serialize_condition(
         unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
         true
     })
-}
-
-/// # Safety
-/// `parse` must be null or a live pointer returned by a query parsing function, and may be freed once.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_query_parse_free(parse: *mut FfiQueryParse) {
-    crate::abort_on_panic(|| {
-        if !parse.is_null() {
-            drop(unsafe { Box::from_raw(parse) });
-        }
-    });
 }
 
 #[cfg(test)]
@@ -3319,5 +2901,57 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn serializes_media_feature_values_from_generated_metadata() {
+        let serialize = |feature_name: &str, source: &[u8]| {
+            let id = MEDIA_FEATURES
+                .iter()
+                .position(|metadata| metadata.name == feature_name)
+                .and_then(|id| u8::try_from(id).ok())
+                .unwrap();
+            let value = QueryFeatureValue {
+                components: components_from_source(source).unwrap(),
+            };
+            let mut sink = TextSink::new();
+            serialize_query_feature_value(&mut sink, &value, id, QueryKind::Media);
+            String::from_utf16(&sink.into_utf16()).unwrap()
+        };
+
+        assert_eq!(serialize("aspect-ratio", b"1/3"), "1 / 3");
+        assert_eq!(serialize("device-aspect-ratio", b"4 / 3"), "4 / 3");
+        assert_eq!(serialize("resolution", b"calc(1x + 2x)"), "calc(3dppx)");
+    }
+
+    #[test]
+    fn container_requirement_bits_cover_every_ffi_capability() {
+        let requirement_for_id = |id| container_requirements(&Expression::QueryFeature(QueryFeature::Boolean { id }));
+        assert_eq!(
+            requirement_for_id(0),
+            CONTAINER_QUERY_REQUIRES_WIDTH | CONTAINER_QUERY_REQUIRES_HEIGHT
+        );
+        assert_eq!(requirement_for_id(1), CONTAINER_QUERY_REQUIRES_BLOCK_SIZE);
+        assert_eq!(requirement_for_id(2), CONTAINER_QUERY_REQUIRES_HEIGHT);
+        assert_eq!(requirement_for_id(3), CONTAINER_QUERY_REQUIRES_INLINE_SIZE);
+        assert_eq!(requirement_for_id(5), CONTAINER_QUERY_REQUIRES_WIDTH);
+        assert_eq!(requirement_for_id(u8::MAX), CONTAINER_QUERY_HAS_UNKNOWN_FEATURE);
+        assert_eq!(CONTAINER_QUERY_REQUIRES_SCROLL_STATE, 1 << 5);
+
+        let style = Expression::StyleFunction(Box::new(Expression::And(Vec::new())));
+        assert_eq!(container_requirements(&style), CONTAINER_QUERY_REQUIRES_STYLE);
+    }
+
+    #[test]
+    fn rejects_non_supports_handles_without_panicking() {
+        let handle = FfiQueryHandle {
+            tree: QueryTree::Expression {
+                expression: Expression::And(Vec::new()),
+                kind: QueryKind::Media,
+            },
+        };
+
+        assert_eq!(unsafe { css_query_evaluate_supports(std::ptr::null()) }, 3);
+        assert_eq!(unsafe { css_query_evaluate_supports(&handle) }, 3);
     }
 }

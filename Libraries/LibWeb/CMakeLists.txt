@@ -91,7 +91,6 @@ set(SOURCES
     Crypto/SubtleCrypto.cpp
     CSS/Angle.cpp
     CSS/AnimationEvent.cpp
-    CSS/BooleanExpression.cpp
     CSS/CascadedProperties.cpp
     CSS/Clip.cpp
     CSS/ComputedStyleWorkingSet.cpp
@@ -170,7 +169,6 @@ set(SOURCES
     CSS/Display.cpp
     CSS/EasingFunction.cpp
     CSS/EdgeRect.cpp
-    CSS/FeatureQuery.cpp
     CSS/Fetch.cpp
     CSS/Flex.cpp
     CSS/FontComputer.cpp

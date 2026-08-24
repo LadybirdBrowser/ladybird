@@ -2321,7 +2321,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiValueParsingContext".to_string(),
         "FfiValueParsingContextKind".to_string(),
         "FfiUtf16View".to_string(),
-        "FfiQueryNode".to_string(),
         "FfiQueryHandle".to_string(),
         "EvaluateSupportsFeature".to_string(),
         "FfiSupportsFeatureKind".to_string(),
@@ -2334,9 +2333,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiMediaEnvironment".to_string(),
         "FfiMediaFeatureValue".to_string(),
         "FfiMediaFeatureValueKind".to_string(),
-        "FfiQueryParseData".to_string(),
-        "FfiQueryValue".to_string(),
-        "FfiMediaQuery".to_string(),
         "ParseContext".to_string(),
     ];
 
