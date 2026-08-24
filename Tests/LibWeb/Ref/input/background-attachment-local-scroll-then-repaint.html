@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/background-attachment-local-scroll-then-repaint-ref.html">
+<style>
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow: scroll;
+        background-image: linear-gradient(to bottom, red 0px, red 50px, blue 50px, blue 100px, yellow 100px, yellow 150px, green 150px, green 400px);
+        background-attachment: local;
+        background-repeat: no-repeat;
+    }
+    #spacer { height: 400px; }
+    #unrelated { width: 40px; height: 40px; background: gray; }
+</style>
+<div id="scroller"><div id="spacer"></div></div>
+<div id="unrelated"></div>
+<script>
+    // Paint once, then scroll the local-attachment scroller and force a display list
+    // re-record via an unrelated style change. The re-recorded background must reflect
+    // the new scroll offset instead of splicing the capture from before the scroll.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("scroller").scrollTop = 75;
+            document.getElementById("unrelated").style.background = "black";
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

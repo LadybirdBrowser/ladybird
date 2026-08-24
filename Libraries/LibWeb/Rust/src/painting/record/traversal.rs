@@ -644,7 +644,10 @@ impl PaintRecorder<'_> {
         );
         let is_nested = self.nested.is_some();
         let data = self.data(paintable);
+        // Scrolling repaints without invalidating paint caches, so scroll-offset-dependent
+        // captures can never be reused.
         let skip_cache = data.has_fixed_background_visual_context
+            || (data.has_scroll_offset_dependent_background && phase == PaintPhase::Background)
             || (data.kind.foreground_is_never_cached() && phase == PaintPhase::Foreground);
         if skip_cache {
             self.prevent_descendant_subtree_caching();

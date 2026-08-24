@@ -538,8 +538,7 @@ pub(crate) fn compute_effects_data(
     needs_layer.then_some(effects)
 }
 
-fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'_>) -> bool {
-    use crate::css::css_enums::keyword::FIXED;
+fn any_background_layer_has_an_image_with_attachment(style: ComputedValuesView<'_>, wanted_attachment: u16) -> bool {
     let background = style.background();
     let Some(image_value) = style_queries::handle_value(&background.background_image) else {
         return false;
@@ -552,8 +551,29 @@ fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'
     image_items.iter().enumerate().any(|(index, image)| {
         let attachment = attachment_items[index % attachment_items.len()];
         style_queries::is_abstract_image(image)
-            && matches!(attachment, StyleValueData::Keyword { keyword } if *keyword == FIXED)
+            && matches!(attachment, StyleValueData::Keyword { keyword } if *keyword == wanted_attachment)
     })
+}
+
+fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'_>) -> bool {
+    any_background_layer_has_an_image_with_attachment(style, crate::css::css_enums::keyword::FIXED)
+}
+
+pub(crate) fn background_depends_on_live_scroll_offset(
+    layout_arena: &impl PaintableRowsRead,
+    root_background_source: crate::painting::host::FfiRootBackgroundSource,
+    node: NodeSlotId,
+    may_be_root_element: bool,
+) -> bool {
+    let is_root_element = may_be_root_element && style_queries::node_is_root_element(layout_arena, node);
+    let mut background_layers_node = node;
+    if is_root_element && root_background_source.use_body_background_properties {
+        background_layers_node = root_background_source.body_layout_node;
+    }
+    let Some(background_style) = layout_arena.node_style_if_live(background_layers_node) else {
+        return false;
+    };
+    any_background_layer_has_an_image_with_attachment(background_style, crate::css::css_enums::keyword::LOCAL)
 }
 
 pub(crate) fn wants_fixed_background_visual_context(
