@@ -807,12 +807,6 @@ pub(crate) enum ChildLayoutOutcome {
     ReenterCurrent,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct MeasuredCellContent {
-    pub content_block_size: CssPixels,
-    pub first_baseline: CssPixels,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SizingAxis {
     Inline,

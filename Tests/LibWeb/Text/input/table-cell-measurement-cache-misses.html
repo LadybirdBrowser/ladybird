@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    table { border-collapse: collapse; width: 400px; }
+    td { padding: 0 4px; font: 12px monospace; vertical-align: middle; }
+    td.num { width: 1%; position: relative; }
+    .marker { position: absolute; left: 0; top: 0; width: 8px; height: 8px; background: green; }
+</style>
+<table id="table"><tbody id="rows"></tbody></table>
+<script>
+    test(() => {
+        const ROWS = 40;
+        const parts = [];
+        for (let i = 0; i < ROWS; ++i)
+            parts.push(`<tr><td class="num">${i}</td><td class="num">${i}</td><td>line ${i} with <span>some</span> <b>markup</b></td></tr>`);
+        document.getElementById("rows").innerHTML = parts.join("");
+        const cells = document.querySelectorAll("td");
+        const table = document.getElementById("table");
+
+        const lines = [];
+        const missesAfterLayout = () => {
+            document.body.offsetHeight;
+            return internals.tableCellMeasurementCacheMissCount();
+        };
+
+        let misses = missesAfterLayout();
+        lines.push(`cells: ${cells.length}`);
+        lines.push(`misses during the initial layout: ${misses}`);
+
+        table.style.marginTop = "10px";
+        let previous = misses;
+        misses = missesAfterLayout();
+        lines.push(`misses after restyling the table: ${misses - previous}`);
+
+        const heightBefore = table.getBoundingClientRect().height;
+        const marker = document.createElement("span");
+        marker.className = "marker";
+        cells[3].appendChild(marker);
+        previous = misses;
+        misses = missesAfterLayout();
+        lines.push(`misses after inserting an abspos marker into one cell: ${misses - previous}`);
+        lines.push(`table height unchanged by the marker: ${table.getBoundingClientRect().height === heightBefore}`);
+
+        cells[8].firstChild.data = "changed";
+        previous = misses;
+        misses = missesAfterLayout();
+        lines.push(`misses after changing the text of another cell: ${misses - previous}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

@@ -7,8 +7,12 @@
 use crate::abort_on_panic;
 use crate::layout::AbsposLayoutInputs;
 use crate::layout::AvailableSize;
+use crate::layout::AvailableSpace;
 use crate::layout::CssPixels;
+use crate::layout::DerivedBaselines;
 use crate::layout::FfiReplacedContentFacts;
+use crate::layout::LayoutMode;
+use crate::layout::SizeConstraint;
 use crate::layout::UsedValues;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use std::cell::Cell;
@@ -70,6 +74,54 @@ impl Hash for IntrinsicSizeCacheKey {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TableCellMeasurementKey {
+    pub(crate) layout_mode: LayoutMode,
+    pub(crate) available_space: AvailableSpace,
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
+    pub(crate) has_definite_inline_size: bool,
+    pub(crate) has_definite_block_size: bool,
+    pub(crate) inline_size_constraint: SizeConstraint,
+    pub(crate) block_size_constraint: SizeConstraint,
+    pub(crate) uses_collapsing_borders_model: bool,
+    pub(crate) adopt_automatic_content_block_size: bool,
+}
+
+impl Hash for TableCellMeasurementKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        fn hash_available_size<H: Hasher>(size: AvailableSize, state: &mut H) {
+            match size {
+                AvailableSize::Definite(value) => {
+                    0u8.hash(state);
+                    value.raw_value().hash(state);
+                }
+                AvailableSize::Indefinite => 1u8.hash(state),
+                AvailableSize::MinContent => 2u8.hash(state),
+                AvailableSize::MaxContent => 3u8.hash(state),
+            }
+        }
+
+        (self.layout_mode as u8).hash(state);
+        hash_available_size(self.available_space.inline_size, state);
+        hash_available_size(self.available_space.block_size, state);
+        self.content_inline_size.raw_value().hash(state);
+        self.content_block_size.raw_value().hash(state);
+        self.has_definite_inline_size.hash(state);
+        self.has_definite_block_size.hash(state);
+        (self.inline_size_constraint as u8).hash(state);
+        (self.block_size_constraint as u8).hash(state);
+        self.uses_collapsing_borders_model.hash(state);
+        self.adopt_automatic_content_block_size.hash(state);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TableCellMeasurement {
+    pub(crate) automatic_content_block_size: CssPixels,
+    pub(crate) baselines: DerivedBaselines,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum IntrinsicSizeCacheKind {
     MinContentInline,
     MaxContentInline,
@@ -100,6 +152,7 @@ struct IntrinsicSizeMaps {
     max_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
     min_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
     max_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+    table_cell_measurements: HashMap<TableCellMeasurementKey, TableCellMeasurement>,
 }
 
 impl IntrinsicSizeMaps {
@@ -255,6 +308,7 @@ pub(crate) struct LayoutNodeArena {
     next_index: u32,
     live_count: u32,
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
+    table_cell_measurement_cache_misses: Cell<u64>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
@@ -279,6 +333,7 @@ impl LayoutNodeArena {
             next_index: 0,
             live_count: 0,
             intrinsic_size_caches: RefCell::new(Vec::new()),
+            table_cell_measurement_cache_misses: Cell::new(0),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
@@ -984,6 +1039,40 @@ impl LayoutNodeArena {
                 .expect("inline measurement cache kind must use the inline axis")
                 .insert(key, value);
         });
+    }
+
+    pub(crate) fn table_cell_measurement_cache_get(
+        &self,
+        data: &NodeData,
+        key: TableCellMeasurementKey,
+    ) -> Option<TableCellMeasurement> {
+        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let caches = self.intrinsic_size_caches.borrow();
+        let slot = caches.get(index as usize)?;
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+            return None;
+        }
+        slot.sizes.as_ref()?.table_cell_measurements.get(&key).copied()
+    }
+
+    pub(crate) fn table_cell_measurement_cache_put(
+        &self,
+        data: &NodeData,
+        key: TableCellMeasurementKey,
+        value: TableCellMeasurement,
+    ) {
+        self.with_intrinsic_size_maps_mut(data, |maps| {
+            maps.table_cell_measurements.insert(key, value);
+        });
+    }
+
+    pub(crate) fn note_table_cell_measurement_cache_miss(&self) {
+        self.table_cell_measurement_cache_misses
+            .set(self.table_cell_measurement_cache_misses.get() + 1);
+    }
+
+    pub(crate) fn table_cell_measurement_cache_miss_count(&self) -> u64 {
+        self.table_cell_measurement_cache_misses.get()
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, data: *const NodeData) -> Option<AbsposLayoutInputs> {
@@ -1730,6 +1819,16 @@ pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void)
     })
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_table_cell_measurement_cache_miss_count(arena: *mut c_void) -> u64 {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &*arena.cast::<LayoutNodeArena>() }.table_cell_measurement_cache_miss_count()
+    })
+}
+
 /// # Safety
 ///
 /// The arena must remain valid for the duration of the call, and `id` must
@@ -1891,10 +1990,12 @@ mod tests {
 
     use crate::layout::layout_node_arena::{
         Chunk, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena,
-        SLOTS_PER_CHUNK,
+        SLOTS_PER_CHUNK, TableCellMeasurement, TableCellMeasurementKey,
     };
     use crate::layout::node_data::{NodeFlag, NodeSlotId};
-    use crate::layout::{AvailableSize, CssPixels, Fragment, FragmentLink};
+    use crate::layout::{
+        AvailableSize, AvailableSpace, CssPixels, DerivedBaselines, Fragment, FragmentLink, LayoutMode, SizeConstraint,
+    };
 
     fn test_fragment_link(node: NodeSlotId) -> FragmentLink {
         FragmentLink {
@@ -2156,6 +2257,61 @@ mod tests {
             ),
             None
         );
+        arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn table_cell_measurements_follow_the_intrinsic_cache_epoch() {
+        let mut arena = LayoutNodeArena::new();
+        let first = arena.allocate();
+        let key = TableCellMeasurementKey {
+            layout_mode: LayoutMode::Normal,
+            available_space: AvailableSpace {
+                inline_size: AvailableSize::definite(CssPixels::from_raw(640)),
+                block_size: AvailableSize::Indefinite,
+            },
+            content_inline_size: CssPixels::from_raw(640),
+            content_block_size: CssPixels::default(),
+            has_definite_inline_size: true,
+            has_definite_block_size: false,
+            inline_size_constraint: SizeConstraint::None,
+            block_size_constraint: SizeConstraint::None,
+            uses_collapsing_borders_model: true,
+            adopt_automatic_content_block_size: true,
+        };
+        let value = TableCellMeasurement {
+            automatic_content_block_size: CssPixels::from_raw(320),
+            baselines: DerivedBaselines {
+                first: Some(CssPixels::from_raw(64)),
+                last: None,
+            },
+        };
+
+        // SAFETY: The allocation remains live until it is explicitly freed below.
+        let first_data = unsafe { &mut *first.data };
+        assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
+        arena.table_cell_measurement_cache_put(first_data, key, value);
+        assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), Some(value));
+        let percentage_resolved_key = TableCellMeasurementKey {
+            content_block_size: CssPixels::from_raw(512),
+            has_definite_block_size: true,
+            adopt_automatic_content_block_size: false,
+            ..key
+        };
+        assert_eq!(
+            arena.table_cell_measurement_cache_get(first_data, percentage_resolved_key),
+            None
+        );
+
+        first_data.intrinsic_cache_epoch += 1;
+        assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
+        arena.free(first.slot, first.generation);
+
+        let second = arena.allocate();
+        assert_eq!(second.slot.slot_index(), first.slot.slot_index());
+        // SAFETY: The second allocation is live and reuses the first allocation's slot.
+        let second_data = unsafe { &*second.data };
+        assert_eq!(arena.table_cell_measurement_cache_get(second_data, key), None);
         arena.free(second.slot, second.generation);
     }
 }

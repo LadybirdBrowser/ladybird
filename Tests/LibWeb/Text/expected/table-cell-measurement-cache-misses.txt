@@ -1,0 +1,6 @@
+cells: 120
+misses during the initial layout: 120
+misses after restyling the table: 0
+misses after inserting an abspos marker into one cell: 1
+table height unchanged by the marker: true
+misses after changing the text of another cell: 1
