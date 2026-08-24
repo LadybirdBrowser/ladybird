@@ -1046,6 +1046,7 @@ pub struct FfiCascadeResolutionContext {
     pub custom_function_count: usize,
     pub custom_function_scope_identity: usize,
     pub callback_context: *mut c_void,
+    pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     pub evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
@@ -1268,6 +1269,7 @@ fn resolve_cascade_value(
             resolution_context.custom_functions,
             resolution_context.custom_function_count,
             resolution_context.custom_function_scope_identity,
+            resolution_context.resolve_custom_function,
             resolution_context.callback_context,
             resolution_context.evaluate_condition,
         )

@@ -3030,6 +3030,45 @@ fn resolve_calculated_without_context(
     resolve_calculated_with_length_resolution(calculated, percentage_basis, LengthResolution::default())
 }
 
+pub(crate) fn collapse_calculated_without_context(
+    calculated: &crate::css::style_value::StyleValueData,
+) -> Option<crate::css::style_value::StyleValueData> {
+    use crate::css::style_value::StyleValueData;
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    let canonical_unit = |ratios: &[f64]| ratios.iter().position(|&ratio| ratio == 1.0).map(|unit| unit as u8);
+    if numeric_type.matches_number(resolve_as) {
+        return Some(StyleValueData::Number { value });
+    }
+    if numeric_type.matches_percentage() {
+        return Some(StyleValueData::Percentage { value });
+    }
+    if numeric_type.matches_dimension(0, resolve_as) {
+        return Some(StyleValueData::Length {
+            value,
+            unit: crate::css::style_compute::px_length_unit(),
+        });
+    }
+    if numeric_type.matches_dimension(1, resolve_as) {
+        return Some(StyleValueData::Angle {
+            value,
+            unit: canonical_unit(&ANGLE_UNIT_CANONICAL_RATIOS)?,
+        });
+    }
+    if numeric_type.matches_dimension(2, resolve_as) {
+        return Some(StyleValueData::Time {
+            value,
+            unit: canonical_unit(&TIME_UNIT_CANONICAL_RATIOS)?,
+        });
+    }
+    if numeric_type.matches_dimension(4, resolve_as) {
+        return Some(StyleValueData::Resolution {
+            value,
+            unit: canonical_unit(&RESOLUTION_UNIT_CANONICAL_RATIOS)?,
+        });
+    }
+    None
+}
+
 /// Resolves a calculated value that must produce a number, with no external
 /// context; the equivalent of the C++ resolve_number with an empty context.
 pub(crate) fn resolve_calculated_number_without_context(

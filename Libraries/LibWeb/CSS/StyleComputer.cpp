@@ -2925,7 +2925,11 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     };
     Vector<SubstitutionFunctionDefinition> substitution_functions;
     if (has_custom_function_declarations) {
-        abstract_element.style_scope().for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+        Function<void(StyleScope::FunctionDefinitionAndScope const&)> append_function = [&](StyleScope::FunctionDefinitionAndScope const& definition) {
+            for (auto const& existing : substitution_functions) {
+                if (existing.function == definition.function)
+                    return;
+            }
             SubstitutionFunctionDefinition snapshot {
                 .function = definition.function,
                 .scope = &definition.scope,
@@ -2951,7 +2955,10 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 });
             });
             substitution_functions.append(move(snapshot));
-        });
+        };
+        abstract_element.style_scope().for_each_visible_function_definition(append_function);
+        for (size_t index = 0; index < substitution_functions.size(); ++index)
+            substitution_functions[index].scope->for_each_visible_function_definition(append_function);
     }
     Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_substitution_functions;
     ffi_substitution_functions.ensure_capacity(substitution_functions.size());
@@ -2994,6 +3001,11 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         .custom_function_count = ffi_substitution_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&abstract_element.style_scope()),
         .callback_context = &bulk_context,
+        .resolve_custom_function = [](size_t scope_identity, ComputedValuesFFI::FfiUtf16View name) -> size_t {
+            auto& scope = *bit_cast<StyleScope const*>(scope_identity);
+            auto definition = scope.get_function_definition(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length }));
+            return definition.has_value() ? bit_cast<FlatPtr>(definition->function) : 0;
+        },
         .evaluate_condition = [](void* context, u8 kind, ComputedValuesFFI::FfiUtf16View source) -> u8 {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             auto source_view = Utf16View { reinterpret_cast<char16_t const*>(source.utf16), source.length };
@@ -6001,7 +6013,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
         Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
     };
     Vector<FunctionDefinition> functions;
-    element.style_scope().for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+    Function<void(StyleScope::FunctionDefinitionAndScope const&)> append_function = [&](StyleScope::FunctionDefinitionAndScope const& definition) {
+        for (auto const& existing : functions) {
+            if (existing.function == definition.function)
+                return;
+        }
         FunctionDefinition snapshot {
             .function = definition.function,
             .scope = &definition.scope,
@@ -6023,7 +6039,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
             snapshot.declarations.append({ .name = name.to_utf16_string(), .data = value->rust_style_value_data() });
         });
         functions.append(move(snapshot));
-    });
+    };
+    element.style_scope().for_each_visible_function_definition(append_function);
+    for (size_t index = 0; index < functions.size(); ++index)
+        functions[index].scope->for_each_visible_function_definition(append_function);
     Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_functions;
     ffi_functions.ensure_capacity(functions.size());
     for (auto& definition : functions) {
@@ -6069,6 +6088,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
         .custom_function_count = ffi_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&element.style_scope()),
         .callback_context = &element,
+        .resolve_custom_function = [](size_t scope_identity, ComputedValuesFFI::FfiUtf16View name) -> size_t {
+            auto& scope = *bit_cast<StyleScope const*>(scope_identity);
+            auto definition = scope.get_function_definition(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length }));
+            return definition.has_value() ? bit_cast<FlatPtr>(definition->function) : 0;
+        },
         .evaluate_condition = [](void* context, u8 kind, ComputedValuesFFI::FfiUtf16View source) -> u8 {
             auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
             auto source_view = Utf16View { reinterpret_cast<char16_t const*>(source.utf16), source.length };
