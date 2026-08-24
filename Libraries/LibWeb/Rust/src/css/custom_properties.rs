@@ -278,6 +278,8 @@ enum TokenResolution {
 struct VarResolutionContext<'a> {
     active_names: Vec<Vec<u16>>,
     cyclic_names: HashSet<Vec<u16>>,
+    active_attributes: Vec<Vec<u16>>,
+    cyclic_attributes: HashSet<Vec<u16>>,
     attributes: Option<&'a HashMap<Vec<u16>, Vec<u16>>>,
     inheritance_store: Option<&'a CustomPropertyStore>,
     attribute_names_are_ascii_case_insensitive: bool,
@@ -779,6 +781,18 @@ fn resolve_custom_property_with_lookup(
         context.function_local_scopes.extend(child_scopes);
         return result;
     }
+    if context.cyclic_names.contains(name) {
+        return TokenResolution::Cyclic;
+    }
+    if let Some(cycle_start) = context.active_names.iter().position(|active_name| active_name == name) {
+        // https://drafts.csswg.org/css-variables-1/#cycles
+        // If there is a cycle in the dependency graph, all the custom properties in the cycle
+        // are invalid at computed-value time.
+        context
+            .cyclic_names
+            .extend(context.active_names[cycle_start..].iter().cloned());
+        return TokenResolution::Cyclic;
+    }
     let registration = registry.and_then(|registry| registry.registrations.get(name));
     let entry_and_owner = store.and_then(|store| {
         if lookup == CustomPropertyLookup::ExplicitInheritance {
@@ -823,6 +837,9 @@ fn resolve_custom_property_with_lookup(
     };
     let active_name = context.active_names.pop().expect("active custom property");
     debug_assert_eq!(active_name, name);
+    if registration.is_none() && context.cyclic_names.contains(name) {
+        return TokenResolution::Cyclic;
+    }
     if let TokenResolution::Resolved(tokens) = &result
         && let Some(keyword) = single_css_wide_keyword(tokens)
     {
@@ -1259,7 +1276,15 @@ fn evaluate_style_feature(
     let computed = match computed {
         TokenResolution::Resolved(tokens) => Some(tokens),
         TokenResolution::Invalid => None,
-        TokenResolution::Cyclic => return ConditionEvaluation::Cyclic,
+        TokenResolution::Cyclic
+            if context
+                .active_names
+                .first()
+                .is_some_and(|root_name| context.cyclic_names.contains(root_name)) =>
+        {
+            return ConditionEvaluation::Cyclic;
+        }
+        TokenResolution::Cyclic => None,
         TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
     };
     let registration = registry.and_then(|registry| registry.registrations.get(name));
@@ -1646,8 +1671,16 @@ fn replace_if_function(
         };
         let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
             TokenResolution::Resolved(tokens) => tokens,
-            TokenResolution::Invalid => Vec::new(),
-            TokenResolution::Cyclic => return TokenResolution::Cyclic,
+            TokenResolution::Invalid => branch[..colon].to_vec(),
+            TokenResolution::Cyclic
+                if context
+                    .active_names
+                    .first()
+                    .is_some_and(|root_name| context.cyclic_names.contains(root_name)) =>
+            {
+                return TokenResolution::Cyclic;
+            }
+            TokenResolution::Cyclic => branch[..colon].to_vec(),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
         match evaluate_if_condition(store, registry, &condition, context, recursion_depth + 1) {
@@ -1846,6 +1879,20 @@ fn replace_attr_function(
             tokenize_owned(crate::css::css_tokenizer::TokenizerInput::Utf16(&source))
         }
         AttrSyntax::Syntax(syntax) => {
+            if context.cyclic_attributes.contains(&attribute_name) {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            }
+            if let Some(cycle_start) = context
+                .active_attributes
+                .iter()
+                .position(|active_name| active_name == &attribute_name)
+            {
+                context
+                    .cyclic_attributes
+                    .extend(context.active_attributes[cycle_start..].iter().cloned());
+                return TokenResolution::Cyclic;
+            }
+            context.active_attributes.push(attribute_name.clone());
             let substituted = match substitute_tokens(
                 store,
                 registry,
@@ -1853,11 +1900,17 @@ fn replace_attr_function(
                 context,
                 recursion_depth + 1,
             ) {
-                TokenResolution::Resolved(tokens) => serialize_tokens(&tokens),
-                TokenResolution::Invalid | TokenResolution::Cyclic => {
-                    return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+                TokenResolution::Resolved(tokens) => Some(serialize_tokens(&tokens)),
+                TokenResolution::Invalid | TokenResolution::Cyclic => None,
+                TokenResolution::NotHandled => {
+                    context.active_attributes.pop();
+                    return TokenResolution::NotHandled;
                 }
-                TokenResolution::NotHandled => return TokenResolution::NotHandled,
+            };
+            let active_attribute = context.active_attributes.pop().expect("active attribute");
+            debug_assert_eq!(active_attribute, attribute_name);
+            let Some(substituted) = substituted.filter(|_| !context.cyclic_attributes.contains(&attribute_name)) else {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             };
             let Some(tokens) = parse_attr_value_with_syntax(registry, &substituted, &syntax) else {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
@@ -1882,6 +1935,7 @@ fn substitute_tokens(
 
     let mut output = Vec::new();
     let mut index = 0;
+    let mut is_cyclic = false;
     while index < tokens.len() {
         let Some(close_index) = matching_close(&tokens[index].kind).and_then(|_| find_matching_close(tokens, index))
         else {
@@ -1915,7 +1969,11 @@ fn substitute_tokens(
         let resolved = match resolved {
             TokenResolution::Resolved(resolved) => resolved,
             TokenResolution::Invalid => return TokenResolution::Invalid,
-            TokenResolution::Cyclic => return TokenResolution::Cyclic,
+            TokenResolution::Cyclic => {
+                is_cyclic = true;
+                index = close_index + 1;
+                continue;
+            }
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
 
@@ -1934,7 +1992,11 @@ fn substitute_tokens(
         }
         index = close_index + 1;
     }
-    TokenResolution::Resolved(output)
+    if is_cyclic {
+        TokenResolution::Cyclic
+    } else {
+        TokenResolution::Resolved(output)
+    }
 }
 
 // https://drafts.csswg.org/css-syntax/#serialization
@@ -1997,6 +2059,7 @@ pub(crate) unsafe fn resolve_vars(
     store: *const c_void,
     inheritance_store: *const c_void,
     registry: *const c_void,
+    root_custom_property_name: FfiUtf16View,
     value_data: *const c_void,
     attributes: *const FfiSubstitutionAttribute,
     attribute_count: usize,
@@ -2048,7 +2111,12 @@ pub(crate) unsafe fn resolve_vars(
     }) else {
         return NativeVarResolution::NotHandled;
     };
+    let active_names = unsafe { root_custom_property_name.to_utf16() }
+        .filter(|name| !name.is_empty())
+        .into_iter()
+        .collect();
     let mut context = VarResolutionContext {
+        active_names,
         attributes: Some(&attributes),
         inheritance_store,
         attribute_names_are_ascii_case_insensitive,
@@ -2058,7 +2126,15 @@ pub(crate) unsafe fn resolve_vars(
         evaluate_condition,
         ..Default::default()
     };
-    match substitute_tokens(store, registry, &source, &mut context, 0) {
+    let result = substitute_tokens(store, registry, &source, &mut context, 0);
+    if context
+        .active_names
+        .first()
+        .is_some_and(|root_name| context.cyclic_names.contains(root_name))
+    {
+        return NativeVarResolution::Invalid;
+    }
+    match result {
         TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved {
             source: serialize_tokens(&tokens),
             contains_attr_tainted_values: context.contains_attr_tainted_values,
@@ -2121,6 +2197,18 @@ mod tests {
         assert!(matches!(
             substitute_without_custom_properties("var(--missing)"),
             TokenResolution::Invalid
+        ));
+    }
+
+    #[test]
+    fn root_custom_property_cycles_do_not_take_var_fallbacks() {
+        let mut context = VarResolutionContext {
+            active_names: vec![utf16("--root")],
+            ..Default::default()
+        };
+        assert!(matches!(
+            substitute_tokens(None, None, &tokenize_owned(b"var(--root, fallback)"), &mut context, 0),
+            TokenResolution::Cyclic
         ));
     }
 
