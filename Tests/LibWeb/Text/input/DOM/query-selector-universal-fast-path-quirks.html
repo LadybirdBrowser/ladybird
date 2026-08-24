@@ -1,0 +1,29 @@
+<!DOCTYPE quirks>
+<html id="doc-html">
+<head id="doc-head">
+    <script src="../include.js"></script>
+</head>
+<body id="doc-body">
+    <div id="root"><section id="first"><svg id="icon"><circle id="dot"></circle></svg></section><p id="second"></p></div>
+    <aside id="outside"><em id="outside-child"></em></aside>
+    <script id="runner">
+        test(() => {
+            const root = document.querySelector("#root");
+            const outside = document.querySelector("#outside");
+            const dot = document.querySelector("#dot");
+
+            println(`mode: ${document.compatMode}`);
+            println(`document order: ${Array.from(document.querySelectorAll("*"), element => element.id || element.localName).join(",")}`);
+            println(`document first: ${document.querySelector("*").id}`);
+            println(`subtree order: ${Array.from(root.querySelectorAll("*"), element => element.id).join(",")}`);
+            println(`subtree first: ${root.querySelector("*").id}`);
+            println(`outside subtree: ${Array.from(outside.querySelectorAll("*"), element => element.id).join(",")}`);
+            println(`HTML element matches: ${root.matches("*")}`);
+            println(`SVG element matches: ${dot.matches("*")}`);
+            println(`HTML closest: ${document.querySelector("#second").closest("*").id}`);
+            println(`SVG closest: ${dot.closest("*").id}`);
+            println(`combinator order: ${Array.from(root.querySelectorAll("div *"), element => element.id).join(",")}`);
+        });
+    </script>
+</body>
+</html>
