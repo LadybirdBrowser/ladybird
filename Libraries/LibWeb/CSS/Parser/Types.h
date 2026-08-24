@@ -11,6 +11,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
@@ -92,6 +93,7 @@ struct Declaration {
     Optional<SourcePosition> source_position = {};
     Utf16String value_text;
     Optional<PropertyID> parsed_property_id;
+    Optional<DescriptorID> parsed_descriptor_id;
     RefPtr<StyleValue const> parsed_value;
 };
 

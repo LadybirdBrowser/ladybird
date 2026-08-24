@@ -782,6 +782,8 @@ fn parse_substituted_on_worker(
             precomputed_svg_path_count: ffi_svg_paths.len(),
             font_format_is_supported: None,
             font_tech_is_supported: None,
+            descriptor_integer_resolution_context: std::ptr::null(),
+            resolve_descriptor_integer: None,
             random_function_index: &raw mut random_function_index,
         };
         let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {

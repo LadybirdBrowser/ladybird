@@ -343,7 +343,6 @@ private:
         UnicodeRangeList,
     };
     Optional<RefPtr<StyleValue const>> parse_font_descriptor_value_in_rust(FontDescriptorKind, TokenStream<ComponentValue>&);
-    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_descriptor_value(AtRuleID, DescriptorNameAndID const&, TokenStream<ComponentValue>&);
     Optional<Utf16FlyString> parse_custom_ident(TokenStream<ComponentValue>&, ReadonlySpan<Utf16View> blacklist);
     RefPtr<CustomIdentStyleValue const> parse_custom_ident_value(TokenStream<ComponentValue>&, ReadonlySpan<Utf16View> blacklist = {});
     Optional<Utf16FlyString> parse_dashed_ident(TokenStream<ComponentValue>&);
