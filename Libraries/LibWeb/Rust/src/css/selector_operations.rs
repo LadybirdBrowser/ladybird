@@ -179,7 +179,7 @@ fn supports_simple_dom_matching(selector: &CompiledSelector) -> bool {
     };
     !compound.simple_selectors.is_empty()
         && compound.simple_selectors.iter().all(|simple| match simple {
-            SimpleSelector::TagName(name) => matches!(
+            SimpleSelector::Universal(name) | SimpleSelector::TagName(name) => matches!(
                 name.namespace_type,
                 super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
             ),
@@ -324,6 +324,14 @@ pub unsafe extern "C" fn rust_selector_matches_simple_dom(
             };
             for simple in &compound.simple_selectors {
                 let matches = match simple {
+                    SimpleSelector::Universal(name)
+                        if matches!(
+                            name.namespace_type,
+                            super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
+                        ) =>
+                    {
+                        true
+                    }
                     SimpleSelector::TagName(name)
                         if matches!(
                             name.namespace_type,

@@ -1,0 +1,11 @@
+mode: BackCompat
+document order: doc-html,doc-head,script,doc-body,root,first,icon,dot,second,outside,outside-child,runner,out
+document first: doc-html
+subtree order: first,icon,dot,second
+subtree first: first
+outside subtree: outside-child
+HTML element matches: true
+SVG element matches: true
+HTML closest: second
+SVG closest: dot
+combinator order: first,icon,dot,second

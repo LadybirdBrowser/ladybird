@@ -215,12 +215,15 @@ bool SelectorQuery::matches_simple_selector_in_dom(Element const& element) const
     }
 
     auto id = element.id().value_or({});
+    Utf16FlyString lowercase_id;
+    if (element.document().in_quirks_mode())
+        lowercase_id = id.to_ascii_lowercase();
     auto result = CSS::SelectorFFI::rust_selector_matches_simple_dom(
         &m_selectors.first()->rust_selector(),
         interned_name_identity(element.local_name()),
         interned_name_identity(element.lowercased_local_name()),
         interned_name_identity(id),
-        interned_name_identity(id.to_ascii_lowercase()),
+        interned_name_identity(lowercase_id),
         class_identities.data(),
         lowercase_class_identities.data(),
         class_identities.size(),
