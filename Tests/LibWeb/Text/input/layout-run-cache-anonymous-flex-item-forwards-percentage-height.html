@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #flex { display: flex; align-items: flex-start; width: 300px; height: 100px; }
+    #inline-block { display: inline-block; width: 20px; height: 50%; }
+    #plain { width: 50px; }
+    #plain div { height: 30px; }
+</style>
+<div id="flex">
+    x<span id="inline-block"></span>
+    <div id="plain"><div></div></div>
+</div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const inlineBlockHeightBefore = document.getElementById("inline-block").getBoundingClientRect().height;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // The anonymous flex item around the inline content forwards the container's block size to
+        // the inline-block's percentage height, so its run depends on that size and misses, while
+        // #plain is replayed.
+        document.getElementById("flex").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`hit delta: ${internals.layoutRunCacheHitCount() - hitsBefore}`);
+        println(`inline-block height: ${inlineBlockHeightBefore} -> ${document.getElementById("inline-block").getBoundingClientRect().height}`);
+    });
+</script>

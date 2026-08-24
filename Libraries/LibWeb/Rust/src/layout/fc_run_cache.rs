@@ -39,6 +39,78 @@ struct FcRunCacheKey {
     root_cells: UsedValuesCellState,
 }
 
+impl FcRunCacheKey {
+    fn matches(&self, probe: &Self, entry_depends_on_percentage_block_size: bool) -> bool {
+        if self == probe {
+            return true;
+        }
+        if entry_depends_on_percentage_block_size {
+            return false;
+        }
+        self.fc_type == probe.fc_type
+            && self.root_cells == probe.root_cells
+            && layout_inputs_match_ignoring_percentage_block_size(&self.input, &probe.input)
+    }
+}
+
+fn available_block_sizes_are_interchangeable(a: AvailableSize, b: AvailableSize) -> bool {
+    let is_definite_or_indefinite = |size: AvailableSize| matches!(size, AvailableSize::Definite(_) | AvailableSize::Indefinite);
+    a == b || (is_definite_or_indefinite(a) && is_definite_or_indefinite(b))
+}
+
+fn layout_inputs_match_ignoring_percentage_block_size(a: &LayoutInput, b: &LayoutInput) -> bool {
+    let LayoutInput {
+        available_space,
+        containing_block_constraints,
+        content_box_position_in_bfc_root,
+        sizing,
+        participation,
+    } = *a;
+    let ContainingBlockConstraints {
+        percentage_basis_inline_size,
+        percentage_basis_block_size: _,
+        quirks_mode_percentage_basis_block_size: _,
+    } = containing_block_constraints;
+    available_space.inline_size == b.available_space.inline_size
+        && available_block_sizes_are_interchangeable(available_space.block_size, b.available_space.block_size)
+        && percentage_basis_inline_size == b.containing_block_constraints.percentage_basis_inline_size
+        && content_box_position_in_bfc_root == b.content_box_position_in_bfc_root
+        && participation == b.participation
+        && sizing_directives_match_ignoring_percentage_block_size(&sizing, &b.sizing)
+}
+
+fn sizing_directives_match_ignoring_percentage_block_size(a: &RootSizingDirectives, b: &RootSizingDirectives) -> bool {
+    let RootSizingDirectives {
+        forced_content_inline_size,
+        forced_content_block_size,
+        forced_min_border_box_block_size,
+        table_cell_intrinsic_block_padding,
+        table_box_content_block_offset_in_wrapper,
+        adopt_automatic_content_block_size,
+        flex_self_block_size_resolution_space,
+        float_avoidance_inline_size,
+        outer_float_intrusion_before_list_item_children,
+        treat_block_axis_percentage_insets_as_auto_beyond_root,
+    } = *a;
+    forced_content_inline_size == b.forced_content_inline_size
+        && forced_content_block_size == b.forced_content_block_size
+        && forced_min_border_box_block_size == b.forced_min_border_box_block_size
+        && table_cell_intrinsic_block_padding == b.table_cell_intrinsic_block_padding
+        && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
+        && adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
+        && float_avoidance_inline_size == b.float_avoidance_inline_size
+        && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
+        && treat_block_axis_percentage_insets_as_auto_beyond_root == b.treat_block_axis_percentage_insets_as_auto_beyond_root
+        && match (flex_self_block_size_resolution_space, b.flex_self_block_size_resolution_space) {
+            (None, None) => true,
+            (Some(a_space), Some(b_space)) => {
+                a_space.inline_size == b_space.inline_size
+                    && available_block_sizes_are_interchangeable(a_space.block_size, b_space.block_size)
+            }
+            _ => false,
+        }
+}
+
 /// What must still be true for a stored entry to be replayed: the slot
 /// holds the same box (generation), nothing in its subtree was invalidated
 /// (the fragment cache epoch, whose bump walk has no propagation boundary).
@@ -179,7 +251,7 @@ impl FcRunCacheArenaStore {
         if entry.validity != validity {
             return None;
         }
-        if entry.key != *key {
+        if !entry.key.matches(key, entry.outputs.result.depends_on_percentage_block_size) {
             return None;
         }
         Some(entry.clone())
@@ -198,7 +270,7 @@ impl FcRunCacheArenaStore {
         let entries = self.entries.borrow();
         let entry = entries.get(slot as usize)?.as_ref()?;
         if entry.validity.slot_generation != validity.slot_generation
-            || entry.key != *key
+            || !entry.key.matches(key, entry.outputs.result.depends_on_percentage_block_size)
             // Each child-list edit bumps once when topology changes and once
             // when the parent is marked for layout-tree-update layout.
             || validity

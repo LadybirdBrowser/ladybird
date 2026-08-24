@@ -1,0 +1,3 @@
+fixed table replayed: true
+percentage table height: 50 -> 100
+fixed table height: 20

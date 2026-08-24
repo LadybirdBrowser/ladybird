@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { width: 300px; height: 100px; }
+    #cached { width: 200px; overflow: hidden; }
+    #inner { width: 100px; height: 50%; }
+</style>
+<div id="container"><div id="cached"><div id="inner"></div></div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const innerHeightBefore = document.getElementById("inner").getBoundingClientRect().height;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // In standards mode #inner's percentage resolves against the auto-height #cached and
+        // behaves as auto, so #cached's run does not depend on #container's height.
+        document.getElementById("container").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`hit delta: ${internals.layoutRunCacheHitCount() - hitsBefore}`);
+        println(`inner height: ${innerHeightBefore} -> ${document.getElementById("inner").getBoundingClientRect().height}`);
+    });
+</script>
