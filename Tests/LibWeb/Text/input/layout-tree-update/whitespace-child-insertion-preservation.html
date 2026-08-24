@@ -3,6 +3,9 @@
 <style>
     .flex { display: flex; }
     .grid { display: grid; }
+    .flow-root { display: flow-root; }
+    .contents { display: contents; }
+    .hidden { display: none; }
     .preserve { white-space-collapse: preserve; }
     .first-letter::first-letter { color: red; }
 </style>
@@ -10,70 +13,278 @@
 <script>
     const cases = [
         {
-            name: "append beside anonymous inline run",
+            name: "append after trailing anonymous inline run",
             markup: '<div class="parent"><div class="tracked"></div><span>inline</span></div>',
-            mutate: parent => parent.append(" ", document.createElement("script")),
+            steps: [
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
+                { name: "extend run", mutate: parent => parent.append("\t\n") },
+            ],
         },
         {
-            name: "insert into anonymous inline run",
+            name: "insert within trailing anonymous inline run",
             markup: '<div class="parent"><div class="tracked"></div><span class="before">before</span><span class="after">after</span></div>',
-            mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")),
+            steps: [
+                { name: "insert before inline", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
+                { name: "insert after inline", mutate: parent => parent.querySelector(".after").after(" ") },
+            ],
         },
         {
-            name: "insert between block children",
+            name: "insert in all-inline flow",
+            markup: '<div class="parent"><span class="tracked">tracked</span><span class="after">after</span></div>',
+            steps: [
+                { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
+                { name: "insert middle whitespace", mutate: parent => parent.insertBefore(document.createTextNode("\n"), parent.querySelector(".after")) },
+                { name: "append whitespace", mutate: parent => parent.append("\t") },
+            ],
+        },
+        {
+            name: "insert in inline flow",
+            markup: '<span class="parent"><span class="tracked">tracked</span><span class="after">after</span></span>',
+            steps: [
+                { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
+                { name: "insert middle whitespace", mutate: parent => parent.querySelector(".after").before(" ") },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
+            ],
+        },
+        {
+            name: "insert around block children",
             markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
-            mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")),
+            steps: [
+                { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
+                { name: "insert whitespace between blocks", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
+            ],
         },
         {
-            name: "append to flex parent",
-            markup: '<div class="parent flex"><div class="tracked"></div></div>',
-            mutate: parent => parent.append(" "),
+            name: "insert around flex items",
+            markup: '<div class="parent flex"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
+                { name: "insert whitespace between items", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
+            ],
         },
         {
-            name: "append to grid parent",
-            markup: '<div class="parent grid"><div class="tracked"></div></div>',
-            mutate: parent => parent.append(" "),
+            name: "insert around grid items",
+            markup: '<div class="parent grid"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
+                { name: "insert whitespace between items", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
+            ],
+        },
+        {
+            name: "insert whitespace with hidden siblings",
+            markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                {
+                    name: "insert whitespace and display-none element",
+                    mutate: parent => {
+                        const hidden = document.createElement("span");
+                        hidden.className = "hidden";
+                        parent.querySelector(".after").before(" ", hidden);
+                    },
+                },
+            ],
+        },
+        {
+            name: "insert multiple whitespace nodes",
+            markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                {
+                    name: "insert at supported positions",
+                    mutate: parent => {
+                        parent.prepend(" ");
+                        parent.querySelector(".after").before("\n");
+                        parent.append("\t");
+                    },
+                },
+            ],
+        },
+        {
+            name: "mixed block and inline progression",
+            markup: '<div class="parent"><div class="tracked"></div><span class="inline">inline</span><div class="after"></div></div>',
+            steps: [
+                { name: "rebuild before block after inline run", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
+                { name: "preserve after final block", mutate: parent => parent.append(" ") },
+                { name: "preserve in new trailing inline run", mutate: parent => parent.append("\n") },
+                { name: "rebuild beside non-trailing inline run", mutate: parent => parent.querySelector(".inline").before(" "), preserve: false },
+            ],
+        },
+        {
+            name: "rebuild before block after inline run",
+            markup: '<div class="parent"><span>inline</span><div class="tracked"></div></div>',
+            steps: [
+                { name: "insert whitespace", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+            ],
+        },
+        {
+            name: "rebuild beside non-trailing inline run",
+            markup: '<div class="parent"><div class="tracked"></div><span class="inline">inline</span><div class="after"></div></div>',
+            steps: [
+                { name: "insert whitespace after preceding block", mutate: parent => parent.querySelector(".inline").before(" "), preserve: false },
+            ],
+        },
+        {
+            name: "flow-root mixed-content progression",
+            markup: '<div class="parent flow-root"><div class="tracked"></div><span class="inline">inline</span><div class="after"></div></div>',
+            steps: [
+                { name: "rebuild before block after inline run", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
+                { name: "preserve after final block", mutate: parent => parent.append(" ") },
+            ],
+        },
+        {
+            name: "rebuild all positions when one needs an earlier inline run",
+            markup: '<div class="parent"><span class="inline">inline</span><div class="tracked"></div></div>',
+            steps: [
+                {
+                    name: "insert safe and unsafe whitespace",
+                    mutate: parent => {
+                        parent.querySelector(".tracked").before(" ");
+                        parent.append(" ");
+                    },
+                    preserve: false,
+                },
+            ],
+        },
+        {
+            name: "flex raw-text progression",
+            markup: '<div class="parent flex">raw<div class="tracked"></div></div>',
+            steps: [
+                { name: "rebuild after raw text before item", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "preserve after final item", mutate: parent => parent.append(" ") },
+                { name: "preserve in trailing text item", mutate: parent => parent.append("\t") },
+            ],
+        },
+        {
+            name: "rebuild before non-trailing flex raw text",
+            markup: '<div class="parent flex"><div class="tracked"></div>raw<div class="after"></div></div>',
+            steps: [
+                { name: "insert whitespace", mutate: parent => parent.firstChild.after(" "), preserve: false },
+            ],
+        },
+        {
+            name: "join trailing flex raw text",
+            markup: '<div class="parent flex"><div class="tracked"></div>raw</div>',
+            steps: [
+                { name: "insert before raw text", mutate: parent => parent.lastChild.before(" ") },
+                { name: "append after raw text", mutate: parent => parent.append(" ") },
+            ],
+        },
+        {
+            name: "grid raw-text progression",
+            markup: '<div class="parent grid">raw<div class="tracked"></div></div>',
+            steps: [
+                { name: "rebuild before raw text", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild after raw text before item", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "preserve after final item", mutate: parent => parent.append(" ") },
+            ],
+        },
+        {
+            name: "join trailing grid raw text",
+            markup: '<div class="parent grid"><div class="tracked"></div>raw</div>',
+            steps: [
+                { name: "insert before raw text", mutate: parent => parent.lastChild.before(" ") },
+                { name: "append after raw text", mutate: parent => parent.append(" ") },
+            ],
+        },
+        {
+            name: "rebuild beside display-contents inline run",
+            markup: '<div class="parent"><div class="tracked"></div><span class="contents"><span>inline</span></span><div class="after"></div></div>',
+            steps: [
+                { name: "insert whitespace", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
+            ],
+        },
+        {
+            name: "table parent",
+            markup: '<table class="parent"><tbody class="tracked"><tr><td>cell</td></tr></tbody></table>',
+            steps: [
+                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+            ],
+        },
+        {
+            name: "insert in SVG parent",
+            markup: '<svg class="parent"><g class="tracked"></g></svg>',
+            steps: [
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
+            ],
         },
         {
             name: "rebuild for preserved whitespace",
             markup: '<div class="parent preserve"><div class="tracked"></div><span>inline</span></div>',
-            mutate: parent => parent.append(" "),
-            preserve: false,
+            steps: [
+                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+            ],
+        },
+        {
+            name: "rebuild for non-ASCII whitespace",
+            markup: '<div class="parent"><div class="tracked"></div></div>',
+            steps: [
+                { name: "append no-break space", mutate: parent => parent.append("\u00a0"), preserve: false },
+            ],
+        },
+        {
+            name: "rebuild for non-whitespace text",
+            markup: '<div class="parent"><div class="tracked"></div></div>',
+            steps: [
+                { name: "append text", mutate: parent => parent.append("text"), preserve: false },
+            ],
         },
         {
             name: "rebuild under first-letter",
             markup: '<div class="parent first-letter"><div class="tracked"></div><span>inline</span></div>',
-            mutate: parent => parent.append(" "),
-            preserve: false,
+            steps: [
+                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+            ],
+        },
+        {
+            name: "rebuild under ancestor first-letter",
+            markup: '<div class="first-letter"><div class="parent"><div class="tracked"></div><span>inline</span></div></div>',
+            parentSelector: ".parent",
+            steps: [
+                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+            ],
         },
         {
             name: "rebuild with concurrent descendant update",
             markup: '<div class="parent"><div class="tracked first-letter"><span>old</span></div></div>',
-            mutate: parent => {
-                parent.firstElementChild.firstElementChild.firstChild.data = "new";
-                parent.append(" ");
-            },
-            preserve: false,
+            steps: [
+                {
+                    name: "update descendant and append whitespace",
+                    mutate: parent => {
+                        parent.firstElementChild.firstElementChild.firstChild.data = "new";
+                        parent.append(" ");
+                    },
+                    preserve: false,
+                },
+            ],
         },
     ];
 
     test(() => {
         for (const case_ of cases) {
             fixture.innerHTML = case_.markup;
-            const parent = fixture.firstElementChild;
+            const parent = case_.parentSelector ? fixture.querySelector(case_.parentSelector) : fixture.firstElementChild;
             const tracked = parent.querySelector(".tracked");
             document.body.offsetWidth;
-            const parentIdentity = internals.layoutNodeIdentity(parent);
-            const trackedIdentity = internals.layoutNodeIdentity(tracked);
 
-            case_.mutate(parent);
-            document.body.offsetWidth;
+            for (const step of case_.steps) {
+                const parentIdentity = internals.layoutNodeIdentity(parent);
+                const trackedIdentity = internals.layoutNodeIdentity(tracked);
+                const buildsBefore = internals.layoutTreeBuildStats().builds;
 
-            const preserved = internals.layoutNodeIdentity(parent) === parentIdentity
-                && internals.layoutNodeIdentity(tracked) === trackedIdentity;
-            const expectedPreserved = case_.preserve !== false;
-            println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${case_.name} | ${expectedPreserved ? "preserve" : "rebuild"}`);
-            println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
+                step.mutate(parent);
+                document.body.offsetWidth;
+
+                const preserved = internals.layoutNodeIdentity(parent) === parentIdentity
+                    && internals.layoutNodeIdentity(tracked) === trackedIdentity;
+                const expectedPreserved = step.preserve !== false;
+                const name = `${case_.name} | ${step.name}`;
+                println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${name} | ${expectedPreserved ? "preserve" : "rebuild"}`);
+                const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
+                println(`${builds === 1 ? "PASS" : "FAIL"}: ${name} | layout tree builds=${builds}`);
+                println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
+            }
         }
     });
 </script>
