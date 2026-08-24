@@ -5,6 +5,8 @@
  */
 
 #include <LibWeb/CSS/CSSFunctionRule.h>
+#include <LibWeb/CSS/CSSUnparsedValue.h>
+#include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -24,6 +26,121 @@
 #include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS::Parser {
+
+Vector<ComponentValue> unresolved_style_value_components(UnresolvedStyleValue const& value)
+{
+    auto parser = Parser::create(ParsingParams {}, value.token_source());
+    auto components = parser.parse_as_list_of_component_values();
+    if (value.contains_attr_tainted_values()) {
+        for (auto& component : components)
+            component.set_attr_tainted();
+    }
+    return components;
+}
+
+Utf16String serialize_style_value_for_tokenization(StyleValue const& value)
+{
+    if (value.is_unresolved())
+        return value.as_unresolved().token_source();
+    return serialize_a_series_of_component_values_for_retokenization(value.tokenize());
+}
+
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<ComponentValue>);
+
+// https://drafts.css-houdini.org/css-typed-om-1/#reify-var
+static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(Function function)
+{
+    // NB: A var() might not be representable as a CSSVariableReferenceValue, for example if it has invalid syntax or
+    //    it contains an ASF in its variable-name slot. In those cases, we return null here, so it's treated like a
+    //    regular function.
+    auto maybe_var_arguments = parse_according_to_argument_grammar(ArbitrarySubstitutionFunction::Var, function.value);
+    if (!maybe_var_arguments.has_value())
+        return nullptr;
+    auto var_arguments = maybe_var_arguments.release_value().get<DeclarationValueList>();
+
+    TokenStream tokens { var_arguments.first() };
+    tokens.discard_whitespace();
+    auto& maybe_variable = tokens.consume_a_token();
+    tokens.discard_whitespace();
+    if (tokens.has_next_token()
+        || !maybe_variable.is(Token::Type::Ident)
+        || !is_a_custom_property_name_string(maybe_variable.token().ident()))
+        return nullptr;
+
+    auto variable = maybe_variable.token().ident();
+    GC::Ptr<CSSUnparsedValue> fallback;
+    if (var_arguments.size() > 1)
+        fallback = reify_a_list_of_component_values(var_arguments[1]);
+    return CSSVariableReferenceValue::create(move(variable), move(fallback));
+}
+
+class UnresolvedValueReifier {
+public:
+    static Vector<CSSUnparsedSegment> reify(ReadonlySpan<ComponentValue> source_values)
+    {
+        UnresolvedValueReifier reifier;
+        reifier.process_values(source_values);
+        if (!reifier.m_unserialized_values.is_empty())
+            reifier.serialize_unserialized_values();
+        return move(reifier.m_reified_values);
+    }
+
+private:
+    void process_values(ReadonlySpan<ComponentValue> source_values)
+    {
+        // NB: var() could be arbitrarily nested within other functions and blocks, so we have to walk the tree.
+        //     Also, a var() might not be representable, if it has an ASF in place of its name, so those will be part
+        //     of a string instead.
+        for (auto const& component_value : source_values) {
+            if (component_value.is_function("var"_utf16)) {
+                if (auto var_reference = reify_a_var_reference(component_value.function())) {
+                    serialize_unserialized_values();
+                    m_reified_values.append(GC::Ref { *var_reference });
+                    continue;
+                }
+            }
+
+            if (component_value.is_function()) {
+                auto& function = component_value.function();
+                m_unserialized_values.append(Token::create_function(function.name, function.name_token.original_source_text()));
+                process_values(function.value);
+                m_unserialized_values.append(Token::create(function.end_token.type(), function.end_token.original_source_text()));
+                continue;
+            }
+
+            if (component_value.is_block()) {
+                auto& block = component_value.block();
+                m_unserialized_values.append(Token::create(block.token.type(), block.token.original_source_text()));
+                process_values(block.value);
+                m_unserialized_values.append(Token::create(block.end_token.type(), block.end_token.original_source_text()));
+                continue;
+            }
+
+            m_unserialized_values.append(component_value);
+        }
+    }
+
+    void serialize_unserialized_values()
+    {
+        m_reified_values.append(serialize_a_series_of_component_values(m_unserialized_values));
+        m_unserialized_values.clear_with_capacity();
+    }
+
+    Vector<CSSUnparsedSegment> m_reified_values {};
+    Vector<ComponentValue> m_unserialized_values {};
+};
+
+static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<ComponentValue> component_values)
+{
+    auto reified_values = UnresolvedValueReifier::reify(component_values);
+    return CSSUnparsedValue::create(move(reified_values));
+}
+
+GC::Ref<CSSStyleValue> reify_unresolved_style_value(UnresolvedStyleValue const& value)
+{
+    auto component_values = unresolved_style_value_components(value);
+    return reify_a_list_of_component_values(component_values);
+}
 
 PropertySubstitutionContextDependency PropertySubstitutionContextDependency::create(Utf16String property_name, AbstractOrHypotheticalElement const& element)
 {
@@ -914,7 +1031,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(AbstractO
     if (unresolved.includes_var_function())
         element.abstract_element().element().set_style_uses_var_css_function();
 
-    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved.values(), SubstitutionContext { PropertySubstitutionContextDependency::create(property.name().to_utf16_string(), element) });
+    auto result = substitute_arbitrary_substitution_functions(element, guarded_contexts, replacement_context, unresolved_style_value_components(unresolved), SubstitutionContext { PropertySubstitutionContextDependency::create(property.name().to_utf16_string(), element) });
     if (contains_guaranteed_invalid_value(result))
         return GuaranteedInvalidStyleValue::create();
     if (property.is_custom_property()) {
@@ -932,10 +1049,11 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(AbstractO
             }
         }
         auto contains_attr_tainted_values = result.first_matching([](auto const& value) { return value.contains_attr_tainted_value(); }).has_value();
-        auto source_text_mode = unresolved.contains_arbitrary_substitution_function() && !contains_attr_tainted_values
-            ? UnresolvedStyleValue::SourceTextMode::TrimLeading
-            : UnresolvedStyleValue::SourceTextMode::Trim;
-        return UnresolvedStyleValue::create(move(result), {}, {}, source_text_mode, contains_attr_tainted_values);
+        auto source_text = serialize_a_series_of_component_values_preserving_original_source_text(result);
+        source_text = unresolved.contains_arbitrary_substitution_function() && !contains_attr_tainted_values
+            ? source_text.trim_ascii_whitespace(TrimMode::Left)
+            : source_text.trim_ascii_whitespace();
+        return UnresolvedStyleValue::create(move(source_text), {}, {}, UnresolvedStyleValue::SourceTextMode::Preserve, contains_attr_tainted_values);
     }
     TokenStream expanded_tokens { result };
     auto parsed = parse_css_value(property.id(), expanded_tokens, {}, ValueIsSubstituted::Yes);

@@ -11,7 +11,7 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/Parser/SubstitutionFunctionsPresence.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 
@@ -25,13 +25,12 @@ public:
         Preserve,
     };
 
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text = {}, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text = {}, SourceTextMode = SourceTextMode::Trim, bool contains_attr_tainted_values = false);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
-    Vector<Parser::ComponentValue> tokenize() const;
-
-    Vector<Parser::ComponentValue> values() const;
+    Utf16String serialized_components() const;
+    Utf16String token_source() const;
     bool contains_arbitrary_substitution_function() const
     {
         auto const& data = m_value->unresolved;
@@ -57,11 +56,10 @@ private:
     {
     }
 
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
-
-    UnresolvedStyleValue(Utf16String source_text, Utf16String value_comparison_text, Parser::SubstitutionFunctionsPresence, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_internal(Utf16String token_source, Parser::SubstitutionFunctionsPresence, Optional<Utf16String> original_source_text, SourceTextMode, bool contains_attr_tainted_values, RefPtr<StyleValue const> parsed_value);
 
     Utf16String comparison_text() const;
+    Utf16String serialize_components(u8 mode) const;
 
     static Utf16String string_from_rust_data(StyleValueFFI::RetainedReadableString const& string)
     {

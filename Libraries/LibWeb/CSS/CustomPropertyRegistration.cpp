@@ -83,11 +83,10 @@ NonnullRefPtr<StyleValue const> inherited_custom_property_value(Optional<CustomP
             // inherit
             //   Resolves like an inherit() function with the custom property name as its one and only argument.
             // Note: This ensures that a function parameter defaulted to inherit is reinterpreted using the local parameter type.
-            auto inherited_value_tokens = computed_parent_value->tokenize();
-            if (contains_guaranteed_invalid_value(inherited_value_tokens))
+            if (computed_parent_value->is_guaranteed_invalid())
                 return GuaranteedInvalidStyleValue::create();
 
-            return UnresolvedStyleValue::create(move(inherited_value_tokens), {});
+            return UnresolvedStyleValue::create(Parser::serialize_style_value_for_tokenization(*computed_parent_value), {});
         }
     }
 

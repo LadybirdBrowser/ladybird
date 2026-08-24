@@ -243,6 +243,36 @@ pub(crate) fn serialize_component_values_to_utf16(
     sink.into_utf16()
 }
 
+pub(crate) fn original_component_values_source(
+    values: &[crate::css::parser::component_value::ComponentValue],
+) -> Option<Vec<u16>> {
+    let mut source = Vec::new();
+    for value in values {
+        if value.original_source_text.len() == 0 {
+            return None;
+        }
+        value.original_source_text.append_to(&mut source);
+    }
+    Some(source)
+}
+
+pub(crate) fn trim_ascii_whitespace(value: &[u16]) -> &[u16] {
+    let value = trim_ascii_whitespace_start(value);
+    let end = value
+        .iter()
+        .rposition(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+        .map_or(0, |position| position + 1);
+    &value[..end]
+}
+
+pub(crate) fn trim_ascii_whitespace_start(value: &[u16]) -> &[u16] {
+    let start = value
+        .iter()
+        .position(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+        .unwrap_or(value.len());
+    &value[start..]
+}
+
 /// Serializes UTF-16 text as a CSS string token's source text.
 pub(crate) fn serialize_string(value: &[u16]) -> Vec<u16> {
     let mut sink = TextSink::new();
@@ -3525,6 +3555,34 @@ pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: 
         if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {
             return FfiSerializedText::unported();
         }
+        sink_into_ffi(sink)
+    })
+}
+
+/// Serializes the retained component values of an unresolved style value. Mode 0 is normalized
+/// CSS Syntax serialization, mode 1 preserves numeric token source, and mode 2 produces source
+/// suitable for retokenization.
+///
+/// # Safety
+/// `value` must point at live unresolved style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_unresolved_style_value_serialize_components(
+    value: *const c_void,
+    mode: u8,
+) -> FfiSerializedText {
+    crate::abort_on_panic(|| {
+        let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
+            unreachable!("component serialization requires an unresolved style value");
+        };
+        let mode = match mode {
+            0 => ComponentSerializationMode::Normalized,
+            1 => ComponentSerializationMode::PreserveNumericSource,
+            2 => ComponentSerializationMode::Retokenize,
+            _ => unreachable!("unknown component serialization mode"),
+        };
+        let serialized = serialize_component_values_to_utf16(components.as_slice(), mode);
+        let mut sink = TextSink::new();
+        serialized.into_iter().for_each(|unit| sink.push_code_unit(unit));
         sink_into_ffi(sink)
     })
 }

@@ -12,6 +12,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/DescriptorID.h>
+#include <LibWeb/CSS/Parser/SubstitutionFunctionsPresence.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
@@ -95,17 +96,6 @@ struct Declaration {
     Optional<PropertyID> parsed_property_id;
     Optional<DescriptorID> parsed_descriptor_id;
     RefPtr<StyleValue const> parsed_value;
-};
-
-struct SubstitutionFunctionsPresence {
-    bool attr { false };
-    bool dashed_function { false };
-    bool env { false };
-    bool if_ { false };
-    bool inherit { false };
-    bool var { false };
-
-    bool has_any() const { return attr || dashed_function || env || if_ || inherit || var; }
 };
 
 class ComponentValueToken {

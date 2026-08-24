@@ -145,12 +145,10 @@ TEST_CASE(rust_composites_scalar_style_values)
 TEST_CASE(rust_unresolved_value_retains_cached_parsed_value)
 {
     RefPtr<StyleValue const> parsed_value = NumberStyleValue::create(42);
-    auto unresolved_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_create_unresolved(
-        0, nullptr, nullptr, 0, 0, nullptr, nullptr, 0, false, false, false, false, false, false, true,
-        StyleValueFFI::rust_style_value_retain(parsed_value->rust_style_value_data())));
-    parsed_value = nullptr;
+    auto unresolved_value = UnresolvedStyleValue::create_attr_tainted_with_parsed_value(
+        {}, {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, parsed_value.release_nonnull());
 
-    auto restored_parsed_value = unresolved_value->as_unresolved().parsed_value();
+    auto restored_parsed_value = unresolved_value->parsed_value();
     EXPECT(restored_parsed_value);
     EXPECT_EQ(restored_parsed_value->as_number().number(), 42);
 }

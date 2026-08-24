@@ -333,14 +333,9 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
 
     // NB: We store all custom properties as UnresolvedStyleValue, so we always need to create one here.
     if (perform_type_check == PerformTypeCheck::Yes && property.is_custom_property()) {
-        auto token = [this]() {
-            if (m_unit == "number"_utf16_fly_string)
-                return Parser::Token::create_number(Number { Number::Type::Number, m_value });
-            if (m_unit == "percent"_utf16_fly_string)
-                return Parser::Token::create_percentage(Number { Number::Type::Number, m_value });
-            return Parser::Token::create_dimension(m_value, m_unit);
-        }();
-        return UnresolvedStyleValue::create({ Parser::ComponentValue { move(token) } }, Parser::SubstitutionFunctionsPresence {});
+        Utf16StringBuilder builder;
+        serialize_unit_value(builder, {}, {});
+        return UnresolvedStyleValue::create(builder.to_string(), Parser::SubstitutionFunctionsPresence {});
     }
 
     auto wrap_in_math_sum = [this, &property](auto&& value) -> NonnullRefPtr<StyleValue const> {

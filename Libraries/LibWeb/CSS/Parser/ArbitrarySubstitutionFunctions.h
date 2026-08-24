@@ -12,6 +12,10 @@
 
 namespace Web::CSS::Parser {
 
+Vector<ComponentValue> unresolved_style_value_components(UnresolvedStyleValue const&);
+Utf16String serialize_style_value_for_tokenization(StyleValue const&);
+GC::Ref<CSSStyleValue> reify_unresolved_style_value(UnresolvedStyleValue const&);
+
 // https://drafts.csswg.org/css-values-5/#substitution-context
 // The types of substitution contexts are currently:
 
