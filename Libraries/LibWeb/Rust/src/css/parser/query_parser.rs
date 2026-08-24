@@ -1233,6 +1233,37 @@ fn serialize_query_feature(sink: &mut TextSink, feature: &QueryFeature, kind: Qu
     sink.push_ascii(")");
 }
 
+fn serialize_style_property_name(sink: &mut TextSink, name: &[u16]) {
+    if name.starts_with(&[u16::from(b'-'), u16::from(b'-')]) {
+        serialize_an_identifier(sink, &StringUnits::Utf16(name));
+        return;
+    }
+    let lowercase = name
+        .iter()
+        .map(|unit| {
+            if *unit >= u16::from(b'A') && *unit <= u16::from(b'Z') {
+                *unit + u16::from(b'a' - b'A')
+            } else {
+                *unit
+            }
+        })
+        .collect::<Vec<_>>();
+    serialize_an_identifier(sink, &StringUnits::Utf16(&lowercase));
+}
+
+fn serialize_style_range_value(sink: &mut TextSink, value: &StyleRangeValue) {
+    match value {
+        StyleRangeValue::Property(name) => serialize_style_property_name(sink, name),
+        StyleRangeValue::Components(components) => push_utf16(
+            sink,
+            &serialize_component_values_to_utf16(
+                components,
+                crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+            ),
+        ),
+    }
+}
+
 fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: QueryKind) {
     match expression {
         Expression::Not(child) => {
@@ -1299,9 +1330,41 @@ fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: Quer
                 sink.push_ascii(")");
             }
         },
-        Expression::StyleFunction(_) | Expression::StyleFeature(_) => {
-            unreachable!("unsupported style expression in this query serializer")
+        Expression::StyleFunction(child) => {
+            sink.push_ascii("style(");
+            serialize_expression(sink, child, QueryKind::Style);
+            sink.push_ascii(")");
         }
+        Expression::StyleFeature(feature) => match feature {
+            StyleFeature::Boolean(name) => serialize_style_property_name(sink, name),
+            StyleFeature::Plain {
+                name,
+                original_value_source,
+                ..
+            } => {
+                serialize_style_property_name(sink, name);
+                sink.push_ascii(": ");
+                push_utf16(sink, original_value_source);
+            }
+            StyleFeature::Range {
+                left,
+                left_comparison,
+                middle,
+                right,
+            } => {
+                serialize_style_range_value(sink, left);
+                sink.push_ascii(" ");
+                sink.push_ascii(feature_comparison_text(*left_comparison));
+                sink.push_ascii(" ");
+                serialize_style_range_value(sink, middle);
+                if let Some((comparison, right)) = right {
+                    sink.push_ascii(" ");
+                    sink.push_ascii(feature_comparison_text(*comparison));
+                    sink.push_ascii(" ");
+                    serialize_style_range_value(sink, right);
+                }
+            }
+        },
     }
 }
 
