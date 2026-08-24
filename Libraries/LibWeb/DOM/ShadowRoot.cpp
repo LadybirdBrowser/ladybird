@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/RadioButtonGroupRegistry.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -197,6 +198,14 @@ void ShadowRoot::visit_edges(Visitor& visitor)
             element.visit(visitor);
     }
     visitor.visit(m_custom_element_registry);
+    visitor.visit(m_radio_button_group_registry);
+}
+
+HTML::RadioButtonGroupRegistry& ShadowRoot::ensure_radio_button_group_registry()
+{
+    if (!m_radio_button_group_registry)
+        m_radio_button_group_registry = heap().allocate<HTML::RadioButtonGroupRegistry>();
+    return *m_radio_button_group_registry;
 }
 
 GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const

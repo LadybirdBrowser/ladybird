@@ -161,6 +161,7 @@ protected:
     virtual void form_associated_element_was_inserted();
     virtual void form_associated_element_was_removed(DOM::Node*);
     virtual void form_associated_element_was_moved(GC::Ptr<DOM::Node>);
+    virtual void form_associated_element_form_owner_changed();
     virtual void form_associated_element_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
 
     void form_node_was_inserted();

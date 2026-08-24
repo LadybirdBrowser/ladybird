@@ -110,6 +110,8 @@ public:
     bool keep_custom_element_registry_null() const { return m_keep_custom_element_registry_null; }
     void set_keep_custom_element_registry_null(bool value) { m_keep_custom_element_registry_null = value; }
 
+    HTML::RadioButtonGroupRegistry& ensure_radio_button_group_registry();
+
     virtual void finalize() override;
 
     GC::Ptr<Element> retargeted_fullscreen_element() const;
@@ -187,6 +189,8 @@ private:
 
     // https://dom.spec.whatwg.org/#shadowroot-keep-custom-element-registry-null
     bool m_keep_custom_element_registry_null { false };
+
+    GC::Ptr<HTML::RadioButtonGroupRegistry> m_radio_button_group_registry;
 
 public:
     using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;

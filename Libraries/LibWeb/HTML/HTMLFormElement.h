@@ -111,6 +111,8 @@ public:
     void default_button_state_maybe_changed();
     void default_button_state_maybe_changed(DOM::Element&, bool was_default);
 
+    RadioButtonGroupRegistry& ensure_radio_button_group_registry();
+
 private:
     HTMLFormElement(DOM::Document&, DOM::QualifiedName);
 
@@ -142,6 +144,8 @@ private:
     bool m_locked_for_reset { false };
 
     Vector<GC::Ref<HTMLElement>> m_associated_elements;
+
+    GC::Ptr<RadioButtonGroupRegistry> m_radio_button_group_registry;
     GC::Weak<HTMLElement> m_default_button_for_style_invalidation;
     bool m_default_button_for_style_invalidation_initialized { false };
 
