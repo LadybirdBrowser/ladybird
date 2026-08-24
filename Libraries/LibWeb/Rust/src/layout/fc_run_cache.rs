@@ -449,6 +449,10 @@ impl FcRunCacheAttempt {
 
 fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntry, fresh: &FcRunCacheEntry) {
     assert!(
+        cached.outputs.result.depends_on_percentage_block_size == fresh.outputs.result.depends_on_percentage_block_size,
+        "run cache shadow: percentage block-size dependency diverged for slot {root_slot}"
+    );
+    assert!(
         cached.outputs.result == fresh.outputs.result,
         "run cache shadow: child layout result diverged for slot {root_slot}"
     );

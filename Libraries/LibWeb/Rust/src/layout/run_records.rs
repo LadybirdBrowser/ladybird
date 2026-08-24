@@ -83,6 +83,10 @@ impl RunRecords {
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<std::rc::Rc<UsedValues>> {
         self.arena().run_record(node.slot_index(), self.nonce)
     }
+
+    pub(crate) fn root(&self) -> Node {
+        self.root
+    }
 }
 
 impl Drop for RunRecords {

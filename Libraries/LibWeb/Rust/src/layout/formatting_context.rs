@@ -769,6 +769,7 @@ pub(crate) struct ChildLayoutResult {
     pub automatic_content_block_size: CssPixels,
     pub baselines: DerivedBaselines,
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
+    pub depends_on_percentage_block_size: bool,
 }
 
 #[derive(Clone)]
@@ -1650,7 +1651,7 @@ fn execute_formatting_context_run(
         None
     };
     let mut implementation = None;
-    let result = if let Some((cached_block_size, cached_baselines)) = cached_atomic_block_size {
+    let mut result = if let Some((cached_block_size, cached_baselines)) = cached_atomic_block_size {
         ChildLayoutResult {
             automatic_content_block_size: cached_block_size,
             baselines: cached_baselines,
@@ -1679,6 +1680,7 @@ fn execute_formatting_context_run(
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
                     table_box_in_wrapper_border_box_block_size: context.table_box_in_wrapper_border_box_block_size(),
+                    depends_on_percentage_block_size: false,
                 }
             }
             FormattingContextImplementation::Flex(context) => {
@@ -1759,6 +1761,7 @@ fn execute_formatting_context_run(
         }
         ParticipationInParentFormattingContext::Root => {}
     }
+    result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
 
     let take_run_fragments = || {
         run.fragments
@@ -1842,6 +1845,38 @@ fn finalize_atomic_root_block_size(
     }
 }
 
+pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
+    records: &RunRecords,
+    callbacks: &FfiLayoutFcCallbacks,
+    child: Node,
+    child_depends_on_percentage_block_size: bool,
+) {
+    let run_root_reports_its_dependency_through_its_run_result = child == records.root();
+    if run_root_reports_its_dependency_through_its_run_result {
+        return;
+    }
+    let facts = NodeFacts::new(callbacks, child);
+    let resolves_against_containing_blocks_final_size = facts.is_absolutely_positioned();
+    if resolves_against_containing_blocks_final_size {
+        return;
+    }
+    let relative_block_insets_resolve_against_containing_block = facts.is_relatively_positioned() && {
+        let style = StyleValues::for_node(callbacks, child);
+        style.inset_top().contains_percentage() || style.inset_bottom().contains_percentage()
+    };
+    if !child_depends_on_percentage_block_size && !relative_block_insets_resolve_against_containing_block {
+        return;
+    }
+    let containing_block = callbacks.containing_block(child);
+    let containing_block_record_or_run_root_that_forwarded_the_basis = (!containing_block.is_invalid())
+        .then(|| records.used_values_if_owned(containing_block))
+        .flatten()
+        .unwrap_or_else(|| records.used_values(records.root()));
+    containing_block_record_or_run_root_that_forwarded_the_basis
+        .has_descendant_that_depends_on_percentage_block_size
+        .set(true);
+}
+
 pub(crate) fn layout_inside_child(
     run: &FormattingContextRun,
     parent_block: Option<&BlockFormattingContext>,
@@ -1859,6 +1894,14 @@ pub(crate) fn layout_inside_child(
         used.padding_top.set(used.padding_top.get() + padding_top);
         used.padding_bottom.set(used.padding_bottom.get() + padding_bottom);
     }
+    let note_skipped_child_dependency = || {
+        propagate_percentage_block_size_dependency_to_containing_block(
+            &run.records,
+            &run.callbacks,
+            child,
+            run.sizing().skipped_child_depends_on_percentage_block_size(child),
+        );
+    };
     if !force_independent_context_run
         && layout_mode == LayoutMode::IntrinsicSizing
         && matches!(input.participation, ParticipationInParentFormattingContext::AtomicInline)
@@ -1881,6 +1924,7 @@ pub(crate) fn layout_inside_child(
             Some(CssPixels::default()),
             || unreachable!("an empty atomic block has a zero automatic content block size"),
         );
+        note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;
     }
     if !force_independent_context_run
@@ -1892,6 +1936,7 @@ pub(crate) fn layout_inside_child(
         && used.has_definite_block_size()
     {
         size_skipped_independent_root(run, parent_block, child, &input);
+        note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;
     }
     let creates_replaced_context = matches!(
@@ -1900,6 +1945,7 @@ pub(crate) fn layout_inside_child(
     );
     if !facts.can_have_children() && !creates_replaced_context {
         size_skipped_independent_root(run, parent_block, child, &input);
+        note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;
     }
 
@@ -1908,6 +1954,7 @@ pub(crate) fn layout_inside_child(
     });
     let Some(fc_type) = fc_type else {
         if force_independent_context_run {
+            note_skipped_child_dependency();
             return ChildLayoutOutcome::Skipped;
         }
         return ChildLayoutOutcome::ReenterCurrent;
@@ -1926,7 +1973,7 @@ pub(crate) fn layout_inside_child(
         &input,
         layout_mode == LayoutMode::Normal && !run.purpose.is_measurement(),
     );
-    ChildLayoutOutcome::Created(run_formatting_context(
+    let result = run_formatting_context(
         run.purpose,
         run.fragments.as_deref(),
         &used,
@@ -1938,7 +1985,14 @@ pub(crate) fn layout_inside_child(
         run.callbacks,
         input,
         parent_block,
-    ))
+    );
+    propagate_percentage_block_size_dependency_to_containing_block(
+        &run.records,
+        &run.callbacks,
+        child,
+        result.depends_on_percentage_block_size,
+    );
+    ChildLayoutOutcome::Created(result)
 }
 
 fn absorb_run_outputs(

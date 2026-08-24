@@ -66,6 +66,12 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
         },
         None,
     );
+    crate::layout::propagate_percentage_block_size_dependency_to_containing_block(
+        &run.records,
+        &run.callbacks,
+        wrapper,
+        wrapper_result.depends_on_percentage_block_size,
+    );
     crate::layout::place_child(run, wrapper, FfiCssPixelPoint::default(), None);
 
     ChildLayoutResult {

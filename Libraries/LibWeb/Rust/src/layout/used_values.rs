@@ -289,6 +289,9 @@ pub(crate) struct UsedValues {
     pub has_last_baseline: Cell<bool>,
     pub last_baseline: Cell<CssPixels>,
 
+    // Layout outputs, deliberately outside the cell state.
+    pub depends_on_percentage_block_size: Cell<bool>,
+    pub has_descendant_that_depends_on_percentage_block_size: Cell<bool>,
 
     pub(crate) line_data: LazyRefCell<std::rc::Rc<LineData>>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
@@ -327,6 +330,8 @@ impl Default for UsedValues {
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
+            depends_on_percentage_block_size: Cell::new(false),
+            has_descendant_that_depends_on_percentage_block_size: Cell::new(false),
             line_data: LazyRefCell::new(),
             rare_data: LazyRefCell::new(),
         }
