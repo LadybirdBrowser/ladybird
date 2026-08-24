@@ -409,7 +409,7 @@ OwnPtr<BooleanExpression> RustQueryParser::parse_style_query(Parser& parser, Utf
     return adopt_root_expression(parser, rust_parse_style_query(ffi_utf16_view(source), resolve_query_feature), QueryFeatureKind::Media);
 }
 
-Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_container_condition_list(Parser& parser, Utf16View source)
+Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_container_condition_list(Parser&, Utf16View source)
 {
     auto* parse = rust_parse_container_condition_list(ffi_utf16_view(source), resolve_query_feature);
     if (!parse)
@@ -426,11 +426,7 @@ Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_con
             name = Utf16FlyString::from_utf16(utf16_value(data.syntax, ffi_condition.media_type_offset, ffi_condition.media_type_length));
         RefPtr<ContainerQuery> query;
         if (ffi_condition.has_condition) {
-            auto condition = expression(parser, data, ffi_condition.condition, QueryFeatureKind::Size);
-            if (!condition)
-                return {};
-            query = ContainerQuery::create(condition.release_nonnull());
-            query->m_rust_query_handle = RustQueryHandle::retained(data.query_handles[index]);
+            query = ContainerQuery::create(RustQueryHandle::retained(data.query_handles[index]));
         }
         conditions.unchecked_append({ .name = move(name), .query = move(query) });
     }

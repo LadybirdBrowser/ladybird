@@ -113,9 +113,8 @@ class WEB_API ContainerQuery final : public RefCounted<ContainerQuery> {
     friend class Parser::RustQueryParser;
 
 public:
-    static NonnullRefPtr<ContainerQuery> create(NonnullOwnPtr<BooleanExpression>&&);
+    static NonnullRefPtr<ContainerQuery> create(RustQueryHandle);
 
-    bool matches() const { return m_matches; }
     bool contains_size_feature() const { return m_feature_requirements.contains_size_feature(); }
     bool contains_style_feature() const { return m_feature_requirements.contains_style_feature(); }
     MatchResult evaluate(DOM::AbstractElement const&, Optional<Utf16FlyString> const& container_name) const;
@@ -124,12 +123,10 @@ public:
     void dump(StringBuilder&, int indent_levels = 0) const;
 
 private:
-    explicit ContainerQuery(NonnullOwnPtr<BooleanExpression>&&);
+    explicit ContainerQuery(RustQueryHandle);
 
-    NonnullOwnPtr<BooleanExpression> m_condition;
     RustQueryHandle m_rust_query_handle;
     ContainerQueryFeatureRequirements m_feature_requirements;
-    bool m_matches { false };
 };
 
 Optional<SizeFeatureID> size_feature_id_from_string(Utf16View);

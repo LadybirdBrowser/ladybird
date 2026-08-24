@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -708,16 +709,24 @@ void StyleFeature::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("StyleFeature: {}\n", to_string().to_utf8());
 }
 
-NonnullRefPtr<ContainerQuery> ContainerQuery::create(NonnullOwnPtr<BooleanExpression>&& condition)
+NonnullRefPtr<ContainerQuery> ContainerQuery::create(RustQueryHandle handle)
 {
-    return adopt_ref(*new ContainerQuery(move(condition)));
+    return adopt_ref(*new ContainerQuery(move(handle)));
 }
 
-ContainerQuery::ContainerQuery(NonnullOwnPtr<BooleanExpression>&& condition)
-    : m_condition(move(condition))
-    , m_matches(m_condition->evaluate_to_boolean({}))
+ContainerQuery::ContainerQuery(RustQueryHandle handle)
+    : m_rust_query_handle(move(handle))
 {
-    m_condition->collect_container_query_feature_requirements(m_feature_requirements);
+    auto requirements = Parser::ValueParserFFI::css_query_container_requirements(m_rust_query_handle.data());
+    m_feature_requirements = {
+        .requires_width_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_WIDTH),
+        .requires_height_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_HEIGHT),
+        .requires_inline_size_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_INLINE_SIZE),
+        .requires_block_size_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_BLOCK_SIZE),
+        .requires_style_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_STYLE),
+        .requires_scroll_state_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_SCROLL_STATE),
+        .has_unknown_or_unsupported_feature = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_HAS_UNKNOWN_FEATURE),
+    };
 }
 
 static bool container_satisfies_requirements(DOM::Element const& element, ContainerQueryFeatureRequirements const& requirements)
@@ -760,6 +769,95 @@ static bool container_satisfies_requirements(DOM::Element const& element, Contai
     return true;
 }
 
+struct ContainerStyleEvaluationContext {
+    GC::Ref<DOM::Document const> document;
+    DOM::Element const& container;
+};
+
+static Utf16View ffi_utf16_view(Parser::ValueParserFFI::FfiUtf16View const& value)
+{
+    VERIFY(!value.ascii);
+    VERIFY(value.utf16 || value.length == 0);
+    return { reinterpret_cast<char16_t const*>(value.utf16), value.length };
+}
+
+static FeatureComparison ffi_feature_comparison(u8 comparison)
+{
+    VERIFY(comparison <= to_underlying(FeatureComparison::GreaterThanOrEqual));
+    return static_cast<FeatureComparison>(comparison);
+}
+
+static Optional<StyleFeature::StyleRangeValue> ffi_style_range_value(Parser::ValueParserFFI::FfiStyleRangeValue const& value)
+{
+    auto source = ffi_utf16_view(value.value);
+    switch (value.kind) {
+    case Parser::ValueParserFFI::FfiStyleRangeValueKind::Property: {
+        auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf16(source));
+        if (!property.has_value())
+            return {};
+        return StyleFeature::StyleRangeValue { property.release_value() };
+    }
+    case Parser::ValueParserFFI::FfiStyleRangeValueKind::Components:
+        return StyleFeature::StyleRangeValue { Utf16String::from_utf16(source) };
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI::FfiContainerStyleFeature feature)
+{
+    VERIFY(context);
+    VERIFY(feature.values || feature.value_count == 0);
+    auto values = ReadonlySpan<Parser::ValueParserFFI::FfiStyleRangeValue> { feature.values, feature.value_count };
+    OwnPtr<StyleFeature> style_feature;
+    switch (feature.kind) {
+    case Parser::ValueParserFFI::FfiContainerStyleFeatureKind::Boolean: {
+        if (values.size() != 1)
+            return to_underlying(MatchResult::Unknown);
+        auto property = ffi_style_range_value(values[0]);
+        if (!property.has_value() || !property->has<PropertyNameAndID>())
+            return to_underlying(MatchResult::Unknown);
+        style_feature = StyleFeature::create_boolean(property->get<PropertyNameAndID>());
+        break;
+    }
+    case Parser::ValueParserFFI::FfiContainerStyleFeatureKind::Plain: {
+        if (values.size() != 2)
+            return to_underlying(MatchResult::Unknown);
+        auto property = ffi_style_range_value(values[0]);
+        if (!property.has_value() || !property->has<PropertyNameAndID>())
+            return to_underlying(MatchResult::Unknown);
+        style_feature = StyleFeature::create_plain(
+            property->get<PropertyNameAndID>(), Utf16String::from_utf16(ffi_utf16_view(values[1].value)));
+        break;
+    }
+    case Parser::ValueParserFFI::FfiContainerStyleFeatureKind::Range: {
+        if (values.size() < 2 || values.size() > 3)
+            return to_underlying(MatchResult::Unknown);
+        auto left = ffi_style_range_value(values[0]);
+        auto middle = ffi_style_range_value(values[1]);
+        if (!left.has_value() || !middle.has_value())
+            return to_underlying(MatchResult::Unknown);
+        if (values.size() == 2) {
+            style_feature = StyleFeature::create_range(
+                left.release_value(), ffi_feature_comparison(feature.first_comparison), middle.release_value());
+            break;
+        }
+        auto right = ffi_style_range_value(values[2]);
+        if (!right.has_value())
+            return to_underlying(MatchResult::Unknown);
+        style_feature = StyleFeature::create_range(
+            left.release_value(), ffi_feature_comparison(feature.first_comparison), middle.release_value(),
+            ffi_feature_comparison(feature.second_comparison), right.release_value());
+        break;
+    }
+    }
+
+    auto& evaluation_context = *static_cast<ContainerStyleEvaluationContext*>(context);
+    return to_underlying(style_feature->evaluate({
+        .document = &*evaluation_context.document,
+        .style_query_element = DOM::AbstractElement { evaluation_context.container },
+    }));
+}
+
 // https://drafts.csswg.org/css-conditional-5/#container-rule
 MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Optional<Utf16FlyString> const& container_name) const
 {
@@ -797,13 +895,38 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
                 root->set_is_style_query_container();
         }
 
-        // Once an eligible query container has been selected for an element, each container feature in the
-        // <container-query> is evaluated against that query container.
-        return m_condition->evaluate({
-            .document = &element.document(),
-            .query_container = container,
-            .style_query_element = DOM::AbstractElement { *container },
-        });
+        Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
+        Parser::ValueParserFFI::FfiContainerFacts facts {
+            .container_available = true,
+            .size_available = false,
+            .width = 0,
+            .height = 0,
+            .inline_axis_horizontal = false,
+            .length_resolution_context = nullptr,
+            .style_context = nullptr,
+            .evaluate_style_feature = evaluate_container_style_feature,
+        };
+        if (auto const* layout_node = container->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+            facts.size_available = true;
+            facts.width = Painting::content_width(*layout_node).to_double();
+            facts.height = Painting::content_height(*layout_node).to_double();
+            facts.inline_axis_horizontal = layout_node->writing_mode() == WritingMode::HorizontalTb;
+            auto computation_context = ComputationContext {
+                .length_resolution_context = Length::ResolutionContext::for_layout_node(*layout_node),
+                .abstract_element = DOM::AbstractElement { *container },
+            };
+            length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
+                computation_context.length_resolution_context, all_container_relative_length_units_mask);
+            facts.length_resolution_context = &*length_resolution_context;
+        } else if (!container->document().layout_is_up_to_date()) {
+            const_cast<DOM::Document&>(container->document()).set_needs_container_query_evaluation_after_layout(*container);
+        }
+
+        ContainerStyleEvaluationContext style_context { element.document(), *container };
+        facts.style_context = &style_context;
+        auto result = Parser::ValueParserFFI::css_query_evaluate_container(m_rust_query_handle.data(), facts);
+        VERIFY(result <= to_underlying(MatchResult::Unknown));
+        return static_cast<MatchResult>(result);
     }
 
     // If no ancestor is an eligible query container, then the container query is unknown for that element.
@@ -823,8 +946,7 @@ Utf16String ContainerQuery::to_string() const
 void ContainerQuery::dump(StringBuilder& builder, int indent_levels) const
 {
     dump_indent(builder, indent_levels);
-    builder.appendff("Container query: (matches = {})\n", m_matches);
-    m_condition->dump(builder, indent_levels + 1);
+    builder.appendff("Container query: `{}`\n", to_string());
 }
 
 bool container_name_matches(DOM::Element const& element, Optional<Utf16FlyString> const& container_name)
