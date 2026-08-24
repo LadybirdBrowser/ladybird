@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { width: 300px; height: 100px; }
+    #cached { width: 200px; overflow: hidden; min-height: 50%; }
+    #inner { width: 100px; height: 40px; }
+</style>
+<div id="container"><div id="cached"><div id="inner"></div></div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const heightBefore = document.getElementById("cached").getBoundingClientRect().height;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // The root's own min-height is a percentage of #container's height, which is not part of
+        // the run's assigned cells, so the stored run must not be replayed.
+        document.getElementById("container").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`hit delta: ${internals.layoutRunCacheHitCount() - hitsBefore}`);
+        println(`cached height: ${heightBefore} -> ${document.getElementById("cached").getBoundingClientRect().height}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+hit delta: 1
+cached height: 40

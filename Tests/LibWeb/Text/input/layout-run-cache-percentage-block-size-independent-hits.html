@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { width: 300px; height: 100px; }
+    #cached { width: 200px; overflow: hidden; }
+    #inner { width: 100px; height: 40px; }
+</style>
+<div id="container"><div id="cached"><div id="inner"></div></div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // Nothing inside #cached resolves a percentage against #container's height, so its run
+        // is replayed even though its available and percentage block sizes changed.
+        document.getElementById("container").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`hit delta: ${internals.layoutRunCacheHitCount() - hitsBefore}`);
+        println(`cached height: ${document.getElementById("cached").getBoundingClientRect().height}`);
+    });
+</script>

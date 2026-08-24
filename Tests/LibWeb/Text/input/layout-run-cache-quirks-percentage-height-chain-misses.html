@@ -1,0 +1,25 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { width: 300px; height: 100px; }
+    #cached { width: 200px; overflow: hidden; }
+    #inner { width: 100px; height: 50%; }
+</style>
+<div id="container"><div id="cached"><div id="inner"></div></div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const innerHeightBefore = document.getElementById("inner").getBoundingClientRect().height;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // In quirks mode the auto-height #cached passes #container's height through to #inner's
+        // percentage height, so #cached's run depends on it and must not be replayed.
+        document.getElementById("container").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`compat mode: ${document.compatMode}`);
+        println(`hit delta: ${internals.layoutRunCacheHitCount() - hitsBefore}`);
+        println(`inner height: ${innerHeightBefore} -> ${document.getElementById("inner").getBoundingClientRect().height}`);
+    });
+</script>

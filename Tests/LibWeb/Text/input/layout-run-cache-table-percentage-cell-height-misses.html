@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { width: 300px; height: 100px; }
+    table { border-spacing: 0; width: 100px; }
+    td { padding: 0; }
+    #percentage-cell { height: 50%; }
+    #fixed-cell { height: 20px; }
+</style>
+<div id="container">
+    <table id="percentage-table"><tr><td id="percentage-cell">x</td></tr></table>
+    <table id="fixed-table"><tr><td id="fixed-cell">x</td></tr></table>
+</div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const percentageHeightBefore = document.getElementById("percentage-table").getBoundingClientRect().height;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // Table cells resolve percentage heights against the basis the table forwards from its
+        // containing block, so only the table with fixed cell heights is replayed. The shadow run
+        // cache oracle also probes the runs nested inside a replayed table, so the exact hit count
+        // is not stable; the percentage table's geometry shows that it was laid out again.
+        document.getElementById("container").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`fixed table replayed: ${internals.layoutRunCacheHitCount() - hitsBefore >= 1}`);
+        println(`percentage table height: ${percentageHeightBefore} -> ${document.getElementById("percentage-table").getBoundingClientRect().height}`);
+        println(`fixed table height: ${document.getElementById("fixed-table").getBoundingClientRect().height}`);
+    });
+</script>
