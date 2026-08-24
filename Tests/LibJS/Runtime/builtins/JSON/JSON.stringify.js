@@ -64,6 +64,264 @@ describe("correct behavior", () => {
         expect(JSON.stringify(o)).toBe('{"foo":"bar"}');
     });
 
+    test("observes property mutations during serialization", () => {
+        let value = {
+            first: {
+                toJSON() {
+                    value.second = 3;
+                    return 1;
+                },
+            },
+            second: 2,
+        };
+        expect(JSON.stringify(value)).toBe('{"first":1,"second":3}');
+
+        value = {
+            first: {
+                toJSON() {
+                    delete value.second;
+                    return 1;
+                },
+            },
+            second: 2,
+        };
+        expect(JSON.stringify(value)).toBe('{"first":1}');
+
+        value = {
+            first: {
+                toJSON() {
+                    value.third = 3;
+                    return 1;
+                },
+            },
+            second: 2,
+        };
+        expect(JSON.stringify(value)).toBe('{"first":1,"second":2}');
+
+        value = {
+            first: {
+                toJSON() {
+                    delete value.second;
+                    value.second = 3;
+                    return 1;
+                },
+            },
+            second: 2,
+            third: 4,
+        };
+        expect(JSON.stringify(value)).toBe('{"first":1,"second":3,"third":4}');
+
+        value = {
+            first: {
+                toJSON() {
+                    Object.defineProperty(value, "second", {
+                        enumerable: true,
+                        get() {
+                            return 3;
+                        },
+                    });
+                    return 1;
+                },
+            },
+            second: 2,
+        };
+        expect(JSON.stringify(value)).toBe('{"first":1,"second":3}');
+    });
+
+    test("observes packed array mutations during serialization", () => {
+        let array = [
+            {
+                toJSON() {
+                    array[1] = 3;
+                    return 1;
+                },
+            },
+            2,
+        ];
+        expect(JSON.stringify(array)).toBe("[1,3]");
+
+        array = [
+            {
+                toJSON() {
+                    array.length = 1;
+                    return 1;
+                },
+            },
+            2,
+        ];
+        expect(JSON.stringify(array)).toBe("[1,null]");
+
+        array = [
+            {
+                toJSON() {
+                    delete array[1];
+                    Array.prototype[1] = 4;
+                    return 1;
+                },
+            },
+            2,
+        ];
+        try {
+            expect(JSON.stringify(array)).toBe("[1,4]");
+        } finally {
+            delete Array.prototype[1];
+        }
+
+        array = [
+            {
+                toJSON() {
+                    Object.defineProperty(array, "1", {
+                        get() {
+                            return 4;
+                        },
+                    });
+                    return 1;
+                },
+            },
+            2,
+        ];
+        expect(JSON.stringify(array)).toBe("[1,4]");
+
+        array = [
+            {
+                toJSON() {
+                    array.push(3);
+                    return 1;
+                },
+            },
+            2,
+        ];
+        expect(JSON.stringify(array)).toBe("[1,2]");
+    });
+
+    test("invalidates cached toJSON absence when a prototype changes", () => {
+        const first = {};
+        const second = {};
+        Object.defineProperty(first, "value", {
+            enumerable: true,
+            get() {
+                Object.prototype.toJSON = function () {
+                    return this === second ? "second" : this;
+                };
+                return 1;
+            },
+        });
+        Object.defineProperty(second, "value", {
+            enumerable: true,
+            get() {
+                return 2;
+            },
+        });
+
+        try {
+            expect(JSON.stringify([first, second])).toBe('[{"value":1},"second"]');
+        } finally {
+            delete Object.prototype.toJSON;
+        }
+    });
+
+    test("observes cached toJSON changes", () => {
+        let second = {
+            toJSON() {
+                return "old";
+            },
+        };
+        let first = {
+            toJSON() {
+                second.toJSON = () => "new";
+                return 1;
+            },
+        };
+        expect(JSON.stringify([first, second])).toBe('[1,"new"]');
+
+        second = {
+            toJSON() {
+                return "old";
+            },
+        };
+        first = {
+            toJSON() {
+                delete second.toJSON;
+                return 1;
+            },
+        };
+        expect(JSON.stringify([first, second])).toBe("[1,{}]");
+    });
+
+    test("stringifies exotic objects with synthesized own keys", () => {
+        const keys = Array.from({ length: 16 }, (_, index) => `property${index}`);
+        const object = new Proxy(
+            {},
+            {
+                ownKeys() {
+                    return keys;
+                },
+                getOwnPropertyDescriptor() {
+                    return { enumerable: true, configurable: true };
+                },
+                get(_, property) {
+                    return property;
+                },
+            }
+        );
+
+        expect(JSON.parse(JSON.stringify(object))).toEqual(Object.fromEntries(keys.map(key => [key, key])));
+    });
+
+    test("keeps cached shape data stable during recursive serialization", () => {
+        let nested = null;
+        for (let i = 0; i < 80; ++i) nested = { [`property${i}`]: nested };
+        const value = { nested, after: 42 };
+
+        expect(JSON.parse(JSON.stringify(value))).toEqual(value);
+    });
+
+    test("keeps fast-path state alive across garbage collection", () => {
+        const object = {
+            first: {
+                toJSON() {
+                    gc();
+                    object.second = 3;
+                    return 1;
+                },
+            },
+            second: 2,
+        };
+        expect(JSON.stringify(object)).toBe('{"first":1,"second":3}');
+
+        const array = [
+            {
+                toJSON() {
+                    gc();
+                    array[1] = 3;
+                    return 1;
+                },
+            },
+            2,
+        ];
+        expect(JSON.stringify(array)).toBe("[1,3]");
+
+        const cyclic = {};
+        let nested = cyclic;
+        for (let i = 0; i < 64; ++i) nested = nested.child = {};
+        nested.child = {
+            toJSON() {
+                gc();
+                return cyclic;
+            },
+        };
+        expect(() => JSON.stringify(cyclic)).toThrowWithMessage(TypeError, "Cannot stringify circular object");
+    });
+
+    test("detects cycles in deeply nested objects", () => {
+        const value = {};
+        let nested = value;
+        for (let i = 0; i < 64; ++i) nested = nested.child = {};
+        nested.child = value;
+
+        expect(() => JSON.stringify(value)).toThrowWithMessage(TypeError, "Cannot stringify circular object");
+    });
+
     test("escape surrogate codepoints in strings", () => {
         expect(JSON.stringify("\ud83d\ude04")).toBe('"😄"');
         expect(JSON.stringify("\ud83d")).toBe('"\\ud83d"');
