@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 20 tests
 
-19 Pass
-1 Fail
+20 Pass
 Pass	var() in if() condition's custom property value substitutes locally
 Pass	var() in if() condition's specified value substitutes locally
 Pass	var() in if() declaration value substitutes locally
@@ -17,7 +16,7 @@ Pass	if() cycle in condition custom property through local
 Pass	if() cycle in condition specified value through local
 Pass	if() cycle through function
 Pass	if() no cycle in overridden local
-Fail	if() no cycle in overridden argument
+Pass	if() no cycle in overridden argument
 Pass	CSS-wide keywords are interpreted locally (initial)
 Pass	CSS-wide keywords are interpreted locally (inherit)
 Pass	CSS-wide keywords are interpreted locally (guaranteed-invalid, initial)
