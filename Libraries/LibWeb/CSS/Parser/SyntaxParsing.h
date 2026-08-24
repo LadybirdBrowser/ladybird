@@ -23,5 +23,6 @@ WEB_API RefPtr<SyntaxNode> parse_as_syntax(Utf16View, LimitSingleComponentIdentT
 RefPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>&, LimitSingleComponentIdentToCustomIdent = LimitSingleComponentIdentToCustomIdent::No);
 
 NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const&, Vector<ComponentValue> const& input, SyntaxNode const& syntax);
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const&, Utf16View input, SyntaxNode const& syntax);
 
 }

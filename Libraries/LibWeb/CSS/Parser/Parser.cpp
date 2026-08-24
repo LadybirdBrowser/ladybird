@@ -1737,24 +1737,11 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
     if (declaration.name.equals_ignoring_ascii_case("-webkit-box-orient"sv)) {
         // INTEROP: -webkit-box-orient predates flex-direction and uses horizontal and vertical
         //          for the values now represented by row and column, respectively.
-        if (declaration.parsed_property_id.has_value()) {
-            auto value = declaration.value_text.trim_ascii_whitespace();
-            if (value.equals_ignoring_ascii_case("horizontal"sv))
-                legacy_value = KeywordStyleValue::create(Keyword::Row);
-            else if (value.equals_ignoring_ascii_case("vertical"sv))
-                legacy_value = KeywordStyleValue::create(Keyword::Column);
-        } else {
-            auto legacy_value_token_stream = TokenStream(declaration.value);
-            legacy_value_token_stream.discard_whitespace();
-            auto const& token = legacy_value_token_stream.consume_a_token();
-            legacy_value_token_stream.discard_whitespace();
-            if (!legacy_value_token_stream.has_next_token()) {
-                if (token.is_ident("horizontal"_utf16))
-                    legacy_value = KeywordStyleValue::create(Keyword::Row);
-                else if (token.is_ident("vertical"_utf16))
-                    legacy_value = KeywordStyleValue::create(Keyword::Column);
-            }
-        }
+        auto value = declaration.value_text.trim_ascii_whitespace();
+        if (value.equals_ignoring_ascii_case("horizontal"sv))
+            legacy_value = KeywordStyleValue::create(Keyword::Row);
+        else if (value.equals_ignoring_ascii_case("vertical"sv))
+            legacy_value = KeywordStyleValue::create(Keyword::Column);
     }
 
     if (declaration.parsed_property_id.has_value()) {
@@ -1772,49 +1759,14 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
             : StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_nonnull() } };
     }
 
-    auto value_token_stream = TokenStream(declaration.value);
-    auto value = legacy_value ? ParseErrorOr<NonnullRefPtr<StyleValue const>> { legacy_value.release_nonnull() } : parse_css_value(property->id(), value_token_stream, declaration.original_value_text);
-    if (value.is_error()) {
-        if (value.error() == ParseError::SyntaxError) {
-            ErrorReporter::the().report(InvalidPropertyError {
-                .property_name = property->name(),
-                .value_string = value_token_stream.dump_string(),
-                .description = "Failed to parse."_string,
-            });
-        }
+    auto value = legacy_value
+        ? ParseErrorOr<NonnullRefPtr<StyleValue const>> { legacy_value.release_nonnull() }
+        : parse_css_value_from_source(property->id(), declaration.original_value_text.value_or(declaration.value_text));
+    if (value.is_error())
         return {};
-    }
-
-    if (property->is_custom_property())
-        return StylePropertyAndName {
-            StyleProperty { declaration.important, property->id(), value.release_value() },
-            property->name()
-        };
-
-    return StylePropertyAndName {
-        StyleProperty { declaration.important, property->id(), value.release_value() }
-    };
-}
-
-bool Parser::context_allows_random_functions() const
-{
-    if (auto const* special_context = m_value_context.first().get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::CanvasContextGenericValue, SpecialContext::OnScreenCanvasContextFontValue))
-        return false;
-
-    // For now we only allow random functions within property contexts, see https://drafts.csswg.org/css-values-5/#issue-cd071f29
-    // FIXME: Should this instead check that the top-level context is a property context (our current configuration
-    //        allows these within DOMMatrixInitString for example)
-    return m_value_context.contains([](ValueParsingContext context) { return context.has<PropertyID>(); });
-}
-
-Utf16FlyString Parser::random_value_sharing_auto_name() const
-{
-    auto top_level_property_context_index = m_value_context.find_first_index_if([](ValueParsingContext const& context) { return context.has<PropertyID>(); });
-
-    auto property_name = string_from_property_id(m_value_context[top_level_property_context_index.value()].get<PropertyID>());
-
-    auto auto_name = Utf16String::formatted("{} {}", property_name, m_random_function_index);
-    return Utf16FlyString::from_utf16(auto_name.utf16_view());
+    return property->is_custom_property()
+        ? StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_value() }, property->name() }
+        : StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_value() } };
 }
 
 Vector<ComponentValue> Parser::parse_as_list_of_component_values()
@@ -1846,16 +1798,7 @@ RefPtr<StyleValue const> Parser::parse_as_descriptor_value(AtRuleID at_rule_id, 
 
 RefPtr<StyleValue const> Parser::parse_as_type(ValueType value_type)
 {
-    auto component_values = parse_a_list_of_component_values(token_stream());
-    TokenStream tokens { component_values };
-    auto parsed_value = parse_value(value_type, tokens);
-
-    tokens.discard_whitespace();
-
-    if (!parsed_value || !tokens.is_empty())
-        return nullptr;
-
-    return parsed_value;
+    return parse_primitive_value_from_source(value_type, m_source);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute

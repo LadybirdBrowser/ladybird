@@ -154,6 +154,8 @@ public:
     static Optional<ReadonlySpan<ComponentValue>> parse_declaration_value_as_span(TokenStream<ComponentValue>&, Optional<Token::Type> end_token_type = {}, DisallowTopLevelCurlyBlocks = DisallowTopLevelCurlyBlocks::No);
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax);
+    NonnullRefPtr<StyleValue const> parse_with_a_syntax(Utf16View input, SyntaxNode const& syntax);
+    NonnullRefPtr<StyleValue const> parse_with_a_syntax(SyntaxNode const& syntax) { return parse_with_a_syntax(m_source, syntax); }
 
     OwnPtr<BooleanExpression> parse_if_condition(TokenStream<ComponentValue>&);
 
@@ -162,7 +164,6 @@ public:
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
 
     enum class ParseError : u8 {
-        IncludesIgnoredVendorPrefix,
         SyntaxError,
     };
     template<typename T>
@@ -407,9 +408,6 @@ private:
                 m_random_function_index = 0;
         } };
     }
-    bool context_allows_random_functions() const;
-    Utf16FlyString random_value_sharing_auto_name() const;
-
     Vector<RuleContext> m_rule_context;
     HashTable<Utf16FlyString> m_declared_namespaces;
 };

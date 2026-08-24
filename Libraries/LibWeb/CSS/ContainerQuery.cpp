@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
-#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -225,7 +224,7 @@ NonnullOwnPtr<StyleFeature> StyleFeature::create_boolean(PropertyNameAndID prope
     }));
 }
 
-NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Vector<Parser::ComponentValue> value, Optional<Utf16String> original_value_text)
+NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Utf16String value, Optional<Utf16String> original_value_text)
 {
     return adopt_own(*new StyleFeature(StyleFeaturePlain {
         .property = move(property),
@@ -254,19 +253,9 @@ NonnullOwnPtr<StyleFeature> StyleFeature::create_range(StyleRangeValue left, Fea
     }));
 }
 
-static Optional<Keyword> single_css_wide_keyword(ReadonlySpan<Parser::ComponentValue> value)
+static Optional<Keyword> single_css_wide_keyword(Utf16View value)
 {
-    Parser::TokenStream tokens { value };
-    tokens.discard_whitespace();
-    if (!tokens.has_next_token())
-        return {};
-
-    auto const& token = tokens.consume_a_token();
-    tokens.discard_whitespace();
-    if (tokens.has_next_token() || !token.is(Parser::Token::Type::Ident))
-        return {};
-
-    auto keyword = keyword_from_string(token.token().ident());
+    auto keyword = keyword_from_string(value.trim_ascii_whitespace());
     if (!keyword.has_value())
         return {};
 
@@ -388,11 +377,8 @@ static bool compare_style_range_values(StyleRangeComparableValue const& left, Fe
     VERIFY_NOT_REACHED();
 }
 
-static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document const& document, ReadonlySpan<Parser::ComponentValue> tokens)
+static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document const& document, Utf16View source)
 {
-    if (Parser::contains_guaranteed_invalid_value(tokens))
-        return {};
-
     // https://drafts.csswg.org/css-conditional-5/#style-container
     // To evaluate a <style-range>:
     // 1. If <style-range-value> is a <custom-property-name>, it needs to be substituted as if the
@@ -401,8 +387,7 @@ static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document co
     // 3. Parse <style-range-value> to <number>, <percentage>, <length>, <angle>, <time>,
     //    <frequency> or <resolution>. If this cannot be done, evaluate to false.
     auto parse_as = [&](ValueType value_type) -> RefPtr<StyleValue const> {
-        auto serialized_tokens = serialize_a_series_of_component_values(tokens);
-        auto parser = Parser::Parser::create(Parser::ParsingParams { document }, serialized_tokens);
+        auto parser = Parser::Parser::create(Parser::ParsingParams { document }, source);
         return parser.parse_entirely_as_type(value_type);
     };
 
@@ -427,8 +412,7 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
             }
 
             auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property.name(), guarded_contexts);
-            auto computed_tokens = computed_value->tokenize();
-            if (did_evaluate_attr_tainted_style_query && Parser::contains_attr_tainted_value(computed_tokens))
+            if (did_evaluate_attr_tainted_style_query && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values())
                 *did_evaluate_attr_tainted_style_query = true;
 
             if (computed_value->is_guaranteed_invalid())
@@ -443,18 +427,16 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
                     VERIFY(registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal);
                 }
             } else if (!registration.has_value() || computed_value->is_unresolved()) {
-                comparable_value = parse_style_range_literal_value(document, computed_tokens);
+                auto computed_source = Parser::serialize_style_value_for_tokenization(*computed_value);
+                comparable_value = parse_style_range_literal_value(document, computed_source);
                 if (!comparable_value)
                     return {};
             }
 
             return comparable_style_range_value(comparable_value.release_nonnull(), computation_context);
         },
-        [&](Vector<Parser::ComponentValue> const& tokens) -> Optional<StyleRangeComparableValue> {
-            if (did_evaluate_attr_tainted_style_query && Parser::contains_attr_tainted_value(tokens))
-                *did_evaluate_attr_tainted_style_query = true;
-
-            auto parsed_value = parse_style_range_literal_value(document, tokens);
+        [&](Utf16String const& source) -> Optional<StyleRangeComparableValue> {
+            auto parsed_value = parse_style_range_literal_value(document, source);
             if (!parsed_value)
                 return {};
             return comparable_style_range_value(parsed_value.release_nonnull(), computation_context);
@@ -527,9 +509,6 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
 
     if (value.has_value()) {
         auto const& query_value = *value;
-        if (Parser::contains_guaranteed_invalid_value(query_value))
-            return MatchResult::False;
-
         if (auto css_wide_keyword = single_css_wide_keyword(query_value); css_wide_keyword.has_value()) {
             if (first_is_one_of(css_wide_keyword.value(), Keyword::Revert, Keyword::RevertLayer))
                 return MatchResult::False;
@@ -538,11 +517,8 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     }
 
     auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property_name, guarded_contexts);
-    auto computed_tokens = computed_value->tokenize();
-    if (context.did_evaluate_attr_tainted_style_query) {
-        if (Parser::contains_attr_tainted_value(computed_tokens))
-            *context.did_evaluate_attr_tainted_style_query = true;
-    }
+    if (context.did_evaluate_attr_tainted_style_query && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values())
+        *context.did_evaluate_attr_tainted_style_query = true;
 
     auto registration = element.get_registered_custom_property(property_name);
 
@@ -627,8 +603,8 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         return MatchResult::False;
 
     if (!registration.has_value()) {
-        auto computed_value_string = serialize_a_series_of_component_values(computed_tokens).trim_ascii_whitespace();
-        auto query_value_string = serialize_a_series_of_component_values(query_value).trim_ascii_whitespace();
+        auto computed_value_string = Parser::serialize_style_value_components(*computed_value).trim_ascii_whitespace();
+        auto query_value_string = query_value.trim_ascii_whitespace();
         return as_match_result(computed_value_string == query_value_string);
     }
 
@@ -651,8 +627,8 @@ static Utf16String serialize_style_range_value_to_utf16(StyleFeature::StyleRange
         [](PropertyNameAndID const& property) {
             return property.to_utf16_string();
         },
-        [](Vector<Parser::ComponentValue> const& component_values) {
-            return serialize_a_series_of_component_values(component_values);
+        [](Utf16String const& source) {
+            return source;
         });
 }
 
@@ -668,8 +644,7 @@ void StyleFeature::serialize_to(Utf16StringBuilder& builder) const
             if (feature.original_value_text.has_value()) {
                 builder.append(*feature.original_value_text);
             } else {
-                auto serialized_value = serialize_a_series_of_component_values(feature.value.value());
-                builder.append(serialized_value.utf16_view());
+                builder.append(feature.value.value());
             }
         },
         [&](StyleRange const& range) {
