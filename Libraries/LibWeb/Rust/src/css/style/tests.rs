@@ -20,7 +20,7 @@ use super::*;
 use crate::css::property_metadata::property_id;
 
 #[test]
-fn dense_program_staging_freezes_before_until_release() {
+fn sparse_program_staging_freezes_before_until_release() {
     let rule = RuleID(7);
     let mut staged = StagedField::default();
     staged.stage(rule, 10_u32, 20);
@@ -40,8 +40,8 @@ fn dense_program_staging_freezes_before_until_release() {
 
     staged.clear();
     assert_eq!(staged.current(rule, || 50), 50);
-    assert_eq!(staged.rows.capacity(), 0);
-    assert_eq!(staged.touched.capacity(), 0);
+    assert!(staged.rows.is_empty());
+    assert!(staged.touched.is_empty());
 }
 
 #[test]
