@@ -126,8 +126,6 @@ public:
     virtual void dump(StringBuilder&, int indent_levels = 0) const = 0;
 
     void set_rust_query_handle(RustQueryHandle handle) { m_rust_query_handle = move(handle); }
-
-protected:
     RustQueryHandle const& rust_query_handle() const { return m_rust_query_handle; }
 
 private:

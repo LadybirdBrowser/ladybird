@@ -12,6 +12,7 @@ namespace Web::CSS {
 
 Supports::Supports(NonnullOwnPtr<BooleanExpression>&& condition)
     : m_condition(move(condition))
+    , m_rust_query_handle(m_condition->rust_query_handle())
 {
     m_matches = m_condition->evaluate_to_boolean({});
 }
@@ -124,7 +125,12 @@ void Supports::AtRule::dump(StringBuilder& builder, int indent_levels) const
 
 Utf16String Supports::to_string() const
 {
-    return m_condition->to_string();
+    Utf16String serialized;
+    auto set_serialized_query = [](void* context, u16 const* code_units, size_t length) {
+        *static_cast<Utf16String*>(context) = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(code_units), length });
+    };
+    VERIFY(Parser::ValueParserFFI::css_query_serialize_condition(m_rust_query_handle.data(), &serialized, set_serialized_query));
+    return serialized;
 }
 
 void Supports::dump(StringBuilder& builder, int indent_levels) const
