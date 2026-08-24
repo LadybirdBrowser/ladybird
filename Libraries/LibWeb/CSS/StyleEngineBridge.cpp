@@ -602,6 +602,11 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
     };
 }
 
+void StyleEngine::sort_style_deltas_for_direct_application(Span<PublishedStyleDelta> deltas) const
+{
+    StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(m_impl, deltas.data(), deltas.size());
+}
+
 bool StyleEngine::has_pending_transaction() const
 {
     return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_impl);

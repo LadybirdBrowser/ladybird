@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -105,51 +104,6 @@ struct StyleEngineTransaction {
     Optional<StyleEngine::PublishedTransactionVersion> published_version;
     bool prefers_broad_matching_batch { false };
 };
-
-static Vector<u64> style_inheritance_path(DOM::Element const& element)
-{
-    Vector<u64> path;
-    for (Optional<DOM::AbstractElement> ancestor = DOM::AbstractElement { element }; ancestor.has_value();) {
-        auto parent = ancestor->element_to_inherit_style_from();
-        u64 branch = 0;
-        if (parent.has_value()) {
-            // Shadow-tree children are traversed before the host's light-tree children. Assigned
-            // slottables follow the slot's own fallback subtree.
-            if (ancestor->element().assigned_slot_internal() == GC::Ptr<DOM::Element> { parent->element() })
-                branch = 2;
-            else if (parent->element().shadow_root() && !ancestor->element().parent_node()->is_shadow_root())
-                branch = 1;
-        }
-        path.append((branch << 32) | ancestor->element().style_node_id().value());
-        ancestor = parent;
-    }
-    return path;
-}
-
-static void sort_style_engine_reactions_for_direct_application(StyleComputer& style_computer, Vector<StyleEngine::PublishedStyleDelta>& reactions)
-{
-    // Apply each inheritance branch contiguously in preorder. Besides making every parent ready
-    // before its descendants, this lets a parent's derived reaction merge into an unconsumed child
-    // reaction in the same batch.
-    HashMap<u32, Vector<u64>> style_inheritance_paths;
-    for (auto const& reaction : reactions) {
-        auto element = style_computer.element_for_style_node(reaction.style_node);
-        VERIFY(element);
-        style_inheritance_paths.set(reaction.style_node, style_inheritance_path(*element));
-    }
-    quick_sort(reactions, [&](auto const& first, auto const& second) {
-        auto const& first_path = style_inheritance_paths.get(first.style_node).value();
-        auto const& second_path = style_inheritance_paths.get(second.style_node).value();
-        auto common_length = min(first_path.size(), second_path.size());
-        for (size_t offset = 1; offset <= common_length; ++offset) {
-            auto first_node = first_path[first_path.size() - offset];
-            auto second_node = second_path[second_path.size() - offset];
-            if (first_node != second_node)
-                return first_node < second_node;
-        }
-        return first_path.size() < second_path.size();
-    });
-}
 
 static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document)
 {
@@ -631,7 +585,10 @@ static void update_style(DOM::Document& document)
         }
         style_engine_reactions.clear();
         if (!applicable_style_engine_reactions.is_empty()) {
-            sort_style_engine_reactions_for_direct_application(document.style_computer(), applicable_style_engine_reactions);
+            // Apply each inheritance branch contiguously in preorder. Besides making every parent
+            // ready before its descendants, this lets a parent's derived reaction merge into an
+            // unconsumed child reaction in the same batch.
+            document.style_computer().style_engine().sort_style_deltas_for_direct_application(applicable_style_engine_reactions);
             auto& counters = document.style_invalidation_counters();
             if (published_reaction_count > 0) {
                 ++counters.style_engine_reaction_batch_runs;

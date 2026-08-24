@@ -23,6 +23,7 @@
 
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
+use std::cmp::Ordering;
 use std::num::NonZeroU32;
 
 use super::capacity::capacity_bytes;
@@ -910,6 +911,80 @@ impl StyleNodeTree {
         Some(parent)
     }
 
+    /// Compare nodes in the order C++ must apply style reactions.
+    ///
+    /// This is preorder over the style-inheritance tree, extended to keep shadow-tree children
+    /// before a host's light-tree children and slot fallback before assigned slottables. Comparing
+    /// relation columns directly avoids materializing an ancestor path for every reaction.
+    #[must_use]
+    pub fn compare_style_reaction_order(&self, first: StyleNodeID, second: StyleNodeID) -> Ordering {
+        if first == second {
+            return Ordering::Equal;
+        }
+
+        let relation_depth = |mut node| {
+            let mut depth = 0u32;
+            while let Some((parent, _)) = self.style_reaction_parent(node) {
+                node = parent;
+                depth += 1;
+            }
+            depth
+        };
+
+        let mut first_node = first;
+        let mut second_node = second;
+        let mut first_depth = relation_depth(first);
+        let mut second_depth = relation_depth(second);
+        while first_depth > second_depth {
+            first_node = self
+                .style_reaction_parent(first_node)
+                .expect("a non-root reaction node must have a parent")
+                .0;
+            first_depth -= 1;
+            if first_node == second_node {
+                return Ordering::Greater;
+            }
+        }
+        while second_depth > first_depth {
+            second_node = self
+                .style_reaction_parent(second_node)
+                .expect("a non-root reaction node must have a parent")
+                .0;
+            second_depth -= 1;
+            if second_node == first_node {
+                return Ordering::Less;
+            }
+        }
+
+        loop {
+            let first_parent = self.style_reaction_parent(first_node);
+            let second_parent = self.style_reaction_parent(second_node);
+            if first_parent.map(|(parent, _)| parent) == second_parent.map(|(parent, _)| parent) {
+                let first_branch = first_parent.map_or(0, |(_, branch)| branch);
+                let second_branch = second_parent.map_or(0, |(_, branch)| branch);
+                return (first_branch, first_node.raw()).cmp(&(second_branch, second_node.raw()));
+            }
+            first_node = first_parent
+                .expect("different reaction roots must meet at the virtual root")
+                .0;
+            second_node = second_parent
+                .expect("different reaction roots must meet at the virtual root")
+                .0;
+        }
+    }
+
+    fn style_reaction_parent(&self, node: StyleNodeID) -> Option<(StyleNodeID, u8)> {
+        if let Some(slot) = self.assigned_slot_of(node) {
+            return Some((slot, 2));
+        }
+        let parent = self.parent(node)?;
+        if let Some(host) = self.host_of(parent) {
+            return Some((host, 0));
+        }
+        let branch = u8::from(self.shadow_root_of(parent).is_some());
+        Some((parent, branch))
+    }
+
     // -- Navigation --------------------------------------------------------------------------
 
     #[must_use]
@@ -1496,6 +1571,31 @@ mod tests {
         assert_eq!(fixture.tree.assigned_slot_of(first), Some(slot));
         assert_eq!(fixture.tree.flat_tree_parent(first), Some(slot));
         assert_eq!(fixture.tree.flat_tree_parent(fallback), None);
+    }
+
+    #[test]
+    fn style_reaction_order_covers_shadow_light_fallback_and_assigned_branches() {
+        let mut fixture = TreeFixture::new();
+        let document = fixture.element();
+        let host = fixture.element();
+        let light_child = fixture.element();
+        let shadow_root = fixture.element();
+        let slot = fixture.element();
+        let fallback = fixture.element();
+        let assigned = fixture.element();
+        fixture.attach_children(document, &[host]);
+        fixture.attach_children(host, &[light_child, assigned]);
+        fixture.attach_children(shadow_root, &[slot]);
+        fixture.attach_children(slot, &[fallback]);
+        fixture.tree.set_shadow_root(host, shadow_root, &mut fixture.memory);
+        fixture
+            .tree
+            .set_assigned_slot(assigned, Some(slot), &mut fixture.memory);
+
+        let mut reactions = vec![light_child, assigned, fallback, slot, host];
+        reactions.sort_unstable_by(|first, second| fixture.tree.compare_style_reaction_order(*first, *second));
+
+        assert_eq!(reactions, vec![host, slot, fallback, assigned, light_child]);
     }
 
     #[test]

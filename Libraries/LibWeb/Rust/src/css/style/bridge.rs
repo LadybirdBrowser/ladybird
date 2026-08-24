@@ -2573,6 +2573,31 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     })
 }
 
+/// Orders a completed reaction batch for direct application in C++.
+///
+/// # Safety
+/// `engine` must be live, and `deltas` must name `count` writable entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
+    engine: *const c_void,
+    deltas: *mut FfiStyleDelta,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        if count == 0 {
+            return;
+        }
+        assert!(!deltas.is_null(), "a non-empty delta span must have storage");
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
+        deltas.sort_unstable_by(|first, second| {
+            let first = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
+            let second = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
+            engine.tree.compare_style_reaction_order(first, second)
+        });
+    });
+}
+
 /// Installs the authoritative release order recorded for the next replay transaction.
 ///
 /// # Safety
