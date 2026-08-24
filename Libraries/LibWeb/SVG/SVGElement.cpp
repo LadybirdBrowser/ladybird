@@ -469,7 +469,12 @@ GC::Ptr<SVGSVGElement> SVGElement::owner_svg_element()
         }
     }
 
-    return first_flat_tree_ancestor_of_type<SVGSVGElement>();
+    for (auto* element = parent_or_shadow_host_element(); element; element = element->parent_or_shadow_host_element()) {
+        if (auto* svg_element = as_if<SVGSVGElement>(element))
+            return svg_element;
+    }
+
+    return nullptr;
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__viewportElement

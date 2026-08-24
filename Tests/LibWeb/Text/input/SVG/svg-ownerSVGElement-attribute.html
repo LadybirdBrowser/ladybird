@@ -46,5 +46,11 @@
         const slottedSVG = document.getElementById("slotted-svg");
         println(`slottedSVG is assigned to the named slot = '${slottedSVG.assignedSlot?.name === "test"}'`);
         println(`slottedSVG.ownerSVGElement = '${slottedSVG.ownerSVGElement}'`);
+
+        const slottedGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        slottedGroup.setAttribute("slot", "test");
+        document.getElementById("shadow-host").append(slottedGroup);
+        println(`slottedGroup is assigned to the named slot = '${slottedGroup.assignedSlot?.name === "test"}'`);
+        println(`slottedGroup.ownerSVGElement == svg = '${slottedGroup.ownerSVGElement === svgElement}'`);
     });
 </script>
