@@ -517,39 +517,17 @@ fn for_each_matching_scope(
     Ok(())
 }
 
-trait DenseStagingID: Copy + Ord {
-    fn index(self) -> usize;
-}
-
-impl DenseStagingID for RuleID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl DenseStagingID for SheetID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl DenseStagingID for TreeScopeID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
 struct StagedFieldRow<V> {
     before: V,
     after: V,
     dirty: bool,
 }
 
-/// Dense staging for one program field. The first write freezes `before`, later writes replace
+/// Sparse staging for one program field. The first write freezes `before`, later writes replace
 /// `after`, and `take_dirty()` applies only the last write while retaining both sides for
-/// `ProgramStaging::delta()`. `clear()` releases the dense columns after the transaction.
+/// `ProgramStaging::delta()`.
 struct StagedField<K, V> {
-    rows: Column<Option<StagedFieldRow<V>>>,
+    rows: HashMap<K, StagedFieldRow<V>>,
     touched: Vec<K>,
     dirty_count: usize,
 }
@@ -557,27 +535,24 @@ struct StagedField<K, V> {
 impl<K, V> Default for StagedField<K, V> {
     fn default() -> Self {
         Self {
-            rows: Column::default(),
+            rows: HashMap::default(),
             touched: Vec::new(),
             dirty_count: 0,
         }
     }
 }
 
-impl<K: DenseStagingID, V: Clone> StagedField<K, V> {
+impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
     fn current(&self, key: K, committed: impl FnOnce() -> V) -> V {
         self.side(key, TransactionFactSide::After, committed)
     }
 
     fn after(&self, key: K) -> Option<&V> {
-        self.rows
-            .get(key.index())
-            .and_then(Option::as_ref)
-            .map(|row| &row.after)
+        self.rows.get(&key).map(|row| &row.after)
     }
 
     fn side(&self, key: K, side: TransactionFactSide, resident: impl FnOnce() -> V) -> V {
-        let row = self.rows.get(key.index()).and_then(Option::as_ref);
+        let row = self.rows.get(&key);
         match (side, row) {
             (TransactionFactSide::Before, Some(row)) => row.before.clone(),
             (TransactionFactSide::After, Some(row)) => row.after.clone(),
@@ -586,8 +561,7 @@ impl<K: DenseStagingID, V: Clone> StagedField<K, V> {
     }
 
     fn stage(&mut self, key: K, before: V, after: V) {
-        let slot = self.rows.entry(key.index());
-        if let Some(row) = slot {
+        if let Some(row) = self.rows.get_mut(&key) {
             row.after = after;
             if !row.dirty {
                 row.dirty = true;
@@ -595,11 +569,14 @@ impl<K: DenseStagingID, V: Clone> StagedField<K, V> {
             }
             return;
         }
-        *slot = Some(StagedFieldRow {
-            before,
-            after,
-            dirty: true,
-        });
+        self.rows.insert(
+            key,
+            StagedFieldRow {
+                before,
+                after,
+                dirty: true,
+            },
+        );
         self.touched.push(key);
         self.dirty_count += 1;
     }
@@ -607,7 +584,7 @@ impl<K: DenseStagingID, V: Clone> StagedField<K, V> {
     fn take_dirty(&mut self) -> Vec<(K, V)> {
         let mut dirty = Vec::with_capacity(self.dirty_count);
         for &key in &self.touched {
-            let row = self.rows[key.index()].as_mut().unwrap();
+            let row = self.rows.get_mut(&key).unwrap();
             if row.dirty {
                 dirty.push((key, row.after.clone()));
                 row.dirty = false;
@@ -623,20 +600,18 @@ impl<K: DenseStagingID, V: Clone> StagedField<K, V> {
     }
 
     fn clear(&mut self) {
-        self.rows = Column::default();
-        self.touched = Vec::new();
+        self.rows.clear();
+        self.touched.clear();
         self.dirty_count = 0;
     }
 
     fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
-        self.touched
-            .iter()
-            .map(|key| (key, &self.rows[key.index()].as_ref().unwrap().after))
+        self.touched.iter().map(|key| (key, &self.rows.get(key).unwrap().after))
     }
 
     fn pairs(&self) -> impl Iterator<Item = (K, &V, &V)> {
         self.touched.iter().map(|&key| {
-            let row = self.rows[key.index()].as_ref().unwrap();
+            let row = self.rows.get(&key).unwrap();
             (key, &row.before, &row.after)
         })
     }
