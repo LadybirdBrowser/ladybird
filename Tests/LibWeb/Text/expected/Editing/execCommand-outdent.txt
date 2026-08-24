@@ -2,6 +2,6 @@
     <div>foobar</div>
     <ul>
         <li>foo</li>
-        <li>bar</li><li></li>
+        <li></li><li>bar</li>
         <li>baz</li>
     </ul>
