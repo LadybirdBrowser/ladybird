@@ -207,3 +207,22 @@ TEST_CASE(viewport_scrollbar_collapses_when_drag_is_released_away_from_scrollbar
     EXPECT(!next_move_result.accepted);
     EXPECT(!next_move_result.frame_to_present.has_value());
 }
+
+TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    context.install_display_list_update(make_display_list_with_viewport_scrollbar(visual_context_tree), visual_context_tree, {});
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10)).accepted);
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
+
+    auto secondary_release_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, 50, 50, Web::UIEvents::MouseButton::Secondary));
+    EXPECT(!secondary_release_result.accepted);
+
+    // The primary-button drag remains captured after another button is released.
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 50, 60)).accepted);
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, 50, 60, Web::UIEvents::MouseButton::Primary)).accepted);
+}
