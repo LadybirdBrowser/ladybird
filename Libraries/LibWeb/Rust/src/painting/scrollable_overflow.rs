@@ -278,19 +278,18 @@ fn fragment_node_is_in_focused_text_control(
 #[derive(Clone, Copy)]
 pub(crate) struct OverflowAssignment {
     box_paintable: NodeSlotId,
-    overflow: FfiOverflowData,
-    cached_overflow: Option<FfiOverflowData>,
+    /// None re-validates the row's still-current stored rect without rewriting it.
+    overflow_relative_to_padding_box: Option<FfiOverflowData>,
 }
 
 impl OverflowAssignment {
     pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
         let data = layout_arena.paintable_data_mut(self.box_paintable);
-        data.overflow = self.overflow;
-        data.has_overflow = true;
-        if let Some(cached_overflow) = self.cached_overflow {
-            data.cached_overflow = cached_overflow;
-            data.has_cached_overflow = true;
+        if let Some(overflow) = self.overflow_relative_to_padding_box {
+            data.overflow_relative_to_padding_box = overflow;
+            data.overflow_valid_across_recommits = true;
         }
+        data.overflow_measured_this_commit = true;
     }
 }
 
@@ -305,11 +304,7 @@ fn store_overflow_data(
         scrollable_overflow_rect.translated(-paintable_absolute_padding_box.x, -paintable_absolute_padding_box.y);
     assignments.push(OverflowAssignment {
         box_paintable,
-        overflow: FfiOverflowData {
-            rect: scrollable_overflow_rect.into(),
-            has_scrollable_overflow,
-        },
-        cached_overflow: Some(FfiOverflowData {
+        overflow_relative_to_padding_box: Some(FfiOverflowData {
             rect: rect_relative_to_padding_box.into(),
             has_scrollable_overflow,
         }),
@@ -346,28 +341,29 @@ fn measure_scrollable_overflow_impl(
     box_paintable: NodeSlotId,
     assignments: &mut Vec<OverflowAssignment>,
 ) -> CssPixelRect {
-    let (kind, cached_overflow) = {
+    let (kind, still_valid_overflow) = {
         let data = layout_arena.paintable_data(box_paintable);
-        if data.has_overflow {
-            return data.overflow.rect.into();
+        if data.overflow_measured_this_commit {
+            return CssPixelRect::from(data.overflow_relative_to_padding_box.rect)
+                .translated_by(paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable).location());
         }
-        (data.kind, data.has_cached_overflow.then_some(data.cached_overflow))
+        (
+            data.kind,
+            data.overflow_valid_across_recommits
+                .then_some(data.overflow_relative_to_padding_box),
+        )
     };
 
     let box_node = box_paintable;
     let paintable_absolute_padding_box = paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable);
     let paintable_absolute_content_box = paintable_geometry::absolute_rect(layout_arena, box_paintable);
 
-    if let Some(cached_overflow) = cached_overflow {
+    if let Some(still_valid_overflow) = still_valid_overflow {
         let scrollable_overflow_rect =
-            CssPixelRect::from(cached_overflow.rect).translated_by(paintable_absolute_padding_box.location());
+            CssPixelRect::from(still_valid_overflow.rect).translated_by(paintable_absolute_padding_box.location());
         assignments.push(OverflowAssignment {
             box_paintable,
-            overflow: FfiOverflowData {
-                rect: scrollable_overflow_rect.into(),
-                has_scrollable_overflow: cached_overflow.has_scrollable_overflow,
-            },
-            cached_overflow: None,
+            overflow_relative_to_padding_box: None,
         });
         return scrollable_overflow_rect;
     }
@@ -456,7 +452,7 @@ fn measure_scrollable_overflow_impl(
                     && child_display.is_inline_outside()
                     && !child_is_floating
                     && !child_has_css_transform
-                    && child_data.has_cached_overflow
+                    && child_data.overflow_valid_across_recommits
                 {
                     let border = crate::painting::paintable_geometry::committed_border(layout_arena, child_node);
                     let zero = CssPixels::from_raw(0);
@@ -470,7 +466,9 @@ fn measure_scrollable_overflow_impl(
                             CssPixelRect::new(padding.left, padding.top, content_size.width, content_size.height);
                         // The committed line fragment already contributes this content box. A box with no border whose
                         // cached overflow fits inside the content box cannot expand its containing block's overflow.
-                        if content_box_relative_to_padding_box.contains_rect(child_data.cached_overflow.rect.into()) {
+                        if content_box_relative_to_padding_box
+                            .contains_rect(child_data.overflow_relative_to_padding_box.rect.into())
+                        {
                             continue;
                         }
                     }

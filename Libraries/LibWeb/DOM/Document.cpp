@@ -2744,7 +2744,9 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // its paint cache is already clean.
         if (!old_overflow_data.has_value())
             continue;
-        bool rect_changed = old_overflow_data->scrollable_overflow_rect != new_overflow_data->scrollable_overflow_rect;
+        // Boxes that merely moved do not register here; everything derived below is
+        // translation-invariant, and movement-driven repaint belongs to the layout commit.
+        bool rect_changed = old_overflow_data->scrollable_overflow_rect_relative_to_padding_box != new_overflow_data->scrollable_overflow_rect_relative_to_padding_box;
         bool has_scrollable_overflow_flipped = old_overflow_data->has_scrollable_overflow != new_overflow_data->has_scrollable_overflow;
         if (!rect_changed && !has_scrollable_overflow_flipped)
             continue;

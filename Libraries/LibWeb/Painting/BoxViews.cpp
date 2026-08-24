@@ -259,14 +259,14 @@ CSSPixels border_box_height(Layout::Node const& node)
 Optional<OverflowData> overflow_data(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    if (!row || !row->has_overflow)
+    if (!row || !row->overflow_measured_this_commit)
         return {};
-    return OverflowData { from_ffi_css_pixel_rect(row->overflow.rect), row->overflow.has_scrollable_overflow };
+    return OverflowData { from_ffi_css_pixel_rect(row->overflow_relative_to_padding_box.rect), row->overflow_relative_to_padding_box.has_scrollable_overflow };
 }
 
 static void measure_scrollable_overflow_if_missing(Layout::Node const& node, Layout::RustFFI::PaintableData const& row)
 {
-    if (row.has_overflow || row.has_cached_overflow)
+    if (row.overflow_measured_this_commit || row.overflow_valid_across_recommits)
         return;
     if (auto const* box = as_if<Layout::Box>(node))
         rust_measure_scrollable_overflow(*box);
@@ -278,9 +278,7 @@ bool has_scrollable_overflow(Layout::Node const& node)
     if (!row)
         return false;
     measure_scrollable_overflow_if_missing(node, *row);
-    if (row->has_overflow)
-        return row->overflow.has_scrollable_overflow;
-    return row->has_cached_overflow && row->cached_overflow.has_scrollable_overflow;
+    return (row->overflow_measured_this_commit || row->overflow_valid_across_recommits) && row->overflow_relative_to_padding_box.has_scrollable_overflow;
 }
 
 Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
@@ -289,11 +287,9 @@ Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
     if (!row)
         return {};
     measure_scrollable_overflow_if_missing(node, *row);
-    if (row->has_overflow)
-        return from_ffi_css_pixel_rect(row->overflow.rect);
-    if (!row->has_cached_overflow)
+    if (!row->overflow_measured_this_commit && !row->overflow_valid_across_recommits)
         return {};
-    auto rect = from_ffi_css_pixel_rect(row->cached_overflow.rect);
+    auto rect = from_ffi_css_pixel_rect(row->overflow_relative_to_padding_box.rect);
     rect.translate_by(absolute_padding_box_rect(node).location());
     return rect;
 }
