@@ -53,13 +53,6 @@ Optional<Vector<RustQueryParser::SizesAttributeEntry>> RustQueryParser::split_si
     return entries;
 }
 
-static Utf16View utf16_value(FfiSyntaxParseData const& data, size_t offset, size_t length)
-{
-    VERIFY(offset <= data.value_count);
-    VERIFY(length <= data.value_count - offset);
-    return { reinterpret_cast<char16_t const*>(data.values + offset), length };
-}
-
 static u16 resolve_query_feature(u8 kind, u16 const* code_units, size_t length)
 {
     auto name = Utf16View { reinterpret_cast<char16_t const*>(code_units), length };
@@ -77,121 +70,6 @@ static u16 resolve_query_feature(u8 kind, u16 const* code_units, size_t length)
     }
     VERIFY(kind == 2);
     return PropertyNameAndID::from_name(Utf16FlyString::from_utf16(name)).has_value() ? 0 : NumericLimits<u16>::max();
-}
-
-static FeatureComparison feature_comparison(u8 comparison)
-{
-    VERIFY(comparison <= to_underlying(FeatureComparison::GreaterThanOrEqual));
-    return static_cast<FeatureComparison>(comparison);
-}
-
-static MatchResult match_result(u8 result)
-{
-    VERIFY(result <= to_underlying(MatchResult::Unknown));
-    return static_cast<MatchResult>(result);
-}
-
-static FfiQueryValue const& query_value(FfiQueryParseData const& data, size_t index)
-{
-    VERIFY(index < data.query_value_count);
-    return data.query_values[index];
-}
-
-template<typename FeatureID>
-static Optional<FeatureValue> feature_value(Parser& parser, FfiQueryParseData const& data, size_t index, FeatureID id)
-{
-    auto const& value = query_value(data, index);
-    VERIFY(value.value_type == 0);
-    auto source = utf16_value(data.syntax, value.source_offset, value.source_length);
-    if constexpr (IsSame<FeatureID, MediaFeatureID>)
-        return RustQueryParser::parse_media_feature_value(parser, id, source);
-    else
-        return RustQueryParser::parse_size_feature_value(parser, id, source);
-}
-
-enum class QueryFeatureKind : u8 {
-    Media,
-    Size,
-};
-
-static OwnPtr<BooleanExpression> expression(Parser&, FfiQueryParseData const&, size_t, QueryFeatureKind);
-
-static Vector<NonnullOwnPtr<BooleanExpression>> expression_children(Parser& parser, FfiQueryParseData const& data, FfiQueryNode const& node, QueryFeatureKind kind)
-{
-    VERIFY(node.children_start <= data.node_index_count);
-    VERIFY(node.child_count <= data.node_index_count - node.children_start);
-    Vector<NonnullOwnPtr<BooleanExpression>> children;
-    children.ensure_capacity(node.child_count);
-    for (size_t index = 0; index < node.child_count; ++index) {
-        auto child = expression(parser, data, data.node_indices[node.children_start + index], kind);
-        if (!child)
-            return {};
-        children.unchecked_append(child.release_nonnull());
-    }
-    return children;
-}
-
-template<typename Feature, typename FeatureID>
-static OwnPtr<BooleanExpression> query_feature(Parser& parser, FfiQueryParseData const& data, FfiQueryNode const& node)
-{
-    auto id = static_cast<FeatureID>(node.feature_id);
-    switch (node.feature_type) {
-    case 0:
-        return Feature::boolean(id);
-    case 1:
-    case 2:
-    case 3: {
-        auto value = feature_value(parser, data, node.values_start, id);
-        if (!value.has_value())
-            return nullptr;
-        if (node.feature_type == 1)
-            return Feature::plain(id, value.release_value());
-        if (node.feature_type == 2)
-            return Feature::min(id, value.release_value());
-        return Feature::max(id, value.release_value());
-    }
-    case 4: {
-        bool has_left = node.match_result & 1;
-        bool has_right = node.match_result & 2;
-        VERIFY(has_left || has_right);
-        auto value_index = node.values_start;
-        Optional<FeatureValue> left;
-        Optional<FeatureValue> right;
-        if (has_left)
-            left = feature_value(parser, data, value_index++, id);
-        if (has_right)
-            right = feature_value(parser, data, value_index, id);
-        if (has_left && !left.has_value())
-            return nullptr;
-        if (has_right && !right.has_value())
-            return nullptr;
-        if (has_left && has_right)
-            return Feature::range(left.release_value(), feature_comparison(node.first_comparison), id, feature_comparison(node.second_comparison), right.release_value());
-        if (has_left)
-            return Feature::half_range(left.release_value(), feature_comparison(node.first_comparison), id);
-        return Feature::half_range(id, feature_comparison(node.first_comparison), right.release_value());
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-static Optional<PropertyNameAndID> style_feature_name(FfiQueryParseData const& data, FfiQueryNode const& node)
-{
-    return PropertyNameAndID::from_name(Utf16FlyString::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length)));
-}
-
-static Optional<StyleFeature::StyleRangeValue> style_range_value(FfiQueryParseData const& data, size_t index)
-{
-    auto const& value = query_value(data, index);
-    if (value.value_type == 1) {
-        auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf16(utf16_value(data.syntax, value.name_offset, value.name_length)));
-        if (!property.has_value())
-            return {};
-        return StyleFeature::StyleRangeValue { property.release_value() };
-    }
-    VERIFY(value.value_type == 0);
-    return StyleFeature::StyleRangeValue { Utf16String::from_utf16(utf16_value(data.syntax, value.source_offset, value.source_length)) };
 }
 
 static bool at_rule_is_supported(Utf16View name)
@@ -219,121 +97,15 @@ static bool at_rule_is_supported(Utf16View name)
         || is_margin_rule_name(fly_string);
 }
 
-static OwnPtr<BooleanExpression> expression(Parser& parser, FfiQueryParseData const& data, size_t index, QueryFeatureKind kind)
+Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser&, Utf16View source)
 {
-    VERIFY(index < data.node_count);
-    auto const& node = data.nodes[index];
-    switch (node.node_type) {
-    case 0: {
-        auto children = expression_children(parser, data, node, kind);
-        if (children.size() != 1)
-            return nullptr;
-        return BooleanNotExpression::create(children.take_first());
-    }
-    case 1: {
-        auto children = expression_children(parser, data, node, kind);
-        if (children.size() != node.child_count)
-            return nullptr;
-        return BooleanAndExpression::create(move(children));
-    }
-    case 2: {
-        auto children = expression_children(parser, data, node, kind);
-        if (children.size() != node.child_count)
-            return nullptr;
-        return BooleanOrExpression::create(move(children));
-    }
-    case 3: {
-        auto children = expression_children(parser, data, node, kind);
-        if (children.size() != 1)
-            return nullptr;
-        return BooleanExpressionInParens::create(children.take_first());
-    }
-    case 4:
-        return GeneralEnclosed::create(Utf16String::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length)), match_result(node.match_result));
-    case 5:
-        if (kind == QueryFeatureKind::Media)
-            return query_feature<MediaFeature, MediaFeatureID>(parser, data, node);
-        return query_feature<SizeFeature, SizeFeatureID>(parser, data, node);
-    case 6:
-    case 7:
-    case 8:
-    case 9:
-    case 10:
-    case 11:
-        return ConstantBooleanExpression::create(match_result(node.match_result));
-    case 12: {
-        auto children = expression_children(parser, data, node, kind);
-        if (children.size() != 1)
-            return nullptr;
-        return StyleQueryFunction::create(children.take_first());
-    }
-    case 13: {
-        auto name = style_feature_name(data, node);
-        if (!name.has_value())
-            return GeneralEnclosed::create(Utf16String::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length)), MatchResult::Unknown);
-        return StyleFeature::create_boolean(name.release_value());
-    }
-    case 14: {
-        auto name = style_feature_name(data, node);
-        auto const& value = query_value(data, node.values_start);
-        auto original_text = Utf16String::from_utf16(utf16_value(data.syntax, value.name_offset, value.name_length));
-        if (!name.has_value()) {
-            return GeneralEnclosed::create(Utf16String::from_utf16(utf16_value(data.syntax, node.children_start, node.child_count)), MatchResult::Unknown);
-        }
-        return StyleFeature::create_plain(name.release_value(), Utf16String::from_utf16(utf16_value(data.syntax, value.source_offset, value.source_length)), move(original_text));
-    }
-    case 15: {
-        auto left = style_range_value(data, node.values_start);
-        auto middle = style_range_value(data, node.values_start + 1);
-        if (!left.has_value() || !middle.has_value())
-            return nullptr;
-        if (node.value_count == 2)
-            return StyleFeature::create_range(left.release_value(), feature_comparison(node.first_comparison), middle.release_value());
-        VERIFY(node.value_count == 3);
-        auto right = style_range_value(data, node.values_start + 2);
-        if (!right.has_value())
-            return nullptr;
-        return StyleFeature::create_range(left.release_value(), feature_comparison(node.first_comparison), middle.release_value(), feature_comparison(node.second_comparison), right.release_value());
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser& parser, Utf16View source)
-{
-    auto* parse = rust_parse_media_query_list(ffi_utf16_view(source), resolve_query_feature);
-    if (!parse)
-        return { MediaQuery::create_not_all() };
-    ScopeGuard free_parse = [&] { rust_query_parse_free(parse); };
-    auto data = rust_query_parse_data(parse);
     Vector<NonnullRefPtr<MediaQuery>> queries;
-    queries.ensure_capacity(data.media_query_count);
-    for (size_t index = 0; index < data.media_query_count; ++index) {
-        auto const& ffi_query = data.media_queries[index];
-        if (!ffi_query.valid) {
-            auto query = MediaQuery::create_not_all();
-            query->m_rust_query_handle = RustQueryHandle::retained(data.query_handles[index]);
-            queries.unchecked_append(move(query));
-            continue;
-        }
-        auto query = MediaQuery::create();
-        query->m_rust_query_handle = RustQueryHandle::retained(data.query_handles[index]);
-        query->m_negated = ffi_query.negated;
-        if (ffi_query.has_media_type) {
-            auto name = Utf16FlyString::from_utf16(utf16_value(data.syntax, ffi_query.media_type_offset, ffi_query.media_type_length));
-            query->m_media_type = { .name = name, .known_type = media_type_from_string(name) };
-        }
-        if (ffi_query.has_condition) {
-            auto condition = expression(parser, data, ffi_query.condition, QueryFeatureKind::Media);
-            if (!condition) {
-                queries.unchecked_append(MediaQuery::create_not_all());
-                continue;
-            }
-            query->m_media_condition = move(condition);
-        }
-        queries.unchecked_append(move(query));
-    }
+    auto visit = [](void* context, FfiQueryHandle const* handle) {
+        auto& queries = *static_cast<Vector<NonnullRefPtr<MediaQuery>>*>(context);
+        queries.append(MediaQuery::create(RustQueryHandle::retained(handle)));
+    };
+    if (!rust_visit_media_query_list(ffi_utf16_view(source), resolve_query_feature, &queries, visit))
+        return { MediaQuery::create_not_all() };
     return queries;
 }
 
@@ -352,84 +124,73 @@ RefPtr<MediaQuery> Parser::parse_as_media_query()
     return nullptr;
 }
 
-static OwnPtr<BooleanExpression> adopt_root_expression(Parser& parser, FfiQueryParse* parse, QueryFeatureKind kind)
+Optional<RustQueryHandle> RustQueryParser::parse_media_condition(Parser&, Utf16View source)
 {
-    if (!parse)
-        return nullptr;
-    ScopeGuard free_parse = [&] { rust_query_parse_free(parse); };
-    auto data = rust_query_parse_data(parse);
-    if (!data.has_root)
-        return nullptr;
-    auto root = expression(parser, data, data.root, kind);
-    if (root)
-        root->set_rust_query_handle(RustQueryHandle::retained(data.root_handle));
-    return root;
+    auto* handle = rust_parse_media_condition(ffi_utf16_view(source), resolve_query_feature);
+    if (!handle)
+        return {};
+    return RustQueryHandle { handle };
 }
 
-OwnPtr<BooleanExpression> RustQueryParser::parse_media_condition(Parser& parser, Utf16View source)
+Optional<RustQueryHandle> RustQueryParser::parse_media_feature(Parser&, Utf16View source)
 {
-    return adopt_root_expression(parser, rust_parse_media_condition(ffi_utf16_view(source), resolve_query_feature), QueryFeatureKind::Media);
-}
-
-OwnPtr<BooleanExpression> RustQueryParser::parse_media_feature(Parser& parser, Utf16View source)
-{
-    return adopt_root_expression(parser, rust_parse_media_feature(ffi_utf16_view(source), resolve_query_feature), QueryFeatureKind::Media);
+    auto* handle = rust_parse_media_feature(ffi_utf16_view(source), resolve_query_feature);
+    if (!handle)
+        return {};
+    return RustQueryHandle { handle };
 }
 
 RefPtr<Supports> RustQueryParser::parse_supports(Parser& parser, Utf16View source)
 {
-    parser.m_rule_context.append(RuleContext::SupportsCondition);
-    ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
-    auto* parse = rust_parse_supports_condition(ffi_utf16_view(source), &parser, evaluate_supports_feature);
-    if (!parse)
+    auto handle = parse_supports_condition(parser, source);
+    if (!handle.has_value())
         return nullptr;
-    ScopeGuard free_parse = [&] { rust_query_parse_free(parse); };
-    auto data = rust_query_parse_data(parse);
-    if (!data.has_root)
-        return nullptr;
-    return Supports::create(RustQueryHandle::retained(data.root_handle));
+    return Supports::create(handle.release_value());
 }
 
-OwnPtr<BooleanExpression> RustQueryParser::parse_supports_condition(Parser& parser, Utf16View source)
+Optional<RustQueryHandle> RustQueryParser::parse_supports_condition(Parser& parser, Utf16View source)
 {
     parser.m_rule_context.append(RuleContext::SupportsCondition);
     ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
-    return adopt_root_expression(parser, rust_parse_supports_condition(ffi_utf16_view(source), &parser, evaluate_supports_feature), QueryFeatureKind::Media);
+    auto* handle = rust_parse_supports_condition(ffi_utf16_view(source), &parser, evaluate_supports_feature);
+    if (!handle)
+        return {};
+    return RustQueryHandle { handle };
 }
 
-OwnPtr<BooleanExpression> RustQueryParser::parse_supports_declaration(Parser& parser, Utf16View source)
+Optional<RustQueryHandle> RustQueryParser::parse_supports_declaration(Parser& parser, Utf16View source)
 {
     parser.m_rule_context.append(RuleContext::SupportsCondition);
     ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
-    return adopt_root_expression(parser, rust_parse_supports_declaration(ffi_utf16_view(source), &parser, evaluate_supports_feature), QueryFeatureKind::Media);
+    auto* handle = rust_parse_supports_declaration(ffi_utf16_view(source), &parser, evaluate_supports_feature);
+    if (!handle)
+        return {};
+    return RustQueryHandle { handle };
 }
 
-OwnPtr<BooleanExpression> RustQueryParser::parse_style_query(Parser& parser, Utf16View source)
+Optional<RustQueryHandle> RustQueryParser::parse_style_query(Parser&, Utf16View source)
 {
-    return adopt_root_expression(parser, rust_parse_style_query(ffi_utf16_view(source), resolve_query_feature), QueryFeatureKind::Media);
+    auto* handle = rust_parse_style_query(ffi_utf16_view(source), resolve_query_feature);
+    if (!handle)
+        return {};
+    return RustQueryHandle { handle };
 }
 
 Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_container_condition_list(Parser&, Utf16View source)
 {
-    auto* parse = rust_parse_container_condition_list(ffi_utf16_view(source), resolve_query_feature);
-    if (!parse)
-        return {};
-    ScopeGuard free_parse = [&] { rust_query_parse_free(parse); };
-    auto data = rust_query_parse_data(parse);
     Vector<ContainerCondition> conditions;
-    conditions.ensure_capacity(data.media_query_count);
-    for (size_t index = 0; index < data.media_query_count; ++index) {
-        auto const& ffi_condition = data.media_queries[index];
-        VERIFY(ffi_condition.valid);
-        Optional<Utf16FlyString> name;
-        if (ffi_condition.has_media_type)
-            name = Utf16FlyString::from_utf16(utf16_value(data.syntax, ffi_condition.media_type_offset, ffi_condition.media_type_length));
+    auto visit = [](void* context, u16 const* name, size_t name_length, bool has_name, FfiQueryHandle const* handle) {
+        auto& conditions = *static_cast<Vector<ContainerCondition>*>(context);
+        Optional<Utf16FlyString> condition_name;
+        if (has_name)
+            condition_name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name), name_length });
         RefPtr<ContainerQuery> query;
-        if (ffi_condition.has_condition) {
-            query = ContainerQuery::create(RustQueryHandle::retained(data.query_handles[index]));
-        }
-        conditions.unchecked_append({ .name = move(name), .query = move(query) });
-    }
+        if (handle)
+            query = ContainerQuery::create(RustQueryHandle::retained(handle));
+        conditions.append({ .name = move(condition_name), .query = move(query) });
+    };
+    if (!rust_visit_container_condition_list(ffi_utf16_view(source), resolve_query_feature, &conditions, visit))
+        return {};
     return conditions;
 }
 
@@ -448,78 +209,6 @@ RefPtr<StyleValue const> RustQueryParser::parse_source_size_value(Parser& parser
             return nullptr;
     }
     return parsed;
-}
-
-template<typename FeatureAcceptsKeyword, typename FeatureAcceptsType>
-static Optional<FeatureValue> parse_feature_value_from_source(Parser& parser, Utf16View source, FeatureAcceptsKeyword feature_accepts_keyword, FeatureAcceptsType feature_accepts_type)
-{
-    auto keyword = ValueParserFFI::rust_parse_css_keyword_from_source(ffi_utf16_view(source));
-    if (keyword != NumericLimits<u16>::max() && feature_accepts_keyword(static_cast<Keyword>(keyword)))
-        return FeatureValue(FeatureValue::Type::Ident, KeywordStyleValue::create(static_cast<Keyword>(keyword)));
-
-    if (feature_accepts_type(QueryValueType::Boolean)) {
-        if (auto integer = parser.parse_primitive_value_from_source(ValueType::Integer, source)) {
-            if (integer->is_calculated() || first_is_one_of(integer->as_integer().integer(), 0, 1))
-                return FeatureValue(FeatureValue::Type::Integer, integer.release_nonnull());
-        }
-    }
-
-    if (feature_accepts_type(QueryValueType::Integer)) {
-        if (auto integer = parser.parse_primitive_value_from_source(ValueType::Integer, source))
-            return FeatureValue(FeatureValue::Type::Integer, integer.release_nonnull());
-    }
-
-    if (feature_accepts_type(QueryValueType::Length)) {
-        if (auto length = parser.parse_primitive_value_from_source(ValueType::Length, source))
-            return FeatureValue(FeatureValue::Type::Length, length.release_nonnull());
-        if (auto number = parser.parse_primitive_value_from_source(ValueType::Number, source); number && number->is_calculated() && number->as_calculated().resolves_to_number()) {
-            if (auto resolved_number = number->as_calculated().resolve_number({}); resolved_number.has_value() && *resolved_number == 0)
-                return FeatureValue(FeatureValue::Type::Length, LengthStyleValue::create(Length::make_px(0)));
-        }
-    }
-
-    if (feature_accepts_type(QueryValueType::Ratio)) {
-        if (auto ratio = parser.parse_primitive_value_from_source(ValueType::Ratio, source))
-            return FeatureValue(FeatureValue::Type::Ratio, ratio.release_nonnull());
-    }
-
-    if (feature_accepts_type(QueryValueType::Resolution)) {
-        if (auto resolution = parser.parse_primitive_value_from_source(ValueType::Resolution, source))
-            return FeatureValue(FeatureValue::Type::Resolution, resolution.release_nonnull());
-    }
-
-    if (source.trim_ascii_whitespace().is_empty())
-        return {};
-    return FeatureValue(FeatureValue::Type::Unknown, UnresolvedStyleValue::create(Utf16String::from_utf16(source), {}));
-}
-
-Optional<FeatureValue> RustQueryParser::parse_media_feature_value(Parser& parser, MediaFeatureID id, Utf16View source)
-{
-    auto context_guard = parser.push_temporary_value_parsing_context(SpecialContext::MediaCondition);
-    return parse_feature_value_from_source(
-        parser,
-        source,
-        [&](Keyword keyword) { return media_feature_accepts_keyword(id, keyword); },
-        [&](QueryValueType type) { return media_feature_accepts_type(id, type); });
-}
-
-Optional<FeatureValue> RustQueryParser::parse_size_feature_value(Parser& parser, SizeFeatureID id, Utf16View source)
-{
-    auto context_guard = parser.push_temporary_value_parsing_context(SpecialContext::MediaCondition);
-    return parse_feature_value_from_source(
-        parser,
-        source,
-        [&](Keyword keyword) { return id == SizeFeatureID::Orientation && first_is_one_of(keyword, Keyword::Landscape, Keyword::Portrait); },
-        [&](QueryValueType type) {
-            switch (type) {
-            case QueryValueType::Length:
-                return first_is_one_of(id, SizeFeatureID::BlockSize, SizeFeatureID::Height, SizeFeatureID::InlineSize, SizeFeatureID::Width);
-            case QueryValueType::Ratio:
-                return id == SizeFeatureID::AspectRatio;
-            default:
-                return false;
-            }
-        });
 }
 
 bool RustQueryParser::evaluate_supports_feature(void* context, FfiSupportsFeatureKind kind, FfiUtf16View ffi_source)

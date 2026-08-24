@@ -8,12 +8,12 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/ScopeGuard.h>
-#include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
+#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -129,170 +129,34 @@ bool size_feature_type_is_range(SizeFeatureID id)
     VERIFY_NOT_REACHED();
 }
 
-static FeatureValue size_feature_value_for_query_container(SizeFeatureID id, Layout::NodeWithStyle const& layout_node)
+enum class StyleFeatureComparison : u8 {
+    Equal,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+};
+
+using StyleRangeValue = Variant<PropertyNameAndID, Utf16String>;
+
+struct StyleRange {
+    StyleRangeValue left;
+    StyleFeatureComparison left_comparison;
+    StyleRangeValue middle;
+    Optional<StyleFeatureComparison> right_comparison;
+    Optional<StyleRangeValue> right;
+};
+
+struct StyleFeaturePlain {
+    PropertyNameAndID property;
+    Optional<Utf16String> value;
+};
+
+using EvaluatedStyleFeature = Variant<StyleFeaturePlain, StyleRange>;
+
+static MatchResult match_result(bool value)
 {
-    auto width = Painting::content_width(layout_node);
-    auto height = Painting::content_height(layout_node);
-    auto inline_axis_horizontal = layout_node.writing_mode() == WritingMode::HorizontalTb;
-
-    auto length_feature_value = [](CSSPixels length) {
-        return FeatureValue(FeatureValue::Type::Length, LengthStyleValue::create(Length::make_px(length)));
-    };
-
-    switch (id) {
-    case SizeFeatureID::AspectRatio:
-        return FeatureValue(
-            FeatureValue::Type::Ratio,
-            RatioStyleValue::create(
-                NumberStyleValue::create(width.to_double()),
-                NumberStyleValue::create(height.to_double())));
-    case SizeFeatureID::BlockSize:
-        return length_feature_value(inline_axis_horizontal ? height : width);
-    case SizeFeatureID::Height:
-        return length_feature_value(height);
-    case SizeFeatureID::InlineSize:
-        return length_feature_value(inline_axis_horizontal ? width : height);
-    case SizeFeatureID::Orientation:
-        return FeatureValue(
-            FeatureValue::Type::Ident,
-            KeywordStyleValue::create(height >= width ? Keyword::Portrait : Keyword::Landscape));
-    case SizeFeatureID::Width:
-        return length_feature_value(width);
-    }
-    VERIFY_NOT_REACHED();
-}
-
-StringView SizeFeature::serialize_feature_id(SizeFeatureID id)
-{
-    return string_from_size_feature_id(id);
-}
-
-bool SizeFeature::keyword_is_falsey(SizeFeatureID, Keyword)
-{
-    // Boolean evaluation is not valid in <size-feature>.
-    return false;
-}
-
-MatchResult SizeFeature::evaluate(BooleanExpressionEvaluationContext const& context) const
-{
-    if (!context.query_container)
-        return MatchResult::Unknown;
-
-    auto const* layout_node = context.query_container->unsafe_layout_node();
-    if (!layout_node || !Painting::has_committed_box(*layout_node)) {
-        if (!context.query_container->document().layout_is_up_to_date())
-            const_cast<DOM::Document&>(context.query_container->document()).set_needs_container_query_evaluation_after_layout(*context.query_container);
-        return MatchResult::Unknown;
-    }
-
-    auto queried_value = size_feature_value_for_query_container(id(), *layout_node);
-    ComputationContext computation_context {
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(*layout_node),
-        .abstract_element = DOM::AbstractElement { *context.query_container },
-    };
-
-    return evaluate_internal(queried_value, computation_context);
-}
-
-void SizeFeature::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
-{
-    switch (id()) {
-    case SizeFeatureID::AspectRatio:
-    case SizeFeatureID::Orientation:
-        requirements.requires_width_container = true;
-        requirements.requires_height_container = true;
-        break;
-    case SizeFeatureID::BlockSize:
-        requirements.requires_block_size_container = true;
-        break;
-    case SizeFeatureID::Height:
-        requirements.requires_height_container = true;
-        break;
-    case SizeFeatureID::InlineSize:
-        requirements.requires_inline_size_container = true;
-        break;
-    case SizeFeatureID::Width:
-        requirements.requires_width_container = true;
-        break;
-    }
-}
-
-void SizeFeature::dump(StringBuilder& builder, int indent_levels) const
-{
-    indent(builder, indent_levels);
-    builder.appendff("SizeFeature: {}\n", to_string());
-}
-
-NonnullOwnPtr<StyleQueryFunction> StyleQueryFunction::create(NonnullOwnPtr<BooleanExpression>&& query)
-{
-    return adopt_own(*new StyleQueryFunction(move(query)));
-}
-
-StyleQueryFunction::StyleQueryFunction(NonnullOwnPtr<BooleanExpression>&& query)
-    : m_query(move(query))
-{
-}
-
-MatchResult StyleQueryFunction::evaluate(BooleanExpressionEvaluationContext const& context) const
-{
-    return m_query->evaluate(context);
-}
-
-void StyleQueryFunction::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
-{
-    m_query->collect_container_query_feature_requirements(requirements);
-}
-
-void StyleQueryFunction::serialize_to(Utf16StringBuilder& builder) const
-{
-    builder.append("style("_utf16);
-    m_query->serialize_to(builder);
-    builder.append(")"_utf16);
-}
-
-void StyleQueryFunction::dump(StringBuilder& builder, int indent_levels) const
-{
-    indent(builder, indent_levels);
-    builder.append("StyleQueryFunction:\n"sv);
-    m_query->dump(builder, indent_levels + 1);
-}
-
-NonnullOwnPtr<StyleFeature> StyleFeature::create_boolean(PropertyNameAndID property)
-{
-    return adopt_own(*new StyleFeature(StyleFeaturePlain {
-        .property = move(property),
-        .value = {},
-        .original_value_text = {},
-    }));
-}
-
-NonnullOwnPtr<StyleFeature> StyleFeature::create_plain(PropertyNameAndID property, Utf16String value, Optional<Utf16String> original_value_text)
-{
-    return adopt_own(*new StyleFeature(StyleFeaturePlain {
-        .property = move(property),
-        .value = move(value),
-        .original_value_text = move(original_value_text),
-    }));
-}
-
-NonnullOwnPtr<StyleFeature> StyleFeature::create_range(StyleRangeValue left, FeatureComparison comparison, StyleRangeValue right)
-{
-    return adopt_own(*new StyleFeature(StyleRange {
-        .left = left,
-        .left_comparison = comparison,
-        .middle = right,
-    }));
-}
-
-NonnullOwnPtr<StyleFeature> StyleFeature::create_range(StyleRangeValue left, FeatureComparison left_comparison, StyleRangeValue middle, FeatureComparison right_comparison, StyleRangeValue right)
-{
-    return adopt_own(*new StyleFeature(StyleRange {
-        .left = left,
-        .left_comparison = left_comparison,
-        .middle = middle,
-        .right_comparison = right_comparison,
-        .right = right,
-    }));
+    return value ? MatchResult::True : MatchResult::False;
 }
 
 static Optional<Keyword> single_css_wide_keyword(Utf16View value)
@@ -399,21 +263,21 @@ static bool style_range_type_can_compare(StyleRangeComparableValue const& left, 
         || (is_unitless_zero(right) && is_dimension(left.type));
 }
 
-static bool compare_style_range_values(StyleRangeComparableValue const& left, FeatureComparison comparison, StyleRangeComparableValue const& right)
+static bool compare_style_range_values(StyleRangeComparableValue const& left, StyleFeatureComparison comparison, StyleRangeComparableValue const& right)
 {
     if (!style_range_type_can_compare(left, right))
         return false;
 
     switch (comparison) {
-    case FeatureComparison::Equal:
+    case StyleFeatureComparison::Equal:
         return left.value == right.value;
-    case FeatureComparison::LessThan:
+    case StyleFeatureComparison::LessThan:
         return left.value < right.value;
-    case FeatureComparison::LessThanOrEqual:
+    case StyleFeatureComparison::LessThanOrEqual:
         return left.value <= right.value;
-    case FeatureComparison::GreaterThan:
+    case StyleFeatureComparison::GreaterThan:
         return left.value > right.value;
-    case FeatureComparison::GreaterThanOrEqual:
+    case StyleFeatureComparison::GreaterThanOrEqual:
         return left.value >= right.value;
     }
     VERIFY_NOT_REACHED();
@@ -441,7 +305,7 @@ static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document co
     return {};
 }
 
-static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeature::StyleRangeValue const& range_value, AbstractOrHypotheticalElement const& element, DOM::Document const& document, ComputationContext const& computation_context)
+static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleRangeValue const& range_value, AbstractOrHypotheticalElement const& element, DOM::Document const& document, ComputationContext const& computation_context)
 {
     return range_value.visit(
         [&](PropertyNameAndID const& property) -> Optional<StyleRangeComparableValue> {
@@ -486,13 +350,8 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
         });
 }
 
-static MatchResult evaluate_style_range(StyleFeature::StyleRange const& range, BooleanExpressionEvaluationContext const& context)
+static MatchResult evaluate_style_range(StyleRange const& range, DOM::Document const& document, AbstractOrHypotheticalElement element)
 {
-    if (!context.style_query_element.has_value())
-        return MatchResult::Unknown;
-
-    auto element = context.style_query_element.value();
-    auto const& document = context.document ? *context.document : element.document();
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
     auto left = evaluate_style_range_value(range.left, element, document, computation_context);
     if (!left.has_value())
@@ -512,19 +371,16 @@ static MatchResult evaluate_style_range(StyleFeature::StyleRange const& range, B
     if (!right.has_value())
         return MatchResult::False;
 
-    return as_match_result(compare_style_range_values(middle.value(), range.right_comparison.value(), right.value()));
+    return match_result(compare_style_range_values(middle.value(), range.right_comparison.value(), right.value()));
 }
 
 // https://drafts.csswg.org/css-conditional-5/#style-container
-MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& context) const
+static MatchResult evaluate_style_feature(EvaluatedStyleFeature const& style_feature, DOM::Document const& document, AbstractOrHypotheticalElement element)
 {
-    if (!context.style_query_element.has_value())
-        return MatchResult::Unknown;
+    if (auto const* range = style_feature.get_pointer<StyleRange>())
+        return evaluate_style_range(*range, document, element);
 
-    if (auto const* range = m_feature.get_pointer<StyleRange>())
-        return evaluate_style_range(*range, context);
-
-    auto const& feature = m_feature.get<StyleFeaturePlain>();
+    auto const& feature = style_feature.get<StyleFeaturePlain>();
     auto const& property = feature.property;
     auto const& value = feature.value;
 
@@ -533,8 +389,6 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     if (!property.is_custom_property())
         return MatchResult::False;
 
-    auto element = context.style_query_element.value();
-    auto const& document = context.document ? *context.document : element.document();
     auto const& property_name = property.name();
     Optional<Keyword> query_css_wide_keyword;
 
@@ -606,7 +460,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     // from the initial value for the given property.
     if (!value.has_value()) {
         auto initial_value = initial_custom_property_value(registration, element.document());
-        return as_match_result(!style_values_are_equal(*comparable_computed_value, *initial_value));
+        return match_result(!style_values_are_equal(*comparable_computed_value, *initial_value));
     }
 
     auto const& query_value = *value;
@@ -614,17 +468,17 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         switch (query_css_wide_keyword.value()) {
         case Keyword::Initial: {
             auto initial_value = initial_custom_property_value(registration, element.document());
-            return as_match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
+            return match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
         }
         case Keyword::Inherit: {
             auto inherited_value = inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution);
-            return as_match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
+            return match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
         }
         case Keyword::Unset: {
             auto expected_value = !registration.has_value() || registration->inherit
                 ? inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution)
                 : initial_custom_property_value(registration, element.document());
-            return as_match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
+            return match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
         }
         case Keyword::Revert:
         case Keyword::RevertLayer:
@@ -643,7 +497,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
                 : computed_value->to_utf16_string(SerializationMode::Normal))
                                          .trim_ascii_whitespace();
         auto query_value_string = query_value.trim_ascii_whitespace();
-        return as_match_result(computed_value_string == query_value_string);
+        return match_result(computed_value_string == query_value_string);
     }
 
     auto parsed_query_value = Parser::parse_with_a_syntax(Parser::ParsingParams { document }, query_value, registration->syntax);
@@ -651,62 +505,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         return MatchResult::False;
     parsed_query_value = compute_registered_custom_property_value(registration.value(), move(parsed_query_value), computation_context);
 
-    return as_match_result(style_values_are_equal(*comparable_computed_value, *parsed_query_value));
-}
-
-void StyleFeature::collect_container_query_feature_requirements(ContainerQueryFeatureRequirements& requirements) const
-{
-    requirements.requires_style_container = true;
-}
-
-static Utf16String serialize_style_range_value_to_utf16(StyleFeature::StyleRangeValue const& value)
-{
-    return value.visit(
-        [](PropertyNameAndID const& property) {
-            return property.to_utf16_string();
-        },
-        [](Utf16String const& source) {
-            return source;
-        });
-}
-
-void StyleFeature::serialize_to(Utf16StringBuilder& builder) const
-{
-    m_feature.visit(
-        [&](StyleFeaturePlain const& feature) {
-            auto serialized_property = feature.property.to_utf16_string();
-            builder.append(serialized_property.utf16_view());
-            if (!feature.value.has_value())
-                return;
-            builder.append_ascii(": "sv);
-            if (feature.original_value_text.has_value()) {
-                builder.append(*feature.original_value_text);
-            } else {
-                builder.append(feature.value.value());
-            }
-        },
-        [&](StyleRange const& range) {
-            auto serialized_left = serialize_style_range_value_to_utf16(range.left);
-            builder.append(serialized_left.utf16_view());
-            builder.append_ascii(' ');
-            builder.append_ascii(string_from_feature_comparison(range.left_comparison));
-            builder.append_ascii(' ');
-            auto serialized_middle = serialize_style_range_value_to_utf16(range.middle);
-            builder.append(serialized_middle.utf16_view());
-            if (!range.right.has_value())
-                return;
-            builder.append_ascii(' ');
-            builder.append_ascii(string_from_feature_comparison(range.right_comparison.value()));
-            builder.append_ascii(' ');
-            auto serialized_right = serialize_style_range_value_to_utf16(range.right.value());
-            builder.append(serialized_right.utf16_view());
-        });
-}
-
-void StyleFeature::dump(StringBuilder& builder, int indent_levels) const
-{
-    indent(builder, indent_levels);
-    builder.appendff("StyleFeature: {}\n", to_string().to_utf8());
+    return match_result(style_values_are_equal(*comparable_computed_value, *parsed_query_value));
 }
 
 NonnullRefPtr<ContainerQuery> ContainerQuery::create(RustQueryHandle handle)
@@ -771,7 +570,7 @@ static bool container_satisfies_requirements(DOM::Element const& element, Contai
 
 struct ContainerStyleEvaluationContext {
     GC::Ref<DOM::Document const> document;
-    DOM::Element const& container;
+    AbstractOrHypotheticalElement element;
 };
 
 static Utf16View ffi_utf16_view(Parser::ValueParserFFI::FfiUtf16View const& value)
@@ -781,13 +580,14 @@ static Utf16View ffi_utf16_view(Parser::ValueParserFFI::FfiUtf16View const& valu
     return { reinterpret_cast<char16_t const*>(value.utf16), value.length };
 }
 
-static FeatureComparison ffi_feature_comparison(u8 comparison)
+static Optional<StyleFeatureComparison> ffi_feature_comparison(u8 comparison)
 {
-    VERIFY(comparison <= to_underlying(FeatureComparison::GreaterThanOrEqual));
-    return static_cast<FeatureComparison>(comparison);
+    if (comparison > to_underlying(StyleFeatureComparison::GreaterThanOrEqual))
+        return {};
+    return static_cast<StyleFeatureComparison>(comparison);
 }
 
-static Optional<StyleFeature::StyleRangeValue> ffi_style_range_value(Parser::ValueParserFFI::FfiStyleRangeValue const& value)
+static Optional<StyleRangeValue> ffi_style_range_value(Parser::ValueParserFFI::FfiStyleRangeValue const& value)
 {
     auto source = ffi_utf16_view(value.value);
     switch (value.kind) {
@@ -795,10 +595,10 @@ static Optional<StyleFeature::StyleRangeValue> ffi_style_range_value(Parser::Val
         auto property = PropertyNameAndID::from_name(Utf16FlyString::from_utf16(source));
         if (!property.has_value())
             return {};
-        return StyleFeature::StyleRangeValue { property.release_value() };
+        return StyleRangeValue { property.release_value() };
     }
     case Parser::ValueParserFFI::FfiStyleRangeValueKind::Components:
-        return StyleFeature::StyleRangeValue { Utf16String::from_utf16(source) };
+        return StyleRangeValue { Utf16String::from_utf16(source) };
     }
     VERIFY_NOT_REACHED();
 }
@@ -808,7 +608,7 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
     VERIFY(context);
     VERIFY(feature.values || feature.value_count == 0);
     auto values = ReadonlySpan<Parser::ValueParserFFI::FfiStyleRangeValue> { feature.values, feature.value_count };
-    OwnPtr<StyleFeature> style_feature;
+    Optional<EvaluatedStyleFeature> style_feature;
     switch (feature.kind) {
     case Parser::ValueParserFFI::FfiContainerStyleFeatureKind::Boolean: {
         if (values.size() != 1)
@@ -816,7 +616,10 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
         auto property = ffi_style_range_value(values[0]);
         if (!property.has_value() || !property->has<PropertyNameAndID>())
             return to_underlying(MatchResult::Unknown);
-        style_feature = StyleFeature::create_boolean(property->get<PropertyNameAndID>());
+        style_feature = StyleFeaturePlain {
+            .property = property->get<PropertyNameAndID>(),
+            .value = {},
+        };
         break;
     }
     case Parser::ValueParserFFI::FfiContainerStyleFeatureKind::Plain: {
@@ -825,8 +628,10 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
         auto property = ffi_style_range_value(values[0]);
         if (!property.has_value() || !property->has<PropertyNameAndID>())
             return to_underlying(MatchResult::Unknown);
-        style_feature = StyleFeature::create_plain(
-            property->get<PropertyNameAndID>(), Utf16String::from_utf16(ffi_utf16_view(values[1].value)));
+        style_feature = StyleFeaturePlain {
+            .property = property->get<PropertyNameAndID>(),
+            .value = Utf16String::from_utf16(ffi_utf16_view(values[1].value)),
+        };
         break;
     }
     case Parser::ValueParserFFI::FfiContainerStyleFeatureKind::Range: {
@@ -836,26 +641,60 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
         auto middle = ffi_style_range_value(values[1]);
         if (!left.has_value() || !middle.has_value())
             return to_underlying(MatchResult::Unknown);
+        auto left_comparison = ffi_feature_comparison(feature.first_comparison);
+        if (!left_comparison.has_value())
+            return to_underlying(MatchResult::Unknown);
         if (values.size() == 2) {
-            style_feature = StyleFeature::create_range(
-                left.release_value(), ffi_feature_comparison(feature.first_comparison), middle.release_value());
+            style_feature = StyleRange {
+                .left = left.release_value(),
+                .left_comparison = left_comparison.release_value(),
+                .middle = middle.release_value(),
+                .right_comparison = {},
+                .right = {},
+            };
             break;
         }
         auto right = ffi_style_range_value(values[2]);
         if (!right.has_value())
             return to_underlying(MatchResult::Unknown);
-        style_feature = StyleFeature::create_range(
-            left.release_value(), ffi_feature_comparison(feature.first_comparison), middle.release_value(),
-            ffi_feature_comparison(feature.second_comparison), right.release_value());
+        auto right_comparison = ffi_feature_comparison(feature.second_comparison);
+        if (!right_comparison.has_value())
+            return to_underlying(MatchResult::Unknown);
+        style_feature = StyleRange {
+            .left = left.release_value(),
+            .left_comparison = left_comparison.release_value(),
+            .middle = middle.release_value(),
+            .right_comparison = right_comparison.release_value(),
+            .right = right.release_value(),
+        };
         break;
     }
+    default:
+        return to_underlying(MatchResult::Unknown);
     }
 
     auto& evaluation_context = *static_cast<ContainerStyleEvaluationContext*>(context);
-    return to_underlying(style_feature->evaluate({
-        .document = &*evaluation_context.document,
-        .style_query_element = DOM::AbstractElement { evaluation_context.container },
-    }));
+    if (!style_feature.has_value())
+        return to_underlying(MatchResult::Unknown);
+    return to_underlying(evaluate_style_feature(*style_feature, *evaluation_context.document, evaluation_context.element));
+}
+
+MatchResult evaluate_style_query(RustQueryHandle const& handle, AbstractOrHypotheticalElement element)
+{
+    ContainerStyleEvaluationContext style_context { element.document(), element };
+    Parser::ValueParserFFI::FfiContainerFacts facts {
+        .container_available = true,
+        .size_available = false,
+        .width = 0,
+        .height = 0,
+        .inline_axis_horizontal = false,
+        .length_resolution_context = nullptr,
+        .style_context = &style_context,
+        .evaluate_style_feature = evaluate_container_style_feature,
+    };
+    auto result = Parser::ValueParserFFI::css_query_evaluate_container(handle.data(), facts);
+    VERIFY(result <= to_underlying(MatchResult::Unknown));
+    return static_cast<MatchResult>(result);
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
@@ -922,7 +761,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
             const_cast<DOM::Document&>(container->document()).set_needs_container_query_evaluation_after_layout(*container);
         }
 
-        ContainerStyleEvaluationContext style_context { element.document(), *container };
+        ContainerStyleEvaluationContext style_context { element.document(), DOM::AbstractElement { *container } };
         facts.style_context = &style_context;
         auto result = Parser::ValueParserFFI::css_query_evaluate_container(m_rust_query_handle.data(), facts);
         VERIFY(result <= to_underlying(MatchResult::Unknown));

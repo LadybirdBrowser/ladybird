@@ -37,6 +37,7 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/Document.h>
@@ -506,63 +507,63 @@ Page const& Window::page() const
     return associated_document().page();
 }
 
-Optional<CSS::FeatureValue> Window::query_media_feature(CSS::MediaFeatureID media_feature) const
+Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID media_feature) const
 {
     // FIXME: Many of these should be dependent on the hardware
 
     // https://www.w3.org/TR/mediaqueries-5/#media-descriptor-table
     switch (media_feature) {
     case CSS::MediaFeatureID::AnyHover:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Hover));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Hover));
     case CSS::MediaFeatureID::AnyPointer:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
     case CSS::MediaFeatureID::AspectRatio:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(inner_width()), CSS::NumberStyleValue::create(inner_height())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(inner_width()), CSS::NumberStyleValue::create(inner_height())));
     case CSS::MediaFeatureID::Color:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(8));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(8));
     case CSS::MediaFeatureID::ColorGamut:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
     case CSS::MediaFeatureID::ColorIndex:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
     case CSS::MediaFeatureID::DeviceAspectRatio: {
         auto screen_area = page().client().screen_rect();
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(screen_area.width().value()), CSS::NumberStyleValue::create(screen_area.height().value())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(screen_area.width().value()), CSS::NumberStyleValue::create(screen_area.height().value())));
     }
     case CSS::MediaFeatureID::DeviceHeight:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().height())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().height())));
     case CSS::MediaFeatureID::DeviceWidth:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().width())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().width())));
     case CSS::MediaFeatureID::DisplayMode:
         // FIXME: Detect if window is fullscreen
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Browser));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Browser));
     case CSS::MediaFeatureID::DynamicRange:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
     case CSS::MediaFeatureID::EnvironmentBlending:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Opaque));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Opaque));
     case CSS::MediaFeatureID::ForcedColors:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
     case CSS::MediaFeatureID::Grid:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
     case CSS::MediaFeatureID::Height:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_height())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_height())));
     case CSS::MediaFeatureID::HorizontalViewportSegments:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
     case CSS::MediaFeatureID::Hover:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Hover));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Hover));
     case CSS::MediaFeatureID::InvertedColors:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
     case CSS::MediaFeatureID::Monochrome:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
     case CSS::MediaFeatureID::NavControls:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Back));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Back));
     case CSS::MediaFeatureID::Orientation:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(inner_height() >= inner_width() ? CSS::Keyword::Portrait : CSS::Keyword::Landscape));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(inner_height() >= inner_width() ? CSS::Keyword::Portrait : CSS::Keyword::Landscape));
     case CSS::MediaFeatureID::OverflowBlock:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Scroll));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Scroll));
     case CSS::MediaFeatureID::OverflowInline:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Scroll));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Scroll));
     case CSS::MediaFeatureID::Pointer:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
     case CSS::MediaFeatureID::PrefersColorScheme: {
         // https://github.com/w3c/csswg-drafts/issues/7213
         // An SVG used as an image answers with the used `color-scheme` of the element referencing
@@ -571,9 +572,9 @@ Optional<CSS::FeatureValue> Window::query_media_feature(CSS::MediaFeatureID medi
         auto preference = associated_document().svg_image_color_scheme().value_or(page().preferred_color_scheme());
         switch (preference) {
         case CSS::PreferredColorScheme::Light:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Light));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Light));
         case CSS::PreferredColorScheme::Dark:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Dark));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Dark));
         default:
             VERIFY_NOT_REACHED();
         }
@@ -581,56 +582,56 @@ Optional<CSS::FeatureValue> Window::query_media_feature(CSS::MediaFeatureID medi
     case CSS::MediaFeatureID::PrefersContrast:
         switch (page().preferred_contrast()) {
         case CSS::PreferredContrast::Less:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Less));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Less));
         case CSS::PreferredContrast::More:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::More));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::More));
         case CSS::PreferredContrast::NoPreference:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
         case CSS::PreferredContrast::Auto:
         default:
             // FIXME: Fallback to system settings
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
         }
     case CSS::MediaFeatureID::PrefersReducedData:
         // FIXME: Make this a preference
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
     case CSS::MediaFeatureID::PrefersReducedMotion:
         switch (page().preferred_motion()) {
         case CSS::PreferredMotion::NoPreference:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
         case CSS::PreferredMotion::Reduce:
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Reduce));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Reduce));
         case CSS::PreferredMotion::Auto:
         default:
             // FIXME: Fallback to system settings
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
         }
     case CSS::MediaFeatureID::PrefersReducedTransparency:
         // FIXME: Make this a preference
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
     case CSS::MediaFeatureID::Resolution:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Resolution, CSS::ResolutionStyleValue::create(CSS::Resolution::make_dots_per_pixel(device_pixel_ratio())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Resolution, CSS::ResolutionStyleValue::create(CSS::Resolution::make_dots_per_pixel(device_pixel_ratio())));
     case CSS::MediaFeatureID::Scan:
         // FIXME: Detect this from the display, if we can. Most displays aren't scanning and should return None.
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
     case CSS::MediaFeatureID::Scripting:
         if (associated_document().is_scripting_enabled())
-            return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Enabled));
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Enabled));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
     case CSS::MediaFeatureID::Update:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fast));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fast));
     case CSS::MediaFeatureID::VerticalViewportSegments:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
     case CSS::MediaFeatureID::VideoColorGamut:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
     case CSS::MediaFeatureID::VideoDynamicRange:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
     case CSS::MediaFeatureID::WebkitTransform3d:
         // https://compat.spec.whatwg.org/#css-media-queries-webkit-transform-3d
         // If the user agent supports 3D transforms, the value will be 1. Otherwise the value is 0.
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
     case CSS::MediaFeatureID::Width:
-        return CSS::FeatureValue(CSS::FeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_width())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_width())));
 
     default:
         break;

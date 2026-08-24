@@ -7,11 +7,48 @@
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
+
+bool MediaFeatureValue::is_ident() const { return m_type == Type::Ident; }
+bool MediaFeatureValue::is_integer() const { return m_type == Type::Integer; }
+bool MediaFeatureValue::is_length() const { return m_type == Type::Length; }
+bool MediaFeatureValue::is_ratio() const { return m_type == Type::Ratio; }
+bool MediaFeatureValue::is_resolution() const { return m_type == Type::Resolution; }
+
+Keyword MediaFeatureValue::ident() const
+{
+    VERIFY(is_ident());
+    return m_value->to_keyword();
+}
+
+i32 MediaFeatureValue::integer(ComputationContext const& context) const
+{
+    VERIFY(is_integer());
+    return int_from_style_value(m_value->absolutized(context));
+}
+
+Length MediaFeatureValue::length(ComputationContext const& context) const
+{
+    VERIFY(is_length());
+    return Length::from_style_value(m_value->absolutized(context), {});
+}
+
+Ratio MediaFeatureValue::ratio(ComputationContext const& context) const
+{
+    VERIFY(is_ratio());
+    return m_value->absolutized(context)->as_ratio().resolved();
+}
+
+Resolution MediaFeatureValue::resolution(ComputationContext const& context) const
+{
+    VERIFY(is_resolution());
+    return Resolution::from_style_value(m_value->absolutized(context));
+}
 
 MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document)
 {
@@ -53,37 +90,7 @@ MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document
 
 NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 {
-    auto media_query = new MediaQuery;
-    media_query->m_rust_query_handle = RustQueryHandle { Parser::ValueParserFFI::css_query_create_not_all() };
-    media_query->m_negated = true;
-    media_query->m_media_type = {
-        .name = "all"_utf16_fly_string,
-        .known_type = KnownMediaType::All,
-    };
-
-    return adopt_ref(*media_query);
-}
-
-StringView MediaFeature::serialize_feature_id(MediaFeatureID id)
-{
-    return string_from_media_feature_id(id);
-}
-
-bool MediaFeature::keyword_is_falsey(MediaFeatureID id, Keyword keyword)
-{
-    return media_feature_keyword_is_falsey(id, keyword);
-}
-
-MatchResult MediaFeature::evaluate(BooleanExpressionEvaluationContext const& context) const
-{
-    (void)context;
-    VERIFY_NOT_REACHED();
-}
-
-void MediaFeature::dump(StringBuilder& builder, int indent_levels) const
-{
-    indent(builder, indent_levels);
-    builder.appendff("MediaFeature: {}\n", to_string());
+    return create(RustQueryHandle { Parser::ValueParserFFI::css_query_create_not_all() });
 }
 
 Utf16String MediaQuery::to_string() const
@@ -112,22 +119,17 @@ bool MediaQuery::evaluate(DOM::Document const& document)
     return evaluate(MediaEnvironmentSnapshot { document });
 }
 
+MatchResult evaluate_media_condition(RustQueryHandle const& handle, MediaEnvironmentSnapshot const& environment)
+{
+    auto result = Parser::ValueParserFFI::css_query_evaluate_media_condition(handle.data(), environment.ffi_environment());
+    VERIFY(result <= to_underlying(MatchResult::Unknown));
+    return static_cast<MatchResult>(result);
+}
+
 void MediaQuery::dump(StringBuilder& builder, int indent_levels) const
 {
     dump_indent(builder, indent_levels);
-    builder.appendff("Media condition: (matches = {})\n", m_matches);
-
-    dump_indent(builder, indent_levels + 1);
-    builder.appendff("Negated: {}\n", m_negated);
-
-    dump_indent(builder, indent_levels + 1);
-    builder.appendff("Type: {}\n", m_media_type.name);
-
-    if (m_media_condition) {
-        dump_indent(builder, indent_levels + 1);
-        builder.append("Condition:\n"sv);
-        m_media_condition->dump(builder, indent_levels + 2);
-    }
+    builder.appendff("Media query: `{}` (matches = {})\n", to_string(), m_matches);
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-media-query-list
@@ -149,30 +151,6 @@ Utf16String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const
         media_query->serialize_to(builder);
     }
     return builder.to_string();
-}
-
-Optional<MediaQuery::KnownMediaType> media_type_from_string(Utf16View name)
-{
-    if (name.equals_ignoring_ascii_case("all"sv))
-        return MediaQuery::KnownMediaType::All;
-    if (name.equals_ignoring_ascii_case("print"sv))
-        return MediaQuery::KnownMediaType::Print;
-    if (name.equals_ignoring_ascii_case("screen"sv))
-        return MediaQuery::KnownMediaType::Screen;
-    return {};
-}
-
-StringView to_string(MediaQuery::KnownMediaType media_type)
-{
-    switch (media_type) {
-    case MediaQuery::KnownMediaType::All:
-        return "all"sv;
-    case MediaQuery::KnownMediaType::Print:
-        return "print"sv;
-    case MediaQuery::KnownMediaType::Screen:
-        return "screen"sv;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 }

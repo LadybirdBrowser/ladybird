@@ -712,14 +712,16 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         // 5. Parse the remaining component values in unparsed size as a <media-condition>.
         //    If it does not parse correctly, or it does parse correctly but the <media-condition> evaluates to false, continue.
         auto media_condition = RustQueryParser::parse_media_condition(*this, entry.condition);
-        if (!media_condition)
+        if (!media_condition.has_value())
             continue;
 
         // https://drafts.csswg.org/mediaqueries-5/#evaluating
         // "If the result of any of the above productions is used in any
         // context that expects a two-valued boolean, 'unknown' must be
         // converted to 'false'."
-        if (m_document && !media_condition->evaluate_to_boolean({ .document = m_document }))
+        if (!m_document)
+            continue;
+        if (evaluate_media_condition(*media_condition, MediaEnvironmentSnapshot { *m_document }) != MatchResult::True)
             continue;
 
         // 5. If size is not auto, then return size. Otherwise, continue.

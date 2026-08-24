@@ -12,7 +12,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/Descriptor.h>
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/Enums.h>

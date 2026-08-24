@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
+#include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
