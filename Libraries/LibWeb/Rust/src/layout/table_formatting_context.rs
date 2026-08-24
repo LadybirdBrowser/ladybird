@@ -2075,9 +2075,7 @@ impl TableFormattingContext {
         used: &UsedValues,
         inner: AvailableSpace,
         adopt_automatic_content_block_size: bool,
-    ) -> Option<MeasuredCellContent> {
-        // The table formatting context owns the cell's outer geometry. Seed the inputs
-        // needed to lay out its contents without copying placement or layout outputs.
+    ) -> Option<TableCellMeasurement> {
         let facts = NodeFacts::new(&self.callbacks, cell.box_);
         if self.layout_mode == LayoutMode::IntrinsicSizing
             && !facts.is_inline()
@@ -2092,6 +2090,39 @@ impl TableFormattingContext {
             return None;
         }
 
+        let key = TableCellMeasurementKey {
+            layout_mode: self.layout_mode,
+            available_space: inner,
+            content_inline_size: used.content_inline_size.get(),
+            content_block_size: used.content_block_size.get(),
+            has_definite_inline_size: used.has_definite_inline_size(),
+            has_definite_block_size: used.has_definite_block_size(),
+            inline_size_constraint: used.inline_size_constraint.get(),
+            block_size_constraint: used.block_size_constraint.get(),
+            uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
+            adopt_automatic_content_block_size,
+        };
+        let arena = self.callbacks.arena();
+        let data = self.callbacks.node_data(cell.box_);
+        if let Some(cached) = arena.table_cell_measurement_cache_get(data, key) {
+            return Some(cached);
+        }
+
+        let measured = self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size);
+        arena.note_table_cell_measurement_cache_miss();
+        arena.table_cell_measurement_cache_put(data, key, measured);
+        Some(measured)
+    }
+
+    fn measure_cell_content(
+        &self,
+        cell: TableCell,
+        used: &UsedValues,
+        inner: AvailableSpace,
+        adopt_automatic_content_block_size: bool,
+    ) -> TableCellMeasurement {
+        // The table formatting context owns the cell's outer geometry. Seed the inputs
+        // needed to lay out its contents without copying placement or layout outputs.
         let measurement = MeasurementState::create(self.callbacks);
         let measured_root = measurement.create_used_values(cell.box_, ContainingBlockConstraints::default());
         used.mirror_box_metrics_and_size_constraints_into(&measured_root);
@@ -2120,17 +2151,10 @@ impl TableFormattingContext {
                 participation: ParticipationInParentFormattingContext::Item,
             },
         );
-        let measured_cell_used = measured_root;
-        Some(MeasuredCellContent {
-            content_block_size: result.automatic_content_block_size,
-            first_baseline: crate::layout::box_baseline_with_content_baselines(
-                measurement.callbacks(),
-                cell.box_,
-                &measured_cell_used,
-                crate::layout::BaselineSet::First,
-                result.baselines,
-            ),
-        })
+        TableCellMeasurement {
+            automatic_content_block_size: result.automatic_content_block_size,
+            baselines: result.baselines,
+        }
     }
 
     fn compute_table_block_size(&mut self, run: &FormattingContextRun) {
@@ -2196,17 +2220,16 @@ impl TableFormattingContext {
                 || style.vertical_align_is_keyword()
                 || self.anonymous_cell_wraps_flex_or_grid(cell);
             self.deferred_cell_inside_layouts[cell_index] = defer_inside_layout;
-            let mut measured_baseline = None;
-            let mut committing_run_baselines = None;
+            let mut content_baselines = None;
             if defer_inside_layout {
                 // This cell's final inside layout happens once row heights are final; measure its
                 // content in a throwaway state instead of laying out the committing state twice.
                 if let Some(measured) = self.measure_cell(cell, &used, inner, true) {
-                    used.set_content_block_size(measured.content_block_size);
-                    measured_baseline = Some(measured.first_baseline);
+                    used.set_content_block_size(measured.automatic_content_block_size);
+                    content_baselines = Some(measured.baselines);
                 }
             } else {
-                committing_run_baselines = Some(self.layout_inside_cell(run, cell, inner, true, None));
+                content_baselines = Some(self.layout_inside_cell(run, cell, inner, true, None));
             }
             if self.needs_fixed_mode_row_measurement {
                 let min_size = style.min_height().to_px(participant_block_basis);
@@ -2218,8 +2241,7 @@ impl TableFormattingContext {
             // https://drafts.csswg.org/css2/#height-layout
             // The baseline of a cell is the baseline of the first in-flow line box in the cell, or the first in-flow
             // table-row in the cell, whichever comes first.
-            let baseline =
-                measured_baseline.unwrap_or_else(|| self.cell_box_baseline(cell.box_, committing_run_baselines));
+            let baseline = self.cell_box_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;
             // Implements https://www.w3.org/TR/css-tables-3/#computing-the-table-height
 
@@ -2324,9 +2346,10 @@ impl TableFormattingContext {
             self.cell_inside_layout_inputs[cell_index] = inner;
             // The first pass measured this cell at its automatic block size; measure it again at
             // the percentage-resolved size to preserve the baseline its final inside layout will use.
-            let baseline = self
+            let content_baselines = self
                 .measure_cell(cell, &used, inner, false)
-                .map_or_else(|| self.box_baseline(cell.box_), |measured| measured.first_baseline);
+                .map(|measured| measured.baselines);
+            let baseline = self.cell_box_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;
             if !self.rows[cell.row_index].is_collapsed {
                 let border_size = used.border_box_block_size(collapsed);

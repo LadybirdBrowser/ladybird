@@ -97,6 +97,7 @@ interface Internals {
     unsigned long long partialLayoutCount();
     unsigned long long fullLayoutCount();
     unsigned long long layoutRunCacheHitCount();
+    unsigned long long tableCellMeasurementCacheMissCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
     undefined setAutoplayPolicy(Utf16DOMString policy);
 

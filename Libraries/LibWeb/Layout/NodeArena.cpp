@@ -40,6 +40,11 @@ u64 NodeArena::formatting_context_run_cache_hit_count() const
     return RustFFI::layout_arena_fc_run_cache_hit_count(m_handle);
 }
 
+u64 NodeArena::table_cell_measurement_cache_miss_count() const
+{
+    return RustFFI::layout_arena_table_cell_measurement_cache_miss_count(m_handle);
+}
+
 void NodeArena::drop_intrinsic_size_cache(RustFFI::NodeData const& node_data) const
 {
     RustFFI::layout_arena_drop_intrinsic_size_cache(m_handle, &node_data);
