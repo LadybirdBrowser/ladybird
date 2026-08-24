@@ -16,10 +16,18 @@ bool BooleanExpression::evaluate_to_boolean(BooleanExpressionEvaluationContext c
         MediaEnvironmentSnapshot environment { *context.document };
         auto result = Parser::ValueParserFFI::css_query_evaluate_media_condition(m_rust_query_handle.data(), environment.ffi_environment());
         constexpr u8 not_a_media_condition = 3;
-        if (result == not_a_media_condition)
-            return evaluate(context) == MatchResult::True;
-        VERIFY(result <= to_underlying(MatchResult::Unknown));
-        return static_cast<MatchResult>(result) == MatchResult::True;
+        if (result != not_a_media_condition) {
+            VERIFY(result <= to_underlying(MatchResult::Unknown));
+            return static_cast<MatchResult>(result) == MatchResult::True;
+        }
+    }
+    if (m_rust_query_handle) {
+        auto result = Parser::ValueParserFFI::css_query_evaluate_supports(m_rust_query_handle.data());
+        constexpr u8 not_a_supports_condition = 3;
+        if (result != not_a_supports_condition) {
+            VERIFY(result <= to_underlying(MatchResult::Unknown));
+            return static_cast<MatchResult>(result) == MatchResult::True;
+        }
     }
     return evaluate(context) == MatchResult::True;
 }

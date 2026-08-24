@@ -2323,6 +2323,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiUtf16View".to_string(),
         "FfiQueryNode".to_string(),
         "FfiQueryHandle".to_string(),
+        "EvaluateSupportsFeature".to_string(),
+        "FfiSupportsFeatureKind".to_string(),
         "FfiMediaEnvironment".to_string(),
         "FfiMediaFeatureValue".to_string(),
         "FfiMediaFeatureValueKind".to_string(),
