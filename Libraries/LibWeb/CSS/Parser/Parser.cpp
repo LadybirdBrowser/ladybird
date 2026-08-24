@@ -182,12 +182,6 @@ static bool should_verify_rust_syntax_parser()
     return should_verify;
 }
 
-static bool should_verify_rust_query_parser()
-{
-    auto* value = getenv("LIBWEB_VERIFY_RUST_QUERY_PARSER");
-    return value && StringView { value, strlen(value) } == "1"sv;
-}
-
 ParsingParams::ParsingParams(ParsingMode mode)
     : mode(mode)
 {
@@ -355,14 +349,7 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
 
 RefPtr<Supports> Parser::parse_as_supports()
 {
-    auto supports = RustQueryParser::parse_supports(*this, m_source);
-    if (should_verify_rust_query_parser()) {
-        auto cpp_supports = parse_a_supports(token_stream());
-        if (static_cast<bool>(supports) != static_cast<bool>(cpp_supports)
-            || (supports && supports->to_string() != cpp_supports->to_string()))
-            warnln("Rust supports parser mismatch: Rust `{}`, C++ `{}`", supports ? supports->to_string() : "<invalid>"_utf16, cpp_supports ? cpp_supports->to_string() : "<invalid>"_utf16);
-    }
-    return supports;
+    return RustQueryParser::parse_supports(*this, m_source);
 }
 
 // https://drafts.csswg.org/css-syntax/#consume-stylesheet-contents

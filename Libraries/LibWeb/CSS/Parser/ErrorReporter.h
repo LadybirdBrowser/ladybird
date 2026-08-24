@@ -63,17 +63,6 @@ struct InvalidRuleError {
     }
 };
 
-struct InvalidQueryError {
-    Utf16FlyString query_type { "@media"_utf16_fly_string };
-    String value_string;
-    String description;
-    bool operator==(InvalidQueryError const&) const = default;
-    unsigned hash() const
-    {
-        return pair_int_hash(query_type.hash(), pair_int_hash(value_string.hash(), description.hash()));
-    }
-};
-
 struct InvalidRuleLocationError {
     Utf16FlyString outer_rule_name;
     Utf16FlyString inner_rule_name;
@@ -84,7 +73,7 @@ struct InvalidRuleLocationError {
     }
 };
 
-using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidQueryError, InvalidRuleLocationError>;
+using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidRuleLocationError>;
 
 String serialize_parsing_error(ParsingError const&);
 

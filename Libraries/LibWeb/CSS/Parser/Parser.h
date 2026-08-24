@@ -31,8 +31,6 @@
 
 namespace Web::CSS::Parser {
 
-Optional<FeatureComparison> parse_feature_comparison(TokenStream<ComponentValue>&);
-
 struct FunctionContext {
     Utf16FlyString name;
 };
@@ -232,11 +230,6 @@ private:
     ParseErrorOr<PageSelectorList> parse_a_page_selector_list(TokenStream<T>&);
 
     template<typename T>
-    Vector<NonnullRefPtr<MediaQuery>> parse_a_media_query_list(TokenStream<T>&);
-    template<typename T>
-    RefPtr<Supports> parse_a_supports(TokenStream<T>&);
-
-    template<typename T>
     [[nodiscard]] Vector<Rule> consume_a_stylesheets_contents(TokenStream<T>&);
     template<typename T>
     Optional<AtRule> consume_an_at_rule(TokenStream<T>&, Nested nested = Nested::No);
@@ -367,30 +360,9 @@ private:
     ENUMERATE_GENERATED_CSS_VALUE_TYPES
 #undef __ENUMERATE_GENERATED_CSS_VALUE_TYPE
 
-    NonnullRefPtr<MediaQuery> parse_media_query(TokenStream<ComponentValue>&);
-    OwnPtr<BooleanExpression> parse_media_condition(TokenStream<ComponentValue>&);
-    OwnPtr<MediaFeature> parse_media_feature(TokenStream<ComponentValue>&);
-    Optional<MediaQuery::MediaType> parse_media_type(TokenStream<ComponentValue>&);
-    Optional<FeatureValue> parse_media_feature_value(MediaFeatureID, TokenStream<ComponentValue>&);
-    OwnPtr<SizeFeature> parse_size_feature(TokenStream<ComponentValue>&);
-    Optional<FeatureValue> parse_size_feature_value(SizeFeatureID, TokenStream<ComponentValue>&);
-    OwnPtr<BooleanExpression> parse_style_query(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed);
-    OwnPtr<BooleanExpression> parse_style_feature(TokenStream<ComponentValue>&);
-
-    template<typename FeatureID, typename FeatureAcceptsKeyword, typename FeatureAcceptsType>
-    Optional<FeatureValue> parse_feature_value(FeatureID, TokenStream<ComponentValue>&, FeatureAcceptsKeyword, FeatureAcceptsType);
-
     using ParseTest = AK::Function<OwnPtr<BooleanExpression>(TokenStream<ComponentValue>&)> const&;
     OwnPtr<BooleanExpression> parse_boolean_expression(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
     OwnPtr<BooleanExpression> parse_boolean_expression_group(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
-
-    OwnPtr<BooleanExpression> parse_supports_condition(TokenStream<ComponentValue>&);
-    OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
-    OwnPtr<Supports::Declaration> parse_supports_declaration(TokenStream<ComponentValue>&);
-
-    OwnPtr<BooleanExpression> parse_container_query_condition(TokenStream<ComponentValue>&);
-    OwnPtr<BooleanExpression> parse_container_query_feature(TokenStream<ComponentValue>&);
-    RefPtr<ContainerQuery> parse_container_query(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 

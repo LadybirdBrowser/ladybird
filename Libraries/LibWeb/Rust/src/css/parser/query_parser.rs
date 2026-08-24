@@ -10,7 +10,6 @@ use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume
 use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::is_valid_custom_ident;
-use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -581,7 +580,6 @@ where
     Some(Expression::QueryFeature(feature))
 }
 
-#[allow(dead_code)] // Source-size media conditions use this in the next query-parser slice.
 pub(crate) fn parse_media_condition<R>(values: &[ComponentValue], resolve_feature: &R) -> Option<Expression>
 where
     R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
@@ -963,22 +961,6 @@ where
         return Some(Expression::StyleFunction(Box::new(expression)));
     }
     None
-}
-
-pub(crate) fn parse_container_query<'a, R>(
-    source: impl Into<TokenizerInput<'a>>,
-    resolve_feature: &R,
-) -> Option<Expression>
-where
-    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
-{
-    let values = components_from_source(source)?;
-    let mut stream = TokenStream::new(&values);
-    let expression = parse_boolean_expression(&mut stream, MatchResult::Unknown, &|stream| {
-        parse_container_feature(stream, resolve_feature)
-    })?;
-    stream.discard_whitespace();
-    (!stream.has_next_token()).then_some(expression)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1539,26 +1521,6 @@ pub unsafe extern "C" fn rust_parse_style_query(
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_container_query(
-    source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
-) -> *mut FfiQueryParse {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(expression) = parse_container_query(source, &ffi_resolver(resolve_feature)) else {
-            return std::ptr::null_mut();
-        };
-        let mut parse = FfiQueryParse::new();
-        parse.root = Some(parse.append_expression(&expression));
-        Box::into_raw(Box::new(parse))
-    })
-}
-
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_container_condition_list(
     source: FfiUtf16View,
     resolve_feature: ResolveQueryFeature,
@@ -1598,9 +1560,6 @@ pub unsafe extern "C" fn rust_query_parse_free(parse: *mut FfiQueryParse) {
     });
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_query_parser_abi_anchor(_: *const c_void) {}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1618,6 +1577,14 @@ mod tests {
             .iter()
             .find(|(expected, _, _)| equals_ascii_case_insensitive(name, expected))
             .map(|(_, id, range)| (*id, *range))
+    }
+
+    fn parse_single_container_query(source: &[u8]) -> Option<Expression> {
+        let mut conditions = parse_container_condition_list(source, &resolver)?;
+        if conditions.len() != 1 || conditions[0].name.is_some() {
+            return None;
+        }
+        conditions.pop()?.query
     }
 
     #[test]
@@ -1669,7 +1636,7 @@ mod tests {
             Some(StyleRangeValue::Components(_))
         ));
         assert!(matches!(
-            parse_container_query(b"(width > 10px) and style(--theme: dark)".as_slice(), &resolver),
+            parse_single_container_query(b"(width > 10px) and style(--theme: dark)"),
             Some(Expression::And(_))
         ));
         let conditions =
@@ -1680,15 +1647,15 @@ mod tests {
             Some("card".encode_utf16().collect::<Vec<_>>().as_slice())
         );
         assert!(matches!(
-            parse_container_query(b"style(1 < --level < 3)".as_slice(), &resolver),
+            parse_single_container_query(b"style(1 < --level < 3)"),
             Some(Expression::StyleFunction(_))
         ));
         assert!(matches!(
-            parse_container_query(b"style(--foo: bar;)".as_slice(), &resolver),
+            parse_single_container_query(b"style(--foo: bar;)"),
             Some(Expression::StyleFunction(_))
         ));
         assert!(matches!(
-            parse_container_query(b"style(10px < 10em !)".as_slice(), &resolver),
+            parse_single_container_query(b"style(10px < 10em !)"),
             Some(Expression::StyleFunction(_))
         ));
     }
@@ -1703,7 +1670,7 @@ mod tests {
             })
         ));
         assert!(matches!(
-            parse_container_query(b"future(foo bar)".as_slice(), &resolver),
+            parse_single_container_query(b"future(foo bar)"),
             Some(Expression::GeneralEnclosed {
                 result: MatchResult::Unknown,
                 ..

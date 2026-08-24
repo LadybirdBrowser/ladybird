@@ -27,9 +27,6 @@ String serialize_parsing_error(ParsingError const& error)
         [](InvalidRuleError const& error) {
             return MUST(String::formatted("'{}' rule with prelude `{}` is invalid: {}", error.rule_name, error.prelude, error.description));
         },
-        [](InvalidQueryError const& error) {
-            return MUST(String::formatted("'{}' query `{}` is invalid: {}", error.query_type, error.value_string, error.description));
-        },
         [](InvalidRuleLocationError const& error) {
             return MUST(String::formatted("'{}' rule is invalid inside {}", error.inner_rule_name, error.outer_rule_name));
         });

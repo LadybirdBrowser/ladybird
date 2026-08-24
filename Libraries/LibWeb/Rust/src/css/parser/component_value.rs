@@ -103,7 +103,6 @@ impl ComponentValue {
 pub(crate) enum ComponentSerializationMode {
     Normalized,
     PreserveNumericSource,
-    Retokenize,
 }
 
 fn is_numeric(value: &ComponentValue) -> bool {
@@ -257,30 +256,11 @@ fn serialize_component(sink: &mut TextSink, value: &ComponentValue, mode: Compon
     if matches!(mode, ComponentSerializationMode::PreserveNumericSource) && is_numeric(value) {
         return append_original_source(sink, &value.original_source_text);
     }
-    if matches!(mode, ComponentSerializationMode::Retokenize)
-        && (is_numeric(value)
-            || matches!(
-                value.kind,
-                ComponentKind::Token(ParserTokenKind::BadString | ParserTokenKind::BadUrl)
-            ))
-    {
-        return append_original_source(sink, &value.original_source_text);
-    }
-
     match &value.kind {
         ComponentKind::Token(kind) => serialize_token(sink, kind),
         ComponentKind::Function { name, values } => {
-            if matches!(mode, ComponentSerializationMode::Retokenize) {
-                let mut opening = value.original_source_text.to_vec();
-                opening.truncate(value.opening_source_length);
-                if opening.is_empty() {
-                    return false;
-                }
-                opening.into_iter().for_each(|unit| sink.push_code_unit(unit));
-            } else {
-                serialize_an_identifier(sink, &StringUnits::Utf16(name));
-                sink.push_ascii("(");
-            }
+            serialize_an_identifier(sink, &StringUnits::Utf16(name));
+            sink.push_ascii("(");
             let nested_mode = if matches!(mode, ComponentSerializationMode::PreserveNumericSource) {
                 ComponentSerializationMode::Normalized
             } else {
@@ -289,17 +269,7 @@ fn serialize_component(sink: &mut TextSink, value: &ComponentValue, mode: Compon
             if !serialize_component_values_into(sink, values, nested_mode) {
                 return false;
             }
-            if matches!(mode, ComponentSerializationMode::Retokenize) {
-                if value.closing_source_length == 0 {
-                    return false;
-                }
-                let source = value.original_source_text.to_vec();
-                source[source.len() - value.closing_source_length..]
-                    .iter()
-                    .for_each(|&unit| sink.push_code_unit(unit));
-            } else {
-                sink.push_ascii(")");
-            }
+            sink.push_ascii(")");
         }
         ComponentKind::SimpleBlock { opening, values } => {
             let (normalized_opening, normalized_closing) = match opening {
@@ -308,17 +278,7 @@ fn serialize_component(sink: &mut TextSink, value: &ComponentValue, mode: Compon
                 ParserTokenKind::OpenCurly => ("{", "}"),
                 _ => unreachable!(),
             };
-            if matches!(mode, ComponentSerializationMode::Retokenize) {
-                let source = value.original_source_text.to_vec();
-                if value.opening_source_length == 0 {
-                    return false;
-                }
-                source[..value.opening_source_length]
-                    .iter()
-                    .for_each(|&unit| sink.push_code_unit(unit));
-            } else {
-                sink.push_ascii(normalized_opening);
-            }
+            sink.push_ascii(normalized_opening);
             let nested_mode = if matches!(mode, ComponentSerializationMode::PreserveNumericSource) {
                 ComponentSerializationMode::Normalized
             } else {
@@ -327,17 +287,7 @@ fn serialize_component(sink: &mut TextSink, value: &ComponentValue, mode: Compon
             if !serialize_component_values_into(sink, values, nested_mode) {
                 return false;
             }
-            if matches!(mode, ComponentSerializationMode::Retokenize) {
-                if value.closing_source_length == 0 {
-                    return false;
-                }
-                let source = value.original_source_text.to_vec();
-                source[source.len() - value.closing_source_length..]
-                    .iter()
-                    .for_each(|&unit| sink.push_code_unit(unit));
-            } else {
-                sink.push_ascii(normalized_closing);
-            }
+            sink.push_ascii(normalized_closing);
         }
     }
     true
@@ -631,26 +581,11 @@ mod tests {
             serialize(&values, ComponentSerializationMode::PreserveNumericSource).as_deref(),
             Some("a b 1.00PX url(\"value\") [x 2PX]")
         );
-        assert_eq!(
-            serialize(&values, ComponentSerializationMode::Retokenize).as_deref(),
-            Some("a b 1.00PX url(\"value\") [x 2.00PX]")
-        );
-
         let mut adjacent_identifiers = parse("a b");
         adjacent_identifiers.remove(1);
         assert_eq!(
             serialize(&adjacent_identifiers, ComponentSerializationMode::Normalized).as_deref(),
             Some("a/**/b")
         );
-    }
-
-    #[test]
-    fn retokenization_requires_complete_nested_source() {
-        let values = parse("function([value");
-        assert_eq!(
-            serialize(&values, ComponentSerializationMode::Normalized).as_deref(),
-            Some("function([value])")
-        );
-        assert_eq!(serialize(&values, ComponentSerializationMode::Retokenize), None);
     }
 }
