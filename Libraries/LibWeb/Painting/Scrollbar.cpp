@@ -128,7 +128,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     auto gutter_size = scrollbar_data->gutter_rect.primary_size_for_orientation(orientation);
     auto thumb_size = scrollbar_data->thumb_rect.primary_size_for_orientation(orientation);
 
-    if (gutter_size < thumb_size)
+    if (gutter_size <= thumb_size)
         return true;
 
     if (!m_thumb_grab_position.has_value()) {
