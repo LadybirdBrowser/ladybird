@@ -227,6 +227,11 @@ pub(crate) fn serialize_style_value_to_utf16(value: &StyleValueData) -> Option<V
     serialize_style_value(&mut sink, value, SerializationMode::Normal).then(|| sink.into_utf16())
 }
 
+pub(crate) fn serialize_resolved_style_value_to_utf16(value: &StyleValueData) -> Option<Vec<u16>> {
+    let mut sink = TextSink::new();
+    serialize_style_value(&mut sink, value, SerializationMode::ResolvedValue).then(|| sink.into_utf16())
+}
+
 pub(crate) fn serialize_component_values_to_utf16(
     values: &[crate::css::parser::component_value::ComponentValue],
     mode: ComponentSerializationMode,
