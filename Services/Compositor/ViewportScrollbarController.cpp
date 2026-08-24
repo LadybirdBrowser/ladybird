@@ -129,8 +129,10 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::begin_d
     auto scroll_offset = async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, scroll_state_snapshot);
     VERIFY(scroll_offset.has_value());
 
-    auto expanded = is_expanded(*scrollbar_index);
     auto orientation = orientation_for_scrollbar(scrollbar);
+
+    // A successful press captures and expands the scrollbar before its drag delta is applied.
+    static constexpr auto expanded = true;
     auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
     auto thumb_hit_rect = thumb_rect.to_type<float>();
 

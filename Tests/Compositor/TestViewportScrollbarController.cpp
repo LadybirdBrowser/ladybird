@@ -9,7 +9,7 @@
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Painting/ScrollState.h>
 
-static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position)
+static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
     auto document_id = Web::UniqueNodeID { 1 };
@@ -47,7 +47,7 @@ static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::O
         .gutter_rect = vertical ? Gfx::IntRect { 96, 0, 4, 100 } : Gfx::IntRect { 0, 96, 100, 4 },
         .thumb_rect = vertical ? Gfx::IntRect { 98, 20, 2, 20 } : Gfx::IntRect { 20, 98, 20, 2 },
         .expanded_gutter_rect = vertical ? Gfx::IntRect { 92, 0, 8, 100 } : Gfx::IntRect { 0, 92, 100, 8 },
-        .expanded_thumb_rect = vertical ? Gfx::IntRect { 94, 20, 6, 20 } : Gfx::IntRect { 20, 94, 20, 6 },
+        .expanded_thumb_rect = expanded_thumb_rect.value_or(vertical ? Gfx::IntRect { 94, 20, 6, 20 } : Gfx::IntRect { 20, 94, 20, 6 }),
         .scroll_size = 0.8,
         .expanded_scroll_size = 0.8,
         .min_scroll_offset = 0,
@@ -84,4 +84,13 @@ TEST_CASE(clicking_scrollbar_track_outside_thumb_grabs_thumb_at_center)
     auto horizontal_drag = begin_scrollbar_drag(Gfx::Orientation::Horizontal, { 60, 97 });
     EXPECT_EQ(horizontal_drag.primary_position, 60);
     EXPECT_EQ(horizontal_drag.thumb_grab_position, 10);
+}
+
+TEST_CASE(starting_scrollbar_drag_uses_expanded_thumb_geometry)
+{
+    auto vertical_drag = begin_scrollbar_drag(Gfx::Orientation::Vertical, { 97, 25 }, Gfx::IntRect { 94, 18, 6, 24 });
+    EXPECT_EQ(vertical_drag.thumb_grab_position, 7);
+
+    auto horizontal_drag = begin_scrollbar_drag(Gfx::Orientation::Horizontal, { 25, 97 }, Gfx::IntRect { 18, 94, 24, 6 });
+    EXPECT_EQ(horizontal_drag.thumb_grab_position, 7);
 }
