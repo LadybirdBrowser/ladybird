@@ -809,6 +809,7 @@ set(SOURCES
     Loader/GeneratedPagesLoader.cpp
     Loader/ProxyMappings.cpp
     Loader/ResourceLoader.cpp
+    Loader/SiteCompatibility.cpp
     MathML/AttributeNames.cpp
     MathML/MathMLAnchorElement.cpp
     MathML/MathMLElement.cpp
