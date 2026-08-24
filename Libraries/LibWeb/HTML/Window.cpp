@@ -507,63 +507,88 @@ Page const& Window::page() const
     return associated_document().page();
 }
 
-Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID media_feature) const
+static CSS::Parser::ValueParserFFI::FfiMediaFeatureValue ident_media_feature_value(CSS::Keyword keyword)
+{
+    return { .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Ident, .keyword = to_underlying(keyword), .value = 0, .second_value = 0 };
+}
+
+static CSS::Parser::ValueParserFFI::FfiMediaFeatureValue integer_media_feature_value(double value)
+{
+    return { .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Integer, .keyword = 0, .value = value, .second_value = 0 };
+}
+
+static CSS::Parser::ValueParserFFI::FfiMediaFeatureValue length_media_feature_value(CSSPixels px)
+{
+    return { .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Length, .keyword = 0, .value = px.to_double(), .second_value = 0 };
+}
+
+static CSS::Parser::ValueParserFFI::FfiMediaFeatureValue ratio_media_feature_value(double numerator, double denominator)
+{
+    return { .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Ratio, .keyword = 0, .value = numerator, .second_value = denominator };
+}
+
+static CSS::Parser::ValueParserFFI::FfiMediaFeatureValue resolution_media_feature_value(double dots_per_pixel)
+{
+    return { .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Resolution, .keyword = 0, .value = dots_per_pixel, .second_value = 0 };
+}
+
+CSS::Parser::ValueParserFFI::FfiMediaFeatureValue Window::query_media_feature(CSS::MediaFeatureID media_feature) const
 {
     // FIXME: Many of these should be dependent on the hardware
 
     // https://www.w3.org/TR/mediaqueries-5/#media-descriptor-table
     switch (media_feature) {
     case CSS::MediaFeatureID::AnyHover:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Hover));
+        return ident_media_feature_value(CSS::Keyword::Hover);
     case CSS::MediaFeatureID::AnyPointer:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
+        return ident_media_feature_value(CSS::Keyword::Fine);
     case CSS::MediaFeatureID::AspectRatio:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(inner_width()), CSS::NumberStyleValue::create(inner_height())));
+        return ratio_media_feature_value(inner_width(), inner_height());
     case CSS::MediaFeatureID::Color:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(8));
+        return integer_media_feature_value(8);
     case CSS::MediaFeatureID::ColorGamut:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
+        return ident_media_feature_value(CSS::Keyword::Srgb);
     case CSS::MediaFeatureID::ColorIndex:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
+        return integer_media_feature_value(0);
     case CSS::MediaFeatureID::DeviceAspectRatio: {
         auto screen_area = page().client().screen_rect();
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(screen_area.width().value()), CSS::NumberStyleValue::create(screen_area.height().value())));
+        return ratio_media_feature_value(screen_area.width().value(), screen_area.height().value());
     }
     case CSS::MediaFeatureID::DeviceHeight:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().height())));
+        return length_media_feature_value(page().web_exposed_screen_area().height());
     case CSS::MediaFeatureID::DeviceWidth:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().width())));
+        return length_media_feature_value(page().web_exposed_screen_area().width());
     case CSS::MediaFeatureID::DisplayMode:
         // FIXME: Detect if window is fullscreen
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Browser));
+        return ident_media_feature_value(CSS::Keyword::Browser);
     case CSS::MediaFeatureID::DynamicRange:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
+        return ident_media_feature_value(CSS::Keyword::Standard);
     case CSS::MediaFeatureID::EnvironmentBlending:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Opaque));
+        return ident_media_feature_value(CSS::Keyword::Opaque);
     case CSS::MediaFeatureID::ForcedColors:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        return ident_media_feature_value(CSS::Keyword::None);
     case CSS::MediaFeatureID::Grid:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
+        return integer_media_feature_value(0);
     case CSS::MediaFeatureID::Height:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_height())));
+        return length_media_feature_value(inner_height());
     case CSS::MediaFeatureID::HorizontalViewportSegments:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
+        return integer_media_feature_value(1);
     case CSS::MediaFeatureID::Hover:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Hover));
+        return ident_media_feature_value(CSS::Keyword::Hover);
     case CSS::MediaFeatureID::InvertedColors:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        return ident_media_feature_value(CSS::Keyword::None);
     case CSS::MediaFeatureID::Monochrome:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
+        return integer_media_feature_value(0);
     case CSS::MediaFeatureID::NavControls:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Back));
+        return ident_media_feature_value(CSS::Keyword::Back);
     case CSS::MediaFeatureID::Orientation:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(inner_height() >= inner_width() ? CSS::Keyword::Portrait : CSS::Keyword::Landscape));
+        return ident_media_feature_value(inner_height() >= inner_width() ? CSS::Keyword::Portrait : CSS::Keyword::Landscape);
     case CSS::MediaFeatureID::OverflowBlock:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Scroll));
+        return ident_media_feature_value(CSS::Keyword::Scroll);
     case CSS::MediaFeatureID::OverflowInline:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Scroll));
+        return ident_media_feature_value(CSS::Keyword::Scroll);
     case CSS::MediaFeatureID::Pointer:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
+        return ident_media_feature_value(CSS::Keyword::Fine);
     case CSS::MediaFeatureID::PrefersColorScheme: {
         // https://github.com/w3c/csswg-drafts/issues/7213
         // An SVG used as an image answers with the used `color-scheme` of the element referencing
@@ -572,9 +597,9 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
         auto preference = associated_document().svg_image_color_scheme().value_or(page().preferred_color_scheme());
         switch (preference) {
         case CSS::PreferredColorScheme::Light:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Light));
+            return ident_media_feature_value(CSS::Keyword::Light);
         case CSS::PreferredColorScheme::Dark:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Dark));
+            return ident_media_feature_value(CSS::Keyword::Dark);
         default:
             VERIFY_NOT_REACHED();
         }
@@ -582,62 +607,67 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
     case CSS::MediaFeatureID::PrefersContrast:
         switch (page().preferred_contrast()) {
         case CSS::PreferredContrast::Less:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Less));
+            return ident_media_feature_value(CSS::Keyword::Less);
         case CSS::PreferredContrast::More:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::More));
+            return ident_media_feature_value(CSS::Keyword::More);
         case CSS::PreferredContrast::NoPreference:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return ident_media_feature_value(CSS::Keyword::NoPreference);
         case CSS::PreferredContrast::Auto:
         default:
             // FIXME: Fallback to system settings
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return ident_media_feature_value(CSS::Keyword::NoPreference);
         }
     case CSS::MediaFeatureID::PrefersReducedData:
         // FIXME: Make this a preference
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+        return ident_media_feature_value(CSS::Keyword::NoPreference);
     case CSS::MediaFeatureID::PrefersReducedMotion:
         switch (page().preferred_motion()) {
         case CSS::PreferredMotion::NoPreference:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return ident_media_feature_value(CSS::Keyword::NoPreference);
         case CSS::PreferredMotion::Reduce:
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Reduce));
+            return ident_media_feature_value(CSS::Keyword::Reduce);
         case CSS::PreferredMotion::Auto:
         default:
             // FIXME: Fallback to system settings
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+            return ident_media_feature_value(CSS::Keyword::NoPreference);
         }
     case CSS::MediaFeatureID::PrefersReducedTransparency:
         // FIXME: Make this a preference
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::NoPreference));
+        return ident_media_feature_value(CSS::Keyword::NoPreference);
     case CSS::MediaFeatureID::Resolution:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Resolution, CSS::ResolutionStyleValue::create(CSS::Resolution::make_dots_per_pixel(device_pixel_ratio())));
+        return resolution_media_feature_value(device_pixel_ratio());
     case CSS::MediaFeatureID::Scan:
         // FIXME: Detect this from the display, if we can. Most displays aren't scanning and should return None.
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+        return ident_media_feature_value(CSS::Keyword::None);
     case CSS::MediaFeatureID::Scripting:
         if (associated_document().is_scripting_enabled())
-            return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Enabled));
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::None));
+            return ident_media_feature_value(CSS::Keyword::Enabled);
+        return ident_media_feature_value(CSS::Keyword::None);
     case CSS::MediaFeatureID::Update:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fast));
+        return ident_media_feature_value(CSS::Keyword::Fast);
     case CSS::MediaFeatureID::VerticalViewportSegments:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
+        return integer_media_feature_value(1);
     case CSS::MediaFeatureID::VideoColorGamut:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Srgb));
+        return ident_media_feature_value(CSS::Keyword::Srgb);
     case CSS::MediaFeatureID::VideoDynamicRange:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Standard));
+        return ident_media_feature_value(CSS::Keyword::Standard);
     case CSS::MediaFeatureID::WebkitTransform3d:
         // https://compat.spec.whatwg.org/#css-media-queries-webkit-transform-3d
         // If the user agent supports 3D transforms, the value will be 1. Otherwise the value is 0.
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(1));
+        return integer_media_feature_value(1);
     case CSS::MediaFeatureID::Width:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(inner_width())));
+        return length_media_feature_value(inner_width());
 
     default:
         break;
     }
 
-    return {};
+    return {
+        .kind = CSS::Parser::ValueParserFFI::FfiMediaFeatureValueKind::Absent,
+        .keyword = 0,
+        .value = 0,
+        .second_value = 0,
+    };
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-page-transition-event
