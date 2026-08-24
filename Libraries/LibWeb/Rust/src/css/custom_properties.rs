@@ -283,6 +283,8 @@ struct VarResolutionContext<'a> {
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
+    condition_context: *mut c_void,
+    evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
     active_functions: Vec<usize>,
     function_local_scopes: Vec<FunctionLocalScope>,
 }
@@ -833,35 +835,39 @@ fn replace_var_function(
     //    Let first arg be the first <declaration-value> in arguments.
     //    Let second arg be the <declaration-value>? passed after the comma, or null if there was no comma.
     let comma = find_top_level_comma(arguments);
-    let first_argument = trim_whitespace(&arguments[..comma.unwrap_or(arguments.len())]);
-    let [
-        OwnedToken {
-            kind: OwnedTokenKind::Ident(name),
-            ..
-        },
-    ] = first_argument
-    else {
-        return TokenResolution::NotHandled;
-    };
-    if !name.starts_with_ascii("--") {
-        return TokenResolution::Invalid;
-    }
+    let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
 
     // 2. Substitute arbitrary substitution functions in first arg, then parse it as a <custom-property-name>.
     //    If parsing returned a <custom-property-name>, let result be the computed value of the corresponding custom
     //    property on el. Otherwise, let result be the guaranteed-invalid value.
-    match resolve_custom_property(store, registry, name, context, recursion_depth) {
-        TokenResolution::Invalid => {}
-        TokenResolution::Cyclic
-            if context
-                .active_names
-                .last()
-                .is_some_and(|active_name| context.cyclic_names.contains(active_name)) =>
-        {
-            return TokenResolution::Cyclic;
+    let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
+        TokenResolution::Resolved(tokens) => tokens,
+        TokenResolution::Invalid | TokenResolution::Cyclic => Vec::new(),
+        TokenResolution::NotHandled => return TokenResolution::NotHandled,
+    };
+    let name = match trim_whitespace(&substituted_first) {
+        [
+            OwnedToken {
+                kind: OwnedTokenKind::Ident(name),
+                ..
+            },
+        ] if name.starts_with_ascii("--") => Some(name.as_slice()),
+        _ => None,
+    };
+    if let Some(name) = name {
+        match resolve_custom_property(store, registry, name, context, recursion_depth) {
+            TokenResolution::Invalid => {}
+            TokenResolution::Cyclic
+                if context
+                    .active_names
+                    .last()
+                    .is_some_and(|active_name| context.cyclic_names.contains(active_name)) =>
+            {
+                return TokenResolution::Cyclic;
+            }
+            TokenResolution::Cyclic => {}
+            result => return result,
         }
-        TokenResolution::Cyclic => {}
-        result => return result,
     }
     let Some(comma) = comma else {
         return TokenResolution::Invalid;
@@ -996,7 +1002,6 @@ enum ParsedBooleanExpression {
 enum ConditionValidation {
     Valid,
     Invalid,
-    NotHandled,
 }
 
 fn parse_boolean_expression(
@@ -1009,7 +1014,6 @@ fn parse_boolean_expression(
     }
     match validate_test(tokens) {
         ConditionValidation::Valid => return Ok(ParsedBooleanExpression::Test(tokens.to_vec())),
-        ConditionValidation::NotHandled => return Err(ConditionValidation::NotHandled),
         ConditionValidation::Invalid => {}
     }
     if matches!(
@@ -1139,7 +1143,7 @@ fn validate_style_feature(tokens: &[OwnedToken]) -> ConditionValidation {
     if tokens.iter().any(|token| {
         token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
     }) {
-        return ConditionValidation::NotHandled;
+        return ConditionValidation::Valid;
     }
     let colon = find_top_level_source(tokens, b":");
     let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
@@ -1171,6 +1175,30 @@ fn evaluate_style_feature(
     recursion_depth: u32,
 ) -> ConditionEvaluation {
     let tokens = trim_whitespace(tokens);
+    if tokens.iter().any(|token| {
+        token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
+    }) {
+        let Some(evaluate) = context.evaluate_condition else {
+            return ConditionEvaluation::NotHandled;
+        };
+        let source = serialize_tokens(tokens);
+        return match unsafe {
+            evaluate(
+                context.condition_context,
+                2,
+                FfiUtf16View {
+                    ascii: std::ptr::null(),
+                    utf16: source.as_ptr(),
+                    length: source.len(),
+                },
+            )
+        } {
+            0 => ConditionEvaluation::Match(false),
+            1 => ConditionEvaluation::Match(true),
+            2 => ConditionEvaluation::Invalid,
+            _ => ConditionEvaluation::NotHandled,
+        };
+    }
     let colon = find_top_level_source(tokens, b":");
     let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
     let [
@@ -1252,7 +1280,6 @@ fn evaluate_style_query(
     let expression = match parse_boolean_expression(tokens, &mut validate_style_feature) {
         Ok(expression) => expression,
         Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
-        Err(ConditionValidation::NotHandled) => return ConditionEvaluation::NotHandled,
         Err(ConditionValidation::Valid) => unreachable!(),
     };
     evaluate_parsed_boolean_expression(&expression, &mut |feature| {
@@ -1278,7 +1305,7 @@ fn validate_if_test(tokens: &[OwnedToken]) -> ConditionValidation {
         };
     }
     if name.eq_ignore_ascii_case("media") || name.eq_ignore_ascii_case("supports") {
-        return ConditionValidation::NotHandled;
+        return ConditionValidation::Valid;
     }
     ConditionValidation::Valid
 }
@@ -1302,7 +1329,6 @@ fn evaluate_if_condition(
     let expression = match parse_boolean_expression(tokens, &mut validate_if_test) {
         Ok(expression) => expression,
         Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
-        Err(ConditionValidation::NotHandled) => return ConditionEvaluation::NotHandled,
         Err(ConditionValidation::Valid) => unreachable!(),
     };
     evaluate_parsed_boolean_expression(&expression, &mut |test| {
@@ -1315,7 +1341,26 @@ fn evaluate_if_condition(
             return evaluate_style_query(store, registry, &test[1..close], context, recursion_depth + 1);
         }
         if name.eq_ignore_ascii_case("media") || name.eq_ignore_ascii_case("supports") {
-            return ConditionEvaluation::NotHandled;
+            let Some(evaluate) = context.evaluate_condition else {
+                return ConditionEvaluation::NotHandled;
+            };
+            let source = serialize_tokens(&test[1..close]);
+            return match unsafe {
+                evaluate(
+                    context.condition_context,
+                    u8::from(name.eq_ignore_ascii_case("supports")),
+                    FfiUtf16View {
+                        ascii: std::ptr::null(),
+                        utf16: source.as_ptr(),
+                        length: source.len(),
+                    },
+                )
+            } {
+                0 => ConditionEvaluation::Match(false),
+                1 => ConditionEvaluation::Match(true),
+                2 => ConditionEvaluation::Invalid,
+                _ => ConditionEvaluation::NotHandled,
+            };
         }
         ConditionEvaluation::Match(false)
     })
@@ -1856,6 +1901,8 @@ pub(crate) unsafe fn resolve_vars(
     custom_functions: *const FfiSubstitutionFunctionDefinition,
     custom_function_count: usize,
     custom_function_scope_identity: usize,
+    condition_context: *mut c_void,
+    evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
         None
@@ -1902,6 +1949,8 @@ pub(crate) unsafe fn resolve_vars(
         inheritance_store,
         attribute_names_are_ascii_case_insensitive,
         custom_functions: Some(&custom_functions),
+        condition_context,
+        evaluate_condition,
         ..Default::default()
     };
     match substitute_tokens(store, registry, &source, &mut context, 0) {

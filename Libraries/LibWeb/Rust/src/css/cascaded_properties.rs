@@ -20,6 +20,7 @@ use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 
 use crate::abort_on_panic;
+use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::value_parser::{
     FfiPrecomputedSvgPath, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
     parse_css_value_from_source, svg_path_strings_from_source,
@@ -1045,6 +1046,7 @@ pub struct FfiCascadeResolutionContext {
     pub custom_function_count: usize,
     pub custom_function_scope_identity: usize,
     pub callback_context: *mut c_void,
+    pub evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
     pub cache_parsed_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16, *const c_void)>,
@@ -1266,6 +1268,8 @@ fn resolve_cascade_value(
             resolution_context.custom_functions,
             resolution_context.custom_function_count,
             resolution_context.custom_function_scope_identity,
+            resolution_context.callback_context,
+            resolution_context.evaluate_condition,
         )
     };
     if matches!(
@@ -1380,6 +1384,25 @@ fn resolve_cascade_value(
         value: unsafe { RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(parsed)) },
         has_style_sheet_context,
     }
+}
+
+/// Resolves and parses one unresolved value outside the bulk cascade.
+///
+/// # Safety
+/// `resolution_context` and `unresolved_data` must remain valid for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_resolve_unresolved_style_value(
+    resolution_context: *const FfiCascadeResolutionContext,
+    property_id: u16,
+    unresolved_data: *const c_void,
+) -> *const c_void {
+    crate::abort_on_panic(|| {
+        let resolution_context = unsafe { &*resolution_context };
+        let resolved = resolve_cascade_value(resolution_context, 0, property_id, unresolved_data, false);
+        let pointer = resolved.value.pointer().cast();
+        std::mem::forget(resolved.value);
+        pointer
+    })
 }
 
 /// Runs the longhand cascade for one element in css-cascade-5 origin order
