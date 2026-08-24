@@ -34,6 +34,27 @@ TEST_CASE(widen_to_utf16_storage)
     EXPECT(!string.is_ascii());
 }
 
+TEST_CASE(append_quoted_escaped_for_json)
+{
+    Utf16StringBuilder ascii_builder;
+    ascii_builder.append_quoted_escaped_for_json("ascii"sv);
+    EXPECT_EQ(ascii_builder.view(), "\"ascii\""sv);
+
+    Utf16StringBuilder escaped_builder;
+    escaped_builder.append_quoted_escaped_for_json(u"quoted \" string\n"sv);
+    EXPECT_EQ(escaped_builder.view(), "\"quoted \\\" string\\n\""sv);
+
+    Utf16StringBuilder widened_builder;
+    widened_builder.append_code_unit(0x263A);
+    widened_builder.append_quoted_escaped_for_json("ascii"sv);
+    EXPECT_EQ(widened_builder.view(), u"\u263A\"ascii\""sv);
+
+    char16_t lone_surrogate = 0xd800;
+    Utf16StringBuilder surrogate_builder;
+    surrogate_builder.append_quoted_escaped_for_json(Utf16View { &lone_surrogate, 1 });
+    EXPECT_EQ(surrogate_builder.view(), "\"\\ud800\""sv);
+}
+
 TEST_CASE(append_code_point)
 {
     Utf16StringBuilder builder;

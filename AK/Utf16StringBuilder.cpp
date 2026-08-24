@@ -227,7 +227,7 @@ void Utf16StringBuilder::append(Utf16View const& view)
     if (view.is_empty())
         return;
 
-    if (m_is_ascii && view.is_ascii()) {
+    if (m_is_ascii && (view.has_ascii_storage() || view.is_ascii())) {
         will_append(view.length_in_code_units());
 
         if (view.has_ascii_storage()) {
@@ -272,20 +272,92 @@ void Utf16StringBuilder::append_ascii(char code_unit)
 void Utf16StringBuilder::append_ascii(StringView string)
 {
     VERIFY(string.is_ascii());
+    append_ascii_without_validation(string.bytes());
+}
+
+void Utf16StringBuilder::append_ascii_without_validation(ReadonlyBytes string)
+{
     if (string.is_empty())
         return;
 
     if (m_is_ascii) {
-        will_append(string.length());
-        m_buffer.append(string.characters_without_null_termination(), string.length());
+        will_append(string.size());
+        m_buffer.append(string.data(), string.size());
         return;
     }
 
-    will_append(utf16_byte_count(string.length()));
+    will_append(utf16_byte_count(string.size()));
     for (auto code_unit : string) {
         auto utf16_code_unit = static_cast<char16_t>(code_unit);
         m_buffer.append(&utf16_code_unit, sizeof(utf16_code_unit));
     }
+}
+
+void Utf16StringBuilder::append_quoted_escaped_for_json(StringView string)
+{
+    append_quoted_escaped_for_json(Utf16View { string });
+}
+
+void Utf16StringBuilder::append_quoted_escaped_for_json(Utf16View const& string)
+{
+    if (string.has_ascii_storage()) {
+        auto bytes = string.bytes();
+        bool needs_escaping = false;
+        for (auto byte : bytes) {
+            if (byte < 0x20 || byte == '"' || byte == '\\') {
+                needs_escaping = true;
+                break;
+            }
+        }
+
+        if (!needs_escaping && m_is_ascii) {
+            Checked<size_t> appended_size = bytes.size();
+            appended_size += 2;
+            VERIFY(!appended_size.has_overflow());
+            will_append(appended_size.value());
+
+            auto original_size = m_buffer.size();
+            m_buffer.resize(original_size + appended_size.value());
+            auto* destination = m_buffer.data() + original_size;
+            destination[0] = '"';
+            __builtin_memcpy(destination + 1, bytes.data(), bytes.size());
+            destination[bytes.size() + 1] = '"';
+            return;
+        }
+    }
+
+    append_ascii('"');
+    for (auto code_point : string) {
+        switch (code_point) {
+        case '\b':
+            append_ascii("\\b"sv);
+            break;
+        case '\t':
+            append_ascii("\\t"sv);
+            break;
+        case '\n':
+            append_ascii("\\n"sv);
+            break;
+        case '\f':
+            append_ascii("\\f"sv);
+            break;
+        case '\r':
+            append_ascii("\\r"sv);
+            break;
+        case '"':
+            append_ascii("\\\""sv);
+            break;
+        case '\\':
+            append_ascii("\\\\"sv);
+            break;
+        default:
+            if (code_point < 0x20 || is_unicode_surrogate(code_point))
+                appendff("\\u{:04x}", code_point);
+            else
+                append_code_point(code_point);
+        }
+    }
+    append_ascii('"');
 }
 
 void Utf16StringBuilder::append_code_unit(char16_t code_unit)
