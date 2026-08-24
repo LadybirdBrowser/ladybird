@@ -295,7 +295,6 @@ impl StyleEngine {
         }
         let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
         routing.add_rule(rule, program, &self.programs);
-        routing.settle_memory(&mut self.memory);
     }
 
     /// The process-global atom for one interned name identity.
