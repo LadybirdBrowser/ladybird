@@ -763,7 +763,9 @@ impl SizingContext {
         // 5. Jump to the first step.
         // NOTE: Evaluated incrementally: in-flow auto-height block containers pass the basis they
         //       inherited from their own containing block through to their children.
-        let quirks_block = if facts.is_viewport() {
+        let quirks_block = if !facts.document_in_quirks_mode() {
+            None
+        } else if facts.is_viewport() {
             Some(used.content_block_size.get())
         } else if facts.is_table_cell() {
             Some(CssPixels::default())
