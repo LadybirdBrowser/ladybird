@@ -11,12 +11,21 @@
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/BooleanExpression.h>
+#include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
+namespace Parser {
+
+class RustQueryParser;
+
+}
+
 // https://www.w3.org/TR/css-conditional-3/#at-supports
 class WEB_API Supports final : public RefCounted<Supports> {
+    friend class Parser::RustQueryParser;
+
 public:
     class Declaration final : public BooleanExpression {
     public:
@@ -165,6 +174,7 @@ private:
     Supports(NonnullOwnPtr<BooleanExpression>&&);
 
     NonnullOwnPtr<BooleanExpression> m_condition;
+    RustQueryHandle m_rust_query_handle;
     bool m_matches { false };
 };
 

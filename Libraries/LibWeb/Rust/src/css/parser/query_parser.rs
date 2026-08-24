@@ -13,6 +13,7 @@ use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{equals_ascii_case_insensitive, is_valid_custom_ident};
 use std::ffi::c_void;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -1055,8 +1056,22 @@ pub struct FfiQueryParseData {
     pub query_value_count: usize,
     pub media_queries: *const FfiMediaQuery,
     pub media_query_count: usize,
+    pub query_handles: *const *const FfiQueryHandle,
+    pub query_handle_count: usize,
     pub root: usize,
     pub has_root: bool,
+    pub root_handle: *const FfiQueryHandle,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum QueryTree {
+    MediaQuery(MediaQuery),
+    Expression(Expression),
+}
+
+pub struct FfiQueryHandle {
+    #[allow(dead_code)] // Read by query operations added in subsequent porting stages.
+    tree: QueryTree,
 }
 
 pub struct FfiQueryParse {
@@ -1065,9 +1080,14 @@ pub struct FfiQueryParse {
     node_indices: Vec<usize>,
     query_values: Vec<FfiQueryValue>,
     media_queries: Vec<FfiMediaQuery>,
+    query_handles: Vec<*const FfiQueryHandle>,
     root: Option<usize>,
+    root_handle: *const FfiQueryHandle,
 }
 
+// Query handles are confined to the WebContent thread. Arc provides an FFI-friendly atomic
+// reference count, while the parser's immutable component tree still uses thread-local Rc storage.
+#[allow(clippy::arc_with_non_send_sync)]
 impl FfiQueryParse {
     fn new() -> Self {
         Self {
@@ -1076,7 +1096,9 @@ impl FfiQueryParse {
             node_indices: Vec::new(),
             query_values: Vec::new(),
             media_queries: Vec::new(),
+            query_handles: Vec::new(),
             root: None,
+            root_handle: std::ptr::null(),
         }
     }
 
@@ -1333,6 +1355,9 @@ impl FfiQueryParse {
             media_type_length,
             condition: condition.unwrap_or(0),
         });
+        self.query_handles.push(Arc::into_raw(Arc::new(FfiQueryHandle {
+            tree: QueryTree::MediaQuery(query.clone()),
+        })));
     }
 
     fn append_container_condition(&mut self, condition: &ContainerCondition) {
@@ -1350,6 +1375,12 @@ impl FfiQueryParse {
             media_type_length: name_length,
             condition: query.unwrap_or(0),
         });
+        self.query_handles
+            .push(condition.query.as_ref().map_or(std::ptr::null(), |query| {
+                Arc::into_raw(Arc::new(FfiQueryHandle {
+                    tree: QueryTree::Expression(query.clone()),
+                }))
+            }));
     }
 
     fn data(&self) -> FfiQueryParseData {
@@ -1363,8 +1394,31 @@ impl FfiQueryParse {
             query_value_count: self.query_values.len(),
             media_queries: self.media_queries.as_ptr(),
             media_query_count: self.media_queries.len(),
+            query_handles: self.query_handles.as_ptr(),
+            query_handle_count: self.query_handles.len(),
             root: self.root.unwrap_or(0),
             has_root: self.root.is_some(),
+            root_handle: self.root_handle,
+        }
+    }
+
+    fn set_root(&mut self, expression: &Expression) {
+        self.root = Some(self.append_expression(expression));
+        self.root_handle = Arc::into_raw(Arc::new(FfiQueryHandle {
+            tree: QueryTree::Expression(expression.clone()),
+        }));
+    }
+}
+
+impl Drop for FfiQueryParse {
+    fn drop(&mut self) {
+        for handle in &self.query_handles {
+            if !handle.is_null() {
+                drop(unsafe { Arc::from_raw(*handle) });
+            }
+        }
+        if !self.root_handle.is_null() {
+            drop(unsafe { Arc::from_raw(self.root_handle) });
         }
     }
 }
@@ -1455,7 +1509,7 @@ pub unsafe extern "C" fn rust_parse_media_condition(
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.root = Some(parse.append_expression(&expression));
+        parse.set_root(&expression);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1475,7 +1529,7 @@ pub unsafe extern "C" fn rust_parse_media_feature(
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.root = Some(parse.append_expression(&expression));
+        parse.set_root(&expression);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1492,7 +1546,7 @@ pub unsafe extern "C" fn rust_parse_supports_condition(source: FfiUtf16View) -> 
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.root = Some(parse.append_expression(&expression));
+        parse.set_root(&expression);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1509,7 +1563,7 @@ pub unsafe extern "C" fn rust_parse_supports_declaration(source: FfiUtf16View) -
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.root = Some(parse.append_expression(&expression));
+        parse.set_root(&expression);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1529,7 +1583,7 @@ pub unsafe extern "C" fn rust_parse_style_query(
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.root = Some(parse.append_expression(&expression));
+        parse.set_root(&expression);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1563,6 +1617,33 @@ pub unsafe extern "C" fn rust_parse_container_condition_list(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_query_parse_data(parse: *const FfiQueryParse) -> FfiQueryParseData {
     crate::abort_on_panic(|| unsafe { &*parse }.data())
+}
+
+/// Adds one strong reference to a borrowed query handle.
+///
+/// # Safety
+/// `handle` must be null or point to a live query handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn css_query_ref(handle: *const FfiQueryHandle) -> *const FfiQueryHandle {
+    crate::abort_on_panic(|| {
+        if !handle.is_null() {
+            unsafe { Arc::increment_strong_count(handle) };
+        }
+        handle
+    })
+}
+
+/// Releases one strong reference to a query handle.
+///
+/// # Safety
+/// `handle` must be null or own one strong reference to a live query handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
+    crate::abort_on_panic(|| {
+        if !handle.is_null() {
+            unsafe { Arc::decrement_strong_count(handle) };
+        }
+    });
 }
 
 /// # Safety

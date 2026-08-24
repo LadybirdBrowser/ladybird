@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
+#include <LibWeb/CSS/RustQueryHandle.h>
 
 namespace Web::CSS {
 
@@ -78,6 +79,7 @@ private:
     bool m_negated { false };
     MediaType m_media_type { .name = "all"_utf16_fly_string, .known_type = KnownMediaType::All };
     OwnPtr<BooleanExpression> m_media_condition { nullptr };
+    RustQueryHandle m_rust_query_handle;
 
     // Cached value, updated by evaluate()
     bool m_matches { false };
