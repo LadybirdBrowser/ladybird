@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="parent"><div id="before"></div><span>inline</span></div>
+<script>
+    test(() => {
+        const parentElement = document.getElementById("parent");
+        const beforeElement = document.getElementById("before");
+        document.body.offsetWidth;
+        const parentIdentity = internals.layoutNodeIdentity(parentElement);
+        const beforeIdentity = internals.layoutNodeIdentity(beforeElement);
+
+        parentElement.insertAdjacentHTML("beforeend", '<script></' + 'script>');
+        document.body.offsetWidth;
+
+        println(`parent preserved: ${internals.layoutNodeIdentity(parentElement) === parentIdentity}`);
+        println(`child preserved: ${internals.layoutNodeIdentity(beforeElement) === beforeIdentity}`);
+        println(`incremental tree matches: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

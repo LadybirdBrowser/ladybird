@@ -116,6 +116,26 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!element || !layout_node || element->shadow_root() || is<HTML::HTMLSlotElement>(*element))
         return false;
 
+    bool has_pending_unboxed_child = false;
+    bool pending_children_cannot_create_layout_nodes = true;
+    for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
+        if (child->unsafe_layout_node() || !child->needs_layout_tree_update())
+            continue;
+        has_pending_unboxed_child = true;
+        auto const* child_element = as_if<DOM::Element>(*child);
+        if (!child_element) {
+            pending_children_cannot_create_layout_nodes = false;
+            break;
+        }
+        auto computed_style = child_element->computed_style();
+        if (!computed_style || !computed_style->display().is_none()) {
+            pending_children_cannot_create_layout_nodes = false;
+            break;
+        }
+    }
+    if (has_pending_unboxed_child && pending_children_cannot_create_layout_nodes)
+        return true;
+
     auto parent_display = layout_node->display();
     auto parent_has_children = layout_node->has_children();
     auto parent_lays_out_flex_or_grid_children = parent_display.is_flex_inside() || parent_display.is_grid_inside();
