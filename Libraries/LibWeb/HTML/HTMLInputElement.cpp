@@ -218,22 +218,23 @@ void HTMLInputElement::set_checked(bool checked)
 
     set_needs_repaint();
 
+    // NB: The registry unchecks the other members of the group and republishes their validity. The tree walks
+    //     below are a fallback for radio buttons that have no registry.
     if (m_radio_button_group_registry) {
         m_radio_button_group_registry->checked_state_changed(m_radio_button_group_name, *this);
-    } else if (checked && type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
+    } else if (type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
         root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
-            if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
-                element.set_checked(false);
-            return TraversalDecision::Continue;
-        });
-    }
-
-    if (type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
-        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
-            if (is_in_same_radio_button_group_as(element))
+            if (&element != this && is_in_same_radio_button_group_as(element))
                 CSS::Invalidation::invalidate_style_after_validity_change(element);
             return TraversalDecision::Continue;
         });
+        if (checked) {
+            root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+                if (element.checked() && &element != this && is_in_same_radio_button_group_as(element))
+                    element.set_checked(false);
+                return TraversalDecision::Continue;
+            });
+        }
     }
 }
 
@@ -2211,6 +2212,8 @@ void HTMLInputElement::update_radio_button_group_registration()
     m_radio_button_group_name = move(group_name);
     if (m_radio_button_group_registry)
         m_radio_button_group_registry->add_button(m_radio_button_group_name, *this);
+
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
 }
 
 void HTMLInputElement::form_associated_element_was_inserted()

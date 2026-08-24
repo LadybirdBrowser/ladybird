@@ -33,11 +33,13 @@ private:
         HashTable<GC::Ref<HTMLInputElement>> members;
         GC::Ptr<HTMLInputElement> checked_button;
         size_t required_count { 0 };
+        bool suffering_from_being_missing { false };
     };
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     void set_checked_button(RadioButtonGroup&, HTMLInputElement&);
+    void update_group_suffering_from_being_missing(RadioButtonGroup&);
 
     HashMap<Utf16FlyString, RadioButtonGroup> m_groups;
 };
