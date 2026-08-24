@@ -132,7 +132,12 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
         return true;
 
     if (!m_thumb_grab_position.has_value()) {
-        m_thumb_grab_position = scrollbar_data->thumb_rect.contains(position)
+        auto primary_position = position.primary_offset_for_orientation(orientation);
+        auto position_is_along_thumb = orientation == Orientation::Vertical
+            ? scrollbar_data->thumb_rect.contains_vertically(primary_position)
+            : scrollbar_data->thumb_rect.contains_horizontally(primary_position);
+
+        m_thumb_grab_position = position_is_along_thumb
             ? (position - scrollbar_data->thumb_rect.location()).primary_offset_for_orientation(orientation)
             : max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
         if (auto navigable = node->document().navigable())

@@ -126,23 +126,29 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::begin_d
         auto scroll_offset = async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, scroll_state_snapshot);
         if (!scroll_offset.has_value())
             continue;
+        if (!scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position))
+            continue;
 
         auto expanded = is_expanded(i);
         auto orientation = orientation_for_scrollbar(scrollbar);
         auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
+        auto thumb_hit_rect = thumb_rect.to_type<float>();
+
         auto primary_position = position.primary_offset_for_orientation(orientation);
+        auto position_is_along_thumb = orientation == Gfx::Orientation::Vertical
+            ? thumb_hit_rect.contains_vertically(primary_position)
+            : thumb_hit_rect.contains_horizontally(primary_position);
+
         float thumb_grab_position = 0;
-        if (thumb_rect.to_type<float>().contains(position)) {
+        if (position_is_along_thumb) {
             thumb_grab_position = primary_position - static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
-        } else if (scrollbar_hit_rect(scrollbar, *scroll_offset).to_type<float>().contains(position)) {
+        } else {
             auto gutter_rect = scrollbar_gutter_rect(scrollbar, true);
             auto thumb_size = static_cast<float>(thumb_rect.primary_size_for_orientation(orientation));
             auto gutter_start = static_cast<float>(gutter_rect.primary_offset_for_orientation(orientation));
             auto gutter_size = static_cast<float>(gutter_rect.primary_size_for_orientation(orientation));
             auto offset_relative_to_gutter = primary_position - gutter_start;
             thumb_grab_position = max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
-        } else {
-            continue;
         }
 
         m_captured_scrollbar_index = i;
