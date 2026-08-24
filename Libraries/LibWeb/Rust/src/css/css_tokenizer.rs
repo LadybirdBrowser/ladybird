@@ -80,6 +80,16 @@ pub struct CssToken {
     pub end_column: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct CssSyntaxToken {
+    pub token_type: CssTokenType,
+    pub start_line: usize,
+    pub start_column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
+}
+
 /// # Safety
 /// - `input` and `input_len` must point to a valid string
 /// - `ctx` must be a valid pointer to a CallbackContext
@@ -101,6 +111,32 @@ pub unsafe extern "C" fn rust_css_tokenize(
             tokenize(input, |token, filtered_input| {
                 let value = token.value_as_utf16();
                 let ffi_token = token.as_ffi(filtered_input, &value);
+                callback(ctx, &raw const ffi_token);
+            });
+        });
+    }
+}
+
+/// # Safety
+/// - `input` and `input_len` must point to a valid string
+/// - `ctx` must be a valid pointer to a CallbackContext
+/// - Parameters provided to `callback` must be valid pointers
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_css_tokenize_for_syntax_highlighting(
+    ascii_input: *const u8,
+    utf16_input: *const u16,
+    input_len: usize,
+    ctx: *mut c_void,
+    callback: unsafe extern "C" fn(ctx: *mut c_void, token: *const CssSyntaxToken),
+) {
+    unsafe {
+        crate::abort_on_panic(|| {
+            let Some(input) = TokenizerInput::from_raw_parts(ascii_input, utf16_input, input_len) else {
+                return;
+            };
+
+            tokenize(input, |token, _| {
+                let ffi_token = token.as_syntax_ffi();
                 callback(ctx, &raw const ffi_token);
             });
         });
@@ -823,6 +859,44 @@ impl Token {
         }
 
         css_token
+    }
+
+    fn as_syntax_ffi(&self) -> CssSyntaxToken {
+        let token_type = match &self.token_type {
+            TokenType::EndOfFile => CssTokenType::EndOfFile,
+            TokenType::Ident { .. } => CssTokenType::Ident,
+            TokenType::Function { .. } => CssTokenType::Function,
+            TokenType::AtKeyword { .. } => CssTokenType::AtKeyword,
+            TokenType::Hash { .. } => CssTokenType::Hash,
+            TokenType::String { .. } => CssTokenType::String,
+            TokenType::BadString => CssTokenType::BadString,
+            TokenType::Url { .. } => CssTokenType::Url,
+            TokenType::BadUrl => CssTokenType::BadUrl,
+            TokenType::Delim { .. } => CssTokenType::Delim,
+            TokenType::Number { .. } => CssTokenType::Number,
+            TokenType::Percentage { .. } => CssTokenType::Percentage,
+            TokenType::Dimension { .. } => CssTokenType::Dimension,
+            TokenType::Whitespace => CssTokenType::Whitespace,
+            TokenType::Cdo => CssTokenType::CDO,
+            TokenType::Cdc => CssTokenType::CDC,
+            TokenType::Colon => CssTokenType::Colon,
+            TokenType::Semicolon => CssTokenType::Semicolon,
+            TokenType::Comma => CssTokenType::Comma,
+            TokenType::OpenSquare => CssTokenType::OpenSquare,
+            TokenType::CloseSquare => CssTokenType::CloseSquare,
+            TokenType::OpenParen => CssTokenType::OpenParen,
+            TokenType::CloseParen => CssTokenType::CloseParen,
+            TokenType::OpenCurly => CssTokenType::OpenCurly,
+            TokenType::CloseCurly => CssTokenType::CloseCurly,
+        };
+
+        CssSyntaxToken {
+            token_type,
+            start_line: self.range.start.line,
+            start_column: self.range.start.column,
+            end_line: self.range.end.line,
+            end_column: self.range.end.column,
+        }
     }
 
     pub(crate) fn value_as_utf16(&self) -> Vec<u16> {
@@ -2065,5 +2139,57 @@ mod tests {
         assert!(matches!(storage.as_ref(), SourceStorage::Utf16(_)));
         assert_eq!(range.clone(), 0..utf16.len());
         assert_eq!(utf16_tokens[0].source.to_vec(), utf16);
+    }
+
+    #[test]
+    fn syntax_highlighting_tokens_only_contain_types_and_positions() {
+        let input = b"color:\n rgb(1 2 3)";
+        let mut tokens = Vec::<CssSyntaxToken>::new();
+
+        unsafe extern "C" fn append_token(ctx: *mut c_void, token: *const CssSyntaxToken) {
+            unsafe {
+                let tokens = &mut *ctx.cast::<Vec<CssSyntaxToken>>();
+                tokens.push(*token);
+            }
+        }
+
+        unsafe {
+            rust_css_tokenize_for_syntax_highlighting(
+                input.as_ptr(),
+                ptr::null(),
+                input.len(),
+                (&raw mut tokens).cast(),
+                append_token,
+            );
+        }
+
+        let tokens = tokens
+            .iter()
+            .map(|token| {
+                (
+                    token.token_type,
+                    token.start_line,
+                    token.start_column,
+                    token.end_line,
+                    token.end_column,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            tokens,
+            vec![
+                (CssTokenType::Ident, 0, 0, 0, 5),
+                (CssTokenType::Colon, 0, 5, 0, 6),
+                (CssTokenType::Whitespace, 0, 6, 1, 1),
+                (CssTokenType::Function, 1, 1, 1, 5),
+                (CssTokenType::Number, 1, 5, 1, 6),
+                (CssTokenType::Whitespace, 1, 6, 1, 7),
+                (CssTokenType::Number, 1, 7, 1, 8),
+                (CssTokenType::Whitespace, 1, 8, 1, 9),
+                (CssTokenType::Number, 1, 9, 1, 10),
+                (CssTokenType::CloseParen, 1, 10, 1, 11),
+                (CssTokenType::EndOfFile, 1, 11, 1, 11),
+            ]
+        );
     }
 }

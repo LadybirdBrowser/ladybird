@@ -2172,6 +2172,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     css_config.export.include = vec![
         "CssHashType".to_string(),
         "CssNumberType".to_string(),
+        "CssSyntaxToken".to_string(),
         "CssToken".to_string(),
         "CssTokenType".to_string(),
         "FfiUtf16View".to_string(),
