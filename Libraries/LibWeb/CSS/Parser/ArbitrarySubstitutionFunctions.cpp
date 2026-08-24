@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS::Parser {
 
@@ -52,101 +53,40 @@ Utf16String serialize_style_value_components(StyleValue const& value)
     return serialize_a_series_of_component_values(value.tokenize());
 }
 
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<ComponentValue>);
-
-// https://drafts.css-houdini.org/css-typed-om-1/#reify-var
-static GC::Ptr<CSSVariableReferenceValue> reify_a_var_reference(Function function)
-{
-    // NB: A var() might not be representable as a CSSVariableReferenceValue, for example if it has invalid syntax or
-    //    it contains an ASF in its variable-name slot. In those cases, we return null here, so it's treated like a
-    //    regular function.
-    auto maybe_var_arguments = parse_according_to_argument_grammar(ArbitrarySubstitutionFunction::Var, function.value);
-    if (!maybe_var_arguments.has_value())
-        return nullptr;
-    auto var_arguments = maybe_var_arguments.release_value().get<DeclarationValueList>();
-
-    TokenStream tokens { var_arguments.first() };
-    tokens.discard_whitespace();
-    auto& maybe_variable = tokens.consume_a_token();
-    tokens.discard_whitespace();
-    if (tokens.has_next_token()
-        || !maybe_variable.is(Token::Type::Ident)
-        || !is_a_custom_property_name_string(maybe_variable.token().ident()))
-        return nullptr;
-
-    auto variable = maybe_variable.token().ident();
-    GC::Ptr<CSSUnparsedValue> fallback;
-    if (var_arguments.size() > 1)
-        fallback = reify_a_list_of_component_values(var_arguments[1]);
-    return CSSVariableReferenceValue::create(move(variable), move(fallback));
-}
-
-class UnresolvedValueReifier {
-public:
-    static Vector<CSSUnparsedSegment> reify(ReadonlySpan<ComponentValue> source_values)
-    {
-        UnresolvedValueReifier reifier;
-        reifier.process_values(source_values);
-        if (!reifier.m_unserialized_values.is_empty())
-            reifier.serialize_unserialized_values();
-        return move(reifier.m_reified_values);
-    }
-
-private:
-    void process_values(ReadonlySpan<ComponentValue> source_values)
-    {
-        // NB: var() could be arbitrarily nested within other functions and blocks, so we have to walk the tree.
-        //     Also, a var() might not be representable, if it has an ASF in place of its name, so those will be part
-        //     of a string instead.
-        for (auto const& component_value : source_values) {
-            if (component_value.is_function("var"_utf16)) {
-                if (auto var_reference = reify_a_var_reference(component_value.function())) {
-                    serialize_unserialized_values();
-                    m_reified_values.append(GC::Ref { *var_reference });
-                    continue;
-                }
-            }
-
-            if (component_value.is_function()) {
-                auto& function = component_value.function();
-                m_unserialized_values.append(Token::create_function(function.name, function.name_token.original_source_text()));
-                process_values(function.value);
-                m_unserialized_values.append(Token::create(function.end_token.type(), function.end_token.original_source_text()));
-                continue;
-            }
-
-            if (component_value.is_block()) {
-                auto& block = component_value.block();
-                m_unserialized_values.append(Token::create(block.token.type(), block.token.original_source_text()));
-                process_values(block.value);
-                m_unserialized_values.append(Token::create(block.end_token.type(), block.end_token.original_source_text()));
-                continue;
-            }
-
-            m_unserialized_values.append(component_value);
-        }
-    }
-
-    void serialize_unserialized_values()
-    {
-        m_reified_values.append(serialize_a_series_of_component_values(m_unserialized_values));
-        m_unserialized_values.clear_with_capacity();
-    }
-
-    Vector<CSSUnparsedSegment> m_reified_values {};
-    Vector<ComponentValue> m_unserialized_values {};
-};
-
-static GC::Ref<CSSUnparsedValue> reify_a_list_of_component_values(ReadonlySpan<ComponentValue> component_values)
-{
-    auto reified_values = UnresolvedValueReifier::reify(component_values);
-    return CSSUnparsedValue::create(move(reified_values));
-}
-
 GC::Ref<CSSStyleValue> reify_unresolved_style_value(UnresolvedStyleValue const& value)
 {
-    auto component_values = unresolved_style_value_components(value);
-    return reify_a_list_of_component_values(component_values);
+    struct Frame {
+        Optional<Utf16FlyString> variable;
+        bool has_fallback { false };
+        Vector<CSSUnparsedSegment> segments;
+    };
+    Vector<Frame> frames;
+    frames.empend();
+    auto visit = [](void* context, u8 event, u16 const* text, size_t text_length, bool has_fallback) {
+        auto& frames = *static_cast<Vector<Frame>*>(context);
+        if (event == 0) {
+            frames.last().segments.append(Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(text), text_length }));
+            return;
+        }
+        if (event == 1) {
+            frames.empend(Frame {
+                .variable = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(text), text_length }),
+                .has_fallback = has_fallback,
+                .segments = {},
+            });
+            return;
+        }
+        VERIFY(event == 2);
+        VERIFY(frames.size() > 1);
+        auto frame = frames.take_last();
+        GC::Ptr<CSSUnparsedValue> fallback;
+        if (frame.has_fallback)
+            fallback = CSSUnparsedValue::create(frame.segments);
+        frames.last().segments.append(CSSVariableReferenceValue::create(frame.variable.release_value(), fallback));
+    };
+    StyleValueFFI::rust_unresolved_style_value_visit_reification(value.rust_style_value_data(), &frames, visit);
+    VERIFY(frames.size() == 1);
+    return CSSUnparsedValue::create(frames.take_last().segments);
 }
 
 PropertySubstitutionContextDependency PropertySubstitutionContextDependency::create(Utf16String property_name, AbstractOrHypotheticalElement const& element)

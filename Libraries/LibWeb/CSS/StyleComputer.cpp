@@ -6040,45 +6040,6 @@ ComputationContext StyleComputer::fallback_computation_context_for_custom_proper
     };
 }
 
-static void scan_component_values_for_custom_property_references(Vector<Parser::ComponentValue> const& values, Vector<Utf16FlyString>& references, bool& all_references_visible)
-{
-    for (auto const& component_value : values) {
-        if (component_value.is_block()) {
-            scan_component_values_for_custom_property_references(component_value.block().value, references, all_references_visible);
-            continue;
-        }
-        if (!component_value.is_function())
-            continue;
-        auto const& function = component_value.function();
-        auto substitution_function = Parser::to_arbitrary_substitution_function(function.name);
-        if (substitution_function == Parser::ArbitrarySubstitutionFunction::Var
-            || substitution_function == Parser::ArbitrarySubstitutionFunction::Inherit) {
-            // The name slot is everything before the top-level comma. Only a single literal custom property name is a
-            // reference the scan can see; anything else has its name substituted at resolution time, and then the
-            // value's references are not knowable from its tokens.
-            Optional<Utf16FlyString> name;
-            bool name_is_literal = true;
-            for (auto const& argument : function.value) {
-                if (argument.is(Parser::Token::Type::Comma))
-                    break;
-                if (argument.is(Parser::Token::Type::Whitespace))
-                    continue;
-                if (!name.has_value() && argument.is(Parser::Token::Type::Ident) && is_a_custom_property_name_string(argument.token().ident())) {
-                    name = argument.token().ident();
-                    continue;
-                }
-                name_is_literal = false;
-                break;
-            }
-            if (name.has_value() && name_is_literal)
-                references.append(name.release_value());
-            else
-                all_references_visible = false;
-        }
-        scan_component_values_for_custom_property_references(function.value, references, all_references_visible);
-    }
-}
-
 Vector<Parser::ComponentValue> StyleComputer::tokenized_custom_property_value(NonnullRefPtr<StyleValue const> const& value) const
 {
     auto const& tokenization = m_custom_property_tokenizations.ensure(value->rust_style_value_data(), [&] {
@@ -6091,7 +6052,12 @@ StyleComputer::CustomPropertyReferenceScan const& StyleComputer::custom_property
 {
     return m_custom_property_reference_scans.ensure(value->rust_style_value_data(), [&] {
         CustomPropertyReferenceScan scan { .value = value, .references = {}, .all_references_visible = true };
-        scan_component_values_for_custom_property_references(Parser::unresolved_style_value_components(value->as_unresolved()), scan.references, scan.all_references_visible);
+        auto visit = [](void* context, u16 const* name, size_t name_length) {
+            auto& references = *static_cast<Vector<Utf16FlyString>*>(context);
+            references.append(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name), name_length }));
+        };
+        scan.all_references_visible = StyleValueFFI::rust_unresolved_style_value_visit_custom_property_references(
+            value->rust_style_value_data(), &scan.references, visit);
         return scan;
     });
 }

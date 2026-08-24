@@ -24,8 +24,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate::abort_on_panic;
-use crate::css::css_tokenizer::TokenizerInput;
-use crate::css::parser::component_value::ComponentValue;
+use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition, TokenizerInput};
+use crate::css::parser::component_value::{ComponentKind, ComponentSerializationMode, ComponentValue};
 
 pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 
@@ -62,6 +62,272 @@ impl RetainedComponentValueList {
         }
         // SAFETY: The allocation is owned by this handle and has `length` initialized elements.
         unsafe { std::slice::from_raw_parts(self.pointer.cast(), self.length) }
+    }
+}
+
+enum ReifiedUnresolvedSegment {
+    Text(Vec<u16>),
+    Variable {
+        name: Vec<u16>,
+        fallback: Option<Vec<ReifiedUnresolvedSegment>>,
+    },
+}
+
+fn synthetic_component(kind: ParserTokenKind) -> ComponentValue {
+    ComponentValue {
+        kind: ComponentKind::Token(kind),
+        original_source_text: ParserSource::empty(),
+        opening_source_length: 0,
+        closing_source_length: 0,
+        start_position: SourcePosition::default(),
+        end_position: SourcePosition::default(),
+    }
+}
+
+fn flush_reification_text(pending: &mut Vec<ComponentValue>, output: &mut Vec<ReifiedUnresolvedSegment>) {
+    if pending.is_empty() {
+        return;
+    }
+    output.push(ReifiedUnresolvedSegment::Text(
+        crate::css::serialize::serialize_component_values_to_utf16(pending, ComponentSerializationMode::Normalized),
+    ));
+    pending.clear();
+}
+
+fn component_values_without_whitespace(mut values: &[ComponentValue]) -> &[ComponentValue] {
+    while values.first().is_some_and(ComponentValue::is_whitespace) {
+        values = &values[1..];
+    }
+    while values.last().is_some_and(ComponentValue::is_whitespace) {
+        values = &values[..values.len() - 1];
+    }
+    values
+}
+
+fn utf16_equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
+    value.len() == expected.len()
+        && value
+            .iter()
+            .zip(expected)
+            .all(|(&left, &right)| u8::try_from(left).is_ok_and(|left| left.eq_ignore_ascii_case(&right)))
+}
+
+fn split_var_arguments(values: &[ComponentValue]) -> Option<(&[u16], Option<&[ComponentValue]>)> {
+    if !crate::css::parser::arbitrary_substitution::arguments_are_valid_for_ffi(5, values) {
+        return None;
+    }
+    let comma = values.iter().position(ComponentValue::is_comma);
+    let name_values = component_values_without_whitespace(&values[..comma.unwrap_or(values.len())]);
+    let [name_value] = name_values else {
+        return None;
+    };
+    let name = name_value.ident()?;
+    if name.len() < 2 || name[0] != u16::from(b'-') || name[1] != u16::from(b'-') {
+        return None;
+    }
+    Some((name, comma.map(|comma| &values[comma + 1..])))
+}
+
+fn append_reified_unresolved_segments(
+    values: &[ComponentValue],
+    pending: &mut Vec<ComponentValue>,
+    output: &mut Vec<ReifiedUnresolvedSegment>,
+) {
+    for value in values {
+        match &value.kind {
+            ComponentKind::Function { name, values }
+                if utf16_equals_ascii_case_insensitive(name, b"var") && split_var_arguments(values).is_some() =>
+            {
+                let (name, fallback) = split_var_arguments(values).expect("validated var arguments");
+                flush_reification_text(pending, output);
+                let fallback = fallback.map(reify_unresolved_segments);
+                output.push(ReifiedUnresolvedSegment::Variable {
+                    name: name.to_vec(),
+                    fallback,
+                });
+            }
+            ComponentKind::Function { name, values } => {
+                pending.push(synthetic_component(ParserTokenKind::Function(name.clone())));
+                append_reified_unresolved_segments(values, pending, output);
+                pending.push(synthetic_component(ParserTokenKind::CloseParen));
+            }
+            ComponentKind::SimpleBlock { opening, values } => {
+                pending.push(synthetic_component(opening.clone()));
+                append_reified_unresolved_segments(values, pending, output);
+                let closing = match opening {
+                    ParserTokenKind::OpenSquare => ParserTokenKind::CloseSquare,
+                    ParserTokenKind::OpenParen => ParserTokenKind::CloseParen,
+                    ParserTokenKind::OpenCurly => ParserTokenKind::CloseCurly,
+                    _ => unreachable!(),
+                };
+                pending.push(synthetic_component(closing));
+            }
+            ComponentKind::Token(_) => pending.push(value.clone()),
+        }
+    }
+}
+
+fn reify_unresolved_segments(values: &[ComponentValue]) -> Vec<ReifiedUnresolvedSegment> {
+    let mut output = Vec::new();
+    let mut pending = Vec::new();
+    append_reified_unresolved_segments(values, &mut pending, &mut output);
+    flush_reification_text(&mut pending, &mut output);
+    output
+}
+
+fn visit_reified_unresolved_segments(
+    segments: &[ReifiedUnresolvedSegment],
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, u8, *const u16, usize, bool),
+) {
+    for segment in segments {
+        match segment {
+            ReifiedUnresolvedSegment::Text(text) => unsafe {
+                visit(context, 0, text.as_ptr(), text.len(), false);
+            },
+            ReifiedUnresolvedSegment::Variable { name, fallback } => {
+                unsafe {
+                    visit(context, 1, name.as_ptr(), name.len(), fallback.is_some());
+                }
+                if let Some(fallback) = fallback {
+                    visit_reified_unresolved_segments(fallback, context, visit);
+                }
+                unsafe {
+                    visit(context, 2, std::ptr::null(), 0, false);
+                }
+            }
+        }
+    }
+}
+
+fn scan_custom_property_references(
+    values: &[ComponentValue],
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize),
+) -> bool {
+    let mut all_references_visible = true;
+    for value in values {
+        let ComponentKind::Function {
+            name,
+            values: function_values,
+        } = &value.kind
+        else {
+            if let ComponentKind::SimpleBlock { values, .. } = &value.kind {
+                all_references_visible &= scan_custom_property_references(values, context, visit);
+            }
+            continue;
+        };
+        if utf16_equals_ascii_case_insensitive(name, b"var") || utf16_equals_ascii_case_insensitive(name, b"inherit") {
+            let comma = function_values.iter().position(ComponentValue::is_comma);
+            let name_values =
+                component_values_without_whitespace(&function_values[..comma.unwrap_or(function_values.len())]);
+            if let [name_value] = name_values
+                && let Some(name) = name_value.ident()
+                && name.len() >= 2
+                && name[0] == u16::from(b'-')
+                && name[1] == u16::from(b'-')
+            {
+                unsafe { visit(context, name.as_ptr(), name.len()) };
+            } else {
+                all_references_visible = false;
+            }
+        }
+        all_references_visible &= scan_custom_property_references(function_values, context, visit);
+    }
+    all_references_visible
+}
+
+/// Visits the Typed OM reification of an unresolved style value. Event 0 appends a text segment,
+/// event 1 begins a variable reference, and event 2 ends its optional fallback.
+///
+/// # Safety
+/// `value` must point at live unresolved style value data, and `visit` must remain callable for
+/// the duration of this function.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_unresolved_style_value_visit_reification(
+    value: *const c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, u8, *const u16, usize, bool),
+) {
+    abort_on_panic(|| {
+        let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
+            unreachable!("reification requires an unresolved style value");
+        };
+        let segments = reify_unresolved_segments(components.as_slice());
+        visit_reified_unresolved_segments(&segments, context, visit);
+    });
+}
+
+/// Visits literal custom-property references and reports whether every reference name was
+/// statically visible.
+///
+/// # Safety
+/// `value` and `visit` must be valid as for `rust_unresolved_style_value_visit_reification`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_unresolved_style_value_visit_custom_property_references(
+    value: *const c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize),
+) -> bool {
+    abort_on_panic(|| {
+        let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
+            unreachable!("reference scanning requires an unresolved style value");
+        };
+        scan_custom_property_references(components.as_slice(), context, visit)
+    })
+}
+
+#[cfg(test)]
+mod unresolved_component_tests {
+    use super::*;
+
+    fn components(source: &str) -> Vec<ComponentValue> {
+        crate::css::parser::component_value::consume_a_list_of_component_values(
+            crate::css::css_tokenizer::tokenize_for_parser(source.as_bytes()),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn reification_extracts_nested_var_references() {
+        let segments = reify_unresolved_segments(&components("outer(var(--name, red))"));
+        assert!(matches!(&segments[..], [
+            ReifiedUnresolvedSegment::Text(before),
+            ReifiedUnresolvedSegment::Variable { name, fallback: Some(fallback) },
+            ReifiedUnresolvedSegment::Text(after),
+        ] if before == &"outer(".encode_utf16().collect::<Vec<_>>()
+            && name == &"--name".encode_utf16().collect::<Vec<_>>()
+            && matches!(&fallback[..], [ReifiedUnresolvedSegment::Text(text)] if text == &" red".encode_utf16().collect::<Vec<_>>())
+            && after == &")".encode_utf16().collect::<Vec<_>>()));
+    }
+
+    #[test]
+    fn reification_descends_into_unrepresentable_var() {
+        let segments = reify_unresolved_segments(&components("var(var(--name))"));
+        assert!(matches!(&segments[..], [
+            ReifiedUnresolvedSegment::Text(before),
+            ReifiedUnresolvedSegment::Variable { name, fallback: None },
+            ReifiedUnresolvedSegment::Text(after),
+        ] if before == &"var(".encode_utf16().collect::<Vec<_>>()
+            && name == &"--name".encode_utf16().collect::<Vec<_>>()
+            && after == &")".encode_utf16().collect::<Vec<_>>()));
+    }
+
+    unsafe extern "C" fn collect_reference(context: *mut c_void, name: *const u16, name_length: usize) {
+        let names = unsafe { &mut *context.cast::<Vec<Vec<u16>>>() };
+        names.push(unsafe { std::slice::from_raw_parts(name, name_length) }.to_vec());
+    }
+
+    #[test]
+    fn reference_scan_reports_dynamic_names() {
+        let values = components("var(--one) [inherit(--two)] var(var(--dynamic))");
+        let mut names: Vec<Vec<u16>> = Vec::new();
+        let all_visible = scan_custom_property_references(&values, (&raw mut names).cast(), collect_reference);
+        assert!(!all_visible);
+        assert_eq!(
+            names,
+            ["--one", "--two", "--dynamic"].map(|name| name.encode_utf16().collect::<Vec<_>>())
+        );
     }
 }
 
