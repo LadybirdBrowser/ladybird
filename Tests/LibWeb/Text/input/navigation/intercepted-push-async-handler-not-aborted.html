@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<a id="link" href="?pushed">go</a>
+<script>
+    asyncTest(done => {
+        const events = [];
+
+        function queryFromURL(url) {
+            return new URL(url).search || "(none)";
+        }
+
+        function finish() {
+            for (const event of events)
+                println(event);
+            println(`final location=${queryFromURL(location.href)} index=${navigation.currentEntry.index}`);
+            done();
+        }
+
+        navigation.addEventListener("navigate", event => {
+            if (event.navigationType !== "push")
+                return;
+
+            events.push(`navigate push destination=${queryFromURL(event.destination.url)} canIntercept=${event.canIntercept}`);
+            if (!event.canIntercept) {
+                events.push("FAIL: cannot intercept");
+                finish();
+                return;
+            }
+
+            event.signal.addEventListener("abort", () => {
+                events.push(`FAIL: signal aborted (${event.signal.reason})`);
+            });
+
+            event.intercept({
+                async handler() {
+                    events.push("handler start");
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    events.push("handler done");
+                },
+            });
+        });
+
+        navigation.addEventListener("navigatesuccess", () => {
+            events.push(`navigatesuccess at ${queryFromURL(location.href)}`);
+            finish();
+        });
+
+        navigation.addEventListener("navigateerror", event => {
+            events.push(`FAIL: navigateerror ${event.error}`);
+            finish();
+        });
+
+        // Wait until the document is completely loaded so that the link click navigation gets push instead of replace semantics.
+        window.addEventListener("load", () => {
+            setTimeout(() => document.getElementById("link").click(), 0);
+        });
+    });
+</script>

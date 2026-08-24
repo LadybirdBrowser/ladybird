@@ -154,9 +154,11 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
 void ApplyHistoryStep::run_changing_navigable_jobs()
 {
     auto navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort;
-    // Same-document traversals finish their NavigateEvent while updating the Navigation API entry. This decision is
-    // traversable-wide, so derive it from canonical history before dispatching per-document jobs.
-    if (m_navigation_type == Web::Bindings::NavigationType::Traverse
+    // Same-document traversals and same-document push or replace finalizations finish their NavigateEvent while
+    // updating the Navigation API entry. This decision is traversable-wide, so derive it from canonical history
+    // before dispatching per-document jobs.
+    if (m_navigation_type.has_value()
+        && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Traverse, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)
         && m_session_history.get_all_navigables_that_might_experience_a_cross_document_traversal(m_traversable_navigable, m_target_step).is_empty())
         navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Preserve;
 
