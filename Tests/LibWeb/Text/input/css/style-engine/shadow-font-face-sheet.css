@@ -1,0 +1,19 @@
+@font-face {
+    font-family: SharedShadowFace;
+    src: url("../../../../Ref/data/fonts/Ahem.ttf");
+}
+
+@font-face {
+    font-family: ShadowLinkOnlyFace;
+    src: url("../../../../Ref/data/fonts/Ahem.ttf");
+}
+
+.shared-target {
+    display: inline-block;
+    font: 20px SharedShadowFace, serif;
+}
+
+.shadow-link-only-target {
+    display: inline-block;
+    font: 20px ShadowLinkOnlyFace, serif;
+}

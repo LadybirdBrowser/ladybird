@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<style id="document-fonts">
+    @font-face {
+        font-family: SharedShadowFace;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    #document-target {
+        display: inline-block;
+        font: 20px SharedShadowFace, serif;
+    }
+</style>
+<div id="document-target">XXXXX</div>
+<div id="inline-open-host"></div>
+<div id="inline-closed-host"></div>
+<div id="link-host-a"></div>
+<div id="link-host-b"></div>
+<script src="../include.js"></script>
+<script>
+    function familyCount(name) {
+        return [...document.fonts].filter(face => face.family === name).length;
+    }
+
+    function roundedWidth(element) {
+        document.body.offsetWidth;
+        return Math.round(element.getBoundingClientRect().width);
+    }
+
+    function attachInlineShadow(host, mode) {
+        const shadowRoot = host.attachShadow({ mode });
+        shadowRoot.innerHTML = `
+            <style>
+                @font-face {
+                    font-family: ShadowOnlyFace;
+                    src: url("../../../Ref/data/fonts/Ahem.ttf");
+                }
+
+                .shared-target {
+                    display: inline-block;
+                    font: 20px SharedShadowFace, serif;
+                }
+
+                .shadow-only-target {
+                    display: inline-block;
+                    font: 20px ShadowOnlyFace, serif;
+                }
+            </style>
+            <span class="shared-target">XXXXX</span>
+            <span class="shadow-only-target">XXXXX</span>
+        `;
+        return {
+            shadowRoot,
+            sharedTarget: shadowRoot.querySelector(".shared-target"),
+            shadowOnlyTarget: shadowRoot.querySelector(".shadow-only-target"),
+            style: shadowRoot.querySelector("style"),
+        };
+    }
+
+    function attachLinkedShadow(host) {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "style-engine/shadow-font-face-sheet.css";
+
+        const sharedTarget = document.createElement("span");
+        sharedTarget.className = "shared-target";
+        sharedTarget.textContent = "XXXXX";
+
+        const shadowOnlyTarget = document.createElement("span");
+        shadowOnlyTarget.className = "shadow-link-only-target";
+        shadowOnlyTarget.textContent = "XXXXX";
+
+        shadowRoot.append(link, sharedTarget, shadowOnlyTarget);
+        return { shadowRoot, link, sharedTarget, shadowOnlyTarget };
+    }
+
+    function waitForLoad(element) {
+        return new Promise(resolve => element.addEventListener("load", resolve, { once: true }));
+    }
+
+    promiseTest(async () => {
+        const inlineOpen = attachInlineShadow(document.getElementById("inline-open-host"), "open");
+        const inlineClosed = attachInlineShadow(document.getElementById("inline-closed-host"), "closed");
+        const linkedA = attachLinkedShadow(document.getElementById("link-host-a"));
+        const linkedB = attachLinkedShadow(document.getElementById("link-host-b"));
+
+        await Promise.all([waitForLoad(linkedA.link), waitForLoad(linkedB.link)]);
+        await document.fonts.load("20px SharedShadowFace", "X");
+
+        println(`initial document.fonts.size: ${document.fonts.size}`);
+        println(`SharedShadowFace count: ${familyCount("SharedShadowFace")}`);
+        println(`ShadowOnlyFace count: ${familyCount("ShadowOnlyFace")}`);
+        println(`ShadowLinkOnlyFace count: ${familyCount("ShadowLinkOnlyFace")}`);
+        println(`document target uses SharedShadowFace: ${roundedWidth(document.getElementById("document-target")) === 100}`);
+        println(`open shadow target uses document SharedShadowFace: ${roundedWidth(inlineOpen.sharedTarget) === 100}`);
+        println(`closed shadow target uses document SharedShadowFace: ${roundedWidth(inlineClosed.sharedTarget) === 100}`);
+        println(`open shadow-only target ignores shadow @font-face: ${roundedWidth(inlineOpen.shadowOnlyTarget) !== 100}`);
+        println(`closed shadow-only target ignores shadow @font-face: ${roundedWidth(inlineClosed.shadowOnlyTarget) !== 100}`);
+        println(`linked shadow-only target ignores shadow @font-face: ${roundedWidth(linkedA.shadowOnlyTarget) !== 100}`);
+        println(`inline shadow stylesheet rules: ${inlineOpen.style.sheet.cssRules.length}`);
+        println(`linked shadow stylesheet rules: ${linkedA.link.sheet.cssRules.length}`);
+
+        linkedA.link.remove();
+        document.body.offsetWidth;
+        println(`after removing one shadow link size: ${document.fonts.size}`);
+        println(`after removing one shadow link shared count: ${familyCount("SharedShadowFace")}`);
+
+        const reloaded = waitForLoad(linkedA.link);
+        linkedA.shadowRoot.prepend(linkedA.link);
+        await reloaded;
+        document.body.offsetWidth;
+        println(`after reappend one shadow link size: ${document.fonts.size}`);
+        println(`after reappend one shadow link shared count: ${familyCount("SharedShadowFace")}`);
+
+        const documentRule = document.getElementById("document-fonts").sheet.cssRules[0];
+        documentRule.style.setProperty("font-family", "MutatedDocumentFace");
+        document.body.offsetWidth;
+        println(`after document descriptor mutation old count: ${familyCount("SharedShadowFace")}`);
+        println(`after document descriptor mutation new count: ${familyCount("MutatedDocumentFace")}`);
+    });
+</script>

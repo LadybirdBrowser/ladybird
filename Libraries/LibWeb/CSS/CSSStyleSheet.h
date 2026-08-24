@@ -165,6 +165,7 @@ private:
 
     void recalculate_rule_caches();
     void invalidate_shared_style_cache();
+    bool has_document_owner() const;
 
     void set_constructed(bool constructed) { m_constructed = constructed; }
     void set_disallow_modification(bool disallow_modification) { m_disallow_modification = disallow_modification; }
