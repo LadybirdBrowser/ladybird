@@ -8,6 +8,9 @@
     #target.paint-only {
         background-color: red;
     }
+    #target.paint-only-next {
+        background-color: blue;
+    }
     #target.layout {
         width: 200px;
         height: 20px;
@@ -55,5 +58,16 @@
         counters = internals.getStyleInvalidationCounters();
         println(`transformed geometry: ${transformedRect.x}`);
         println(`visual geometry style settled: ${counters.styleStabilizationEpochs === 1}`);
+
+        target.className = "";
+        target.getBoundingClientRect();
+        internals.resetStyleInvalidationCounters();
+        target.className = "paint-only";
+        target.getBoundingClientRect();
+        target.className = "paint-only-next";
+        internals.updateStyle();
+        counters = internals.getStyleInvalidationCounters();
+        println(`merged deferred style is observable: ${getComputedStyle(target).backgroundColor}`);
+        println(`deferred and current style used one transaction: ${counters.styleEngineTransactionSetups === 1}`);
     });
 </script>

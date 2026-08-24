@@ -2011,7 +2011,6 @@ void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
 // the set is compared by identity and re-attached whole when it differs.
 void record_non_author_stylesheets(DOM::Document& document)
 {
-    document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
     auto& style_scope = document.style_scope();
 
@@ -2027,13 +2026,21 @@ void record_non_author_stylesheets(DOM::Document& document)
     }
 
     auto& recorded = style_computer.non_author_style_sheets();
-    if (recorded.size() == sheets.size()) {
-        bool unchanged = true;
-        for (size_t index = 0; index < sheets.size(); ++index)
-            unchanged &= recorded[index].sheet == sheets[index];
-        if (unchanged)
-            return;
-    }
+    auto recorded_sheets_match = [&] {
+        if (recorded.size() != sheets.size())
+            return false;
+        for (size_t index = 0; index < sheets.size(); ++index) {
+            if (recorded[index].sheet != sheets[index])
+                return false;
+        }
+        return true;
+    };
+    if (recorded_sheets_match())
+        return;
+
+    document.flush_deferred_style_change_event();
+    if (recorded_sheets_match())
+        return;
 
     auto& style_engine = style_computer.style_engine();
     for (auto const& entry : recorded)
