@@ -1099,18 +1099,21 @@ fn replace_env_function(
     let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
     let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
         TokenResolution::Resolved(tokens) => tokens,
-        TokenResolution::Invalid | TokenResolution::Cyclic => Vec::new(),
+        TokenResolution::Invalid => return TokenResolution::Invalid,
+        TokenResolution::Cyclic => return TokenResolution::Cyclic,
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let first_argument = trim_whitespace(&substituted_first);
-    let name = match first_argument.first() {
+    let Some(name) = (match first_argument.first() {
         Some(OwnedToken {
             kind: OwnedTokenKind::Ident(name),
             ..
         }) => Some(name.as_slice()),
         _ => None,
+    }) else {
+        return TokenResolution::Invalid;
     };
-    let indices = name.and_then(|_| {
+    let Some(indices) = (|| {
         let mut indices = Vec::new();
         for token in trim_whitespace(&first_argument[1..]) {
             if matches!(token.kind, OwnedTokenKind::Whitespace) {
@@ -1130,25 +1133,25 @@ fn replace_env_function(
             indices.push(index);
         }
         Some(indices)
-    });
+    })() else {
+        return TokenResolution::Invalid;
+    };
 
-    if let (Some(name), Some(indices)) = (name, indices) {
-        let variable = ENVIRONMENT_VARIABLES
-            .iter()
-            .find(|(known_name, _, _)| name.eq_ignore_ascii_case(known_name));
-        if let Some((_, dimension_count, value_type)) = variable
-            && *dimension_count == indices.len()
-        {
-            if *value_type == "<number>" {
-                return TokenResolution::Resolved(tokenize_owned(b"1"));
-            }
-            if *dimension_count == 0 {
-                return TokenResolution::Resolved(tokenize_owned(b"0px"));
-            }
-            // The C++ document oracle currently exposes no viewport segments, so every
-            // recognized two-dimensional viewport-segment lookup is guaranteed-invalid.
-            return TokenResolution::Invalid;
+    let variable = ENVIRONMENT_VARIABLES
+        .iter()
+        .find(|(known_name, _, _)| name.eq_ignore_ascii_case(known_name));
+    if let Some((_, dimension_count, value_type)) = variable
+        && *dimension_count == indices.len()
+    {
+        if *value_type == "<number>" {
+            return TokenResolution::Resolved(tokenize_owned(b"1"));
         }
+        if *dimension_count == 0 {
+            return TokenResolution::Resolved(tokenize_owned(b"0px"));
+        }
+        // The C++ document oracle currently exposes no viewport segments, so every
+        // recognized two-dimensional viewport-segment lookup is guaranteed-invalid.
+        return TokenResolution::Invalid;
     }
     let Some(comma) = comma else {
         return TokenResolution::Invalid;
@@ -2393,6 +2396,15 @@ mod tests {
             panic!("expected environment fallback");
         };
         assert_eq!(serialize_tokens(&tokens), utf16(" 4px"));
+
+        assert!(matches!(
+            substitute_without_custom_properties("env(\"unknown-environment-variable\", 4px)"),
+            TokenResolution::Invalid
+        ));
+        assert!(matches!(
+            substitute_without_custom_properties("env(safe-area-inset-top 1.5, 4px)"),
+            TokenResolution::Invalid
+        ));
     }
 
     #[test]
