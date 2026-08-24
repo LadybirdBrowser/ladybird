@@ -56,6 +56,17 @@ pub enum FfiMediaFeatureValueKind {
     Resolution,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiSupportsFeatureKind {
+    Declaration,
+    Selector,
+    FontTech,
+    FontFormat,
+    AtRule,
+    Env,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiMediaFeatureValue {
@@ -114,12 +125,30 @@ pub(crate) enum QueryFeature {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum SupportsFeature {
-    Declaration(Vec<ComponentValue>),
-    Selector(Vec<ComponentValue>),
-    FontTech(ParserString),
-    FontFormat(ParserString),
-    AtRule(ParserString),
-    Env(ParserString),
+    Declaration {
+        components: Vec<ComponentValue>,
+        matches: bool,
+    },
+    Selector {
+        components: Vec<ComponentValue>,
+        matches: bool,
+    },
+    FontTech {
+        name: ParserString,
+        matches: bool,
+    },
+    FontFormat {
+        name: ParserString,
+        matches: bool,
+    },
+    AtRule {
+        name: ParserString,
+        matches: bool,
+    },
+    Env {
+        name: ParserString,
+        matches: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -772,29 +801,49 @@ fn looks_like_supports_declaration(values: &[ComponentValue]) -> bool {
             .all(|value| !matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
 }
 
-fn parse_supports_feature(stream: &mut TokenStream<'_>) -> Option<Expression> {
+fn supports_components_source(components: &[ComponentValue]) -> Vec<u16> {
+    components
+        .iter()
+        .flat_map(|component| component.original_source_text.iter())
+        .collect()
+}
+
+fn parse_supports_feature<E>(stream: &mut TokenStream<'_>, evaluate_feature: &E) -> Option<Expression>
+where
+    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+{
     let mut transaction = stream.begin_transaction();
     transaction.discard_whitespace();
     let first = transaction.consume_a_token().clone();
     if let Some(values) = parenthesized_values(&first) {
         let values = trim_whitespace(values);
         if looks_like_supports_declaration(values) && contains_only_any_value(values) {
+            let matches = evaluate_feature(FfiSupportsFeatureKind::Declaration, &supports_components_source(values));
             transaction.commit();
             return Some(Expression::InParens(Box::new(Expression::SupportsFeature(
-                SupportsFeature::Declaration(values.to_vec()),
+                SupportsFeature::Declaration {
+                    components: values.to_vec(),
+                    matches,
+                },
             ))));
         }
         return None;
     }
     let (name, values) = first.function()?;
-    let feature = if equals_ascii_case_insensitive(name, b"selector") {
-        SupportsFeature::Selector(values.to_vec())
+    let (kind, name_or_source) = if equals_ascii_case_insensitive(name, b"selector") {
+        (FfiSupportsFeatureKind::Selector, supports_components_source(values))
     } else if equals_ascii_case_insensitive(name, b"font-tech") {
-        SupportsFeature::FontTech(single_ident(values)?)
+        (
+            FfiSupportsFeatureKind::FontTech,
+            single_ident(values)?.as_ref().to_vec(),
+        )
     } else if equals_ascii_case_insensitive(name, b"font-format") {
-        SupportsFeature::FontFormat(single_ident(values)?)
+        (
+            FfiSupportsFeatureKind::FontFormat,
+            single_ident(values)?.as_ref().to_vec(),
+        )
     } else if equals_ascii_case_insensitive(name, b"env") {
-        SupportsFeature::Env(single_ident(values)?)
+        (FfiSupportsFeatureKind::Env, single_ident(values)?.as_ref().to_vec())
     } else if equals_ascii_case_insensitive(name, b"at-rule") {
         let values = trim_whitespace(values);
         let [value] = values else {
@@ -803,27 +852,74 @@ fn parse_supports_feature(stream: &mut TokenStream<'_>) -> Option<Expression> {
         let ComponentKind::Token(ParserTokenKind::AtKeyword(name)) = &value.kind else {
             return None;
         };
-        SupportsFeature::AtRule(name.clone())
+        (FfiSupportsFeatureKind::AtRule, name.as_ref().to_vec())
     } else {
         return None;
+    };
+    let matches = evaluate_feature(kind, &name_or_source);
+    let feature = match kind {
+        FfiSupportsFeatureKind::Selector => SupportsFeature::Selector {
+            components: values.to_vec(),
+            matches,
+        },
+        FfiSupportsFeatureKind::FontTech => SupportsFeature::FontTech {
+            name: ParserString::from(name_or_source.into_boxed_slice()),
+            matches,
+        },
+        FfiSupportsFeatureKind::FontFormat => SupportsFeature::FontFormat {
+            name: ParserString::from(name_or_source.into_boxed_slice()),
+            matches,
+        },
+        FfiSupportsFeatureKind::AtRule => SupportsFeature::AtRule {
+            name: ParserString::from(name_or_source.into_boxed_slice()),
+            matches,
+        },
+        FfiSupportsFeatureKind::Env => SupportsFeature::Env {
+            name: ParserString::from(name_or_source.into_boxed_slice()),
+            matches,
+        },
+        FfiSupportsFeatureKind::Declaration => unreachable!(),
     };
     transaction.commit();
     Some(Expression::SupportsFeature(feature))
 }
 
-pub(crate) fn parse_supports_condition<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Expression> {
+pub(crate) fn parse_supports_condition<'a, E>(
+    source: impl Into<TokenizerInput<'a>>,
+    evaluate_feature: &E,
+) -> Option<Expression>
+where
+    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+{
     let values = components_from_source(source)?;
     let mut stream = TokenStream::new(&values);
-    let expression = parse_boolean_expression(&mut stream, MatchResult::False, &parse_supports_feature)?;
+    let expression = parse_boolean_expression(&mut stream, MatchResult::False, &|stream| {
+        parse_supports_feature(stream, evaluate_feature)
+    })?;
     stream.discard_whitespace();
     (!stream.has_next_token()).then_some(expression)
 }
 
-fn parse_supports_declaration_from_source<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Expression> {
+fn parse_supports_declaration_from_source<'a, E>(
+    source: impl Into<TokenizerInput<'a>>,
+    evaluate_feature: &E,
+) -> Option<Expression>
+where
+    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+{
     let values = components_from_source(source)?;
     let trimmed = trim_whitespace(&values);
-    (looks_like_supports_declaration(trimmed) && contains_only_any_value(&values))
-        .then_some(Expression::SupportsFeature(SupportsFeature::Declaration(values)))
+    if !looks_like_supports_declaration(trimmed) || !contains_only_any_value(&values) {
+        return None;
+    }
+    let matches = evaluate_feature(
+        FfiSupportsFeatureKind::Declaration,
+        &supports_components_source(&values),
+    );
+    Some(Expression::SupportsFeature(SupportsFeature::Declaration {
+        components: values,
+        matches,
+    }))
 }
 
 fn parse_style_range_value(values: &[ComponentValue]) -> Option<StyleRangeValue> {
@@ -1295,34 +1391,34 @@ fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: Quer
         }
         Expression::QueryFeature(feature) => serialize_query_feature(sink, feature, kind),
         Expression::SupportsFeature(feature) => match feature {
-            SupportsFeature::Declaration(components) => {
+            SupportsFeature::Declaration { components, .. } => {
                 for component in components {
                     push_utf16(sink, &component.original_source_text.to_vec());
                 }
             }
-            SupportsFeature::Selector(components) => {
+            SupportsFeature::Selector { components, .. } => {
                 sink.push_ascii("selector(");
                 for component in components {
                     push_utf16(sink, &component.original_source_text.to_vec());
                 }
                 sink.push_ascii(")");
             }
-            SupportsFeature::FontTech(name) => {
+            SupportsFeature::FontTech { name, .. } => {
                 sink.push_ascii("font-tech(");
                 push_utf16(sink, name);
                 sink.push_ascii(")");
             }
-            SupportsFeature::FontFormat(name) => {
+            SupportsFeature::FontFormat { name, .. } => {
                 sink.push_ascii("font-format(");
                 push_utf16(sink, name);
                 sink.push_ascii(")");
             }
-            SupportsFeature::AtRule(name) => {
+            SupportsFeature::AtRule { name, .. } => {
                 sink.push_ascii("at-rule(@");
                 serialize_an_identifier(sink, &StringUnits::Utf16(name));
                 sink.push_ascii(")");
             }
-            SupportsFeature::Env(name) => {
+            SupportsFeature::Env { name, .. } => {
                 // NB: Preserve the existing C++ serialization until the behavior can be changed separately.
                 sink.push_ascii("font-format(");
                 serialize_an_identifier(sink, &StringUnits::Utf16(name));
@@ -1795,6 +1891,52 @@ fn evaluate_media_expression(
     }
 }
 
+fn evaluate_supports_expression(expression: &Expression) -> MatchResult {
+    match expression {
+        Expression::Not(child) => match evaluate_supports_expression(child) {
+            MatchResult::False => MatchResult::True,
+            MatchResult::True => MatchResult::False,
+            MatchResult::Unknown => MatchResult::Unknown,
+        },
+        Expression::And(children) => {
+            let mut result = MatchResult::True;
+            for child in children {
+                match evaluate_supports_expression(child) {
+                    MatchResult::False => return MatchResult::False,
+                    MatchResult::Unknown => result = MatchResult::Unknown,
+                    MatchResult::True => {}
+                }
+            }
+            result
+        }
+        Expression::Or(children) => {
+            let mut result = MatchResult::False;
+            for child in children {
+                match evaluate_supports_expression(child) {
+                    MatchResult::True => return MatchResult::True,
+                    MatchResult::Unknown => result = MatchResult::Unknown,
+                    MatchResult::False => {}
+                }
+            }
+            result
+        }
+        Expression::InParens(child) => evaluate_supports_expression(child),
+        Expression::GeneralEnclosed { result, .. } | Expression::GeneralEnclosedValues { result, .. } => *result,
+        Expression::SupportsFeature(feature) => {
+            let matches = match feature {
+                SupportsFeature::Declaration { matches, .. }
+                | SupportsFeature::Selector { matches, .. }
+                | SupportsFeature::FontTech { matches, .. }
+                | SupportsFeature::FontFormat { matches, .. }
+                | SupportsFeature::AtRule { matches, .. }
+                | SupportsFeature::Env { matches, .. } => *matches,
+            };
+            if matches { MatchResult::True } else { MatchResult::False }
+        }
+        _ => MatchResult::Unknown,
+    }
+}
+
 fn evaluate_media_query(
     query: &MediaQuery,
     environment: &[FfiMediaFeatureValue],
@@ -2009,15 +2151,29 @@ impl FfiQueryParse {
             }
             Expression::SupportsFeature(feature) => {
                 node.node_type = match feature {
-                    SupportsFeature::Declaration(_) => 6,
-                    SupportsFeature::Selector(_) => 7,
-                    SupportsFeature::FontTech(_) => 8,
-                    SupportsFeature::FontFormat(_) => 9,
-                    SupportsFeature::AtRule(_) => 10,
-                    SupportsFeature::Env(_) => 11,
+                    SupportsFeature::Declaration { .. } => 6,
+                    SupportsFeature::Selector { .. } => 7,
+                    SupportsFeature::FontTech { .. } => 8,
+                    SupportsFeature::FontFormat { .. } => 9,
+                    SupportsFeature::AtRule { .. } => 10,
+                    SupportsFeature::Env { .. } => 11,
+                };
+                node.match_result = match feature {
+                    SupportsFeature::Declaration { matches, .. }
+                    | SupportsFeature::Selector { matches, .. }
+                    | SupportsFeature::FontTech { matches, .. }
+                    | SupportsFeature::FontFormat { matches, .. }
+                    | SupportsFeature::AtRule { matches, .. }
+                    | SupportsFeature::Env { matches, .. } => {
+                        if *matches {
+                            MatchResult::True as u8
+                        } else {
+                            MatchResult::False as u8
+                        }
+                    }
                 };
                 match feature {
-                    SupportsFeature::Declaration(components) | SupportsFeature::Selector(components) => {
+                    SupportsFeature::Declaration { components, .. } | SupportsFeature::Selector { components, .. } => {
                         let source = components
                             .iter()
                             .flat_map(|component| component.original_source_text.iter())
@@ -2033,10 +2189,10 @@ impl FfiQueryParse {
                             name_length: 0,
                         });
                     }
-                    SupportsFeature::FontTech(name)
-                    | SupportsFeature::FontFormat(name)
-                    | SupportsFeature::AtRule(name)
-                    | SupportsFeature::Env(name) => {
+                    SupportsFeature::FontTech { name, .. }
+                    | SupportsFeature::FontFormat { name, .. }
+                    | SupportsFeature::AtRule { name, .. }
+                    | SupportsFeature::Env { name, .. } => {
                         (node.name_offset, node.name_length) = self.append_name(name.as_ref());
                     }
                 }
@@ -2186,6 +2342,8 @@ impl Drop for FfiQueryParse {
 
 type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
 
+type EvaluateSupportsFeature = unsafe extern "C" fn(*mut c_void, FfiSupportsFeatureKind, FfiUtf16View) -> bool;
+
 type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
 
 type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
@@ -2229,6 +2387,21 @@ fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> 
             return None;
         }
         Some(((result & 0xff) as u8, result & 0x100 != 0))
+    }
+}
+
+fn ffi_supports_evaluator(
+    context: *mut c_void,
+    callback: EvaluateSupportsFeature,
+) -> impl Fn(FfiSupportsFeatureKind, &[u16]) -> bool {
+    move |kind, value| {
+        let value = FfiUtf16View {
+            ascii: std::ptr::null(),
+            utf16: value.as_ptr(),
+            length: value.len(),
+        };
+        // SAFETY: The UTF-16 slice remains live for the duration of the callback.
+        unsafe { callback(context, kind, value) }
     }
 }
 
@@ -2300,12 +2473,17 @@ pub unsafe extern "C" fn rust_parse_media_feature(
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_supports_condition(source: FfiUtf16View) -> *mut FfiQueryParse {
+pub unsafe extern "C" fn rust_parse_supports_condition(
+    source: FfiUtf16View,
+    context: *mut c_void,
+    evaluate_feature: EvaluateSupportsFeature,
+) -> *mut FfiQueryParse {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null_mut();
         };
-        let Some(expression) = parse_supports_condition(source) else {
+        let Some(expression) = parse_supports_condition(source, &ffi_supports_evaluator(context, evaluate_feature))
+        else {
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
@@ -2317,12 +2495,18 @@ pub unsafe extern "C" fn rust_parse_supports_condition(source: FfiUtf16View) -> 
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_supports_declaration(source: FfiUtf16View) -> *mut FfiQueryParse {
+pub unsafe extern "C" fn rust_parse_supports_declaration(
+    source: FfiUtf16View,
+    context: *mut c_void,
+    evaluate_feature: EvaluateSupportsFeature,
+) -> *mut FfiQueryParse {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null_mut();
         };
-        let Some(expression) = parse_supports_declaration_from_source(source) else {
+        let Some(expression) =
+            parse_supports_declaration_from_source(source, &ffi_supports_evaluator(context, evaluate_feature))
+        else {
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
@@ -2518,6 +2702,28 @@ pub unsafe extern "C" fn css_query_evaluate_media_condition(
     })
 }
 
+/// Evaluates a retained supports condition whose feature results were captured while parsing.
+/// Returns 3 when the handle does not contain a supports expression.
+///
+/// # Safety
+/// `handle` must point to a live supports-expression handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHandle) -> u8 {
+    crate::abort_on_panic(|| {
+        let Some(handle) = (unsafe { handle.as_ref() }) else {
+            return 3;
+        };
+        let QueryTree::Expression {
+            expression,
+            kind: QueryKind::Supports,
+        } = &handle.tree
+        else {
+            return 3;
+        };
+        evaluate_supports_expression(expression) as u8
+    })
+}
+
 /// Serializes a retained query condition without changing its UTF-16 representation.
 ///
 /// # Safety
@@ -2610,18 +2816,25 @@ mod tests {
 
     #[test]
     fn parses_supports_features() {
+        let supported = |_, _: &[u16]| true;
         assert!(matches!(
-            parse_supports_condition(b"(display: grid) and selector(:has(*))".as_slice()),
+            parse_supports_condition(b"(display: grid) and selector(:has(*))".as_slice(), &supported),
             Some(Expression::And(_))
         ));
         assert!(matches!(
-            parse_supports_condition(b"font-tech(color-COLRv1)".as_slice()),
-            Some(Expression::SupportsFeature(SupportsFeature::FontTech(_)))
+            parse_supports_condition(b"font-tech(color-COLRv1)".as_slice(), &supported),
+            Some(Expression::SupportsFeature(SupportsFeature::FontTech { .. }))
         ));
-        assert!(parse_supports_condition(b"(display: grid) or (color: red) and (width: 1px)".as_slice()).is_none());
-        assert!(parse_supports_condition(b"(--: a)".as_slice()).is_some());
-        assert!(parse_supports_condition(b"(display : grid)".as_slice()).is_some());
-        assert!(parse_supports_declaration_from_source(b"display : grid".as_slice()).is_some());
+        assert!(
+            parse_supports_condition(
+                b"(display: grid) or (color: red) and (width: 1px)".as_slice(),
+                &supported
+            )
+            .is_none()
+        );
+        assert!(parse_supports_condition(b"(--: a)".as_slice(), &supported).is_some());
+        assert!(parse_supports_condition(b"(display : grid)".as_slice(), &supported).is_some());
+        assert!(parse_supports_declaration_from_source(b"display : grid".as_slice(), &supported).is_some());
     }
 
     #[test]
@@ -2659,7 +2872,7 @@ mod tests {
     #[test]
     fn keeps_general_enclosed_forgiving() {
         assert!(matches!(
-            parse_supports_condition(b"future(foo bar)".as_slice()),
+            parse_supports_condition(b"future(foo bar)".as_slice(), &|_, _| false),
             Some(Expression::GeneralEnclosed {
                 result: MatchResult::False,
                 ..

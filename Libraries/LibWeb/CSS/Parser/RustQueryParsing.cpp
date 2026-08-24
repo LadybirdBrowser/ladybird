@@ -254,30 +254,13 @@ static OwnPtr<BooleanExpression> expression(Parser& parser, FfiQueryParseData co
         if (kind == QueryFeatureKind::Media)
             return query_feature<MediaFeature, MediaFeatureID>(parser, data, node);
         return query_feature<SizeFeature, SizeFeatureID>(parser, data, node);
-    case 6: {
-        auto const& value = query_value(data, node.values_start);
-        return RustQueryParser::supports_declaration_feature(parser, utf16_value(data.syntax, value.source_offset, value.source_length));
-    }
-    case 7: {
-        auto const& value = query_value(data, node.values_start);
-        return RustQueryParser::supports_selector_feature(parser, utf16_value(data.syntax, value.source_offset, value.source_length));
-    }
-    case 8: {
-        auto name = Utf16FlyString::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length));
-        return Supports::FontTech::create(name, font_tech_is_supported(name));
-    }
-    case 9: {
-        auto name = Utf16FlyString::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length));
-        return Supports::FontFormat::create(name, font_format_is_supported(name));
-    }
-    case 10: {
-        auto name = Utf16FlyString::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length));
-        return Supports::AtRule::create(name, at_rule_is_supported(name));
-    }
-    case 11: {
-        auto name = Utf16FlyString::from_utf16(utf16_value(data.syntax, node.name_offset, node.name_length));
-        return Supports::Env::create(name, environment_variable_from_string(name).has_value());
-    }
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+        return ConstantBooleanExpression::create(match_result(node.match_result));
     case 12: {
         auto children = expression_children(parser, data, node, kind);
         if (children.size() != 1)
@@ -397,33 +380,28 @@ RefPtr<Supports> RustQueryParser::parse_supports(Parser& parser, Utf16View sourc
 {
     parser.m_rule_context.append(RuleContext::SupportsCondition);
     ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
-    auto* parse = rust_parse_supports_condition(ffi_utf16_view(source));
+    auto* parse = rust_parse_supports_condition(ffi_utf16_view(source), &parser, evaluate_supports_feature);
     if (!parse)
         return nullptr;
     ScopeGuard free_parse = [&] { rust_query_parse_free(parse); };
     auto data = rust_query_parse_data(parse);
     if (!data.has_root)
         return nullptr;
-    auto condition = expression(parser, data, data.root, QueryFeatureKind::Media);
-    if (!condition)
-        return nullptr;
-    auto supports = Supports::create(condition.release_nonnull());
-    supports->m_rust_query_handle = RustQueryHandle::retained(data.root_handle);
-    return supports;
+    return Supports::create(RustQueryHandle::retained(data.root_handle));
 }
 
 OwnPtr<BooleanExpression> RustQueryParser::parse_supports_condition(Parser& parser, Utf16View source)
 {
     parser.m_rule_context.append(RuleContext::SupportsCondition);
     ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
-    return adopt_root_expression(parser, rust_parse_supports_condition(ffi_utf16_view(source)), QueryFeatureKind::Media);
+    return adopt_root_expression(parser, rust_parse_supports_condition(ffi_utf16_view(source), &parser, evaluate_supports_feature), QueryFeatureKind::Media);
 }
 
 OwnPtr<BooleanExpression> RustQueryParser::parse_supports_declaration(Parser& parser, Utf16View source)
 {
     parser.m_rule_context.append(RuleContext::SupportsCondition);
     ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
-    return adopt_root_expression(parser, rust_parse_supports_declaration(ffi_utf16_view(source)), QueryFeatureKind::Media);
+    return adopt_root_expression(parser, rust_parse_supports_declaration(ffi_utf16_view(source), &parser, evaluate_supports_feature), QueryFeatureKind::Media);
 }
 
 OwnPtr<BooleanExpression> RustQueryParser::parse_style_query(Parser& parser, Utf16View source)
@@ -548,26 +526,37 @@ Optional<FeatureValue> RustQueryParser::parse_size_feature_value(Parser& parser,
         });
 }
 
-OwnPtr<BooleanExpression> RustQueryParser::supports_declaration_feature(Parser& parser, Utf16View source)
+bool RustQueryParser::evaluate_supports_feature(void* context, FfiSupportsFeatureKind kind, FfiUtf16View ffi_source)
 {
-    Array contexts { RuleContext::SupportsCondition };
-    auto items = RustSyntaxParser::parse_block_contents(parser, source, contexts, PreservePropertySourceText::Yes);
-    if (items.size() != 1 || !items.first().has<Vector<Declaration>>())
-        return Supports::Declaration::create(Utf16String::from_utf16(source), false);
-    auto const& declarations = items.first().get<Vector<Declaration>>();
-    if (declarations.size() != 1)
-        return Supports::Declaration::create(Utf16String::from_utf16(source), false);
-    auto const& declaration = declarations.first();
-    auto text = declaration.original_full_text.value_or(Utf16String::from_utf16(source));
-    return Supports::Declaration::create(move(text), parser.convert_to_style_property(declaration).has_value());
-}
-
-OwnPtr<BooleanExpression> RustQueryParser::supports_selector_feature(Parser& parser, Utf16View source)
-{
-    auto selectors = parse_selector_list_in_rust(source, parser.m_declared_namespaces, false, false);
-    bool matches = selectors.has_value() && selectors->size() == 1
-        && !selectors->first()->contains_unknown_webkit_pseudo_element();
-    return Supports::Selector::create(Utf16String::from_utf16(source), matches);
+    VERIFY(context);
+    VERIFY(!ffi_source.ascii);
+    VERIFY(ffi_source.utf16 || ffi_source.length == 0);
+    auto& parser = *static_cast<Parser*>(context);
+    auto source = Utf16View { reinterpret_cast<char16_t const*>(ffi_source.utf16), ffi_source.length };
+    switch (kind) {
+    case FfiSupportsFeatureKind::Declaration: {
+        Array contexts { RuleContext::SupportsCondition };
+        auto items = RustSyntaxParser::parse_block_contents(parser, source, contexts, PreservePropertySourceText::Yes);
+        if (items.size() != 1 || !items.first().has<Vector<Declaration>>())
+            return false;
+        auto const& declarations = items.first().get<Vector<Declaration>>();
+        return declarations.size() == 1 && parser.convert_to_style_property(declarations.first()).has_value();
+    }
+    case FfiSupportsFeatureKind::Selector: {
+        auto selectors = parse_selector_list_in_rust(source, parser.m_declared_namespaces, false, false);
+        return selectors.has_value() && selectors->size() == 1
+            && !selectors->first()->contains_unknown_webkit_pseudo_element();
+    }
+    case FfiSupportsFeatureKind::FontTech:
+        return font_tech_is_supported(source);
+    case FfiSupportsFeatureKind::FontFormat:
+        return font_format_is_supported(source);
+    case FfiSupportsFeatureKind::AtRule:
+        return at_rule_is_supported(source);
+    case FfiSupportsFeatureKind::Env:
+        return environment_variable_from_string(source).has_value();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }

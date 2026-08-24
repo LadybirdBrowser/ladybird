@@ -40,8 +40,7 @@ public:
     static Optional<Vector<SizesAttributeEntry>> split_sizes_attribute(Utf16View);
     static Optional<FeatureValue> parse_media_feature_value(Parser&, MediaFeatureID, Utf16View);
     static Optional<FeatureValue> parse_size_feature_value(Parser&, SizeFeatureID, Utf16View);
-    static OwnPtr<BooleanExpression> supports_declaration_feature(Parser&, Utf16View);
-    static OwnPtr<BooleanExpression> supports_selector_feature(Parser&, Utf16View);
+    static bool evaluate_supports_feature(void*, ValueParserFFI::FfiSupportsFeatureKind, ValueParserFFI::FfiUtf16View);
 };
 
 }

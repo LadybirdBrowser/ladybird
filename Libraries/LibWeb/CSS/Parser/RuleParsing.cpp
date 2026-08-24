@@ -1157,7 +1157,7 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
             if (!supports) {
                 auto declaration = RustQueryParser::parse_supports_declaration(*this, *item.value);
                 if (declaration)
-                    supports = Supports::create(declaration.release_nonnull<BooleanExpression>());
+                    supports = Supports::create(declaration->rust_query_handle());
             }
             if (!supports)
                 return {};
