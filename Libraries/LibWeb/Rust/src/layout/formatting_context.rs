@@ -1003,6 +1003,10 @@ impl FfiLayoutFcCallbacks {
         self.arena().set_committed_fragment_link(self.arena().data(node), link);
     }
 
+    pub(crate) fn has_committed_fragment_link(&self, node: Node) -> bool {
+        self.node_data(node).flags & NodeFlag::HasCommittedFragmentLink as u32 != 0
+    }
+
     pub(crate) fn set_saved_abspos_layout_inputs(&self, node: Node, inputs: Option<crate::layout::AbsposLayoutInputs>) {
         let data = self.arena().data(node);
         // Match prepare_node's former as_if<Box>() guard.

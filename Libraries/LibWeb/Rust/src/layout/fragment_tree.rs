@@ -45,6 +45,62 @@ pub(crate) struct FragmentLink {
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
 
+fn same_allocation<T>(left: Option<&std::rc::Rc<T>>, right: Option<&std::rc::Rc<T>>) -> bool {
+    match (left, right) {
+        (None, None) => true,
+        (Some(left), Some(right)) => std::rc::Rc::ptr_eq(left, right),
+        _ => false,
+    }
+}
+
+impl Fragment {
+    fn builds_identically_to(&self, previous: &Fragment) -> bool {
+        self.node == previous.node
+            && self.content_inline_size == previous.content_inline_size
+            && self.content_block_size == previous.content_block_size
+            && self.margin_left == previous.margin_left
+            && self.margin_right == previous.margin_right
+            && self.margin_top == previous.margin_top
+            && self.margin_bottom == previous.margin_bottom
+            && self.border_left == previous.border_left
+            && self.border_right == previous.border_right
+            && self.border_top == previous.border_top
+            && self.border_bottom == previous.border_bottom
+            && self.padding_left == previous.padding_left
+            && self.padding_right == previous.padding_right
+            && self.padding_top == previous.padding_top
+            && self.padding_bottom == previous.padding_bottom
+            && self.uses_collapsing_borders_model == previous.uses_collapsing_borders_model
+            && same_allocation(self.collapsed_table_borders.as_ref(), previous.collapsed_table_borders.as_ref())
+            && same_allocation(self.line_data.as_ref(), previous.line_data.as_ref())
+            && same_allocation(self.grid_layout_data.as_ref(), previous.grid_layout_data.as_ref())
+            && same_allocation(self.flex_layout_data.as_ref(), previous.flex_layout_data.as_ref())
+            && same_allocation(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
+            && self.svg_viewport_transform == previous.svg_viewport_transform
+            && self.svg_viewport_size == previous.svg_viewport_size
+            && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
+            && self.children.len() == previous.children.len()
+            && self
+                .children
+                .iter()
+                .zip(&previous.children)
+                .all(|(link, previous_link)| link.places_same_fragment_identically_to(previous_link))
+    }
+}
+
+impl FragmentLink {
+    fn places_same_fragment_identically_to(&self, previous: &FragmentLink) -> bool {
+        std::rc::Rc::ptr_eq(&self.fragment, &previous.fragment)
+            && self.committed_offset == previous.committed_offset
+            && self.inset_left == previous.inset_left
+            && self.inset_right == previous.inset_right
+            && self.inset_top == previous.inset_top
+            && self.inset_bottom == previous.inset_bottom
+            && self.containing_line_box_index == previous.containing_line_box_index
+            && self.abspos_layout_inputs == previous.abspos_layout_inputs
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AnchorCandidate {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
@@ -152,7 +208,24 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     }
 }
 
+fn previously_committed_fragment_matching(
+    callbacks: &FfiLayoutFcCallbacks,
+    candidate: &Fragment,
+) -> Option<std::rc::Rc<Fragment>> {
+    if !callbacks.has_committed_fragment_link(candidate.node) {
+        return None;
+    }
+    callbacks
+        .arena()
+        .with_committed_fragment_link_during_layout(candidate.node, |previous_link| {
+            previous_link
+                .filter(|previous_link| candidate.builds_identically_to(&previous_link.fragment))
+                .map(|previous_link| previous_link.fragment.clone())
+        })
+}
+
 fn snapshot_fragment(
+    callbacks: &FfiLayoutFcCallbacks,
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
     used: &UsedValues,
@@ -180,8 +253,8 @@ fn snapshot_fragment(
         svg_viewport_size,
         computed_svg_path,
     ) = rare_payloads.unwrap_or_default();
-    std::rc::Rc::new(Fragment {
-        identity: NEXT_IDENTITY.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+    let mut fragment = Fragment {
+        identity: 0,
         node,
         content_inline_size: used.content_inline_size.get(),
         content_block_size: used.content_block_size.get(),
@@ -207,7 +280,12 @@ fn snapshot_fragment(
         svg_viewport_size,
         computed_svg_path,
         children,
-    })
+    };
+    if let Some(previous) = previously_committed_fragment_matching(callbacks, &fragment) {
+        return previous;
+    }
+    fragment.identity = NEXT_IDENTITY.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    std::rc::Rc::new(fragment)
 }
 
 pub(crate) struct PlacementData {
@@ -670,7 +748,7 @@ impl RunFragmentBuilder {
             inline_containing_block_rects: inline_containing_block_rects_from_placed_box,
         } = inner.pending_fragments.remove(&slot).unwrap_or_else(|| PendingFragment::new(node));
         let link = link_fragment(
-            snapshot_fragment(node, children, used),
+            snapshot_fragment(callbacks, node, children, used),
             PlacementData::from_record(used, containing_line_box_index, committed_offset),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
@@ -774,7 +852,7 @@ impl RunFragmentBuilder {
             }
             let used = records.used_values(pending_fragment.node);
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(pending_fragment.node, pending_fragment.children, &used),
+                snapshot_fragment(callbacks, pending_fragment.node, pending_fragment.children, &used),
                 PlacementData::from_record(&used, None, used.content_offset.get()),
             ));
         }
@@ -782,7 +860,7 @@ impl RunFragmentBuilder {
         for (_, root) in child_roots_awaiting_placement {
             let used = records.used_values(root.node);
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(root.node, root.scoped_descendants, &used),
+                snapshot_fragment(callbacks, root.node, root.scoped_descendants, &used),
                 PlacementData::from_record(&used, None, used.content_offset.get()),
             ));
         }

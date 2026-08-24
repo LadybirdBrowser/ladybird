@@ -378,6 +378,21 @@ impl PaintableRowStore {
             .and_then(|slot| slot.link.as_deref().cloned())
     }
 
+    pub(crate) fn with_committed_fragment_link<R>(
+        &self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+        read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
+    ) -> R {
+        let slots = self.committed_fragment_links.borrow();
+        read(
+            slots
+                .get(layout_slot_index as usize)
+                .filter(|slot| slot.layout_slot_generation == layout_slot_generation)
+                .and_then(|slot| slot.link.as_deref()),
+        )
+    }
+
     pub(crate) fn set_committed_fragment_link(
         &self,
         layout_slot_index: u32,
@@ -458,6 +473,15 @@ impl LayoutNodeArena {
                 .get(node.slot_index() as usize)
                 .and_then(|entry| entry.link.as_deref()),
         )
+    }
+
+    pub(crate) fn with_committed_fragment_link_during_layout<R>(
+        &self,
+        node: NodeSlotId,
+        read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
+    ) -> R {
+        self.paintable_rows
+            .with_committed_fragment_link(node.slot_index(), node.generation(), read)
     }
 
     fn prepare_paintable_row_reset(&self, slot: NodeSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {

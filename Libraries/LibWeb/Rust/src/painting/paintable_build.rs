@@ -201,6 +201,7 @@ impl<'a> PaintableCommit<'a> {
         node: Node,
         link: &FragmentLink,
         reuses_committed_subtree: bool,
+        enclosing_line_root_content_changed: bool,
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
         let new_content_size = FfiCssPixelSize {
@@ -232,10 +233,14 @@ impl<'a> PaintableCommit<'a> {
             content_size_change = Some((previous_content_size_for_diff, new_content_size));
         }
         let committed_fragment_identity_changed = old_identity != fragment.identity;
+        let painted_geometry_lives_in_enclosing_line_root =
+            || NodeFacts::new(self.callbacks, node).is_fragmented_inline();
+        let painted_content_changed = committed_fragment_identity_changed
+            || (enclosing_line_root_content_changed && painted_geometry_lives_in_enclosing_line_root());
         // A reused committed subtree's root counts as unchanged even though its run-root
         // fragment is rebuilt with a fresh identity at placement: the reuse contract guarantees
         // identical replayed output, enforced by the content-size assertion above.
-        let content_unchanged = reuses_committed_subtree || (old_identity != 0 && !committed_fragment_identity_changed);
+        let content_unchanged = reuses_committed_subtree || (old_identity != 0 && !painted_content_changed);
         let offset_unchanged = self
             .committed_offsets_before_recommit_reset
             .get(&node)
@@ -247,7 +252,7 @@ impl<'a> PaintableCommit<'a> {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
             let data = paintable_rows.paintable_data_mut(node);
-            if committed_fragment_identity_changed {
+            if painted_content_changed {
                 data.overflow_valid_across_recommits = false;
             }
             data.content_size = new_content_size;

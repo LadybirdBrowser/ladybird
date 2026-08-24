@@ -54,7 +54,12 @@ fn commit_subtree(
                 ),
             "committed path-like fragment carries no computed SVG path"
         );
-        let replaced = paintables.replace_committed_fragment_link(node, link, reuses_committed_subtree);
+        let replaced = paintables.replace_committed_fragment_link(
+            node,
+            link,
+            reuses_committed_subtree,
+            enclosing_line_root_content_changed,
+        );
         if fragment.line_data.is_some() {
             line_root_content_changed_for_children = replaced.committed_fragment_identity_changed;
         }
