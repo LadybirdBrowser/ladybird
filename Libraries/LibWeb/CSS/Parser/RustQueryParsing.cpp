@@ -329,10 +329,13 @@ Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser
     for (size_t index = 0; index < data.media_query_count; ++index) {
         auto const& ffi_query = data.media_queries[index];
         if (!ffi_query.valid) {
-            queries.unchecked_append(MediaQuery::create_not_all());
+            auto query = MediaQuery::create_not_all();
+            query->m_rust_query_handle = RustQueryHandle::retained(data.query_handles[index]);
+            queries.unchecked_append(move(query));
             continue;
         }
         auto query = MediaQuery::create();
+        query->m_rust_query_handle = RustQueryHandle::retained(data.query_handles[index]);
         query->m_negated = ffi_query.negated;
         if (ffi_query.has_media_type) {
             auto name = Utf16FlyString::from_utf16(utf16_value(data.syntax, ffi_query.media_type_offset, ffi_query.media_type_length));
@@ -374,7 +377,10 @@ static OwnPtr<BooleanExpression> adopt_root_expression(Parser& parser, FfiQueryP
     auto data = rust_query_parse_data(parse);
     if (!data.has_root)
         return nullptr;
-    return expression(parser, data, data.root, kind);
+    auto root = expression(parser, data, data.root, kind);
+    if (root)
+        root->set_rust_query_handle(RustQueryHandle::retained(data.root_handle));
+    return root;
 }
 
 OwnPtr<BooleanExpression> RustQueryParser::parse_media_condition(Parser& parser, Utf16View source)
@@ -389,10 +395,21 @@ OwnPtr<BooleanExpression> RustQueryParser::parse_media_feature(Parser& parser, U
 
 RefPtr<Supports> RustQueryParser::parse_supports(Parser& parser, Utf16View source)
 {
-    auto condition = parse_supports_condition(parser, source);
+    parser.m_rule_context.append(RuleContext::SupportsCondition);
+    ScopeGuard pop_context = [&] { parser.m_rule_context.take_last(); };
+    auto* parse = rust_parse_supports_condition(ffi_utf16_view(source));
+    if (!parse)
+        return nullptr;
+    ScopeGuard free_parse = [&] { rust_query_parse_free(parse); };
+    auto data = rust_query_parse_data(parse);
+    if (!data.has_root)
+        return nullptr;
+    auto condition = expression(parser, data, data.root, QueryFeatureKind::Media);
     if (!condition)
         return nullptr;
-    return Supports::create(condition.release_nonnull());
+    auto supports = Supports::create(condition.release_nonnull());
+    supports->m_rust_query_handle = RustQueryHandle::retained(data.root_handle);
+    return supports;
 }
 
 OwnPtr<BooleanExpression> RustQueryParser::parse_supports_condition(Parser& parser, Utf16View source)
@@ -435,6 +452,7 @@ Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_con
             if (!condition)
                 return {};
             query = ContainerQuery::create(condition.release_nonnull());
+            query->m_rust_query_handle = RustQueryHandle::retained(data.query_handles[index]);
         }
         conditions.unchecked_append({ .name = move(name), .query = move(query) });
     }

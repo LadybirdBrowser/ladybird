@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
+#include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/Forward.h>
 
@@ -123,6 +124,14 @@ public:
     Utf16String to_string() const;
     virtual void serialize_to(Utf16StringBuilder&) const = 0;
     virtual void dump(StringBuilder&, int indent_levels = 0) const = 0;
+
+    void set_rust_query_handle(RustQueryHandle handle) { m_rust_query_handle = move(handle); }
+
+protected:
+    RustQueryHandle const& rust_query_handle() const { return m_rust_query_handle; }
+
+private:
+    RustQueryHandle m_rust_query_handle;
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#typedef-general-enclosed

@@ -11,8 +11,15 @@
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/RustQueryHandle.h>
 
 namespace Web::CSS {
+
+namespace Parser {
+
+class RustQueryParser;
+
+}
 
 enum class SizeFeatureID : u8 {
     AspectRatio,
@@ -103,6 +110,8 @@ private:
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
 class WEB_API ContainerQuery final : public RefCounted<ContainerQuery> {
+    friend class Parser::RustQueryParser;
+
 public:
     static NonnullRefPtr<ContainerQuery> create(NonnullOwnPtr<BooleanExpression>&&);
 
@@ -118,6 +127,7 @@ private:
     explicit ContainerQuery(NonnullOwnPtr<BooleanExpression>&&);
 
     NonnullOwnPtr<BooleanExpression> m_condition;
+    RustQueryHandle m_rust_query_handle;
     ContainerQueryFeatureRequirements m_feature_requirements;
     bool m_matches { false };
 };
