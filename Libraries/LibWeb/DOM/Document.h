@@ -1383,8 +1383,6 @@ public:
     Utf16String dump_display_list();
     Utf16String dump_stacking_context_tree();
 
-    Optional<Vector<CSS::Parser::ComponentValue>> environment_variable_value(CSS::EnvironmentVariable, Span<i32> indices = {}) const;
-
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration>& registered_property_set();
     Optional<CSS::CustomPropertyRegistration const&> get_registered_custom_property(Utf16FlyString const& name) const;

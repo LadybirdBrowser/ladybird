@@ -4,3 +4,4 @@ matching reordered selector list: 75%, 25%
 to matches 100%: 100%
 partial selector list: null
 invalid selectors return null: true
+deeply nested selector returns null: true

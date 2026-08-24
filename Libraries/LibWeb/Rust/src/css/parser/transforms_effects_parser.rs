@@ -10,8 +10,8 @@
 use super::component_value::{ComponentKind, ComponentValue};
 use super::token_stream::TokenStream;
 use super::value_parser::{
-    NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, VALUE_TYPE_ANGLE, VALUE_TYPE_INTEGER,
-    VALUE_TYPE_NUMBER, VALUE_TYPE_PERCENTAGE, equals_ascii_case_insensitive, parse_angle_value,
+    NumericRange, ParseContext, ParseOutcome, VALUE_TYPE_ANGLE, VALUE_TYPE_INTEGER, VALUE_TYPE_NUMBER,
+    VALUE_TYPE_PERCENTAGE, equals_ascii_case_insensitive, parse_angle_value,
     parse_calculated_numeric_value_with_ranges, parse_integer_value, parse_length_from_stream,
     parse_length_percentage_from_stream, parse_number_from_stream, parse_number_percentage_value, parse_number_value,
     parse_percentage_value, parse_tree_counting_value, parse_url_value,
@@ -783,7 +783,7 @@ pub(crate) fn parse_transform_effect_property(
         && keyword_none(values).is_none()
         && non_whitespace(values).iter().any(|value| value.function().is_none())
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let parsed = match property {
         property_id::TRANSFORM => keyword_none(values).or_else(|| parse_transform(context, property, values)),
@@ -794,12 +794,12 @@ pub(crate) fn parse_transform_effect_property(
             parse_easing_list(context, property, values)
         }
         property_id::FILTER | property_id::BACKDROP_FILTER => parse_filter_list(context, property, values),
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     if parsed.is_none() && contains_math_function(values) {
-        // NB: Some calculation forms retain parser context which the Rust
-        //     calculation tree cannot represent yet. C++ remains the oracle.
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        // NB: Some calculation forms retain parser context which the calculation tree cannot
+        //     represent yet.
+        return ParseOutcome::NotHandled;
     }
     if parsed.is_none()
         && matches!(
@@ -808,9 +808,9 @@ pub(crate) fn parse_transform_effect_property(
         )
         && values.iter().any(ComponentValue::is_comma)
     {
-        // NB: Substitution can present the arguments of steps() without the
-        //     function wrapper. C++ still has the context needed to parse it.
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        // NB: Substitution can present the arguments of steps() without the function wrapper, but
+        //     this parser does not have the context needed to parse it.
+        return ParseOutcome::NotHandled;
     }
     parsed.map_or(ParseOutcome::Invalid, |value| ParseOutcome::Parsed(Arc::new(value)))
 }
@@ -875,7 +875,7 @@ mod tests {
         }
         assert!(matches!(
             parse(property_id::TRANSFORM, "-100px * -1"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
     }
 
@@ -897,7 +897,7 @@ mod tests {
                 property_id::TRANSLATE,
                 "random(fixed random(-2, -1), 0%, 100%) random(0%, 100%)"
             ),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
     }
 
@@ -935,7 +935,7 @@ mod tests {
         }
         assert!(matches!(
             parse(property_id::ANIMATION_TIMING_FUNCTION, "2, start"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
     }
 

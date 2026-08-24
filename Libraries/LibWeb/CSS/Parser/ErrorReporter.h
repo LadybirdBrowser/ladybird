@@ -73,7 +73,25 @@ struct InvalidRuleLocationError {
     }
 };
 
-using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidRuleLocationError>;
+enum class SyntaxDiagnosticCode : u8 {
+    BadString,
+    BadUrl,
+};
+
+struct SyntaxDiagnosticError {
+    SyntaxDiagnosticCode code;
+    u32 start_line;
+    u32 start_column;
+    u32 end_line;
+    u32 end_column;
+    bool operator==(SyntaxDiagnosticError const&) const = default;
+    unsigned hash() const
+    {
+        return pair_int_hash(to_underlying(code), pair_int_hash(pair_int_hash(start_line, start_column), pair_int_hash(end_line, end_column)));
+    }
+};
+
+using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidRuleLocationError, SyntaxDiagnosticError>;
 
 String serialize_parsing_error(ParsingError const&);
 

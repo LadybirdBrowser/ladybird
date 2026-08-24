@@ -3385,17 +3385,6 @@ pub struct FfiCalcSerializationPiece {
     pub style_value: *const std::ffi::c_void,
 }
 
-#[repr(C)]
-pub struct FfiCalcSerialization {
-    pub pieces: *const FfiCalcSerializationPiece,
-    pub piece_count: usize,
-    pub storage: *mut std::ffi::c_void,
-}
-
-struct CalcSerializationStorage {
-    pieces: Box<[FfiCalcSerializationPiece]>,
-}
-
 impl CalcNumericValue {
     fn leaf_parts(self) -> (u8, f64, u8) {
         match self {
@@ -4231,43 +4220,6 @@ pub(crate) fn serialize_math_function_pieces(
     };
     serializer.serialize_math_function(&root);
     serializer.pieces
-}
-
-/// Serializes a calculated style value's math function into an ordered piece batch. Literal
-/// structure comes from Rust, while C++ formats numeric and embedded style values after return.
-///
-/// # Safety
-/// `calculated` must point at Calculated style value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_serialize(
-    calculated: *const std::ffi::c_void,
-    resolved_mode: bool,
-) -> FfiCalcSerialization {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
-    use crate::css::style_value::StyleValueData;
-    crate::abort_on_panic(|| {
-        let value = unsafe { &*(calculated as *const StyleValueData) };
-        let storage = Box::new(CalcSerializationStorage {
-            pieces: serialize_math_function_pieces(value, resolved_mode).into_boxed_slice(),
-        });
-        let result = FfiCalcSerialization {
-            pieces: storage.pieces.as_ptr(),
-            piece_count: storage.pieces.len(),
-            storage: std::ptr::null_mut(),
-        };
-        let storage = Box::into_raw(storage);
-        FfiCalcSerialization {
-            storage: storage.cast(),
-            ..result
-        }
-    })
-}
-
-/// # Safety
-/// `storage` must be a value returned by `rust_calc_serialize` that has not been released.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_serialization_release(storage: *mut std::ffi::c_void) {
-    drop(unsafe { Box::from_raw(storage.cast::<CalcSerializationStorage>()) });
 }
 
 impl CalcNode {

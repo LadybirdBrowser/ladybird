@@ -18,6 +18,8 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/DimensionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -410,48 +412,18 @@ GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const& numberish
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
-static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(Parser::ComponentValue const& numeric_value)
+static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(StyleValue const& numeric_value)
 {
-    // To reify a numeric value num:
-    // 1. If num is a math function, reify a math expression from num and return the result.
-    if (numeric_value.is_function()) {
-        // AD-HOC: The only feasible way is to parse it as a StyleValue and rely on the reification code there.
-        auto source = numeric_value.to_string();
-        for (auto value_type : { ValueType::Number, ValueType::Percentage, ValueType::Length, ValueType::LengthPercentage, ValueType::Angle, ValueType::Time, ValueType::Frequency, ValueType::Resolution, ValueType::Flex }) {
-            auto parser = Parser::Parser::create(Parser::ParsingParams {}, source);
-            auto parsed_value = parser.parse_as_type(value_type);
-            if (!parsed_value || !parsed_value->is_calculated())
-                continue;
-            auto const& calculation = parsed_value->as_calculated();
-            auto reified = calculation.reify({});
-            // AD-HOC: Not all math functions can be reified. Until we have clear guidance on that, throw a SyntaxError.
-            // See: https://github.com/w3c/css-houdini-drafts/issues/1090#issuecomment-3200229996
-            if (auto* reified_numeric = as_if<CSSNumericValue>(*reified)) {
-                return GC::Ref { *reified_numeric };
-            }
-            return WebIDL::SyntaxError::create("Unable to reify this math function."_utf16);
-        }
-        // AD-HOC: If we failed to parse it, I guess we throw a SyntaxError like in step 1 of CSSNumericValue::parse().
-        return WebIDL::SyntaxError::create("Unable to parse input as a calculation tree."_utf16);
+    if (numeric_value.is_calculated()) {
+        auto reified = numeric_value.as_calculated().reify({});
+        if (auto* reified_numeric = as_if<CSSNumericValue>(*reified))
+            return GC::Ref { *reified_numeric };
+        return WebIDL::SyntaxError::create("Unable to reify this math function."_utf16);
     }
-
-    // 2. If num is the unitless value 0 and num is a <dimension>, return a new CSSUnitValue with its value internal
-    //    slot set to 0, and its unit internal slot set to "px".
-    // FIXME: What does this mean? We just have a component value, it doesn't have any knowledge about whether 0 should
-    //        be interpreted as a dimension.
-
-    // 3. Return a new CSSUnitValue with its value internal slot set to the numeric value of num, and its unit internal
-    //    slot set to "number" if num is a <number>, "percent" if num is a <percentage>, and num’s unit if num is a
-    //    <dimension>.
-    //    If the value being reified is a computed value, the unit used must be the appropriate canonical unit for the
-    //    value’s type, with the numeric value scaled accordingly.
-    // NB: The computed value part is irrelevant here, I think.
-    if (numeric_value.is(Parser::Token::Type::Number))
-        return CSSUnitValue::create(numeric_value.token().number_value(), "number"_utf16_fly_string);
-    if (numeric_value.is(Parser::Token::Type::Percentage))
-        return CSSUnitValue::create(numeric_value.token().percentage(), "percent"_utf16_fly_string);
-    VERIFY(numeric_value.is(Parser::Token::Type::Dimension));
-    return CSSUnitValue::create(numeric_value.token().dimension_value(), numeric_value.token().dimension_unit());
+    if (numeric_value.is_number())
+        return CSSUnitValue::create(numeric_value.as_number().number(), "number"_utf16_fly_string);
+    VERIFY(numeric_value.is_dimension());
+    return CSSUnitValue::create(numeric_value.as_dimension().raw_value(), numeric_value.as_dimension().unit_name());
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-parse
@@ -460,33 +432,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::parse(JS::VM& vm,
     (void)vm;
     // The parse(cssText) method, when called, must perform the following steps:
 
-    // 1. Parse a component value from cssText and let result be the result. If result is a syntax error, throw a
-    //    SyntaxError and abort this algorithm.
-    auto maybe_component_value = Parser::Parser::create(Parser::ParsingParams {}, css_text).parse_as_component_value();
-    if (!maybe_component_value.has_value()) {
-        return WebIDL::SyntaxError::create("Unable to parse input as a component value."_utf16);
+    for (auto value_type : { ValueType::Number, ValueType::Percentage, ValueType::Length, ValueType::LengthPercentage, ValueType::Angle, ValueType::Time, ValueType::Frequency, ValueType::Resolution, ValueType::Flex }) {
+        auto value = parse_css_type(Parser::ParsingParams {}, css_text, value_type);
+        if (value)
+            return reify_a_numeric_value(*value);
     }
-    auto& result = maybe_component_value.value();
-
-    // 2. If result is not a <number-token>, <percentage-token>, <dimension-token>, or a math function, throw a
-    //    SyntaxError and abort this algorithm.
-    if (!(result.is(Parser::Token::Type::Number)
-            || result.is(Parser::Token::Type::Percentage)
-            || result.is(Parser::Token::Type::Dimension)
-            || result.is_function())) {
-        return WebIDL::SyntaxError::create("Input not a <number-token>, <percentage-token>, <dimension-token>, or a math function."_utf16);
-    }
-
-    // 3. If result is a <dimension-token> and creating a type from result’s unit returns failure, throw a SyntaxError
-    //    and abort this algorithm.
-    if (result.is(Parser::Token::Type::Dimension)) {
-        if (!NumericType::create_from_unit(result.token().dimension_unit()).has_value()) {
-            return WebIDL::SyntaxError::create("Input is <dimension> with an unrecognized unit."_utf16);
-        }
-    }
-
-    // 4. Reify a numeric value result, and return the result.
-    return reify_a_numeric_value(result);
+    return WebIDL::SyntaxError::create("Input is not a numeric component value."_utf16);
 }
 
 }

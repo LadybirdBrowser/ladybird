@@ -161,12 +161,9 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnparsedValue::create_an
     // NB: CSSUnparsedValue stores a list of strings, each of which may contain any number of tokens. So the simplest
     //     way to convert it to ComponentValues is to serialize and then parse it.
     auto utf16_string = TRY(to_string());
-    auto parser = Parser::Parser::create(Parser::ParsingParams {}, utf16_string.utf16_view());
-    auto component_values = parser.parse_as_list_of_component_values();
-
     Parser::SubstitutionFunctionsPresence substitution_presence;
 
-    if (Parser::Parser::collect_arbitrary_substitution_function_presence(component_values, substitution_presence).is_error())
+    if (Parser::Parser::collect_arbitrary_substitution_function_presence(utf16_string, substitution_presence).is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid arbitrary substitution function syntax"_utf16 };
 
     return UnresolvedStyleValue::create(move(utf16_string), substitution_presence, {}, UnresolvedStyleValue::SourceTextMode::Preserve);

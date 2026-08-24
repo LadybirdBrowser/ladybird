@@ -14,9 +14,7 @@ namespace Web::CSS::Parser {
 Optional<Descriptor> Parser::convert_to_descriptor(AtRuleID at_rule_id, Declaration const& declaration)
 {
     auto descriptor_name_and_id = DescriptorNameAndID::from_name(at_rule_id, declaration.name);
-    if (!descriptor_name_and_id.has_value() || !declaration.parsed_descriptor_id.has_value() || !declaration.parsed_value)
-        return {};
-    if (descriptor_name_and_id->id() != declaration.parsed_descriptor_id.value())
+    if (!descriptor_name_and_id.has_value() || !declaration.parsed_value)
         return {};
 
     return Descriptor { descriptor_name_and_id.value(), NonnullRefPtr<StyleValue const> { *declaration.parsed_value } };

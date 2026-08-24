@@ -36,7 +36,6 @@
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
-#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
@@ -475,7 +474,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    if (rule.prelude.is_empty()) {
+    if (rule.prelude_text.trim_ascii_whitespace().is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@supports"_utf16_fly_string,
             .prelude = rule.prelude_text.to_utf8(),
@@ -584,8 +583,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     else
         parsing_params = CSS::Parser::ParsingParams {};
 
-    auto syntax_component_values = parse_component_values_list(parsing_params, syntax_maybe.value());
-    auto maybe_syntax = parse_as_syntax(syntax_component_values, LimitSingleComponentIdentToCustomIdent::Yes);
+    auto maybe_syntax = parse_as_syntax(syntax_maybe.value(), LimitSingleComponentIdentToCustomIdent::Yes);
 
     // If the provided string is not a valid syntax string (if it returns failure when consume
     // a syntax definition is called on it), the descriptor is invalid and must be ignored.
@@ -1229,7 +1227,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
             if (unparsed_default->is_css_wide_keyword() || unparsed_default->as_unresolved().contains_arbitrary_substitution_function()) {
                 default_value = move(unparsed_default);
             } else {
-                auto parsed = parse_with_a_syntax(unresolved_style_value_components(unparsed_default->as_unresolved()), *type);
+                auto parsed = parse_with_a_syntax(unparsed_default->as_unresolved().token_source(), *type);
                 if (parsed->is_guaranteed_invalid())
                     return {};
                 default_value = move(parsed);

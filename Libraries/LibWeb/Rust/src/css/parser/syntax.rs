@@ -72,7 +72,6 @@ struct ParsedSyntax {
     children: Vec<usize>,
     values: Vec<u16>,
     root: usize,
-    consumed_component_values: usize,
 }
 
 struct ParsedSyntaxNode {
@@ -157,7 +156,7 @@ fn flatten_syntax_node(
     node_index
 }
 
-fn parsed_syntax(syntax: SyntaxNode, consumed_component_values: usize) -> ParsedSyntax {
+fn parsed_syntax(syntax: SyntaxNode) -> ParsedSyntax {
     let mut nodes = Vec::new();
     let mut children = Vec::new();
     let mut values = Vec::new();
@@ -167,7 +166,6 @@ fn parsed_syntax(syntax: SyntaxNode, consumed_component_values: usize) -> Parsed
         children,
         values,
         root,
-        consumed_component_values,
     }
 }
 
@@ -491,36 +489,12 @@ pub unsafe extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_
         let Some(syntax) = parse_syntax(&source, limit_ident_to_custom_ident) else {
             return std::ptr::null_mut();
         };
-        Box::into_raw(Box::new(parsed_syntax(syntax, 0))).cast()
-    })
-}
-
-/// Parses one CSS syntax component and returns an opaque syntax tree.
-///
-/// # Safety
-/// `source` must remain readable for `source_length` UTF-16 code units during this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_syntax_component(
-    source: FfiUtf16View,
-    limit_ident_to_custom_ident: bool,
-) -> *mut c_void {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null_mut();
-        };
-        let Some(values) = consume_a_list_of_component_values(tokenize_for_parser(source)).ok() else {
-            return std::ptr::null_mut();
-        };
-        let mut position = 0;
-        let Some(syntax) = parse_component(&values, &mut position, limit_ident_to_custom_ident) else {
-            return std::ptr::null_mut();
-        };
-        Box::into_raw(Box::new(parsed_syntax(syntax, position))).cast()
+        Box::into_raw(Box::new(parsed_syntax(syntax))).cast()
     })
 }
 
 /// # Safety
-/// `syntax` must be a live handle returned by `rust_parse_syntax` or `rust_parse_syntax_component`.
+/// `syntax` must be a live handle returned by `rust_parse_syntax`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_syntax_root(syntax: *const c_void) -> usize {
     crate::abort_on_panic(|| unsafe { &*syntax.cast::<ParsedSyntax>() }.root)
@@ -572,13 +546,6 @@ pub unsafe extern "C" fn rust_syntax_node_child(syntax: *const c_void, node: usi
         let node = &syntax.nodes[node];
         syntax.children[node.children_start + child]
     })
-}
-
-/// # Safety
-/// `syntax` must be a live parsed-syntax handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_consumed_component_values(syntax: *const c_void) -> usize {
-    crate::abort_on_panic(|| unsafe { &*syntax.cast::<ParsedSyntax>() }.consumed_component_values)
 }
 
 /// # Safety

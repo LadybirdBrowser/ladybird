@@ -20,9 +20,9 @@ use crate::css::parser::component_value::{ComponentValue, consume_a_list_of_comp
 use crate::css::parser::fonts_parser::parse_font_descriptor;
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
-    FfiFontDescriptorKind, FfiValueParsingContext, FfiValueParsingContextKind, NumericRange, ParseContext,
-    ParseOutcome, is_valid_custom_ident, parse_css_value, parse_integer_from_stream, parse_length_value,
-    parse_percentage_value, retain_fly_string, string_style_value, unresolved_value, value_list,
+    FfiValueParsingContext, FfiValueParsingContextKind, FontDescriptorKind, NumericRange, ParseContext, ParseOutcome,
+    is_valid_custom_ident, parse_css_value, parse_integer_from_stream, parse_length_value, parse_percentage_value,
+    retain_fly_string, string_style_value, unresolved_value, value_list,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{RetainedStyleValueData, RetainedUtf16FlyString, StyleValueData};
@@ -30,7 +30,6 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 pub(crate) struct ParsedDescriptor {
-    pub id: u8,
     pub value: Arc<StyleValueData>,
 }
 
@@ -304,19 +303,19 @@ fn parse_value_type(
 ) -> Option<StyleValueData> {
     match value_type {
         DescriptorValueType::FamilyName => {
-            match parse_font_descriptor(context, FfiFontDescriptorKind::FamilyName, values) {
+            match parse_font_descriptor(context, FontDescriptorKind::FamilyName, values) {
                 ParseOutcome::Parsed(value) => into_owned(value),
                 _ => None,
             }
         }
         DescriptorValueType::FontSrcList => {
-            match parse_font_descriptor(context, FfiFontDescriptorKind::SourceList, values) {
+            match parse_font_descriptor(context, FontDescriptorKind::SourceList, values) {
                 ParseOutcome::Parsed(value) => into_owned(value),
                 _ => None,
             }
         }
         DescriptorValueType::UnicodeRangeTokens => {
-            match parse_font_descriptor(context, FfiFontDescriptorKind::UnicodeRangeList, values) {
+            match parse_font_descriptor(context, FontDescriptorKind::UnicodeRangeList, values) {
                 ParseOutcome::Parsed(value) => into_owned(value),
                 _ => None,
             }
@@ -485,7 +484,7 @@ pub(crate) fn parse_descriptor(
     value_contexts.push(FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Descriptor,
         value: u16::from(at_rule),
-        secondary_value: u16::from(metadata.id),
+        secondary_value: 0,
         name: FfiUtf16View::default(),
     });
     let mut descriptor_context = *context;
@@ -501,10 +500,7 @@ pub(crate) fn parse_descriptor(
     } else {
         parse_with_metadata(&descriptor_context, &metadata, values, source)?
     };
-    Some(ParsedDescriptor {
-        id: metadata.id,
-        value: Arc::new(value),
-    })
+    Some(ParsedDescriptor { value: Arc::new(value) })
 }
 
 /// Parses one descriptor value and returns retained Rust style-value data.

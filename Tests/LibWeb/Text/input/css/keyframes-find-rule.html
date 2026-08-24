@@ -30,5 +30,8 @@
         println(
             "invalid selectors return null: " + invalidSelectors.every(selector => fooRule.findRule(selector) === null)
         );
+
+        const deeplyNestedSelector = "f(".repeat(300) + "0%" + ")".repeat(300);
+        println("deeply nested selector returns null: " + (fooRule.findRule(deeplyNestedSelector) === null));
     });
 </script>

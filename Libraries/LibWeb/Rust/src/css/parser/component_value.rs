@@ -99,6 +99,16 @@ impl ComponentValue {
     }
 }
 
+pub(crate) fn trim_whitespace(mut values: &[ComponentValue]) -> &[ComponentValue] {
+    while values.first().is_some_and(ComponentValue::is_whitespace) {
+        values = &values[1..];
+    }
+    while values.last().is_some_and(ComponentValue::is_whitespace) {
+        values = &values[..values.len() - 1];
+    }
+    values
+}
+
 #[derive(Clone, Copy)]
 pub(crate) enum ComponentSerializationMode {
     Normalized,
@@ -621,7 +631,7 @@ mod tests {
     }
 
     #[test]
-    fn serializes_component_values_like_the_cpp_oracle() {
+    fn serializes_component_values_in_each_mode() {
         let values = parse("a b 1.00PX url(value) [x 2.00PX]");
         assert_eq!(
             serialize(&values, ComponentSerializationMode::Normalized).as_deref(),

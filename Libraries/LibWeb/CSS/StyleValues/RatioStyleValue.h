@@ -22,8 +22,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    Vector<Parser::ComponentValue> tokenize() const;
-
 private:
     friend class StyleValue;
 

@@ -147,7 +147,6 @@ impl FfiDisplay {
     }
 
     pub(crate) fn from_single_keyword(value: u16) -> Option<Self> {
-        // NB: Mirror parse_single_component_display() in the C++ property parser.
         let display = match value {
             keyword::NONE => Self::none(),
             keyword::CONTENTS => Self::contents(),

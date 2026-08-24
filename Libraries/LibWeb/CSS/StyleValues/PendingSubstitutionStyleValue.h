@@ -14,8 +14,6 @@ namespace Web::CSS {
 class PendingSubstitutionStyleValue final : public StyleValueWithDefaultOperators<PendingSubstitutionStyleValue> {
 public:
     virtual ~PendingSubstitutionStyleValue() override = default;
-    Vector<Parser::ComponentValue> tokenize() const;
-
     ValueComparingNonnullRefPtr<StyleValue const> original_shorthand_value() const { return wrap_rust_child(m_value->pending_substitution.original_shorthand_value); }
 
     // NB: Pending-substitution values never compare equal (their value is unknown);

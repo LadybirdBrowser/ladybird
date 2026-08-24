@@ -9,9 +9,9 @@
 use super::component_value::ComponentValue;
 use super::token_stream::TokenStream;
 use super::value_parser::{
-    FfiFontDescriptorKind, NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome,
-    equals_ascii_case_insensitive, is_valid_custom_ident, parse_angle_from_stream, parse_integer_from_stream,
-    parse_number_from_stream, retain_fly_string, string_style_value, value_list,
+    FontDescriptorKind, NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, is_valid_custom_ident,
+    parse_angle_from_stream, parse_integer_from_stream, parse_number_from_stream, retain_fly_string,
+    string_style_value, value_list,
 };
 use crate::css::css_enums::{
     font_tech, keyword, keyword_from_ascii_case_insensitive, keyword_to_common_lig_value,
@@ -567,22 +567,22 @@ fn parse_unicode_ranges(values: &[ComponentValue]) -> Option<StyleValueData> {
 
 pub(crate) fn parse_font_descriptor(
     context: &ParseContext,
-    kind: FfiFontDescriptorKind,
+    kind: FontDescriptorKind,
     values: &[ComponentValue],
 ) -> ParseOutcome {
     if contains_substitution(values) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let parsed = match kind {
-        FfiFontDescriptorKind::FamilyName => parse_family_name(context, values),
-        FfiFontDescriptorKind::SourceList => {
+        FontDescriptorKind::FamilyName => parse_family_name(context, values),
+        FontDescriptorKind::SourceList => {
             let sources = values
                 .split(ComponentValue::is_comma)
                 .filter_map(|source| parse_font_source(context, source))
                 .collect::<Vec<_>>();
             (!sources.is_empty()).then(|| value_list(sources, 1, true))
         }
-        FfiFontDescriptorKind::UnicodeRangeList => parse_unicode_ranges(values),
+        FontDescriptorKind::UnicodeRangeList => parse_unicode_ranges(values),
     };
     parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
 }
@@ -599,10 +599,10 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
             | property_id::FONT_VARIANT_LIGATURES
             | property_id::FONT_VARIANT_NUMERIC
     ) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     if contains_substitution(values) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let single_keyword = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
     if let [value] = single_keyword.as_slice()
@@ -637,7 +637,7 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
 
 #[cfg(test)]
 mod tests {
-    use super::{FfiFontDescriptorKind, parse_font_descriptor, parse_font_property};
+    use super::{FontDescriptorKind, parse_font_descriptor, parse_font_property};
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
     use crate::css::parser::value_parser::{ParseContext, ParseOutcome};
@@ -684,7 +684,7 @@ mod tests {
         parse_font_property(&context(), property, &values)
     }
 
-    fn parse_descriptor(kind: FfiFontDescriptorKind, source: &str) -> ParseOutcome {
+    fn parse_descriptor(kind: FontDescriptorKind, source: &str) -> ParseOutcome {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_font_descriptor(&context(), kind, &values)
     }
@@ -784,7 +784,7 @@ mod tests {
         ] {
             assert!(
                 matches!(
-                    parse_descriptor(FfiFontDescriptorKind::SourceList, source),
+                    parse_descriptor(FontDescriptorKind::SourceList, source),
                     ParseOutcome::Parsed(_)
                 ),
                 "{source}"
@@ -793,19 +793,19 @@ mod tests {
         for source in ["U+26", "U+0-10FFFF", "U+4??, U+1F600-1F64F"] {
             assert!(
                 matches!(
-                    parse_descriptor(FfiFontDescriptorKind::UnicodeRangeList, source),
+                    parse_descriptor(FontDescriptorKind::UnicodeRangeList, source),
                     ParseOutcome::Parsed(_)
                 ),
                 "{source}"
             );
         }
         assert!(matches!(
-            parse_descriptor(FfiFontDescriptorKind::FamilyName, "Ladybird Sans"),
+            parse_descriptor(FontDescriptorKind::FamilyName, "Ladybird Sans"),
             ParseOutcome::Parsed(_)
         ));
         for source in ["U +26", "U+110000", "U+20-10"] {
             assert!(matches!(
-                parse_descriptor(FfiFontDescriptorKind::UnicodeRangeList, source),
+                parse_descriptor(FontDescriptorKind::UnicodeRangeList, source),
                 ParseOutcome::Invalid
             ));
         }

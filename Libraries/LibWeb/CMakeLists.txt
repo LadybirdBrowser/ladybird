@@ -206,8 +206,6 @@ set(SOURCES
     CSS/NumericType.cpp
     CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
-    CSS/Parser/ArbitrarySubstitutionFunctions.cpp
-    CSS/Parser/ComponentValue.cpp
     CSS/Parser/DescriptorParsing.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/FastColorParsing.cpp
@@ -221,8 +219,6 @@ set(SOURCES
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Parser/Syntax.cpp
-    CSS/Parser/Token.cpp
-    CSS/Parser/Types.cpp
     CSS/Percentage.cpp
     CSS/PreferredColorScheme.cpp
     CSS/Ratio.cpp
@@ -1229,7 +1225,6 @@ set(GENERATED_SOURCES
     CSS/GeneratedCSSStyleProperties.idl
     CSS/Keyword.cpp
     CSS/MediaFeatureID.cpp
-    CSS/Parser/GeneratedValueTypesParsing.cpp
     CSS/PropertyID.cpp
     CSS/PseudoClass.h
     CSS/PseudoElement.cpp

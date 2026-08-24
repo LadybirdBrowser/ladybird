@@ -6,10 +6,13 @@
 
 use crate::css::css_tokenizer::{ParserString, ParserTokenKind, TokenizerInput, tokenize_for_parser};
 use crate::css::ffi_support::FfiUtf16View;
-use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use crate::css::parser::component_value::{
+    ComponentKind, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
+};
 use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
-use crate::css::parser::value_parser::is_valid_custom_ident;
+use crate::css::parser::value_parser::{equals_ascii_case_insensitive, is_valid_custom_ident};
+use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -128,14 +131,6 @@ pub(crate) struct MediaQuery {
     pub valid: bool,
 }
 
-fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
-    value.len() == expected.len()
-        && value
-            .iter()
-            .zip(expected)
-            .all(|(&left, &right)| u8::try_from(left).is_ok_and(|left| left.eq_ignore_ascii_case(&right)))
-}
-
 fn is_ident(value: &ComponentValue, expected: &[u8]) -> bool {
     value
         .ident()
@@ -150,18 +145,6 @@ fn parenthesized_values(value: &ComponentValue) -> Option<&[ComponentValue]> {
         } => Some(values),
         _ => None,
     }
-}
-
-fn trim_whitespace(values: &[ComponentValue]) -> &[ComponentValue] {
-    let start = values
-        .iter()
-        .position(|value| !value.is_whitespace())
-        .unwrap_or(values.len());
-    let end = values
-        .iter()
-        .rposition(|value| !value.is_whitespace())
-        .map_or(start, |end| end + 1);
-    &values[start..end]
 }
 
 fn original_source(values: &[ComponentValue]) -> ParserString {
@@ -1387,6 +1370,39 @@ impl FfiQueryParse {
 }
 
 type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
+
+type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
+
+/// Splits a sizes attribute into its top-level condition and source-size value components.
+///
+/// # Safety
+/// The source must remain readable during the call. The callback must be valid and may only
+/// retain copies of the borrowed source slices.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
+    source: FfiUtf16View,
+    context: *mut c_void,
+    visit: VisitSizesAttributeEntry,
+) -> bool {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return false;
+        };
+        let Some(values) = components_from_source(source) else {
+            return false;
+        };
+        for entry in values.split(ComponentValue::is_comma) {
+            let entry = trim_whitespace(entry);
+            let (condition, size) = entry.split_last().map_or((&[][..], &[][..]), |(size, condition)| {
+                (trim_whitespace(condition), std::slice::from_ref(size))
+            });
+            let condition = original_source(condition);
+            let size = original_source(size);
+            unsafe { visit(context, condition.as_ptr(), condition.len(), size.as_ptr(), size.len()) };
+        }
+        true
+    })
+}
 
 fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
     move |kind, name| {

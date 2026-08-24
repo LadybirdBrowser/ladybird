@@ -17,22 +17,21 @@ use crate::css::css_enums::{
 };
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{
-    CssHashType, CssNumberType, CssTokenType, ParserString, ParserToken, ParserTokenKind, TokenizerInput,
-    tokenize_for_parser, tokenize_for_parser_without_source,
+    CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser, tokenize_for_parser_without_source,
 };
 use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::arbitrary_substitution::{
-    SubstitutionFunctionsPresence, arguments_are_valid_for_ffi, collect_arbitrary_substitution_function_presence,
-    declaration_value_is_valid, substitution_function_presence_bits,
+    SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence, declaration_value_is_valid,
+    substitution_function_presence_bits,
 };
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, consume_a_list_of_component_values, consume_a_small_list_of_component_values,
 };
-use crate::css::parser::fonts_parser::{parse_font_descriptor, parse_font_property};
+use crate::css::parser::fonts_parser::parse_font_property;
 use crate::css::parser::grid_parser::parse_grid_property;
 use crate::css::parser::images_gradients_parser::{is_image_function_name, parse_image_property, parse_image_value};
 use crate::css::parser::positions_shapes_parser::{
@@ -72,25 +71,6 @@ pub(crate) fn is_dimension_unit(unit: &[u16]) -> bool {
         .chain(TIME_UNIT_NAMES.iter())
         .any(|known_unit| equals_ascii_case_insensitive(unit, known_unit.as_bytes()))
 }
-
-pub(crate) const PROPERTY_NOT_PORTED: NotHandledReason = NotHandledReason {
-    c_label: b"property:not-ported\0",
-};
-const COMPONENT_VALUES_INVALID: NotHandledReason = NotHandledReason {
-    c_label: b"component-values:invalid\0",
-};
-const INVALID_FFI_INPUT: NotHandledReason = NotHandledReason {
-    c_label: b"ffi:invalid-input\0",
-};
-pub(crate) const SUBSTITUTION_NOT_PORTED: NotHandledReason = NotHandledReason {
-    c_label: b"substitution\0",
-};
-const SHORTHAND_NOT_PORTED: NotHandledReason = NotHandledReason {
-    c_label: b"shorthand:not-ported\0",
-};
-pub(crate) const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
-    c_label: b"function:not-ported\0",
-};
 
 // NB: Keep these in the order of the C++ ValueType enum.
 pub(crate) const VALUE_TYPE_ANGLE: u8 = 2;
@@ -132,10 +112,6 @@ const PORTED_NUMERIC_VALUE_TYPES: [u8; 11] = [
     VALUE_TYPE_RESOLUTION,
     VALUE_TYPE_TIME,
 ];
-
-pub(crate) struct NotHandledReason {
-    c_label: &'static [u8],
-}
 
 /// The C++ value-parsing contexts which affect grammar decisions.
 #[repr(u8)]
@@ -216,21 +192,10 @@ impl ParseContext {
     }
 }
 
-#[repr(C)]
-pub struct FfiParserToken {
-    pub number_value: f64,
-    pub value_offset: usize,
-    pub value_length: usize,
-    pub delim: u32,
-    pub token_type: u8,
-    pub hash_type: u8,
-    pub number_type: u8,
-}
-
 pub(crate) enum ParseOutcome {
     Parsed(Arc<StyleValueData>),
     Invalid,
-    NotHandled(&'static NotHandledReason),
+    NotHandled,
 }
 
 struct SharedKeywordValues(Box<[Arc<StyleValueData>]>);
@@ -277,8 +242,7 @@ fn parse_builtin_value(values: &[ComponentValue]) -> Option<StyleValueData> {
 }
 
 fn property_uses_special_keyword_parser(property: u16) -> bool {
-    // NB: These properties preceded the generic generated-property parser in the former C++ value parser.
-    //     Their single-keyword results can have extra grammar constraints or specialized value types.
+    // NB: These properties have extra single-keyword grammar constraints or specialized value types.
     matches!(
         property,
         property_id::ALIGN_ITEMS
@@ -1018,11 +982,11 @@ pub(crate) fn is_arbitrary_substitution_function(name: &[u16]) -> bool {
             .any(|function| equals_ascii_case_insensitive(name, function.as_bytes()))
 }
 
-fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHandledReason> {
-    values.iter().find_map(|value| match &value.kind {
+fn contains_unported_function(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
         ComponentKind::Function { name, values } => {
             if is_arbitrary_substitution_function(name) {
-                Some(&SUBSTITUTION_NOT_PORTED)
+                true
             } else if math_function_from_name(name).is_some()
                 || equals_ascii_case_insensitive(name, b"sibling-count")
                 || equals_ascii_case_insensitive(name, b"sibling-index")
@@ -1031,16 +995,16 @@ fn unported_function_reason(values: &[ComponentValue]) -> Option<&'static NotHan
                 || is_transform_effect_function_name(name)
                 || is_image_function_name(name)
             {
-                unported_function_reason(values)
+                contains_unported_function(values)
             } else {
-                // NB: C++ numeric grammars can accept functions such as
-                //     anchor-size(). Until Rust parses a function itself, it
-                //     cannot authoritatively reject the enclosing value.
-                Some(&FUNCTION_NOT_PORTED)
+                // NB: Numeric grammars can accept functions such as anchor-size(). Until this
+                //     parser handles a function itself, it cannot authoritatively reject the
+                //     enclosing value.
+                true
             }
         }
-        ComponentKind::SimpleBlock { values, .. } => unported_function_reason(values),
-        ComponentKind::Token(_) => None,
+        ComponentKind::SimpleBlock { values, .. } => contains_unported_function(values),
+        ComponentKind::Token(_) => false,
     })
 }
 
@@ -1622,7 +1586,7 @@ fn parse_keyword_combination_property(property: u16, values: &[ComponentValue]) 
                 keyword_value_list(keywords)
             }
         }
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     ParseOutcome::Parsed(shared_style_value(parsed))
 }
@@ -1734,7 +1698,7 @@ fn parse_math_depth_property(context: &ParseContext, property: u16, values: &[Co
         return ParseOutcome::Invalid;
     }
     let Some(name) = retain_fly_string(context, &"add".encode_utf16().collect::<Vec<_>>()) else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     };
     ParseOutcome::Parsed(shared_style_value(StyleValueData::Function {
         name,
@@ -2639,10 +2603,10 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
             | property_id::TRANSITION_PROPERTY
             | property_id::WILL_CHANGE
     ) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
-    if let Some(reason) = unported_function_reason(values) {
-        return ParseOutcome::NotHandled(reason);
+    if contains_unported_function(values) {
+        return ParseOutcome::NotHandled;
     }
 
     let single_value = single_non_whitespace_value(values);
@@ -2761,7 +2725,7 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
             return ParseOutcome::Invalid;
         }
         let Some(scheme) = retain_fly_string(context, identifier) else {
-            return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         };
         schemes.push(scheme);
         scheme_codes.push(if equals_ascii_case_insensitive(identifier, b"dark") {
@@ -2824,7 +2788,7 @@ fn parse_counter_definitions_property(
                 return ParseOutcome::Invalid;
             }
             let Some(name) = retain_fly_string(context, identifier) else {
-                return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+                return ParseOutcome::NotHandled;
             };
             tokens.discard_a_token();
             (name, false)
@@ -2842,7 +2806,7 @@ fn parse_counter_definitions_property(
                 return ParseOutcome::Invalid;
             }
             let Some(name) = retain_fly_string(context, identifier) else {
-                return ParseOutcome::NotHandled(&SUBSTITUTION_NOT_PORTED);
+                return ParseOutcome::NotHandled;
             };
             tokens.discard_a_token();
             (name, true)
@@ -3324,14 +3288,14 @@ fn parse_long_tail_property(context: &ParseContext, property: u16, values: &[Com
                 value
                     .function()
                     .is_some_and(|(name, _)| math_function_from_name(name).is_some())
-            }) && unported_function_reason(values).is_some()
+            }) && contains_unported_function(values)
                 && !contains_tree_counting_function(values)
             {
-                return ParseOutcome::NotHandled(&FUNCTION_NOT_PORTED);
+                return ParseOutcome::NotHandled;
             }
             parse_counter_definitions_property(context, property, values)
         }
-        _ => ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => ParseOutcome::NotHandled,
     }
 }
 
@@ -3353,10 +3317,10 @@ fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: 
         || !property_has_coordinating_list_multiplicity(property)
         || property_uses_special_keyword_parser(property)
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
-    if let Some(reason) = unported_function_reason(values) {
-        return ParseOutcome::NotHandled(reason);
+    if contains_unported_function(values) {
+        return ParseOutcome::NotHandled;
     }
 
     let fully_ported = property_leaf_grammar_is_fully_ported(property);
@@ -3367,19 +3331,19 @@ fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: 
             return if fully_ported {
                 ParseOutcome::Invalid
             } else {
-                ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+                ParseOutcome::NotHandled
             };
         };
         if item_values.next().is_some() {
-            // NB: C++ numeric leaves can reach the calculation parser for
-            //     operator expressions without an explicit calc() wrapper.
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            // NB: Operator expressions without an explicit calc() wrapper require the calculation
+            //     parser path.
+            return ParseOutcome::NotHandled;
         }
         let Some(parsed) = parse_single_property_leaf(context, property, value) else {
             return if fully_ported {
                 ParseOutcome::Invalid
             } else {
-                ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+                ParseOutcome::NotHandled
             };
         };
         parsed_values.push(parsed);
@@ -3396,14 +3360,14 @@ fn parse_generic_text_property(context: &ParseContext, property: u16, values: &[
             .iter()
             .any(|value_type| PORTED_TEXT_VALUE_TYPES.contains(value_type))
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
-    if let Some(reason) = unported_function_reason(values) {
-        return ParseOutcome::NotHandled(reason);
+    if contains_unported_function(values) {
+        return ParseOutcome::NotHandled;
     }
 
     let Some(value) = single_non_whitespace_value(values) else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     };
     if let Some(parsed) = parse_single_property_leaf(context, property, value) {
         return ParseOutcome::Parsed(shared_style_value(parsed));
@@ -3411,7 +3375,7 @@ fn parse_generic_text_property(context: &ParseContext, property: u16, values: &[
     if property_leaf_grammar_is_fully_ported(property) {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+    ParseOutcome::NotHandled
 }
 
 fn parse_generic_space_separated_value_list(
@@ -3425,10 +3389,10 @@ fn parse_generic_space_separated_value_list(
         || property_uses_special_keyword_parser(property)
         || maximum_value_count == 1
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
-    if let Some(reason) = unported_function_reason(values) {
-        return ParseOutcome::NotHandled(reason);
+    if contains_unported_function(values) {
+        return ParseOutcome::NotHandled;
     }
 
     let parsed_values = values
@@ -3440,7 +3404,7 @@ fn parse_generic_space_separated_value_list(
         return if property_leaf_grammar_is_fully_ported(property) {
             ParseOutcome::Invalid
         } else {
-            ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+            ParseOutcome::NotHandled
         };
     };
     if parsed_values.is_empty() || parsed_values.len() > maximum_value_count {
@@ -3459,12 +3423,10 @@ fn parse_generic_numeric_property(context: &ParseContext, property: u16, values:
         || property_uses_special_keyword_parser(property)
         || !property_uses_numeric_parser(property)
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
-    if let Some(reason) = unported_function_reason(values)
-        && !contains_tree_counting_function(values)
-    {
-        return ParseOutcome::NotHandled(reason);
+    if contains_unported_function(values) && !contains_tree_counting_function(values) {
+        return ParseOutcome::NotHandled;
     }
 
     let non_whitespace_values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
@@ -3502,7 +3464,7 @@ fn parse_generic_numeric_property(context: &ParseContext, property: u16, values:
     if property_numeric_grammar_is_fully_ported(property) && single_value.is_some() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+    ParseOutcome::NotHandled
 }
 
 fn parse_generic_property_keyword(property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -3511,11 +3473,11 @@ fn parse_generic_property_keyword(property: u16, values: &[ComponentValue]) -> P
         || property_has_coordinating_list_multiplicity(property)
         || property_uses_special_keyword_parser(property)
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
 
     let Some(identifier) = single_non_whitespace_value(values).and_then(ComponentValue::ident) else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     };
     let parsed_keyword = keyword_from_ascii_case_insensitive(identifier);
     if let Some(parsed_keyword) = parsed_keyword
@@ -3529,7 +3491,7 @@ fn parse_generic_property_keyword(property: u16, values: &[ComponentValue]) -> P
     if property_accepts_only_keywords(property) {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+    ParseOutcome::NotHandled
 }
 
 fn parse_display_keyword(values: &[ComponentValue]) -> ParseOutcome {
@@ -3618,7 +3580,7 @@ fn parse_color_property(context: &ParseContext, property: u16, values: &[Compone
         || property_is_shorthand(property)
         || !property_accepted_value_types(property).contains(&VALUE_TYPE_COLOR)
     {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let mut stream = TokenStream::new(values);
     let Some(color) = parse_color_value(
@@ -3627,11 +3589,11 @@ fn parse_color_property(context: &ParseContext, property: u16, values: &[Compone
         &mut stream,
         context_allows_quirky_color(context, property),
     ) else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     };
     stream.discard_whitespace();
     if stream.has_next_token() {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     ParseOutcome::Parsed(shared_style_value(color))
 }
@@ -3642,7 +3604,7 @@ fn parse_positional_value_list_shorthand(
     values: &[ComponentValue],
 ) -> ParseOutcome {
     if !property_is_positional_value_list_shorthand(property) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
 
     let longhands = longhands_for_shorthand(property);
@@ -3655,7 +3617,7 @@ fn parse_positional_value_list_shorthand(
         .map(
             |value| match parse_css_value(context, representative_longhand, std::slice::from_ref(value)) {
                 ParseOutcome::Parsed(value) => Some((*value).clone()),
-                ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
+                ParseOutcome::Invalid | ParseOutcome::NotHandled => None,
             },
         )
         .collect::<Option<Vec<_>>>();
@@ -3694,7 +3656,7 @@ fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<Style
     let values = consume_a_list_of_component_values(tokenize_for_parser(initial.as_bytes())).ok()?;
     match parse_css_value(context, property, &values) {
         ParseOutcome::Parsed(value) => Some((*value).clone()),
-        ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
+        ParseOutcome::Invalid | ParseOutcome::NotHandled => None,
     }
 }
 
@@ -3749,7 +3711,7 @@ fn parse_slice_for_property(
             }
             Some((*value).clone())
         }
-        ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => None,
+        ParseOutcome::Invalid | ParseOutcome::NotHandled => None,
     }
 }
 
@@ -3768,7 +3730,7 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
             | property_id::OUTLINE
             | property_id::TEXT_WRAP
     ) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
 
     let longhands = longhands_for_shorthand(property);
@@ -3853,7 +3815,7 @@ fn parse_border_shorthand(context: &ParseContext, property: u16, values: &[Compo
             property_id::BORDER_INLINE_STYLE,
             property_id::BORDER_INLINE_COLOR,
         ),
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     let candidates = [width_property, color_property, style_property];
     let mut parsed = [None, None, None];
@@ -4060,7 +4022,7 @@ fn parse_container_shorthand(context: &ParseContext, values: &[ComponentValue]) 
     let container_type = match type_values {
         Some(values) => match parse_css_value(context, property_id::CONTAINER_TYPE, values) {
             ParseOutcome::Parsed(value) => (*value).clone(),
-            ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => return ParseOutcome::Invalid,
+            ParseOutcome::Invalid | ParseOutcome::NotHandled => return ParseOutcome::Invalid,
         },
         None => match parse_initial_longhand(context, property_id::CONTAINER_TYPE) {
             Some(value) => value,
@@ -4079,7 +4041,7 @@ fn parse_place_shorthand(context: &ParseContext, property: u16, values: &[Compon
         property_id::PLACE_CONTENT => (property_id::ALIGN_CONTENT, property_id::JUSTIFY_CONTENT),
         property_id::PLACE_ITEMS => (property_id::ALIGN_ITEMS, property_id::JUSTIFY_ITEMS),
         property_id::PLACE_SELF => (property_id::ALIGN_SELF, property_id::JUSTIFY_SELF),
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     if let ParseOutcome::Parsed(align_value) = parse_css_value(context, align, values)
         && matches!(&*align_value, StyleValueData::Keyword { .. })
@@ -4236,7 +4198,7 @@ fn parse_white_space_shorthand(context: &ParseContext, values: &[ComponentValue]
                     parsed[2] = Some((*value).clone());
                     continue;
                 }
-                ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => {}
+                ParseOutcome::Invalid | ParseOutcome::NotHandled => {}
             }
         }
         return ParseOutcome::Invalid;
@@ -4270,7 +4232,7 @@ fn parse_overflow_clip_margin_shorthand(
             | property_id::OVERFLOW_CLIP_MARGIN_BLOCK
             | property_id::OVERFLOW_CLIP_MARGIN_INLINE
     ) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let Some(&longhand) = longhands_for_shorthand(property).first() else {
         return ParseOutcome::Invalid;
@@ -4987,7 +4949,7 @@ fn parse_timeline_shorthand(context: &ParseContext, property: u16, values: &[Com
             property_id::VIEW_TIMELINE_AXIS,
             Some(property_id::VIEW_TIMELINE_INSET),
         ),
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     let mut names = Vec::new();
     let mut axes = Vec::new();
@@ -5081,7 +5043,7 @@ fn parse_animation_transition_shorthand(
             ][..],
             None,
         ),
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     let layers = values.split(ComponentValue::is_comma).collect::<Vec<_>>();
     let mut coordinated = vec![Vec::with_capacity(layers.len()); parsed_longhands.len()];
@@ -5258,31 +5220,31 @@ fn parse_css_value_after_substitution_scan(
     };
     if property_is_shorthand(property_id) {
         let outcome = parse_grid_property(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_geometry_property(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_anchor_fit_property(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_position_property(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_positional_value_list_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_unordered_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_border_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         if property_id == property_id::FLEX {
@@ -5295,7 +5257,7 @@ fn parse_css_value_after_substitution_scan(
             return parse_container_shorthand(context, values);
         }
         let outcome = parse_place_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         if property_id == property_id::LIST_STYLE {
@@ -5305,7 +5267,7 @@ fn parse_css_value_after_substitution_scan(
             return parse_white_space_shorthand(context, values);
         }
         let outcome = parse_overflow_clip_margin_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         if property_id == property_id::TEXT_DECORATION {
@@ -5327,28 +5289,28 @@ fn parse_css_value_after_substitution_scan(
             return parse_mask_shorthand(context, values);
         }
         let outcome = parse_timeline_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         let outcome = parse_animation_transition_shorthand(context, property_id, values);
-        if !matches!(outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
         }
         if property_id == property_id::ALL {
             return ParseOutcome::Invalid;
         }
-        return ParseOutcome::NotHandled(&SHORTHAND_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let font_outcome = parse_font_property(context, property_id, values);
-    if !matches!(font_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(font_outcome, ParseOutcome::NotHandled) {
         return font_outcome;
     }
     let grid_outcome = parse_grid_property(context, property_id, values);
-    if !matches!(grid_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(grid_outcome, ParseOutcome::NotHandled) {
         return grid_outcome;
     }
     let long_tail_outcome = parse_long_tail_property(context, property_id, values);
-    if !matches!(long_tail_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(long_tail_outcome, ParseOutcome::NotHandled) {
         return long_tail_outcome;
     }
     if matches!(
@@ -5447,62 +5409,62 @@ fn parse_css_value_after_substitution_scan(
     }
     if contains_tree_counting_function(values) {
         let tree_counting_outcome = parse_generic_numeric_property(context, property_id, values);
-        if !matches!(tree_counting_outcome, ParseOutcome::NotHandled(_)) {
+        if !matches!(tree_counting_outcome, ParseOutcome::NotHandled) {
             return tree_counting_outcome;
         }
     }
     if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let transform_effect_outcome = parse_transform_effect_property(context, property_id, values);
-    if !matches!(transform_effect_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(transform_effect_outcome, ParseOutcome::NotHandled) {
         return transform_effect_outcome;
     }
     let image_outcome = parse_image_property(context, property_id, values);
-    if !matches!(image_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(image_outcome, ParseOutcome::NotHandled) {
         return image_outcome;
     }
     let position_outcome = parse_position_property(context, property_id, values);
-    if !matches!(position_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(position_outcome, ParseOutcome::NotHandled) {
         return position_outcome;
     }
     let geometry_outcome = parse_geometry_property(context, property_id, values);
-    if !matches!(geometry_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(geometry_outcome, ParseOutcome::NotHandled) {
         return geometry_outcome;
     }
     let anchor_fit_outcome = parse_anchor_fit_property(context, property_id, values);
-    if !matches!(anchor_fit_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(anchor_fit_outcome, ParseOutcome::NotHandled) {
         return anchor_fit_outcome;
     }
     if property_id == property_id::DISPLAY {
         return parse_display_keyword(values);
     }
     let color_outcome = parse_color_property(context, property_id, values);
-    if !matches!(color_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(color_outcome, ParseOutcome::NotHandled) {
         return color_outcome;
     }
     let special_text_outcome = parse_special_text_property(context, property_id, values);
-    if !matches!(special_text_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(special_text_outcome, ParseOutcome::NotHandled) {
         return special_text_outcome;
     }
     let coordinating_list_outcome = parse_coordinating_value_list(context, property_id, values);
-    if !matches!(coordinating_list_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(coordinating_list_outcome, ParseOutcome::NotHandled) {
         return coordinating_list_outcome;
     }
     let space_separated_list_outcome = parse_generic_space_separated_value_list(context, property_id, values);
-    if !matches!(space_separated_list_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(space_separated_list_outcome, ParseOutcome::NotHandled) {
         return space_separated_list_outcome;
     }
     let keyword_outcome = parse_generic_property_keyword(property_id, values);
-    if !matches!(keyword_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(keyword_outcome, ParseOutcome::NotHandled) {
         return keyword_outcome;
     }
     let text_outcome = parse_generic_text_property(context, property_id, values);
-    if !matches!(text_outcome, ParseOutcome::NotHandled(_)) {
+    if !matches!(text_outcome, ParseOutcome::NotHandled) {
         return text_outcome;
     }
     match parse_generic_numeric_property(context, property_id, values) {
-        ParseOutcome::NotHandled(_) => ParseOutcome::Invalid,
+        ParseOutcome::NotHandled => ParseOutcome::Invalid,
         outcome => outcome,
     }
 }
@@ -5601,7 +5563,7 @@ pub(crate) fn svg_path_strings_from_source(source: &[u16]) -> Vec<Vec<u16>> {
 pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
     match component_values_from_source(source) {
         Ok(values) => parse_css_value_with_source(context, property_id, &values, source, &[]),
-        Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
+        Err(()) => ParseOutcome::NotHandled,
     }
 }
 
@@ -5612,125 +5574,10 @@ pub enum FfiParseStatus {
     Parsed,
     Invalid,
     NotHandled,
-    NeedsSerializedSource,
-    NeedsDocumentUrls,
 }
 
-fn component_values_need_document_urls(values: &[ComponentValue]) -> bool {
-    values.iter().any(|value| match &value.kind {
-        ComponentKind::Token(ParserTokenKind::Url(_)) => true,
-        ComponentKind::Function { name, values } => {
-            [b"url".as_slice(), b"src", b"image-set", b"-webkit-image-set"]
-                .iter()
-                .any(|expected| equals_ascii_case_insensitive(name, expected))
-                || component_values_need_document_urls(values)
-        }
-        ComponentKind::SimpleBlock { values, .. } => component_values_need_document_urls(values),
-        _ => false,
-    })
-}
-
-unsafe fn ffi_parser_tokens<'a>(tokens: *const FfiParserToken, token_count: usize) -> Option<&'a [FfiParserToken]> {
-    if token_count == 0 {
-        return Some(&[]);
-    }
-    if tokens.is_null() {
-        return None;
-    }
-    Some(unsafe { std::slice::from_raw_parts(tokens, token_count) })
-}
-
-unsafe fn ffi_parser_token_values<'a>(values: *const u16, value_count: usize) -> Option<&'a [u16]> {
-    if value_count == 0 {
-        return Some(&[]);
-    }
-    if values.is_null() {
-        return None;
-    }
-    Some(unsafe { std::slice::from_raw_parts(values, value_count) })
-}
-
-fn parser_token_from_ffi(token: &FfiParserToken, token_values: &[u16]) -> Option<ParserToken> {
-    if token.token_type > CssTokenType::CloseCurly as u8
-        || token.hash_type > CssHashType::Unrestricted as u8
-        || token.number_type > CssNumberType::Integer as u8
-    {
-        return None;
-    }
-    // SAFETY: The FFI codes were range-checked above and all three enums use contiguous discriminants.
-    let token_type = unsafe { std::mem::transmute::<u32, CssTokenType>(u32::from(token.token_type)) };
-    let hash_type = unsafe { std::mem::transmute::<u32, CssHashType>(u32::from(token.hash_type)) };
-    let number_type = unsafe { std::mem::transmute::<u32, CssNumberType>(u32::from(token.number_type)) };
-    let value = if token.value_length == 0 {
-        ParserString::Owned(Box::new([]))
-    } else {
-        let end = token.value_offset.checked_add(token.value_length)?;
-        if end > token_values.len() {
-            return None;
-        }
-        // SAFETY: `token_values` remains alive for the entire parse call, and
-        // parsed component values do not escape that call.
-        unsafe { ParserString::from_raw_parts(token_values.as_ptr().add(token.value_offset), token.value_length) }
-    };
-    let kind = match token_type {
-        CssTokenType::Invalid | CssTokenType::EndOfFile => return None,
-        CssTokenType::Ident => ParserTokenKind::Ident(value),
-        CssTokenType::Function => ParserTokenKind::Function(value),
-        CssTokenType::AtKeyword => ParserTokenKind::AtKeyword(value),
-        CssTokenType::Hash => ParserTokenKind::Hash {
-            value,
-            is_id: hash_type == CssHashType::Id,
-        },
-        CssTokenType::String => ParserTokenKind::String(value),
-        CssTokenType::BadString => ParserTokenKind::BadString,
-        CssTokenType::Url => ParserTokenKind::Url(value),
-        CssTokenType::BadUrl => ParserTokenKind::BadUrl,
-        CssTokenType::Delim => ParserTokenKind::Delim(token.delim),
-        CssTokenType::Number => ParserTokenKind::Number {
-            value: token.number_value,
-            number_type,
-        },
-        CssTokenType::Percentage => ParserTokenKind::Percentage {
-            value: token.number_value,
-            number_type,
-        },
-        CssTokenType::Dimension => ParserTokenKind::Dimension {
-            value: token.number_value,
-            number_type,
-            unit: value,
-        },
-        CssTokenType::Whitespace => ParserTokenKind::Whitespace,
-        CssTokenType::CDO => ParserTokenKind::Cdo,
-        CssTokenType::CDC => ParserTokenKind::Cdc,
-        CssTokenType::Colon => ParserTokenKind::Colon,
-        CssTokenType::Semicolon => ParserTokenKind::Semicolon,
-        CssTokenType::Comma => ParserTokenKind::Comma,
-        CssTokenType::OpenSquare => ParserTokenKind::OpenSquare,
-        CssTokenType::CloseSquare => ParserTokenKind::CloseSquare,
-        CssTokenType::OpenParen => ParserTokenKind::OpenParen,
-        CssTokenType::CloseParen => ParserTokenKind::CloseParen,
-        CssTokenType::OpenCurly => ParserTokenKind::OpenCurly,
-        CssTokenType::CloseCurly => ParserTokenKind::CloseCurly,
-    };
-    Some(ParserToken {
-        kind,
-        source: crate::css::css_tokenizer::ParserSource::empty(),
-        start_position: Default::default(),
-        end_position: Default::default(),
-    })
-}
-
-fn parser_tokens_from_ffi(tokens: &[FfiParserToken], token_values: &[u16]) -> Option<Vec<ParserToken>> {
-    tokens
-        .iter()
-        .map(|token| parser_token_from_ffi(token, token_values))
-        .collect()
-}
-
-#[repr(u8)]
 #[derive(Clone, Copy)]
-#[allow(dead_code)]
-pub enum FfiFontDescriptorKind {
+pub(crate) enum FontDescriptorKind {
     FamilyName,
     SourceList,
     UnicodeRangeList,
@@ -5741,220 +5588,75 @@ pub enum FfiFontDescriptorKind {
 ///
 /// # Safety
 /// All non-null pointers must remain readable for their accompanying lengths
-/// for the duration of this call. `out_status` and `out_reason` must be valid
-/// writable pointers.
+/// for the duration of this call. `out_status` must be a valid writable
+/// pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_css_value(
     context: *const ParseContext,
     property_id: u16,
     source: FfiUtf16View,
-    unresolved_source: FfiUtf16View,
-    comparison_source: FfiUtf16View,
-    retry_with_serialized_source: bool,
-    retry_without_document_urls: bool,
     out_status: *mut FfiParseStatus,
-    out_reason: *mut *const u8,
 ) -> *const c_void {
     crate::abort_on_panic(|| {
         let invalid_ffi_result = || {
             if !out_status.is_null() {
                 unsafe { *out_status = FfiParseStatus::NotHandled };
             }
-            if !out_reason.is_null() {
-                unsafe { *out_reason = INVALID_FFI_INPUT.c_label.as_ptr() };
-            }
             std::ptr::null()
         };
 
-        if context.is_null() || out_status.is_null() || out_reason.is_null() {
+        if context.is_null() || out_status.is_null() {
             return invalid_ffi_result();
         }
         let Some(source) = (unsafe { source.units() }) else {
-            return invalid_ffi_result();
-        };
-        let mut source_utf16 = Vec::with_capacity(source.len());
-        source.append_to(&mut source_utf16);
-        let Some(unresolved_source) = (unsafe { unresolved_source.to_utf16() }) else {
-            return invalid_ffi_result();
-        };
-        let Some(comparison_source) = (unsafe { comparison_source.to_utf16() }) else {
             return invalid_ffi_result();
         };
         let mut source_utf16 = Vec::with_capacity(source.len());
         source.append_to(&mut source_utf16);
         let context = unsafe { &*context };
         let outcome = match component_values_from_source(source) {
-            Ok(values) if retry_with_serialized_source => {
-                if values
-                    .iter()
-                    .any(|value| matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
-                {
-                    ParseOutcome::Invalid
-                } else {
-                    let mut substitution_presence = SubstitutionFunctionsPresence::default();
-                    if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
-                        ParseOutcome::Invalid
-                    } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
-                        unsafe {
-                            *out_status = FfiParseStatus::NeedsSerializedSource;
-                            *out_reason = std::ptr::null();
-                        }
-                        return std::ptr::null();
-                    } else if retry_without_document_urls && component_values_need_document_urls(&values) {
-                        unsafe {
-                            *out_status = FfiParseStatus::NeedsDocumentUrls;
-                            *out_reason = std::ptr::null();
-                        }
-                        return std::ptr::null();
-                    } else {
-                        parse_css_value_after_substitution_scan(
-                            context,
-                            property_id,
-                            &values,
-                            &[],
-                            &[],
-                            substitution_presence,
-                        )
-                    }
-                }
-            }
             Ok(values) => {
-                if unresolved_source.is_empty() {
-                    let mut substitution_presence = SubstitutionFunctionsPresence::default();
-                    if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
-                        ParseOutcome::Invalid
-                    } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
-                        match consume_a_list_of_component_values(tokenize_for_parser(source_utf16.as_slice())) {
-                            Ok(values) => {
-                                parse_css_value_with_utf16_source(context, property_id, &values, &source_utf16)
-                            }
-                            Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
-                        }
-                    } else {
-                        parse_css_value_after_substitution_scan(
-                            context,
-                            property_id,
-                            &values,
-                            &[],
-                            &[],
-                            substitution_presence,
-                        )
+                let mut substitution_presence = SubstitutionFunctionsPresence::default();
+                if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
+                    ParseOutcome::Invalid
+                } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+                    match consume_a_list_of_component_values(tokenize_for_parser(source_utf16.as_slice())) {
+                        Ok(values) => parse_css_value_with_utf16_source(context, property_id, &values, &source_utf16),
+                        Err(()) => ParseOutcome::NotHandled,
                     }
                 } else {
-                    parse_css_value_with_source(context, property_id, &values, &unresolved_source, &comparison_source)
+                    parse_css_value_after_substitution_scan(
+                        context,
+                        property_id,
+                        &values,
+                        &[],
+                        &[],
+                        substitution_presence,
+                    )
                 }
             }
-            Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
+            Err(()) => ParseOutcome::NotHandled,
         };
         match outcome {
             ParseOutcome::Parsed(value) => {
                 unsafe {
                     *out_status = FfiParseStatus::Parsed;
-                    *out_reason = std::ptr::null();
                 }
                 Arc::into_raw(value).cast()
             }
             ParseOutcome::Invalid => {
                 unsafe {
                     *out_status = FfiParseStatus::Invalid;
-                    *out_reason = std::ptr::null();
                 }
                 std::ptr::null()
             }
-            ParseOutcome::NotHandled(reason) => {
+            ParseOutcome::NotHandled => {
                 unsafe {
                     *out_status = FfiParseStatus::NotHandled;
-                    *out_reason = reason.c_label.as_ptr();
                 }
                 std::ptr::null()
             }
         }
-    })
-}
-
-/// Validates an arbitrary substitution function's argument grammar.
-///
-/// # Safety
-/// The token pointer must be valid for its accompanying length.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_validate_arbitrary_substitution_arguments(
-    function: u8,
-    tokens: *const FfiParserToken,
-    token_count: usize,
-    token_values: *const u16,
-    token_value_count: usize,
-) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(tokens) = (unsafe { ffi_parser_tokens(tokens, token_count) }) else {
-            return false;
-        };
-        let Some(token_values) = (unsafe { ffi_parser_token_values(token_values, token_value_count) }) else {
-            return false;
-        };
-        let Some(tokens) = parser_tokens_from_ffi(tokens, token_values) else {
-            return false;
-        };
-        let Ok(values) = consume_a_list_of_component_values(tokens) else {
-            return false;
-        };
-        arguments_are_valid_for_ffi(function, &values)
-    })
-}
-
-/// Validates an arbitrary substitution function's argument grammar from CSS source.
-///
-/// # Safety
-/// The source pointer must be valid for its accompanying length.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_validate_arbitrary_substitution_arguments_from_source(
-    function: u8,
-    source: FfiUtf16View,
-) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return false;
-        };
-        let Ok(values) = component_values_from_source(source) else {
-            return false;
-        };
-        arguments_are_valid_for_ffi(function, &values)
-    })
-}
-
-/// Validates a component-value list and returns its substitution-function presence bitmap.
-///
-/// # Safety
-/// The token pointer must be valid for its accompanying length and `out_presence`
-/// must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_collect_arbitrary_substitution_function_presence(
-    tokens: *const FfiParserToken,
-    token_count: usize,
-    token_values: *const u16,
-    token_value_count: usize,
-    out_presence: *mut u8,
-) -> bool {
-    crate::abort_on_panic(|| {
-        if out_presence.is_null() {
-            return false;
-        }
-        let Some(tokens) = (unsafe { ffi_parser_tokens(tokens, token_count) }) else {
-            return false;
-        };
-        let Some(token_values) = (unsafe { ffi_parser_token_values(token_values, token_value_count) }) else {
-            return false;
-        };
-        let Some(tokens) = parser_tokens_from_ffi(tokens, token_values) else {
-            return false;
-        };
-        let Ok(values) = consume_a_list_of_component_values(tokens) else {
-            return false;
-        };
-        let Some(presence) = substitution_function_presence_bits(&values) else {
-            return false;
-        };
-        unsafe { *out_presence = presence };
-        true
     })
 }
 
@@ -6031,6 +5733,51 @@ pub unsafe extern "C" fn rust_parse_font_feature_values(
             unsafe { std::ptr::copy_nonoverlapping(values.as_ptr(), output, values.len()) };
         }
         values.len()
+    })
+}
+
+type VisitMarginComponent = unsafe extern "C" fn(*mut c_void, u8, f64, *const u16, usize);
+
+/// Visits the dimension and percentage components accepted by intersection margins.
+///
+/// # Safety
+/// The source must remain readable during the call. The callback and context must be valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_visit_margin_components(
+    source: FfiUtf16View,
+    context: *mut c_void,
+    visit: VisitMarginComponent,
+) -> bool {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return false;
+        };
+        let Ok(values) = component_values_from_source(source) else {
+            return false;
+        };
+        let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+        if values.len() > 4
+            || values.iter().any(|value| {
+                !matches!(
+                    value.kind,
+                    ComponentKind::Token(ParserTokenKind::Dimension { .. } | ParserTokenKind::Percentage { .. })
+                )
+            })
+        {
+            return false;
+        }
+        for value in values {
+            match &value.kind {
+                ComponentKind::Token(ParserTokenKind::Dimension { value, unit, .. }) => unsafe {
+                    visit(context, 0, *value, unit.as_ptr(), unit.len());
+                },
+                ComponentKind::Token(ParserTokenKind::Percentage { value, .. }) => unsafe {
+                    visit(context, 1, *value, std::ptr::null(), 0);
+                },
+                _ => unreachable!(),
+            }
+        }
+        true
     })
 }
 
@@ -6133,178 +5880,6 @@ fn parse_css_primitive_values(
     Some((parsed, stream.current_index()))
 }
 
-/// Parses one value of a primitive CSS value type from a flat C++ token stream.
-///
-/// # Safety
-/// All pointers must be valid for their accompanying lengths, and the output
-/// pointers must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_css_primitive_from_tokens(
-    context: *const ParseContext,
-    value_type: u8,
-    tokens: *const FfiParserToken,
-    token_count: usize,
-    token_values: *const u16,
-    token_value_count: usize,
-    range_min: f64,
-    range_max: f64,
-    out_consumed: *mut usize,
-) -> *const c_void {
-    crate::abort_on_panic(|| {
-        if context.is_null() || out_consumed.is_null() {
-            return std::ptr::null();
-        }
-        let Some(tokens) = (unsafe { ffi_parser_tokens(tokens, token_count) }) else {
-            return std::ptr::null();
-        };
-        let Some(token_values) = (unsafe { ffi_parser_token_values(token_values, token_value_count) }) else {
-            return std::ptr::null();
-        };
-        let Some(tokens) = parser_tokens_from_ffi(tokens, token_values) else {
-            return std::ptr::null();
-        };
-        let Ok(values) = consume_a_list_of_component_values(tokens) else {
-            return std::ptr::null();
-        };
-        let context = unsafe { &*context };
-        let mut stream = TokenStream::new(&values);
-        let range = NumericRange::new(range_min, range_max);
-        let property = if context.value_context_count == 0 || context.value_contexts.is_null() {
-            property_id::WIDTH
-        } else {
-            unsafe { std::slice::from_raw_parts(context.value_contexts, context.value_context_count) }
-                .iter()
-                .find(|value_context| {
-                    value_context.kind == FfiValueParsingContextKind::Property
-                        && value_context.value != property_id::CUSTOM
-                })
-                .map_or(property_id::WIDTH, |value_context| value_context.value)
-        };
-        let mut parse = || -> Option<StyleValueData> {
-            match value_type {
-                VALUE_TYPE_ANGLE => parse_angle_from_stream(context, property, &mut stream, range),
-                VALUE_TYPE_INTEGER => parse_integer_from_stream(context, property, &mut stream, range),
-                VALUE_TYPE_LENGTH => parse_length_from_stream(context, property, &mut stream, range),
-                VALUE_TYPE_LENGTH_PERCENTAGE => {
-                    parse_length_percentage_from_stream(context, property, &mut stream, range, range)
-                }
-                VALUE_TYPE_NUMBER => parse_number_from_stream(context, property, &mut stream, range),
-                VALUE_TYPE_PERCENTAGE => {
-                    stream.discard_whitespace();
-                    let value = stream.next_token();
-                    let parsed = if let Some((name, arguments)) = value.function()
-                        && math_function_from_name(name).is_some()
-                    {
-                        parse_calculated_numeric_value_with_ranges(
-                            context,
-                            property,
-                            VALUE_TYPE_PERCENTAGE,
-                            None,
-                            range,
-                            name,
-                            arguments,
-                        )
-                    } else {
-                        parse_percentage_value(value, range)
-                    }?;
-                    stream.discard_a_token();
-                    Some(parsed)
-                }
-                VALUE_TYPE_RESOLUTION => parse_resolution_from_stream(context, property, &mut stream, range),
-                VALUE_TYPE_COLOR => {
-                    crate::css::parser::color_parser::parse_color_value(context, property, &mut stream, false)
-                }
-                VALUE_TYPE_STRING => {
-                    stream.discard_whitespace();
-                    let parsed = parse_string_value(context, stream.next_token())?;
-                    stream.discard_a_token();
-                    Some(parsed)
-                }
-                VALUE_TYPE_URL => {
-                    stream.discard_whitespace();
-                    let parsed = parse_url_value(context, stream.next_token())?;
-                    stream.discard_a_token();
-                    Some(parsed)
-                }
-                VALUE_TYPE_RATIO => {
-                    stream.discard_whitespace();
-                    let first = stream.consume_a_token().clone();
-                    stream.discard_whitespace();
-                    let parsed = if stream.next_token().is_delim(b'/') {
-                        let slash = stream.consume_a_token().clone();
-                        stream.discard_whitespace();
-                        let second = stream.consume_a_token().clone();
-                        parse_ratio_value_with_context(context, property, &[&first, &slash, &second])
-                    } else {
-                        parse_ratio_value_with_context(context, property, &[&first])
-                    }?;
-                    Some(parsed)
-                }
-                VALUE_TYPE_FLEX | VALUE_TYPE_FREQUENCY | VALUE_TYPE_TIME => {
-                    stream.discard_whitespace();
-                    let value = stream.next_token();
-                    let parsed = if let Some((name, arguments)) = value.function()
-                        && math_function_from_name(name).is_some()
-                    {
-                        parse_calculated_numeric_value_with_ranges(
-                            context, property, value_type, None, range, name, arguments,
-                        )
-                    } else {
-                        match value_type {
-                            VALUE_TYPE_FLEX => parse_flex_value(value, range),
-                            VALUE_TYPE_FREQUENCY => parse_frequency_value(value, range),
-                            VALUE_TYPE_TIME => parse_time_value(value, range),
-                            _ => unreachable!(),
-                        }
-                    }?;
-                    stream.discard_a_token();
-                    Some(parsed)
-                }
-                _ => None,
-            }
-        };
-        let Some(parsed) = parse() else {
-            return std::ptr::null();
-        };
-        unsafe { *out_consumed = stream.current_index() };
-        Arc::into_raw(Arc::new(parsed)).cast()
-    })
-}
-
-/// Parses one value of a primitive CSS value type from CSS source.
-///
-/// # Safety
-/// All pointers must be valid for their accompanying lengths, and
-/// `out_consumed` must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_css_primitive_from_source(
-    context: *const ParseContext,
-    value_type: u8,
-    source: FfiUtf16View,
-    range_min: f64,
-    range_max: f64,
-    out_consumed: *mut usize,
-) -> *const c_void {
-    crate::abort_on_panic(|| {
-        if context.is_null() || out_consumed.is_null() {
-            return std::ptr::null();
-        }
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Ok(values) = component_values_from_source(source) else {
-            return std::ptr::null();
-        };
-        let Some((parsed, consumed)) =
-            parse_css_primitive_values(unsafe { &*context }, value_type, &values, range_min, range_max)
-        else {
-            return std::ptr::null();
-        };
-        unsafe { *out_consumed = consumed };
-        Arc::into_raw(Arc::new(parsed)).cast()
-    })
-}
-
 /// Parses an entire CSS source as one value of a primitive CSS value type.
 ///
 /// # Safety
@@ -6357,89 +5932,6 @@ pub unsafe extern "C" fn rust_parse_css_keyword_from_source(source: FfiUtf16View
             .and_then(ComponentValue::ident)
             .and_then(keyword_from_ascii_case_insensitive)
             .unwrap_or(u16::MAX)
-    })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_font_descriptor_from_tokens(
-    context: *const ParseContext,
-    kind: FfiFontDescriptorKind,
-    tokens: *const FfiParserToken,
-    token_count: usize,
-    token_values: *const u16,
-    token_value_count: usize,
-    out_status: *mut FfiParseStatus,
-) -> *const c_void {
-    crate::abort_on_panic(|| {
-        if context.is_null() || out_status.is_null() {
-            return std::ptr::null();
-        }
-        let Some(tokens) = (unsafe { ffi_parser_tokens(tokens, token_count) }) else {
-            unsafe { *out_status = FfiParseStatus::NotHandled };
-            return std::ptr::null();
-        };
-        let Some(token_values) = (unsafe { ffi_parser_token_values(token_values, token_value_count) }) else {
-            unsafe { *out_status = FfiParseStatus::NotHandled };
-            return std::ptr::null();
-        };
-        let Some(tokens) = parser_tokens_from_ffi(tokens, token_values) else {
-            unsafe { *out_status = FfiParseStatus::NotHandled };
-            return std::ptr::null();
-        };
-        let outcome = match consume_a_list_of_component_values(tokens) {
-            Ok(values) => parse_font_descriptor(unsafe { &*context }, kind, &values),
-            Err(()) => ParseOutcome::Invalid,
-        };
-        match outcome {
-            ParseOutcome::Parsed(value) => {
-                unsafe { *out_status = FfiParseStatus::Parsed };
-                Arc::into_raw(value).cast()
-            }
-            ParseOutcome::Invalid => {
-                unsafe { *out_status = FfiParseStatus::Invalid };
-                std::ptr::null()
-            }
-            ParseOutcome::NotHandled(_) => {
-                unsafe { *out_status = FfiParseStatus::NotHandled };
-                std::ptr::null()
-            }
-        }
-    })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_font_descriptor(
-    context: *const ParseContext,
-    kind: FfiFontDescriptorKind,
-    source: FfiUtf16View,
-    out_status: *mut FfiParseStatus,
-) -> *const c_void {
-    crate::abort_on_panic(|| {
-        if context.is_null() || out_status.is_null() {
-            return std::ptr::null();
-        }
-        let Some(source) = (unsafe { source.units() }) else {
-            unsafe { *out_status = FfiParseStatus::NotHandled };
-            return std::ptr::null();
-        };
-        let outcome = match consume_a_list_of_component_values(tokenize_for_parser(source)) {
-            Ok(values) => parse_font_descriptor(unsafe { &*context }, kind, &values),
-            Err(()) => ParseOutcome::Invalid,
-        };
-        match outcome {
-            ParseOutcome::Parsed(value) => {
-                unsafe { *out_status = FfiParseStatus::Parsed };
-                Arc::into_raw(value).cast()
-            }
-            ParseOutcome::Invalid => {
-                unsafe { *out_status = FfiParseStatus::Invalid };
-                std::ptr::null()
-            }
-            ParseOutcome::NotHandled(_) => {
-                unsafe { *out_status = FfiParseStatus::NotHandled };
-                std::ptr::null()
-            }
-        }
     })
 }
 
@@ -6555,7 +6047,7 @@ mod tests {
         ));
         assert!(matches!(
             parse_css_value(&context(), u16::MAX, &values),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
     }
 

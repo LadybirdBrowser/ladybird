@@ -21,9 +21,8 @@ public:
     virtual ~EmptyOptionalStyleValue() override = default;
 
     // NB: This style is used to represent a missing optional value, it should only appear within a StyleValueList which
-    //     will skip serializing/tokenizing it and the relevant separator so it should never be serialized/tokenized.
+    //     will skip serializing it and the relevant separator so it should never be serialized.
     void serialize(StringBuilder&, SerializationMode) const { VERIFY_NOT_REACHED(); }
-    Vector<Parser::ComponentValue> tokenize() const { VERIFY_NOT_REACHED(); }
 
 private:
     friend class StyleValue;

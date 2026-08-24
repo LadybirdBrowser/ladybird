@@ -1,0 +1,15 @@
+<!doctype html>
+<style>
+    @keyframes example {
+        50% {
+            opacity: 0.5;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const keyframes = document.styleSheets[0].cssRules[0];
+        println(keyframes.findRule("50% /*").keyText);
+    });
+</script>

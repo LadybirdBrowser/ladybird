@@ -83,8 +83,7 @@ WebIDL::ExceptionOr<void> register_property(DOM::Document& document, PropertyDef
 
     // 3. Attempt to consume a syntax definition from syntax. If it returns failure, throw a SyntaxError.
     //    Otherwise, let syntax definition be the returned syntax definition.
-    auto syntax_component_values = parse_component_values_list(parsing_params, definition.syntax);
-    auto maybe_syntax = parse_as_syntax(syntax_component_values, Parser::LimitSingleComponentIdentToCustomIdent::Yes);
+    auto maybe_syntax = parse_as_syntax(definition.syntax, Parser::LimitSingleComponentIdentToCustomIdent::Yes);
     if (!maybe_syntax) {
         return WebIDL::SyntaxError::create("Invalid syntax definition"_utf16);
     }
@@ -117,11 +116,9 @@ WebIDL::ExceptionOr<void> register_property(DOM::Document& document, PropertyDef
         // Otherwise, parse initialValue according to syntax definition.
         // NB: We don't need to worry about explicitly rejecting arbitrary substitution functions here since all
         //     supported syntaxes implicitly reject them
-        auto initial_value_component_values = parse_component_values_list(parsing_params, definition.initial_value.value());
-
         initial_value_maybe = Parser::parse_with_a_syntax(
             parsing_params,
-            initial_value_component_values,
+            definition.initial_value.value(),
             *maybe_syntax);
 
         // If this fails, throw a SyntaxError and exit this algorithm.

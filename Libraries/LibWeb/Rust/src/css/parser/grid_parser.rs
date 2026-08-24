@@ -15,10 +15,10 @@ use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::component_value::ComponentValue;
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
-    FUNCTION_NOT_PORTED, NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, SUBSTITUTION_NOT_PORTED,
-    VALUE_TYPE_FLEX, equals_ascii_case_insensitive, is_arbitrary_substitution_function, is_valid_custom_ident,
-    parse_calculated_numeric_value_with_ranges, parse_flex_value, parse_integer_from_stream,
-    parse_length_percentage_from_stream, parse_tree_counting_value, retain_fly_string,
+    NumericRange, ParseContext, ParseOutcome, VALUE_TYPE_FLEX, equals_ascii_case_insensitive,
+    is_arbitrary_substitution_function, is_valid_custom_ident, parse_calculated_numeric_value_with_ranges,
+    parse_flex_value, parse_integer_from_stream, parse_length_percentage_from_stream, parse_tree_counting_value,
+    retain_fly_string,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{
@@ -659,8 +659,8 @@ fn parse_grid_track_placement(
                 return None;
             }
             tokens.discard_a_token();
-            // NB: Match the C++ parser's token-position rule: span may follow the integer
-            //     or name only when it is the final token, not when it separates the two.
+            // NB: span may follow the integer or name only when it is the final token, not when it
+            //     separates the two.
             if tokens.has_next_token() && (parsed_name.is_some() || parsed_integer.is_some()) {
                 return None;
             }
@@ -804,7 +804,7 @@ fn parse_grid_track_placement_shorthand(
     values: &[ComponentValue],
 ) -> ParseOutcome {
     if !matches!(property, property_id::GRID_COLUMN | property_id::GRID_ROW) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let Some(components) = slash_separated_components(values).filter(|components| components.len() <= 2) else {
         return ParseOutcome::Invalid;
@@ -1322,24 +1322,22 @@ fn contains_math_function(values: &[ComponentValue]) -> bool {
     })
 }
 
-fn deferred_function_reason(
-    values: &[ComponentValue],
-) -> Option<&'static crate::css::parser::value_parser::NotHandledReason> {
-    values.iter().find_map(|value| {
+fn contains_deferred_function(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| {
         if let Some((name, children)) = value.function() {
             if is_arbitrary_substitution_function(name) {
-                return Some(&SUBSTITUTION_NOT_PORTED);
+                return true;
             }
             if math_function_from_name(name).is_some()
                 || equals_ascii_case_insensitive(name, b"repeat")
                 || equals_ascii_case_insensitive(name, b"minmax")
                 || equals_ascii_case_insensitive(name, b"fit-content")
             {
-                return deferred_function_reason(children);
+                return contains_deferred_function(children);
             }
-            return Some(&FUNCTION_NOT_PORTED);
+            return true;
         }
-        value.square_block().and_then(deferred_function_reason)
+        value.square_block().is_some_and(contains_deferred_function)
     })
 }
 
@@ -1351,9 +1349,9 @@ pub(crate) fn parse_grid_property(context: &ParseContext, property: u16, values:
             parse_grid_track_placement_shorthand(context, property, values)
         }
         property_id::GRID_AREA => parse_grid_area_shorthand(context, values),
-        _ => ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => ParseOutcome::NotHandled,
     };
-    if !matches!(shorthand, ParseOutcome::NotHandled(_)) {
+    if !matches!(shorthand, ParseOutcome::NotHandled) {
         return shorthand;
     }
     let parsed = match property {
@@ -1368,14 +1366,12 @@ pub(crate) fn parse_grid_property(context: &ParseContext, property: u16, values:
         | property_id::GRID_ROW_END
         | property_id::GRID_ROW_START => parse_grid_track_placement(context, property, values),
         property_id::GRID_TEMPLATE_AREAS => parse_grid_template_areas(context, values),
-        _ => return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED),
+        _ => return ParseOutcome::NotHandled,
     };
     if let Some(parsed) = parsed {
         ParseOutcome::Parsed(Arc::new(parsed))
-    } else if let Some(reason) = deferred_function_reason(values) {
-        ParseOutcome::NotHandled(reason)
-    } else if contains_math_function(values) {
-        ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+    } else if contains_deferred_function(values) || contains_math_function(values) {
+        ParseOutcome::NotHandled
     } else {
         ParseOutcome::Invalid
     }
@@ -1429,10 +1425,7 @@ mod tests {
     }
 
     fn assert_not_handled(property: u16, source: &str) {
-        assert!(
-            matches!(parse(property, source), ParseOutcome::NotHandled(_)),
-            "{source}"
-        );
+        assert!(matches!(parse(property, source), ParseOutcome::NotHandled), "{source}");
     }
 
     #[test]

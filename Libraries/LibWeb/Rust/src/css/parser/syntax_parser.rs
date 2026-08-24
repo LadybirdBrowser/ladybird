@@ -9,7 +9,9 @@ use crate::css::css_tokenizer::{
     ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
 use crate::css::ffi_support::FfiUtf16View;
-use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_component_value};
+use crate::css::parser::component_value::{
+    ComponentKind, ComponentValue, consume_a_component_value, consume_a_list_of_component_values, trim_whitespace,
+};
 use crate::css::parser::descriptor_parser::parse_descriptor;
 use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
@@ -130,16 +132,6 @@ struct ParsedPageSelector {
 
 fn non_whitespace(values: &[ComponentValue]) -> Vec<&ComponentValue> {
     values.iter().filter(|value| !value.is_whitespace()).collect()
-}
-
-fn trim_whitespace(mut values: &[ComponentValue]) -> &[ComponentValue] {
-    while values.first().is_some_and(ComponentValue::is_whitespace) {
-        values = &values[1..];
-    }
-    while values.last().is_some_and(ComponentValue::is_whitespace) {
-        values = &values[..values.len() - 1];
-    }
-    values
 }
 
 fn parse_single_name(values: &[ComponentValue], validate: impl Fn(&[u16]) -> bool) -> ParsedRulePrelude {
@@ -793,12 +785,21 @@ fn context_for_at_rule(name: &[u16]) -> RuleContext {
 }
 
 impl Parser {
-    fn new<'a>(source: impl Into<TokenizerInput<'a>>, rule_context: Vec<RuleContext>) -> Self {
+    fn new(tokens: Vec<ParserToken>, rule_context: Vec<RuleContext>) -> Self {
         Self {
-            tokens: tokenize_for_parser(source),
+            tokens,
             position: 0,
             rule_context,
         }
+    }
+
+    fn from_source<'a>(
+        source: impl Into<TokenizerInput<'a>>,
+        rule_context: Vec<RuleContext>,
+    ) -> (Self, Vec<FfiSyntaxDiagnostic>) {
+        let tokens = tokenize_for_parser(source);
+        let diagnostics = token_diagnostics(&tokens);
+        (Self::new(tokens, rule_context), diagnostics)
     }
 
     fn next_kind(&self) -> Option<&ParserTokenKind> {
@@ -1280,16 +1281,13 @@ impl Parser {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn parse_stylesheet<'a>(source: impl Into<TokenizerInput<'a>>) -> Vec<Rule> {
-    Parser::new(source, Vec::new()).consume_stylesheet_contents()
+    Parser::from_source(source, Vec::new()).0.consume_stylesheet_contents()
 }
 
-pub(crate) fn parse_rule<'a>(
-    source: impl Into<TokenizerInput<'a>>,
-    rule_context: Vec<RuleContext>,
-    nested: bool,
-) -> Option<Rule> {
-    let mut parser = Parser::new(source, rule_context);
+fn parse_rule_from_tokens(tokens: Vec<ParserToken>, rule_context: Vec<RuleContext>, nested: bool) -> Option<Rule> {
+    let mut parser = Parser::new(tokens, rule_context);
     let nested = if nested { Nested::Yes } else { Nested::No };
     parser.discard_whitespace();
     let rule = match parser.next_kind() {
@@ -1301,11 +1299,22 @@ pub(crate) fn parse_rule<'a>(
     parser.next_kind().is_none().then_some(rule)
 }
 
+#[cfg(test)]
+pub(crate) fn parse_rule<'a>(
+    source: impl Into<TokenizerInput<'a>>,
+    rule_context: Vec<RuleContext>,
+    nested: bool,
+) -> Option<Rule> {
+    let (parser, _) = Parser::from_source(source, rule_context);
+    parse_rule_from_tokens(parser.tokens, parser.rule_context, nested)
+}
+
+#[cfg(test)]
 pub(crate) fn parse_block_contents<'a>(
     source: impl Into<TokenizerInput<'a>>,
     rule_context: Vec<RuleContext>,
 ) -> Vec<RuleOrDeclarations> {
-    Parser::new(source, rule_context).consume_block_contents()
+    Parser::from_source(source, rule_context).0.consume_block_contents()
 }
 
 #[derive(Clone, Copy)]
@@ -1349,7 +1358,6 @@ pub struct FfiSyntaxDeclaration {
     pub start_line: usize,
     pub start_column: usize,
     pub property_id: u16,
-    pub descriptor_id: u8,
     pub parse_status: FfiParseStatus,
     pub parsed_value: *const c_void,
 }
@@ -1400,6 +1408,16 @@ pub struct FfiSyntaxItem {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct FfiSyntaxDiagnostic {
+    pub code: u8,
+    pub start_line: usize,
+    pub start_column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct FfiSyntaxParseData {
     pub values: *const u16,
     pub value_count: usize,
@@ -1419,6 +1437,8 @@ pub struct FfiSyntaxParseData {
     pub root_count: usize,
     pub prelude_items: *const FfiSyntaxPreludeItem,
     pub prelude_item_count: usize,
+    pub diagnostics: *const FfiSyntaxDiagnostic,
+    pub diagnostic_count: usize,
 }
 
 pub struct FfiSyntaxParse {
@@ -1431,6 +1451,7 @@ pub struct FfiSyntaxParse {
     item_indices: Vec<usize>,
     roots: Vec<usize>,
     prelude_items: Vec<FfiSyntaxPreludeItem>,
+    diagnostics: Vec<FfiSyntaxDiagnostic>,
     parse_context: *const ParseContext,
     resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     preserve_property_source_text: bool,
@@ -1464,6 +1485,7 @@ impl FfiSyntaxParse {
             item_indices: Vec::new(),
             roots: Vec::new(),
             prelude_items: Vec::new(),
+            diagnostics: Vec::new(),
             parse_context,
             resolve_property_id,
             preserve_property_source_text,
@@ -1591,7 +1613,7 @@ impl FfiSyntaxParse {
             self.append_optional_value(declaration.original_value_text.as_deref());
         let (original_full_text_offset, original_full_text_length) =
             self.append_optional_value(declaration.original_full_text.as_deref());
-        let (property_id, descriptor_id, parse_status, parsed_value) =
+        let (property_id, parse_status, parsed_value) =
             self.parse_declaration_value(declaration, value_source.as_ref());
         let needs_value_text = self.preserve_property_source_text
             || parse_status != FfiParseStatus::Parsed
@@ -1618,7 +1640,6 @@ impl FfiSyntaxParse {
             start_line: declaration.source_position.line,
             start_column: declaration.source_position.column,
             property_id,
-            descriptor_id,
             parse_status,
             parsed_value,
         });
@@ -1629,9 +1650,9 @@ impl FfiSyntaxParse {
         &self,
         declaration: &Declaration,
         source_utf16: &[u16],
-    ) -> (u16, u8, FfiParseStatus, *const c_void) {
+    ) -> (u16, FfiParseStatus, *const c_void) {
         if self.parse_context.is_null() {
-            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         }
         if !declaration.is_property {
             let at_rule = match declaration.rule_context {
@@ -1640,7 +1661,7 @@ impl FfiSyntaxParse {
                 RuleContext::AtProperty => 2,
                 RuleContext::AtCounterStyle => 3,
                 RuleContext::AtFunction => 4,
-                _ => return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
+                _ => return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
             };
             let parse_context = unsafe { &*self.parse_context };
             return match parse_descriptor(
@@ -1652,20 +1673,19 @@ impl FfiSyntaxParse {
             ) {
                 Some(descriptor) => (
                     u16::MAX,
-                    descriptor.id,
                     FfiParseStatus::Parsed,
                     Arc::into_raw(descriptor.value).cast::<c_void>(),
                 ),
-                None => (u16::MAX, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
+                None => (u16::MAX, FfiParseStatus::Invalid, std::ptr::null()),
             };
         }
         let Some(resolve_property_id) = self.resolve_property_id else {
-            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         };
         // SAFETY: The declaration name remains live for this callback and the caller owns the callback.
         let property_id = unsafe { resolve_property_id(declaration.name.as_ptr(), declaration.name.len()) };
         if property_id == u16::MAX {
-            return (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (property_id, FfiParseStatus::NotHandled, std::ptr::null());
         }
 
         let parse_context = unsafe { &*self.parse_context };
@@ -1693,12 +1713,11 @@ impl FfiSyntaxParse {
         match outcome {
             ParseOutcome::Parsed(value) => (
                 property_id,
-                u8::MAX,
                 FfiParseStatus::Parsed,
                 Arc::into_raw(value).cast::<c_void>(),
             ),
-            ParseOutcome::Invalid => (property_id, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
-            ParseOutcome::NotHandled(_) => (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
+            ParseOutcome::Invalid => (property_id, FfiParseStatus::Invalid, std::ptr::null()),
+            ParseOutcome::NotHandled => (property_id, FfiParseStatus::NotHandled, std::ptr::null()),
         }
     }
 
@@ -1912,8 +1931,30 @@ impl FfiSyntaxParse {
             root_count: self.roots.len(),
             prelude_items: self.prelude_items.as_ptr(),
             prelude_item_count: self.prelude_items.len(),
+            diagnostics: self.diagnostics.as_ptr(),
+            diagnostic_count: self.diagnostics.len(),
         }
     }
+}
+
+fn token_diagnostics(tokens: &[ParserToken]) -> Vec<FfiSyntaxDiagnostic> {
+    tokens
+        .iter()
+        .filter_map(|token| {
+            let code = match &token.kind {
+                ParserTokenKind::BadString => 0,
+                ParserTokenKind::BadUrl => 1,
+                _ => return None,
+            };
+            Some(FfiSyntaxDiagnostic {
+                code,
+                start_line: token.start_position.line,
+                start_column: token.start_position.column,
+                end_line: token.end_position.line,
+                end_column: token.end_position.column,
+            })
+        })
+        .collect()
 }
 
 /// Parses stylesheet structure into a Rust-owned arena.
@@ -1930,8 +1971,10 @@ pub unsafe extern "C" fn rust_parse_css_stylesheet_syntax(
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null_mut();
         };
-        let rules = parse_stylesheet(source);
+        let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
         let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, false);
+        parse.diagnostics = diagnostics;
+        let rules = parser.consume_stylesheet_contents();
         parse.append_roots(&rules);
         Box::into_raw(Box::new(parse))
     })
@@ -1971,11 +2014,43 @@ pub unsafe extern "C" fn rust_parse_css_rule_syntax(
         else {
             return std::ptr::null_mut();
         };
-        let rule = parse_rule(source, contexts, nested);
+        let (parser, diagnostics) = Parser::from_source(source, contexts);
         let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, false);
+        parse.diagnostics = diagnostics;
+        let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
         if let Some(rule) = rule {
             parse.append_roots(std::slice::from_ref(&rule));
         }
+        Box::into_raw(Box::new(parse))
+    })
+}
+
+/// Parses a keyframe selector list into a Rust-owned syntax arena.
+///
+/// # Safety
+/// `source` must remain readable for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
+    source: FfiUtf16View,
+    parse_context: *const ParseContext,
+    resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
+) -> *mut FfiSyntaxParse {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return std::ptr::null_mut();
+        };
+        let tokens = tokenize_for_parser(source);
+        let diagnostics = token_diagnostics(&tokens);
+        let prelude = consume_a_list_of_component_values(tokens).unwrap_or_default();
+        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, false);
+        parse.diagnostics = diagnostics;
+        parse.append_roots(&[Rule::Qualified(QualifiedRule {
+            prelude,
+            prelude_is_selector: false,
+            declarations: Vec::new(),
+            children: Vec::new(),
+            source_position: None,
+        })]);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -2014,8 +2089,10 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
         else {
             return std::ptr::null_mut();
         };
-        let items = parse_block_contents(source, contexts);
+        let (mut parser, diagnostics) = Parser::from_source(source, contexts);
         let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, preserve_property_source_text);
+        parse.diagnostics = diagnostics;
+        let items = parser.consume_block_contents();
         parse.append_root_items(&items);
         Box::into_raw(Box::new(parse))
     })
@@ -2044,8 +2121,9 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 #[cfg(test)]
 mod tests {
     use super::{
-        Declaration, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, parse_block_contents, parse_rule,
-        parse_rule_prelude, parse_stylesheet,
+        Declaration, FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations,
+        consume_a_list_of_component_values, parse_block_contents, parse_keyframe_selectors, parse_rule,
+        parse_rule_prelude, parse_stylesheet, token_diagnostics, tokenize_for_parser,
     };
 
     fn utf16(value: &str) -> Vec<u16> {
@@ -2059,6 +2137,20 @@ mod tests {
         assert!(parse_rule(b"a {} b {}", Vec::new(), false).is_none());
         assert!(parse_rule(b"   ", Vec::new(), false).is_none());
         assert!(parse_rule(b"@media print {} foo", vec![RuleContext::AtMedia], true).is_none());
+    }
+
+    #[test]
+    fn exposes_token_diagnostics_with_source_spans() {
+        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, false);
+        let tokens =
+            crate::css::css_tokenizer::tokenize_for_parser(&utf16("a { color: \"bad\n; background: url(foo\"bar) }"));
+        parse.diagnostics = token_diagnostics(&tokens);
+        assert_eq!(parse.diagnostics.len(), 2);
+        assert_eq!(parse.diagnostics[0].code, 0);
+        assert_eq!(parse.diagnostics[0].start_line, 0);
+        assert!(parse.diagnostics[0].end_column > parse.diagnostics[0].start_column);
+        assert_eq!(parse.diagnostics[1].code, 1);
+        assert!(parse.diagnostics[1].end_column > parse.diagnostics[1].start_column);
     }
 
     fn declarations(input: &str) -> Vec<Declaration> {
@@ -2088,7 +2180,7 @@ mod tests {
     }
 
     #[test]
-    fn consumes_declarations_and_important_like_cpp_oracle() {
+    fn consumes_declarations_and_important() {
         let declarations = declarations("color: red ! important; width: 1px!important; --x: var(--y) !important");
         assert_eq!(declarations.len(), 3);
         assert!(declarations[0].important);
@@ -2219,6 +2311,15 @@ mod tests {
                 start: Some(utf16(".card").into_boxed_slice().into()),
                 end: Some(utf16("> .footer").into_boxed_slice().into()),
             }
+        );
+    }
+
+    #[test]
+    fn parses_keyframe_selectors_with_an_unterminated_comment() {
+        let values = consume_a_list_of_component_values(tokenize_for_parser(b"50% /*".as_slice())).unwrap();
+        assert_eq!(
+            parse_keyframe_selectors(&values),
+            ParsedRulePrelude::KeyframeSelectors(vec![50.0])
         );
     }
 

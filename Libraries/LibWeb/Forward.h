@@ -434,8 +434,6 @@ class TextUnderlinePositionStyleValue;
 class Time;
 class TimePercentage;
 class TimeStyleValue;
-template<typename T>
-class TokenStream;
 class TransformationStyleValue;
 class TreeCountingFunctionStyleValue;
 class TupleStyleValue;
@@ -536,19 +534,14 @@ namespace Web::CSS::Invalidation {
 
 namespace Web::CSS::Parser {
 
-class ComponentValue;
 class Parser;
 class RustTokenizer;
 class SyntaxNode;
-class Token;
 
 struct AtRule;
 struct Declaration;
-struct Function;
-struct GuaranteedInvalidValue;
 struct ParsingParams;
 struct QualifiedRule;
-struct SimpleBlock;
 
 }
 

@@ -14,7 +14,12 @@ mod tests {
     fn generates_descriptor_names_aliases_and_syntax() {
         let font_width = descriptor_metadata(0, &"font-width".encode_utf16().collect::<Vec<_>>()).unwrap();
         let font_stretch = descriptor_metadata(0, &"FoNt-StReTcH".encode_utf16().collect::<Vec<_>>()).unwrap();
-        assert_eq!(font_stretch.id, font_width.id);
+        assert_eq!(font_stretch.syntax, font_width.syntax);
+        assert_eq!(
+            font_stretch.allow_arbitrary_substitution_functions,
+            font_width.allow_arbitrary_substitution_functions
+        );
+        assert_eq!(font_stretch.allow_css_wide_keywords, font_width.allow_css_wide_keywords);
         assert!(matches!(
             font_width.syntax,
             [DescriptorSyntax::Keyword("auto"), DescriptorSyntax::Property(_)]

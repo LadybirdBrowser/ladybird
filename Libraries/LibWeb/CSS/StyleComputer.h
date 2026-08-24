@@ -141,12 +141,6 @@ public:
     [[nodiscard]] NonnullRefPtr<CustomPropertyData const> intern_custom_property_data(NonnullRefPtr<CustomPropertyData const>) const;
     void sweep_custom_property_environments() const;
 
-    // What one custom property value tokenizes to, remembered per distinct value: every var() read
-    // of a final value re-tokenizes the answer otherwise, and final values are shared through the
-    // interned environments, so the memo is too. Tokenization is a pure function of the immutable
-    // value, which is what makes this sound.
-    Vector<Parser::ComponentValue> tokenized_custom_property_value(NonnullRefPtr<StyleValue const> const&) const;
-
     // Whether the collection refreshes a previously published style outside the drive; a refresh
     // re-runs the animated element style adjustments and leaves the non-inherited-property
     // inheritance invalidation mark itself.
@@ -438,12 +432,6 @@ private:
     };
     CustomPropertyReferenceScan const& custom_property_reference_scan(NonnullRefPtr<StyleValue const> const&) const;
     mutable HashMap<void const*, CustomPropertyReferenceScan> m_custom_property_reference_scans;
-
-    struct CustomPropertyTokenization {
-        NonnullRefPtr<StyleValue const> value;
-        Vector<Parser::ComponentValue> tokens;
-    };
-    mutable HashMap<void const*, CustomPropertyTokenization> m_custom_property_tokenizations;
 
     // What one final value parses to against one registration's syntax: a pure function of the
     // value, the syntax, and the registration generation, unlike the computed-value step after it,
