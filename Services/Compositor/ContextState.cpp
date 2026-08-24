@@ -280,6 +280,9 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         };
     }
     case Web::MouseEvent::Type::MouseUp: {
+        if (event.button != Web::UIEvents::MouseButton::Primary)
+            return {};
+
         auto drag = m_viewport_scrollbar_controller.release_captured_drag(position);
         if (!drag.has_value())
             return {};
