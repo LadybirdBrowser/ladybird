@@ -2744,14 +2744,12 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         CascadedProperties& cascaded_properties;
         DOM::AbstractElement& abstract_element;
         Vector<BlockSource> const& block_sources;
-        Vector<NonnullRefPtr<StyleValue const>> pinned_values;
         u64 custom_property_environment_identity { 0 };
         void const* inheritance_custom_property_store { nullptr };
     } bulk_context {
         .cascaded_properties = *cascaded_properties,
         .abstract_element = abstract_element,
         .block_sources = block_sources,
-        .pinned_values = {},
     };
 
     // The cascade only reads this value's data pointer, so mint a bare Rust handle instead of a wrapper.
@@ -2890,6 +2888,8 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     Vector<SubstitutionAttribute> substitution_attributes;
     if (has_unresolved_declarations) {
         abstract_element.element().for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+            if (name.namespace_().has_value())
+                return;
             substitution_attributes.append({
                 name.local_name().to_utf16_string(),
                 Utf16String::from_utf16(value),
@@ -3031,6 +3031,21 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 .style_query_element = bulk_context.abstract_element,
             });
         },
+        .lookup_final_custom_property = [](void* context, ComputedValuesFFI::FfiUtf16View name) -> void const* {
+            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            auto& document = bulk_context.abstract_element.document();
+            auto& style_computer = document.style_computer();
+            auto name_view = Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
+            if (style_computer.m_active_custom_property_resolution.has_value()
+                && style_computer.m_active_custom_property_resolution->element == bulk_context.abstract_element) {
+                if (auto finalized = style_computer.m_active_custom_property_resolution->finalized.get(Utf16FlyString::from_utf16(name_view)); finalized.has_value()) {
+                    document.style_invalidation_counters().custom_property_overlay_hits++;
+                    return finalized.value()->rust_style_value_data();
+                }
+                document.style_invalidation_counters().custom_property_value_computations++;
+            }
+            return nullptr;
+        },
         .note_substitution = [](void* context, void const* unresolved_data) {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
@@ -3079,20 +3094,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 .parsed = move(parsed),
             });
             style_computer.settle_parsed_substitution_cache(); },
-        .resolve_not_handled = [](void* context, u16 property_id, void const* data) -> void const* {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                static_cast<StyleValueFFI::StyleValueData const*>(data)));
-            auto resolved = Parser::Parser::resolve_unresolved_style_value(
-                Parser::ParsingParams { bulk_context.abstract_element.document() },
-                bulk_context.abstract_element,
-                {},
-                PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
-                unresolved->as_unresolved());
-            auto const* result = resolved->rust_style_value_data();
-            bulk_context.pinned_values.append(move(resolved));
-            return result;
-        },
     };
 
     auto assign_source_slots = [&](ComputedValuesFFI::FfiSourceSlotAssignment const* assignments, size_t count) {
@@ -5987,6 +5988,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
     };
     Vector<SubstitutionAttribute> attributes;
     element.abstract_element().element().for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+        if (name.namespace_().has_value())
+            return;
         attributes.append({ name.local_name().to_utf16_string(), Utf16String::from_utf16(value) });
     });
     Vector<ComputedValuesFFI::FfiSubstitutionAttribute> ffi_attributes;
@@ -6074,7 +6077,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
 
     auto custom_property_data = element.custom_property_data();
     auto inheritance_data = element.element_to_inherit_style_from().map([](auto const& parent) {
-                                                                       return parent.inheritable_custom_property_data();
+                                                                       return parent.custom_property_data();
                                                                    })
                                 .value_or(nullptr);
     ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
@@ -6116,10 +6119,25 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
                 return 2;
             return expression->evaluate_to_boolean({ .document = &element.document(), .style_query_element = element });
         },
+        .lookup_final_custom_property = [](void* context, ComputedValuesFFI::FfiUtf16View name) -> void const* {
+            auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
+            auto& document = element.document();
+            auto& style_computer = document.style_computer();
+            auto name_view = Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
+            if (style_computer.m_active_custom_property_resolution.has_value()
+                && element.has<DOM::AbstractElement>()
+                && style_computer.m_active_custom_property_resolution->element == element.get<DOM::AbstractElement>()) {
+                if (auto finalized = style_computer.m_active_custom_property_resolution->finalized.get(Utf16FlyString::from_utf16(name_view)); finalized.has_value()) {
+                    document.style_invalidation_counters().custom_property_overlay_hits++;
+                    return finalized.value()->rust_style_value_data();
+                }
+                document.style_invalidation_counters().custom_property_value_computations++;
+            }
+            return nullptr;
+        },
         .note_substitution = nullptr,
         .lookup_cached_substitution = nullptr,
         .cache_parsed_substitution = nullptr,
-        .resolve_not_handled = nullptr,
     };
     auto* result = ComputedValuesFFI::rust_resolve_unresolved_style_value(
         &resolution_context, to_underlying(property.id()), unresolved.rust_style_value_data());
@@ -6155,10 +6173,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
 
     if (resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_arbitrary_substitution_function()) {
         auto& unresolved = resolved_value->as_unresolved();
-        Parser::ArbitrarySubstitutionReplacementContext arbitrary_substitution_context {
-            .computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution,
-        };
-        resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, arbitrary_substitution_context, PropertyNameAndID { {}, PropertyID::Custom, name }, unresolved, guarded_contexts);
+        resolved_value = resolve_unresolved_style_value(element, PropertyNameAndID { {}, PropertyID::Custom, name }, unresolved);
 
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).

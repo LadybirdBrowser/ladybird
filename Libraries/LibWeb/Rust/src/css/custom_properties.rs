@@ -282,15 +282,26 @@ struct VarResolutionContext<'a> {
     cyclic_attributes: HashSet<Vec<u16>>,
     attributes: Option<&'a HashMap<Vec<u16>, Vec<u16>>>,
     inheritance_store: Option<&'a CustomPropertyStore>,
+    inheritance_store_overrides: Vec<Option<Arc<CustomPropertyStore>>>,
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     condition_context: *mut c_void,
     evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
+    lookup_final_custom_property: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> *const c_void>,
     active_functions: Vec<usize>,
     cyclic_functions: HashSet<usize>,
     function_local_scopes: Vec<FunctionLocalScope>,
+    token_cache: Option<&'a mut CustomPropertyTokenCache>,
+}
+
+type CustomPropertyTokenCache = HashMap<*const StyleValueData, (Arc<[OwnedToken]>, bool, bool)>;
+
+pub(crate) struct VarResolutionEnvironment {
+    attributes: HashMap<Vec<u16>, Vec<u16>>,
+    custom_functions: CustomFunctionRegistry,
+    token_cache: CustomPropertyTokenCache,
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -362,14 +373,17 @@ fn trim_whitespace(mut tokens: &[OwnedToken]) -> &[OwnedToken] {
     tokens
 }
 
-fn trim_leading_whitespace(mut tokens: &[OwnedToken]) -> &[OwnedToken] {
-    while matches!(
-        tokens.first().map(|token| &token.kind),
-        Some(OwnedTokenKind::Whitespace)
-    ) {
-        tokens = &tokens[1..];
+fn source_ends_with_comment(source: crate::css::css_tokenizer::TokenizerInput<'_>) -> bool {
+    match source {
+        crate::css::css_tokenizer::TokenizerInput::Ascii(source) => source
+            .iter()
+            .rposition(|unit| !unit.is_ascii_whitespace())
+            .is_some_and(|end| end > 0 && source[end - 1..=end] == *b"*/"),
+        crate::css::css_tokenizer::TokenizerInput::Utf16(source) => source
+            .iter()
+            .rposition(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+            .is_some_and(|end| end > 0 && source[end - 1..=end] == [u16::from(b'*'), u16::from(b'/')]),
     }
-    tokens
 }
 
 fn is_single_css_wide_keyword(tokens: &[OwnedToken]) -> bool {
@@ -402,7 +416,7 @@ fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
     is_single_css_wide_keyword(tokens).then_some(keyword.as_slice())
 }
 
-fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool)> {
+fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool, bool)> {
     if let StyleValueData::Unresolved {
         presence_attr,
         presence_dashed_function,
@@ -414,21 +428,42 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> Option<(Vec<OwnedT
         ..
     } = data
     {
-        if *contains_attr_tainted_values {
-            return None;
+        let mut tokens = tokenize_owned(data.unresolved_token_source().unwrap_or_default());
+        let authored_source = data.unresolved_authored_source().unwrap_or_default();
+        if source_ends_with_comment(authored_source) {
+            while matches!(tokens.last().map(|token| &token.kind), Some(OwnedTokenKind::Whitespace)) {
+                tokens.pop();
+            }
         }
         return Some((
-            tokenize_owned(data.unresolved_token_source().unwrap_or_default()),
+            tokens,
             *presence_var
                 || *presence_attr
                 || *presence_dashed_function
                 || *presence_env
                 || *presence_if
                 || *presence_inherit,
+            *contains_attr_tainted_values,
         ));
     }
     let source = crate::css::serialize::serialize_style_value_to_utf16(data)?;
-    Some((tokenize_owned(&source), false))
+    Some((tokenize_owned(&source), false, false))
+}
+
+fn cached_tokens_for_custom_property_value(
+    data: &StyleValueData,
+    context: &mut VarResolutionContext<'_>,
+) -> Option<(Arc<[OwnedToken]>, bool, bool)> {
+    let key = std::ptr::from_ref(data);
+    if let Some(cached) = context.token_cache.as_deref().and_then(|cache| cache.get(&key)) {
+        return Some(cached.clone());
+    }
+    let (tokens, includes_substitution, contains_attr_tainted_values) = tokens_for_custom_property_value(data)?;
+    let result = (Arc::from(tokens), includes_substitution, contains_attr_tainted_values);
+    if let Some(cache) = context.token_cache.as_deref_mut() {
+        cache.insert(key, result.clone());
+    }
+    Some(result)
 }
 
 fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, bool)> {
@@ -515,6 +550,40 @@ unsafe fn custom_function_registry_from_ffi(
     Some(CustomFunctionRegistry {
         caller_scope_identity,
         definitions: parsed_definitions,
+    })
+}
+
+/// Builds the element-wide immutable substitution inputs once for all declarations in a cascade.
+///
+/// # Safety
+/// Every FFI pointer must remain readable for this call.
+pub(crate) unsafe fn prepare_var_resolution_environment(
+    attributes: *const FfiSubstitutionAttribute,
+    attribute_count: usize,
+    custom_functions: *const FfiSubstitutionFunctionDefinition,
+    custom_function_count: usize,
+    custom_function_scope_identity: usize,
+) -> Option<VarResolutionEnvironment> {
+    let attributes = if attribute_count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(attributes, attribute_count) }
+    };
+    let attributes = attributes
+        .iter()
+        .filter_map(|attribute| {
+            Some((unsafe { attribute.name.to_utf16() }?, unsafe {
+                attribute.value.to_utf16()
+            }?))
+        })
+        .collect();
+    let custom_functions = unsafe {
+        custom_function_registry_from_ffi(custom_functions, custom_function_count, custom_function_scope_identity)
+    }?;
+    Some(VarResolutionEnvironment {
+        attributes,
+        custom_functions,
+        token_cache: HashMap::new(),
     })
 }
 
@@ -781,17 +850,47 @@ fn resolve_custom_property_with_lookup(
         context.function_local_scopes.extend(child_scopes);
         return result;
     }
-    if context.cyclic_names.contains(name) {
-        return TokenResolution::Cyclic;
+    if lookup == CustomPropertyLookup::Normal {
+        if context.cyclic_names.contains(name) {
+            return TokenResolution::Cyclic;
+        }
+        if let Some(cycle_start) = context.active_names.iter().position(|active_name| active_name == name) {
+            // https://drafts.csswg.org/css-variables-1/#cycles
+            // If there is a cycle in the dependency graph, all the custom properties in the cycle
+            // are invalid at computed-value time.
+            context
+                .cyclic_names
+                .extend(context.active_names[cycle_start..].iter().cloned());
+            return TokenResolution::Cyclic;
+        }
     }
-    if let Some(cycle_start) = context.active_names.iter().position(|active_name| active_name == name) {
-        // https://drafts.csswg.org/css-variables-1/#cycles
-        // If there is a cycle in the dependency graph, all the custom properties in the cycle
-        // are invalid at computed-value time.
-        context
-            .cyclic_names
-            .extend(context.active_names[cycle_start..].iter().cloned());
-        return TokenResolution::Cyclic;
+    if lookup == CustomPropertyLookup::Normal
+        && let Some(lookup_final) = context.lookup_final_custom_property
+    {
+        let data = unsafe {
+            lookup_final(
+                context.condition_context,
+                FfiUtf16View {
+                    ascii: std::ptr::null(),
+                    utf16: name.as_ptr(),
+                    length: name.len(),
+                },
+            )
+        };
+        if let Some(data) = unsafe { data.cast::<StyleValueData>().as_ref() } {
+            if matches!(data, StyleValueData::GuaranteedInvalid) {
+                return TokenResolution::Invalid;
+            }
+            let Some((tokens, includes_substitution, contains_attr_tainted_values)) =
+                cached_tokens_for_custom_property_value(data, context)
+            else {
+                return TokenResolution::NotHandled;
+            };
+            context.contains_attr_tainted_values |= contains_attr_tainted_values;
+            if !includes_substitution {
+                return TokenResolution::Resolved(tokens.to_vec());
+            }
+        }
     }
     let registration = registry.and_then(|registry| registry.registrations.get(name));
     let entry_and_owner = store.and_then(|store| {
@@ -814,27 +913,26 @@ fn resolve_custom_property_with_lookup(
     if matches!(data, StyleValueData::GuaranteedInvalid) {
         return TokenResolution::Invalid;
     }
-    let Some((source, includes_var)) = tokens_for_custom_property_value(data) else {
+    let Some((source, includes_var, contains_attr_tainted_values)) =
+        cached_tokens_for_custom_property_value(data, context)
+    else {
         return TokenResolution::NotHandled;
     };
-    if context.cyclic_names.contains(name) {
-        return TokenResolution::Invalid;
-    }
-    if let Some(cycle_start) = context.active_names.iter().position(|active_name| active_name == name) {
-        // https://drafts.csswg.org/css-variables-1/#cycles
-        // If there is a cycle in the dependency graph, all the custom properties in the cycle
-        // are invalid at computed-value time.
-        context
-            .cyclic_names
-            .extend(context.active_names[cycle_start..].iter().cloned());
-        return TokenResolution::Cyclic;
-    }
+    context.contains_attr_tainted_values |= contains_attr_tainted_values;
     context.active_names.push(name.to_owned());
+    if lookup == CustomPropertyLookup::ExplicitInheritance {
+        context
+            .inheritance_store_overrides
+            .push(owner.inheritance_parent.clone());
+    }
     let result = if includes_var {
         substitute_tokens(store, registry, &source, context, recursion_depth + 1)
     } else {
-        TokenResolution::Resolved(source)
+        TokenResolution::Resolved(source.to_vec())
     };
+    if lookup == CustomPropertyLookup::ExplicitInheritance {
+        context.inheritance_store_overrides.pop();
+    }
     let active_name = context.active_names.pop().expect("active custom property");
     debug_assert_eq!(active_name, name);
     if registration.is_none() && context.cyclic_names.contains(name) {
@@ -920,13 +1018,7 @@ fn replace_var_function(
     };
     // 4. If result contains the guaranteed-invalid value, and second arg was provided, set result to the result of
     //    substitute arbitrary substitution functions on second arg.
-    substitute_tokens(
-        store,
-        registry,
-        trim_leading_whitespace(&arguments[comma + 1..]),
-        context,
-        recursion_depth + 1,
-    )
+    substitute_tokens(store, registry, &arguments[comma + 1..], context, recursion_depth + 1)
 }
 
 fn replace_inherit_function(
@@ -955,10 +1047,34 @@ fn replace_inherit_function(
     };
     if let Some(name) = name {
         let local_scope = context.function_local_scopes.pop();
-        let inherited_store = local_scope.as_ref().map_or(context.inheritance_store, |_| store);
-        let result = resolve_custom_property(inherited_store, registry, name, context, recursion_depth + 1);
+        let inherited_same_name = context
+            .active_names
+            .iter()
+            .rposition(|active_name| active_name == name)
+            .map(|index| (index, context.active_names.remove(index)));
+        let inherited_store_override = context.inheritance_store_overrides.last().cloned().flatten();
+        let inherited_store = if local_scope.is_some() {
+            store
+        } else {
+            inherited_store_override.as_deref().or(context.inheritance_store)
+        };
+        let result = resolve_custom_property_with_lookup(
+            inherited_store,
+            registry,
+            name,
+            context,
+            recursion_depth + 1,
+            if local_scope.is_some() {
+                CustomPropertyLookup::Normal
+            } else {
+                CustomPropertyLookup::ExplicitInheritance
+            },
+        );
         if let Some(local_scope) = local_scope {
             context.function_local_scopes.push(local_scope);
+        }
+        if let Some((index, inherited_same_name)) = inherited_same_name {
+            context.active_names.insert(index, inherited_same_name);
         }
         match result {
             TokenResolution::Invalid | TokenResolution::Cyclic => {}
@@ -1176,16 +1292,16 @@ fn evaluate_parsed_boolean_expression(
 
 fn registered_style_query_values_are_equal(
     registry: &CustomPropertyRegistry,
-    registration: &RegisteredCustomProperty,
+    syntax: &SyntaxNode,
     computed_tokens: &[OwnedToken],
     query_tokens: &[OwnedToken],
 ) -> bool {
     let mut random_function_index = 0;
     let context = registry.parse_context(&mut random_function_index);
-    let Some(computed) = parse_with_syntax(&context, &serialize_tokens(computed_tokens), &registration.syntax) else {
+    let Some(computed) = parse_with_syntax(&context, &serialize_tokens(computed_tokens), syntax) else {
         return false;
     };
-    let Some(query) = parse_with_syntax(&context, &serialize_tokens(query_tokens), &registration.syntax) else {
+    let Some(query) = parse_with_syntax(&context, &serialize_tokens(query_tokens), syntax) else {
         return false;
     };
     let computed_color = crate::css::color_resolution::to_color(&computed, &crate::css::color_resolution::EMPTY_INPUT);
@@ -1272,9 +1388,32 @@ fn evaluate_style_feature(
         return ConditionEvaluation::Match(false);
     }
 
-    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    let local_registration = context
+        .function_local_scopes
+        .last()
+        .and_then(|scope| scope.registrations.get(name))
+        .cloned();
+    let registration = context
+        .function_local_scopes
+        .is_empty()
+        .then(|| registry.and_then(|registry| registry.registrations.get(name)))
+        .flatten();
+    let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
+    let computed = match computed {
+        TokenResolution::Resolved(tokens) => Some(tokens),
+        TokenResolution::Invalid => None,
+        TokenResolution::Cyclic
+            if context
+                .active_names
+                .first()
+                .is_some_and(|root_name| context.cyclic_names.contains(root_name)) =>
+        {
+            return ConditionEvaluation::Cyclic;
+        }
+        TokenResolution::Cyclic => None,
+        TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
+    };
     if registration.is_some()
-        && context.function_local_scopes.is_empty()
         && !context.active_names.iter().any(|active_name| active_name == name)
         && let Some(evaluate) = context.evaluate_condition
     {
@@ -1296,22 +1435,6 @@ fn evaluate_style_feature(
             _ => ConditionEvaluation::NotHandled,
         };
     }
-
-    let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
-    let computed = match computed {
-        TokenResolution::Resolved(tokens) => Some(tokens),
-        TokenResolution::Invalid => None,
-        TokenResolution::Cyclic
-            if context
-                .active_names
-                .first()
-                .is_some_and(|root_name| context.cyclic_names.contains(root_name)) =>
-        {
-            return ConditionEvaluation::Cyclic;
-        }
-        TokenResolution::Cyclic => None,
-        TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
-    };
     let Some(colon) = colon else {
         return ConditionEvaluation::Match(computed.is_some());
     };
@@ -1324,9 +1447,22 @@ fn evaluate_style_feature(
         let expected = if keyword.eq_ignore_ascii_case("initial")
             || keyword.eq_ignore_ascii_case("unset") && registration.is_some_and(|registration| !registration.inherits)
         {
-            registration.and_then(|registration| registration.initial_source.as_ref().map(tokenize_owned))
+            local_registration
+                .as_ref()
+                .and_then(|registration| registration.initial_tokens.clone())
+                .or_else(|| {
+                    registration.and_then(|registration| registration.initial_source.as_ref().map(tokenize_owned))
+                })
         } else {
-            match resolve_custom_property(context.inheritance_store, registry, name, context, recursion_depth + 1) {
+            let local_scope = local_registration
+                .as_ref()
+                .and_then(|_| context.function_local_scopes.pop());
+            let inherited_store = local_scope.as_ref().map_or(context.inheritance_store, |_| store);
+            let result = resolve_custom_property(inherited_store, registry, name, context, recursion_depth + 1);
+            if let Some(local_scope) = local_scope {
+                context.function_local_scopes.push(local_scope);
+            }
+            match result {
                 TokenResolution::Resolved(tokens) => Some(tokens),
                 TokenResolution::Invalid => None,
                 TokenResolution::Cyclic => return ConditionEvaluation::Cyclic,
@@ -1335,12 +1471,17 @@ fn evaluate_style_feature(
         };
         return ConditionEvaluation::Match(match (computed, expected) {
             (None, None) => true,
-            (Some(computed), Some(expected)) if registration.is_some() => registered_style_query_values_are_equal(
-                registry.expect("registration requires registry"),
-                registration.expect("registered property"),
-                &computed,
-                &expected,
-            ),
+            (Some(computed), Some(expected)) if local_registration.is_some() || registration.is_some() => {
+                registered_style_query_values_are_equal(
+                    registry.expect("registered syntax requires registry"),
+                    local_registration
+                        .as_ref()
+                        .map(|registration| &registration.syntax)
+                        .unwrap_or_else(|| &registration.expect("registered property").syntax),
+                    &computed,
+                    &expected,
+                )
+            }
             (Some(computed), Some(expected)) => trim_whitespace(&computed) == trim_whitespace(&expected),
             _ => false,
         });
@@ -1349,12 +1490,15 @@ fn evaluate_style_feature(
     let Some(computed) = computed else {
         return ConditionEvaluation::Match(false);
     };
-    if let (Some(registry), Some(registration)) = (registry, registration) {
+    if let (Some(registry), Some(syntax)) = (
+        registry,
+        local_registration
+            .as_ref()
+            .map(|registration| &registration.syntax)
+            .or_else(|| registration.map(|registration| &registration.syntax)),
+    ) {
         return ConditionEvaluation::Match(registered_style_query_values_are_equal(
-            registry,
-            registration,
-            &computed,
-            query,
+            registry, syntax, &computed, query,
         ));
     }
     ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
@@ -2005,7 +2149,14 @@ fn substitute_tokens(
         {
             output.push(tokens[index].clone());
         }
-        output.extend(resolved);
+        let resolved_start = usize::from(
+            matches!(output.last().map(|token| &token.kind), Some(OwnedTokenKind::Whitespace))
+                && matches!(
+                    resolved.first().map(|token| &token.kind),
+                    Some(OwnedTokenKind::Whitespace)
+                ),
+        );
+        output.extend(resolved.into_iter().skip(resolved_start));
         if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
         {
             output.push(tokens[close_index].clone());
@@ -2085,15 +2236,12 @@ pub(crate) unsafe fn resolve_vars(
     registry: *const c_void,
     root_custom_property_name: FfiUtf16View,
     value_data: *const c_void,
-    attributes: *const FfiSubstitutionAttribute,
-    attribute_count: usize,
+    environment: &mut VarResolutionEnvironment,
     attribute_names_are_ascii_case_insensitive: bool,
-    custom_functions: *const FfiSubstitutionFunctionDefinition,
-    custom_function_count: usize,
-    custom_function_scope_identity: usize,
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     condition_context: *mut c_void,
     evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
+    lookup_final_custom_property: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> *const c_void>,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
         None
@@ -2110,46 +2258,39 @@ pub(crate) unsafe fn resolve_vars(
     } else {
         Some(unsafe { &*inheritance_store.cast::<CustomPropertyStore>() })
     };
-    let attributes = if attribute_count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(attributes, attribute_count) }
-    };
-    let attributes: HashMap<Vec<u16>, Vec<u16>> = attributes
-        .iter()
-        .filter_map(|attribute| {
-            Some((unsafe { attribute.name.to_utf16() }?, unsafe {
-                attribute.value.to_utf16()
-            }?))
-        })
-        .collect();
     let value_data = unsafe { &*value_data.cast::<StyleValueData>() };
-    let Some((source, includes_substitution)) = tokens_for_custom_property_value(value_data) else {
+    let active_names = unsafe { root_custom_property_name.to_utf16() }
+        .filter(|name| !name.is_empty())
+        .into_iter()
+        .collect();
+    let VarResolutionEnvironment {
+        attributes,
+        custom_functions,
+        token_cache,
+    } = environment;
+    let mut context = VarResolutionContext {
+        active_names,
+        attributes: Some(attributes),
+        inheritance_store,
+        attribute_names_are_ascii_case_insensitive,
+        contains_attr_tainted_values: false,
+        custom_functions: Some(custom_functions),
+        resolve_custom_function,
+        condition_context,
+        evaluate_condition,
+        lookup_final_custom_property,
+        token_cache: Some(token_cache),
+        ..Default::default()
+    };
+    let Some((source, includes_substitution, contains_attr_tainted_values)) =
+        cached_tokens_for_custom_property_value(value_data, &mut context)
+    else {
         return NativeVarResolution::NotHandled;
     };
     if !includes_substitution {
         return NativeVarResolution::NotHandled;
     }
-    let Some(custom_functions) = (unsafe {
-        custom_function_registry_from_ffi(custom_functions, custom_function_count, custom_function_scope_identity)
-    }) else {
-        return NativeVarResolution::NotHandled;
-    };
-    let active_names = unsafe { root_custom_property_name.to_utf16() }
-        .filter(|name| !name.is_empty())
-        .into_iter()
-        .collect();
-    let mut context = VarResolutionContext {
-        active_names,
-        attributes: Some(&attributes),
-        inheritance_store,
-        attribute_names_are_ascii_case_insensitive,
-        custom_functions: Some(&custom_functions),
-        resolve_custom_function,
-        condition_context,
-        evaluate_condition,
-        ..Default::default()
-    };
+    context.contains_attr_tainted_values = contains_attr_tainted_values;
     let result = substitute_tokens(store, registry, &source, &mut context, 0);
     if context
         .active_names

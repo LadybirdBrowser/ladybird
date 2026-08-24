@@ -5217,11 +5217,23 @@ fn parse_css_value_after_substitution_scan(
         if !declaration_values.is_empty() && !declaration_value_is_valid(declaration_values) {
             return ParseOutcome::Invalid;
         }
-        return ParseOutcome::Parsed(shared_style_value(unresolved_value(
-            unresolved_source,
-            comparison_source,
-            substitution_presence,
-        )));
+        let mut unresolved = unresolved_value(unresolved_source, comparison_source, substitution_presence);
+        if let StyleValueData::Unresolved {
+            source_text,
+            contains_attr_tainted_values,
+            ..
+        } = &mut unresolved
+        {
+            *contains_attr_tainted_values = context.contains_attr_tainted_values;
+            if property_id == property_id::CUSTOM && context.is_substituted_value {
+                let first_non_whitespace = unresolved_source
+                    .iter()
+                    .position(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+                    .unwrap_or(unresolved_source.len());
+                *source_text = RetainedReadableString::from_utf16(&unresolved_source[first_non_whitespace..]);
+            }
+        }
+        return ParseOutcome::Parsed(shared_style_value(unresolved));
     }
     let wrapped_values;
     let values = if let Some(function_names) = substitution_function_context_names(context) {
