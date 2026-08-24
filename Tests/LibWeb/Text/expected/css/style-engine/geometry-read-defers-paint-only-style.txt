@@ -8,3 +8,5 @@ layout offset size: 200x20
 layout style settled: true
 transformed geometry: 18
 visual geometry style settled: true
+merged deferred style is observable: rgb(0, 0, 255)
+deferred and current style used one transaction: true
