@@ -85,6 +85,15 @@ pub struct PaintRecorder<'a> {
     list: HitTestList,
     base_paint_facts_cache: Vec<Option<(NodeSlotId, BasePaintFacts)>>,
     paintable_facts_cache: Vec<Option<(NodeSlotId, FfiHitTestPaintableFacts)>>,
+    pub(crate) absolute_position_cache: Vec<std::cell::Cell<Option<(NodeSlotId, crate::layout::FfiCssPixelPoint)>>>,
+    // Validity checks must compare against this recording-start snapshot, not the live per-row
+    // cell: the first phase that re-records a moved row updates the cell, and later phases
+    // would then wrongly accept their stale captures.
+    pub(crate) previously_captured_position_cache:
+        Vec<std::cell::Cell<Option<(NodeSlotId, crate::layout::FfiCssPixelPoint)>>>,
+    pub(crate) completed_record_gen: u64,
+    pub(crate) all_paint_caches_dirty: bool,
+    pub(crate) all_descendant_subtree_caches_dirty: bool,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
     font_resource_id_cache: HashMap<usize, u64>,
     text_control_selection_cache: HashMap<u32, crate::painting::host::FfiTextControlSelection>,
@@ -205,6 +214,15 @@ impl<'a> PaintRecorder<'a> {
             list: HitTestList::default(),
             base_paint_facts_cache: vec![None; self.layout_arena.paintable_row_count()],
             paintable_facts_cache: vec![None; self.layout_arena.paintable_row_count()],
+            absolute_position_cache: (0..self.layout_arena.paintable_row_count())
+                .map(|_| std::cell::Cell::new(None))
+                .collect(),
+            previously_captured_position_cache: (0..self.layout_arena.paintable_row_count())
+                .map(|_| std::cell::Cell::new(None))
+                .collect(),
+            completed_record_gen: self.completed_record_gen,
+            all_paint_caches_dirty: self.all_paint_caches_dirty,
+            all_descendant_subtree_caches_dirty: self.all_descendant_subtree_caches_dirty,
             text_node_facts_cache: HashMap::new(),
             font_resource_id_cache: HashMap::new(),
             text_control_selection_cache: HashMap::new(),

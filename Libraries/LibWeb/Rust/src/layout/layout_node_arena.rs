@@ -415,7 +415,7 @@ impl LayoutNodeArena {
             generation,
             "layout node arena slot ID and allocation generation disagree"
         );
-        self.clear_descendant_subtree_caches_from_layout_node(id);
+        self.mark_descendant_subtree_caches_dirty_from_layout_node(id);
         let should_reuse = {
             let metadata = self.metadata_mut(index);
             assert!(metadata.occupied, "layout node arena freed an unused slot");

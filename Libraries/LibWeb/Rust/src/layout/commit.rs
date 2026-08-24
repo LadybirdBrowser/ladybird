@@ -24,6 +24,7 @@ fn commit_subtree(
     paintables: &mut crate::painting::paintable_build::PaintableCommit<'_>,
     links_by_slot: &std::collections::HashMap<u32, &crate::layout::FragmentLink>,
     pass_fragments: &crate::layout::CompletedPassFragments,
+    enclosing_line_root_content_changed: bool,
 ) {
     let slot_index = callbacks.slot_index(node);
     let entry = links_by_slot.get(&slot_index).copied();
@@ -32,9 +33,15 @@ fn commit_subtree(
     if let Some(link) = entry {
         callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
     }
-    let prepared = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree);
+    let prepared = paintables.prepare_node(
+        node,
+        entry.is_some(),
+        reuses_committed_subtree,
+        enclosing_line_root_content_changed,
+    );
 
     let mut has_pending_inline_box_geometry = false;
+    let mut line_root_content_changed_for_children = enclosing_line_root_content_changed;
     if let Some(link) = entry
         && prepared.has_paintable_row
     {
@@ -47,10 +54,12 @@ fn commit_subtree(
                 ),
             "committed path-like fragment carries no computed SVG path"
         );
-        let content_size_change =
-            paintables.replace_committed_fragment_link(node, link, reuses_committed_subtree);
+        let replaced = paintables.replace_committed_fragment_link(node, link, reuses_committed_subtree);
+        if fragment.line_data.is_some() {
+            line_root_content_changed_for_children = replaced.committed_fragment_identity_changed;
+        }
         if prepared.row_existed_before_this_commit
-            && let Some((old_content_size, new_content_size)) = content_size_change
+            && let Some((old_content_size, new_content_size)) = replaced.content_size_change
         {
             // SAFETY: Every callback below copies its plain-data argument or
             // consumes one retained handle synchronously.
@@ -73,7 +82,15 @@ fn commit_subtree(
     let mut child = callbacks.first_child(node);
     while !child.is_invalid() {
         let next = callbacks.next_sibling(child);
-        commit_subtree(child, callbacks, sink, &mut *paintables, links_by_slot, pass_fragments);
+        commit_subtree(
+            child,
+            callbacks,
+            sink,
+            &mut *paintables,
+            links_by_slot,
+            pass_fragments,
+            line_root_content_changed_for_children,
+        );
         child = next;
     }
 
@@ -93,7 +110,7 @@ pub(crate) fn commit_replacing(
 ) {
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);
-    paintables.begin_commit(root);
+    paintables.begin_commit();
     commit_subtree(
         root,
         callbacks,
@@ -101,8 +118,8 @@ pub(crate) fn commit_replacing(
         &mut paintables,
         &links_by_slot,
         pass_fragments,
+        false,
     );
-    paintables.translate_reused_subtrees();
     paintables.discard_absolute_rects_memoized_during_commit();
     let viewport_shells = paintables.committed_navigable_container_viewport_shells();
     unsafe {

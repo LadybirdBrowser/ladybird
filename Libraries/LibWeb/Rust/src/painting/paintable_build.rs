@@ -12,12 +12,16 @@ use crate::layout::{
     Node, NodeFacts,
 };
 use crate::painting::paintable_data::*;
-use crate::painting::paintable_rows::PaintableRowsRead;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PreparedPaintable {
     pub(crate) has_paintable_row: bool,
     pub(crate) row_existed_before_this_commit: bool,
+}
+
+pub(crate) struct ReplacedCommittedFragmentLink {
+    pub(crate) content_size_change: Option<(FfiCssPixelSize, FfiCssPixelSize)>,
+    pub(crate) committed_fragment_identity_changed: bool,
 }
 
 pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
@@ -64,53 +68,9 @@ pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> 
     }
 }
 
-fn committed_offset_delta(
-    arena: &impl PaintableRowsRead,
-    offsets_before_commit: &std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
-    slot: NodeSlotId,
-) -> FfiCssPixelPoint {
-    let Some(offset_before_commit) = offsets_before_commit.get(&slot) else {
-        return FfiCssPixelPoint::default();
-    };
-    let offset = arena.paintable_data(slot).offset;
-    FfiCssPixelPoint {
-        x: offset.x - offset_before_commit.x,
-        y: offset.y - offset_before_commit.y,
-    }
-}
-
-fn reused_subtree_absolute_position_delta(
-    arena: &impl PaintableRowsRead,
-    offsets_before_commit: &std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
-    root: NodeSlotId,
-) -> FfiCssPixelPoint {
-    let mut delta = committed_offset_delta(arena, offsets_before_commit, root);
-    if crate::painting::paintable_geometry::is_svg_paintable(arena.paintable_data(root).kind) {
-        return delta;
-    }
-    let mut block = arena.paintable_data(root).containing_block;
-    while !block.is_invalid() && arena.paintable_row_is_populated(block) {
-        let block_data = arena.paintable_data(block);
-        if block_data.kind == PaintableKind::SVGSVGPaintable
-            || crate::painting::paintable_geometry::is_svg_paintable(block_data.kind)
-        {
-            break;
-        }
-        let block_delta = committed_offset_delta(arena, offsets_before_commit, block);
-        delta.x += block_delta.x;
-        delta.y += block_delta.y;
-        if block_data.kind == PaintableKind::SVGForeignObjectPaintable {
-            break;
-        }
-        block = block_data.containing_block;
-    }
-    delta
-}
-
 pub(crate) struct PaintableCommit<'a> {
     callbacks: &'a FfiLayoutFcCallbacks,
-    offsets_before_commit: std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
-    reused_subtree_roots: Vec<NodeSlotId>,
+    committed_offsets_before_recommit_reset: std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
     committed_navigable_container_viewports: Vec<NodeSlotId>,
 }
 
@@ -118,8 +78,7 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn new(callbacks: &'a FfiLayoutFcCallbacks) -> Self {
         Self {
             callbacks,
-            offsets_before_commit: std::collections::HashMap::new(),
-            reused_subtree_roots: Vec::new(),
+            committed_offsets_before_recommit_reset: std::collections::HashMap::new(),
             committed_navigable_container_viewports: Vec::new(),
         }
     }
@@ -139,36 +98,8 @@ impl<'a> PaintableCommit<'a> {
         self.arena().clear_absolute_rect_memo();
     }
 
-    pub(crate) fn translate_reused_subtrees(&mut self) {
-        let roots = std::mem::take(&mut self.reused_subtree_roots);
-        if roots.is_empty() {
-            return;
-        }
-        let offsets_before_commit = std::mem::take(&mut self.offsets_before_commit);
-        let arena = self.arena_mut();
-        let paintable_rows = arena.paintable_rows_mut();
-        for root in roots {
-            let delta = reused_subtree_absolute_position_delta(&paintable_rows, &offsets_before_commit, root);
-            if delta == FfiCssPixelPoint::default() {
-                continue;
-            }
-            let mut slots = Vec::new();
-            crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, root, |slot| {
-                slots.push(slot);
-            });
-            for slot in slots {
-                paintable_rows.invalidate_paint_cache(slot);
-            }
-        }
-    }
-
-    pub(crate) fn begin_commit(&self, root: Node) {
-        let arena = self.arena();
-        arena.clear_absolute_rect_memo();
-        if self.callbacks.node_data(root).kind == NodeKind::Viewport {
-            return;
-        }
-        arena.clear_descendant_subtree_caches_from_layout_node(root);
+    pub(crate) fn begin_commit(&self) {
+        self.arena().clear_absolute_rect_memo();
     }
 
     pub(crate) fn prepare_node(
@@ -176,6 +107,7 @@ impl<'a> PaintableCommit<'a> {
         node: Node,
         has_used_values: bool,
         reuses_committed_subtree: bool,
+        enclosing_line_root_content_changed: bool,
     ) -> PreparedPaintable {
         let (expected_kind, wants_paintable, node_kind) = {
             let facts = NodeFacts::new(self.callbacks, node);
@@ -216,8 +148,7 @@ impl<'a> PaintableCommit<'a> {
                 "a kept subtree root has no committed row"
             );
             let offset = self.arena().paintable_rows().paintable_data(node).offset;
-            self.offsets_before_commit.insert(node, offset);
-            self.reused_subtree_roots.push(node);
+            self.committed_offsets_before_recommit_reset.insert(node, offset);
             return PreparedPaintable {
                 has_paintable_row: true,
                 row_existed_before_this_commit: true,
@@ -225,6 +156,11 @@ impl<'a> PaintableCommit<'a> {
         }
         if !has_used_values {
             self.arena().clear_committed_fragment_link(node);
+            // Fragmented inlines commit no fragment link, so the identity diff never sees them;
+            // their painted output changes exactly when the enclosing line root's fragment did.
+            if row_existed_before_this_commit && enclosing_line_root_content_changed {
+                self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
+            }
         }
         if row_existed_before_this_commit {
             let (offset, notification) = {
@@ -234,7 +170,7 @@ impl<'a> PaintableCommit<'a> {
                     paintable_rows.prepare_paintable_row_recommit_notification(node),
                 )
             };
-            self.offsets_before_commit.insert(node, offset);
+            self.committed_offsets_before_recommit_reset.insert(node, offset);
             notification.invoke_callback();
         }
         let arena = self.arena_mut();
@@ -265,7 +201,7 @@ impl<'a> PaintableCommit<'a> {
         node: Node,
         link: &FragmentLink,
         reuses_committed_subtree: bool,
-    ) -> Option<(FfiCssPixelSize, FfiCssPixelSize)> {
+    ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
         let new_content_size = FfiCssPixelSize {
             width: fragment.content_inline_size,
@@ -295,18 +231,33 @@ impl<'a> PaintableCommit<'a> {
             );
             content_size_change = Some((previous_content_size_for_diff, new_content_size));
         }
+        let committed_fragment_identity_changed = old_identity != fragment.identity;
+        // A reused committed subtree's root counts as unchanged even though its run-root
+        // fragment is rebuilt with a fresh identity at placement: the reuse contract guarantees
+        // identical replayed output, enforced by the content-size assertion above.
+        let content_unchanged = reuses_committed_subtree || (old_identity != 0 && !committed_fragment_identity_changed);
+        let offset_unchanged = self
+            .committed_offsets_before_recommit_reset
+            .get(&node)
+            .is_some_and(|&offset_before_commit| offset_before_commit == link.committed_offset);
+        if !(content_unchanged && offset_unchanged) {
+            self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
+        }
         {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
             let data = paintable_rows.paintable_data_mut(node);
-            if old_identity != fragment.identity {
+            if committed_fragment_identity_changed {
                 data.overflow_valid_across_recommits = false;
             }
             data.content_size = new_content_size;
             data.offset = link.committed_offset;
         }
         self.callbacks.set_committed_fragment_link(node, link.clone());
-        content_size_change
+        ReplacedCommittedFragmentLink {
+            content_size_change,
+            committed_fragment_identity_changed,
+        }
     }
 
     pub(crate) fn set_line_data(&self, slot: NodeSlotId, line_data: &LineData, content_inline_size: CssPixels) -> bool {

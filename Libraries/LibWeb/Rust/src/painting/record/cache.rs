@@ -7,6 +7,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use crate::layout::FfiCssPixelPoint;
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::hit_test::HitTestItem;
 use crate::painting::record::PaintPhase;
@@ -49,6 +50,14 @@ pub struct PaintCache {
     commands: [Cell<Option<CachedCommands>>; PaintPhase::COUNT],
     hit_test_items: [Cell<Option<CachedHitTestItems>>; PaintPhase::COUNT],
     descendant_subtrees: [Cell<Option<CachedDescendantSubtree>>; StackingContextPaintPhase::COUNT],
+    // One captured position per row covers every entry: register_capture_position() drops the
+    // row's entries whenever a registration moves the stamp, so live entries are always captures
+    // taken at this position.
+    captured_absolute_position: Cell<FfiCssPixelPoint>,
+    // Dirty while greater than the arena's completed-record generation; aged out by the bump
+    // after a cache-writing recording, never cleared by walks.
+    self_dirty_gen: Cell<u64>,
+    descendant_dirty_gen: Cell<u64>,
 }
 
 impl Default for PaintCache {
@@ -57,6 +66,9 @@ impl Default for PaintCache {
             commands: std::array::from_fn(|_| Cell::new(None)),
             hit_test_items: std::array::from_fn(|_| Cell::new(None)),
             descendant_subtrees: std::array::from_fn(|_| Cell::new(None)),
+            captured_absolute_position: Cell::new(FfiCssPixelPoint::default()),
+            self_dirty_gen: Cell::new(0),
+            descendant_dirty_gen: Cell::new(0),
         }
     }
 }
@@ -100,6 +112,43 @@ impl PaintCache {
             hit_test_items.set(None);
         }
         self.clear_descendant_subtrees();
+    }
+
+    pub(crate) fn captured_absolute_position(&self) -> FfiCssPixelPoint {
+        self.captured_absolute_position.get()
+    }
+
+    /// The row keeps one captured position for all of its entries, which is only sound while
+    /// every live entry was captured at that position. A phase walk can re-register one entry
+    /// kind of a moved row (e.g. the always-empty descendant subtree of a positioned child)
+    /// while the row's other entries still hold output captured at the old position, so
+    /// registering at a new position must drop the remaining entries: a moved box can never
+    /// validly splice them again, and keeping them would let later position checks accept them
+    /// against the freshly moved stamp.
+    pub(crate) fn register_capture_position(&self, position: FfiCssPixelPoint) {
+        if self.captured_absolute_position.get() != position {
+            self.clear();
+            self.captured_absolute_position.set(position);
+        }
+    }
+
+    pub(crate) fn mark_self_dirty(&self, next_dirty_gen: u64) {
+        self.self_dirty_gen.set(next_dirty_gen);
+    }
+
+    /// Returns whether the cache already carried this generation, so marking walks stop early.
+    pub(crate) fn mark_descendants_dirty(&self, next_dirty_gen: u64) -> bool {
+        let already_marked = self.descendant_dirty_gen.get() == next_dirty_gen;
+        self.descendant_dirty_gen.set(next_dirty_gen);
+        already_marked
+    }
+
+    pub(crate) fn is_self_dirty_since(&self, completed_record_gen: u64) -> bool {
+        self.self_dirty_gen.get() > completed_record_gen
+    }
+
+    pub(crate) fn has_dirty_descendants_since(&self, completed_record_gen: u64) -> bool {
+        self.descendant_dirty_gen.get() > completed_record_gen
     }
 }
 

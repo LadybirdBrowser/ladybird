@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="spacer" style="height: 10px"></div>
+<div style="width: 50px; height: 50px; border-radius: 10px; overflow: hidden;">
+    <div id="target" style="width: 50px; height: 50px; background-color: red; position: relative"></div>
+</div>
+<div id="poke" style="width: 10px; height: 10px; background-color: blue"></div>
+<script>
+    // A positioned box paints nothing during the stacking context phase walks (it is painted in
+    // the positioned-descendants pass), so the phase walks register always-empty descendant
+    // subtree captures for it. When such a box merely moves, that registration relocates the
+    // row's shared captured-position stamp and must not make the still-stale command and
+    // hit-test captures from the old position look valid for the positioned-descendants pass.
+    test(() => {
+        // First recording: every capture for #target chains to this display list.
+        internals.hitTest(30, 40);
+
+        // Dirty an unrelated later sibling so the next hit test records a second display list.
+        // In it #target's parent splices its cached subtree, leaving #target's descendant
+        // subtree entries chained to the first list while the positioned-descendants pass
+        // re-registers its command and hit-test entries against the second one.
+        document.getElementById("poke").style.backgroundColor = "green";
+        internals.hitTest(30, 40);
+
+        // Move the box without changing its own layout results: only ancestor offsets change.
+        document.getElementById("spacer").style.height = "60px";
+
+        let hit = internals.hitTest(30, 90);
+        println("hit at moved position:");
+        printElement(hit.node);
+    });
+</script>

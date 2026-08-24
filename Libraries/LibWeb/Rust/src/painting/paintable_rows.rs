@@ -69,6 +69,10 @@ pub(crate) struct PaintableRowStore {
     absolute_rect_memo_epoch: Cell<u64>,
     committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
     chrome_state_callback: Cell<Option<ChromeStateCallback>>,
+    completed_record_gen: Cell<u64>,
+    all_paint_caches_dirty_gen: Cell<u64>,
+    all_descendant_subtree_caches_dirty_gen: Cell<u64>,
+    paint_recording_in_progress: Cell<bool>,
 }
 
 pub(crate) struct PaintableRows<Arena> {
@@ -176,33 +180,53 @@ where
             .collect()
     }
 
-    pub(crate) fn invalidate_paint_cache(&self, id: NodeSlotId) {
+    pub(crate) fn mark_paint_cache_self_dirty(&self, id: NodeSlotId) {
         if !self.paintable_row_is_populated(id) {
             return;
         }
-        self.arena.paintable_paint_cache(id).clear();
+        self.arena.debug_assert_not_recording();
+        let next_dirty_gen = self.arena.paint_cache_next_dirty_gen();
+        self.arena.paintable_paint_cache(id).mark_self_dirty(next_dirty_gen);
         let mut ancestor = crate::painting::paint_order::paint_parent(self, id);
         while let Some(current) = ancestor {
-            self.arena.paintable_paint_cache(current).clear_descendant_subtrees();
+            if self
+                .arena
+                .paintable_paint_cache(current)
+                .mark_descendants_dirty(next_dirty_gen)
+            {
+                break;
+            }
             ancestor = crate::painting::paint_order::paint_parent(self, current);
         }
     }
 
-    pub(crate) fn clear_descendant_subtree_caches_along_paint_chain(&self, id: NodeSlotId) {
+    pub(crate) fn mark_descendant_subtree_caches_dirty_along_paint_chain(&self, id: NodeSlotId) {
         if !self.paintable_row_is_populated(id) {
             return;
         }
+        self.arena.debug_assert_not_recording();
+        let next_dirty_gen = self.arena.paint_cache_next_dirty_gen();
         let mut current = Some(id);
         while let Some(slot) = current {
-            self.arena.paintable_paint_cache(slot).clear_descendant_subtrees();
+            if self
+                .arena
+                .paintable_paint_cache(slot)
+                .mark_descendants_dirty(next_dirty_gen)
+            {
+                break;
+            }
             current = crate::painting::paint_order::paint_parent(self, slot);
         }
     }
 
-    pub(crate) fn clear_descendant_subtree_caches_from_layout_node(&self, mut node: NodeSlotId) {
+    pub(crate) fn invalidate_paint_cache(&self, id: NodeSlotId) {
+        self.mark_paint_cache_self_dirty(id);
+    }
+
+    pub(crate) fn mark_descendant_subtree_caches_dirty_from_layout_node(&self, mut node: NodeSlotId) {
         loop {
             if self.paintable_row_is_populated(node) {
-                self.clear_descendant_subtree_caches_along_paint_chain(node);
+                self.mark_descendant_subtree_caches_dirty_along_paint_chain(node);
                 return;
             }
             if !crate::painting::fragment_ownership::node_is_fragmented_inline(self.arena.deref(), node) {
@@ -226,7 +250,7 @@ where
             while let Some(child_slot) = child {
                 let child_flags = self.arena.node_flags_if_live(child_slot);
                 if child_flags & NodeFlag::Anonymous as u32 != 0 {
-                    self.arena.paintable_paint_cache(child_slot).clear();
+                    self.mark_paint_cache_self_dirty(child_slot);
                     stack.push(child_slot);
                 }
                 child = crate::painting::paint_order::next_paint_sibling(self, child_slot);
@@ -263,17 +287,13 @@ where
                 continue;
             }
             if data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable {
-                self.arena.paintable_paint_cache(current).clear();
+                self.mark_paint_cache_self_dirty(current);
             }
             if let Some(first_child) = crate::painting::paint_order::first_paint_child(self, current) {
                 stack.push(first_child);
             }
         }
-        let mut ancestor = Some(root);
-        while let Some(current) = ancestor {
-            self.arena.paintable_paint_cache(current).clear_descendant_subtrees();
-            ancestor = crate::painting::paint_order::paint_parent(self, current);
-        }
+        self.mark_descendant_subtree_caches_dirty_along_paint_chain(root);
     }
 
     pub(crate) fn prepare_paintable_row_recommit_notification(&self, id: NodeSlotId) -> PaintableRowReset {
@@ -317,7 +337,8 @@ where
             data.local_border_box_union = FfiCssPixelRect::default();
             data.stacking_context = crate::painting::stacking_context::NO_STACKING_CONTEXT;
         }
-        self.arena.paintable_paint_cache(id).clear();
+        // The paint cache is deliberately kept; the commit diff marks rows whose committed
+        // fragment identity or offset actually changed.
         self.arena.paintable_side_data_mut(id).clear_committed_records();
     }
 }
@@ -473,16 +494,60 @@ impl LayoutNodeArena {
         self.paintable_rows.side_data.borrow().len()
     }
 
-    pub(crate) fn clear_descendant_subtree_caches(&self) {
-        for cache in self.paintable_rows.paint_caches.borrow().iter() {
-            cache.clear_descendant_subtrees();
-        }
+    pub(crate) fn paint_cache_completed_record_gen(&self) -> u64 {
+        self.paintable_rows.completed_record_gen.get()
     }
 
-    pub(crate) fn clear_all_paintable_paint_caches(&self) {
-        for cache in self.paintable_rows.paint_caches.borrow().iter() {
-            cache.clear();
-        }
+    pub(crate) fn paint_cache_next_dirty_gen(&self) -> u64 {
+        self.paintable_rows
+            .completed_record_gen
+            .get()
+            .checked_add(1)
+            .expect("paint cache record generation overflowed")
+    }
+
+    pub(crate) fn note_paint_record_completed_with_cache_writes(&self) {
+        let generation = &self.paintable_rows.completed_record_gen;
+        generation.set(
+            generation
+                .get()
+                .checked_add(1)
+                .expect("paint cache record generation overflowed"),
+        );
+    }
+
+    pub(crate) fn set_paint_recording_in_progress(&self, in_progress: bool) {
+        self.paintable_rows.paint_recording_in_progress.set(in_progress);
+    }
+
+    pub(crate) fn debug_assert_not_recording(&self) {
+        debug_assert!(
+            !self.paintable_rows.paint_recording_in_progress.get(),
+            "paint cache invalidation during display list recording would be aged out unseen"
+        );
+    }
+
+    pub(crate) fn mark_all_paint_caches_dirty(&self) {
+        self.debug_assert_not_recording();
+        self.paintable_rows
+            .all_paint_caches_dirty_gen
+            .set(self.paint_cache_next_dirty_gen());
+    }
+
+    pub(crate) fn mark_all_descendant_subtree_caches_dirty(&self) {
+        self.debug_assert_not_recording();
+        self.paintable_rows
+            .all_descendant_subtree_caches_dirty_gen
+            .set(self.paint_cache_next_dirty_gen());
+    }
+
+    pub(crate) fn all_paint_caches_dirty(&self) -> bool {
+        self.paintable_rows.all_paint_caches_dirty_gen.get() > self.paintable_rows.completed_record_gen.get()
+    }
+
+    pub(crate) fn all_descendant_subtree_caches_dirty(&self) -> bool {
+        self.paintable_rows.all_descendant_subtree_caches_dirty_gen.get()
+            > self.paintable_rows.completed_record_gen.get()
     }
 
     pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {
@@ -514,10 +579,11 @@ impl LayoutNodeArena {
         absolute_rect_memo[index] = None;
     }
 
-    fn reset_paintable_row(&mut self, clear_caches_along_paint_chain: bool, reset: PaintableRowReset) {
+    fn reset_paintable_row(&mut self, mark_caches_dirty_along_paint_chain: bool, reset: PaintableRowReset) {
         let id = reset.slot;
-        if clear_caches_along_paint_chain {
-            self.clear_descendant_subtree_caches_along_paint_chain(id);
+        if mark_caches_dirty_along_paint_chain {
+            self.paintable_rows()
+                .mark_descendant_subtree_caches_dirty_along_paint_chain(id);
         }
         self.clear_absolute_rect_memo();
         let store = &mut self.paintable_rows;
@@ -585,14 +651,9 @@ impl LayoutNodeArena {
         self.paintable_rows().invalidate_paint_cache(id);
     }
 
-    pub(crate) fn clear_descendant_subtree_caches_along_paint_chain(&self, id: NodeSlotId) {
+    pub(crate) fn mark_descendant_subtree_caches_dirty_from_layout_node(&self, node: NodeSlotId) {
         self.paintable_rows()
-            .clear_descendant_subtree_caches_along_paint_chain(id);
-    }
-
-    pub(crate) fn clear_descendant_subtree_caches_from_layout_node(&self, node: NodeSlotId) {
-        self.paintable_rows()
-            .clear_descendant_subtree_caches_from_layout_node(node);
+            .mark_descendant_subtree_caches_dirty_from_layout_node(node);
     }
 
     pub(crate) fn invalidate_for_repaint(&self, id: NodeSlotId) {
