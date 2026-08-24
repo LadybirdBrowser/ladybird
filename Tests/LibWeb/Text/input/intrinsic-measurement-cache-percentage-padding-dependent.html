@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { display: flex; width: 300px; }
+    #inner { display: flex; flex: none; padding-left: 10%; }
+    .item { padding: 5px; }
+</style>
+<div id="outer"><div id="inner"><div class="item">alpha beta</div><div class="item">gamma</div></div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const widthBefore = document.getElementById("inner").getBoundingClientRect().width;
+        const measurementsBefore = internals.intrinsicMeasurementCount();
+
+        // #inner's percentage padding resolves against #outer's width, so its measurements are keyed
+        // on that basis and must be redone.
+        document.getElementById("outer").style.width = "400px";
+        document.body.offsetHeight;
+
+        println(`measured again: ${internals.intrinsicMeasurementCount() > measurementsBefore}`);
+        println(`inner width: ${widthBefore} -> ${document.getElementById("inner").getBoundingClientRect().width}`);
+    });
+</script>
