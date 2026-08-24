@@ -1264,8 +1264,43 @@ fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: Quer
             }
         }
         Expression::QueryFeature(feature) => serialize_query_feature(sink, feature, kind),
-        Expression::SupportsFeature(_) | Expression::StyleFunction(_) | Expression::StyleFeature(_) => {
-            unreachable!("unsupported expression in media query")
+        Expression::SupportsFeature(feature) => match feature {
+            SupportsFeature::Declaration(components) => {
+                for component in components {
+                    push_utf16(sink, &component.original_source_text.to_vec());
+                }
+            }
+            SupportsFeature::Selector(components) => {
+                sink.push_ascii("selector(");
+                for component in components {
+                    push_utf16(sink, &component.original_source_text.to_vec());
+                }
+                sink.push_ascii(")");
+            }
+            SupportsFeature::FontTech(name) => {
+                sink.push_ascii("font-tech(");
+                push_utf16(sink, name);
+                sink.push_ascii(")");
+            }
+            SupportsFeature::FontFormat(name) => {
+                sink.push_ascii("font-format(");
+                push_utf16(sink, name);
+                sink.push_ascii(")");
+            }
+            SupportsFeature::AtRule(name) => {
+                sink.push_ascii("at-rule(@");
+                serialize_an_identifier(sink, &StringUnits::Utf16(name));
+                sink.push_ascii(")");
+            }
+            SupportsFeature::Env(name) => {
+                // NB: Preserve the existing C++ serialization until the behavior can be changed separately.
+                sink.push_ascii("font-format(");
+                serialize_an_identifier(sink, &StringUnits::Utf16(name));
+                sink.push_ascii(")");
+            }
+        },
+        Expression::StyleFunction(_) | Expression::StyleFeature(_) => {
+            unreachable!("unsupported style expression in this query serializer")
         }
     }
 }
@@ -1921,6 +1956,32 @@ pub unsafe extern "C" fn css_query_serialize_media_query(
             return false;
         };
         let serialized = serialize_media_query(query);
+        unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
+        true
+    })
+}
+
+/// Serializes a retained query condition without changing its UTF-16 representation.
+///
+/// # Safety
+/// `handle` must point to a live expression handle. The callback must be valid and may only
+/// retain a copy of the borrowed UTF-16 slice.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn css_query_serialize_condition(
+    handle: *const FfiQueryHandle,
+    context: *mut c_void,
+    visit: VisitQuerySerialization,
+) -> bool {
+    crate::abort_on_panic(|| {
+        let Some(handle) = (unsafe { handle.as_ref() }) else {
+            return false;
+        };
+        let QueryTree::Expression { expression, kind } = &handle.tree else {
+            return false;
+        };
+        let mut sink = TextSink::new();
+        serialize_expression(&mut sink, expression, *kind);
+        let serialized = sink.into_utf16();
         unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
         true
     })
