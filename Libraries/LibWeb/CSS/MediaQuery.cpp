@@ -5,12 +5,51 @@
  */
 
 #include <LibWeb/CSS/MediaQuery.h>
-#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
+
+MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document)
+{
+    if (!document.window())
+        return;
+
+    auto computation_context = ComputationContext {
+        .length_resolution_context = Length::ResolutionContext::for_document(document),
+    };
+    m_length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
+        computation_context.length_resolution_context, all_container_relative_length_units_mask);
+
+    for (size_t index = 0; index < m_values.size(); ++index) {
+        auto queried_value = document.window()->query_media_feature(static_cast<MediaFeatureID>(index));
+        if (!queried_value.has_value())
+            continue;
+        auto& ffi_value = m_values[index];
+        auto const& value = queried_value.value();
+        if (value.is_ident()) {
+            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Ident;
+            ffi_value.keyword = to_underlying(value.ident());
+        } else if (value.is_integer()) {
+            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Integer;
+            ffi_value.value = value.integer(computation_context);
+        } else if (value.is_length()) {
+            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Length;
+            ffi_value.value = value.length(computation_context).absolute_length_to_px().to_double();
+        } else if (value.is_ratio()) {
+            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Ratio;
+            auto ratio = value.ratio(computation_context);
+            ffi_value.value = ratio.numerator();
+            ffi_value.second_value = ratio.denominator();
+        } else if (value.is_resolution()) {
+            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Resolution;
+            ffi_value.value = value.resolution(computation_context).to_dots_per_pixel();
+        }
+    }
+}
 
 NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 {
@@ -37,22 +76,8 @@ bool MediaFeature::keyword_is_falsey(MediaFeatureID id, Keyword keyword)
 
 MatchResult MediaFeature::evaluate(BooleanExpressionEvaluationContext const& context) const
 {
-    auto const& document = context.document;
-    VERIFY(document);
-
-    // FIXME: In some cases (e.g. when parsing HTML using DOMParser::parse_from_string()) a document may not be associated with a window -
-    //        for now we just return false but perhaps there are some media queries we should still attempt to resolve.
-    if (!document->window())
-        return MatchResult::False;
-
-    auto queried_value = document->window()->query_media_feature(id());
-    if (!queried_value.has_value())
-        return MatchResult::False;
-
-    ComputationContext computation_context {
-        .length_resolution_context = Length::ResolutionContext::for_document(*document),
-    };
-    return evaluate_internal(queried_value.value(), computation_context);
+    (void)context;
+    VERIFY_NOT_REACHED();
 }
 
 void MediaFeature::dump(StringBuilder& builder, int indent_levels) const
@@ -76,34 +101,15 @@ void MediaQuery::serialize_to(Utf16StringBuilder& builder) const
     VERIFY(Parser::ValueParserFFI::css_query_serialize_media_query(m_rust_query_handle.data(), &builder, append_serialized_query));
 }
 
+bool MediaQuery::evaluate(MediaEnvironmentSnapshot const& environment)
+{
+    m_matches = Parser::ValueParserFFI::css_query_evaluate_media(m_rust_query_handle.data(), environment.ffi_environment());
+    return m_matches;
+}
+
 bool MediaQuery::evaluate(DOM::Document const& document)
 {
-    auto matches_media = [](MediaType const& media) -> MatchResult {
-        if (!media.known_type.has_value())
-            return MatchResult::False;
-        switch (media.known_type.value()) {
-        case KnownMediaType::All:
-            return MatchResult::True;
-        case KnownMediaType::Print:
-            // FIXME: Enable for printing, when we have printing!
-            return MatchResult::False;
-        case KnownMediaType::Screen:
-            // FIXME: Disable for printing, when we have printing!
-            return MatchResult::True;
-        }
-        VERIFY_NOT_REACHED();
-    };
-
-    MatchResult result = matches_media(m_media_type);
-
-    if ((result != MatchResult::False) && m_media_condition)
-        result = result && m_media_condition->evaluate({ .document = document });
-
-    if (m_negated)
-        result = negate(result);
-
-    m_matches = result == MatchResult::True;
-    return m_matches;
+    return evaluate(MediaEnvironmentSnapshot { document });
 }
 
 void MediaQuery::dump(StringBuilder& builder, int indent_levels) const

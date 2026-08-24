@@ -6,11 +6,21 @@
 
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/BooleanExpression.h>
+#include <LibWeb/CSS/MediaQuery.h>
 
 namespace Web::CSS {
 
 bool BooleanExpression::evaluate_to_boolean(BooleanExpressionEvaluationContext const& context) const
 {
+    if (m_rust_query_handle && context.document) {
+        MediaEnvironmentSnapshot environment { *context.document };
+        auto result = Parser::ValueParserFFI::css_query_evaluate_media_condition(m_rust_query_handle.data(), environment.ffi_environment());
+        constexpr u8 not_a_media_condition = 3;
+        if (result == not_a_media_condition)
+            return evaluate(context) == MatchResult::True;
+        VERIFY(result <= to_underlying(MatchResult::Unknown));
+        return static_cast<MatchResult>(result) == MatchResult::True;
+    }
     return evaluate(context) == MatchResult::True;
 }
 

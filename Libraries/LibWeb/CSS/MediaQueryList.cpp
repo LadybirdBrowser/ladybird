@@ -89,9 +89,11 @@ bool MediaQueryList::evaluate()
     if (m_media.is_empty())
         return true;
 
+    MediaEnvironmentSnapshot environment { m_document };
     bool now_matches = false;
     for (auto& media : m_media) {
-        now_matches = now_matches || media->evaluate(m_document);
+        auto matches = media->evaluate(environment);
+        now_matches = now_matches || matches;
     }
 
     return now_matches;

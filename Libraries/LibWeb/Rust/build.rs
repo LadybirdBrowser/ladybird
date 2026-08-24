@@ -57,6 +57,83 @@ fn generate_math_functions(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
     Ok(())
 }
 
+fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let media_features_path = manifest_dir.parent().unwrap().join("CSS/MediaFeatures.json");
+    println!("cargo:rerun-if-changed={}", media_features_path.display());
+
+    let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&media_features_path)?)?;
+    let features = value
+        .as_object()
+        .ok_or("MediaFeatures.json does not contain a JSON object")?;
+    let mut output = String::from(
+        "// This file is generated from CSS/MediaFeatures.json.\n\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_BOOLEAN: u8 = 1 << 0;\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_INTEGER: u8 = 1 << 1;\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_LENGTH: u8 = 1 << 2;\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_RATIO: u8 = 1 << 3;\n\
+         pub(crate) const MEDIA_FEATURE_VALUE_RESOLUTION: u8 = 1 << 4;\n\n\
+         pub(crate) struct MediaFeatureMetadata {\n\
+             pub name: &'static str,\n\
+             pub accepted_value_types: u8,\n\
+             pub accepted_keywords: &'static [u16],\n\
+             pub false_keywords: &'static [u16],\n\
+         }\n\n\
+         pub(crate) const MEDIA_FEATURES: &[MediaFeatureMetadata] = &[\n",
+    );
+    for (name, feature) in features {
+        let values = feature["values"]
+            .as_array()
+            .ok_or("media feature values is not an array")?;
+        let mut value_types = Vec::new();
+        let mut keywords = Vec::new();
+        for value in values {
+            let value = value.as_str().ok_or("media feature value is not a string")?;
+            match value {
+                "<mq-boolean>" => value_types.push("MEDIA_FEATURE_VALUE_BOOLEAN"),
+                "<integer>" => value_types.push("MEDIA_FEATURE_VALUE_INTEGER"),
+                "<length>" => value_types.push("MEDIA_FEATURE_VALUE_LENGTH"),
+                "<ratio>" => value_types.push("MEDIA_FEATURE_VALUE_RATIO"),
+                "<resolution>" => value_types.push("MEDIA_FEATURE_VALUE_RESOLUTION"),
+                value if !value.starts_with('<') => keywords.push(value),
+                value => return Err(format!("unknown media feature value {value}").into()),
+            }
+        }
+        let value_types = if value_types.is_empty() {
+            "0".to_string()
+        } else {
+            value_types.join(" | ")
+        };
+        let keyword_constant = |keyword: &str| keyword.replace('-', "_").to_ascii_uppercase();
+        let accepted_keywords = keywords
+            .iter()
+            .map(|keyword| format!("crate::css::css_enums::keyword::{}", keyword_constant(keyword)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let false_keywords = feature
+            .get("false-keywords")
+            .and_then(serde_json::Value::as_array)
+            .map(|keywords| {
+                keywords
+                    .iter()
+                    .map(|keyword| {
+                        let keyword = keyword.as_str().ok_or("false keyword is not a string")?;
+                        Ok(format!("crate::css::css_enums::keyword::{}", keyword_constant(keyword)))
+                    })
+                    .collect::<Result<Vec<_>, Box<dyn Error>>>()
+            })
+            .transpose()?
+            .unwrap_or_default()
+            .join(", ");
+        writeln!(
+            output,
+            "    MediaFeatureMetadata {{ name: \"{name}\", accepted_value_types: {value_types}, accepted_keywords: &[{accepted_keywords}], false_keywords: &[{false_keywords}] }},"
+        )?;
+    }
+    output.push_str("];\n");
+    std::fs::write(out_dir.join("media_features_generated.rs"), output)?;
+    Ok(())
+}
+
 fn generate_named_colors(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
     let colors_path = manifest_dir
         .parent()
@@ -2132,6 +2209,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     generate_property_metadata(&manifest_dir, &out_dir)?;
     generate_descriptor_metadata(&manifest_dir, &out_dir)?;
     generate_math_functions(&manifest_dir, &out_dir)?;
+    generate_media_features(&manifest_dir, &out_dir)?;
     generate_named_colors(&manifest_dir, &out_dir)?;
     generate_length_units(&manifest_dir, &out_dir)?;
     generate_environment_variables(&manifest_dir, &out_dir)?;
@@ -2245,6 +2323,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiUtf16View".to_string(),
         "FfiQueryNode".to_string(),
         "FfiQueryHandle".to_string(),
+        "FfiMediaEnvironment".to_string(),
+        "FfiMediaFeatureValue".to_string(),
+        "FfiMediaFeatureValueKind".to_string(),
         "FfiQueryParseData".to_string(),
         "FfiQueryValue".to_string(),
         "FfiMediaQuery".to_string(),

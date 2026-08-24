@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -15,8 +16,28 @@
 #include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 
 namespace Web::CSS {
+
+class MediaEnvironmentSnapshot {
+public:
+    explicit MediaEnvironmentSnapshot(DOM::Document const&);
+
+    Parser::ValueParserFFI::FfiMediaEnvironment ffi_environment() const
+    {
+        return {
+            .values = m_values.data(),
+            .value_count = m_values.size(),
+            .length_resolution_context = m_length_resolution_context.has_value() ? &*m_length_resolution_context : nullptr,
+        };
+    }
+
+private:
+    static_assert(media_feature_count == to_underlying(MediaFeatureID::Width) + 1);
+    Array<Parser::ValueParserFFI::FfiMediaFeatureValue, media_feature_count> m_values {};
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> m_length_resolution_context;
+};
 
 namespace Parser {
 
@@ -67,6 +88,7 @@ public:
 
     bool matches() const { return m_matches; }
     bool evaluate(DOM::Document const&);
+    bool evaluate(MediaEnvironmentSnapshot const&);
     Utf16String to_string() const;
     void serialize_to(Utf16StringBuilder&) const;
 

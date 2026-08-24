@@ -14,6 +14,19 @@
 
 namespace Web::CSS {
 
+inline constexpr u8 cqw_container_relative_length_unit_mask = 1 << 0;
+inline constexpr u8 cqh_container_relative_length_unit_mask = 1 << 1;
+inline constexpr u8 cqi_container_relative_length_unit_mask = 1 << 2;
+inline constexpr u8 cqb_container_relative_length_unit_mask = 1 << 3;
+inline constexpr u8 cqmin_container_relative_length_unit_mask = 1 << 4;
+inline constexpr u8 cqmax_container_relative_length_unit_mask = 1 << 5;
+inline constexpr u8 all_container_relative_length_units_mask = cqw_container_relative_length_unit_mask
+    | cqh_container_relative_length_unit_mask
+    | cqi_container_relative_length_unit_mask
+    | cqb_container_relative_length_unit_mask
+    | cqmin_container_relative_length_unit_mask
+    | cqmax_container_relative_length_unit_mask;
+
 inline ComputedValuesFFI::FfiFontMetrics to_ffi_font_metrics(Length::FontMetrics const& metrics)
 {
     return {
@@ -49,15 +62,9 @@ inline ComputedValuesFFI::FfiLengthResolutionContext to_ffi_length_resolution_co
 {
     auto ffi_context = to_ffi_length_resolution_context(context);
 
-    constexpr u8 cqw_mask = 1 << 0;
-    constexpr u8 cqh_mask = 1 << 1;
-    constexpr u8 cqi_mask = 1 << 2;
-    constexpr u8 cqb_mask = 1 << 3;
-    constexpr u8 cqmin_mask = 1 << 4;
-    constexpr u8 cqmax_mask = 1 << 5;
-    constexpr u8 both_axes_mask = cqmin_mask | cqmax_mask;
-    auto const needs_width_basis = (container_relative_length_unit_mask & (cqw_mask | both_axes_mask | (context.subject_inline_axis_is_horizontal ? cqi_mask : cqb_mask))) != 0;
-    auto const needs_height_basis = (container_relative_length_unit_mask & (cqh_mask | both_axes_mask | (context.subject_inline_axis_is_horizontal ? cqb_mask : cqi_mask))) != 0;
+    constexpr u8 both_axes_mask = cqmin_container_relative_length_unit_mask | cqmax_container_relative_length_unit_mask;
+    auto const needs_width_basis = (container_relative_length_unit_mask & (cqw_container_relative_length_unit_mask | both_axes_mask | (context.subject_inline_axis_is_horizontal ? cqi_container_relative_length_unit_mask : cqb_container_relative_length_unit_mask))) != 0;
+    auto const needs_height_basis = (container_relative_length_unit_mask & (cqh_container_relative_length_unit_mask | both_axes_mask | (context.subject_inline_axis_is_horizontal ? cqb_container_relative_length_unit_mask : cqi_container_relative_length_unit_mask))) != 0;
 
     if (needs_width_basis) {
         auto snapshot_context = context;
