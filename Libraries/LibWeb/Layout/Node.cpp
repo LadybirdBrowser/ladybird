@@ -186,6 +186,30 @@ void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
     }
 }
 
+// Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
+// Absolutely positioned elements don't contribute to ancestor intrinsic sizes,
+// so changes inside an abspos box don't require resetting ancestor caches.
+// SVG root elements have intrinsic sizes determined solely by their own attributes
+// (width, height, viewBox), not by their children, so the same logic applies.
+static void reset_cached_intrinsic_sizes_of_ancestors(Node& node)
+{
+    for (auto* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
+        auto* box = as_if<Box>(ancestor);
+        if (!box)
+            continue;
+        box->reset_cached_intrinsic_sizes();
+        if (box->is_absolutely_positioned() || box->is_svg_svg_box())
+            break;
+    }
+}
+
+static void reset_cached_intrinsic_sizes_of_self_and_ancestors(Node& node)
+{
+    if (auto* box = as_if<Box>(node))
+        box->reset_cached_intrinsic_sizes();
+    reset_cached_intrinsic_sizes_of_ancestors(node);
+}
+
 void* Node::arena_handle() const
 {
     return m_arena->handle();
@@ -954,17 +978,15 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     // node data plus the animated-value overlay, which lives outside the groups and
     // disqualifies pointer diffing the same way it disqualifies the style differ's group
     // fast path.
+    auto differs_from = [&](CSS::ComputedValues const& previous_values) {
+        return CSS::ComputedValues::either_carries_animated_overlay(previous_values, *computed_values)
+            || computed_values->differs_in_any_layout_affecting_group_payload_from(previous_values);
+    };
     bool changes_layout_affecting_style = false;
-    if (fragment_cache_epochs_enabled()) {
-        auto differs_from = [&](CSS::ComputedValues const& previous_values) {
-            return CSS::ComputedValues::either_carries_animated_overlay(previous_values, *computed_values)
-                || computed_values->differs_in_any_layout_affecting_group_payload_from(previous_values);
-        };
-        if (m_owned_computed_values)
-            changes_layout_affecting_style = differs_from(*m_owned_computed_values);
-        else if (auto record_view = computed_style_record_view())
-            changes_layout_affecting_style = differs_from(*record_view);
-    }
+    if (m_owned_computed_values)
+        changes_layout_affecting_style = differs_from(*m_owned_computed_values);
+    else if (auto record_view = computed_style_record_view())
+        changes_layout_affecting_style = differs_from(*record_view);
 
     release_pinned_style_record();
     m_background_layers.clear();
@@ -999,8 +1021,10 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     if (m_owned_computed_values)
         pin_style_record_for_cxx_consumers();
 
-    if (changes_layout_affecting_style)
+    if (changes_layout_affecting_style) {
         bump_fragment_cache_epoch_of_self_and_ancestors();
+        reset_cached_intrinsic_sizes_of_self_and_ancestors(*this);
+    }
 
     for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
         if (auto* text_child = as_if<TextNode>(*child))
@@ -1022,13 +1046,10 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     bool should_repin_style_record = m_style_record_owner;
     auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
     VERIFY(new_record_view);
-    bool changes_layout_affecting_style = false;
-    if (fragment_cache_epochs_enabled()) {
-        auto old_record_view = computed_style_record_view();
-        changes_layout_affecting_style = !old_record_view
-            || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
-            || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
-    }
+    auto old_record_view = computed_style_record_view();
+    bool changes_layout_affecting_style = !old_record_view
+        || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
+        || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
 
     release_pinned_style_record();
     m_background_layers.clear();
@@ -1046,8 +1067,10 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
 
-    if (changes_layout_affecting_style)
+    if (changes_layout_affecting_style) {
         bump_fragment_cache_epoch_of_self_and_ancestors();
+        reset_cached_intrinsic_sizes_of_self_and_ancestors(*this);
+    }
 }
 
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
@@ -1471,19 +1494,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
         }
     }
 
-    // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
-    // Absolutely positioned elements don't contribute to ancestor intrinsic sizes,
-    // so changes inside an abspos box don't require resetting ancestor caches.
-    // SVG root elements have intrinsic sizes determined solely by their own attributes
-    // (width, height, viewBox), not by their children, so the same logic applies.
-    for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-        auto* box = as_if<Box>(ancestor);
-        if (!box)
-            continue;
-        box->reset_cached_intrinsic_sizes();
-        if (box->is_absolutely_positioned() || box->is_svg_svg_box())
-            break;
-    }
+    reset_cached_intrinsic_sizes_of_ancestors(*this);
 }
 
 }
