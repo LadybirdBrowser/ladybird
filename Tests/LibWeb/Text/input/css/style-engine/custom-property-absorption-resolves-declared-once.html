@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :root {
+        --theme-a: 1px;
+        --theme-b: 2px;
+        --theme-c: 3px;
+        --theme-d: 4px;
+        --theme-e: 5px;
+        --theme-f: 6px;
+        --theme-g: 7px;
+        --theme-h: 8px;
+    }
+
+    .item {
+        --local: var(--theme-a);
+        margin-left: var(--local);
+    }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        host.innerHTML = '<div class="item">x</div>'.repeat(20);
+
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`custom property elements: ${counters.customPropertyElements}`);
+        println(`custom property resolutions: ${counters.customPropertyResolutions}`);
+        println(`custom property value computations: ${counters.customPropertyValueComputations}`);
+        println(`margin: ${getComputedStyle(host.firstElementChild).marginLeft}`);
+    });
+</script>

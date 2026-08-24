@@ -6176,7 +6176,7 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
     if (inherit_from.has_value() && inherit_from->custom_property_data().ptr() == data.ptr())
         return;
 
-    if (data->own_values().is_empty())
+    if (data->declared_count() == 0)
         return;
 
     // What this environment resolves to is decided by the values it holds and by the environment it
@@ -6199,7 +6199,7 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
         parent_data = inheritable_custom_property_data(*inherit_from);
 
     document().style_invalidation_counters().custom_property_elements++;
-    document().style_invalidation_counters().custom_property_resolutions += data->own_values().size();
+    document().style_invalidation_counters().custom_property_resolutions += data->declared_count();
 
     // Resolving a value that names another of this element's own properties walks into that value and resolves it,
     // and the walk repeats for every value naming it. Deciding an order first makes each own value resolve once:
@@ -6217,29 +6217,35 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
     // only inherited or plain own properties reads answers that are final before it resolves. That is most elements
     // on most pages, so decide first, from the cached scans alone, whether there is anything here to order.
     auto const& own_values = data->own_values();
+    auto for_each_declared_value = [&](auto callback) {
+        size_t declared = 0;
+        for (auto const& own : own_values) {
+            if (declared++ >= data->declared_count())
+                break;
+            callback(own.key, own.value);
+        }
+    };
     auto needs_resolution = [](StyleValue const& value) {
         return value.is_unresolved() && value.as_unresolved().contains_arbitrary_substitution_function();
     };
     bool has_own_reference = false;
-    for (auto const& [name, style_property] : own_values) {
+    for_each_declared_value([&](auto const&, auto const& style_property) {
         auto const& value = *style_property.value;
         if (!needs_resolution(value))
-            continue;
+            return;
         auto const& unresolved = value.as_unresolved();
         if (unresolved.includes_attr_function() || unresolved.includes_if_function() || unresolved.includes_dashed_function())
-            continue;
+            return;
         auto const& scan = custom_property_reference_scan(style_property.value);
         if (!scan.all_references_visible)
-            continue;
+            return;
         for (auto const& referenced_name : scan.references) {
             if (auto referenced = own_values.find(referenced_name); referenced != own_values.end() && needs_resolution(*referenced->value.value)) {
                 has_own_reference = true;
                 break;
             }
         }
-        if (has_own_reference)
-            break;
-    }
+    });
 
     OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
     auto keep_resolved_value = [&](Utf16FlyString const& name, StyleProperty const& style_property, NonnullRefPtr<StyleValue const> resolved_value) {
@@ -6257,20 +6263,21 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
     };
 
     if (!has_own_reference) {
-        for (auto const& [name, style_property] : own_values)
+        for_each_declared_value([&](auto const& name, auto const& style_property) {
             keep_resolved_value(name, style_property, compute_value_of_custom_property(&computed_style, abstract_element, name));
+        });
     } else {
         struct OwnCustomProperty {
             Utf16FlyString name;
             StyleProperty const* property;
         };
         Vector<OwnCustomProperty> own;
-        own.ensure_capacity(own_values.size());
+        own.ensure_capacity(data->declared_count());
         HashMap<Utf16FlyString, u32> own_index;
-        for (auto const& [name, style_property] : own_values) {
+        for_each_declared_value([&](auto const& name, auto const& style_property) {
             own_index.set(name, static_cast<u32>(own.size()));
             own.append({ name, &style_property });
-        }
+        });
 
         Vector<Vector<u32>> references;
         references.resize(own.size());
