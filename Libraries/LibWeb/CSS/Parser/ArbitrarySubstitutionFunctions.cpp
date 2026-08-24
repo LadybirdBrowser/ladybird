@@ -8,11 +8,13 @@
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -732,33 +734,19 @@ OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>
         if (!token.is_function())
             return nullptr;
         auto const& function = token.function();
-        TokenStream arguments { function.value };
-        auto parse_entirely = [&arguments](auto parse) -> OwnPtr<BooleanExpression> {
-            auto transaction = arguments.begin_transaction();
-            auto parsed = parse(arguments);
-            arguments.discard_whitespace();
-            if (!parsed || arguments.has_next_token())
-                return nullptr;
-            transaction.commit();
-            return parsed.template release_nonnull<BooleanExpression>();
-        };
+        auto source = serialize_a_series_of_component_values_preserving_original_source_text(function.value);
         if (function.name.equals_ignoring_ascii_case("supports"sv)) {
-            if (auto declaration = parse_entirely([&](auto& tokens) {
-                    m_rule_context.append(RuleContext::SupportsCondition);
-                    auto supports = parse_supports_declaration(tokens);
-                    m_rule_context.take_last();
-                    return supports;
-                }))
+            if (auto declaration = RustQueryParser::parse_supports_declaration(*this, source))
                 return declaration;
-            return parse_entirely([&](auto& tokens) { return parse_supports_condition(tokens); });
+            return RustQueryParser::parse_supports_condition(*this, source);
         }
         if (function.name.equals_ignoring_ascii_case("media"sv)) {
-            if (auto feature = parse_entirely([&](auto& tokens) { return parse_media_feature(tokens); }))
+            if (auto feature = RustQueryParser::parse_media_feature(*this, source))
                 return feature;
-            return parse_entirely([&](auto& tokens) { return parse_media_condition(tokens); });
+            return RustQueryParser::parse_media_condition(*this, source);
         }
         if (function.name.equals_ignoring_ascii_case("style"sv))
-            return parse_entirely([&](auto& tokens) { return parse_style_query(tokens, MatchResult::False); });
+            return RustQueryParser::parse_style_query(*this, source);
         return nullptr;
     });
     tokens.discard_whitespace();

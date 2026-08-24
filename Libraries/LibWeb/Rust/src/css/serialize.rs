@@ -16,6 +16,7 @@ use std::ffi::c_void;
 
 use crate::css::css_enums::keyword;
 use crate::css::css_tokenizer::TokenizerInput;
+use crate::css::parser::component_value::{ComponentSerializationMode, serialize_component_values_into};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::{RetainedColorStopList, RetainedString, StyleValueData};
 
@@ -224,6 +225,22 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
 pub(crate) fn serialize_style_value_to_utf16(value: &StyleValueData) -> Option<Vec<u16>> {
     let mut sink = TextSink::new();
     serialize_style_value(&mut sink, value, SerializationMode::Normal).then(|| sink.into_utf16())
+}
+
+pub(crate) fn serialize_component_values_to_utf16(
+    values: &[crate::css::parser::component_value::ComponentValue],
+    mode: ComponentSerializationMode,
+) -> Vec<u16> {
+    let mut sink = TextSink::new();
+    if !serialize_component_values_into(&mut sink, values, mode) {
+        sink = TextSink::new();
+        assert!(serialize_component_values_into(
+            &mut sink,
+            values,
+            ComponentSerializationMode::Normalized,
+        ));
+    }
+    sink.into_utf16()
 }
 
 /// Serializes UTF-16 text as a CSS string token's source text.

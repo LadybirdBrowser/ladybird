@@ -138,6 +138,7 @@ public:
     RefPtr<StyleValue const> parse_as_descriptor_value(AtRuleID, DescriptorNameAndID const&);
     RefPtr<StyleValue const> parse_as_type(ValueType);
     RefPtr<StyleValue const> parse_entirely_as_type(ValueType);
+    RefPtr<StyleValue const> parse_primitive_value_from_source(ValueType, Utf16View, NumericRange const& = infinite_range);
 
     Optional<ComponentValue> parse_as_component_value();
 
@@ -319,8 +320,6 @@ private:
     Optional<StylePropertyAndName> convert_to_style_property(Declaration const&);
 
     Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
-
-    RefPtr<StyleValue const> parse_source_size_value(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue const> parse_value(ValueType, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_primitive_value(ValueType, TokenStream<ComponentValue>&, NumericRange const& = infinite_range);

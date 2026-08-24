@@ -7,6 +7,7 @@
 use crate::css::css_tokenizer::{
     ParserSource, ParserString, ParserToken, ParserTokenKind, SmallParserTokenList, SourcePosition,
 };
+use crate::css::serialize::{StringUnits, TextSink, serialize_a_string, serialize_an_identifier};
 use smallvec::SmallVec;
 
 const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
@@ -96,6 +97,269 @@ impl ComponentValue {
             _ => None,
         }
     }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ComponentSerializationMode {
+    Normalized,
+    PreserveNumericSource,
+    Retokenize,
+}
+
+fn is_numeric(value: &ComponentValue) -> bool {
+    matches!(
+        value.kind,
+        ComponentKind::Token(
+            ParserTokenKind::Number { .. } | ParserTokenKind::Percentage { .. } | ParserTokenKind::Dimension { .. }
+        )
+    )
+}
+
+fn is_function_or_paren(value: &ComponentValue) -> bool {
+    matches!(
+        value.kind,
+        ComponentKind::Function { .. }
+            | ComponentKind::SimpleBlock {
+                opening: ParserTokenKind::OpenParen,
+                ..
+            }
+    )
+}
+
+fn token_needs_comment_between(first: &ComponentValue, second: &ComponentValue) -> bool {
+    let second_kind = match &second.kind {
+        ComponentKind::Token(kind) => Some(kind),
+        _ => None,
+    };
+    let second_is = |predicate: fn(&ParserTokenKind) -> bool| second_kind.is_some_and(predicate);
+    let second_is_common = || {
+        second_is(|kind| {
+            matches!(
+                kind,
+                ParserTokenKind::Ident(_)
+                    | ParserTokenKind::Url(_)
+                    | ParserTokenKind::BadUrl
+                    | ParserTokenKind::Number { .. }
+                    | ParserTokenKind::Percentage { .. }
+                    | ParserTokenKind::Dimension { .. }
+                    | ParserTokenKind::Cdc
+            )
+        })
+    };
+    let second_is_dash =
+        || second_is(|kind| matches!(kind, ParserTokenKind::Delim(value) if *value == u32::from(b'-')));
+
+    match &first.kind {
+        ComponentKind::Token(ParserTokenKind::Ident(_)) => {
+            is_function_or_paren(second)
+                || second_is_dash()
+                || second_is_common()
+                || second_is(|kind| matches!(kind, ParserTokenKind::OpenParen))
+        }
+        ComponentKind::Token(
+            ParserTokenKind::AtKeyword(_) | ParserTokenKind::Hash { .. } | ParserTokenKind::Dimension { .. },
+        ) => matches!(second.kind, ComponentKind::Function { .. }) || second_is_dash() || second_is_common(),
+        ComponentKind::Token(ParserTokenKind::Delim(value)) if matches!(*value, 0x23 | 0x2d) => {
+            matches!(second.kind, ComponentKind::Function { .. }) || second_is_dash() || second_is_common()
+        }
+        ComponentKind::Token(ParserTokenKind::Number { .. }) => {
+            matches!(second.kind, ComponentKind::Function { .. })
+                || second_is_common()
+                || second_is(|kind| matches!(kind, ParserTokenKind::Delim(value) if *value == u32::from(b'%')))
+        }
+        ComponentKind::Token(ParserTokenKind::Delim(value)) if *value == u32::from(b'@') => {
+            matches!(second.kind, ComponentKind::Function { .. })
+                || second_is_dash()
+                || second_is(|kind| {
+                    matches!(
+                        kind,
+                        ParserTokenKind::Ident(_)
+                            | ParserTokenKind::Url(_)
+                            | ParserTokenKind::BadUrl
+                            | ParserTokenKind::Cdc
+                    )
+                })
+        }
+        ComponentKind::Token(ParserTokenKind::Delim(value)) if matches!(*value, 0x2e | 0x2b) => second_is(|kind| {
+            matches!(
+                kind,
+                ParserTokenKind::Number { .. } | ParserTokenKind::Percentage { .. } | ParserTokenKind::Dimension { .. }
+            )
+        }),
+        ComponentKind::Token(ParserTokenKind::Delim(value)) if *value == u32::from(b'/') => {
+            second_is(|kind| matches!(kind, ParserTokenKind::Delim(value) if *value == u32::from(b'*')))
+        }
+        _ => false,
+    }
+}
+
+fn serialize_token(sink: &mut TextSink, kind: &ParserTokenKind) {
+    match kind {
+        ParserTokenKind::EndOfFile | ParserTokenKind::BadString => {}
+        ParserTokenKind::Ident(value) => serialize_an_identifier(sink, &StringUnits::Utf16(value)),
+        ParserTokenKind::Function(value) => {
+            serialize_an_identifier(sink, &StringUnits::Utf16(value));
+            sink.push_ascii("(");
+        }
+        ParserTokenKind::AtKeyword(value) => {
+            sink.push_ascii("@");
+            serialize_an_identifier(sink, &StringUnits::Utf16(value));
+        }
+        ParserTokenKind::Hash { value, is_id } => {
+            sink.push_ascii("#");
+            if *is_id {
+                serialize_an_identifier(sink, &StringUnits::Utf16(value));
+            } else {
+                value.iter().for_each(|&unit| sink.push_code_unit(unit));
+            }
+        }
+        ParserTokenKind::String(value) => serialize_a_string(sink, &StringUnits::Utf16(value)),
+        ParserTokenKind::Url(value) => {
+            sink.push_ascii("url(");
+            serialize_a_string(sink, &StringUnits::Utf16(value));
+            sink.push_ascii(")");
+        }
+        ParserTokenKind::BadUrl => sink.push_ascii("url()"),
+        ParserTokenKind::Delim(value) => sink.push_code_point(*value),
+        ParserTokenKind::Number { value, .. } => sink.push_ascii(&value.to_string()),
+        ParserTokenKind::Percentage { value, .. } => {
+            sink.push_ascii(&value.to_string());
+            sink.push_ascii("%");
+        }
+        ParserTokenKind::Dimension { value, unit, .. } => {
+            sink.push_ascii(&value.to_string());
+            unit.iter().for_each(|&code_unit| sink.push_code_unit(code_unit));
+        }
+        ParserTokenKind::Whitespace => sink.push_ascii(" "),
+        ParserTokenKind::Cdo => sink.push_ascii("<!--"),
+        ParserTokenKind::Cdc => sink.push_ascii("-->"),
+        ParserTokenKind::Colon => sink.push_ascii(":"),
+        ParserTokenKind::Semicolon => sink.push_ascii(";"),
+        ParserTokenKind::Comma => sink.push_ascii(","),
+        ParserTokenKind::OpenSquare => sink.push_ascii("["),
+        ParserTokenKind::CloseSquare => sink.push_ascii("]"),
+        ParserTokenKind::OpenParen => sink.push_ascii("("),
+        ParserTokenKind::CloseParen => sink.push_ascii(")"),
+        ParserTokenKind::OpenCurly => sink.push_ascii("{"),
+        ParserTokenKind::CloseCurly => sink.push_ascii("}"),
+    }
+}
+
+fn append_original_source(sink: &mut TextSink, source: &ParserSource) -> bool {
+    if source.len() == 0 {
+        return false;
+    }
+    source.iter().for_each(|unit| sink.push_code_unit(unit));
+    true
+}
+
+fn serialize_component(sink: &mut TextSink, value: &ComponentValue, mode: ComponentSerializationMode) -> bool {
+    if matches!(mode, ComponentSerializationMode::PreserveNumericSource) && is_numeric(value) {
+        return append_original_source(sink, &value.original_source_text);
+    }
+    if matches!(mode, ComponentSerializationMode::Retokenize)
+        && (is_numeric(value)
+            || matches!(
+                value.kind,
+                ComponentKind::Token(ParserTokenKind::BadString | ParserTokenKind::BadUrl)
+            ))
+    {
+        return append_original_source(sink, &value.original_source_text);
+    }
+
+    match &value.kind {
+        ComponentKind::Token(kind) => serialize_token(sink, kind),
+        ComponentKind::Function { name, values } => {
+            if matches!(mode, ComponentSerializationMode::Retokenize) {
+                let mut opening = value.original_source_text.to_vec();
+                opening.truncate(value.opening_source_length);
+                if opening.is_empty() {
+                    return false;
+                }
+                opening.into_iter().for_each(|unit| sink.push_code_unit(unit));
+            } else {
+                serialize_an_identifier(sink, &StringUnits::Utf16(name));
+                sink.push_ascii("(");
+            }
+            let nested_mode = if matches!(mode, ComponentSerializationMode::PreserveNumericSource) {
+                ComponentSerializationMode::Normalized
+            } else {
+                mode
+            };
+            if !serialize_component_values_into(sink, values, nested_mode) {
+                return false;
+            }
+            if matches!(mode, ComponentSerializationMode::Retokenize) {
+                if value.closing_source_length == 0 {
+                    return false;
+                }
+                let source = value.original_source_text.to_vec();
+                source[source.len() - value.closing_source_length..]
+                    .iter()
+                    .for_each(|&unit| sink.push_code_unit(unit));
+            } else {
+                sink.push_ascii(")");
+            }
+        }
+        ComponentKind::SimpleBlock { opening, values } => {
+            let (normalized_opening, normalized_closing) = match opening {
+                ParserTokenKind::OpenSquare => ("[", "]"),
+                ParserTokenKind::OpenParen => ("(", ")"),
+                ParserTokenKind::OpenCurly => ("{", "}"),
+                _ => unreachable!(),
+            };
+            if matches!(mode, ComponentSerializationMode::Retokenize) {
+                let source = value.original_source_text.to_vec();
+                if value.opening_source_length == 0 {
+                    return false;
+                }
+                source[..value.opening_source_length]
+                    .iter()
+                    .for_each(|&unit| sink.push_code_unit(unit));
+            } else {
+                sink.push_ascii(normalized_opening);
+            }
+            let nested_mode = if matches!(mode, ComponentSerializationMode::PreserveNumericSource) {
+                ComponentSerializationMode::Normalized
+            } else {
+                mode
+            };
+            if !serialize_component_values_into(sink, values, nested_mode) {
+                return false;
+            }
+            if matches!(mode, ComponentSerializationMode::Retokenize) {
+                if value.closing_source_length == 0 {
+                    return false;
+                }
+                let source = value.original_source_text.to_vec();
+                source[source.len() - value.closing_source_length..]
+                    .iter()
+                    .for_each(|&unit| sink.push_code_unit(unit));
+            } else {
+                sink.push_ascii(normalized_closing);
+            }
+        }
+    }
+    true
+}
+
+pub(crate) fn serialize_component_values_into(
+    sink: &mut TextSink,
+    values: &[ComponentValue],
+    mode: ComponentSerializationMode,
+) -> bool {
+    for (index, value) in values.iter().enumerate() {
+        if !serialize_component(sink, value, mode) {
+            return false;
+        }
+        if values
+            .get(index + 1)
+            .is_some_and(|next| token_needs_comment_between(value, next))
+        {
+            sink.push_ascii("/**/");
+        }
+    }
+    true
 }
 
 fn append_original_source_text(target: &mut Vec<u16>, values: &[ComponentValue]) {
@@ -283,8 +547,11 @@ pub(crate) fn consume_a_small_list_of_component_values(
 
 #[cfg(test)]
 mod tests {
-    use super::{ComponentKind, consume_a_list_of_component_values};
+    use super::{
+        ComponentKind, ComponentSerializationMode, consume_a_list_of_component_values, serialize_component_values_into,
+    };
     use crate::css::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
+    use crate::css::serialize::TextSink;
 
     fn parse(input: &str) -> Vec<super::ComponentValue> {
         consume_a_list_of_component_values(tokenize_for_parser(input.as_bytes())).unwrap()
@@ -292,6 +559,12 @@ mod tests {
 
     fn utf16(value: &str) -> Box<[u16]> {
         value.encode_utf16().collect()
+    }
+
+    fn serialize(values: &[super::ComponentValue], mode: ComponentSerializationMode) -> Option<String> {
+        let mut sink = TextSink::new();
+        serialize_component_values_into(&mut sink, values, mode)
+            .then(|| String::from_utf16(&sink.into_utf16()).unwrap())
     }
 
     #[test]
@@ -345,5 +618,39 @@ mod tests {
             panic!("expected a function");
         };
         assert!(matches!(values[0].kind, ComponentKind::SimpleBlock { .. }));
+    }
+
+    #[test]
+    fn serializes_component_values_like_the_cpp_oracle() {
+        let values = parse("a b 1.00PX url(value) [x 2.00PX]");
+        assert_eq!(
+            serialize(&values, ComponentSerializationMode::Normalized).as_deref(),
+            Some("a b 1PX url(\"value\") [x 2PX]")
+        );
+        assert_eq!(
+            serialize(&values, ComponentSerializationMode::PreserveNumericSource).as_deref(),
+            Some("a b 1.00PX url(\"value\") [x 2PX]")
+        );
+        assert_eq!(
+            serialize(&values, ComponentSerializationMode::Retokenize).as_deref(),
+            Some("a b 1.00PX url(\"value\") [x 2.00PX]")
+        );
+
+        let mut adjacent_identifiers = parse("a b");
+        adjacent_identifiers.remove(1);
+        assert_eq!(
+            serialize(&adjacent_identifiers, ComponentSerializationMode::Normalized).as_deref(),
+            Some("a/**/b")
+        );
+    }
+
+    #[test]
+    fn retokenization_requires_complete_nested_source() {
+        let values = parse("function([value");
+        assert_eq!(
+            serialize(&values, ComponentSerializationMode::Normalized).as_deref(),
+            Some("function([value])")
+        );
+        assert_eq!(serialize(&values, ComponentSerializationMode::Retokenize), None);
     }
 }

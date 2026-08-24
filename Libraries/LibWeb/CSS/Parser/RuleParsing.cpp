@@ -435,12 +435,10 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
         auto supports_transaction = tokens.begin_transaction();
         auto component_value = tokens.consume_a_token();
-        TokenStream supports_tokens { component_value.function().value };
-        auto parsed_supports = parse_a_supports(supports_tokens);
+        auto supports_source = serialize_a_series_of_component_values_preserving_original_source_text(component_value.function().value);
+        auto parsed_supports = RustQueryParser::parse_supports(*this, supports_source);
         if (!parsed_supports) {
-            m_rule_context.append(RuleContext::SupportsCondition);
-            auto supports_declaration = parse_supports_declaration(supports_tokens);
-            m_rule_context.take_last();
+            auto supports_declaration = RustQueryParser::parse_supports_declaration(*this, supports_source);
             if (supports_declaration)
                 parsed_supports = Supports::create(supports_declaration.release_nonnull<BooleanExpression>());
         }
@@ -460,7 +458,9 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         break;
     }
 
-    auto media_query_list = parse_a_media_query_list(tokens);
+    auto media_query_components = parse_a_list_of_component_values(tokens);
+    auto media_query_source = serialize_a_series_of_component_values_preserving_original_source_text(media_query_components);
+    auto media_query_list = RustQueryParser::parse_media_query_list(*this, media_query_source);
 
     if (tokens.has_next_token()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {

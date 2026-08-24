@@ -212,7 +212,7 @@ set(SOURCES
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/FastColorParsing.cpp
     CSS/Parser/Helpers.cpp
-    CSS/Parser/MediaParsing.cpp
+    CSS/Parser/QueryParserVerification.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/RustTokenizer.cpp
     CSS/Parser/RustQueryParsing.cpp
