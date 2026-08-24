@@ -27,14 +27,25 @@ include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
 pub(crate) enum SerializationMode {
     Normal,
     ResolvedValue,
+    ResolvedValueForReparse,
 }
 
 impl SerializationMode {
     fn from_ffi(mode: u8) -> Self {
         match mode {
             0 => Self::Normal,
-            _ => Self::ResolvedValue,
+            1 => Self::ResolvedValue,
+            2 => Self::ResolvedValueForReparse,
+            _ => unreachable!("unknown serialization mode"),
         }
+    }
+
+    fn is_resolved(self) -> bool {
+        self != Self::Normal
+    }
+
+    fn preserves_numeric_value(self) -> bool {
+        self == Self::ResolvedValueForReparse
     }
 }
 
@@ -487,7 +498,19 @@ fn format_double_with_precision(sink: &mut TextSink, mut value: f64, precision: 
 
 /// https://www.w3.org/TR/cssom-1/#serialize-a-css-value, the <number> branch. Matches
 /// Web::CSS::serialize_a_number including its small-value AD-HOC.
-pub(crate) fn serialize_a_number(sink: &mut TextSink, value: f64) {
+pub(crate) fn serialize_a_number(sink: &mut TextSink, value: f64, mode: SerializationMode) {
+    if mode.preserves_numeric_value() {
+        if value == f64::INFINITY {
+            sink.push_ascii("infinity");
+        } else if value == f64::NEG_INFINITY {
+            sink.push_ascii("-infinity");
+        } else if value.is_nan() {
+            sink.push_ascii("NaN");
+        } else {
+            sink.push_ascii(&value.to_string());
+        }
+        return;
+    }
     // AD-HOC: If the number is small enough that it would not print any digits when rounded,
     // serialize it as 0.
     if value.abs() < 0.000_000_5 {
@@ -498,8 +521,8 @@ pub(crate) fn serialize_a_number(sink: &mut TextSink, value: f64) {
     format_double_with_precision_6(sink, value, false);
 }
 
-fn serialize_a_dimension(sink: &mut TextSink, value: f64, unit_name: &str) {
-    serialize_a_number(sink, value);
+fn serialize_a_dimension(sink: &mut TextSink, value: f64, unit_name: &str, mode: SerializationMode) {
+    serialize_a_number(sink, value, mode);
     sink.push_ascii(unit_name);
 }
 
@@ -540,7 +563,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             true
         }
         StyleValueData::Number { value } => {
-            serialize_a_number(sink, *value);
+            serialize_a_number(sink, *value, mode);
             true
         }
         StyleValueData::Integer { value } => {
@@ -548,65 +571,75 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             true
         }
         StyleValueData::Percentage { value } => {
-            serialize_a_number(sink, *value);
+            serialize_a_number(sink, *value, mode);
             sink.push_ascii("%");
             true
         }
         StyleValueData::Angle { value, unit } => {
             // https://drafts.csswg.org/cssom/#serialize-a-css-value -> <angle>
-            if mode == SerializationMode::ResolvedValue {
-                serialize_a_dimension(sink, value * ANGLE_UNIT_CANONICAL_RATIOS[*unit as usize], "deg");
+            if mode.is_resolved() {
+                serialize_a_dimension(sink, value * ANGLE_UNIT_CANONICAL_RATIOS[*unit as usize], "deg", mode);
             } else {
-                serialize_a_dimension(sink, *value, ANGLE_UNIT_NAMES[*unit as usize]);
+                serialize_a_dimension(sink, *value, ANGLE_UNIT_NAMES[*unit as usize], mode);
             }
             true
         }
         StyleValueData::Flex { value, unit } => {
             // AD-HOC: No spec definition, so copy the other <dimension> definitions.
-            if mode == SerializationMode::ResolvedValue {
-                serialize_a_dimension(sink, value * FLEX_UNIT_CANONICAL_RATIOS[*unit as usize], "fr");
+            if mode.is_resolved() {
+                serialize_a_dimension(sink, value * FLEX_UNIT_CANONICAL_RATIOS[*unit as usize], "fr", mode);
             } else {
-                serialize_a_dimension(sink, *value, FLEX_UNIT_NAMES[*unit as usize]);
+                serialize_a_dimension(sink, *value, FLEX_UNIT_NAMES[*unit as usize], mode);
             }
             true
         }
         StyleValueData::Frequency { value, unit } => {
-            if mode == SerializationMode::ResolvedValue {
-                serialize_a_dimension(sink, value * FREQUENCY_UNIT_CANONICAL_RATIOS[*unit as usize], "hz");
+            if mode.is_resolved() {
+                serialize_a_dimension(
+                    sink,
+                    value * FREQUENCY_UNIT_CANONICAL_RATIOS[*unit as usize],
+                    "hz",
+                    mode,
+                );
             } else {
-                serialize_a_dimension(sink, *value, FREQUENCY_UNIT_NAMES[*unit as usize]);
+                serialize_a_dimension(sink, *value, FREQUENCY_UNIT_NAMES[*unit as usize], mode);
             }
             true
         }
         StyleValueData::Time { value, unit } => {
             // AD-HOC: WPT expects us to serialize using the actual unit, like for other
             // dimensions. https://github.com/w3c/csswg-drafts/issues/12616
-            if mode == SerializationMode::ResolvedValue {
-                serialize_a_dimension(sink, value * TIME_UNIT_CANONICAL_RATIOS[*unit as usize], "s");
+            if mode.is_resolved() {
+                serialize_a_dimension(sink, value * TIME_UNIT_CANONICAL_RATIOS[*unit as usize], "s", mode);
             } else {
-                serialize_a_dimension(sink, *value, TIME_UNIT_NAMES[*unit as usize]);
+                serialize_a_dimension(sink, *value, TIME_UNIT_NAMES[*unit as usize], mode);
             }
             true
         }
         StyleValueData::Resolution { value, unit } => {
-            if mode == SerializationMode::ResolvedValue {
-                serialize_a_dimension(sink, value * RESOLUTION_UNIT_CANONICAL_RATIOS[*unit as usize], "dppx");
+            if mode.is_resolved() {
+                serialize_a_dimension(
+                    sink,
+                    value * RESOLUTION_UNIT_CANONICAL_RATIOS[*unit as usize],
+                    "dppx",
+                    mode,
+                );
             } else {
-                serialize_a_dimension(sink, *value, RESOLUTION_UNIT_NAMES[*unit as usize]);
+                serialize_a_dimension(sink, *value, RESOLUTION_UNIT_NAMES[*unit as usize], mode);
             }
             true
         }
         StyleValueData::Length { value, unit } => {
             // FIXME: Manually skip this for px so we avoid rounding errors in
             //        absolute_length_to_px. (Matches the C++ FIXME.)
-            if mode == SerializationMode::ResolvedValue
+            if mode.is_resolved()
                 && *unit != px_length_unit()
                 && let Some(px) = absolute_length_to_px(*value, *unit)
             {
                 let rounded = crate::css::css_pixels::CssPixels::nearest_value_for(px).to_double();
-                serialize_a_dimension(sink, rounded, "px");
+                serialize_a_dimension(sink, rounded, "px", mode);
             } else {
-                serialize_a_dimension(sink, *value, LENGTH_UNIT_NAMES[*unit as usize]);
+                serialize_a_dimension(sink, *value, LENGTH_UNIT_NAMES[*unit as usize], mode);
             }
             true
         }
@@ -939,7 +972,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 return false;
             };
             if let StyleValueData::Percentage { value } = value {
-                serialize_a_number(sink, value * 0.01);
+                serialize_a_number(sink, value * 0.01, mode);
                 return true;
             }
             serialize_style_value(sink, value, mode)
@@ -1071,7 +1104,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 StyleValueData::Number { value } => Some(*value),
                 _ => None,
             };
-            if mode == SerializationMode::ResolvedValue
+            if mode.is_resolved()
                 && let Some(number) = number
             {
                 let keyword = if number == 1.0 {
@@ -2013,7 +2046,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
                 _ => {
                     sink.push_ascii("path(");
-                    if !(mode == SerializationMode::ResolvedValue && *fill_rule == 0) {
+                    if !(mode.is_resolved() && *fill_rule == 0) {
                         sink.push_ascii(if *fill_rule == 0 { "nonzero, " } else { "evenodd, " });
                     }
                     with_fly_string_units(path_string, |units| serialize_a_string(sink, &units));
@@ -2068,7 +2101,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                             return serialize_style_value(sink, angle, mode);
                         }
                         for value in [x, y, z] {
-                            serialize_a_number(sink, value);
+                            serialize_a_number(sink, value, mode);
                             sink.push_ascii(" ");
                         }
                         return serialize_style_value(sink, angle, mode);
@@ -2082,12 +2115,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         None => Some(None),
                         Some(StyleValueData::Number { value }) => {
                             let mut resolved = TextSink::new();
-                            serialize_a_number(&mut resolved, *value);
+                            serialize_a_number(&mut resolved, *value, mode);
                             Some(Some(resolved))
                         }
                         Some(StyleValueData::Percentage { value }) => {
                             let mut resolved = TextSink::new();
-                            serialize_a_number(&mut resolved, value * 0.01);
+                            serialize_a_number(&mut resolved, value * 0.01, mode);
                             Some(Some(resolved))
                         }
                         Some(_) => None,
@@ -2307,7 +2340,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 descriptor.behavior,
                 SerializationBehavior::SrgbLegacy | SerializationBehavior::SrgbModern
             ) {
-                if mode != SerializationMode::ResolvedValue && *has_name {
+                if !mode.is_resolved() && *has_name {
                     with_fly_string_units(name, |units| push_units_ascii_lowercased(sink, &units));
                     return true;
                 }
@@ -2422,7 +2455,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         && let Some(second_literal) = literal_percentage(second)
                     {
                         sink.push_ascii(" ");
-                        serialize_a_number(sink, 100.0 - second_literal);
+                        serialize_a_number(sink, 100.0 - second_literal, mode);
                         sink.push_ascii("%");
                     }
                 }
@@ -2477,43 +2510,57 @@ fn serialize_numeric_leaf(sink: &mut TextSink, numeric_kind: u8, value: f64, uni
     };
     use crate::css::style_compute::{LENGTH_UNIT_NAMES, absolute_length_to_px, px_length_unit};
 
-    let resolved = mode == SerializationMode::ResolvedValue;
+    let resolved = mode.is_resolved();
     match numeric_kind {
-        0 => serialize_number_with_type(sink, value, unit),
-        1 if resolved => serialize_a_dimension(sink, value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize], "deg"),
-        1 => serialize_a_dimension(sink, value, ANGLE_UNIT_NAMES[unit as usize]),
-        2 if resolved => serialize_a_dimension(sink, value * FLEX_UNIT_CANONICAL_RATIOS[unit as usize], "fr"),
-        2 => serialize_a_dimension(sink, value, FLEX_UNIT_NAMES[unit as usize]),
-        3 if resolved => serialize_a_dimension(sink, value * FREQUENCY_UNIT_CANONICAL_RATIOS[unit as usize], "hz"),
-        3 => serialize_a_dimension(sink, value, FREQUENCY_UNIT_NAMES[unit as usize]),
+        0 => serialize_number_with_type(sink, value, unit, mode),
+        1 if resolved => serialize_a_dimension(sink, value * ANGLE_UNIT_CANONICAL_RATIOS[unit as usize], "deg", mode),
+        1 => serialize_a_dimension(sink, value, ANGLE_UNIT_NAMES[unit as usize], mode),
+        2 if resolved => serialize_a_dimension(sink, value * FLEX_UNIT_CANONICAL_RATIOS[unit as usize], "fr", mode),
+        2 => serialize_a_dimension(sink, value, FLEX_UNIT_NAMES[unit as usize], mode),
+        3 if resolved => {
+            serialize_a_dimension(sink, value * FREQUENCY_UNIT_CANONICAL_RATIOS[unit as usize], "hz", mode);
+        }
+        3 => serialize_a_dimension(sink, value, FREQUENCY_UNIT_NAMES[unit as usize], mode),
         4 => {
             if resolved
                 && unit != px_length_unit()
                 && let Some(px) = absolute_length_to_px(value, unit)
             {
                 let rounded = crate::css::css_pixels::CssPixels::nearest_value_for(px).to_double();
-                serialize_a_dimension(sink, rounded, "px");
+                serialize_a_dimension(sink, rounded, "px", mode);
             } else {
-                serialize_a_dimension(sink, value, LENGTH_UNIT_NAMES[unit as usize]);
+                serialize_a_dimension(sink, value, LENGTH_UNIT_NAMES[unit as usize], mode);
             }
         }
         5 => {
-            serialize_a_number(sink, value);
+            serialize_a_number(sink, value, mode);
             sink.push_ascii("%");
         }
-        6 if resolved => serialize_a_dimension(sink, value * RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize], "dppx"),
-        6 => serialize_a_dimension(sink, value, RESOLUTION_UNIT_NAMES[unit as usize]),
-        7 if resolved => serialize_a_dimension(sink, value * TIME_UNIT_CANONICAL_RATIOS[unit as usize], "s"),
-        7 => serialize_a_dimension(sink, value, TIME_UNIT_NAMES[unit as usize]),
+        6 if resolved => serialize_a_dimension(
+            sink,
+            value * RESOLUTION_UNIT_CANONICAL_RATIOS[unit as usize],
+            "dppx",
+            mode,
+        ),
+        6 => serialize_a_dimension(sink, value, RESOLUTION_UNIT_NAMES[unit as usize], mode),
+        7 if resolved => serialize_a_dimension(sink, value * TIME_UNIT_CANONICAL_RATIOS[unit as usize], "s", mode),
+        7 => serialize_a_dimension(sink, value, TIME_UNIT_NAMES[unit as usize], mode),
         _ => unreachable!("invalid numeric leaf kind"),
     }
 }
 
 /// Port of Web::CSS::Number::serialize; `number_type` is the Number::Type discriminant
 /// (0 = number, 1 = integer with explicit sign, 2 = integer).
-fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8) {
+fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8, mode: SerializationMode) {
     if number_type == 1 {
-        format_double_with_precision_6(sink, value, true);
+        if mode.preserves_numeric_value() && value >= 0.0 && !value.is_sign_negative() {
+            sink.push_ascii("+");
+        }
+        if mode.preserves_numeric_value() {
+            serialize_a_number(sink, value, mode);
+        } else {
+            format_double_with_precision_6(sink, value, true);
+        }
         return;
     }
     if value == f64::INFINITY {
@@ -2528,7 +2575,7 @@ fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8) 
         sink.push_ascii("NaN");
         return;
     }
-    serialize_a_number(sink, value);
+    serialize_a_number(sink, value, mode);
 }
 
 /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function, by walking the piece
@@ -2538,7 +2585,7 @@ fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8) 
 fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) -> bool {
     use crate::css::css_enums::channel_keyword;
 
-    let pieces = crate::css::calc::serialize_math_function_pieces(value, mode == SerializationMode::ResolvedValue);
+    let pieces = crate::css::calc::serialize_math_function_pieces(value, mode.is_resolved());
     let mut previous_piece_appended = false;
     for piece in &pieces {
         let start_length = sink.len();
@@ -2812,7 +2859,7 @@ fn serialize_color_component(
             if let Some(clamp_max) = clamp_max {
                 resolved = resolved.min(clamp_max);
             }
-            serialize_a_number(sink, resolved);
+            serialize_a_number(sink, resolved, mode);
             true
         }
         None => serialize_style_value(sink, value, mode),
@@ -2831,7 +2878,7 @@ fn serialize_alpha_component(sink: &mut TextSink, value: &StyleValueData, mode: 
     }
     match resolve_alpha(value, &EMPTY_INPUT) {
         Some(resolved) => {
-            serialize_a_number(sink, resolved);
+            serialize_a_number(sink, resolved, mode);
             true
         }
         None => serialize_style_value(sink, value, mode),
@@ -2877,7 +2924,7 @@ fn serialize_color_function_form(
         if let StyleValueData::Percentage { value } = value {
             return Converted::Number(value / 100.0);
         }
-        if mode == SerializationMode::ResolvedValue && matches!(value, StyleValueData::Calculated { .. }) {
+        if mode.is_resolved() && matches!(value, StyleValueData::Calculated { .. }) {
             if let Some(resolved) = crate::css::calc::resolve_calculated_percentage_with_channels(value, None, None) {
                 let mut resolved_number = resolved / 100.0;
                 if !resolved_number.is_finite() {
@@ -2894,7 +2941,7 @@ fn serialize_color_function_form(
     let serialize_converted = |sink: &mut TextSink, converted: &Converted| -> bool {
         match converted {
             Converted::Number(number) => {
-                serialize_a_number(sink, *number);
+                serialize_a_number(sink, *number, mode);
                 true
             }
             Converted::Original(value) => serialize_style_value(sink, value, mode),
@@ -3606,7 +3653,13 @@ mod tests {
 
     fn number_to_string(value: f64) -> String {
         let mut sink = TextSink::new();
-        serialize_a_number(&mut sink, value);
+        serialize_a_number(&mut sink, value, SerializationMode::Normal);
+        text(sink)
+    }
+
+    fn number_to_reparse_string(value: f64) -> String {
+        let mut sink = TextSink::new();
+        serialize_a_number(&mut sink, value, SerializationMode::ResolvedValueForReparse);
         text(sink)
     }
 
@@ -3623,6 +3676,19 @@ mod tests {
         assert_eq!(number_to_string(0.1), "0.1");
         assert_eq!(number_to_string(16.0 / 9.0), "1.777778");
         assert_eq!(number_to_string(1.0 / 3.0), "0.333333");
+    }
+
+    #[test]
+    fn internal_reparse_number_serialization_preserves_precision() {
+        assert_eq!(number_to_reparse_string(0.0000001), "0.0000001");
+        assert_eq!(number_to_reparse_string(1.0 / 3.0).parse::<f64>().unwrap(), 1.0 / 3.0);
+    }
+
+    #[test]
+    fn explicitly_signed_negative_zero_integer_round_trips() {
+        let mut sink = TextSink::new();
+        serialize_number_with_type(&mut sink, -0.0, 1, SerializationMode::ResolvedValueForReparse);
+        assert_eq!(text(sink), "-0");
     }
 
     #[test]

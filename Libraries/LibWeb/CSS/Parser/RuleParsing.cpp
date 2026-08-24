@@ -599,7 +599,8 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     }
 
     if (initial_value_maybe) {
-        initial_value_maybe = Web::CSS::Parser::parse_with_a_syntax(parsing_params, initial_value_maybe->tokenize(), *maybe_syntax);
+        initial_value_maybe = Web::CSS::Parser::parse_with_a_syntax(parsing_params, initial_value_maybe->is_unresolved() ? initial_value_maybe->as_unresolved().token_source() : initial_value_maybe->to_utf16_string(SerializationMode::ResolvedValueForReparse),
+            *maybe_syntax);
 
         // Otherwise, if the value of the syntax descriptor is not the universal syntax definition,
         // the following conditions must be met for the @property rule to be valid:

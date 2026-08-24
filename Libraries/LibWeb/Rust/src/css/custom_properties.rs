@@ -679,8 +679,8 @@ fn resolve_css_wide_keyword(
                 TokenResolution::Resolved(tokenize_owned(source))
             });
     }
-    // NB: The C++ oracle sends typed registered `revert` through the invalid-value fallback,
-    //     while `revert-layer` remains unresolved pending custom-property revert support.
+    // NB: Typed registered `revert` uses the invalid-value fallback, while `revert-layer` remains
+    //     unresolved pending custom-property revert support.
     if keyword.eq_ignore_ascii_case("revert")
         && let (Some(registry), Some(registration)) = (registry, registration)
         && !matches!(registration.syntax, SyntaxNode::Universal)
@@ -1370,6 +1370,7 @@ fn evaluate_style_feature(
             0 => ConditionEvaluation::Match(false),
             1 => ConditionEvaluation::Match(true),
             2 => ConditionEvaluation::Invalid,
+            3 => ConditionEvaluation::Cyclic,
             _ => ConditionEvaluation::NotHandled,
         };
     }
@@ -1432,6 +1433,7 @@ fn evaluate_style_feature(
             0 => ConditionEvaluation::Match(false),
             1 => ConditionEvaluation::Match(true),
             2 => ConditionEvaluation::Invalid,
+            3 => ConditionEvaluation::Cyclic,
             _ => ConditionEvaluation::NotHandled,
         };
     }
@@ -1593,6 +1595,7 @@ fn evaluate_if_condition(
                 0 => ConditionEvaluation::Match(false),
                 1 => ConditionEvaluation::Match(true),
                 2 => ConditionEvaluation::Invalid,
+                3 => ConditionEvaluation::Cyclic,
                 _ => ConditionEvaluation::NotHandled,
             };
         }

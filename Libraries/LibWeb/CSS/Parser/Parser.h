@@ -142,8 +142,6 @@ public:
 
     Vector<ComponentValue> parse_as_list_of_component_values();
 
-    static NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(ParsingParams const&, AbstractOrHypotheticalElement, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&, Optional<GuardedSubstitutionContexts&> = {});
-
     [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
     enum class DisallowTopLevelCurlyBlocks : u8 {
@@ -373,8 +371,6 @@ private:
     using ParseTest = AK::Function<OwnPtr<BooleanExpression>(TokenStream<ComponentValue>&)> const&;
     OwnPtr<BooleanExpression> parse_boolean_expression(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
     OwnPtr<BooleanExpression> parse_boolean_expression_group(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
-
-    NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, GuardedSubstitutionContexts&, ArbitrarySubstitutionReplacementContext const&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 
     static bool has_ignored_vendor_prefix(Utf16View);
 

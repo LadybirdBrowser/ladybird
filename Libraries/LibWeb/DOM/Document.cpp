@@ -9879,7 +9879,7 @@ void Document::sync_custom_property_registrations_to_rust()
         names.unchecked_append(name.to_utf16_string());
         syntaxes.unchecked_append(registration->syntax->to_string());
         initial_values.unchecked_append(registration->initial_value
-                ? Optional<Utf16String> { registration->initial_value->to_utf16_string(CSS::SerializationMode::ResolvedValue) }
+                ? Optional<Utf16String> { registration->initial_value->to_utf16_string(CSS::SerializationMode::ResolvedValueForReparse) }
                 : Optional<Utf16String> {});
         auto const& name_string = names.last();
         auto const& syntax = syntaxes.last();

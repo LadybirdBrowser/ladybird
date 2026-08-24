@@ -7,7 +7,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
+#include <LibWeb/CSS/CSSUnparsedValue.h>
+#include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS {
@@ -92,7 +93,38 @@ bool UnresolvedStyleValue::equals(StyleValue const& other) const
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-list-of-component-values
 GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(Utf16FlyString const&) const
 {
-    return Parser::reify_unresolved_style_value(*this);
+    struct Frame {
+        Optional<Utf16FlyString> variable;
+        bool has_fallback { false };
+        Vector<CSSUnparsedSegment> segments;
+    };
+    Vector<Frame> frames;
+    frames.empend();
+    auto visit = [](void* context, u8 event, u16 const* text, size_t text_length, bool has_fallback) {
+        auto& frames = *static_cast<Vector<Frame>*>(context);
+        if (event == 0) {
+            frames.last().segments.append(Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(text), text_length }));
+            return;
+        }
+        if (event == 1) {
+            frames.empend(Frame {
+                .variable = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(text), text_length }),
+                .has_fallback = has_fallback,
+                .segments = {},
+            });
+            return;
+        }
+        VERIFY(event == 2);
+        VERIFY(frames.size() > 1);
+        auto frame = frames.take_last();
+        GC::Ptr<CSSUnparsedValue> fallback;
+        if (frame.has_fallback)
+            fallback = CSSUnparsedValue::create(frame.segments);
+        frames.last().segments.append(CSSVariableReferenceValue::create(frame.variable.release_value(), fallback));
+    };
+    StyleValueFFI::rust_unresolved_style_value_visit_reification(rust_style_value_data(), &frames, visit);
+    VERIFY(frames.size() == 1);
+    return CSSUnparsedValue::create(frames.take_last().segments);
 }
 
 }
