@@ -70,5 +70,27 @@
             loadedStyle.remove();
         });
         println(`LoadedSheetFace count after removal: ${countFaces("LoadedSheetFace")}`);
+
+        const constructedSheet = new CSSStyleSheet();
+        constructedSheet.replaceSync(`
+            @font-face {
+                font-family: "ConstructedSheetFace";
+                src: url("../../../Assets/HashSans.woff");
+            }
+        `);
+
+        printVersionDelta("adopt constructed CSS-connected face", () => {
+            document.adoptedStyleSheets = [constructedSheet];
+        });
+        println(`ConstructedSheetFace count after adoption: ${countFaces("ConstructedSheetFace")}`);
+
+        await document.fonts.load("16px ConstructedSheetFace", "A");
+        await document.fonts.ready;
+        println(`ConstructedSheetFace status before removal: ${[...document.fonts].find(face => face.family === "ConstructedSheetFace").status}`);
+
+        printVersionDelta("unadopt constructed CSS-connected face", () => {
+            document.adoptedStyleSheets = [];
+        });
+        println(`ConstructedSheetFace count after removal: ${countFaces("ConstructedSheetFace")}`);
     });
 </script>
