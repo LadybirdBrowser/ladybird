@@ -1,0 +1,16 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        CSS.registerProperty({ name: "--tiny-number", syntax: "<number>", inherits: false, initialValue: "1" });
+        CSS.registerProperty({ name: "--rounded-number", syntax: "<number>", inherits: false, initialValue: "1" });
+
+        const target = document.getElementById("target");
+        target.attributeStyleMap.set("--tiny-number", CSS.number(0.0000004));
+        target.attributeStyleMap.set("--rounded-number", CSS.number(1 / 3));
+
+        println(`tiny: ${target.style.getPropertyValue("--tiny-number")}`);
+        println(`rounded: ${target.style.getPropertyValue("--rounded-number")}`);
+    });
+</script>

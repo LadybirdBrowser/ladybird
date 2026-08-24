@@ -25,8 +25,74 @@ use std::collections::HashMap;
 
 use crate::abort_on_panic;
 use crate::css::css_tokenizer::TokenizerInput;
+use crate::css::parser::component_value::ComponentValue;
 
 pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
+
+/// A Rust-owned component-value slice. C++ retains the opaque allocation as part of an
+/// unresolved style value but never inspects its elements.
+#[repr(C)]
+pub struct RetainedComponentValueList {
+    pointer: *mut c_void,
+    length: usize,
+}
+
+impl RetainedComponentValueList {
+    pub(crate) fn from_values(values: Vec<ComponentValue>) -> Self {
+        let mut values = values.into_boxed_slice();
+        let result = Self {
+            pointer: values.as_mut_ptr().cast(),
+            length: values.len(),
+        };
+        std::mem::forget(values);
+        result
+    }
+
+    pub(crate) fn from_source(source: &[u16]) -> Self {
+        let values = crate::css::parser::component_value::consume_a_list_of_component_values(
+            crate::css::css_tokenizer::tokenize_for_parser(source),
+        )
+        .unwrap_or_default();
+        Self::from_values(values)
+    }
+
+    pub(crate) fn as_slice(&self) -> &[ComponentValue] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        // SAFETY: The allocation is owned by this handle and has `length` initialized elements.
+        unsafe { std::slice::from_raw_parts(self.pointer.cast(), self.length) }
+    }
+}
+
+impl Clone for RetainedComponentValueList {
+    fn clone(&self) -> Self {
+        Self::from_values(self.as_slice().to_vec())
+    }
+}
+
+impl PartialEq for RetainedComponentValueList {
+    fn eq(&self, _other: &Self) -> bool {
+        // The retained tree is a parsing/serialization cache. Unresolved value identity is
+        // defined by the source and comparison text fields, as it was before this cache existed.
+        true
+    }
+}
+
+impl Drop for RetainedComponentValueList {
+    fn drop(&mut self) {
+        if self.pointer.is_null() {
+            return;
+        }
+        // SAFETY: `from_values` leaked exactly this boxed slice to the handle.
+        unsafe {
+            drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                self.pointer.cast::<ComponentValue>(),
+                self.length,
+            )));
+        }
+    }
+}
 
 #[cfg(any(test, feature = "style-replay"))]
 thread_local! {
@@ -423,16 +489,6 @@ pub struct RetainedReadableString {
 }
 
 impl RetainedReadableString {
-    /// Takes ownership of a leaked AK::Utf16String reference and copies its units.
-    ///
-    /// # Safety
-    /// Exactly one non-empty unit pointer must identify `length` readable units.
-    unsafe fn from_raw(raw: usize, ascii_units: *const u8, code_units: *const u16, length: usize) -> Self {
-        let source = unsafe { TokenizerInput::from_raw_parts(ascii_units, code_units, length) }
-            .expect("invalid readable UTF-16 string");
-        Self::from_units_with_raw(source, raw)
-    }
-
     fn from_units_with_raw(source: TokenizerInput<'_>, raw: usize) -> Self {
         let (ascii_units, code_units, length) = match source {
             TokenizerInput::Ascii(units) => {
@@ -1820,6 +1876,7 @@ pub enum StyleValueData {
     /// flags of each substitution function, the attr-taint flag, and an optional parsed value
     /// cached for an attr()-tainted registered custom property.
     Unresolved {
+        components: RetainedComponentValueList,
         source_text: RetainedReadableString,
         value_comparison_text: RetainedReadableString,
         presence_attr: bool,
@@ -2529,6 +2586,7 @@ impl StyleValueData {
                 write_bool(hasher, *only);
             }
             Self::Unresolved {
+                components: _,
                 source_text,
                 value_comparison_text,
                 presence_attr,
@@ -3392,17 +3450,21 @@ pub unsafe extern "C" fn rust_style_value_create_color_scheme(
     })
 }
 
-/// Takes ownership of one leaked reference to each string.
+/// Creates an unresolved value from borrowed token source. Rust derives the source/comparison
+/// strings with the C++ oracle's SourceTextMode rules and retains the component tree that the
+/// former C++ reconstruction would produce.
+///
+/// Takes ownership of one strong reference to `parsed_value` when it is non-null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_unresolved(
-    source_text: usize,
-    source_text_ascii_units: *const u8,
-    source_text_code_units: *const u16,
-    source_text_length: usize,
-    value_comparison_text: usize,
-    value_comparison_text_ascii_units: *const u8,
-    value_comparison_text_code_units: *const u16,
-    value_comparison_text_length: usize,
+pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
+    token_source_ascii_units: *const u8,
+    token_source_code_units: *const u16,
+    token_source_length: usize,
+    has_original_source_text: bool,
+    original_source_text_ascii_units: *const u8,
+    original_source_text_code_units: *const u16,
+    original_source_text_length: usize,
+    source_text_mode: u8,
     presence_attr: bool,
     presence_dashed_function: bool,
     presence_env: bool,
@@ -3413,23 +3475,61 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved(
     parsed_value: *const StyleValueData,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
+        let token_source = unsafe {
+            TokenizerInput::from_raw_parts(token_source_ascii_units, token_source_code_units, token_source_length)
+        }
+        .unwrap_or_default();
+        let components = crate::css::parser::component_value::consume_a_list_of_component_values(
+            crate::css::css_tokenizer::tokenize_for_parser(token_source),
+        )
+        .unwrap_or_default();
+        let normalized = crate::css::serialize::serialize_component_values_to_utf16(
+            &components,
+            crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+        );
+        let (source_text, value_comparison_text) = if has_original_source_text {
+            let original_source_text = unsafe {
+                TokenizerInput::from_raw_parts(
+                    original_source_text_ascii_units,
+                    original_source_text_code_units,
+                    original_source_text_length,
+                )
+            }
+            .unwrap_or_default();
+            let mut source_text = Vec::with_capacity(original_source_text.len());
+            original_source_text.append_to(&mut source_text);
+            (
+                crate::css::serialize::trim_ascii_whitespace(&source_text).to_vec(),
+                crate::css::serialize::trim_ascii_whitespace(&normalized).to_vec(),
+            )
+        } else {
+            let source_text = match source_text_mode {
+                0 | 1 => crate::css::serialize::serialize_component_values_to_utf16(
+                    &components,
+                    crate::css::parser::component_value::ComponentSerializationMode::PreserveNumericSource,
+                ),
+                2 => crate::css::serialize::original_component_values_source(&components)
+                    .unwrap_or_else(|| normalized.clone()),
+                _ => unreachable!("unknown unresolved source text mode"),
+            };
+            let source_text = if source_text_mode == 0 {
+                crate::css::serialize::trim_ascii_whitespace(&source_text)
+            } else if source_text_mode == 1 {
+                crate::css::serialize::trim_ascii_whitespace_start(&source_text)
+            } else {
+                &source_text
+            };
+            (source_text.to_vec(), Vec::new())
+        };
+        let component_source = if value_comparison_text.is_empty() {
+            &source_text
+        } else {
+            &value_comparison_text
+        };
         Arc::into_raw(Arc::new(StyleValueData::Unresolved {
-            source_text: unsafe {
-                RetainedReadableString::from_raw(
-                    source_text,
-                    source_text_ascii_units,
-                    source_text_code_units,
-                    source_text_length,
-                )
-            },
-            value_comparison_text: unsafe {
-                RetainedReadableString::from_raw(
-                    value_comparison_text,
-                    value_comparison_text_ascii_units,
-                    value_comparison_text_code_units,
-                    value_comparison_text_length,
-                )
-            },
+            components: RetainedComponentValueList::from_source(component_source),
+            source_text: RetainedReadableString::from_utf16(&source_text),
+            value_comparison_text: RetainedReadableString::from_utf16(&value_comparison_text),
             presence_attr,
             presence_dashed_function,
             presence_env,

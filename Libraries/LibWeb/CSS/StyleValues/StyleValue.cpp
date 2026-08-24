@@ -13,6 +13,7 @@
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -109,6 +110,12 @@ static_assert(alignof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString) == al
 static_assert(offsetof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString, raw) == 0);
 
 namespace Web::CSS {
+
+Vector<Parser::ComponentValue> PendingSubstitutionStyleValue::tokenize() const
+{
+    // Not sure what to do here, but this isn't valid so returning GIV seems the most correct.
+    return { Parser::ComponentValue { Parser::GuaranteedInvalidValue {} } };
+}
 
 ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
 {
@@ -544,7 +551,7 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
     case Type::Ratio:
         return as_ratio().tokenize();
     case Type::Unresolved:
-        return as_unresolved().tokenize();
+        return Parser::unresolved_style_value_components(as_unresolved());
     case Type::ValueList:
         return as_value_list().tokenize();
     default:

@@ -14,11 +14,7 @@ namespace Web::CSS {
 class PendingSubstitutionStyleValue final : public StyleValueWithDefaultOperators<PendingSubstitutionStyleValue> {
 public:
     virtual ~PendingSubstitutionStyleValue() override = default;
-    Vector<Parser::ComponentValue> tokenize() const
-    {
-        // Not sure what to do here, but this isn't valid so returning GIV seems the most correct.
-        return { Parser::ComponentValue { Parser::GuaranteedInvalidValue {} } };
-    }
+    Vector<Parser::ComponentValue> tokenize() const;
 
     ValueComparingNonnullRefPtr<StyleValue const> original_shorthand_value() const { return wrap_rust_child(m_value->pending_substitution.original_shorthand_value); }
 

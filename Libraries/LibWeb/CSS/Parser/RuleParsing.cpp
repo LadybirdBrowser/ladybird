@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
+#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
@@ -1227,7 +1228,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
             if (unparsed_default->is_css_wide_keyword() || unparsed_default->as_unresolved().contains_arbitrary_substitution_function()) {
                 default_value = move(unparsed_default);
             } else {
-                auto parsed = parse_with_a_syntax(unparsed_default->as_unresolved().values(), *type);
+                auto parsed = parse_with_a_syntax(unresolved_style_value_components(unparsed_default->as_unresolved()), *type);
                 if (parsed->is_guaranteed_invalid())
                     return {};
                 default_value = move(parsed);

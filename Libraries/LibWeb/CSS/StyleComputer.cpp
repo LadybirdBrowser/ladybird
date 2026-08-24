@@ -6006,7 +6006,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
 
     if (resolved_value_contains_attr_tainted_values) {
         VERIFY(!computed_value->is_unresolved());
-        return UnresolvedStyleValue::create_attr_tainted_with_parsed_value(computed_value->tokenize(), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, computed_value);
+        return UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Parser::serialize_style_value_for_tokenization(*computed_value), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, computed_value);
     }
 
     return computed_value;
@@ -6091,7 +6091,7 @@ StyleComputer::CustomPropertyReferenceScan const& StyleComputer::custom_property
 {
     return m_custom_property_reference_scans.ensure(value->rust_style_value_data(), [&] {
         CustomPropertyReferenceScan scan { .value = value, .references = {}, .all_references_visible = true };
-        scan_component_values_for_custom_property_references(value->as_unresolved().values(), scan.references, scan.all_references_visible);
+        scan_component_values_for_custom_property_references(Parser::unresolved_style_value_components(value->as_unresolved()), scan.references, scan.all_references_visible);
         return scan;
     });
 }

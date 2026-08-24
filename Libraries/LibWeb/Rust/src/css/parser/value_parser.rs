@@ -5149,8 +5149,15 @@ pub(crate) fn unresolved_value(
     comparison_source: &[u16],
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
+    let source_text = trim_ascii_whitespace(unresolved_source);
+    let component_source = if comparison_source.is_empty() {
+        source_text
+    } else {
+        comparison_source
+    };
     StyleValueData::Unresolved {
-        source_text: RetainedReadableString::from_utf16(trim_ascii_whitespace(unresolved_source)),
+        components: crate::css::style_value::RetainedComponentValueList::from_source(component_source),
+        source_text: RetainedReadableString::from_utf16(source_text),
         value_comparison_text: RetainedReadableString::from_utf16(comparison_source),
         presence_attr: presence.attr,
         presence_dashed_function: presence.dashed_function,
@@ -5504,12 +5511,35 @@ pub(crate) fn parse_css_value_with_utf16_source(
     if collect_arbitrary_substitution_function_presence(values, &mut substitution_presence).is_err() {
         return ParseOutcome::Invalid;
     }
-    let source = if property_id == property_id::CUSTOM || substitution_presence.has_any() {
-        source
-    } else {
-        &[]
-    };
-    parse_css_value_after_substitution_scan(context, property_id, values, source, source, substitution_presence)
+    if property_id == property_id::CUSTOM {
+        let comparison_source = crate::css::serialize::serialize_component_values_to_utf16(
+            values,
+            crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+        );
+        return parse_css_value_after_substitution_scan(
+            context,
+            property_id,
+            values,
+            source,
+            &comparison_source,
+            substitution_presence,
+        );
+    }
+    if substitution_presence.has_any() {
+        let unresolved_source = crate::css::serialize::serialize_component_values_to_utf16(
+            values,
+            crate::css::parser::component_value::ComponentSerializationMode::PreserveNumericSource,
+        );
+        return parse_css_value_after_substitution_scan(
+            context,
+            property_id,
+            values,
+            &unresolved_source,
+            &[],
+            substitution_presence,
+        );
+    }
+    parse_css_value_after_substitution_scan(context, property_id, values, &[], &[], substitution_presence)
 }
 
 /// Parse a property value using the grammars which have been ported to Rust.
@@ -5736,6 +5766,8 @@ pub unsafe extern "C" fn rust_parse_css_value(
         let Some(comparison_source) = (unsafe { comparison_source.to_utf16() }) else {
             return invalid_ffi_result();
         };
+        let mut source_utf16 = Vec::with_capacity(source.len());
+        source.append_to(&mut source_utf16);
         let context = unsafe { &*context };
         let outcome = match component_values_from_source(source) {
             Ok(values) if retry_with_serialized_source => {
@@ -5773,7 +5805,30 @@ pub unsafe extern "C" fn rust_parse_css_value(
                 }
             }
             Ok(values) => {
-                parse_css_value_with_source(context, property_id, &values, &unresolved_source, &comparison_source)
+                if unresolved_source.is_empty() {
+                    let mut substitution_presence = SubstitutionFunctionsPresence::default();
+                    if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
+                        ParseOutcome::Invalid
+                    } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+                        match consume_a_list_of_component_values(tokenize_for_parser(source_utf16.as_slice())) {
+                            Ok(values) => {
+                                parse_css_value_with_utf16_source(context, property_id, &values, &source_utf16)
+                            }
+                            Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
+                        }
+                    } else {
+                        parse_css_value_after_substitution_scan(
+                            context,
+                            property_id,
+                            &values,
+                            &[],
+                            &[],
+                            substitution_presence,
+                        )
+                    }
+                } else {
+                    parse_css_value_with_source(context, property_id, &values, &unresolved_source, &comparison_source)
+                }
             }
             Err(()) => ParseOutcome::NotHandled(&COMPONENT_VALUES_INVALID),
         };
@@ -7468,6 +7523,24 @@ mod tests {
         for source in ["var()", "attr()", "env()", "inherit()", "if()", "--mix(, value)"] {
             assert!(matches!(parse(property_id::WIDTH, source), ParseOutcome::Invalid));
         }
+
+        let source = utf16("  attr(    foo    )  ");
+        let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
+        let ParseOutcome::Parsed(value) =
+            parse_css_value_with_utf16_source(&context(), property_id::CONTENT, &values, &source)
+        else {
+            panic!("attr() should parse");
+        };
+        let StyleValueData::Unresolved {
+            source_text,
+            value_comparison_text,
+            ..
+        } = &*value
+        else {
+            panic!("attr() should remain unresolved");
+        };
+        assert_eq!(retained_utf16(source_text), utf16("attr( foo )"));
+        assert!(value_comparison_text.as_units().is_empty());
     }
 
     #[test]
@@ -7481,6 +7554,7 @@ mod tests {
             panic!("custom property should parse");
         };
         let StyleValueData::Unresolved {
+            components,
             source_text,
             value_comparison_text,
             ..
@@ -7490,6 +7564,32 @@ mod tests {
         };
         assert_eq!(retained_utf16(source_text), utf16("10\\70 x"));
         assert_eq!(retained_utf16(value_comparison_text), comparison);
+        assert_eq!(
+            crate::css::serialize::serialize_component_values_to_utf16(
+                components.as_slice(),
+                crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+            ),
+            comparison
+        );
+
+        let source = utf16("a/* comment */");
+        let comparison = utf16("a");
+        let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
+        let ParseOutcome::Parsed(value) =
+            parse_css_value_with_source(&context(), property_id::CUSTOM, &values, &source, &comparison)
+        else {
+            panic!("custom property should parse");
+        };
+        let StyleValueData::Unresolved { components, .. } = &*value else {
+            panic!("custom property should produce an unresolved value");
+        };
+        assert_eq!(
+            crate::css::serialize::serialize_component_values_to_utf16(
+                components.as_slice(),
+                crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+            ),
+            comparison
+        );
         assert!(matches!(
             parse(property_id::CUSTOM, "inherit"),
             ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Keyword { keyword: keyword::INHERIT })
