@@ -758,6 +758,15 @@ impl StyleSheetProgram {
         !self.sheets[sheet.0 as usize].attachments.is_empty()
     }
 
+    pub fn sheets_with_attachment_state(&self) -> impl Iterator<Item = (SheetID, bool)> + '_ {
+        self.sheets.iter().enumerate().map(|(index, sheet)| {
+            (
+                SheetID(u32::try_from(index).expect("sheet identity space exhausted")),
+                !sheet.attachments.is_empty(),
+            )
+        })
+    }
+
     pub fn live_selector_programs(&self) -> impl Iterator<Item = (RuleID, SelectorProgramID)> + '_ {
         self.rules.iter().enumerate().filter_map(|(index, rule)| {
             let version = self.rule_versions[rule.version_slot as usize];

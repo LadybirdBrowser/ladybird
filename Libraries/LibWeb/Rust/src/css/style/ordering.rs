@@ -1368,11 +1368,12 @@ impl StyleEngine {
             return;
         }
         self.routing_needs_detachment_sweep = false;
-        let live_rules = self.program.live_selector_programs().collect::<Vec<_>>();
         let mut excluded_sheets = BitColumn::default();
-        for &(rule, _) in &live_rules {
-            let sheet = self.program.rule_sheet(rule);
-            if !self.program.sheet_is_attached_somewhere(sheet) {
+        let mut attached_sheets = Vec::new();
+        for (sheet, attached) in self.program.sheets_with_attachment_state() {
+            if attached {
+                attached_sheets.push(sheet);
+            } else {
                 excluded_sheets.set(sheet.0 as usize, true);
             }
         }
@@ -1380,11 +1381,17 @@ impl StyleEngine {
             return;
         }
         let mut rebuilt_routing = RoutingRegistry::new();
-        for &(rule, program) in &live_rules {
-            if excluded_sheets.contains(self.program.rule_sheet(rule).0 as usize) {
-                continue;
+        for sheet in attached_sheets {
+            for rule in self
+                .program
+                .rules_in_sheet(sheet)
+                .into_iter()
+                .filter(|&rule| self.program.rule_is_live(rule))
+            {
+                if let Some(program) = self.program.rule_version(rule).selector_program {
+                    rebuilt_routing.add_rule(rule, program, &self.programs);
+                }
             }
-            rebuilt_routing.add_rule(rule, program, &self.programs);
         }
         let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
         Rc::get_mut(&mut previous_routing)
