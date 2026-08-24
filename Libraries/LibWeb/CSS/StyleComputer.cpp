@@ -2749,7 +2749,6 @@ void StyleComputer::sweep_custom_property_environments() const
     // nothing below it is ever the last reference.
     m_cascaded_custom_property_environments.clear();
     m_custom_property_reference_scans.clear();
-    m_custom_property_tokenizations.clear();
     m_registered_custom_property_parses.clear();
     m_custom_property_environments.remove_all_matching([](auto&, Vector<NonnullRefPtr<CustomPropertyData const>>& bucket) {
         bucket.remove_all_matching([](auto const& data) { return data->ref_count() == 1; });
@@ -6173,14 +6172,6 @@ ComputationContext StyleComputer::fallback_computation_context_for_custom_proper
         .length_resolution_context = length_resolution_context,
         .abstract_element = abstract_element,
     };
-}
-
-Vector<Parser::ComponentValue> StyleComputer::tokenized_custom_property_value(NonnullRefPtr<StyleValue const> const& value) const
-{
-    auto const& tokenization = m_custom_property_tokenizations.ensure(value->rust_style_value_data(), [&] {
-        return CustomPropertyTokenization { value, value->tokenize() };
-    });
-    return tokenization.tokens;
 }
 
 StyleComputer::CustomPropertyReferenceScan const& StyleComputer::custom_property_reference_scan(NonnullRefPtr<StyleValue const> const& value) const

@@ -1147,8 +1147,6 @@ retained_list_as_slice!(RetainedGridAreaList, RetainedGridArea);
 macro_rules! retained_list_from_vec {
     ($list:ident, $element:ty) => {
         impl $list {
-            // Consumers arrive with the per-type absolutization and color ports.
-            #[allow(dead_code)]
             pub(crate) fn from_retained_elements(elements: Vec<$element>) -> Self {
                 let slice = elements.into_boxed_slice();
                 let length = slice.len();

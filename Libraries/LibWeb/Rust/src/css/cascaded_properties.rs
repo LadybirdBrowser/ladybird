@@ -790,9 +790,7 @@ fn parse_substituted_on_worker(
         let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {
             // A callback-free parse can report Invalid when an Option-returning grammar could not
             // retain a string. Let the main thread distinguish that from a genuinely invalid value.
-            ParseOutcome::Invalid => {
-                ParseOutcome::NotHandled(&crate::css::parser::value_parser::SUBSTITUTION_NOT_PORTED)
-            }
+            ParseOutcome::Invalid => ParseOutcome::NotHandled,
             outcome => outcome,
         };
         sender
@@ -828,7 +826,7 @@ fn parse_substituted_on_main_thread(
     context.random_function_index = &raw mut random_function_index;
     match parse_css_value_from_source(&context, property_id, source) {
         ParseOutcome::Parsed(value) => value,
-        ParseOutcome::Invalid | ParseOutcome::NotHandled(_) => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
+        ParseOutcome::Invalid | ParseOutcome::NotHandled => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
     }
 }
 
@@ -1342,7 +1340,7 @@ fn resolve_cascade_value(
             match outcome {
                 ParseOutcome::Parsed(value) => value,
                 ParseOutcome::Invalid => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
-                ParseOutcome::NotHandled(_) => {
+                ParseOutcome::NotHandled => {
                     parse_substituted_on_main_thread(base_context, property_id, &source, contains_attr_tainted_values)
                 }
             }

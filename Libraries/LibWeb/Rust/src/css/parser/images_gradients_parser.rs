@@ -23,9 +23,9 @@ use crate::css::style_value::{
 };
 
 use super::value_parser::{
-    NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, equals_ascii_case_insensitive,
-    parse_angle_from_stream, parse_angle_percentage_from_stream, parse_length_percentage_from_stream,
-    parse_resolution_from_stream, parse_url_value, retain_fly_string,
+    NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, parse_angle_from_stream,
+    parse_angle_percentage_from_stream, parse_length_percentage_from_stream, parse_resolution_from_stream,
+    parse_url_value, retain_fly_string,
 };
 
 fn retained(value: StyleValueData) -> RetainedStyleValueData {
@@ -98,7 +98,6 @@ fn parse_type(context: &ParseContext, value: &ComponentValue) -> Option<Retained
 }
 
 fn parse_image_set(context: &ParseContext, property: u16, arguments: &[ComponentValue]) -> Option<StyleValueData> {
-    // NB: Mirrors the C++ image-set parser's rejection of attr()-tainted options.
     if context.contains_attr_tainted_values {
         return None;
     }
@@ -707,7 +706,7 @@ pub(crate) fn parse_image_property(context: &ParseContext, property: u16, values
             | property_id::LIST_STYLE_IMAGE
             | property_id::BORDER_IMAGE_SOURCE
     ) {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     }
     let parsed = if matches!(property, property_id::BACKGROUND_IMAGE | property_id::MASK_IMAGE) {
         values
@@ -718,7 +717,7 @@ pub(crate) fn parse_image_property(context: &ParseContext, property: u16, values
     } else {
         parse_image_or_none(context, property, values)
     };
-    parsed.map_or(ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED), |parsed| {
+    parsed.map_or(ParseOutcome::NotHandled, |parsed| {
         ParseOutcome::Parsed(Arc::new(parsed))
     })
 }
@@ -785,7 +784,7 @@ mod tests {
         for source in ["image-set()", "image-set(url(one.png) 1x 2x)", "url(#mask)"] {
             assert!(matches!(
                 parse(property_id::BACKGROUND_IMAGE, source),
-                ParseOutcome::NotHandled(_)
+                ParseOutcome::NotHandled
             ));
         }
     }
@@ -837,7 +836,7 @@ mod tests {
         ] {
             assert!(matches!(
                 parse(property_id::BORDER_IMAGE_SOURCE, source),
-                ParseOutcome::NotHandled(_)
+                ParseOutcome::NotHandled
             ));
         }
     }

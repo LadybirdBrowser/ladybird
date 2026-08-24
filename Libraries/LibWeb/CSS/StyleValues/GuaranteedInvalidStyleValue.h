@@ -19,10 +19,6 @@ public:
         return instance;
     }
     virtual ~GuaranteedInvalidStyleValue() override = default;
-    Vector<Parser::ComponentValue> tokenize() const
-    {
-        return { Parser::ComponentValue { Parser::GuaranteedInvalidValue {} } };
-    }
 
 private:
     friend class StyleValue;

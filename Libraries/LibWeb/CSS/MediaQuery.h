@@ -14,7 +14,6 @@
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/FeatureQuery.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 
 namespace Web::CSS {
 

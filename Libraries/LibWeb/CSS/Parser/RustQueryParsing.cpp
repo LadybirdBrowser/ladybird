@@ -38,6 +38,21 @@ static FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
+Optional<Vector<RustQueryParser::SizesAttributeEntry>> RustQueryParser::split_sizes_attribute(Utf16View source)
+{
+    Vector<SizesAttributeEntry> entries;
+    auto visit = [](void* context, u16 const* condition, size_t condition_length, u16 const* size, size_t size_length) {
+        auto& entries = *static_cast<Vector<SizesAttributeEntry>*>(context);
+        entries.append({
+            .condition = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(condition), condition_length }),
+            .size = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(size), size_length }),
+        });
+    };
+    if (!rust_visit_sizes_attribute_entries(ffi_utf16_view(source), &entries, visit))
+        return {};
+    return entries;
+}
+
 static Utf16View utf16_value(FfiSyntaxParseData const& data, size_t offset, size_t length)
 {
     VERIFY(offset <= data.value_count);

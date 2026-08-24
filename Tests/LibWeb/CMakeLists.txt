@@ -8,7 +8,6 @@ set(TEST_SOURCES
     TestCSSPixels.cpp
     TestCSSSyntaxParser.cpp
     TestCSSTokenizer.cpp
-    TestCSSTokenStream.cpp
     TestDisplayListDamage.cpp
     TestDownloadReader.cpp
     TestDump.cpp
@@ -57,7 +56,6 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibWeb LIBS ${test_libraries})
 endforeach()
 
-ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
 
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
@@ -88,16 +86,5 @@ target_sources(TestWindowProxyWorld PRIVATE
     ${ladybird_SOURCE_DIR}/Libraries/LibWeb/WebIDL/CallbackType.cpp
 )
 target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
-
-if (NOT WIN32)
-    add_custom_target(test-css-tokenizer ALL DEPENDS css-tokenizer "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibWeb/test-css-tokenizer.py" "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibWeb/test-css-tokenizer.py"
-    )
-    add_test(NAME test-css-tokenizer COMMAND "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer")
-    set_tests_properties(test-css-tokenizer PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-endif()
 
 add_subdirectory("test-web")

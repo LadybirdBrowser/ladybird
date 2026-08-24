@@ -7,13 +7,13 @@
 use smallvec::SmallVec;
 use std::ffi::c_void;
 use std::ops::Range;
+#[cfg(test)]
 use std::ptr;
 use std::rc::Rc;
 
 const REPLACEMENT_CHARACTER: u32 = 0xFFFD;
 const TOKENIZER_EOF: u32 = u32::MAX;
 
-// NB: Keep this in sync with Web::CSS::Parser::Token::Type in Token.h.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub enum CssTokenType {
@@ -45,7 +45,6 @@ pub enum CssTokenType {
     CloseCurly,
 }
 
-// NB: Keep this in sync with Web::CSS::Parser::Token::HashType in Token.h.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub enum CssHashType {
@@ -53,31 +52,12 @@ pub enum CssHashType {
     Unrestricted,
 }
 
-// NB: Keep this in sync with Web::CSS::Number::Type in Number.h.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub enum CssNumberType {
     Number,
     IntegerWithExplicitSign,
     Integer,
-}
-
-#[repr(C)]
-pub struct CssToken {
-    pub token_type: CssTokenType,
-    pub hash_type: CssHashType,
-    pub number_type: CssNumberType,
-    pub number_value: f64,
-    pub delim: u32,
-    pub value_ptr: *const u16,
-    pub value_len: usize,
-    pub original_source_ascii_ptr: *const u8,
-    pub original_source_utf16_ptr: *const u16,
-    pub original_source_len: usize,
-    pub start_line: usize,
-    pub start_column: usize,
-    pub end_line: usize,
-    pub end_column: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,33 +68,6 @@ pub struct CssSyntaxToken {
     pub start_column: usize,
     pub end_line: usize,
     pub end_column: usize,
-}
-
-/// # Safety
-/// - `input` and `input_len` must point to a valid string
-/// - `ctx` must be a valid pointer to a CallbackContext
-/// - Parameters provided to `callback` must be valid pointers
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_css_tokenize(
-    ascii_input: *const u8,
-    utf16_input: *const u16,
-    input_len: usize,
-    ctx: *mut c_void,
-    callback: unsafe extern "C" fn(ctx: *mut c_void, token: *const CssToken),
-) {
-    unsafe {
-        crate::abort_on_panic(|| {
-            let Some(input) = TokenizerInput::from_raw_parts(ascii_input, utf16_input, input_len) else {
-                return;
-            };
-
-            tokenize(input, |token, filtered_input| {
-                let value = token.value_as_utf16();
-                let ffi_token = token.as_ffi(filtered_input, &value);
-                callback(ctx, &raw const ffi_token);
-            });
-        });
-    }
 }
 
 /// # Safety
@@ -234,13 +187,6 @@ impl TokenizerInput<'_> {
             Self::Utf16(units) => output.extend_from_slice(units),
         }
     }
-
-    fn slice(self, range: Range<usize>) -> Self {
-        match self {
-            Self::Ascii(units) => Self::Ascii(&units[range]),
-            Self::Utf16(units) => Self::Utf16(&units[range]),
-        }
-    }
 }
 
 impl<'a> From<ak::Utf16StringUnits<'a>> for TokenizerInput<'a> {
@@ -289,17 +235,9 @@ pub(crate) enum ParserString {
     Owned(Box<[u16]>),
     Shared { storage: Rc<[u16]>, range: Range<usize> },
     Pending(Range<usize>),
-    Borrowed { data: *const u16, length: usize },
 }
 
 impl ParserString {
-    /// # Safety
-    /// `data` must remain readable for `length` code units while this value or
-    /// any clone of it exists.
-    pub(crate) unsafe fn from_raw_parts(data: *const u16, length: usize) -> Self {
-        Self::Borrowed { data, length }
-    }
-
     fn finish_shared(&mut self, storage: Rc<[u16]>, offset: usize) {
         let Self::Pending(range) = self else {
             return;
@@ -318,11 +256,6 @@ impl AsRef<[u16]> for ParserString {
             Self::Owned(value) => value,
             Self::Shared { storage, range } => &storage[range.clone()],
             Self::Pending(_) => unreachable!(),
-            Self::Borrowed { data, length } => {
-                // SAFETY: Borrowed parser strings are constructed from FFI
-                // storage that remains alive for the entire parse call.
-                unsafe { std::slice::from_raw_parts(*data, *length) }
-            }
         }
     }
 }
@@ -777,90 +710,6 @@ impl Token {
         }
     }
 
-    pub(crate) fn as_ffi(&self, filtered_input: TokenizerInput<'_>, value: &[u16]) -> CssToken {
-        let original_source = filtered_input.slice(self.original_source_range.clone());
-        let (original_source_ascii_ptr, original_source_utf16_ptr, original_source_len) = match original_source {
-            TokenizerInput::Ascii(units) => (bytes_parts(units).0, ptr::null(), units.len()),
-            TokenizerInput::Utf16(units) => (ptr::null(), utf16_parts(units).0, units.len()),
-        };
-        let (value_ptr, value_len) = utf16_parts(value);
-
-        let mut css_token = CssToken {
-            token_type: CssTokenType::Invalid,
-            hash_type: CssHashType::Id,
-            number_type: CssNumberType::Number,
-            number_value: 0.0,
-            delim: 0,
-            value_ptr,
-            value_len,
-            original_source_ascii_ptr,
-            original_source_utf16_ptr,
-            original_source_len,
-            start_line: self.range.start.line,
-            start_column: self.range.start.column,
-            end_line: self.range.end.line,
-            end_column: self.range.end.column,
-        };
-
-        match &self.token_type {
-            TokenType::EndOfFile => css_token.token_type = CssTokenType::EndOfFile,
-            TokenType::Ident { .. } => {
-                css_token.token_type = CssTokenType::Ident;
-            }
-            TokenType::Function { .. } => {
-                css_token.token_type = CssTokenType::Function;
-            }
-            TokenType::AtKeyword { .. } => {
-                css_token.token_type = CssTokenType::AtKeyword;
-            }
-            TokenType::Hash { hash_type, .. } => {
-                css_token.token_type = CssTokenType::Hash;
-                css_token.hash_type = *hash_type;
-            }
-            TokenType::String { .. } => {
-                css_token.token_type = CssTokenType::String;
-            }
-            TokenType::BadString => css_token.token_type = CssTokenType::BadString,
-            TokenType::Url { .. } => {
-                css_token.token_type = CssTokenType::Url;
-            }
-            TokenType::BadUrl => css_token.token_type = CssTokenType::BadUrl,
-            TokenType::Delim { value } => {
-                css_token.token_type = CssTokenType::Delim;
-                css_token.delim = *value;
-            }
-            TokenType::Number { number } => {
-                css_token.token_type = CssTokenType::Number;
-                css_token.number_type = number.number_type;
-                css_token.number_value = number.value;
-            }
-            TokenType::Percentage { number } => {
-                css_token.token_type = CssTokenType::Percentage;
-                css_token.number_type = number.number_type;
-                css_token.number_value = number.value;
-            }
-            TokenType::Dimension { number, .. } => {
-                css_token.token_type = CssTokenType::Dimension;
-                css_token.number_type = number.number_type;
-                css_token.number_value = number.value;
-            }
-            TokenType::Whitespace => css_token.token_type = CssTokenType::Whitespace,
-            TokenType::Cdo => css_token.token_type = CssTokenType::CDO,
-            TokenType::Cdc => css_token.token_type = CssTokenType::CDC,
-            TokenType::Colon => css_token.token_type = CssTokenType::Colon,
-            TokenType::Semicolon => css_token.token_type = CssTokenType::Semicolon,
-            TokenType::Comma => css_token.token_type = CssTokenType::Comma,
-            TokenType::OpenSquare => css_token.token_type = CssTokenType::OpenSquare,
-            TokenType::CloseSquare => css_token.token_type = CssTokenType::CloseSquare,
-            TokenType::OpenParen => css_token.token_type = CssTokenType::OpenParen,
-            TokenType::CloseParen => css_token.token_type = CssTokenType::CloseParen,
-            TokenType::OpenCurly => css_token.token_type = CssTokenType::OpenCurly,
-            TokenType::CloseCurly => css_token.token_type = CssTokenType::CloseCurly,
-        }
-
-        css_token
-    }
-
     fn as_syntax_ffi(&self) -> CssSyntaxToken {
         let token_type = match &self.token_type {
             TokenType::EndOfFile => CssTokenType::EndOfFile,
@@ -896,19 +745,6 @@ impl Token {
             start_column: self.range.start.column,
             end_line: self.range.end.line,
             end_column: self.range.end.column,
-        }
-    }
-
-    pub(crate) fn value_as_utf16(&self) -> Vec<u16> {
-        match &self.token_type {
-            TokenType::Ident { value }
-            | TokenType::Function { name: value }
-            | TokenType::AtKeyword { name: value }
-            | TokenType::Hash { value, .. }
-            | TokenType::String { value }
-            | TokenType::Url { value }
-            | TokenType::Dimension { unit: value, .. } => value.to_vec(),
-            _ => Vec::new(),
         }
     }
 }
@@ -1278,7 +1114,10 @@ impl<'a> Tokenizer<'a> {
         }
 
         // 6. Convert repr to a number, and set the value to the returned value.
-        let value = unsafe { std::str::from_utf8_unchecked(&repr) }.parse::<f64>().unwrap();
+        let value = unsafe { std::str::from_utf8_unchecked(&repr) }
+            .parse::<f64>()
+            .unwrap()
+            .clamp(f64::from(f32::MIN), f64::from(f32::MAX));
 
         // 7. Return value and type.
         if number_type == CssNumberType::Integer && has_explicit_sign {
@@ -1845,22 +1684,6 @@ impl<'a> Tokenizer<'a> {
     }
 }
 
-fn bytes_parts(bytes: &[u8]) -> (*const u8, usize) {
-    if bytes.is_empty() {
-        (ptr::null(), 0)
-    } else {
-        (bytes.as_ptr(), bytes.len())
-    }
-}
-
-fn utf16_parts(code_units: &[u16]) -> (*const u16, usize) {
-    if code_units.is_empty() {
-        (ptr::null(), 0)
-    } else {
-        (code_units.as_ptr(), code_units.len())
-    }
-}
-
 fn append_code_point(builder: &mut impl Extend<u16>, code_point: u32) {
     if code_point < 0x10000 {
         builder.extend(std::iter::once(code_point as u16));
@@ -2113,6 +1936,196 @@ fn would_start_a_number((first, second, third): (u32, u32, u32)) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn debug_string(value: &[u16]) -> String {
+        format!("{:?}", String::from_utf16_lossy(value))
+    }
+
+    fn debug_number(value: f64) -> String {
+        if value.is_finite() && value.abs() < 1e21 && value.fract() == 0.0 {
+            return format!("{value:.0}");
+        }
+        let value = format!("{value:?}");
+        if let Some((mantissa, exponent)) = value.split_once('e')
+            && !exponent.starts_with(['+', '-'])
+        {
+            return format!("{mantissa}e+{exponent}");
+        }
+        value
+    }
+
+    fn debug_token(token: &Token, input: TokenizerInput<'_>) -> String {
+        let source = match input {
+            TokenizerInput::Ascii(units) => units[token.original_source_range.clone()]
+                .iter()
+                .copied()
+                .map(u16::from)
+                .collect::<Vec<_>>(),
+            TokenizerInput::Utf16(units) => units[token.original_source_range.clone()].to_vec(),
+        };
+        let (name, mut fields) = match &token.token_type {
+            TokenType::EndOfFile => ("__EOF__", vec![]),
+            TokenType::Ident { value } => ("Ident", vec![format!("value={}", debug_string(value))]),
+            TokenType::Function { name } => ("Function", vec![format!("value={}", debug_string(name))]),
+            TokenType::AtKeyword { name } => ("AtKeyword", vec![format!("value={}", debug_string(name))]),
+            TokenType::Hash { hash_type, value } => (
+                "Hash",
+                vec![
+                    format!("value={}", debug_string(value)),
+                    format!("hash_type={hash_type:?}"),
+                ],
+            ),
+            TokenType::String { value } => ("String", vec![format!("value={}", debug_string(value))]),
+            TokenType::BadString => ("BadString", vec![]),
+            TokenType::Url { value } => ("Url", vec![format!("value={}", debug_string(value))]),
+            TokenType::BadUrl => ("BadUrl", vec![]),
+            TokenType::Delim { value } => (
+                "Delim",
+                vec![
+                    format!("value={}", debug_string(&[*value as u16])),
+                    format!("code_point=U+{value:04X}"),
+                ],
+            ),
+            TokenType::Number { number } => (
+                "Number",
+                vec![
+                    format!("value={}", debug_number(number.value)),
+                    format!("number_type={:?}", number.number_type),
+                ],
+            ),
+            TokenType::Percentage { number } => (
+                "Percentage",
+                vec![
+                    format!("value={}", debug_number(number.value)),
+                    format!("number_type={:?}", number.number_type),
+                ],
+            ),
+            TokenType::Dimension { number, unit } => (
+                "Dimension",
+                vec![
+                    format!("value={}", debug_number(number.value)),
+                    format!("number_type={:?}", number.number_type),
+                    format!("unit={}", debug_string(unit)),
+                ],
+            ),
+            TokenType::Whitespace => ("Whitespace", vec![]),
+            TokenType::Cdo => ("CDO", vec![]),
+            TokenType::Cdc => ("CDC", vec![]),
+            TokenType::Colon => ("Colon", vec![]),
+            TokenType::Semicolon => ("Semicolon", vec![]),
+            TokenType::Comma => ("Comma", vec![]),
+            TokenType::OpenSquare => ("OpenSquare", vec![]),
+            TokenType::CloseSquare => ("CloseSquare", vec![]),
+            TokenType::OpenParen => ("OpenParen", vec![]),
+            TokenType::CloseParen => ("CloseParen", vec![]),
+            TokenType::OpenCurly => ("OpenCurly", vec![]),
+            TokenType::CloseCurly => ("CloseCurly", vec![]),
+        };
+        fields.push(format!("source={}", debug_string(&source)));
+        fields.push(format!("start={}:{}", token.range.start.line, token.range.start.column));
+        fields.push(format!("end={}:{}", token.range.end.line, token.range.end.column));
+        format!("{name}({})", fields.join(", "))
+    }
+
+    fn normalize_utf16(input: Vec<u16>) -> Vec<u16> {
+        let mut output = Vec::with_capacity(input.len());
+        let mut index = 0;
+        while index < input.len() {
+            match input[index] {
+                0x0d if input.get(index + 1) == Some(&0x0a) => {
+                    output.push(0x0a);
+                    index += 2;
+                }
+                0x0d | 0x0c => {
+                    output.push(0x0a);
+                    index += 1;
+                }
+                0 => {
+                    output.push(REPLACEMENT_CHARACTER as u16);
+                    index += 1;
+                }
+                value => {
+                    output.push(value);
+                    index += 1;
+                }
+            }
+        }
+        output
+    }
+
+    fn check_tokenizer_corpus(input: Vec<u16>, expected: &str) {
+        let input = normalize_utf16(input);
+        let mut actual = Vec::new();
+        tokenize(TokenizerInput::Utf16(&input), |token, input| {
+            actual.push(debug_token(token, input));
+        });
+        assert_eq!(actual.join("\n") + "\n", expected);
+    }
+
+    #[test]
+    fn tokenizer_golden_corpus() {
+        macro_rules! check_utf8 {
+            ($name:literal) => {
+                check_tokenizer_corpus(
+                    String::from_utf8(
+                        include_bytes!(concat!(
+                            "../../../../../Tests/LibWeb/CSSTokenizer/input/",
+                            $name,
+                            ".css"
+                        ))
+                        .to_vec(),
+                    )
+                    .unwrap()
+                    .encode_utf16()
+                    .collect(),
+                    include_str!(concat!(
+                        "../../../../../Tests/LibWeb/CSSTokenizer/expected/",
+                        $name,
+                        ".txt"
+                    )),
+                );
+            };
+        }
+
+        check_utf8!("at-hash-function-delim");
+        check_utf8!("basic-rules");
+        check_utf8!("brackets-and-cdo-cdc");
+        check_utf8!("comments-and-whitespace");
+        check_utf8!("malformed-bad-string-recovery");
+        check_utf8!("malformed-bad-url-recovery");
+        check_utf8!("malformed-invalid-escape-extra-braces");
+        check_utf8!("malformed-unterminated-comment");
+        check_utf8!("malformed-unterminated-string-eof");
+        check_utf8!("numeric-clamping");
+        check_utf8!("numeric-tokens");
+        check_utf8!("strings-and-escapes");
+        check_utf8!("urls-and-bad-url");
+
+        let utf16le = include_bytes!("../../../../../Tests/LibWeb/CSSTokenizer/input/utf-16le-crlf.css");
+        let utf16le = utf16le
+            .chunks_exact(2)
+            .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]))
+            .skip_while(|&unit| unit == 0xfeff)
+            .collect();
+        check_tokenizer_corpus(
+            utf16le,
+            include_str!("../../../../../Tests/LibWeb/CSSTokenizer/expected/utf-16le-crlf.txt"),
+        );
+
+        let windows_1252 =
+            include_bytes!("../../../../../Tests/LibWeb/CSSTokenizer/input/windows-1252-curly-quotes.css")
+                .iter()
+                .map(|&byte| match byte {
+                    0x93 => 0x201c,
+                    0x94 => 0x201d,
+                    _ => u16::from(byte),
+                })
+                .collect();
+        check_tokenizer_corpus(
+            windows_1252,
+            include_str!("../../../../../Tests/LibWeb/CSSTokenizer/expected/windows-1252-curly-quotes.txt"),
+        );
+    }
 
     #[test]
     fn ascii_and_utf16_inputs_tokenize_equivalently() {

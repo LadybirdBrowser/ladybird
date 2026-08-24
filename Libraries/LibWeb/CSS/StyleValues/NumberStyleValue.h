@@ -33,7 +33,6 @@ public:
 
     double number() const { return m_value->number.value; }
 
-    Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:

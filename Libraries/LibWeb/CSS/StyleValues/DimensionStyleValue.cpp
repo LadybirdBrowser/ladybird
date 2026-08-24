@@ -9,13 +9,6 @@
 
 namespace Web::CSS {
 
-Vector<Parser::ComponentValue> DimensionStyleValue::tokenize() const
-{
-    if (is_percentage())
-        return { Parser::Token::create_percentage(Number { Number::Type::Number, raw_value() }) };
-    return { Parser::Token::create_dimension(raw_value(), unit_name()) };
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
 GC::Ref<CSSStyleValue> DimensionStyleValue::reify(Utf16FlyString const&) const
 {

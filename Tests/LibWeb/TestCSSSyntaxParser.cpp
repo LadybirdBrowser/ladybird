@@ -4,69 +4,55 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/RefPtr.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 
 namespace Web::CSS::Parser {
 
-static void compare_parsed_syntax_dump_to_string(Vector<ComponentValue> const& syntax_values, StringView expected)
+static void compare_parsed_syntax_dump_to_string(Utf16View source, StringView expected)
 {
-    auto syntax = parse_as_syntax(syntax_values);
+    auto syntax = parse_as_syntax(source);
     EXPECT(syntax != nullptr);
     if (syntax)
         EXPECT_EQ(syntax->dump(), expected);
 }
 
-static void expect_dumps_equal(Vector<ComponentValue> const& lhs_values, Vector<ComponentValue> const& rhs_values)
+static void expect_dumps_equal(Utf16View lhs_source, Utf16View rhs_source)
 {
-    auto lhs = parse_as_syntax(lhs_values);
-    auto rhs = parse_as_syntax(rhs_values);
+    auto lhs = parse_as_syntax(lhs_source);
+    auto rhs = parse_as_syntax(rhs_source);
     EXPECT(lhs != nullptr);
     EXPECT(rhs != nullptr);
     if (lhs && rhs)
         EXPECT_EQ(lhs->dump(), rhs->dump());
 }
 
-#define TYPE_TOKENS(name) Token::create_delim('<'), Token::create_ident(name ""_utf16_fly_string), Token::create_delim('>')
-
 TEST_CASE(single_universal)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { Token::create_delim('*') }, "Universal\n"sv);
+    compare_parsed_syntax_dump_to_string("*"_utf16, "Universal\n"sv);
 }
 
 TEST_CASE(single_ident)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { Token::create_ident("thing"_utf16_fly_string) }, "Ident: thing\n"sv);
+    compare_parsed_syntax_dump_to_string("thing"_utf16, "Ident: thing\n"sv);
 }
 
 TEST_CASE(single_type)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("angle") }, "Type: angle\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("color") }, "Type: color\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("custom-ident") }, "Type: custom-ident\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("image") }, "Type: image\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("integer") }, "Type: integer\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("length") }, "Type: length\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("length-percentage") }, "Type: length-percentage\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("number") }, "Type: number\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("percentage") }, "Type: percentage\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("resolution") }, "Type: resolution\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("string") }, "Type: string\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("time") }, "Type: time\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("url") }, "Type: url\n"sv);
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("transform-function") }, "Type: transform-function\n"sv);
+    for (auto type : { "angle"sv, "color"sv, "custom-ident"sv, "image"sv, "integer"sv, "length"sv,
+             "length-percentage"sv, "number"sv, "percentage"sv, "resolution"sv, "string"sv, "time"sv,
+             "url"sv, "transform-function"sv }) {
+        auto source = Utf16String::formatted("<{}>", type);
+        auto expected = MUST(String::formatted("Type: {}\n", type));
+        compare_parsed_syntax_dump_to_string(source, expected);
+    }
 }
 
 TEST_CASE(multiple_keywords)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> {
-                                             Token::create_ident("well"_utf16_fly_string),
-                                             Token::create_delim('|'),
-                                             Token::create_ident("hello"_utf16_fly_string),
-                                             Token::create_delim('|'),
-                                             Token::create_ident("friends"_utf16_fly_string) },
+    compare_parsed_syntax_dump_to_string("well|hello|friends"_utf16,
         R"~~~(Alternatives:
   Ident: well
   Ident: hello
@@ -76,7 +62,7 @@ TEST_CASE(multiple_keywords)
 
 TEST_CASE(repeated_type)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_delim('+') },
+    compare_parsed_syntax_dump_to_string("<number>+"_utf16,
         R"~~~(Multiplier:
   Type: number
 )~~~"sv);
@@ -84,7 +70,7 @@ TEST_CASE(repeated_type)
 
 TEST_CASE(repeated_with_commas)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_delim('#') },
+    compare_parsed_syntax_dump_to_string("<number>#"_utf16,
         R"~~~(CommaSeparatedMultiplier:
   Type: number
 )~~~"sv);
@@ -92,12 +78,7 @@ TEST_CASE(repeated_with_commas)
 
 TEST_CASE(complex)
 {
-    compare_parsed_syntax_dump_to_string(Vector<ComponentValue> {
-                                             Token::create_ident("well"_utf16_fly_string),
-                                             Token::create_delim('|'),
-                                             TYPE_TOKENS("number"), Token::create_delim('+'),
-                                             Token::create_delim('|'),
-                                             TYPE_TOKENS("string"), Token::create_delim('#') },
+    compare_parsed_syntax_dump_to_string("well|<number>+|<string>#"_utf16,
         R"~~~(Alternatives:
   Ident: well
   Multiplier:
@@ -109,48 +90,17 @@ TEST_CASE(complex)
 
 TEST_CASE(syntax_string)
 {
-    // A single string token's contents are parsed as if it was unquoted
-
-    expect_dumps_equal(Vector<ComponentValue> { TYPE_TOKENS("number") }, Vector<ComponentValue> { Token::create_string("<number>"_utf16_fly_string) });
-
-    expect_dumps_equal(Vector<ComponentValue> {
-                           Token::create_ident("well"_utf16_fly_string),
-                           Token::create_delim('|'),
-                           TYPE_TOKENS("number"), Token::create_delim('+'),
-                           Token::create_delim('|'),
-                           TYPE_TOKENS("string"), Token::create_delim('#') },
-        Vector<ComponentValue> { Token::create_string("well | <number>+ | <string>#"_utf16_fly_string) });
+    expect_dumps_equal("<number>"_utf16, "\"<number>\""_utf16);
+    expect_dumps_equal("well | <number>+ | <string>#"_utf16, "\"well | <number>+ | <string>#\""_utf16);
 }
 
 TEST_CASE(invalid)
 {
-    // Empty
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> {}));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_whitespace() }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create(Token::Type::EndOfFile) }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create(Token::Type::Invalid) }));
-
-    // Incomplete
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_delim('<'), Token::create_ident("number"_utf16_fly_string) }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_ident("thing"_utf16_fly_string), Token::create_delim('|') }));
-
-    // '*' is only allowed on its own
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_delim('*'), Token::create_delim('|'), Token::create_delim('*') }));
-
-    // <transform-list> cannot have multipliers
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("transform-list"), Token::create_delim('+') }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("transform-list"), Token::create_delim('#') }));
-
-    // For <syntax>, only predefined types are allowed
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("woozle") }));
-
-    // <syntax> doesn't allow multiple types/keywords without a combinator
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_whitespace(), TYPE_TOKENS("integer") }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { Token::create_ident("thingy"_utf16_fly_string), Token::create_whitespace(), Token::create_ident("whatsit"_utf16_fly_string) }));
-
-    // Whitespace isn't allowed between a type and its multiplier
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_whitespace(), Token::create_delim('+') }));
-    EXPECT(!parse_as_syntax(Vector<ComponentValue> { TYPE_TOKENS("number"), Token::create_whitespace(), Token::create_delim('#') }));
+    for (auto source : { ""sv, " "sv, "<number"sv, "thing|"sv, "*|*"sv, "<transform-list>+"sv,
+             "<transform-list>#"sv, "<woozle>"sv, "<number> <integer>"sv, "thingy whatsit"sv,
+             "<number> +"sv, "<number> #"sv }) {
+        EXPECT(!parse_as_syntax(Utf16String::from_utf8_without_validation(source)));
+    }
 }
 
 }

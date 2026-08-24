@@ -43,5 +43,4 @@ pub(crate) mod worker_pool;
 
 pub use css_tokenizer::CssHashType;
 pub use css_tokenizer::CssNumberType;
-pub use css_tokenizer::CssToken;
 pub use css_tokenizer::CssTokenType;

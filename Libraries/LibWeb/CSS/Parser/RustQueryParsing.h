@@ -18,6 +18,11 @@ class Parser;
 
 class RustQueryParser {
 public:
+    struct SizesAttributeEntry {
+        Utf16String condition;
+        Utf16String size;
+    };
+
     struct ContainerCondition {
         Optional<Utf16FlyString> name;
         RefPtr<ContainerQuery> query;
@@ -32,6 +37,7 @@ public:
     static OwnPtr<BooleanExpression> parse_style_query(Parser&, Utf16View);
     static Optional<Vector<ContainerCondition>> parse_container_condition_list(Parser&, Utf16View);
     static RefPtr<StyleValue const> parse_source_size_value(Parser&, Utf16View);
+    static Optional<Vector<SizesAttributeEntry>> split_sizes_attribute(Utf16View);
     static Optional<FeatureValue> parse_media_feature_value(Parser&, MediaFeatureID, Utf16View);
     static Optional<FeatureValue> parse_size_feature_value(Parser&, SizeFeatureID, Utf16View);
     static OwnPtr<BooleanExpression> supports_declaration_feature(Parser&, Utf16View);

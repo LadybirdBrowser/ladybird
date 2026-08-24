@@ -3421,20 +3421,6 @@ pub unsafe extern "C" fn rust_build_box_group(
 }
 
 /// # Safety
-/// `target` must be a valid list slot and `raws` must point at `count` leaked
-/// fly-string raws.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_replace_computed_fly_string_list(
-    target: *mut RetainedUtf16FlyStringList,
-    raws: *const usize,
-    count: usize,
-) {
-    abort_on_panic(|| unsafe {
-        *target = RetainedUtf16FlyStringList::from_raw(raws, count);
-    });
-}
-
-/// # Safety
 /// `values` must point at a fully initialized grid payload whose ownership
 /// transfers to this call, and `parent_payload` must be a valid grid payload
 /// or null.

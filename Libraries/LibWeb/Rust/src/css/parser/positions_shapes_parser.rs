@@ -10,8 +10,8 @@
 use super::component_value::{ComponentKind, ComponentValue};
 use super::token_stream::TokenStream;
 use super::value_parser::{
-    NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, equals_ascii_case_insensitive,
-    parse_length_from_stream, parse_length_percentage_from_stream, parse_number_from_stream, retain_fly_string,
+    NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, parse_length_from_stream,
+    parse_length_percentage_from_stream, parse_number_from_stream, retain_fly_string,
 };
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
 use crate::css::property_metadata::{
@@ -1558,7 +1558,7 @@ pub(crate) fn parse_anchor_fit_property(
         let parsed = parse_inset_leaf(context, property, &mut tokens);
         tokens.discard_whitespace();
         if parsed.is_none() && contains_anchor_in_math_function(values, false) {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         } else if tokens.has_next_token() {
             None
         } else {
@@ -1575,7 +1575,7 @@ pub(crate) fn parse_anchor_fit_property(
                 })
         });
         if !is_fit_or_anchor_size {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         }
         parse_fit_content(context, property, values).or_else(|| {
             let value = values.iter().find(|value| !value.is_whitespace())?;
@@ -1587,7 +1587,7 @@ pub(crate) fn parse_anchor_fit_property(
             .find(|value| !value.is_whitespace())
             .and_then(|value| parse_anchor_size_function(context, property, value));
         if parsed.is_none() {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         }
         parsed
     } else if property_accepted_value_types(property).contains(&VALUE_TYPE_ANCHOR) {
@@ -1596,7 +1596,7 @@ pub(crate) fn parse_anchor_fit_property(
             .find(|value| !value.is_whitespace())
             .and_then(|value| parse_anchor_function(context, property, value))
     } else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     };
     parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
 }
@@ -1619,7 +1619,7 @@ pub(crate) fn parse_geometry_property(
             .and_then(ComponentValue::function)
             .is_some_and(|(name, _)| equals_ascii_case_insensitive(name, b"rect"));
         if !is_rect {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         }
         parse_legacy_rect(context, property, values)
     } else if property == property_id::SHAPE_OUTSIDE {
@@ -1636,7 +1636,7 @@ pub(crate) fn parse_geometry_property(
             })
         });
         if !is_shape_outside_value {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         }
         parse_shape_outside(context, property, values)
     } else if property == property_id::D {
@@ -1667,11 +1667,11 @@ pub(crate) fn parse_geometry_property(
                     .any(|expected| equals_ascii_case_insensitive(name, expected.as_bytes()))
             });
         if !is_known_shape {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         }
         parse_basic_shape(context, property, values)
     } else {
-        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        return ParseOutcome::NotHandled;
     };
     parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
 }
@@ -1692,7 +1692,7 @@ pub(crate) fn parse_position_property(
         let accepted_types = property_accepted_value_types(property);
         let background_position = accepted_types.contains(&VALUE_TYPE_BACKGROUND_POSITION);
         if !background_position && !accepted_types.contains(&VALUE_TYPE_POSITION) {
-            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+            return ParseOutcome::NotHandled;
         }
         parse_position_list(context, property, values, background_position).map(|mut positions| {
             if property_has_coordinating_list_multiplicity(property) {
@@ -1755,7 +1755,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_cpp_position_alternatives() {
+    fn parses_position_alternatives() {
         for source in [
             "center",
             "top right",
@@ -1870,7 +1870,6 @@ mod tests {
             };
             assert!(matches!(&*value, StyleValueData::BasicShape { kind, .. } if *kind == expected_kind));
         }
-        // NB: The C++ oracle does not implement shape() yet.
         assert!(matches!(
             parse_geometry(property_id::CLIP_PATH, "shape(from 0 0, close)"),
             ParseOutcome::Invalid
@@ -1890,7 +1889,7 @@ mod tests {
         }
         assert!(matches!(
             parse_geometry(property_id::SHAPE_OUTSIDE, "url(shape.png)"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
     }
 
@@ -1947,11 +1946,11 @@ mod tests {
         }
         assert!(matches!(
             parse_anchor_fit(property_id::WIDTH, "auto"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
         assert!(matches!(
             parse_anchor_fit(property_id::COLOR, "anchor-size()"),
-            ParseOutcome::NotHandled(_)
+            ParseOutcome::NotHandled
         ));
     }
 }

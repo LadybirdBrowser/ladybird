@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 
 namespace Web::CSS::Parser {
@@ -53,39 +51,6 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         break;
     }
     VERIFY_NOT_REACHED();
-}
-
-RuleContext rule_context_type_for_at_rule(Utf16FlyString const& name)
-{
-    if (name.equals_ignoring_ascii_case("media"sv))
-        return RuleContext::AtMedia;
-    if (name.equals_ignoring_ascii_case("container"sv))
-        return RuleContext::AtContainer;
-    if (name.equals_ignoring_ascii_case("counter-style"sv))
-        return RuleContext::AtCounterStyle;
-    if (name.equals_ignoring_ascii_case("font-face"sv))
-        return RuleContext::AtFontFace;
-    if (name.equals_ignoring_ascii_case("keyframes"sv) || name.equals_ignoring_ascii_case("-webkit-keyframes"sv))
-        return RuleContext::AtKeyframes;
-    if (name.equals_ignoring_ascii_case("font-feature-values"sv))
-        return RuleContext::AtFontFeatureValues;
-    if (name.equals_ignoring_ascii_case("function"sv))
-        return RuleContext::AtFunction;
-    if (CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(name))
-        return RuleContext::FontFeatureValue;
-    if (name.equals_ignoring_ascii_case("supports"sv))
-        return RuleContext::AtSupports;
-    if (name.equals_ignoring_ascii_case("scope"sv))
-        return RuleContext::AtScope;
-    if (name.equals_ignoring_ascii_case("layer"sv))
-        return RuleContext::AtLayer;
-    if (name.equals_ignoring_ascii_case("property"sv))
-        return RuleContext::AtProperty;
-    if (name.equals_ignoring_ascii_case("page"sv))
-        return RuleContext::AtPage;
-    if (is_margin_rule_name(name))
-        return RuleContext::Margin;
-    return RuleContext::Unknown;
 }
 
 }

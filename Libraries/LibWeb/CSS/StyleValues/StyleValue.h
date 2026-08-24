@@ -259,7 +259,6 @@ public:
     Utf16String to_utf16_string(SerializationMode) const;
     void serialize(StringBuilder&, SerializationMode) const;
     void serialize(Utf16StringBuilder&, SerializationMode) const;
-    Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
     // The default reification, used by types without a bespoke one and by impls that fall back.
     GC::Ref<CSSStyleValue> default_reify(Utf16FlyString const& associated_property) const;

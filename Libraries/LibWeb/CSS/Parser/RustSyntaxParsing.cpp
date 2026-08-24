@@ -7,7 +7,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/CSS/FontFace.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -19,6 +19,91 @@
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
+
+void AtRule::for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const
+{
+    for (auto const& child : child_rules_and_lists_of_declarations) {
+        child.visit(
+            [&](Rule const& rule) {
+                rule.visit(
+                    [&](AtRule const& at_rule) { visit_at_rule(at_rule); },
+                    [&](QualifiedRule const& qualified_rule) { visit_qualified_rule(qualified_rule); });
+            },
+            [&](Vector<Declaration> const& declarations) {
+                for (auto const& declaration : declarations)
+                    visit_declaration(declaration);
+            });
+    }
+}
+
+void AtRule::for_each_as_declaration_list(DeclarationVisitor&& visit) const
+{
+    for_each(
+        [this](auto const& at_rule) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = Utf16String::formatted("@{}", at_rule.name),
+            });
+        },
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "qualified-rule"_utf16_fly_string,
+            });
+        },
+        move(visit));
+}
+
+void AtRule::for_each_as_qualified_rule_list(QualifiedRuleVisitor&& visit) const
+{
+    for_each(
+        [this](auto const& at_rule) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = Utf16String::formatted("@{}", at_rule.name),
+            });
+        },
+        move(visit),
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "list-of-declarations"_utf16_fly_string,
+            });
+        });
+}
+
+void AtRule::for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, DeclarationVisitor&& visit_declaration) const
+{
+    for_each(
+        move(visit_at_rule),
+        [this](auto const&) {
+            ErrorReporter::the().report(InvalidRuleLocationError {
+                .outer_rule_name = Utf16String::formatted("@{}", name),
+                .inner_rule_name = "qualified-rule"_utf16_fly_string,
+            });
+        },
+        move(visit_declaration));
+}
+
+void QualifiedRule::for_each_as_declaration_list(Utf16FlyString const& rule_name, DeclarationVisitor&& visit) const
+{
+    for (auto const& declaration : declarations)
+        visit(declaration);
+
+    for (auto const& child : child_rules) {
+        child.visit(
+            [&](Rule const&) {
+                ErrorReporter::the().report(InvalidRuleLocationError {
+                    .outer_rule_name = rule_name,
+                    .inner_rule_name = "qualified-rule"_utf16_fly_string,
+                });
+            },
+            [&](Vector<Declaration> const& declarations) {
+                for (auto const& declaration : declarations)
+                    visit(declaration);
+            });
+    }
+}
 
 using namespace ValueParserFFI;
 
@@ -133,121 +218,21 @@ static SourcePosition source_position(size_t line, size_t column)
     return { static_cast<u32>(line), static_cast<u32>(column) };
 }
 
-static Number::Type number_type(u8 type)
+static void report_diagnostics(FfiSyntaxParseData const& data)
 {
-    VERIFY(type <= to_underlying(Number::Type::Integer));
-    return static_cast<Number::Type>(type);
-}
-
-static Token token_from_component(FfiSyntaxParseData const& data, FfiSyntaxComponent const& component, bool end_token = false)
-{
-    auto type = end_token ? Token::Type::CloseParen : static_cast<Token::Type>(component.token_type);
-    auto value = utf16_value(data, component.value_offset, component.value_length);
-    auto source_offset = end_token ? component.end_source_offset : component.source_offset;
-    auto source_length = end_token ? component.end_source_length : component.source_length;
-    auto original_source = Utf16String::from_utf16(utf16_value(data, source_offset, source_length));
-    auto fly_string = Utf16FlyString::from_utf16(value);
-
-    Token token;
-    switch (type) {
-    case Token::Type::Invalid:
-        VERIFY_NOT_REACHED();
-    case Token::Type::Ident:
-        token = Token::create_ident(move(fly_string), move(original_source));
-        break;
-    case Token::Type::Function:
-        token = Token::create_function(move(fly_string), move(original_source));
-        break;
-    case Token::Type::AtKeyword:
-        token = Token::create_at_keyword(move(fly_string), move(original_source));
-        break;
-    case Token::Type::Hash:
-        token = Token::create_hash(move(fly_string), static_cast<Token::HashType>(component.hash_type), move(original_source));
-        break;
-    case Token::Type::String:
-        token = Token::create_string(move(fly_string), move(original_source));
-        break;
-    case Token::Type::Url:
-        token = Token::create_url(move(fly_string), move(original_source));
-        break;
-    case Token::Type::Delim:
-        token = Token::create_delim(component.delim, move(original_source));
-        break;
-    case Token::Type::Number:
-        token = Token::create_number(Number { number_type(component.number_type), component.number_value }, move(original_source));
-        break;
-    case Token::Type::Percentage:
-        token = Token::create_percentage(Number { number_type(component.number_type), component.number_value }, move(original_source));
-        break;
-    case Token::Type::Dimension:
-        token = Token::create_dimension(Number { number_type(component.number_type), component.number_value }, move(fly_string), move(original_source));
-        break;
-    case Token::Type::Whitespace:
-        token = Token::create_whitespace(move(original_source));
-        break;
-    case Token::Type::EndOfFile:
-    case Token::Type::BadString:
-    case Token::Type::BadUrl:
-    case Token::Type::CDO:
-    case Token::Type::CDC:
-    case Token::Type::Colon:
-    case Token::Type::Semicolon:
-    case Token::Type::Comma:
-    case Token::Type::OpenSquare:
-    case Token::Type::CloseSquare:
-    case Token::Type::OpenParen:
-    case Token::Type::CloseParen:
-    case Token::Type::OpenCurly:
-    case Token::Type::CloseCurly:
-        token = Token::create(type, move(original_source));
-        break;
+    for (size_t index = 0; index < data.diagnostic_count; ++index) {
+        auto const& diagnostic = data.diagnostics[index];
+        VERIFY(diagnostic.code <= to_underlying(SyntaxDiagnosticCode::BadUrl));
+        auto start = source_position(diagnostic.start_line, diagnostic.start_column);
+        auto end = source_position(diagnostic.end_line, diagnostic.end_column);
+        ErrorReporter::the().report(SyntaxDiagnosticError {
+            .code = static_cast<SyntaxDiagnosticCode>(diagnostic.code),
+            .start_line = start.line,
+            .start_column = start.column,
+            .end_line = end.line,
+            .end_column = end.column,
+        });
     }
-    RustSyntaxParser::set_token_position(token, source_position(component.start_line, component.start_column), source_position(component.end_line, component.end_column));
-    return token;
-}
-
-static ComponentValue component_value(FfiSyntaxParseData const&, size_t);
-
-Vector<ComponentValue> RustSyntaxParser::component_values(FfiSyntaxParseData const& data, size_t start, size_t count)
-{
-    VERIFY(start <= data.component_index_count);
-    VERIFY(count <= data.component_index_count - start);
-    Vector<ComponentValue> values;
-    values.ensure_capacity(count);
-    for (size_t index = 0; index < count; ++index)
-        values.unchecked_append(component_value(data, data.component_indices[start + index]));
-    return values;
-}
-
-static ComponentValue component_value(FfiSyntaxParseData const& data, size_t index)
-{
-    VERIFY(index < data.component_count);
-    auto const& component = data.components[index];
-    if (component.component_type == 0)
-        return ComponentValue { token_from_component(data, component) };
-
-    auto children = RustSyntaxParser::component_values(data, component.children_start, component.child_count);
-    if (component.component_type == 1) {
-        auto name_token = token_from_component(data, component);
-        auto end_token = token_from_component(data, component, true);
-        return ComponentValue { Function {
-            .name = name_token.function(),
-            .value = move(children),
-            .name_token = move(name_token),
-            .end_token = move(end_token),
-        } };
-    }
-
-    VERIFY(component.component_type == 2);
-    auto opening_token = token_from_component(data, component);
-    auto closing_type = opening_token.mirror_variant();
-    auto end_source = Utf16String::from_utf16(utf16_value(data, component.end_source_offset, component.end_source_length));
-    auto end_token = Token::create(closing_type, move(end_source));
-    return ComponentValue { SimpleBlock {
-        .token = opening_token,
-        .value = move(children),
-        .end_token = end_token,
-    } };
 }
 
 static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
@@ -264,14 +249,10 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         original_value_text = Utf16String::from_utf16(utf16_value(data, declaration.original_value_offset, declaration.original_value_length));
     auto value_text = Utf16String::from_utf16(utf16_value(data, declaration.value_source_offset, declaration.value_source_length));
     Optional<PropertyID> parsed_property_id;
-    Optional<DescriptorID> parsed_descriptor_id;
     RefPtr<StyleValue const> parsed_value;
     if (declaration.is_property) {
         if (declaration.property_id != NumericLimits<u16>::max())
             parsed_property_id = static_cast<PropertyID>(declaration.property_id);
-    } else {
-        if (declaration.descriptor_id != NumericLimits<u8>::max())
-            parsed_descriptor_id = static_cast<DescriptorID>(declaration.descriptor_id);
     }
     if (declaration.parse_status == FfiParseStatus::Parsed) {
         VERIFY(declaration.parsed_value);
@@ -281,14 +262,12 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     }
     return Declaration {
         .name = Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)),
-        .value = {},
         .important = declaration.important ? Important::Yes : Important::No,
         .original_value_text = move(original_value_text),
         .original_full_text = optional_text(declaration.original_full_text_offset, declaration.original_full_text_length),
         .source_position = source_position(declaration.start_line, declaration.start_column),
         .value_text = move(value_text),
         .parsed_property_id = parsed_property_id,
-        .parsed_descriptor_id = parsed_descriptor_id,
         .parsed_value = move(parsed_value),
     };
 }
@@ -358,13 +337,11 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
 {
     VERIFY(index < data.rule_count);
     auto const& rule = data.rules[index];
-    auto prelude = RustSyntaxParser::component_values(data, rule.prelude_start, rule.prelude_count);
     auto prelude_text = Utf16String::from_utf16(utf16_value(data, rule.prelude_source_offset, rule.prelude_source_length));
     auto children = items(data, rule.children_start, rule.child_count);
     if (rule.rule_type == 0) {
         return AtRule {
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
-            .prelude = move(prelude),
             .prelude_text = move(prelude_text),
             .parsed_prelude = parsed_rule_prelude(data, rule),
             .child_rules_and_lists_of_declarations = move(children),
@@ -374,7 +351,6 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
 
     VERIFY(rule.rule_type == 1);
     return QualifiedRule {
-        .prelude = move(prelude),
         .prelude_text = move(prelude_text),
         .parsed_prelude = parsed_rule_prelude(data, rule),
         .declarations = declarations(data, rule.declarations_start, rule.declaration_count),
@@ -400,6 +376,7 @@ Vector<Rule> RustSyntaxParser::parse_stylesheet(Parser& parser)
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);
+    report_diagnostics(data);
     Vector<Rule> result;
     result.ensure_capacity(data.root_count);
     for (size_t index = 0; index < data.root_count; ++index)
@@ -425,14 +402,34 @@ Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleCon
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);
+    report_diagnostics(data);
     if (data.root_count != 1)
         return {};
     return rule(data, data.roots[0]);
 }
 
-void RustSyntaxParser::set_token_position(Token& token, SourcePosition start, SourcePosition end)
+ParsedRulePrelude RustSyntaxParser::parse_keyframe_selectors(Parser& parser)
 {
-    token.set_position_range(Badge<RustSyntaxParser> {}, start, end);
+    ReadonlyBytes document_url;
+    ReadonlyBytes document_base_url;
+    if (parser.m_document) {
+        if (!parser.m_serialized_document_url.has_value())
+            parser.m_serialized_document_url = parser.m_document->url().serialize();
+        if (!parser.m_serialized_document_base_url.has_value())
+            parser.m_serialized_document_base_url = parser.m_document->base_url().serialize();
+        document_url = parser.m_serialized_document_url->bytes();
+        document_base_url = parser.m_serialized_document_base_url->bytes();
+    }
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto* parse = rust_parse_css_keyframe_selectors_syntax(ffi_utf16_view(parser.m_source), &context.context, resolve_property_id);
+    VERIFY(parse);
+    ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
+    auto data = rust_css_syntax_parse_data(parse);
+    report_diagnostics(data);
+    VERIFY(data.root_count == 1);
+    auto rule_index = data.roots[0];
+    VERIFY(rule_index < data.rule_count);
+    return parsed_rule_prelude(data, data.rules[rule_index]);
 }
 
 Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, ReadonlySpan<RuleContext> contexts, PreservePropertySourceText preserve_property_source_text)
@@ -458,6 +455,7 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);
+    report_diagnostics(data);
     Vector<RuleOrListOfDeclarations> result;
     result.ensure_capacity(data.root_count);
     for (size_t index = 0; index < data.root_count; ++index) {

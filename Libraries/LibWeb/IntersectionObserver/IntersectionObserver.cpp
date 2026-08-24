@@ -12,7 +12,6 @@
 #include <LibWeb/Bindings/IntersectionObserverEntry.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -22,6 +21,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/ValueParserRustFFI.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
@@ -411,43 +411,49 @@ void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<Intersectio
 Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(String margin_string)
 {
     // 1. Parse a list of component values marginString, storing the result as tokens.
-    auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingParams {}, margin_string).parse_as_list_of_component_values();
-
     // 2. Remove all whitespace tokens from tokens.
-    tokens.remove_all_matching([](auto componentValue) { return componentValue.is(CSS::Parser::Token::Type::Whitespace); });
-
     // 3. If the length of tokens is greater than 4, return failure.
-    if (tokens.size() > 4) {
-        return {};
-    }
-
     // 4. If there are zero elements in tokens, set tokens to ["0px"].
-    if (tokens.size() == 0) {
-        tokens.append(CSS::Parser::Token::create_dimension(0, "px"_utf16_fly_string));
-    }
+    struct MarginParsingContext {
+        Vector<CSS::LengthPercentage>* values;
+        bool* valid;
+    };
 
     // 5. Replace each token in tokens:
     // NOTE: In the spec, tokens miraculously changes type from a list of component values
     //       to a list of pixel lengths or percentages.
     Vector<CSS::LengthPercentage> tokens_length_percentage;
-    for (auto const& token : tokens) {
+    bool valid = true;
+    auto source = Utf16String::from_utf8(margin_string);
+    auto source_view = source.utf16_view();
+    CSS::Parser::ValueParserFFI::FfiUtf16View ffi_source {
+        .ascii = source_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(source_view.ascii_span().data()) : nullptr,
+        .utf16 = source_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(source_view.utf16_span().data()),
+        .length = source_view.length_in_code_units(),
+    };
+    auto visit = [](void* context, u8 type, double value, u16 const* unit, size_t unit_length) {
+        auto& state = *static_cast<MarginParsingContext*>(context);
+        if (type == 1) {
+            // If token is a <percentage> token, replace it with an equivalent percentage.
+            state.values->append(CSS::Percentage(value));
+            return;
+        }
         // If token is an absolute length dimension token, replace it with a an equivalent pixel length.
-        if (token.is(CSS::Parser::Token::Type::Dimension)) {
-            if (auto length_unit = CSS::string_to_length_unit(token.token().dimension_unit()); length_unit.has_value()) {
-                if (auto length = CSS::Length(token.token().dimension_value(), length_unit.release_value()); length.is_absolute()) {
-                    tokens_length_percentage.append(length);
-                    continue;
-                }
+        auto unit_name = Utf16View { reinterpret_cast<char16_t const*>(unit), unit_length };
+        if (auto length_unit = CSS::string_to_length_unit(unit_name); length_unit.has_value()) {
+            if (auto length = CSS::Length(value, length_unit.release_value()); length.is_absolute()) {
+                state.values->append(length);
+                return;
             }
         }
-        // If token is a <percentage> token, replace it with an equivalent percentage.
-        else if (token.is(CSS::Parser::Token::Type::Percentage)) {
-            tokens_length_percentage.append(CSS::Percentage(token.token().percentage()));
-            continue;
-        }
         // Otherwise, return failure.
+        *state.valid = false;
+    };
+    MarginParsingContext context { &tokens_length_percentage, &valid };
+    if (!CSS::Parser::ValueParserFFI::rust_visit_margin_components(ffi_source, &context, visit) || !valid)
         return {};
-    }
+    if (tokens_length_percentage.is_empty())
+        tokens_length_percentage.append(CSS::Length::make_px(0));
 
     // 6.
     switch (tokens_length_percentage.size()) {

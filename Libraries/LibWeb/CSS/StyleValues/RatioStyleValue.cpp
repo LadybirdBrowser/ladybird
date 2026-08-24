@@ -6,7 +6,6 @@
  */
 
 #include "RatioStyleValue.h"
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
@@ -26,19 +25,6 @@ ValueComparingNonnullRefPtr<StyleValue const> RatioStyleValue::absolutized(Compu
         return *this;
 
     return RatioStyleValue::create(move(absolutized_numerator), move(absolutized_denominator));
-}
-
-Vector<Parser::ComponentValue> RatioStyleValue::tokenize() const
-{
-    Vector<Parser::ComponentValue> component_values;
-
-    component_values.extend(numerator()->tokenize());
-    component_values.empend(Parser::Token::create_whitespace(" "_utf16));
-    component_values.empend(Parser::Token::create_delim('/'));
-    component_values.empend(Parser::Token::create_whitespace(" "_utf16));
-    component_values.extend(denominator()->tokenize());
-
-    return component_values;
 }
 
 }

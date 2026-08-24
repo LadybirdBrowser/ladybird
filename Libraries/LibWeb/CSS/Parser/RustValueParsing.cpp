@@ -8,20 +8,12 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/FontFace.h>
-#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
-#include <LibWeb/CSS/Parser/TokenStream.h>
-#include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
-#include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/StyleValueRustFFI.h>
@@ -61,9 +53,8 @@ static bool rust_font_tech_is_supported(u8 tech)
     return font_tech_is_supported(static_cast<FontTech>(tech));
 }
 
-static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust(ReadonlySpan<ComponentValue> values, SubstitutionFunctionsPresence& presence)
+static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust(Utf16View source, SubstitutionFunctionsPresence& presence)
 {
-    auto source = serialize_a_series_of_component_values(values);
     u8 rust_presence = 0;
     if (!ValueParserFFI::rust_collect_arbitrary_substitution_function_presence_from_source(ffi_utf16_view(source), &rust_presence))
         return Parser::ParseError::SyntaxError;
@@ -76,20 +67,9 @@ static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust
     return {};
 }
 
-Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const& component_values, SubstitutionFunctionsPresence& presence)
+Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Utf16View source, SubstitutionFunctionsPresence& presence)
 {
-    return collect_substitution_function_presence_in_rust(component_values.span(), presence);
-}
-
-Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(ComponentValue const& component_value, SubstitutionFunctionsPresence& presence)
-{
-    return collect_substitution_function_presence_in_rust(ReadonlySpan<ComponentValue> { &component_value, 1 }, presence);
-}
-
-static bool contains_arbitrary_substitution_function(ReadonlySpan<ComponentValue> values)
-{
-    SubstitutionFunctionsPresence presence;
-    return !collect_substitution_function_presence_in_rust(values, presence).is_error() && presence.has_any();
+    return collect_substitution_function_presence_in_rust(source, presence);
 }
 
 static RefPtr<SyntaxNode> syntax_node_from_rust(void const* syntax, size_t node_index)
@@ -131,49 +111,6 @@ static RefPtr<SyntaxNode> syntax_node_from_rust(void const* syntax, size_t node_
     VERIFY_NOT_REACHED();
 }
 
-RefPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
-{
-    auto transaction = tokens.begin_transaction();
-    auto source = serialize_a_series_of_component_values_preserving_original_source_text(tokens.remaining_tokens());
-    auto syntax = ValueParserFFI::rust_parse_syntax_component(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
-    if (!syntax)
-        return nullptr;
-    ScopeGuard free_syntax = [&] { ValueParserFFI::rust_syntax_free(syntax); };
-    auto consumed_component_values = ValueParserFFI::rust_syntax_consumed_component_values(syntax);
-    for (size_t index = 0; index < consumed_component_values; ++index)
-        tokens.discard_a_token();
-    transaction.commit();
-    return syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_root(syntax));
-}
-
-// https://drafts.csswg.org/css-values-5/#typedef-syntax
-RefPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_values, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
-{
-    // <syntax> = '*' | <syntax-component> [ <syntax-combinator> <syntax-component> ]* | <syntax-string>
-    // <syntax-component> = <syntax-single-component> <syntax-multiplier>?
-    //                    | '<' transform-list '>'
-    // <syntax-single-component> = '<' <syntax-type-name> '>' | <ident>
-    // <syntax-type-name> = angle | color | custom-ident | image | integer
-    //                    | length | length-percentage | number
-    //                    | percentage | resolution | string | time
-    //                    | url | transform-function
-    // <syntax-combinator> = '|'
-    // <syntax-multiplier> = [ '#' | '+' ]
-    //
-    // <syntax-string> = <string>
-    // FIXME: Eventually, extend this to also parse *any* CSS grammar, not just for the <syntax> type.
-
-    if (any_of(component_values, [](auto const& component_value) { return component_value.is(Token::Type::Invalid); }))
-        return nullptr;
-
-    auto source = serialize_a_series_of_component_values_preserving_original_source_text(component_values);
-    auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
-    if (!syntax)
-        return nullptr;
-    ScopeGuard free_syntax = [&] { ValueParserFFI::rust_syntax_free(syntax); };
-    return syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_root(syntax));
-}
-
 RefPtr<SyntaxNode> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     auto normalized_source = RustTokenizer::normalize_input(source);
@@ -182,11 +119,6 @@ RefPtr<SyntaxNode> parse_as_syntax(Utf16View source, LimitSingleComponentIdentTo
         return nullptr;
     ScopeGuard free_syntax = [&] { ValueParserFFI::rust_syntax_free(syntax); };
     return syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_root(syntax));
-}
-
-NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Vector<ComponentValue> const& input, SyntaxNode const& syntax)
-{
-    return Parser::create(parsing_params, ""sv).parse_with_a_syntax(input, syntax);
 }
 
 NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Utf16View input, SyntaxNode const& syntax)
@@ -215,12 +147,6 @@ static bool syntax_contains_case_sensitive_identifier(SyntaxNode const& syntax)
 }
 
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
-NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax)
-{
-    auto source = serialize_a_series_of_component_values_preserving_original_source_text(input);
-    return parse_with_a_syntax(source, syntax);
-}
-
 NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, SyntaxNode const& syntax)
 {
     auto serialized_syntax = syntax.to_string();
@@ -307,52 +233,17 @@ NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, Sy
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& tokens, Optional<Utf16String> original_source_text, ValueIsSubstituted value_is_substituted)
-{
-    auto context_guard = push_temporary_value_parsing_context(property_id);
-
-    Utf16String unresolved_source;
-    Utf16String comparison_source;
-    bool contains_attr_tainted_values = false;
-    bool const needs_unresolved_source = property_id == PropertyID::Custom
-        || contains_arbitrary_substitution_function(tokens.remaining_tokens());
-    if (original_source_text.has_value()) {
-        if (needs_unresolved_source) {
-            unresolved_source = *original_source_text;
-            comparison_source = serialize_a_series_of_component_values(tokens.remaining_tokens())
-                                    .trim_ascii_whitespace();
-        }
-    } else {
-        for (auto const& token : tokens.remaining_tokens()) {
-            if (token.contains_guaranteed_invalid_value())
-                return ParseError::SyntaxError;
-            contains_attr_tainted_values |= token.contains_attr_tainted_value();
-        }
-        if (needs_unresolved_source)
-            unresolved_source = serialize_a_series_of_component_values_preserving_original_source_text(tokens.remaining_tokens()).trim_ascii_whitespace();
-    }
-
-    auto const remaining_tokens = tokens.remaining_tokens();
-    auto source = original_source_text.has_value()
-        ? *original_source_text
-        : serialize_a_series_of_component_values_for_retokenization(remaining_tokens);
-    auto parsed_value = TRY(parse_css_value_in_rust(property_id, source, unresolved_source, comparison_source, contains_attr_tainted_values, value_is_substituted));
-    while (tokens.has_next_token())
-        tokens.discard_a_token();
-    return parsed_value;
-}
-
 Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_from_source(PropertyID property_id, Utf16View source)
 {
     if (m_value_context.is_empty()) {
-        return parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No, false, false, nullptr, nullptr, property_id);
+        return parse_css_value_in_rust(property_id, source, property_id);
     }
 
     auto context_guard = push_temporary_value_parsing_context(property_id);
-    return parse_css_value_in_rust(property_id, source, {}, {}, false, ValueIsSubstituted::No);
+    return parse_css_value_in_rust(property_id, source);
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_rust(PropertyID property_id, Utf16View source, Utf16View unresolved_source, Utf16View comparison_source, bool contains_attr_tainted_values, ValueIsSubstituted value_is_substituted, bool retry_with_serialized_source, bool retry_without_document_urls, bool* needs_serialized_source, bool* needs_document_urls, Optional<PropertyID> direct_property_context)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_rust(PropertyID property_id, Utf16View source, Optional<PropertyID> direct_property_context)
 {
     Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
     ValueParserFFI::FfiValueParsingContext single_property_context {};
@@ -399,7 +290,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in
 
     ReadonlyBytes document_url;
     ReadonlyBytes document_base_url;
-    if (m_document && !retry_without_document_urls) {
+    if (m_document) {
         if (!m_serialized_document_url.has_value())
             m_serialized_document_url = m_document->url().serialize();
         if (!m_serialized_document_base_url.has_value())
@@ -410,8 +301,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in
     ValueParserFFI::ParseContext context {
         .in_quirks_mode = in_quirks_mode(),
         .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = value_is_substituted == ValueIsSubstituted::Yes,
-        .contains_attr_tainted_values = contains_attr_tainted_values,
+        .is_substituted_value = false,
+        .contains_attr_tainted_values = false,
         .value_contexts = value_context_data,
         .value_context_count = value_context_count,
         .document_url = document_url.data(),
@@ -429,14 +320,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in
         .random_function_index = &m_random_function_index,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
-    u8 const* reason { nullptr };
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
-        &context, to_underlying(property_id), ffi_utf16_view(source),
-        ffi_utf16_view(unresolved_source), ffi_utf16_view(comparison_source), retry_with_serialized_source, retry_without_document_urls, &status, &reason);
-    if (needs_serialized_source)
-        *needs_serialized_source = status == ValueParserFFI::FfiParseStatus::NeedsSerializedSource;
-    if (needs_document_urls)
-        *needs_document_urls = status == ValueParserFFI::FfiParseStatus::NeedsDocumentUrls;
+        &context, to_underlying(property_id), ffi_utf16_view(source), &status);
 
     if (status != ValueParserFFI::FfiParseStatus::Parsed) {
         if (status == ValueParserFFI::FfiParseStatus::NotHandled)
@@ -446,131 +331,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in
 
     VERIFY(parsed_value);
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed_value));
-}
-
-Optional<RefPtr<StyleValue const>> Parser::parse_font_descriptor_value_in_rust(FontDescriptorKind kind, TokenStream<ComponentValue>& tokens)
-{
-    auto source = kind == FontDescriptorKind::SourceList
-        ? serialize_a_series_of_component_values_for_retokenization(tokens.remaining_tokens())
-        : serialize_a_series_of_component_values_preserving_original_source_text(tokens.remaining_tokens());
-    if (kind == FontDescriptorKind::UnicodeRangeList)
-        source = source.replace("/**/"_utf16, ""_utf16, ReplaceMode::All);
-
-    ReadonlyBytes document_url;
-    ReadonlyBytes document_base_url;
-    if (m_document) {
-        if (!m_serialized_document_url.has_value())
-            m_serialized_document_url = m_document->url().serialize();
-        if (!m_serialized_document_base_url.has_value())
-            m_serialized_document_base_url = m_document->base_url().serialize();
-        document_url = m_serialized_document_url->bytes();
-        document_base_url = m_serialized_document_base_url->bytes();
-    }
-    ValueParserFFI::ParseContext context {
-        .in_quirks_mode = in_quirks_mode(),
-        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = false,
-        .contains_attr_tainted_values = false,
-        .value_contexts = nullptr,
-        .value_context_count = 0,
-        .document_url = document_url.data(),
-        .document_url_length = document_url.size(),
-        .document_base_url = document_base_url.data(),
-        .document_base_url_length = document_base_url.size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string,
-        .normalize_svg_path_data = normalize_svg_path_data,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = rust_font_format_is_supported,
-        .font_tech_is_supported = rust_font_tech_is_supported,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = &m_random_function_index,
-    };
-    ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
-    void const* parsed_value = nullptr;
-    parsed_value = ValueParserFFI::rust_parse_font_descriptor(
-        &context, static_cast<ValueParserFFI::FfiFontDescriptorKind>(kind), ffi_utf16_view(source), &status);
-    if (status == ValueParserFFI::FfiParseStatus::NotHandled) {
-        warnln("Rust CSS value parser did not handle a font descriptor");
-        return RefPtr<StyleValue const> {};
-    }
-    if (status == ValueParserFFI::FfiParseStatus::Invalid)
-        return RefPtr<StyleValue const> {};
-
-    VERIFY(parsed_value);
-    while (tokens.has_next_token())
-        tokens.discard_a_token();
-    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed_value));
-}
-
-RefPtr<StyleValue const> Parser::parse_primitive_value(ValueType value_type, TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)
-{
-    Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-    value_contexts.ensure_capacity(m_value_context.size());
-    for (auto const& value_context : m_value_context) {
-        ValueParserFFI::FfiValueParsingContext ffi_context {};
-        value_context.visit(
-            [&](PropertyID property) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                ffi_context.value = to_underlying(property);
-            },
-            [&](FunctionContext const& function) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                ffi_context.name = ffi_utf16_view(function.name);
-            },
-            [&](DescriptorContext const& descriptor) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                ffi_context.value = to_underlying(descriptor.at_rule);
-                ffi_context.secondary_value = to_underlying(descriptor.descriptor);
-            },
-            [&](SpecialContext special) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                ffi_context.value = to_underlying(special);
-            });
-        value_contexts.append(ffi_context);
-    }
-    ReadonlyBytes document_url;
-    ReadonlyBytes document_base_url;
-    if (m_document) {
-        if (!m_serialized_document_url.has_value())
-            m_serialized_document_url = m_document->url().serialize();
-        if (!m_serialized_document_base_url.has_value())
-            m_serialized_document_base_url = m_document->base_url().serialize();
-        document_url = m_serialized_document_url->bytes();
-        document_base_url = m_serialized_document_base_url->bytes();
-    }
-    ValueParserFFI::ParseContext context {
-        .in_quirks_mode = in_quirks_mode(),
-        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = false,
-        .contains_attr_tainted_values = false,
-        .value_contexts = value_contexts.data(),
-        .value_context_count = value_contexts.size(),
-        .document_url = document_url.data(),
-        .document_url_length = document_url.size(),
-        .document_base_url = document_base_url.data(),
-        .document_base_url_length = document_base_url.size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string,
-        .normalize_svg_path_data = normalize_svg_path_data,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = rust_font_format_is_supported,
-        .font_tech_is_supported = rust_font_tech_is_supported,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = &m_random_function_index,
-    };
-    auto source = serialize_a_series_of_component_values_for_retokenization(tokens.remaining_tokens());
-    size_t consumed = 0;
-    auto const* parsed = ValueParserFFI::rust_parse_css_primitive_from_source(
-        &context, to_underlying(value_type), ffi_utf16_view(source),
-        accepted_range.min, accepted_range.max, &consumed);
-    if (!parsed)
-        return nullptr;
-    for (size_t index = 0; index < consumed; ++index)
-        tokens.discard_a_token();
-    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
 }
 
 RefPtr<StyleValue const> Parser::parse_primitive_value_from_source(ValueType value_type, Utf16View source, NumericRange const& accepted_range)
@@ -637,280 +397,9 @@ RefPtr<StyleValue const> Parser::parse_primitive_value_from_source(ValueType val
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
 }
 
-RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<ComponentValue>& tokens)
-{
-    return parse_primitive_value(value_type, tokens);
-}
-
 RefPtr<StyleValue const> Parser::parse_entirely_as_type(ValueType value_type)
 {
     return parse_primitive_value_from_source(value_type, m_source);
-}
-
-RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)
-{
-    return parse_primitive_value(ValueType::Integer, tokens, accepted_range);
-}
-
-RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)
-{
-    return parse_primitive_value(ValueType::Length, tokens, accepted_range);
-}
-
-RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)
-{
-    return parse_primitive_value(ValueType::Number, tokens, accepted_range);
-}
-
-RefPtr<StyleValue const> Parser::parse_percentage_value(TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)
-{
-    return parse_primitive_value(ValueType::Percentage, tokens, accepted_range);
-}
-
-RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentValue>& tokens, NumericRange const& accepted_range)
-{
-    return parse_primitive_value(ValueType::Resolution, tokens, accepted_range);
-}
-
-RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
-{
-    return parse_primitive_value(ValueType::Ratio, tokens);
-}
-
-RefPtr<StringStyleValue const> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
-{
-    auto value = parse_primitive_value(ValueType::String, tokens);
-    if (!value)
-        return nullptr;
-    return &value->as_string();
-}
-
-RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
-{
-    return parse_primitive_value(ValueType::Color, tokens);
-}
-
-RefPtr<URLStyleValue const> Parser::parse_url_value(TokenStream<ComponentValue>& tokens)
-{
-    auto value = parse_primitive_value(ValueType::Url, tokens);
-    return value ? &value->as_url() : nullptr;
-}
-
-Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
-{
-    auto value = parse_url_value(tokens);
-    return value ? Optional<URL> { value->url() } : OptionalNone {};
-}
-
-Optional<Utf16FlyString> Parser::parse_custom_ident(TokenStream<ComponentValue>& tokens, ReadonlySpan<Utf16View> blacklist)
-{
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-    auto const& token = tokens.next_token();
-    auto keyword = token.is(Token::Type::Ident) ? keyword_from_string(token.token().ident()) : Optional<Keyword> {};
-    if (!token.is(Token::Type::Ident) || (keyword.has_value() && is_css_wide_keyword(*keyword))
-        || token.token().ident().equals_ignoring_ascii_case("default"sv)
-        || any_of(blacklist, [&](auto blocked) { return token.token().ident().equals_ignoring_ascii_case(blocked); }))
-        return {};
-    auto ident = token.token().ident();
-    tokens.discard_a_token();
-    transaction.commit();
-    return ident;
-}
-
-RefPtr<CustomIdentStyleValue const> Parser::parse_custom_ident_value(TokenStream<ComponentValue>& tokens, ReadonlySpan<Utf16View> blacklist)
-{
-    auto ident = parse_custom_ident(tokens, blacklist);
-    if (!ident.has_value())
-        return nullptr;
-    return CustomIdentStyleValue::create(ident.release_value());
-}
-
-Optional<Utf16FlyString> Parser::parse_dashed_ident(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-    auto ident = parse_custom_ident(tokens, {});
-    if (!ident.has_value() || !ident->starts_with("--"sv))
-        return {};
-    transaction.commit();
-    return ident;
-}
-
-RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>& tokens)
-{
-    tokens.discard_whitespace();
-    auto const& token = tokens.next_token();
-    if (!token.is(Token::Type::Ident))
-        return nullptr;
-    auto keyword = keyword_from_string(token.token().ident());
-    if (!keyword.has_value())
-        return nullptr;
-    tokens.discard_a_token();
-    return KeywordStyleValue::create(*keyword);
-}
-
-RefPtr<StyleValue const> Parser::parse_specific_keyword_value(TokenStream<ComponentValue>& tokens, ReadonlySpan<Keyword> accepted_keywords)
-{
-    auto transaction = tokens.begin_transaction();
-    auto value = parse_keyword_value(tokens);
-    if (!value || !accepted_keywords.contains_slow(value->to_keyword()))
-        return nullptr;
-    transaction.commit();
-    return value;
-}
-
-RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<ComponentValue>& tokens, Keyword keyword)
-{
-    auto transaction = tokens.begin_transaction();
-    auto value = parse_specific_keyword_value(tokens, { &keyword, 1 });
-    tokens.discard_whitespace();
-    if (!value || tokens.has_next_token())
-        return nullptr;
-    transaction.commit();
-    return value;
-}
-
-RefPtr<StyleValueList const> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
-{
-    tokens.discard_whitespace();
-    auto first = parse_one_value(tokens);
-    tokens.discard_whitespace();
-    if (!first)
-        return nullptr;
-    StyleValueVector values { first.release_nonnull() };
-    while (tokens.has_next_token()) {
-        if (!tokens.consume_a_token().is(Token::Type::Comma))
-            return nullptr;
-        tokens.discard_whitespace();
-        auto value = parse_one_value(tokens);
-        if (!value)
-            return nullptr;
-        values.append(value.release_nonnull());
-        tokens.discard_whitespace();
-    }
-    return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-}
-
-RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentValue>& tokens)
-{
-    return parse_font_descriptor_value_in_rust(FontDescriptorKind::FamilyName, tokens).value_or(nullptr);
-}
-
-Optional<Utf16FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-    auto custom_ident = parse_custom_ident(tokens, { { "none"sv } });
-    if (!custom_ident.has_value())
-        return {};
-    auto keyword = keyword_from_string(*custom_ident);
-    if (keyword.has_value() && keyword_to_counter_style_name_keyword(*keyword).has_value())
-        custom_ident = custom_ident->to_ascii_lowercase();
-    transaction.commit();
-    return custom_ident;
-}
-
-RefPtr<StyleValue const> Parser::parse_nonnegative_integer_symbol_pair_value(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-    RefPtr<StyleValue const> integer;
-    RefPtr<StyleValue const> symbol;
-    while (tokens.has_next_token()) {
-        if (auto value = parse_integer_value(tokens, non_negative_integer_range)) {
-            if (integer)
-                return nullptr;
-            integer = value;
-        } else if (auto value = parse_symbol_value(tokens)) {
-            if (symbol)
-                return nullptr;
-            symbol = value;
-        } else {
-            break;
-        }
-        tokens.discard_whitespace();
-    }
-    if (!integer || !symbol)
-        return nullptr;
-    transaction.commit();
-    return StyleValueList::create({ integer.release_nonnull(), symbol.release_nonnull() }, StyleValueList::Separator::Space);
-}
-
-Optional<Utf16FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
-{
-    auto is_valid_layer_name_part = [](auto& token) {
-        auto keyword = token.is(Token::Type::Ident) ? keyword_from_string(token.token().ident()) : Optional<Keyword> {};
-        return token.is(Token::Type::Ident) && (!keyword.has_value() || !is_css_wide_keyword(*keyword));
-    };
-
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-    if (!tokens.has_next_token() && allow_blank_layer_name == AllowBlankLayerName::Yes)
-        return Utf16FlyString {};
-
-    auto& first_name_token = tokens.consume_a_token();
-    if (!is_valid_layer_name_part(first_name_token))
-        return {};
-
-    Utf16StringBuilder builder;
-    builder.append(first_name_token.token().ident());
-    while (tokens.has_next_token()) {
-        if (!tokens.next_token().is_delim('.'))
-            break;
-        tokens.discard_a_token();
-        auto& name_token = tokens.consume_a_token();
-        if (!is_valid_layer_name_part(name_token))
-            return {};
-        builder.append_ascii('.');
-        builder.append(name_token.token().ident());
-    }
-
-    transaction.commit();
-    auto layer_name = builder.to_string();
-    return Utf16FlyString::from_utf16(layer_name.utf16_view());
-}
-
-Vector<Percentage> Parser::parse_keyframe_selectors(TokenStream<ComponentValue>& tokens)
-{
-    Vector<Percentage> selectors;
-    while (tokens.has_next_token()) {
-        tokens.discard_whitespace();
-        if (!tokens.has_next_token())
-            break;
-        auto& next_token = tokens.next_token();
-        if (!next_token.is_token())
-            return {};
-        bool read_a_selector = false;
-        if (next_token.is_ident("from"_utf16)) {
-            tokens.discard_a_token();
-            selectors.append(Percentage { 0 });
-            read_a_selector = true;
-        } else if (next_token.is_ident("to"_utf16)) {
-            tokens.discard_a_token();
-            selectors.append(Percentage { 100 });
-            read_a_selector = true;
-        } else if (next_token.is(Token::Type::Percentage)) {
-            auto percentage_value = next_token.token().percentage();
-            if (percentage_value >= 0 && percentage_value <= 100) {
-                tokens.discard_a_token();
-                selectors.append(Percentage { percentage_value });
-                read_a_selector = true;
-            }
-        }
-        if (read_a_selector) {
-            tokens.discard_whitespace();
-            if (tokens.next_token().is(Token::Type::Comma)) {
-                tokens.discard_a_token();
-                tokens.discard_whitespace();
-                if (!tokens.has_next_token())
-                    return {};
-                continue;
-            }
-            if (!tokens.has_next_token())
-                break;
-        }
-        return {};
-    }
-    return selectors;
 }
 
 }

@@ -29,6 +29,10 @@ String serialize_parsing_error(ParsingError const& error)
         },
         [](InvalidRuleLocationError const& error) {
             return MUST(String::formatted("'{}' rule is invalid inside {}", error.inner_rule_name, error.outer_rule_name));
+        },
+        [](SyntaxDiagnosticError const& error) {
+            auto description = error.code == SyntaxDiagnosticCode::BadString ? "Bad string token"sv : "Bad URL token"sv;
+            return MUST(String::formatted("{} at {}:{}-{}:{}.", description, error.start_line, error.start_column, error.end_line, error.end_column));
         });
 }
 

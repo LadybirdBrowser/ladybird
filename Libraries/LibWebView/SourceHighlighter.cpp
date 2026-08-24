@@ -9,10 +9,10 @@
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
+#include <LibWeb/RustFFI.h>
 #include <LibWebView/SourceHighlighter.h>
 
 namespace WebView {
@@ -116,44 +116,44 @@ String highlight_source(Optional<URL::URL> const& url, URL::URL const& base_url,
 StringView SourceHighlighterClient::class_for_token(u64 token_type) const
 {
     auto class_for_css_token = [](u64 token_type) {
-        switch (static_cast<Web::CSS::Parser::Token::Type>(token_type)) {
-        case Web::CSS::Parser::Token::Type::Invalid:
-        case Web::CSS::Parser::Token::Type::BadString:
-        case Web::CSS::Parser::Token::Type::BadUrl:
+        switch (static_cast<Web::CSS::Parser::FFI::CssTokenType>(token_type)) {
+        case Web::CSS::Parser::FFI::CssTokenType::Invalid:
+        case Web::CSS::Parser::FFI::CssTokenType::BadString:
+        case Web::CSS::Parser::FFI::CssTokenType::BadUrl:
             return "invalid"sv;
-        case Web::CSS::Parser::Token::Type::Ident:
+        case Web::CSS::Parser::FFI::CssTokenType::Ident:
             return "identifier"sv;
-        case Web::CSS::Parser::Token::Type::Function:
+        case Web::CSS::Parser::FFI::CssTokenType::Function:
             return "function"sv;
-        case Web::CSS::Parser::Token::Type::AtKeyword:
+        case Web::CSS::Parser::FFI::CssTokenType::AtKeyword:
             return "at-keyword"sv;
-        case Web::CSS::Parser::Token::Type::Hash:
+        case Web::CSS::Parser::FFI::CssTokenType::Hash:
             return "hash"sv;
-        case Web::CSS::Parser::Token::Type::String:
+        case Web::CSS::Parser::FFI::CssTokenType::String:
             return "string"sv;
-        case Web::CSS::Parser::Token::Type::Url:
+        case Web::CSS::Parser::FFI::CssTokenType::Url:
             return "url"sv;
-        case Web::CSS::Parser::Token::Type::Number:
-        case Web::CSS::Parser::Token::Type::Dimension:
-        case Web::CSS::Parser::Token::Type::Percentage:
+        case Web::CSS::Parser::FFI::CssTokenType::Number:
+        case Web::CSS::Parser::FFI::CssTokenType::Dimension:
+        case Web::CSS::Parser::FFI::CssTokenType::Percentage:
             return "number"sv;
-        case Web::CSS::Parser::Token::Type::Whitespace:
+        case Web::CSS::Parser::FFI::CssTokenType::Whitespace:
             return "whitespace"sv;
-        case Web::CSS::Parser::Token::Type::Delim:
-        case Web::CSS::Parser::Token::Type::Colon:
-        case Web::CSS::Parser::Token::Type::Semicolon:
-        case Web::CSS::Parser::Token::Type::Comma:
-        case Web::CSS::Parser::Token::Type::OpenSquare:
-        case Web::CSS::Parser::Token::Type::CloseSquare:
-        case Web::CSS::Parser::Token::Type::OpenParen:
-        case Web::CSS::Parser::Token::Type::CloseParen:
-        case Web::CSS::Parser::Token::Type::OpenCurly:
-        case Web::CSS::Parser::Token::Type::CloseCurly:
+        case Web::CSS::Parser::FFI::CssTokenType::Delim:
+        case Web::CSS::Parser::FFI::CssTokenType::Colon:
+        case Web::CSS::Parser::FFI::CssTokenType::Semicolon:
+        case Web::CSS::Parser::FFI::CssTokenType::Comma:
+        case Web::CSS::Parser::FFI::CssTokenType::OpenSquare:
+        case Web::CSS::Parser::FFI::CssTokenType::CloseSquare:
+        case Web::CSS::Parser::FFI::CssTokenType::OpenParen:
+        case Web::CSS::Parser::FFI::CssTokenType::CloseParen:
+        case Web::CSS::Parser::FFI::CssTokenType::OpenCurly:
+        case Web::CSS::Parser::FFI::CssTokenType::CloseCurly:
             return "delimiter"sv;
-        case Web::CSS::Parser::Token::Type::CDO:
-        case Web::CSS::Parser::Token::Type::CDC:
+        case Web::CSS::Parser::FFI::CssTokenType::CDO:
+        case Web::CSS::Parser::FFI::CssTokenType::CDC:
             return "comment"sv;
-        case Web::CSS::Parser::Token::Type::EndOfFile:
+        case Web::CSS::Parser::FFI::CssTokenType::EndOfFile:
         default:
             break;
         }

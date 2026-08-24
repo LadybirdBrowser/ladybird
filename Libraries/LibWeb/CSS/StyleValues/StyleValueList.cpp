@@ -11,7 +11,6 @@
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/CSSTransformValue.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 
@@ -78,26 +77,6 @@ void StyleValueList::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     for (auto& value : values())
         const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);
-}
-
-Vector<Parser::ComponentValue> StyleValueList::tokenize() const
-{
-    Vector<Parser::ComponentValue> component_values;
-    bool first = true;
-    for (auto const& value : values()) {
-        if (value->is_empty_optional())
-            continue;
-        if (first) {
-            first = false;
-        } else {
-            if (separator() == Separator::Comma)
-                component_values.empend(Parser::Token::create(Parser::Token::Type::Comma));
-            component_values.empend(Parser::Token::create_whitespace(" "_utf16));
-        }
-        component_values.extend(value->tokenize());
-    }
-
-    return component_values;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-list

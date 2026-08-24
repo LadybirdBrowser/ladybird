@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! CSS math-function names generated from the same source as the C++ parser.
+//! CSS math-function names generated from CSS/MathFunctions.json.
 
 include!(concat!(env!("OUT_DIR"), "/math_functions_generated.rs"));
 
