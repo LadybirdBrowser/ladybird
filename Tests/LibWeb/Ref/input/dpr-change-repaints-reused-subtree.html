@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/dpr-change-repaints-reused-subtree-ref.html">
+<style>
+    body { margin: 0; font: 16px/1.5 monospace; }
+    #outer { width: 300px; display: flow-root; }
+    #inner { display: flow-root; background: #eef; border: 1px solid #446; }
+</style>
+<div id="outer"><div id="inner">Scale sensitive text<br>more text lines here</div></div>
+<script>
+    // The inner formatting context's layout input (the outer box's fixed 300px content
+    // width) is unchanged by the device-pixel-ratio flip, so its layout run replays from
+    // the cache and its committed paintable subtree is reused in place. The re-recorded
+    // display list must not splice its device-pixel command bytes captured at the old
+    // scale.
+    internals.setDevicePixelRatio(1);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            internals.setDevicePixelRatio(2);
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
