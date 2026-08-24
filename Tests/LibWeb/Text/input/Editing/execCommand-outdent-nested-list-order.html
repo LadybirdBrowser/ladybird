@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable="true"><ol><li>foo<ol><li id="target">bar</li></ol></li><li>baz</li></ol></div>
+<script>
+    test(() => {
+        // Outdenting an li out of a list nested inside another li must leave it where it was in
+        // document order, rather than moving it ahead of the li it came out of.
+        const target = document.getElementById('target');
+        const range = document.createRange();
+        range.setStart(target.firstChild, 0);
+        range.setEnd(target.firstChild, 3);
+        getSelection().addRange(range);
+        document.execCommand('outdent');
+
+        println(document.querySelector('div').innerHTML);
+    });
+</script>

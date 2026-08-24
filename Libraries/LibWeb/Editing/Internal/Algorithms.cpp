@@ -3048,7 +3048,7 @@ void normalize_sublists_in_node(GC::Ref<DOM::Node> item)
 
             // 2. Insert child into the parent of item immediately following item, preserving
             //    ranges.
-            move_node_preserving_ranges(child, *item->parent(), item->index());
+            move_node_preserving_ranges(child, *item->parent(), item->index() + 1);
         }
 
         // 3. Otherwise:
