@@ -1272,6 +1272,31 @@ fn evaluate_style_feature(
         return ConditionEvaluation::Match(false);
     }
 
+    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    if registration.is_some()
+        && context.function_local_scopes.is_empty()
+        && !context.active_names.iter().any(|active_name| active_name == name)
+        && let Some(evaluate) = context.evaluate_condition
+    {
+        let source = serialize_tokens(tokens);
+        return match unsafe {
+            evaluate(
+                context.condition_context,
+                2,
+                FfiUtf16View {
+                    ascii: std::ptr::null(),
+                    utf16: source.as_ptr(),
+                    length: source.len(),
+                },
+            )
+        } {
+            0 => ConditionEvaluation::Match(false),
+            1 => ConditionEvaluation::Match(true),
+            2 => ConditionEvaluation::Invalid,
+            _ => ConditionEvaluation::NotHandled,
+        };
+    }
+
     let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
     let computed = match computed {
         TokenResolution::Resolved(tokens) => Some(tokens),
@@ -1287,7 +1312,6 @@ fn evaluate_style_feature(
         TokenResolution::Cyclic => None,
         TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
     };
-    let registration = registry.and_then(|registry| registry.registrations.get(name));
     let Some(colon) = colon else {
         return ConditionEvaluation::Match(computed.is_some());
     };
