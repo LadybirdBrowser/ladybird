@@ -1,0 +1,556 @@
+Harness status: OK
+
+Found 550 tests
+
+548 Pass
+2 Fail
+Pass	[["outdent",""]] "<blockquote>foo<ol><li>[bar]</ol>baz</blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote>foo<ol><li>[bar]</ol>baz</blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote>foo<ol><li>[bar]</ol>baz</blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><ol><li>foo</li><ol><li>[bar]</ol><li>baz</ol></blockquote><p>extra" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" compare innerHTML
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<ol><li><h1>[foo]</h1></ol>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" compare innerHTML
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<ol><li><xmp>[foo]</xmp></li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("defaultparagraphseparator") before
+Fail	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<blockquote><ol><li>foo<div><ol><li>[bar]</ol></div><li>baz</ol></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><p>[foo]</p> </blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> </blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[foo]</li> </ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> </ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul><li>[foo]</li> </ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> </ul>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>[foo]</p> <p>bar</p> <p>baz</p></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>[bar]</p> <p>baz</p></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" checks for modifications to non-editable content
+Fail	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote> <p>foo</p> <p>bar</p> <p>[baz]</p></blockquote>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>[foo]</li> <li>bar</li> <li>baz</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>[bar]</li> <li>baz</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol> <li>foo</li> <li>bar</li> <li>[baz]</li></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>[foo]</li> <li>bar</li> <li>baz</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>[bar]</li> <li>baz</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ul> <li>foo</li> <li>bar</li> <li>[baz]</li></ul>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","div"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>": execCommand("outdent", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("outdent") before
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandIndeterm("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandState("outdent") after
+Pass	[["defaultparagraphseparator","p"],["outdent",""]] "<ol><li>[]a<table><tr><td><br></table></ol>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" compare innerHTML
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<blockquote><span>foo<br>[bar]</span></blockquote>" queryCommandValue("outdent") after
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>": execCommand("outdent", false, "") return value
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" checks for modifications to non-editable content
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" compare innerHTML
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" queryCommandIndeterm("outdent") before
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" queryCommandState("outdent") before
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" queryCommandValue("outdent") before
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" queryCommandIndeterm("outdent") after
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" queryCommandState("outdent") after
+Pass	[["outdent",""]] "<ul><ul><li><span style=\"color:rgb(255, 0, 0)\">[]foo</span></li></ul></ul>" queryCommandValue("outdent") after
