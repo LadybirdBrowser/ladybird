@@ -11,10 +11,10 @@ remove first repeated sheet: 1
 RepeatedBatch face count after first removal: 2
 remove second repeated sheet: 1
 RepeatedBatch face count after second removal: 0
-append shadow sheet with multiple CSS-connected faces: 1
-ShadowBatch face count after append: 2
-Shadow target width after ShadowBatchA loads: 100
-remove shadow sheet with multiple CSS-connected faces: 1
+append shadow sheet with shadow-only font faces: 0
+ShadowBatch face count after append: 0
+Shadow target ignores shadow-only font face: true
+remove shadow sheet with shadow-only font faces: 0
 ShadowBatch face count after removal: 0
 add unloaded script-created face: 0
 load script-created face: 1

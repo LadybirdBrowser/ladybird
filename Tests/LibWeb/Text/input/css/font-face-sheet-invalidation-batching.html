@@ -88,15 +88,15 @@
             @font-face { font-family: ShadowBatchA; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
             @font-face { font-family: ShadowBatchB; src: url("shadow-b.woff"); }
         `);
-        printVersionDelta("append shadow sheet with multiple CSS-connected faces", () => {
+        printVersionDelta("append shadow sheet with shadow-only font faces", () => {
             shadowRoot.appendChild(shadowStyle);
         });
         println(`ShadowBatch face count after append: ${countFaces("ShadowBatch")}`);
         await document.fonts.load("20px ShadowBatchA");
         document.body.offsetWidth;
-        println(`Shadow target width after ShadowBatchA loads: ${Math.round(shadowRoot.getElementById("shadow-target").getBoundingClientRect().width)}`);
+        println(`Shadow target ignores shadow-only font face: ${Math.round(shadowRoot.getElementById("shadow-target").getBoundingClientRect().width) !== 100}`);
 
-        printVersionDelta("remove shadow sheet with multiple CSS-connected faces", () => {
+        printVersionDelta("remove shadow sheet with shadow-only font faces", () => {
             shadowStyle.remove();
         });
         println(`ShadowBatch face count after removal: ${countFaces("ShadowBatch")}`);

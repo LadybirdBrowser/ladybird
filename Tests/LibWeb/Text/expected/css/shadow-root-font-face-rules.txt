@@ -1,0 +1,18 @@
+initial document.fonts.size: 1
+SharedShadowFace count: 1
+ShadowOnlyFace count: 0
+ShadowLinkOnlyFace count: 0
+document target uses SharedShadowFace: true
+open shadow target uses document SharedShadowFace: true
+closed shadow target uses document SharedShadowFace: true
+open shadow-only target ignores shadow @font-face: true
+closed shadow-only target ignores shadow @font-face: true
+linked shadow-only target ignores shadow @font-face: true
+inline shadow stylesheet rules: 3
+linked shadow stylesheet rules: 4
+after removing one shadow link size: 1
+after removing one shadow link shared count: 1
+after reappend one shadow link size: 1
+after reappend one shadow link shared count: 1
+after document descriptor mutation old count: 0
+after document descriptor mutation new count: 1

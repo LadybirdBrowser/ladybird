@@ -389,15 +389,17 @@ void CSSStyleSheet::for_each_effective_function_at_rule(Function<void(CSSFunctio
 void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root)
 {
     VERIFY(document_or_shadow_root.is_document() || document_or_shadow_root.is_shadow_root());
+    auto had_document_owner = has_document_owner();
     m_owning_documents_or_shadow_roots.set(document_or_shadow_root);
 
     // CSSOM's "add a CSS style sheet" steps bail out once the disabled flag is set, so ownership alone should not
     // make a disabled sheet observable in the destination document. Delay its media-query evaluation and
     // CSS-connected font activation until the sheet actually becomes enabled.
-    if (!disabled() && this->owning_documents_or_shadow_roots().size() == 1) {
+    if (!disabled() && this->owning_documents_or_shadow_roots().size() == 1)
         evaluate_media_queries(document_or_shadow_root.document());
+
+    if (!disabled() && document_or_shadow_root.is_document() && !had_document_owner)
         document_or_shadow_root.document().font_computer().load_fonts_from_sheet(*this);
-    }
 
     for (auto const& import_rule : m_import_rules) {
         if (import_rule->loaded_style_sheet())
@@ -407,11 +409,12 @@ void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_sh
 
 void CSSStyleSheet::remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root)
 {
+    auto had_document_owner = has_document_owner();
     m_owning_documents_or_shadow_roots.remove(document_or_shadow_root);
 
-    // All owning documents or shadow roots must be part of the same document so we only need to unload this style
-    // sheet's fonts once we have none remaining.
-    if (this->owning_documents_or_shadow_roots().size() == 0)
+    // CSS @font-face rules contribute to the document font source. Shadow-root-only sheets remain CSSOM-visible and
+    // still style their tree, but match other browsers by not contributing shadow-scoped @font-face rules there.
+    if (!disabled() && document_or_shadow_root.is_document() && had_document_owner && !has_document_owner())
         document_or_shadow_root.document().font_computer().unload_fonts_from_sheet(*this);
 
     for (auto const& import_rule : m_import_rules) {
@@ -443,10 +446,11 @@ void CSSStyleSheet::set_disabled(bool disabled)
 
     if (!disabled) {
         if (document) {
-            document->font_computer().load_fonts_from_sheet(*this);
+            if (has_document_owner())
+                document->font_computer().load_fonts_from_sheet(*this);
             load_pending_image_resources(*document);
         }
-    } else if (document) {
+    } else if (document && has_document_owner()) {
         document->font_computer().unload_fonts_from_sheet(*this);
     }
 
@@ -505,10 +509,19 @@ void CSSStyleSheet::invalidate_owners()
 
 void CSSStyleSheet::reload_fonts_after_media_query_change()
 {
-    if (auto document = owning_document()) {
+    if (auto document = owning_document(); document && has_document_owner()) {
         document->font_computer().unload_fonts_from_sheet(*this);
         document->font_computer().load_fonts_from_sheet(*this);
     }
+}
+
+bool CSSStyleSheet::has_document_owner() const
+{
+    for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
+        if (document_or_shadow_root->is_document())
+            return true;
+    }
+    return false;
 }
 
 GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
