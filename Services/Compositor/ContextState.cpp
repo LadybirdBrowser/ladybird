@@ -292,6 +292,11 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
             result.frame_to_present = *frame_to_present;
             result.should_request_rendering_update = true;
         }
+
+        auto hovered_scrollbar_index = m_viewport_scrollbar_controller.hit_test(m_async_scroll_tree, m_scroll_state_snapshot, position);
+        if (m_viewport_scrollbar_controller.set_hovered_scrollbar(hovered_scrollbar_index) && !m_async_scrolling_viewport_rect.is_empty())
+            result.frame_to_present = m_async_scrolling_viewport_rect;
+
         return result;
     }
     case Web::MouseEvent::Type::MouseLeave: {
