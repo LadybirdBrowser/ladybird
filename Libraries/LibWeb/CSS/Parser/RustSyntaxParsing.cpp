@@ -273,6 +273,34 @@ static Vector<Declaration> declarations(FfiSyntaxParseData const& data, size_t s
     return result;
 }
 
+static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, FfiSyntaxRule const& rule)
+{
+    VERIFY(rule.parsed_prelude_kind <= to_underlying(ParsedRulePreludeKind::Function));
+    VERIFY(rule.parsed_prelude_items_start <= data.prelude_item_count);
+    VERIFY(rule.parsed_prelude_item_count <= data.prelude_item_count - rule.parsed_prelude_items_start);
+    auto optional_string = [&](size_t offset, size_t length) -> Optional<Utf16FlyString> {
+        if (offset == NumericLimits<size_t>::max())
+            return {};
+        return Utf16FlyString::from_utf16(utf16_value(data, offset, length));
+    };
+    Vector<ParsedRulePreludeItem> items;
+    items.ensure_capacity(rule.parsed_prelude_item_count);
+    for (size_t index = 0; index < rule.parsed_prelude_item_count; ++index) {
+        auto const& item = data.prelude_items[rule.parsed_prelude_items_start + index];
+        items.unchecked_append({
+            .value = optional_string(item.value_offset, item.value_length),
+            .number_value = item.number_value,
+            .flags = item.flags,
+        });
+    }
+    return {
+        .kind = static_cast<ParsedRulePreludeKind>(rule.parsed_prelude_kind),
+        .name = optional_string(rule.parsed_prelude_name_offset, rule.parsed_prelude_name_length),
+        .secondary = optional_string(rule.parsed_prelude_secondary_offset, rule.parsed_prelude_secondary_length),
+        .items = move(items),
+    };
+}
+
 static Rule rule(FfiSyntaxParseData const&, size_t);
 
 static Vector<RuleOrListOfDeclarations> items(FfiSyntaxParseData const& data, size_t start, size_t count)
@@ -307,6 +335,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
             .prelude = move(prelude),
             .prelude_text = move(prelude_text),
+            .parsed_prelude = parsed_rule_prelude(data, rule),
             .child_rules_and_lists_of_declarations = move(children),
             .is_block_rule = rule.has_block,
         };
@@ -316,6 +345,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     return QualifiedRule {
         .prelude = move(prelude),
         .prelude_text = move(prelude_text),
+        .parsed_prelude = parsed_rule_prelude(data, rule),
         .declarations = declarations(data, rule.declarations_start, rule.declaration_count),
         .child_rules = move(children),
         .source_position = rule.has_source_position ? Optional<SourcePosition> { source_position(rule.start_line, rule.start_column) } : OptionalNone {},
@@ -344,6 +374,29 @@ Vector<Rule> RustSyntaxParser::parse_stylesheet(Parser& parser)
     for (size_t index = 0; index < data.root_count; ++index)
         result.unchecked_append(rule(data, data.roots[index]));
     return result;
+}
+
+Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleContext> contexts, RuleNesting nested)
+{
+    ReadonlyBytes document_url;
+    ReadonlyBytes document_base_url;
+    if (parser.m_document) {
+        if (!parser.m_serialized_document_url.has_value())
+            parser.m_serialized_document_url = parser.m_document->url().serialize();
+        if (!parser.m_serialized_document_base_url.has_value())
+            parser.m_serialized_document_base_url = parser.m_document->base_url().serialize();
+        document_url = parser.m_serialized_document_url->bytes();
+        document_base_url = parser.m_serialized_document_base_url->bytes();
+    }
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_random_function_index);
+    static_assert(sizeof(RuleContext) == sizeof(u8));
+    auto* parse = rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context, resolve_property_id);
+    VERIFY(parse);
+    ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
+    auto data = rust_css_syntax_parse_data(parse);
+    if (data.root_count != 1)
+        return {};
+    return rule(data, data.roots[0]);
 }
 
 void RustSyntaxParser::set_token_position(Token& token, SourcePosition start, SourcePosition end)

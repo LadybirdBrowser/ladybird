@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function parsedRuleCount(source) {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(source);
+        return sheet.cssRules.length;
+    }
+
+    test(() => {
+        println(`@function --(): ${parsedRuleCount("@function --() {}")}`);
+        println(`parameter named --: ${parsedRuleCount("@function --foo(--) {}")}`);
+        println(`@property --: ${parsedRuleCount("@property -- { syntax: '*'; inherits: false; }")}`);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(":root { --: red; ---: green; }");
+        const declarations = sheet.cssRules[0].style;
+        println(`custom property --: '${declarations.getPropertyValue("--")}'`);
+        println(`custom property ---: '${declarations.getPropertyValue("---")}'`);
+    });
+</script>

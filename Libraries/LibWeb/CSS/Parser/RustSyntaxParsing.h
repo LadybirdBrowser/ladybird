@@ -21,8 +21,14 @@ enum class PreservePropertySourceText {
     Yes,
 };
 
+enum class RuleNesting {
+    No,
+    Yes,
+};
+
 class RustSyntaxParser {
 public:
+    static Optional<Rule> parse_rule(Parser&, ReadonlySpan<RuleContext>, RuleNesting);
     static Vector<Rule> parse_stylesheet(Parser&);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, Utf16View, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);

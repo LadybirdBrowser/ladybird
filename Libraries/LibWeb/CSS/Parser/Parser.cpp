@@ -419,6 +419,7 @@ Optional<AtRule> Parser::consume_an_at_rule(TokenStream<T>& input, Nested nested
         .name = ((Token)input.consume_a_token()).at_keyword(),
         .prelude = {},
         .prelude_text = {},
+        .parsed_prelude = {},
         .child_rules_and_lists_of_declarations = {},
         .is_block_rule = false,
     };
@@ -492,6 +493,7 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
     QualifiedRule rule {
         .prelude = {},
         .prelude_text = {},
+        .parsed_prelude = {},
         .declarations = {},
         .child_rules = {},
         .source_position = {},
@@ -1181,9 +1183,10 @@ void Parser::consume_the_remnants_of_a_bad_declaration(TokenStream<T>& input, Ne
 CSSRule* Parser::parse_as_css_rule(bool nested)
 {
     auto nested_mode = nested ? Nested::Yes : Nested::No;
-    if (auto maybe_rule = parse_a_rule(token_stream(), nested_mode); maybe_rule.has_value())
-        return convert_to_rule<CSSNestedDeclarations>(maybe_rule.value(), nested_mode).ptr();
-    return {};
+    auto rule = RustSyntaxParser::parse_rule(*this, m_rule_context, nested ? RuleNesting::Yes : RuleNesting::No);
+    if (!rule.has_value())
+        return {};
+    return convert_to_rule<CSSNestedDeclarations>(*rule, nested_mode).ptr();
 }
 
 GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
@@ -1194,11 +1197,13 @@ GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
         VERIFY(last == RuleContext::AtKeyframes);
     };
 
-    auto maybe_rule = parse_a_rule(token_stream());
-    if (!maybe_rule.has_value() || !maybe_rule->has<QualifiedRule>())
+    auto items = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
+    if (items.size() != 1 || !items.first().has<Rule>())
         return {};
-
-    return convert_to_keyframe_rule(maybe_rule->get<QualifiedRule>());
+    auto const& rule = items.first().get<Rule>();
+    if (!rule.has<QualifiedRule>())
+        return {};
+    return convert_to_keyframe_rule(rule.get<QualifiedRule>());
 }
 
 Vector<Percentage> Parser::parse_as_keyframe_selectors()

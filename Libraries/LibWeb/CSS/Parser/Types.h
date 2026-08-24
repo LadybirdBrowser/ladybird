@@ -27,11 +27,40 @@ using QualifiedRuleVisitor = AK::Function<void(QualifiedRule const&)>;
 using RuleVisitor = AK::Function<void(Rule const&)>;
 using DeclarationVisitor = AK::Function<void(Declaration const&)>;
 
+enum class ParsedRulePreludeKind : u8 {
+    Unparsed,
+    Invalid,
+    Empty,
+    Name,
+    Names,
+    KeyframeSelectors,
+    Namespace,
+    PageSelectors,
+    FontFamilyNames,
+    Scope,
+    Import,
+    Function,
+};
+
+struct ParsedRulePreludeItem {
+    Optional<Utf16FlyString> value;
+    double number_value { 0 };
+    u8 flags { 0 };
+};
+
+struct ParsedRulePrelude {
+    ParsedRulePreludeKind kind { ParsedRulePreludeKind::Unparsed };
+    Optional<Utf16FlyString> name;
+    Optional<Utf16FlyString> secondary;
+    Vector<ParsedRulePreludeItem> items;
+};
+
 // https://drafts.csswg.org/css-syntax/#ref-for-at-rule%E2%91%A0%E2%91%A1
 struct AtRule {
     Utf16FlyString name;
     Vector<ComponentValue> prelude;
     Utf16String prelude_text;
+    ParsedRulePrelude parsed_prelude;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
 
@@ -45,6 +74,7 @@ struct AtRule {
 struct QualifiedRule {
     Vector<ComponentValue> prelude;
     Utf16String prelude_text;
+    ParsedRulePrelude parsed_prelude;
     Vector<Declaration> declarations;
     Vector<RuleOrListOfDeclarations> child_rules;
     Optional<SourcePosition> source_position = {};
