@@ -12,6 +12,7 @@ use crate::css::parser::component_value::{
 use crate::css::parser::syntax_parser::{FfiSyntaxParse, FfiSyntaxParseData};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{equals_ascii_case_insensitive, is_valid_custom_ident};
+use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier, serialize_component_values_to_utf16};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -1066,12 +1067,249 @@ pub struct FfiQueryParseData {
 #[derive(Clone, Debug, PartialEq)]
 enum QueryTree {
     MediaQuery(MediaQuery),
-    Expression(Expression),
+    Expression { expression: Expression, kind: QueryKind },
 }
 
 pub struct FfiQueryHandle {
     #[allow(dead_code)] // Read by query operations added in subsequent porting stages.
     tree: QueryTree,
+}
+
+const MEDIA_FEATURE_NAMES: [&str; 38] = [
+    "-webkit-transform-3d",
+    "any-hover",
+    "any-pointer",
+    "aspect-ratio",
+    "color",
+    "color-gamut",
+    "color-index",
+    "device-aspect-ratio",
+    "device-height",
+    "device-width",
+    "display-mode",
+    "dynamic-range",
+    "environment-blending",
+    "forced-colors",
+    "grid",
+    "height",
+    "horizontal-viewport-segments",
+    "hover",
+    "inverted-colors",
+    "monochrome",
+    "nav-controls",
+    "orientation",
+    "overflow-block",
+    "overflow-inline",
+    "pointer",
+    "prefers-color-scheme",
+    "prefers-contrast",
+    "prefers-reduced-data",
+    "prefers-reduced-motion",
+    "prefers-reduced-transparency",
+    "resolution",
+    "scan",
+    "scripting",
+    "update",
+    "vertical-viewport-segments",
+    "video-color-gamut",
+    "video-dynamic-range",
+    "width",
+];
+
+fn push_utf16(sink: &mut TextSink, value: &[u16]) {
+    for &unit in value {
+        sink.push_code_unit(unit);
+    }
+}
+
+fn serialize_query_feature_value(sink: &mut TextSink, value: &QueryFeatureValue, id: u8, kind: QueryKind) {
+    let components = trim_whitespace(&value.components);
+    let media_feature_value_types = if kind == QueryKind::Media {
+        MEDIA_FEATURES
+            .get(usize::from(id))
+            .map_or(0, |metadata| metadata.accepted_value_types)
+    } else {
+        0
+    };
+    let is_ratio = media_feature_value_types & MEDIA_FEATURE_VALUE_RATIO != 0 || (kind == QueryKind::Size && id == 0);
+    if is_ratio {
+        let components = components
+            .iter()
+            .filter(|component| !component.is_whitespace())
+            .collect::<Vec<_>>();
+        if let [numerator, slash, denominator] = components.as_slice()
+            && slash.is_delim(b'/')
+        {
+            push_utf16(
+                sink,
+                &serialize_component_values_to_utf16(
+                    std::slice::from_ref(*numerator),
+                    crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+                ),
+            );
+            sink.push_ascii(" / ");
+            push_utf16(
+                sink,
+                &serialize_component_values_to_utf16(
+                    std::slice::from_ref(*denominator),
+                    crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+                ),
+            );
+            return;
+        }
+    }
+    if kind == QueryKind::Media
+        && media_feature_value_types & MEDIA_FEATURE_VALUE_RESOLUTION != 0
+        && let [component] = components
+        && let Some((name, values)) = component.function()
+        && let Some(serialized) = crate::css::calc::serialize_context_free_calculation(name, values, 4)
+    {
+        push_utf16(sink, &serialized);
+        return;
+    }
+    let serialized = serialize_component_values_to_utf16(
+        &value.components,
+        crate::css::parser::component_value::ComponentSerializationMode::Normalized,
+    );
+    push_utf16(sink, &serialized);
+}
+
+fn feature_comparison_text(comparison: FeatureComparison) -> &'static str {
+    match comparison {
+        FeatureComparison::Equal => "=",
+        FeatureComparison::LessThan => "<",
+        FeatureComparison::LessThanOrEqual => "<=",
+        FeatureComparison::GreaterThan => ">",
+        FeatureComparison::GreaterThanOrEqual => ">=",
+    }
+}
+
+fn serialize_query_feature(sink: &mut TextSink, feature: &QueryFeature, kind: QueryKind) {
+    let id = match feature {
+        QueryFeature::Boolean { id } | QueryFeature::Plain { id, .. } | QueryFeature::Range { id, .. } => *id,
+    };
+    let name = match kind {
+        QueryKind::Media => MEDIA_FEATURE_NAMES[usize::from(id)],
+        QueryKind::Size => [
+            "aspect-ratio",
+            "block-size",
+            "height",
+            "inline-size",
+            "orientation",
+            "width",
+        ][usize::from(id)],
+        QueryKind::Style => unreachable!("style features use their own expression nodes"),
+    };
+
+    sink.push_ascii("(");
+    match feature {
+        QueryFeature::Boolean { .. } => sink.push_ascii(name),
+        QueryFeature::Plain { name_type, value, .. } => {
+            match name_type {
+                FeatureNameType::Normal => {}
+                FeatureNameType::Min => sink.push_ascii("min-"),
+                FeatureNameType::Max => sink.push_ascii("max-"),
+            }
+            sink.push_ascii(name);
+            sink.push_ascii(": ");
+            serialize_query_feature_value(sink, value, id, kind);
+        }
+        QueryFeature::Range { left, right, .. } => {
+            if let Some((value, comparison)) = left {
+                serialize_query_feature_value(sink, value, id, kind);
+                sink.push_ascii(" ");
+                sink.push_ascii(feature_comparison_text(*comparison));
+                sink.push_ascii(" ");
+            }
+            sink.push_ascii(name);
+            if let Some((comparison, value)) = right {
+                sink.push_ascii(" ");
+                sink.push_ascii(feature_comparison_text(*comparison));
+                sink.push_ascii(" ");
+                serialize_query_feature_value(sink, value, id, kind);
+            }
+        }
+    }
+    sink.push_ascii(")");
+}
+
+fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: QueryKind) {
+    match expression {
+        Expression::Not(child) => {
+            sink.push_ascii("not ");
+            serialize_expression(sink, child, kind);
+        }
+        Expression::And(children) | Expression::Or(children) => {
+            let separator = if matches!(expression, Expression::And(_)) {
+                " and "
+            } else {
+                " or "
+            };
+            for (index, child) in children.iter().enumerate() {
+                if index != 0 {
+                    sink.push_ascii(separator);
+                }
+                serialize_expression(sink, child, kind);
+            }
+        }
+        Expression::InParens(child) => {
+            sink.push_ascii("(");
+            serialize_expression(sink, child, kind);
+            sink.push_ascii(")");
+        }
+        Expression::GeneralEnclosed { component, .. } => push_utf16(sink, &component.original_source_text.to_vec()),
+        Expression::GeneralEnclosedValues { components, .. } => {
+            for component in components {
+                push_utf16(sink, &component.original_source_text.to_vec());
+            }
+        }
+        Expression::QueryFeature(feature) => serialize_query_feature(sink, feature, kind),
+        Expression::SupportsFeature(_) | Expression::StyleFunction(_) | Expression::StyleFeature(_) => {
+            unreachable!("unsupported expression in media query")
+        }
+    }
+}
+
+fn serialize_media_query(query: &MediaQuery) -> Vec<u16> {
+    let mut sink = TextSink::new();
+    if query.negated {
+        sink.push_ascii("not ");
+    }
+
+    let media_type_is_all = query
+        .media_type
+        .as_ref()
+        .is_none_or(|media_type| equals_ascii_case_insensitive(media_type, b"all"));
+    if query.negated || !media_type_is_all || query.condition.is_none() {
+        let media_type = query.media_type.as_deref().unwrap_or(&[]);
+        if equals_ascii_case_insensitive(media_type, b"all") {
+            sink.push_ascii("all");
+        } else if equals_ascii_case_insensitive(media_type, b"print") {
+            sink.push_ascii("print");
+        } else if equals_ascii_case_insensitive(media_type, b"screen") {
+            sink.push_ascii("screen");
+        } else {
+            let lowercase = media_type
+                .iter()
+                .map(|unit| {
+                    if *unit >= u16::from(b'A') && *unit <= u16::from(b'Z') {
+                        *unit + u16::from(b'a' - b'A')
+                    } else {
+                        *unit
+                    }
+                })
+                .collect::<Vec<_>>();
+            serialize_an_identifier(&mut sink, &StringUnits::Utf16(&lowercase));
+        }
+        if query.condition.is_some() {
+            sink.push_ascii(" and ");
+        }
+    }
+
+    if let Some(condition) = &query.condition {
+        serialize_expression(&mut sink, condition, QueryKind::Media);
+    }
+    sink.into_utf16()
 }
 
 pub struct FfiQueryParse {
@@ -1378,7 +1616,10 @@ impl FfiQueryParse {
         self.query_handles
             .push(condition.query.as_ref().map_or(std::ptr::null(), |query| {
                 Arc::into_raw(Arc::new(FfiQueryHandle {
-                    tree: QueryTree::Expression(query.clone()),
+                    tree: QueryTree::Expression {
+                        expression: query.clone(),
+                        kind: QueryKind::Size,
+                    },
                 }))
             }));
     }
@@ -1402,10 +1643,13 @@ impl FfiQueryParse {
         }
     }
 
-    fn set_root(&mut self, expression: &Expression) {
+    fn set_root(&mut self, expression: &Expression, kind: QueryKind) {
         self.root = Some(self.append_expression(expression));
         self.root_handle = Arc::into_raw(Arc::new(FfiQueryHandle {
-            tree: QueryTree::Expression(expression.clone()),
+            tree: QueryTree::Expression {
+                expression: expression.clone(),
+                kind,
+            },
         }));
     }
 }
@@ -1426,6 +1670,8 @@ impl Drop for FfiQueryParse {
 type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
 
 type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
+
+type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
 
 /// Splits a sizes attribute into its top-level condition and source-size value components.
 ///
@@ -1509,7 +1755,7 @@ pub unsafe extern "C" fn rust_parse_media_condition(
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression);
+        parse.set_root(&expression, QueryKind::Media);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1529,7 +1775,7 @@ pub unsafe extern "C" fn rust_parse_media_feature(
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression);
+        parse.set_root(&expression, QueryKind::Media);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1546,7 +1792,7 @@ pub unsafe extern "C" fn rust_parse_supports_condition(source: FfiUtf16View) -> 
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression);
+        parse.set_root(&expression, QueryKind::Media);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1563,7 +1809,7 @@ pub unsafe extern "C" fn rust_parse_supports_declaration(source: FfiUtf16View) -
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression);
+        parse.set_root(&expression, QueryKind::Media);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1583,7 +1829,7 @@ pub unsafe extern "C" fn rust_parse_style_query(
             return std::ptr::null_mut();
         };
         let mut parse = FfiQueryParse::new();
-        parse.set_root(&expression);
+        parse.set_root(&expression, QueryKind::Style);
         Box::into_raw(Box::new(parse))
     })
 }
@@ -1644,6 +1890,40 @@ pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
             unsafe { Arc::decrement_strong_count(handle) };
         }
     });
+}
+
+#[unsafe(no_mangle)]
+#[allow(clippy::arc_with_non_send_sync)]
+pub extern "C" fn css_query_create_not_all() -> *const FfiQueryHandle {
+    crate::abort_on_panic(|| {
+        Arc::into_raw(Arc::new(FfiQueryHandle {
+            tree: QueryTree::MediaQuery(invalid_media_query()),
+        }))
+    })
+}
+
+/// Serializes a retained media query without changing its UTF-16 representation.
+///
+/// # Safety
+/// `handle` must point to a live media-query handle. The callback must be valid and may only
+/// retain a copy of the borrowed UTF-16 slice.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn css_query_serialize_media_query(
+    handle: *const FfiQueryHandle,
+    context: *mut c_void,
+    visit: VisitQuerySerialization,
+) -> bool {
+    crate::abort_on_panic(|| {
+        let Some(handle) = (unsafe { handle.as_ref() }) else {
+            return false;
+        };
+        let QueryTree::MediaQuery(query) = &handle.tree else {
+            return false;
+        };
+        let serialized = serialize_media_query(query);
+        unsafe { visit(context, serialized.as_ptr(), serialized.len()) };
+        true
+    })
 }
 
 /// # Safety

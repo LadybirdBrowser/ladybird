@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/CSS/MediaQuery.h>
-#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
@@ -16,6 +15,7 @@ namespace Web::CSS {
 NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 {
     auto media_query = new MediaQuery;
+    media_query->m_rust_query_handle = RustQueryHandle { Parser::ValueParserFFI::css_query_create_not_all() };
     media_query->m_negated = true;
     media_query->m_media_type = {
         .name = "all"_utf16_fly_string,
@@ -70,22 +70,10 @@ Utf16String MediaQuery::to_string() const
 
 void MediaQuery::serialize_to(Utf16StringBuilder& builder) const
 {
-    if (m_negated)
-        builder.append_ascii("not "sv);
-
-    if (m_negated || m_media_type.known_type != KnownMediaType::All || !m_media_condition) {
-        if (m_media_type.known_type.has_value()) {
-            builder.append_ascii(CSS::to_string(m_media_type.known_type.value()));
-        } else {
-            auto serialized_media_type = serialize_an_identifier_to_utf16(m_media_type.name.to_ascii_lowercase());
-            builder.append(serialized_media_type.utf16_view());
-        }
-        if (m_media_condition)
-            builder.append_ascii(" and "sv);
-    }
-
-    if (m_media_condition)
-        m_media_condition->serialize_to(builder);
+    auto append_serialized_query = [](void* context, u16 const* code_units, size_t length) {
+        static_cast<Utf16StringBuilder*>(context)->append({ reinterpret_cast<char16_t const*>(code_units), length });
+    };
+    VERIFY(Parser::ValueParserFFI::css_query_serialize_media_query(m_rust_query_handle.data(), &builder, append_serialized_query));
 }
 
 bool MediaQuery::evaluate(DOM::Document const& document)
