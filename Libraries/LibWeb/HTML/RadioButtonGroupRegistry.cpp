@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/RadioButtonGroupRegistry.h>
@@ -33,6 +34,8 @@ void RadioButtonGroupRegistry::add_button(Utf16FlyString const& group_name, HTML
         ++group.required_count;
     if (button.checked())
         set_checked_button(group, button);
+
+    update_group_suffering_from_being_missing(group);
 }
 
 void RadioButtonGroupRegistry::remove_button(Utf16FlyString const& group_name, HTMLInputElement& button)
@@ -49,8 +52,11 @@ void RadioButtonGroupRegistry::remove_button(Utf16FlyString const& group_name, H
     if (group.checked_button.ptr() == &button)
         group.checked_button = nullptr;
 
-    if (group.members.is_empty())
+    if (group.members.is_empty()) {
         m_groups.remove(it);
+        return;
+    }
+    update_group_suffering_from_being_missing(group);
 }
 
 void RadioButtonGroupRegistry::checked_state_changed(Utf16FlyString const& group_name, HTMLInputElement& button)
@@ -64,6 +70,8 @@ void RadioButtonGroupRegistry::checked_state_changed(Utf16FlyString const& group
         set_checked_button(group, button);
     else if (group.checked_button.ptr() == &button)
         group.checked_button = nullptr;
+
+    update_group_suffering_from_being_missing(group);
 }
 
 void RadioButtonGroupRegistry::required_state_changed(Utf16FlyString const& group_name, HTMLInputElement& button)
@@ -79,6 +87,8 @@ void RadioButtonGroupRegistry::required_state_changed(Utf16FlyString const& grou
         VERIFY(group.required_count > 0);
         --group.required_count;
     }
+
+    update_group_suffering_from_being_missing(group);
 }
 
 GC::Ptr<HTMLInputElement> RadioButtonGroupRegistry::checked_button(Utf16FlyString const& group_name) const
@@ -92,8 +102,7 @@ bool RadioButtonGroupRegistry::group_is_suffering_from_being_missing(Utf16FlyStr
 {
     auto it = m_groups.find(group_name);
     VERIFY(it != m_groups.end());
-    auto const& group = it->value;
-    return group.required_count > 0 && !group.checked_button;
+    return it->value.suffering_from_being_missing;
 }
 
 void RadioButtonGroupRegistry::set_checked_button(RadioButtonGroup& group, HTMLInputElement& button)
@@ -105,6 +114,19 @@ void RadioButtonGroupRegistry::set_checked_button(RadioButtonGroup& group, HTMLI
 
     if (old_checked_button)
         old_checked_button->set_checked(false);
+}
+
+void RadioButtonGroupRegistry::update_group_suffering_from_being_missing(RadioButtonGroup& group)
+{
+    auto suffering_from_being_missing = group.required_count > 0 && !group.checked_button;
+    if (suffering_from_being_missing == group.suffering_from_being_missing)
+        return;
+    group.suffering_from_being_missing = suffering_from_being_missing;
+
+    // Every member answers value-missing validity queries with the state of its group, so a change to the group's
+    // state changes which validity pseudo-classes match on all of them.
+    for (auto const& member : group.members)
+        CSS::Invalidation::invalidate_style_after_validity_change(member);
 }
 
 }

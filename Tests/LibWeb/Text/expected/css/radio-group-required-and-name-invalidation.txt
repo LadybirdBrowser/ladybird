@@ -1,0 +1,5 @@
+before: a invalid=false b invalid=false
+required a: a invalid=true b invalid=true c invalid=false
+optional a: a valid=true b valid=true
+renamed c into group g: c invalid=true
+renamed required a out of group g: a invalid=true b valid=true c valid=true
