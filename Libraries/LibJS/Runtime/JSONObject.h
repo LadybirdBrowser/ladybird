@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
@@ -48,21 +47,13 @@ public:
 private:
     explicit JSONObject(Realm&);
 
-    struct StringifyState {
-        GC::Ptr<FunctionObject> replacer_function;
-        HashTable<GC::Ptr<Object>> seen_objects;
-        size_t indent_depth { 0 };
-        Utf16String gap;
-        Optional<Vector<Utf16String>> property_list;
-        Utf16StringBuilder builder;
-    };
+    struct StringifyState;
 
     // Stringify helpers
     static ThrowCompletionOr<bool> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, GC::Ref<Object> holder);
+    static ThrowCompletionOr<bool> serialize_json_value(VM&, StringifyState&, PropertyKey const& key, GC::Ref<Object> holder, Value value);
     static ThrowCompletionOr<void> serialize_json_object(VM&, StringifyState&, Object&);
     static ThrowCompletionOr<void> serialize_json_array(VM&, StringifyState&, Object&);
-    static void quote_json_string(Utf16StringBuilder&, Utf16View const&);
-
     // Parse helpers
     static ThrowCompletionOr<Value> internalize_json_property(VM&, GC::Ref<Object> holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record);
 

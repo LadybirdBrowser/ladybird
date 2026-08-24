@@ -7,11 +7,16 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
+#include <AK/OwnPtr.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibGC/RootVector.h>
+#include <LibGC/WeakHashSet.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigIntObject.h>
@@ -22,6 +27,7 @@
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/NumberObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/ProxyObject.h>
 #include <LibJS/Runtime/RawJSONObject.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -31,6 +37,109 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(JSONObject);
+
+class StringifyObjectStack {
+public:
+    bool contains(Object& object) const
+    {
+        if (m_lookup.is_empty())
+            return m_stack.contains_slow(GC::Ref { object });
+        return m_lookup.contains(object);
+    }
+
+    void push(Object& object)
+    {
+        if (m_stack.size() == linear_lookup_limit) {
+            for (auto seen_object : m_stack)
+                m_lookup.set(*seen_object);
+        }
+        if (!m_lookup.is_empty())
+            m_lookup.set(object);
+        m_stack.append(GC::Ref { object });
+    }
+
+    void pop()
+    {
+        auto object = m_stack.take_last();
+        if (m_lookup.is_empty())
+            return;
+        m_lookup.remove(*object);
+        if (m_stack.size() <= linear_lookup_limit)
+            m_lookup.clear();
+    }
+
+private:
+    static constexpr size_t linear_lookup_limit = 32;
+
+    GC::RootVector<GC::Ref<Object>> m_stack;
+    GC::WeakHashSet<Object> m_lookup;
+};
+
+struct StringifyCachedProperty {
+    PropertyKey property;
+    u32 offset;
+    Utf16String serialized_key;
+};
+
+class StringifyShapeCache {
+public:
+    struct Entry {
+        GC::Ptr<Shape> shape;
+        GC::ConservativeVector<StringifyCachedProperty> properties;
+    };
+
+    Entry* get(Shape& shape)
+    {
+        if (!m_lookup.is_empty()) {
+            auto it = m_lookup.find(&shape);
+            return it == m_lookup.end() ? nullptr : it->value;
+        }
+        for (auto const& entry : m_entries) {
+            if (entry->shape.ptr() == &shape)
+                return entry.ptr();
+        }
+        return nullptr;
+    }
+
+    Entry* add(GC::Ref<Shape> shape)
+    {
+        if (m_entries.size() >= maximum_entries)
+            return nullptr;
+
+        auto entry = make<Entry>();
+        entry->shape = shape.ptr();
+        auto* entry_pointer = entry.ptr();
+
+        if (m_entries.size() == linear_lookup_limit) {
+            for (auto const& existing_entry : m_entries)
+                m_lookup.set(existing_entry->shape, existing_entry.ptr());
+        }
+        if (!m_lookup.is_empty())
+            m_lookup.set(shape.ptr(), entry_pointer);
+
+        m_shape_roots.append(shape);
+        m_entries.append(move(entry));
+        return entry_pointer;
+    }
+
+private:
+    static constexpr size_t linear_lookup_limit = 4;
+    static constexpr size_t maximum_entries = 64;
+
+    GC::RootVector<GC::Ref<Shape>> m_shape_roots;
+    Vector<NonnullOwnPtr<Entry>> m_entries;
+    HashMap<GC::Ptr<Shape>, Entry*> m_lookup;
+};
+
+struct JSONObject::StringifyState {
+    GC::Ptr<FunctionObject> replacer_function;
+    StringifyObjectStack object_stack;
+    StringifyShapeCache shape_cache;
+    size_t indent_depth { 0 };
+    Utf16String gap;
+    Optional<Vector<Utf16String>> property_list;
+    Utf16StringBuilder builder;
+};
 
 JSONObject::JSONObject(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
@@ -144,15 +253,76 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::stringify)
 // Returns true if a value was serialized, false if the value was undefined (should be omitted).
 ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, GC::Ref<Object> holder)
 {
-    auto& builder = state.builder;
-
     // 1. Let value be ? Get(holder, key).
     auto value = TRY(holder->get(key));
+
+    return serialize_json_value(vm, state, key, holder, value);
+}
+
+static bool can_use_direct_property_access(Object const& object)
+{
+    // OPTIMIZATION: Ordinary non-dictionary objects can snapshot their shape and read data
+    //               properties directly by offset while that shape remains unchanged.
+    return object.eligible_for_own_property_enumeration_fast_path()
+        && !object.has_intrinsic_accessors()
+        && !object.has_parameter_map()
+        && !object.is_platform_object()
+        && !object.shape().is_dictionary()
+        && object.indexed_real_size() == 0;
+}
+
+static void append_json_number(Utf16StringBuilder& builder, Value value)
+{
+    if (!value.is_int32()) {
+        builder.append(number_to_utf16_string(value.as_double()));
+        return;
+    }
+
+    auto number = value.as_i32();
+    AK::Array<char, 11> buffer;
+    auto* end = buffer.data() + buffer.size();
+    auto* cursor = end;
+    auto magnitude = number < 0 ? static_cast<u32>(-static_cast<i64>(number)) : static_cast<u32>(number);
+    do {
+        *--cursor = static_cast<char>('0' + magnitude % 10);
+        magnitude /= 10;
+    } while (magnitude != 0);
+    if (number < 0)
+        *--cursor = '-';
+    builder.append_ascii_without_validation({ cursor, static_cast<size_t>(end - cursor) });
+}
+
+ThrowCompletionOr<bool> JSONObject::serialize_json_value(VM& vm, StringifyState& state, PropertyKey const& key, GC::Ref<Object> holder, Value value)
+{
+    auto& builder = state.builder;
+
+    // OPTIMIZATION: These primitive values do not perform a toJSON lookup. Without a replacer,
+    //               they can be emitted before entering the observable part of the algorithm.
+    if (!state.replacer_function) {
+        if (value.is_null()) {
+            builder.append_ascii_without_validation("null"sv.bytes());
+            return true;
+        }
+        if (value.is_boolean()) {
+            auto boolean = value.as_bool() ? "true"sv : "false"sv;
+            builder.append_ascii_without_validation(boolean.bytes());
+            return true;
+        }
+        if (value.is_string()) {
+            builder.append_quoted_escaped_for_json(value.as_string().utf16_string_view());
+            return true;
+        }
+        if (value.is_finite_number()) {
+            append_json_number(builder, value);
+            return true;
+        }
+    }
 
     // 2. If Type(value) is Object or BigInt, then
     if (value.is_object() || value.is_bigint()) {
         // a. Let toJSON be ? GetV(value, "toJSON").
-        auto to_json = TRY(value.get(vm, vm.names.toJSON));
+        static auto& to_json_cache = *new Bytecode::StaticPropertyLookupCache;
+        auto to_json = TRY(value.get(vm, vm.names.toJSON, to_json_cache));
 
         // b. If IsCallable(toJSON) is true, then
         if (to_json.is_function()) {
@@ -217,7 +387,7 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
 
     // 8. If Type(value) is String, return QuoteJSONString(value).
     if (value.is_string()) {
-        quote_json_string(builder, value.as_string().utf16_string_view());
+        builder.append_quoted_escaped_for_json(value.as_string().utf16_string_view());
         return true;
     }
 
@@ -225,7 +395,7 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
     if (value.is_number()) {
         // a. If value is finite, return ! ToString(value).
         if (value.is_finite_number()) {
-            builder.append(number_to_utf16_string(value.as_double()));
+            append_json_number(builder, value);
             return true;
         }
 
@@ -240,17 +410,24 @@ ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifySta
 
     // 11. If Type(value) is Object and IsCallable(value) is false, then
     if (value.is_object() && !value.is_function()) {
+        auto& value_object = value.as_object();
+
+        if (is<Array>(value_object)) {
+            TRY(serialize_json_array(vm, state, value_object));
+            return true;
+        }
+
         // a. Let isArray be ? IsArray(value).
-        auto is_array = TRY(value.is_array(vm));
+        auto is_array = is<ProxyObject>(value_object) && TRY(value.is_array(vm));
 
         // b. If isArray is true, return ? SerializeJSONArray(state, value).
         if (is_array) {
-            TRY(serialize_json_array(vm, state, value.as_object()));
+            TRY(serialize_json_array(vm, state, value_object));
             return true;
         }
 
         // c. Return ? SerializeJSONObject(state, value).
-        TRY(serialize_json_object(vm, state, value.as_object()));
+        TRY(serialize_json_object(vm, state, value_object));
         return true;
     }
 
@@ -270,10 +447,10 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
     if (vm.did_reach_stack_space_limit())
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
 
-    if (state.seen_objects.contains(&object))
+    if (state.object_stack.contains(object))
         return vm.throw_completion<TypeError>(ErrorType::JsonCircular);
 
-    state.seen_objects.set(&object);
+    state.object_stack.push(object);
     ++state.indent_depth;
 
     auto& builder = state.builder;
@@ -301,7 +478,7 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
         }
 
         // Write key and colon
-        quote_json_string(builder, key.to_utf16_string());
+        builder.append_quoted_escaped_for_json(key.to_utf16_string());
         builder.append_ascii(':');
         if (!state.gap.is_empty())
             builder.append_ascii(' ');
@@ -318,14 +495,69 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
         return {};
     };
 
-    if (state.property_list.has_value()) {
-        auto property_list = state.property_list.value();
+    auto process_own_properties = [&]() -> ThrowCompletionOr<void> {
+        GC::ConservativeVector<PropertyKey> property_list;
+        property_list.ensure_capacity(object.own_properties_count());
+        TRY(object.for_each_own_property_with_enumerability([&](PropertyKey const& property_key, bool enumerable) -> ThrowCompletionOr<void> {
+            if (enumerable)
+                property_list.append(property_key);
+            return {};
+        }));
         for (auto& property : property_list)
             TRY(process_property(property));
-    } else {
-        auto property_list = TRY(object.enumerable_own_property_names(PropertyKind::Key));
+        return {};
+    };
+
+    if (state.property_list.has_value()) {
+        auto const& property_list = state.property_list.value();
         for (auto& property : property_list)
-            TRY(process_property(property.as_string().utf16_string()));
+            TRY(process_property(property));
+    } else if (!state.replacer_function && state.gap.is_empty() && can_use_direct_property_access(object)) {
+        GC::Ref initial_shape = object.shape();
+        auto* shape_cache = state.shape_cache.get(initial_shape);
+        if (!shape_cache) {
+            shape_cache = state.shape_cache.add(initial_shape);
+            if (shape_cache) {
+                shape_cache->properties.ensure_capacity(initial_shape->property_count());
+                initial_shape->for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+                    if (property_key.is_symbol() || !metadata.attributes.is_enumerable())
+                        return;
+                    VERIFY(property_key.is_string());
+
+                    Utf16StringBuilder key_builder;
+                    key_builder.append_quoted_escaped_for_json(property_key.as_string().view());
+                    key_builder.append_ascii(':');
+                    auto serialized_key = key_builder.to_string();
+
+                    shape_cache->properties.unchecked_append({ property_key, metadata.offset, move(serialized_key) });
+                });
+            }
+        }
+
+        if (!shape_cache) {
+            TRY(process_own_properties());
+        } else {
+            for (auto const& property : shape_cache->properties) {
+                if (&object.shape() == initial_shape.ptr() && !object.get_direct(property.offset).is_accessor()) {
+                    auto value = object.get_direct(property.offset);
+
+                    size_t mark = builder.length_in_code_units();
+                    if (!first)
+                        builder.append_ascii(',');
+                    builder.append(property.serialized_key.utf16_view());
+
+                    bool wrote_value = TRY(serialize_json_value(vm, state, property.property, object, value));
+                    if (wrote_value)
+                        first = false;
+                    else
+                        builder.trim(builder.length_in_code_units() - mark);
+                } else {
+                    TRY(process_property(property.property));
+                }
+            }
+        }
+    } else {
+        TRY(process_own_properties());
     }
 
     // Close the object
@@ -336,7 +568,7 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
     }
     builder.append_ascii('}');
 
-    state.seen_objects.remove(&object);
+    state.object_stack.pop();
     return {};
 }
 
@@ -346,14 +578,20 @@ ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState&
     if (vm.did_reach_stack_space_limit())
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
 
-    if (state.seen_objects.contains(&object))
+    if (state.object_stack.contains(object))
         return vm.throw_completion<TypeError>(ErrorType::JsonCircular);
 
-    state.seen_objects.set(&object);
+    state.object_stack.push(object);
     ++state.indent_depth;
 
     auto& builder = state.builder;
-    auto length = TRY(length_of_array_like(vm, object));
+    // OPTIMIZATION: Packed arrays have no holes or indexed accessors, so their length and
+    //               elements can be read directly while they remain packed.
+    auto* simple_array = as_if<Array>(object);
+    if (simple_array && !simple_array->is_simple_packed_array())
+        simple_array = nullptr;
+
+    auto length = simple_array ? simple_array->indexed_array_like_size() : TRY(length_of_array_like(vm, object));
 
     builder.append_ascii('[');
 
@@ -371,7 +609,13 @@ ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState&
         }
 
         // Serialize value (undefined becomes null for arrays)
-        bool wrote_value = TRY(serialize_json_property(vm, state, i, object));
+        bool wrote_value;
+        if (simple_array && simple_array->is_simple_packed_array() && i < simple_array->indexed_array_like_size()) {
+            auto value = simple_array->indexed_get(i)->value;
+            wrote_value = TRY(serialize_json_value(vm, state, i, object, value));
+        } else {
+            wrote_value = TRY(serialize_json_property(vm, state, i, object));
+        }
         if (!wrote_value)
             builder.append_ascii("null"sv);
     }
@@ -384,59 +628,8 @@ ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState&
     }
     builder.append_ascii(']');
 
-    state.seen_objects.remove(&object);
+    state.object_stack.pop();
     return {};
-}
-
-// 25.5.2.2 QuoteJSONString ( value ), https://tc39.es/ecma262/#sec-quotejsonstring
-void JSONObject::quote_json_string(Utf16StringBuilder& builder, Utf16View const& string)
-{
-    // 1. Let product be the String value consisting solely of the code unit 0x0022 (QUOTATION MARK).
-    builder.append_ascii('"');
-
-    // 2. For each code point C of StringToCodePoints(value), do
-    for (auto code_point : string) {
-        // a. If C is listed in the "Code Point" column of Table 70, then
-        // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the "Escape Sequence" column of the corresponding row.
-        switch (code_point) {
-        case '\b':
-            builder.append_ascii("\\b"sv);
-            break;
-        case '\t':
-            builder.append_ascii("\\t"sv);
-            break;
-        case '\n':
-            builder.append_ascii("\\n"sv);
-            break;
-        case '\f':
-            builder.append_ascii("\\f"sv);
-            break;
-        case '\r':
-            builder.append_ascii("\\r"sv);
-            break;
-        case '"':
-            builder.append_ascii("\\\""sv);
-            break;
-        case '\\':
-            builder.append_ascii("\\\\"sv);
-            break;
-        default:
-            // b. Else if C has a numeric value less than 0x0020 (SPACE), or if C has the same numeric value as a leading surrogate or trailing surrogate, then
-            if (code_point < 0x20 || is_unicode_surrogate(code_point)) {
-                // i. Let unit be the code unit whose numeric value is that of C.
-                // ii. Set product to the string-concatenation of product and UnicodeEscape(unit).
-                builder.appendff("\\u{:04x}", code_point);
-            }
-            // c. Else,
-            else {
-                // i. Set product to the string-concatenation of product and UTF16EncodeCodePoint(C).
-                builder.append_code_point(code_point);
-            }
-        }
-    }
-
-    // 3. Set product to the string-concatenation of product and the code unit 0x0022 (QUOTATION MARK).
-    builder.append_ascii('"');
 }
 
 // 25.5.1 JSON.parse ( text [ , reviver ] ), https://tc39.es/ecma262/#sec-json.parse
