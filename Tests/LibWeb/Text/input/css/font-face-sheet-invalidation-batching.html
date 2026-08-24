@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<div id="document-target" style="display: inline-block; font: 20px BatchFamilyA, serif">XXXXX</div>
+<div id="shadow-host"></div>
+<script src="../include.js"></script>
+<script>
+    function countFaces(familyPrefix) {
+        return [...document.fonts].filter(face => face.family.startsWith(familyPrefix)).length;
+    }
+
+    function styleEnvironmentVersion() {
+        return internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+    }
+
+    function printVersionDelta(label, callback) {
+        internals.updateStyle();
+        const before = styleEnvironmentVersion();
+        callback();
+        const after = styleEnvironmentVersion();
+        println(`${label}: ${after - before}`);
+    }
+
+    function makeStyle(source) {
+        const style = document.createElement("style");
+        style.textContent = source;
+        return style;
+    }
+
+    const multiFaceSheet = `
+        @font-face { font-family: BatchFamilyA; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+        @font-face { font-family: BatchFamilyA; font-weight: 700; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+        @font-face { font-family: BatchFamilyB; src: url("batch-b.woff"); }
+        @supports (display: block) {
+            @font-face { font-family: BatchFamilyC; src: url("batch-c.woff"); }
+        }
+        @media not all {
+            @font-face { font-family: BatchInactive; src: url("batch-inactive.woff"); }
+        }
+    `;
+
+    promiseTest(async () => {
+        getComputedStyle(document.getElementById("document-target")).fontFamily;
+
+        const style = makeStyle(multiFaceSheet);
+        printVersionDelta("append sheet with multiple CSS-connected faces", () => {
+            document.head.appendChild(style);
+        });
+        println(`Batch face count after append: ${countFaces("Batch")}`);
+        await document.fonts.load("20px BatchFamilyA");
+        document.body.offsetWidth;
+        println(`Document target width after BatchFamilyA loads: ${Math.round(document.getElementById("document-target").getBoundingClientRect().width)}`);
+
+        printVersionDelta("remove sheet with multiple CSS-connected faces", () => {
+            style.remove();
+        });
+        println(`Batch face count after removal: ${countFaces("Batch")}`);
+
+        const repeatedSheetA = makeStyle(`
+            @font-face { font-family: RepeatedBatchA; src: url("repeated-a.woff"); }
+            @font-face { font-family: RepeatedBatchB; src: url("repeated-b.woff"); }
+        `);
+        const repeatedSheetB = makeStyle(repeatedSheetA.textContent);
+
+        printVersionDelta("append first repeated sheet", () => {
+            document.head.appendChild(repeatedSheetA);
+        });
+        println(`RepeatedBatch face count after first append: ${countFaces("RepeatedBatch")}`);
+
+        printVersionDelta("append second repeated sheet", () => {
+            document.head.appendChild(repeatedSheetB);
+        });
+        println(`RepeatedBatch face count after second append: ${countFaces("RepeatedBatch")}`);
+
+        printVersionDelta("remove first repeated sheet", () => {
+            repeatedSheetA.remove();
+        });
+        println(`RepeatedBatch face count after first removal: ${countFaces("RepeatedBatch")}`);
+
+        printVersionDelta("remove second repeated sheet", () => {
+            repeatedSheetB.remove();
+        });
+        println(`RepeatedBatch face count after second removal: ${countFaces("RepeatedBatch")}`);
+
+        const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<span id="shadow-target" style="display: inline-block; font: 20px ShadowBatchA, serif">XXXXX</span>`;
+        getComputedStyle(shadowRoot.getElementById("shadow-target")).fontFamily;
+
+        const shadowStyle = makeStyle(`
+            @font-face { font-family: ShadowBatchA; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+            @font-face { font-family: ShadowBatchB; src: url("shadow-b.woff"); }
+        `);
+        printVersionDelta("append shadow sheet with multiple CSS-connected faces", () => {
+            shadowRoot.appendChild(shadowStyle);
+        });
+        println(`ShadowBatch face count after append: ${countFaces("ShadowBatch")}`);
+        await document.fonts.load("20px ShadowBatchA");
+        document.body.offsetWidth;
+        println(`Shadow target width after ShadowBatchA loads: ${Math.round(shadowRoot.getElementById("shadow-target").getBoundingClientRect().width)}`);
+
+        printVersionDelta("remove shadow sheet with multiple CSS-connected faces", () => {
+            shadowStyle.remove();
+        });
+        println(`ShadowBatch face count after removal: ${countFaces("ShadowBatch")}`);
+
+        const scriptFace = new FontFace("ScriptBatch", 'url("../../../Assets/HashSans.woff")');
+        printVersionDelta("add unloaded script-created face", () => {
+            document.fonts.add(scriptFace);
+        });
+
+        internals.updateStyle();
+        const beforeLoad = styleEnvironmentVersion();
+        await scriptFace.load();
+        const afterLoad = styleEnvironmentVersion();
+        println(`load script-created face: ${afterLoad - beforeLoad}`);
+
+        printVersionDelta("delete loaded script-created face", () => {
+            document.fonts.delete(scriptFace);
+        });
+    });
+</script>

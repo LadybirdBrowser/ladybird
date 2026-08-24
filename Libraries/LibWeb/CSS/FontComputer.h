@@ -150,6 +150,10 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
+    void begin_font_face_change_batch();
+    void end_font_face_change_batch();
+    void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
+
     struct MatchingFontCandidate;
     RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const;
     RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const;
@@ -169,6 +173,9 @@ private:
     // including cascades evicted after a web font finishes loading.
     mutable Vector<NonnullRefPtr<Gfx::FontCascadeList const>> m_style_record_font_list_pins;
     mutable HashMap<Utf16FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;
+
+    u32 m_font_face_change_batch_depth { 0 };
+    Vector<Utf16FlyString> m_batched_font_face_change_families;
 };
 
 }
