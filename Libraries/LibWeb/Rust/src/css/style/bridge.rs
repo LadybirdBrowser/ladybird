@@ -702,20 +702,20 @@ impl StyleEngine {
         self.ffi_retained_cascade_assignments_memory.shrink_to(0);
     }
 
-    fn install_ffi_flat_tree_descendants(&mut self, descendants: Vec<u32>) -> FfiStyleNodeSlice {
-        let bytes = (descendants.capacity() * size_of::<u32>()) as u64;
-        self.ffi_flat_tree_descendants = descendants;
-        self.ffi_flat_tree_descendants_memory
+    fn install_ffi_style_node_query(&mut self, nodes: Vec<u32>) -> FfiStyleNodeSlice {
+        let bytes = (nodes.capacity() * size_of::<u32>()) as u64;
+        self.ffi_style_node_query = nodes;
+        self.ffi_style_node_query_memory
             .resize_required_to(&mut self.memory, bytes);
         FfiStyleNodeSlice {
-            nodes: self.ffi_flat_tree_descendants.as_ptr(),
-            count: self.ffi_flat_tree_descendants.len(),
+            nodes: self.ffi_style_node_query.as_ptr(),
+            count: self.ffi_style_node_query.len(),
         }
     }
 
-    fn clear_ffi_flat_tree_descendants(&mut self) {
-        self.ffi_flat_tree_descendants = Vec::new();
-        self.ffi_flat_tree_descendants_memory.shrink_to(0);
+    fn clear_ffi_style_node_query(&mut self) {
+        self.ffi_style_node_query = Vec::new();
+        self.ffi_style_node_query_memory.shrink_to(0);
     }
 
     fn install_ffi_style_transaction_output(&mut self, output: FfiStyleTransactionOutput) {
@@ -994,7 +994,7 @@ pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, 
 pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void, root: u32) -> FfiStyleNodeSlice {
     abort_on_panic(|| {
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_flat_tree_descendants();
+        engine.clear_ffi_style_node_query();
         let Some(root) = StyleNodeID::from_raw(root) else {
             return FfiStyleNodeSlice::default();
         };
@@ -1006,7 +1006,7 @@ pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void,
             payload.write_u32(root.raw());
             payload.write_u32_slice(&descendants);
         });
-        engine.install_ffi_flat_tree_descendants(descendants)
+        engine.install_ffi_style_node_query(descendants)
     })
 }
 
@@ -1018,9 +1018,37 @@ pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void,
 pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: *mut c_void) {
     abort_on_panic(|| {
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        engine.clear_ffi_flat_tree_descendants();
+        engine.clear_ffi_style_node_query();
     });
 }
+
+/// Returns the owner nodes whose element or pseudo style depends on viewport metrics.
+///
+/// # Safety
+/// `engine` must be live. The returned slice remains valid until the next mutable engine call or an
+/// explicit discard.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(engine: *mut c_void) -> FfiStyleNodeSlice {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.clear_ffi_style_node_query();
+        let nodes = engine.computed_group_sets.viewport_dependent_nodes();
+        engine.install_ffi_style_node_query(nodes)
+    })
+}
+
+/// Discards the borrowed viewport-dependent node slice.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: *mut c_void) {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.clear_ffi_style_node_query();
+    });
+}
+
 /// Applies one flat style input transaction.
 ///
 /// # Safety

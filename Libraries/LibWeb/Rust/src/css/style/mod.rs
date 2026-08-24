@@ -845,9 +845,9 @@ pub struct StyleEngine {
     /// Borrowed FFI result storage for the most recently published style transaction.
     ffi_style_transaction_output: bridge::FfiStyleTransactionOutput,
     ffi_style_transaction_output_memory: MemoryLease,
-    /// Borrowed FFI result storage for a flat-tree descendant query.
-    ffi_flat_tree_descendants: Vec<u32>,
-    ffi_flat_tree_descendants_memory: MemoryLease,
+    /// Borrowed FFI result storage for the most recent style-node query.
+    ffi_style_node_query: Vec<u32>,
+    ffi_style_node_query_memory: MemoryLease,
     /// Borrowed FFI result storage for retained cascade source-slot assignments.
     ffi_retained_cascade_assignments: Vec<FfiSourceSlotAssignment>,
     ffi_retained_cascade_assignments_memory: MemoryLease,
