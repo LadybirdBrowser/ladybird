@@ -121,6 +121,50 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             Previous,
             Next,
         };
+
+        Node const* last_layout_child = nullptr;
+        for (auto layout_child = layout_node->first_child(); layout_child; layout_child = layout_child->next_sibling())
+            last_layout_child = layout_child.ptr();
+        auto const* trailing_inline_wrapper = last_layout_child && last_layout_child->is_anonymous() && last_layout_child->children_are_inline()
+                && !last_layout_child->is_generated_for_pseudo_element()
+            ? last_layout_child
+            : nullptr;
+        bool will_join_trailing_inline_wrapper = false;
+
+        auto can_place_next_to_layout_node = [&](Node const* sibling_layout_node, SiblingDirection direction, Optional<CSS::PseudoElement> pseudo_element) {
+            if (!sibling_layout_node)
+                return true;
+            if (auto const* node_with_style = as_if<NodeWithStyle>(*sibling_layout_node); node_with_style && node_with_style->is_out_of_flow()) {
+                if (pseudo_element.has_value() || direction == SiblingDirection::Next)
+                    return false;
+            }
+
+            while (sibling_layout_node->parent() && sibling_layout_node->parent() != layout_node)
+                sibling_layout_node = sibling_layout_node->parent();
+            if (sibling_layout_node->parent() != layout_node)
+                return false;
+            if (pseudo_element.has_value()) {
+                // ::after cannot anchor a newly appended anonymous wrapper. In normal flow,
+                // inline ::before content also has to remain in its existing inline run, while
+                // blockified flex/grid pseudo-elements remain separate items.
+                if (direction == SiblingDirection::Next)
+                    return layout_node->children_are_inline();
+
+                auto pseudo_style = element->computed_style(*pseudo_element);
+                auto parent_display = layout_node->display();
+                auto pseudo_belongs_to_inline_run = pseudo_style
+                    && (pseudo_style->display().is_inline_outside() || pseudo_style->display().is_contents())
+                    && !parent_display.is_flex_inside() && !parent_display.is_grid_inside();
+                return layout_node->children_are_inline() || !pseudo_belongs_to_inline_run;
+            }
+            if (sibling_layout_node->is_anonymous()) {
+                if (sibling_layout_node != trailing_inline_wrapper)
+                    return false;
+                will_join_trailing_inline_wrapper = true;
+            }
+            return true;
+        };
+
         auto can_place_next_to_sibling = [&](DOM::Node const* sibling, SiblingDirection direction) {
             for (; sibling; sibling = direction == SiblingDirection::Next ? sibling->next_sibling() : sibling->previous_sibling()) {
                 if (auto const* sibling_element = as_if<DOM::Element>(*sibling)) {
@@ -132,30 +176,32 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
                 auto const* sibling_layout_node = sibling->unsafe_layout_node();
                 if (!sibling_layout_node)
                     continue;
-                while (sibling_layout_node->parent() && sibling_layout_node->parent() != layout_node)
-                    sibling_layout_node = sibling_layout_node->parent();
-                if (sibling_layout_node->parent() != layout_node)
-                    return false;
-                if (!sibling_layout_node->is_anonymous())
-                    return true;
-
-                // Incremental inline insertion can only join the trailing anonymous wrapper.
-                // A full rebuild joins whitespace to an adjacent earlier inline run instead.
-                return !sibling_layout_node->next_sibling()
-                    && sibling_layout_node->children_are_inline();
+                return can_place_next_to_layout_node(sibling_layout_node, direction, {});
             }
-            return true;
+
+            auto pseudo_element = direction == SiblingDirection::Previous
+                ? CSS::PseudoElement::Before
+                : CSS::PseudoElement::After;
+            return can_place_next_to_layout_node(element->pseudo_element_unsafe_layout_node(pseudo_element), direction, pseudo_element);
         };
 
-        return can_place_next_to_sibling(text.previous_sibling(), SiblingDirection::Previous)
-            && can_place_next_to_sibling(text.next_sibling(), SiblingDirection::Next);
+        if (!can_place_next_to_sibling(text.previous_sibling(), SiblingDirection::Previous)
+            || !can_place_next_to_sibling(text.next_sibling(), SiblingDirection::Next)) {
+            return false;
+        }
+
+        // Incremental inline insertion always reuses a trailing anonymous inline wrapper. If the
+        // whitespace belongs to a different run, only a full rebuild can place it correctly.
+        return !trailing_inline_wrapper || will_join_trailing_inline_wrapper;
     };
 
     auto const* first_letter_owner = node.first_letter_owner_for_layout_subtree_from(node);
 
+    bool has_pending_collapsing_whitespace_since_layout_node = false;
     bool pending_children_can_preserve_parent = true;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
         if (child->unsafe_layout_node()) {
+            has_pending_collapsing_whitespace_since_layout_node = false;
             if (child->needs_layout_tree_update() || child->child_needs_layout_tree_update()) {
                 pending_children_can_preserve_parent = false;
             }
@@ -167,6 +213,11 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             && layout_node->white_space_collapse() == CSS::WhiteSpaceCollapse::Collapse
             && !first_letter_owner
             && collapsing_whitespace_can_be_inserted(*text)) {
+            if (has_pending_collapsing_whitespace_since_layout_node) {
+                pending_children_can_preserve_parent = false;
+                break;
+            }
+            has_pending_collapsing_whitespace_since_layout_node = true;
             continue;
         }
         auto const* child_element = as_if<DOM::Element>(*child);

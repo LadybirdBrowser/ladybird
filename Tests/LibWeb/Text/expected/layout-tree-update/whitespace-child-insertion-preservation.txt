@@ -37,6 +37,9 @@ PASS: insert around block children | insert whitespace between blocks | incremen
 PASS: insert around block children | append whitespace | preserve
 PASS: insert around block children | append whitespace | layout tree builds=1
 PASS: insert around block children | append whitespace | incremental tree matches full rebuild
+PASS: insert around block children | rebuild before blocks with trailing run | rebuild
+PASS: insert around block children | rebuild before blocks with trailing run | layout tree builds=1
+PASS: insert around block children | rebuild before blocks with trailing run | incremental tree matches full rebuild
 PASS: insert around flex items | prepend whitespace | preserve
 PASS: insert around flex items | prepend whitespace | layout tree builds=1
 PASS: insert around flex items | prepend whitespace | incremental tree matches full rebuild
@@ -46,6 +49,9 @@ PASS: insert around flex items | insert whitespace between items | incremental t
 PASS: insert around flex items | append whitespace | preserve
 PASS: insert around flex items | append whitespace | layout tree builds=1
 PASS: insert around flex items | append whitespace | incremental tree matches full rebuild
+PASS: insert around flex items | rebuild before items with trailing text item | rebuild
+PASS: insert around flex items | rebuild before items with trailing text item | layout tree builds=1
+PASS: insert around flex items | rebuild before items with trailing text item | incremental tree matches full rebuild
 PASS: insert around grid items | prepend whitespace | preserve
 PASS: insert around grid items | prepend whitespace | layout tree builds=1
 PASS: insert around grid items | prepend whitespace | incremental tree matches full rebuild
@@ -55,12 +61,237 @@ PASS: insert around grid items | insert whitespace between items | incremental t
 PASS: insert around grid items | append whitespace | preserve
 PASS: insert around grid items | append whitespace | layout tree builds=1
 PASS: insert around grid items | append whitespace | incremental tree matches full rebuild
+PASS: insert around grid items | rebuild between items with trailing text item | rebuild
+PASS: insert around grid items | rebuild between items with trailing text item | layout tree builds=1
+PASS: insert around grid items | rebuild between items with trailing text item | incremental tree matches full rebuild
 PASS: insert whitespace with hidden siblings | insert whitespace and display-none element | preserve
 PASS: insert whitespace with hidden siblings | insert whitespace and display-none element | layout tree builds=1
 PASS: insert whitespace with hidden siblings | insert whitespace and display-none element | incremental tree matches full rebuild
 PASS: insert multiple whitespace nodes | insert at supported positions | preserve
 PASS: insert multiple whitespace nodes | insert at supported positions | layout tree builds=1
 PASS: insert multiple whitespace nodes | insert at supported positions | incremental tree matches full rebuild
+PASS: insert adjacent whitespace nodes between blocks | rebuild for adjacent spaces | rebuild
+PASS: insert adjacent whitespace nodes between blocks | rebuild for adjacent spaces | layout tree builds=1
+PASS: insert adjacent whitespace nodes between blocks | rebuild for adjacent spaces | incremental tree matches full rebuild
+PASS: insert adjacent whitespace nodes between blocks | rebuild when extending the anonymous run | rebuild
+PASS: insert adjacent whitespace nodes between blocks | rebuild when extending the anonymous run | layout tree builds=1
+PASS: insert adjacent whitespace nodes between blocks | rebuild when extending the anonymous run | incremental tree matches full rebuild
+PASS: insert adjacent whitespace nodes between flex items | rebuild for adjacent spaces | rebuild
+PASS: insert adjacent whitespace nodes between flex items | rebuild for adjacent spaces | layout tree builds=1
+PASS: insert adjacent whitespace nodes between flex items | rebuild for adjacent spaces | incremental tree matches full rebuild
+PASS: insert adjacent whitespace nodes between flex items | rebuild when extending the anonymous item | rebuild
+PASS: insert adjacent whitespace nodes between flex items | rebuild when extending the anonymous item | layout tree builds=1
+PASS: insert adjacent whitespace nodes between flex items | rebuild when extending the anonymous item | incremental tree matches full rebuild
+PASS: insert adjacent whitespace nodes between grid items | rebuild for adjacent spaces | rebuild
+PASS: insert adjacent whitespace nodes between grid items | rebuild for adjacent spaces | layout tree builds=1
+PASS: insert adjacent whitespace nodes between grid items | rebuild for adjacent spaces | incremental tree matches full rebuild
+PASS: insert adjacent whitespace nodes between grid items | rebuild when extending the anonymous item | rebuild
+PASS: insert adjacent whitespace nodes between grid items | rebuild when extending the anonymous item | layout tree builds=1
+PASS: insert adjacent whitespace nodes between grid items | rebuild when extending the anonymous item | incremental tree matches full rebuild
+PASS: insert whitespace interleaved with hidden nodes | rebuild for interleaved batch | rebuild
+PASS: insert whitespace interleaved with hidden nodes | rebuild for interleaved batch | layout tree builds=1
+PASS: insert whitespace interleaved with hidden nodes | rebuild for interleaved batch | incremental tree matches full rebuild
+PASS: trailing inline run changes block insertion | create trailing run | preserve
+PASS: trailing inline run changes block insertion | create trailing run | layout tree builds=1
+PASS: trailing inline run changes block insertion | create trailing run | incremental tree matches full rebuild
+PASS: trailing inline run changes block insertion | rebuild for earlier new run | rebuild
+PASS: trailing inline run changes block insertion | rebuild for earlier new run | layout tree builds=1
+PASS: trailing inline run changes block insertion | rebuild for earlier new run | incremental tree matches full rebuild
+PASS: trailing inline run changes block insertion | rebuild beside non-trailing middle run | rebuild
+PASS: trailing inline run changes block insertion | rebuild beside non-trailing middle run | layout tree builds=1
+PASS: trailing inline run changes block insertion | rebuild beside non-trailing middle run | incremental tree matches full rebuild
+PASS: trailing text item changes flex insertion | create trailing text item | preserve
+PASS: trailing text item changes flex insertion | create trailing text item | layout tree builds=1
+PASS: trailing text item changes flex insertion | create trailing text item | incremental tree matches full rebuild
+PASS: trailing text item changes flex insertion | rebuild for earlier text item | rebuild
+PASS: trailing text item changes flex insertion | rebuild for earlier text item | layout tree builds=1
+PASS: trailing text item changes flex insertion | rebuild for earlier text item | incremental tree matches full rebuild
+PASS: trailing text item changes flex insertion | rebuild beside non-trailing middle item | rebuild
+PASS: trailing text item changes flex insertion | rebuild beside non-trailing middle item | layout tree builds=1
+PASS: trailing text item changes flex insertion | rebuild beside non-trailing middle item | incremental tree matches full rebuild
+PASS: trailing text item changes grid insertion | create trailing text item | preserve
+PASS: trailing text item changes grid insertion | create trailing text item | layout tree builds=1
+PASS: trailing text item changes grid insertion | create trailing text item | incremental tree matches full rebuild
+PASS: trailing text item changes grid insertion | rebuild for earlier text item | rebuild
+PASS: trailing text item changes grid insertion | rebuild for earlier text item | layout tree builds=1
+PASS: trailing text item changes grid insertion | rebuild for earlier text item | incremental tree matches full rebuild
+PASS: trailing text item changes grid insertion | rebuild beside non-trailing middle item | rebuild
+PASS: trailing text item changes grid insertion | rebuild beside non-trailing middle item | layout tree builds=1
+PASS: trailing text item changes grid insertion | rebuild beside non-trailing middle item | incremental tree matches full rebuild
+PASS: absolute before block progression | insert before absolute | rebuild
+PASS: absolute before block progression | insert before absolute | layout tree builds=1
+PASS: absolute before block progression | insert before absolute | incremental tree matches full rebuild
+PASS: absolute before block progression | insert between absolute and block | rebuild
+PASS: absolute before block progression | insert between absolute and block | layout tree builds=1
+PASS: absolute before block progression | insert between absolute and block | incremental tree matches full rebuild
+PASS: absolute before block progression | preserve after block | preserve
+PASS: absolute before block progression | preserve after block | layout tree builds=1
+PASS: absolute before block progression | preserve after block | incremental tree matches full rebuild
+PASS: absolute after block progression | insert after absolute | preserve
+PASS: absolute after block progression | insert after absolute | layout tree builds=1
+PASS: absolute after block progression | insert after absolute | incremental tree matches full rebuild
+PASS: absolute after block progression | insert before absolute | rebuild
+PASS: absolute after block progression | insert before absolute | layout tree builds=1
+PASS: absolute after block progression | insert before absolute | incremental tree matches full rebuild
+PASS: absolute after block progression | insert before block | rebuild
+PASS: absolute after block progression | insert before block | layout tree builds=1
+PASS: absolute after block progression | insert before block | incremental tree matches full rebuild
+PASS: float before block progression | insert before float | rebuild
+PASS: float before block progression | insert before float | layout tree builds=1
+PASS: float before block progression | insert before float | incremental tree matches full rebuild
+PASS: float before block progression | insert between float and block | rebuild
+PASS: float before block progression | insert between float and block | layout tree builds=1
+PASS: float before block progression | insert between float and block | incremental tree matches full rebuild
+PASS: float before block progression | preserve after block | preserve
+PASS: float before block progression | preserve after block | layout tree builds=1
+PASS: float before block progression | preserve after block | incremental tree matches full rebuild
+PASS: float after block progression | insert after float | preserve
+PASS: float after block progression | insert after float | layout tree builds=1
+PASS: float after block progression | insert after float | incremental tree matches full rebuild
+PASS: float after block progression | insert before float | rebuild
+PASS: float after block progression | insert before float | layout tree builds=1
+PASS: float after block progression | insert before float | incremental tree matches full rebuild
+PASS: float after block progression | insert before block | rebuild
+PASS: float after block progression | insert before block | layout tree builds=1
+PASS: float after block progression | insert before block | incremental tree matches full rebuild
+PASS: absolute before flex item progression | rebuild before absolute | rebuild
+PASS: absolute before flex item progression | rebuild before absolute | layout tree builds=1
+PASS: absolute before flex item progression | rebuild before absolute | incremental tree matches full rebuild
+PASS: absolute before flex item progression | preserve after absolute | preserve
+PASS: absolute before flex item progression | preserve after absolute | layout tree builds=1
+PASS: absolute before flex item progression | preserve after absolute | incremental tree matches full rebuild
+PASS: absolute before flex item progression | preserve after final item | preserve
+PASS: absolute before flex item progression | preserve after final item | layout tree builds=1
+PASS: absolute before flex item progression | preserve after final item | incremental tree matches full rebuild
+PASS: absolute after flex item progression | insert after absolute | preserve
+PASS: absolute after flex item progression | insert after absolute | layout tree builds=1
+PASS: absolute after flex item progression | insert after absolute | incremental tree matches full rebuild
+PASS: absolute after flex item progression | rebuild before absolute | rebuild
+PASS: absolute after flex item progression | rebuild before absolute | layout tree builds=1
+PASS: absolute after flex item progression | rebuild before absolute | incremental tree matches full rebuild
+PASS: absolute after flex item progression | rebuild before item | rebuild
+PASS: absolute after flex item progression | rebuild before item | layout tree builds=1
+PASS: absolute after flex item progression | rebuild before item | incremental tree matches full rebuild
+PASS: generated before inline progression | rebuild between before and block | rebuild
+PASS: generated before inline progression | rebuild between before and block | layout tree builds=1
+PASS: generated before inline progression | rebuild between before and block | incremental tree matches full rebuild
+PASS: generated before inline progression | preserve after block | preserve
+PASS: generated before inline progression | preserve after block | layout tree builds=1
+PASS: generated before inline progression | preserve after block | incremental tree matches full rebuild
+PASS: generated before inline progression | preserve in trailing inline run | preserve
+PASS: generated before inline progression | preserve in trailing inline run | layout tree builds=1
+PASS: generated before inline progression | preserve in trailing inline run | incremental tree matches full rebuild
+PASS: generated before inline progression | rebuild beside before again | rebuild
+PASS: generated before inline progression | rebuild beside before again | layout tree builds=1
+PASS: generated before inline progression | rebuild beside before again | incremental tree matches full rebuild
+PASS: generated after inline progression | rebuild before block with trailing after run | rebuild
+PASS: generated after inline progression | rebuild before block with trailing after run | layout tree builds=1
+PASS: generated after inline progression | rebuild before block with trailing after run | incremental tree matches full rebuild
+PASS: generated after inline progression | rebuild before trailing after run | rebuild
+PASS: generated after inline progression | rebuild before trailing after run | layout tree builds=1
+PASS: generated after inline progression | rebuild before trailing after run | incremental tree matches full rebuild
+PASS: generated after inline progression | rebuild beside trailing after run | rebuild
+PASS: generated after inline progression | rebuild beside trailing after run | layout tree builds=1
+PASS: generated after inline progression | rebuild beside trailing after run | incremental tree matches full rebuild
+PASS: generated before and after inline progression | rebuild beside before | rebuild
+PASS: generated before and after inline progression | rebuild beside before | layout tree builds=1
+PASS: generated before and after inline progression | rebuild beside before | incremental tree matches full rebuild
+PASS: generated before and after inline progression | rebuild before trailing after run | rebuild
+PASS: generated before and after inline progression | rebuild before trailing after run | layout tree builds=1
+PASS: generated before and after inline progression | rebuild before trailing after run | incremental tree matches full rebuild
+PASS: generated before and after inline progression | rebuild beside before again | rebuild
+PASS: generated before and after inline progression | rebuild beside before again | layout tree builds=1
+PASS: generated before and after inline progression | rebuild beside before again | incremental tree matches full rebuild
+PASS: generated inline in all-inline flow | insert after before | preserve
+PASS: generated inline in all-inline flow | insert after before | layout tree builds=1
+PASS: generated inline in all-inline flow | insert after before | incremental tree matches full rebuild
+PASS: generated inline in all-inline flow | insert before after | preserve
+PASS: generated inline in all-inline flow | insert before after | layout tree builds=1
+PASS: generated inline in all-inline flow | insert before after | incremental tree matches full rebuild
+PASS: generated inline in all-inline flow | insert beside DOM inline | preserve
+PASS: generated inline in all-inline flow | insert beside DOM inline | layout tree builds=1
+PASS: generated inline in all-inline flow | insert beside DOM inline | incremental tree matches full rebuild
+PASS: generated before inline-block | rebuild between before and block | rebuild
+PASS: generated before inline-block | rebuild between before and block | layout tree builds=1
+PASS: generated before inline-block | rebuild between before and block | incremental tree matches full rebuild
+PASS: generated before display contents | rebuild between before and block | rebuild
+PASS: generated before display contents | rebuild between before and block | layout tree builds=1
+PASS: generated before display contents | rebuild between before and block | incremental tree matches full rebuild
+PASS: generated before display contents | preserve after block | preserve
+PASS: generated before display contents | preserve after block | layout tree builds=1
+PASS: generated before display contents | preserve after block | incremental tree matches full rebuild
+PASS: generated before block progression | preserve between generated and DOM blocks | preserve
+PASS: generated before block progression | preserve between generated and DOM blocks | layout tree builds=1
+PASS: generated before block progression | preserve between generated and DOM blocks | incremental tree matches full rebuild
+PASS: generated before block progression | preserve after DOM block | preserve
+PASS: generated before block progression | preserve after DOM block | layout tree builds=1
+PASS: generated before block progression | preserve after DOM block | incremental tree matches full rebuild
+PASS: generated after block progression | preserve before DOM block | preserve
+PASS: generated after block progression | preserve before DOM block | layout tree builds=1
+PASS: generated after block progression | preserve before DOM block | incremental tree matches full rebuild
+PASS: generated after block progression | rebuild before generated block | rebuild
+PASS: generated after block progression | rebuild before generated block | layout tree builds=1
+PASS: generated after block progression | rebuild before generated block | incremental tree matches full rebuild
+PASS: generated before absolute progression | rebuild after generated absolute | rebuild
+PASS: generated before absolute progression | rebuild after generated absolute | layout tree builds=1
+PASS: generated before absolute progression | rebuild after generated absolute | incremental tree matches full rebuild
+PASS: generated before absolute progression | preserve after DOM block | preserve
+PASS: generated before absolute progression | preserve after DOM block | layout tree builds=1
+PASS: generated before absolute progression | preserve after DOM block | incremental tree matches full rebuild
+PASS: generated after absolute progression | preserve before DOM block | preserve
+PASS: generated after absolute progression | preserve before DOM block | layout tree builds=1
+PASS: generated after absolute progression | preserve before DOM block | incremental tree matches full rebuild
+PASS: generated after absolute progression | rebuild before generated absolute | rebuild
+PASS: generated after absolute progression | rebuild before generated absolute | layout tree builds=1
+PASS: generated after absolute progression | rebuild before generated absolute | incremental tree matches full rebuild
+PASS: generated before float progression | rebuild after generated float | rebuild
+PASS: generated before float progression | rebuild after generated float | layout tree builds=1
+PASS: generated before float progression | rebuild after generated float | incremental tree matches full rebuild
+PASS: generated before float progression | preserve after DOM block | preserve
+PASS: generated before float progression | preserve after DOM block | layout tree builds=1
+PASS: generated before float progression | preserve after DOM block | incremental tree matches full rebuild
+PASS: generated after float progression | preserve before DOM block | preserve
+PASS: generated after float progression | preserve before DOM block | layout tree builds=1
+PASS: generated after float progression | preserve before DOM block | incremental tree matches full rebuild
+PASS: generated after float progression | rebuild before generated float | rebuild
+PASS: generated after float progression | rebuild before generated float | layout tree builds=1
+PASS: generated after float progression | rebuild before generated float | incremental tree matches full rebuild
+PASS: list marker progression | prepend after marker | preserve
+PASS: list marker progression | prepend after marker | layout tree builds=1
+PASS: list marker progression | prepend after marker | incremental tree matches full rebuild
+PASS: list marker progression | append after block | preserve
+PASS: list marker progression | append after block | layout tree builds=1
+PASS: list marker progression | append after block | incremental tree matches full rebuild
+PASS: generated before inline in flex | preserve between before and item | preserve
+PASS: generated before inline in flex | preserve between before and item | layout tree builds=1
+PASS: generated before inline in flex | preserve between before and item | incremental tree matches full rebuild
+PASS: generated before inline in flex | preserve after final item | preserve
+PASS: generated before inline in flex | preserve after final item | layout tree builds=1
+PASS: generated before inline in flex | preserve after final item | incremental tree matches full rebuild
+PASS: generated before inline in grid | preserve between before and item | preserve
+PASS: generated before inline in grid | preserve between before and item | layout tree builds=1
+PASS: generated before inline in grid | preserve between before and item | incremental tree matches full rebuild
+PASS: generated before inline in grid | preserve after final item | preserve
+PASS: generated before inline in grid | preserve after final item | layout tree builds=1
+PASS: generated before inline in grid | preserve after final item | incremental tree matches full rebuild
+PASS: generated after content in flex | preserve before item | preserve
+PASS: generated after content in flex | preserve before item | layout tree builds=1
+PASS: generated after content in flex | preserve before item | incremental tree matches full rebuild
+PASS: generated after content in flex | rebuild before trailing after item | rebuild
+PASS: generated after content in flex | rebuild before trailing after item | layout tree builds=1
+PASS: generated after content in flex | rebuild before trailing after item | incremental tree matches full rebuild
+PASS: generated after block in grid | preserve before DOM item | preserve
+PASS: generated after block in grid | preserve before DOM item | layout tree builds=1
+PASS: generated after block in grid | preserve before DOM item | incremental tree matches full rebuild
+PASS: generated after block in grid | rebuild before generated item | rebuild
+PASS: generated after block in grid | rebuild before generated item | layout tree builds=1
+PASS: generated after block in grid | rebuild before generated item | incremental tree matches full rebuild
+PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | rebuild
+PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | layout tree builds=1
+PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | incremental tree matches full rebuild
+PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | rebuild
+PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | layout tree builds=1
+PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | incremental tree matches full rebuild
 PASS: mixed block and inline progression | rebuild before block after inline run | rebuild
 PASS: mixed block and inline progression | rebuild before block after inline run | layout tree builds=1
 PASS: mixed block and inline progression | rebuild before block after inline run | incremental tree matches full rebuild
@@ -106,6 +337,9 @@ PASS: join trailing flex raw text | insert before raw text | incremental tree ma
 PASS: join trailing flex raw text | append after raw text | preserve
 PASS: join trailing flex raw text | append after raw text | layout tree builds=1
 PASS: join trailing flex raw text | append after raw text | incremental tree matches full rebuild
+PASS: join trailing flex raw text | rebuild before item with trailing text item | rebuild
+PASS: join trailing flex raw text | rebuild before item with trailing text item | layout tree builds=1
+PASS: join trailing flex raw text | rebuild before item with trailing text item | incremental tree matches full rebuild
 PASS: grid raw-text progression | rebuild before raw text | rebuild
 PASS: grid raw-text progression | rebuild before raw text | layout tree builds=1
 PASS: grid raw-text progression | rebuild before raw text | incremental tree matches full rebuild
@@ -121,6 +355,9 @@ PASS: join trailing grid raw text | insert before raw text | incremental tree ma
 PASS: join trailing grid raw text | append after raw text | preserve
 PASS: join trailing grid raw text | append after raw text | layout tree builds=1
 PASS: join trailing grid raw text | append after raw text | incremental tree matches full rebuild
+PASS: join trailing grid raw text | rebuild before item with trailing text item | rebuild
+PASS: join trailing grid raw text | rebuild before item with trailing text item | layout tree builds=1
+PASS: join trailing grid raw text | rebuild before item with trailing text item | incremental tree matches full rebuild
 PASS: rebuild beside display-contents inline run | insert whitespace | rebuild
 PASS: rebuild beside display-contents inline run | insert whitespace | layout tree builds=1
 PASS: rebuild beside display-contents inline run | insert whitespace | incremental tree matches full rebuild
@@ -142,6 +379,9 @@ PASS: rebuild for non-whitespace text | append text | incremental tree matches f
 PASS: rebuild under first-letter | append whitespace | rebuild
 PASS: rebuild under first-letter | append whitespace | layout tree builds=1
 PASS: rebuild under first-letter | append whitespace | incremental tree matches full rebuild
+PASS: rebuild under first-letter | append multiple whitespace nodes | rebuild
+PASS: rebuild under first-letter | append multiple whitespace nodes | layout tree builds=1
+PASS: rebuild under first-letter | append multiple whitespace nodes | incremental tree matches full rebuild
 PASS: rebuild under ancestor first-letter | append whitespace | rebuild
 PASS: rebuild under ancestor first-letter | append whitespace | layout tree builds=1
 PASS: rebuild under ancestor first-letter | append whitespace | incremental tree matches full rebuild
