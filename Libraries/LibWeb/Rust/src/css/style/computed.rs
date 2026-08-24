@@ -793,6 +793,29 @@ impl ComputedGroupSets {
         Some(self.final_style_record(style_record, self.columns.animation_overlay_slot(index)))
     }
 
+    pub(super) fn viewport_dependent_nodes(&self) -> Vec<u32> {
+        let depends_on_viewport = |fixed_metadata: ComputedFixedMetadataID| {
+            self.computed_fixed_metadata.get(fixed_metadata).dependency_flags & 1 != 0
+        };
+        let mut nodes = Vec::new();
+        for index in 1..self.columns.flags.len() {
+            if self.columns.fixed_metadata(index).is_some_and(depends_on_viewport) {
+                nodes.push(u32::try_from(index).expect("computed style node identity exceeds u32"));
+            }
+        }
+        for (&node, rows) in &self.pseudo_rows_by_node {
+            if rows.iter().any(|row| {
+                row.assignment
+                    .is_some_and(|assignment| depends_on_viewport(assignment.fixed_metadata))
+            }) {
+                nodes.push(node.raw());
+            }
+        }
+        nodes.sort_unstable();
+        nodes.dedup();
+        nodes
+    }
+
     fn intern_group_set(&mut self, groups: &[ComputedGroupID]) -> (ComputedGroupSetID, bool) {
         let hash = content_hash(groups);
         if let Some(identity) = self.sets.find(hash, |_identity, set| {
@@ -2795,6 +2818,29 @@ mod tests {
                 raw_cascaded_font_size: std::ptr::null(),
             },
         }
+    }
+
+    #[test]
+    fn viewport_dependent_nodes_include_elements_and_pseudo_owners_once() {
+        let mut sets = ComputedGroupSets::default();
+        let independent = ComputedStyleTarget::new(StyleNodeID::element(1), u8::MAX);
+        let viewport_dependent = ComputedStyleTarget::new(StyleNodeID::element(2), u8::MAX);
+        let font_dependent_pseudo = ComputedStyleTarget::new(StyleNodeID::element(3), 1);
+        let viewport_dependent_pseudo = ComputedStyleTarget::new(StyleNodeID::element(2), 2);
+        let viewport_dependent_pseudo_only = ComputedStyleTarget::new(StyleNodeID::element(4), 1);
+        sets.publish(Some(independent), &[], 0, 0, metadata(0, 0, 0, &[], &[]));
+        sets.publish(Some(viewport_dependent), &[], 0, 0, metadata(0, 1, 0, &[], &[]));
+        sets.publish(Some(font_dependent_pseudo), &[], 0, 0, metadata(0, 2, 0, &[], &[]));
+        sets.publish(Some(viewport_dependent_pseudo), &[], 0, 0, metadata(0, 1, 0, &[], &[]));
+        sets.publish(
+            Some(viewport_dependent_pseudo_only),
+            &[],
+            0,
+            0,
+            metadata(0, 1, 0, &[], &[]),
+        );
+
+        assert_eq!(sets.viewport_dependent_nodes(), vec![2, 4]);
     }
 
     #[test]

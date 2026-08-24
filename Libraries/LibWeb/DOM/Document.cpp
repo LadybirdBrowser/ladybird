@@ -2488,22 +2488,6 @@ void Document::update_style_computer_viewport_rect()
     style_computer().set_viewport_rect({}, viewport_rect());
 }
 
-static bool element_or_pseudo_depends_on_viewport_metrics(Element const& element)
-{
-    if (auto computed_values = element.computed_style(); computed_values && computed_values->depends_on_viewport_metrics())
-        return true;
-
-    bool depends_on_viewport_metrics = false;
-    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement const&) {
-        if (auto computed_values = element.computed_style(pseudo_element_type); computed_values && computed_values->depends_on_viewport_metrics()) {
-            depends_on_viewport_metrics = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    return depends_on_viewport_metrics;
-}
-
 void Document::set_quirks_mode(QuirksMode mode)
 {
     if (m_quirks_mode == mode)
@@ -2560,13 +2544,21 @@ void Document::invalidate_style_for_viewport_change()
         return;
     }
 
+    auto& style_engine = style_computer().style_engine();
+    for (auto style_node : style_engine.viewport_dependent_style_nodes()) {
+        auto element = style_computer().element_for_style_node(style_node.value());
+        if (!element || !element->is_connected() || &element->document() != this)
+            continue;
+        style_engine.record_element_style_input_change(style_node);
+    }
+
     for_each_shadow_including_inclusive_descendant([](Node& node) {
         auto* element = as_if<Element>(node);
         if (!element)
             return TraversalDecision::Continue;
 
         // Descendants that inherit changed values are reached by the normal inherited-style reaction path.
-        if (element_or_pseudo_depends_on_viewport_metrics(*element) || element->style_uses_if_css_function())
+        if (element->style_uses_if_css_function())
             element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
 
         return TraversalDecision::Continue;
