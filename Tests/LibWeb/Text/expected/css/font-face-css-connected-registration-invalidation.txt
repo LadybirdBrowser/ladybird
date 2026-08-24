@@ -13,3 +13,8 @@ ScriptFace count after delete: 0
 LoadedSheetFace status before removal: loaded
 remove loaded CSS-connected face: 1
 LoadedSheetFace count after removal: 0
+adopt constructed CSS-connected face: 1
+ConstructedSheetFace count after adoption: 1
+ConstructedSheetFace status before removal: loaded
+unadopt constructed CSS-connected face: 1
+ConstructedSheetFace count after removal: 0

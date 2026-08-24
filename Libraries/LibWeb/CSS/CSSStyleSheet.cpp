@@ -409,13 +409,23 @@ void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_sh
 
 void CSSStyleSheet::remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root)
 {
-    auto had_document_owner = has_document_owner();
-    m_owning_documents_or_shadow_roots.remove(document_or_shadow_root);
+    bool is_removing_last_document_owner = false;
+    if (document_or_shadow_root.is_document() && m_owning_documents_or_shadow_roots.contains(document_or_shadow_root)) {
+        is_removing_last_document_owner = true;
+        for (auto& owner : m_owning_documents_or_shadow_roots) {
+            if (owner.ptr() != &document_or_shadow_root && owner->is_document()) {
+                is_removing_last_document_owner = false;
+                break;
+            }
+        }
+    }
 
     // CSS @font-face rules contribute to the document font source. Shadow-root-only sheets remain CSSOM-visible and
     // still style their tree, but match other browsers by not contributing shadow-scoped @font-face rules there.
-    if (!disabled() && document_or_shadow_root.is_document() && had_document_owner && !has_document_owner())
+    if (!disabled() && is_removing_last_document_owner)
         document_or_shadow_root.document().font_computer().unload_fonts_from_sheet(*this);
+
+    m_owning_documents_or_shadow_roots.remove(document_or_shadow_root);
 
     for (auto const& import_rule : m_import_rules) {
         if (import_rule->loaded_style_sheet())
