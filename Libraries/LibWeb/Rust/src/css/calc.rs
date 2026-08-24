@@ -338,6 +338,42 @@ pub(crate) fn simplify_parsed_calculation(
     Some((simplified, numeric_type))
 }
 
+pub(crate) fn serialize_context_free_calculation(
+    name: &[u16],
+    values: &[crate::css::parser::component_value::ComponentValue],
+    expected_base_type: usize,
+) -> Option<Vec<u16>> {
+    let root = crate::css::parser::calc_parser::parse_a_calc_function_node(
+        name,
+        values,
+        crate::css::parser::calc_parser::CalcParserContext {
+            percentages_resolve_as: None,
+            property: 0,
+            random_function_index: std::ptr::null_mut(),
+            intern_utf16_fly_string: None,
+            allowed_color_channels: 0,
+            allow_random_functions: false,
+            parse_context: std::ptr::null(),
+        },
+    )
+    .ok()?;
+    let (_, numeric_type) = simplify_parsed_calculation(root.clone(), None)?;
+    if !numeric_type.matches_dimension(expected_base_type, None) {
+        return None;
+    }
+    let calculated = crate::css::style_value::StyleValueData::Calculated {
+        rust_calculation: CalcNodeHandle::from_arc(root),
+        resolve_as_is_number: false,
+        resolve_as_base: 0,
+        resolved_type: FfiNumericType::from_calc(Some(numeric_type)),
+        has_percentages_resolve_as: false,
+        percentages_resolve_as: 0,
+        resolve_numbers_as_integers: false,
+        accepted_ranges: crate::css::style_value::RetainedNumericRangeList::empty(),
+    };
+    crate::css::serialize::serialize_style_value_to_utf16(&calculated)
+}
+
 /// The result of evaluating a calculation: the numeric value in canonical
 /// units and the numeric type it carries.
 #[derive(Clone, Copy, PartialEq, Debug)]
