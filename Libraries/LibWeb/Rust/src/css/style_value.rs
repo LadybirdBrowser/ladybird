@@ -3723,9 +3723,8 @@ pub unsafe extern "C" fn rust_style_value_create_color_scheme(
     })
 }
 
-/// Creates an unresolved value from borrowed token source. Rust derives the source/comparison
-/// strings with the C++ oracle's SourceTextMode rules and retains the component tree that the
-/// former C++ reconstruction would produce.
+/// Creates an unresolved value from borrowed token source. Rust derives the source and comparison
+/// strings according to the requested SourceTextMode and retains the component tree.
 ///
 /// Takes ownership of one strong reference to `parsed_value` when it is non-null.
 #[unsafe(no_mangle)]
@@ -4388,18 +4387,6 @@ pub unsafe extern "C" fn rust_style_value_retain(value: *const StyleValueData) -
     abort_on_panic(|| unsafe { retain_style_value(value) })
 }
 
-/// Clones a parsed value into a distinct allocation. Repeated direct children retain their alias
-/// pattern so shorthand expansion observes the same graph shape produced by parsing.
-///
-/// # Safety
-/// `value` must point at live `StyleValueData` allocated by this module.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_clone_for_substitution(
-    value: *const StyleValueData,
-) -> *const StyleValueData {
-    abort_on_panic(|| Arc::into_raw(Arc::new(unsafe { (*value).clone() })))
-}
-
 #[cfg(test)]
 mod substitution_clone_tests {
     use super::*;
@@ -4418,7 +4405,7 @@ mod substitution_clone_tests {
                 children.len(),
             )
         };
-        let cloned_shorthand = unsafe { rust_style_value_clone_for_substitution(shorthand) };
+        let cloned_shorthand = Arc::into_raw(Arc::new(unsafe { (*shorthand).clone() }));
 
         let StyleValueData::Shorthand { values: original, .. } = (unsafe { &*shorthand }) else {
             unreachable!()

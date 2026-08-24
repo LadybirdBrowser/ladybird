@@ -165,7 +165,7 @@ public:
     void apply_post_compute_adjustments(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
 
-    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> = {}) const;
+    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name) const;
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, PropertyNameAndID const&, UnresolvedStyleValue const&) const;
     ComputationContext fallback_computation_context_for_custom_property(AbstractOrHypotheticalElement const&) const;
 

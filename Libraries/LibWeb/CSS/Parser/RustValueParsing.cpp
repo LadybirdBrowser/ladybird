@@ -86,85 +86,10 @@ Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_prese
     return collect_substitution_function_presence_in_rust(ReadonlySpan<ComponentValue> { &component_value, 1 }, presence);
 }
 
-Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_grammar(ArbitrarySubstitutionFunction function, ReadonlySpan<ComponentValue> values)
-{
-    auto source = serialize_a_series_of_component_values(values);
-    if (!ValueParserFFI::rust_validate_arbitrary_substitution_arguments_from_source(to_underlying(function), ffi_utf16_view(source)))
-        return {};
-
-    auto split_declaration_values = [](ReadonlySpan<ComponentValue> values, Token::Type separator) {
-        DeclarationValueList arguments;
-        for (size_t index = 0; index < values.size(); ++index) {
-            if (!values[index].is(separator))
-                continue;
-            arguments.append(values.slice(0, index));
-            arguments.append(values.slice(index + 1));
-            return arguments;
-        }
-        arguments.append(values);
-        return arguments;
-    };
-
-    if (function != ArbitrarySubstitutionFunction::DashedFunction && function != ArbitrarySubstitutionFunction::If)
-        return split_declaration_values(values, Token::Type::Comma);
-
-    if (function == ArbitrarySubstitutionFunction::If) {
-        IfArgs branches;
-        size_t branch_start = 0;
-        while (branch_start < values.size()) {
-            size_t branch_end = branch_start;
-            while (branch_end < values.size() && !values[branch_end].is(Token::Type::Semicolon))
-                ++branch_end;
-            auto branch = split_declaration_values(values.slice(branch_start, branch_end - branch_start), Token::Type::Colon);
-            Optional<ReadonlySpan<ComponentValue>> value;
-            if (branch.size() == 2)
-                value = branch[1];
-            branches.append({ branch[0], value });
-            branch_start = branch_end + 1;
-        }
-        return branches;
-    }
-
-    DeclarationValueList arguments;
-    size_t argument_start = 0;
-    while (argument_start < values.size() && values[argument_start].is(Token::Type::Whitespace))
-        ++argument_start;
-    while (argument_start < values.size()) {
-        size_t argument_end = argument_start;
-        while (argument_end < values.size() && !values[argument_end].is(Token::Type::Comma))
-            ++argument_end;
-        auto argument = values.slice(argument_start, argument_end - argument_start);
-        size_t content_end = argument.size();
-        while (content_end > 0 && argument[content_end - 1].is(Token::Type::Whitespace))
-            --content_end;
-        if (content_end == 1 && argument[0].is_block() && argument[0].block().is_curly()) {
-            auto block_values = argument[0].block().value.span();
-            size_t block_start = 0;
-            while (block_start < block_values.size() && block_values[block_start].is(Token::Type::Whitespace))
-                ++block_start;
-            arguments.append(block_values.slice(block_start));
-        } else {
-            arguments.append(argument);
-        }
-        argument_start = argument_end + 1;
-        while (argument_start < values.size() && values[argument_start].is(Token::Type::Whitespace))
-            ++argument_start;
-    }
-    return arguments;
-}
-
 static bool contains_arbitrary_substitution_function(ReadonlySpan<ComponentValue> values)
 {
-    for (auto const& value : values) {
-        if (value.is_function()) {
-            if (to_arbitrary_substitution_function(value.function().name).has_value()
-                || contains_arbitrary_substitution_function(value.function().value.span()))
-                return true;
-        } else if (value.is_block() && contains_arbitrary_substitution_function(value.block().value.span())) {
-            return true;
-        }
-    }
-    return false;
+    SubstitutionFunctionsPresence presence;
+    return !collect_substitution_function_presence_in_rust(values, presence).is_error() && presence.has_any();
 }
 
 static RefPtr<SyntaxNode> syntax_node_from_rust(void const* syntax, size_t node_index)
@@ -701,6 +626,8 @@ RefPtr<StyleValue const> Parser::parse_primitive_value_from_source(ValueType val
         .precomputed_svg_path_count = 0,
         .font_format_is_supported = rust_font_format_is_supported,
         .font_tech_is_supported = rust_font_tech_is_supported,
+        .descriptor_integer_resolution_context = nullptr,
+        .resolve_descriptor_integer = nullptr,
         .random_function_index = &m_random_function_index,
     };
     auto const* parsed = ValueParserFFI::rust_parse_entire_css_primitive_from_source(

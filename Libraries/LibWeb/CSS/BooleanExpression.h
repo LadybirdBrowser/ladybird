@@ -84,8 +84,6 @@ struct BooleanExpressionEvaluationContext {
     GC::Ptr<DOM::Document const> document { nullptr };
     GC::Ptr<DOM::Element const> query_container { nullptr };
     Optional<AbstractOrHypotheticalElement> style_query_element {};
-    Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts {};
-    bool* did_evaluate_attr_tainted_style_query { nullptr };
 };
 
 struct ContainerQueryFeatureRequirements {

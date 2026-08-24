@@ -1,0 +1,14 @@
+<!doctype html>
+<style>
+    #target {
+        --x: if(style(--x > 1px): 1px; else: 2px);
+        width: var(--x);
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(target).width);
+    });
+</script>

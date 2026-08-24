@@ -13,6 +13,7 @@ namespace Web::CSS {
 enum class SerializationMode : u8 {
     Normal,
     ResolvedValue,
+    ResolvedValueForReparse,
 };
 
 }

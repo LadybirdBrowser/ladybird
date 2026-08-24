@@ -126,5 +126,7 @@ Optional<SizeFeatureID> size_feature_id_from_string(Utf16View);
 StringView string_from_size_feature_id(SizeFeatureID);
 bool size_feature_type_is_range(SizeFeatureID);
 bool container_name_matches(DOM::Element const&, Optional<Utf16FlyString> const& container_name);
+void prepare_for_style_query_evaluation();
+bool style_query_cycle_detected();
 
 }

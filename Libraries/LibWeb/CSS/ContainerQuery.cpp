@@ -5,12 +5,13 @@
  */
 
 #include "ContainerQuery.h"
+#include <AK/NeverDestroyed.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/ScopeGuard.h>
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
-#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -35,6 +36,46 @@
 #include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::CSS {
+
+struct ActiveStyleQueryResolution {
+    AbstractOrHypotheticalElement element;
+    Utf16FlyString property_name;
+
+    bool operator==(ActiveStyleQueryResolution const&) const = default;
+};
+
+static thread_local bool s_style_query_cycle_detected = false;
+
+static Vector<ActiveStyleQueryResolution>& active_style_query_resolutions()
+{
+    static thread_local NeverDestroyed<Vector<ActiveStyleQueryResolution>> resolutions;
+    return *resolutions;
+}
+
+static bool begin_style_query_resolution(AbstractOrHypotheticalElement const& element, Utf16FlyString const& property_name)
+{
+    auto& resolutions = active_style_query_resolutions();
+    if (resolutions.contains_slow(ActiveStyleQueryResolution { element, property_name }))
+        return false;
+    resolutions.append({ element, property_name });
+    return true;
+}
+
+static void end_style_query_resolution()
+{
+    active_style_query_resolutions().take_last();
+}
+
+void prepare_for_style_query_evaluation()
+{
+    if (active_style_query_resolutions().is_empty())
+        s_style_query_cycle_detected = false;
+}
+
+bool style_query_cycle_detected()
+{
+    return s_style_query_cycle_detected;
+}
 
 Optional<SizeFeatureID> size_feature_id_from_string(Utf16View name)
 {
@@ -399,21 +440,20 @@ static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document co
     return {};
 }
 
-static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeature::StyleRangeValue const& range_value, AbstractOrHypotheticalElement const& element, DOM::Document const& document, ComputationContext const& computation_context, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts, bool* did_evaluate_attr_tainted_style_query)
+static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeature::StyleRangeValue const& range_value, AbstractOrHypotheticalElement const& element, DOM::Document const& document, ComputationContext const& computation_context)
 {
     return range_value.visit(
         [&](PropertyNameAndID const& property) -> Optional<StyleRangeComparableValue> {
             if (!property.is_custom_property())
                 return {};
 
-            if (guarded_contexts.has_value()) {
-                if (guarded_contexts->mark_existing_as_cyclic(Parser::SubstitutionContext { Parser::PropertySubstitutionContextDependency::create(property.name().to_utf16_string(), element) }))
-                    return {};
+            if (!begin_style_query_resolution(element, property.name())) {
+                s_style_query_cycle_detected = true;
+                return {};
             }
+            ScopeGuard end_resolution = end_style_query_resolution;
 
-            auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property.name(), guarded_contexts);
-            if (did_evaluate_attr_tainted_style_query && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values())
-                *did_evaluate_attr_tainted_style_query = true;
+            auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property.name());
 
             if (computed_value->is_guaranteed_invalid())
                 return {};
@@ -427,7 +467,9 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleFeatu
                     VERIFY(registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal);
                 }
             } else if (!registration.has_value() || computed_value->is_unresolved()) {
-                auto computed_source = Parser::serialize_style_value_for_tokenization(*computed_value);
+                auto computed_source = computed_value->is_unresolved()
+                    ? computed_value->as_unresolved().token_source()
+                    : computed_value->to_utf16_string(SerializationMode::ResolvedValueForReparse);
                 comparable_value = parse_style_range_literal_value(document, computed_source);
                 if (!comparable_value)
                     return {};
@@ -451,15 +493,11 @@ static MatchResult evaluate_style_range(StyleFeature::StyleRange const& range, B
     auto element = context.style_query_element.value();
     auto const& document = context.document ? *context.document : element.document();
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
-    Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts;
-    if (context.guarded_contexts.has_value())
-        guarded_contexts = const_cast<Parser::GuardedSubstitutionContexts&>(context.guarded_contexts.value());
-
-    auto left = evaluate_style_range_value(range.left, element, document, computation_context, guarded_contexts, context.did_evaluate_attr_tainted_style_query);
+    auto left = evaluate_style_range_value(range.left, element, document, computation_context);
     if (!left.has_value())
         return MatchResult::False;
 
-    auto middle = evaluate_style_range_value(range.middle, element, document, computation_context, guarded_contexts, context.did_evaluate_attr_tainted_style_query);
+    auto middle = evaluate_style_range_value(range.middle, element, document, computation_context);
     if (!middle.has_value())
         return MatchResult::False;
 
@@ -469,7 +507,7 @@ static MatchResult evaluate_style_range(StyleFeature::StyleRange const& range, B
     if (!range.right.has_value())
         return MatchResult::True;
 
-    auto right = evaluate_style_range_value(range.right.value(), element, document, computation_context, guarded_contexts, context.did_evaluate_attr_tainted_style_query);
+    auto right = evaluate_style_range_value(range.right.value(), element, document, computation_context);
     if (!right.has_value())
         return MatchResult::False;
 
@@ -497,15 +535,13 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
     auto element = context.style_query_element.value();
     auto const& document = context.document ? *context.document : element.document();
     auto const& property_name = property.name();
-    Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts;
-    if (context.guarded_contexts.has_value())
-        guarded_contexts = const_cast<Parser::GuardedSubstitutionContexts&>(context.guarded_contexts.value());
     Optional<Keyword> query_css_wide_keyword;
 
-    if (guarded_contexts.has_value()) {
-        if (guarded_contexts->mark_existing_as_cyclic(Parser::SubstitutionContext { Parser::PropertySubstitutionContextDependency::create(property.name().to_utf16_string(), element) }))
-            return MatchResult::False;
+    if (!begin_style_query_resolution(element, property_name)) {
+        s_style_query_cycle_detected = true;
+        return MatchResult::False;
     }
+    ScopeGuard end_resolution = end_style_query_resolution;
 
     if (value.has_value()) {
         auto const& query_value = *value;
@@ -516,9 +552,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         }
     }
 
-    auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property_name, guarded_contexts);
-    if (context.did_evaluate_attr_tainted_style_query && computed_value->is_unresolved() && computed_value->as_unresolved().contains_attr_tainted_values())
-        *context.did_evaluate_attr_tainted_style_query = true;
+    auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property_name);
 
     auto registration = element.get_registered_custom_property(property_name);
 
@@ -582,12 +616,12 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
             return as_match_result(style_values_are_equal(*comparable_computed_value, *initial_value));
         }
         case Keyword::Inherit: {
-            auto inherited_value = inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution, guarded_contexts);
+            auto inherited_value = inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution);
             return as_match_result(style_values_are_equal(*comparable_computed_value, *inherited_value));
         }
         case Keyword::Unset: {
             auto expected_value = !registration.has_value() || registration->inherit
-                ? inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution, guarded_contexts)
+                ? inherited_custom_property_value(registration, element, property_name, computed_style_for_custom_property_resolution)
                 : initial_custom_property_value(registration, element.document());
             return as_match_result(style_values_are_equal(*comparable_computed_value, *expected_value));
         }
@@ -603,7 +637,10 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
         return MatchResult::False;
 
     if (!registration.has_value()) {
-        auto computed_value_string = Parser::serialize_style_value_components(*computed_value).trim_ascii_whitespace();
+        auto computed_value_string = (computed_value->is_unresolved()
+                ? computed_value->as_unresolved().serialized_components()
+                : computed_value->to_utf16_string(SerializationMode::Normal))
+                                         .trim_ascii_whitespace();
         auto query_value_string = query_value.trim_ascii_whitespace();
         return as_match_result(computed_value_string == query_value_string);
     }

@@ -49,7 +49,6 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
-#include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
@@ -125,6 +124,16 @@ static ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
+static Utf16View utf16_view(ComputedValuesFFI::FfiUtf16View view)
+{
+    if (view.length == 0)
+        return {};
+    VERIFY((view.ascii == nullptr) != (view.utf16 == nullptr));
+    if (view.ascii)
+        return StringView { reinterpret_cast<char const*>(view.ascii), view.length };
+    return { reinterpret_cast<char16_t const*>(view.utf16), view.length };
+}
+
 static size_t retain_utf16_fly_string_for_substitution(u16 const* code_units, size_t length)
 {
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
@@ -136,6 +145,177 @@ static size_t normalize_svg_path_data_for_substitution(u16 const* code_units, si
     if (path.instructions().is_empty())
         return 0;
     return Utf16String::from_utf8(path.serialize()).to_raw_leaked();
+}
+
+struct SubstitutionData {
+    struct Attribute {
+        Utf16String name;
+        Utf16String value;
+    };
+    struct FunctionParameter {
+        Utf16String name;
+        Utf16String syntax;
+        void const* default_data { nullptr };
+    };
+    struct FunctionDeclaration {
+        Utf16String name;
+        void const* data { nullptr };
+    };
+    struct FunctionDefinition {
+        GC::Ptr<CSSFunctionRule const> function;
+        StyleScope const* scope { nullptr };
+        Utf16String name;
+        Vector<FunctionParameter> parameters;
+        Utf16String return_syntax;
+        Vector<FunctionDeclaration> declarations;
+        Vector<ComputedValuesFFI::FfiSubstitutionFunctionParameter> ffi_parameters;
+        Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
+    };
+
+    SubstitutionData(AbstractOrHypotheticalElement element, bool collect_attributes, bool collect_functions)
+    {
+        auto& document = element.document();
+        if (collect_attributes) {
+            document_url = document.url().serialize();
+            document_base_url = document.base_url().serialize();
+        }
+        parse_context = {
+            .in_quirks_mode = document.in_quirks_mode(),
+            .is_svg_presentation_attribute = false,
+            .is_substituted_value = true,
+            .contains_attr_tainted_values = false,
+            .value_contexts = nullptr,
+            .value_context_count = 0,
+            .document_url = document_url.bytes().data(),
+            .document_url_length = document_url.bytes().size(),
+            .document_base_url = document_base_url.bytes().data(),
+            .document_base_url_length = document_base_url.bytes().size(),
+            .intern_utf16_fly_string = retain_utf16_fly_string_for_substitution,
+            .normalize_svg_path_data = normalize_svg_path_data_for_substitution,
+            .precomputed_svg_paths = nullptr,
+            .precomputed_svg_path_count = 0,
+            .font_format_is_supported = nullptr,
+            .font_tech_is_supported = nullptr,
+            .descriptor_integer_resolution_context = nullptr,
+            .resolve_descriptor_integer = nullptr,
+            .random_function_index = nullptr,
+        };
+
+        if (collect_attributes) {
+            element.abstract_element().element().for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+                if (name.namespace_().has_value())
+                    return;
+                attributes.append({ name.local_name().to_utf16_string(), Utf16String::from_utf16(value) });
+            });
+        }
+        ffi_attributes.ensure_capacity(attributes.size());
+        for (auto const& attribute : attributes)
+            ffi_attributes.unchecked_append({ .name = ffi_utf16_view(attribute.name), .value = ffi_utf16_view(attribute.value) });
+
+        if (collect_functions) {
+            Function<void(StyleScope::FunctionDefinitionAndScope const&)> append_function = [&](StyleScope::FunctionDefinitionAndScope const& definition) {
+                for (auto const& existing : functions) {
+                    if (existing.function == definition.function)
+                        return;
+                }
+                FunctionDefinition snapshot {
+                    .function = definition.function,
+                    .scope = &definition.scope,
+                    .name = definition.function->name(),
+                    .parameters = {},
+                    .return_syntax = definition.function->return_type_internal().to_string(),
+                    .declarations = {},
+                    .ffi_parameters = {},
+                    .ffi_declarations = {},
+                };
+                snapshot.parameters.ensure_capacity(definition.function->parameters_internal().size());
+                for (auto const& parameter : definition.function->parameters_internal()) {
+                    snapshot.parameters.unchecked_append({
+                        .name = parameter.name.to_utf16_string(),
+                        .syntax = parameter.type->to_string(),
+                        .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
+                    });
+                }
+                definition.function->for_each_effective_declaration(element.abstract_element(), [&](Utf16FlyString const& name, NonnullRefPtr<StyleValue const> const& value) {
+                    snapshot.declarations.append({ .name = name.to_utf16_string(), .data = value->rust_style_value_data() });
+                });
+                functions.append(move(snapshot));
+            };
+            element.style_scope().for_each_visible_function_definition(append_function);
+            for (size_t index = 0; index < functions.size(); ++index)
+                functions[index].scope->for_each_visible_function_definition(append_function);
+        }
+        ffi_functions.ensure_capacity(functions.size());
+        for (auto& definition : functions) {
+            definition.ffi_parameters.ensure_capacity(definition.parameters.size());
+            for (auto const& parameter : definition.parameters) {
+                definition.ffi_parameters.unchecked_append({
+                    .name = ffi_utf16_view(parameter.name),
+                    .syntax = ffi_utf16_view(parameter.syntax),
+                    .default_data = parameter.default_data,
+                });
+            }
+            definition.ffi_declarations.ensure_capacity(definition.declarations.size());
+            for (auto const& declaration : definition.declarations) {
+                definition.ffi_declarations.unchecked_append({
+                    .name = ffi_utf16_view(declaration.name),
+                    .data = declaration.data,
+                });
+            }
+            ffi_functions.unchecked_append({
+                .identity = bit_cast<FlatPtr>(definition.function),
+                .scope_identity = bit_cast<FlatPtr>(definition.scope),
+                .name = ffi_utf16_view(definition.name),
+                .parameters = definition.ffi_parameters.data(),
+                .parameter_count = definition.ffi_parameters.size(),
+                .return_syntax = ffi_utf16_view(definition.return_syntax),
+                .declarations = definition.ffi_declarations.data(),
+                .declaration_count = definition.ffi_declarations.size(),
+            });
+        }
+    }
+
+    String document_url;
+    String document_base_url;
+    Parser::ValueParserFFI::ParseContext parse_context {};
+    Vector<Attribute> attributes;
+    Vector<ComputedValuesFFI::FfiSubstitutionAttribute> ffi_attributes;
+    Vector<FunctionDefinition> functions;
+    Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_functions;
+};
+
+static size_t resolve_custom_function_for_substitution(size_t scope_identity, ComputedValuesFFI::FfiUtf16View name)
+{
+    auto& scope = *bit_cast<StyleScope const*>(scope_identity);
+    auto definition = scope.get_function_definition(Utf16FlyString::from_utf16(utf16_view(name)));
+    return definition.has_value() ? bit_cast<FlatPtr>(definition->function) : 0;
+}
+
+static u8 evaluate_condition_for_substitution(AbstractOrHypotheticalElement element, u8 kind, ComputedValuesFFI::FfiUtf16View source)
+{
+    auto source_view = utf16_view(source);
+    auto parser = Parser::Parser::create(Parser::ParsingParams { element.document() }, source_view);
+    OwnPtr<BooleanExpression> expression;
+    if (kind == 0) {
+        expression = Parser::RustQueryParser::parse_media_feature(parser, source_view);
+        if (!expression)
+            expression = Parser::RustQueryParser::parse_media_condition(parser, source_view);
+    } else if (kind == 1) {
+        expression = Parser::RustQueryParser::parse_supports_declaration(parser, source_view);
+        if (!expression)
+            expression = Parser::RustQueryParser::parse_supports_condition(parser, source_view);
+    } else {
+        VERIFY(kind == 2);
+        expression = Parser::RustQueryParser::parse_style_query(parser, source_view);
+    }
+    if (!expression)
+        return 2;
+    prepare_for_style_query_evaluation();
+    auto matches = expression->evaluate_to_boolean({
+        .document = &element.document(),
+        .style_query_element = element,
+    });
+    return style_query_cycle_detected() ? 3 : matches;
 }
 
 class Fnv1a64 {
@@ -2848,8 +3028,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
 
     auto& document = bulk_context.abstract_element.document();
     auto& style_computer = document.style_computer();
-    String document_url;
-    String document_base_url;
     if (has_unresolved_declarations) {
         auto registration_generation = document.custom_property_registration_generation();
         if (registration_generation != style_computer.m_parsed_substitution_registration_generation) {
@@ -2857,185 +3035,31 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             style_computer.m_parsed_substitution_registration_generation = registration_generation;
             style_computer.settle_parsed_substitution_cache();
         }
-        document_url = document.url().serialize();
-        document_base_url = document.base_url().serialize();
     }
-    Parser::ValueParserFFI::ParseContext parse_context {
-        .in_quirks_mode = document.in_quirks_mode(),
-        .is_svg_presentation_attribute = false,
-        .is_substituted_value = true,
-        .contains_attr_tainted_values = false,
-        .value_contexts = nullptr,
-        .value_context_count = 0,
-        .document_url = document_url.bytes().data(),
-        .document_url_length = document_url.bytes().size(),
-        .document_base_url = document_base_url.bytes().data(),
-        .document_base_url_length = document_base_url.bytes().size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string_for_substitution,
-        .normalize_svg_path_data = normalize_svg_path_data_for_substitution,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = nullptr,
-        .font_tech_is_supported = nullptr,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = nullptr,
-    };
-    struct SubstitutionAttribute {
-        Utf16String name;
-        Utf16String value;
-    };
-    Vector<SubstitutionAttribute> substitution_attributes;
-    if (has_unresolved_declarations) {
-        abstract_element.element().for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
-            if (name.namespace_().has_value())
-                return;
-            substitution_attributes.append({
-                name.local_name().to_utf16_string(),
-                Utf16String::from_utf16(value),
-            });
-        });
-    }
-    Vector<ComputedValuesFFI::FfiSubstitutionAttribute> ffi_substitution_attributes;
-    ffi_substitution_attributes.ensure_capacity(substitution_attributes.size());
-    for (auto const& attribute : substitution_attributes) {
-        ffi_substitution_attributes.unchecked_append({
-            .name = ffi_utf16_view(attribute.name),
-            .value = ffi_utf16_view(attribute.value),
-        });
-    }
-    struct SubstitutionFunctionParameter {
-        Utf16String name;
-        Utf16String syntax;
-        void const* default_data { nullptr };
-    };
-    struct SubstitutionFunctionDeclaration {
-        Utf16String name;
-        void const* data { nullptr };
-    };
-    struct SubstitutionFunctionDefinition {
-        GC::Ptr<CSSFunctionRule const> function;
-        StyleScope const* scope { nullptr };
-        Utf16String name;
-        Vector<SubstitutionFunctionParameter> parameters;
-        Utf16String return_syntax;
-        Vector<SubstitutionFunctionDeclaration> declarations;
-        Vector<ComputedValuesFFI::FfiSubstitutionFunctionParameter> ffi_parameters;
-        Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
-    };
-    Vector<SubstitutionFunctionDefinition> substitution_functions;
-    if (has_custom_function_declarations) {
-        Function<void(StyleScope::FunctionDefinitionAndScope const&)> append_function = [&](StyleScope::FunctionDefinitionAndScope const& definition) {
-            for (auto const& existing : substitution_functions) {
-                if (existing.function == definition.function)
-                    return;
-            }
-            SubstitutionFunctionDefinition snapshot {
-                .function = definition.function,
-                .scope = &definition.scope,
-                .name = definition.function->name(),
-                .parameters = {},
-                .return_syntax = definition.function->return_type_internal().to_string(),
-                .declarations = {},
-                .ffi_parameters = {},
-                .ffi_declarations = {},
-            };
-            snapshot.parameters.ensure_capacity(definition.function->parameters_internal().size());
-            for (auto const& parameter : definition.function->parameters_internal()) {
-                snapshot.parameters.unchecked_append({
-                    .name = parameter.name.to_utf16_string(),
-                    .syntax = parameter.type->to_string(),
-                    .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
-                });
-            }
-            definition.function->for_each_effective_declaration(abstract_element, [&](Utf16FlyString const& name, NonnullRefPtr<StyleValue const> const& value) {
-                snapshot.declarations.append({
-                    .name = name.to_utf16_string(),
-                    .data = value->rust_style_value_data(),
-                });
-            });
-            substitution_functions.append(move(snapshot));
-        };
-        abstract_element.style_scope().for_each_visible_function_definition(append_function);
-        for (size_t index = 0; index < substitution_functions.size(); ++index)
-            substitution_functions[index].scope->for_each_visible_function_definition(append_function);
-    }
-    Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_substitution_functions;
-    ffi_substitution_functions.ensure_capacity(substitution_functions.size());
-    for (auto& definition : substitution_functions) {
-        definition.ffi_parameters.ensure_capacity(definition.parameters.size());
-        for (auto const& parameter : definition.parameters) {
-            definition.ffi_parameters.unchecked_append({
-                .name = ffi_utf16_view(parameter.name),
-                .syntax = ffi_utf16_view(parameter.syntax),
-                .default_data = parameter.default_data,
-            });
-        }
-        definition.ffi_declarations.ensure_capacity(definition.declarations.size());
-        for (auto const& declaration : definition.declarations) {
-            definition.ffi_declarations.unchecked_append({
-                .name = ffi_utf16_view(declaration.name),
-                .data = declaration.data,
-            });
-        }
-        ffi_substitution_functions.unchecked_append({
-            .identity = bit_cast<FlatPtr>(definition.function),
-            .scope_identity = bit_cast<FlatPtr>(definition.scope),
-            .name = ffi_utf16_view(definition.name),
-            .parameters = definition.ffi_parameters.data(),
-            .parameter_count = definition.ffi_parameters.size(),
-            .return_syntax = ffi_utf16_view(definition.return_syntax),
-            .declarations = definition.ffi_declarations.data(),
-            .declaration_count = definition.ffi_declarations.size(),
-        });
-    }
+    SubstitutionData substitution_data { abstract_element, has_unresolved_declarations, has_custom_function_declarations };
     ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
-        .parse_context = &parse_context,
+        .parse_context = &substitution_data.parse_context,
         .custom_property_store = custom_property_store,
         .inheritance_custom_property_store = bulk_context.inheritance_custom_property_store,
         .custom_property_registry = document.rust_custom_property_registry(),
         .root_custom_property_name = {},
-        .attributes = ffi_substitution_attributes.data(),
-        .attribute_count = ffi_substitution_attributes.size(),
+        .attributes = substitution_data.ffi_attributes.data(),
+        .attribute_count = substitution_data.ffi_attributes.size(),
         .attribute_names_are_ascii_case_insensitive = abstract_element.element().namespace_uri() == Namespace::HTML && document.is_html_document(),
-        .custom_functions = ffi_substitution_functions.data(),
-        .custom_function_count = ffi_substitution_functions.size(),
+        .custom_functions = substitution_data.ffi_functions.data(),
+        .custom_function_count = substitution_data.ffi_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&abstract_element.style_scope()),
         .callback_context = &bulk_context,
-        .resolve_custom_function = [](size_t scope_identity, ComputedValuesFFI::FfiUtf16View name) -> size_t {
-            auto& scope = *bit_cast<StyleScope const*>(scope_identity);
-            auto definition = scope.get_function_definition(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length }));
-            return definition.has_value() ? bit_cast<FlatPtr>(definition->function) : 0;
-        },
+        .resolve_custom_function = resolve_custom_function_for_substitution,
         .evaluate_condition = [](void* context, u8 kind, ComputedValuesFFI::FfiUtf16View source) -> u8 {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            auto source_view = Utf16View { reinterpret_cast<char16_t const*>(source.utf16), source.length };
-            auto parser = Parser::Parser::create(Parser::ParsingParams { bulk_context.abstract_element.document() }, source_view);
-            OwnPtr<BooleanExpression> expression;
-            if (kind == 0) {
-                expression = Parser::RustQueryParser::parse_media_feature(parser, source_view);
-                if (!expression)
-                    expression = Parser::RustQueryParser::parse_media_condition(parser, source_view);
-            } else if (kind == 1) {
-                expression = Parser::RustQueryParser::parse_supports_declaration(parser, source_view);
-                if (!expression)
-                    expression = Parser::RustQueryParser::parse_supports_condition(parser, source_view);
-            } else {
-                VERIFY(kind == 2);
-                expression = Parser::RustQueryParser::parse_style_query(parser, source_view);
-            }
-            if (!expression)
-                return 2;
-            return expression->evaluate_to_boolean({
-                .document = &bulk_context.abstract_element.document(),
-                .style_query_element = bulk_context.abstract_element,
-            });
+            return evaluate_condition_for_substitution(bulk_context.abstract_element, kind, source);
         },
         .lookup_final_custom_property = [](void* context, ComputedValuesFFI::FfiUtf16View name) -> void const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             auto& document = bulk_context.abstract_element.document();
             auto& style_computer = document.style_computer();
-            auto name_view = Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
+            auto name_view = utf16_view(name);
             if (style_computer.m_active_custom_property_resolution.has_value()
                 && style_computer.m_active_custom_property_resolution->element == bulk_context.abstract_element) {
                 if (auto finalized = style_computer.m_active_custom_property_resolution->finalized.get(Utf16FlyString::from_utf16(name_view)); finalized.has_value()) {
@@ -5901,7 +5925,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     return working_set;
 }
 
-static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value, ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts)
+static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_property(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> keyword_value, ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution)
 {
     VERIFY(keyword_value->is_css_wide_keyword());
 
@@ -5914,7 +5938,7 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
         return initial_custom_property_value(registration, element.document());
 
     if (keyword_value->is_inherit())
-        return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+        return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution);
 
     // https://drafts.csswg.org/css-mixins/#resolve-function-styles
     // NB: When resolving function styles (i.e. when we have a hypothetical element), all CSS-wide keywords other than
@@ -5926,7 +5950,7 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
     if (keyword_value->is_unset())
         return registration.has_value() && !registration->inherit
             ? initial_custom_property_value(registration, element.document())
-            : inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+            : inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution);
 
     if (keyword_value->is_revert()) {
         // FIXME: Implement reverting custom properties.
@@ -5958,122 +5982,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
         dom_element.record_style_custom_property_reference(name);
 
     auto& document = element.document();
-    auto document_url = document.url().serialize();
-    auto document_base_url = document.base_url().serialize();
-    Parser::ValueParserFFI::ParseContext parse_context {
-        .in_quirks_mode = document.in_quirks_mode(),
-        .is_svg_presentation_attribute = false,
-        .is_substituted_value = true,
-        .contains_attr_tainted_values = false,
-        .value_contexts = nullptr,
-        .value_context_count = 0,
-        .document_url = document_url.bytes().data(),
-        .document_url_length = document_url.bytes().size(),
-        .document_base_url = document_base_url.bytes().data(),
-        .document_base_url_length = document_base_url.bytes().size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string_for_substitution,
-        .normalize_svg_path_data = normalize_svg_path_data_for_substitution,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = nullptr,
-        .font_tech_is_supported = nullptr,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = nullptr,
-    };
-
-    struct SubstitutionAttribute {
-        Utf16String name;
-        Utf16String value;
-    };
-    Vector<SubstitutionAttribute> attributes;
-    element.abstract_element().element().for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
-        if (name.namespace_().has_value())
-            return;
-        attributes.append({ name.local_name().to_utf16_string(), Utf16String::from_utf16(value) });
-    });
-    Vector<ComputedValuesFFI::FfiSubstitutionAttribute> ffi_attributes;
-    ffi_attributes.ensure_capacity(attributes.size());
-    for (auto const& attribute : attributes)
-        ffi_attributes.unchecked_append({ .name = ffi_utf16_view(attribute.name), .value = ffi_utf16_view(attribute.value) });
-
-    struct FunctionParameter {
-        Utf16String name;
-        Utf16String syntax;
-        void const* default_data { nullptr };
-    };
-    struct FunctionDeclaration {
-        Utf16String name;
-        void const* data { nullptr };
-    };
-    struct FunctionDefinition {
-        GC::Ptr<CSSFunctionRule const> function;
-        StyleScope const* scope { nullptr };
-        Utf16String name;
-        Vector<FunctionParameter> parameters;
-        Utf16String return_syntax;
-        Vector<FunctionDeclaration> declarations;
-        Vector<ComputedValuesFFI::FfiSubstitutionFunctionParameter> ffi_parameters;
-        Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
-    };
-    Vector<FunctionDefinition> functions;
-    Function<void(StyleScope::FunctionDefinitionAndScope const&)> append_function = [&](StyleScope::FunctionDefinitionAndScope const& definition) {
-        for (auto const& existing : functions) {
-            if (existing.function == definition.function)
-                return;
-        }
-        FunctionDefinition snapshot {
-            .function = definition.function,
-            .scope = &definition.scope,
-            .name = definition.function->name(),
-            .parameters = {},
-            .return_syntax = definition.function->return_type_internal().to_string(),
-            .declarations = {},
-            .ffi_parameters = {},
-            .ffi_declarations = {},
-        };
-        for (auto const& parameter : definition.function->parameters_internal()) {
-            snapshot.parameters.append({
-                .name = parameter.name.to_utf16_string(),
-                .syntax = parameter.type->to_string(),
-                .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
-            });
-        }
-        definition.function->for_each_effective_declaration(element.abstract_element(), [&](Utf16FlyString const& name, NonnullRefPtr<StyleValue const> const& value) {
-            snapshot.declarations.append({ .name = name.to_utf16_string(), .data = value->rust_style_value_data() });
-        });
-        functions.append(move(snapshot));
-    };
-    element.style_scope().for_each_visible_function_definition(append_function);
-    for (size_t index = 0; index < functions.size(); ++index)
-        functions[index].scope->for_each_visible_function_definition(append_function);
-    Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_functions;
-    ffi_functions.ensure_capacity(functions.size());
-    for (auto& definition : functions) {
-        for (auto const& parameter : definition.parameters) {
-            definition.ffi_parameters.append({
-                .name = ffi_utf16_view(parameter.name),
-                .syntax = ffi_utf16_view(parameter.syntax),
-                .default_data = parameter.default_data,
-            });
-        }
-        for (auto const& declaration : definition.declarations) {
-            definition.ffi_declarations.append({
-                .name = ffi_utf16_view(declaration.name),
-                .data = declaration.data,
-            });
-        }
-        ffi_functions.append({
-            .identity = bit_cast<FlatPtr>(definition.function),
-            .scope_identity = bit_cast<FlatPtr>(definition.scope),
-            .name = ffi_utf16_view(definition.name),
-            .parameters = definition.ffi_parameters.data(),
-            .parameter_count = definition.ffi_parameters.size(),
-            .return_syntax = ffi_utf16_view(definition.return_syntax),
-            .declarations = definition.ffi_declarations.data(),
-            .declaration_count = definition.ffi_declarations.size(),
-        });
-    }
+    SubstitutionData substitution_data { element, true, true };
 
     auto custom_property_data = element.custom_property_data();
     auto inheritance_data = element.element_to_inherit_style_from().map([](auto const& parent) {
@@ -6081,49 +5990,28 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
                                                                    })
                                 .value_or(nullptr);
     ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
-        .parse_context = &parse_context,
+        .parse_context = &substitution_data.parse_context,
         .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
         .inheritance_custom_property_store = inheritance_data ? inheritance_data->rust_store() : nullptr,
         .custom_property_registry = document.rust_custom_property_registry(),
         .root_custom_property_name = property.is_custom_property() ? ffi_utf16_view(property.name()) : ComputedValuesFFI::FfiUtf16View {},
-        .attributes = ffi_attributes.data(),
-        .attribute_count = ffi_attributes.size(),
+        .attributes = substitution_data.ffi_attributes.data(),
+        .attribute_count = substitution_data.ffi_attributes.size(),
         .attribute_names_are_ascii_case_insensitive = element.abstract_element().element().namespace_uri() == Namespace::HTML && document.is_html_document(),
-        .custom_functions = ffi_functions.data(),
-        .custom_function_count = ffi_functions.size(),
+        .custom_functions = substitution_data.ffi_functions.data(),
+        .custom_function_count = substitution_data.ffi_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&element.style_scope()),
         .callback_context = &element,
-        .resolve_custom_function = [](size_t scope_identity, ComputedValuesFFI::FfiUtf16View name) -> size_t {
-            auto& scope = *bit_cast<StyleScope const*>(scope_identity);
-            auto definition = scope.get_function_definition(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length }));
-            return definition.has_value() ? bit_cast<FlatPtr>(definition->function) : 0;
-        },
+        .resolve_custom_function = resolve_custom_function_for_substitution,
         .evaluate_condition = [](void* context, u8 kind, ComputedValuesFFI::FfiUtf16View source) -> u8 {
             auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
-            auto source_view = Utf16View { reinterpret_cast<char16_t const*>(source.utf16), source.length };
-            auto parser = Parser::Parser::create(Parser::ParsingParams { element.document() }, source_view);
-            OwnPtr<BooleanExpression> expression;
-            if (kind == 0) {
-                expression = Parser::RustQueryParser::parse_media_feature(parser, source_view);
-                if (!expression)
-                    expression = Parser::RustQueryParser::parse_media_condition(parser, source_view);
-            } else if (kind == 1) {
-                expression = Parser::RustQueryParser::parse_supports_declaration(parser, source_view);
-                if (!expression)
-                    expression = Parser::RustQueryParser::parse_supports_condition(parser, source_view);
-            } else {
-                VERIFY(kind == 2);
-                expression = Parser::RustQueryParser::parse_style_query(parser, source_view);
-            }
-            if (!expression)
-                return 2;
-            return expression->evaluate_to_boolean({ .document = &element.document(), .style_query_element = element });
+            return evaluate_condition_for_substitution(element, kind, source);
         },
         .lookup_final_custom_property = [](void* context, ComputedValuesFFI::FfiUtf16View name) -> void const* {
             auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
             auto& document = element.document();
             auto& style_computer = document.style_computer();
-            auto name_view = Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
+            auto name_view = utf16_view(name);
             if (style_computer.m_active_custom_property_resolution.has_value()
                 && element.has<DOM::AbstractElement>()
                 && style_computer.m_active_custom_property_resolution->element == element.get<DOM::AbstractElement>()) {
@@ -6145,7 +6033,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(result));
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> guarded_contexts) const
+NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -6169,7 +6057,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     auto resolved_value = value ? value.release_nonnull() : initial_custom_property_value(registration, document);
 
     if (resolved_value->is_css_wide_keyword())
-        resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution, guarded_contexts);
+        resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution);
 
     if (resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_arbitrary_substitution_function()) {
         auto& unresolved = resolved_value->as_unresolved();
@@ -6178,7 +6066,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,
         // exactly as a literally-specified one would (handled above before substitution).
         if (resolved_value->is_css_wide_keyword())
-            resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution, guarded_contexts);
+            resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution);
     }
 
     auto invalid_custom_property_fallback_value = [&](NonnullRefPtr<StyleValue const> invalid_value) -> NonnullRefPtr<StyleValue const> {
@@ -6206,7 +6094,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
                 return invalid_value;
 
             if (registration->inherit)
-                return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+                return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution);
             return initial_custom_property_value(registration, element.document());
         }
     };
@@ -6227,7 +6115,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         }
         auto parsing_params = Parser::ParsingParams { document };
         parsing_params.value_context.append(PropertyID::Custom);
-        auto parsed = Parser::parse_with_a_syntax(parsing_params, tokenized_custom_property_value(resolved_value), registration->syntax);
+        auto source = resolved_value->is_unresolved()
+            ? resolved_value->as_unresolved().token_source()
+            : resolved_value->to_utf16_string(SerializationMode::ResolvedValueForReparse);
+        auto parsed = Parser::parse_with_a_syntax(parsing_params, source, registration->syntax);
         parses.append({ resolved_value, registration->syntax.ptr(), registration_generation, parsed });
         return parsed;
     }();
@@ -6247,7 +6138,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
 
     if (resolved_value_contains_attr_tainted_values) {
         VERIFY(!computed_value->is_unresolved());
-        return UnresolvedStyleValue::create_attr_tainted_with_parsed_value(Parser::serialize_style_value_for_tokenization(*computed_value), {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, computed_value);
+        return UnresolvedStyleValue::create_attr_tainted_with_parsed_value(computed_value->is_unresolved()
+                ? computed_value->as_unresolved().token_source()
+                : computed_value->to_utf16_string(SerializationMode::ResolvedValueForReparse),
+            {}, {}, UnresolvedStyleValue::SourceTextMode::Trim, computed_value);
     }
 
     return computed_value;
