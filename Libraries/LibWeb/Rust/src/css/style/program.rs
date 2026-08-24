@@ -930,8 +930,20 @@ impl StyleSheetProgram {
     /// Every live style rule of a sheet, in cascade order within that sheet.
     #[must_use]
     pub fn rules_in_sheet(&self, sheet: SheetID) -> Vec<RuleID> {
+        let top_level_rules = &self.sheets[sheet.0 as usize].rules;
+        if top_level_rules
+            .iter()
+            .all(|rule| self.rules[rule.0 as usize].children.is_empty())
+        {
+            return top_level_rules
+                .iter()
+                .copied()
+                .filter(|rule| self.rules[rule.0 as usize].live)
+                .collect();
+        }
+
         let mut rules: Vec<RuleID> = Vec::new();
-        for &top_level in &self.sheets[sheet.0 as usize].rules {
+        for &top_level in top_level_rules {
             self.collect_live_subtree(top_level, &mut rules);
         }
         rules.sort_by(|first, second| {
