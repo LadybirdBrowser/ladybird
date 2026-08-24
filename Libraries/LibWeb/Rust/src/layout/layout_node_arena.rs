@@ -53,6 +53,49 @@ pub(crate) struct IntrinsicSizeCacheKey {
     pub(crate) quirks_mode_percentage_basis_block_size: Option<CssPixels>,
 }
 
+impl IntrinsicSizeCacheKey {
+    fn with_percentage_block_bases_masked(self) -> Self {
+        Self {
+            percentage_basis_block_size: None,
+            quirks_mode_percentage_basis_block_size: None,
+            ..self
+        }
+    }
+}
+
+// Independent measurements are stored under the masked key. A masked probe must skip dependent
+// entries: a dependent measurement made without a basis shares the masked key's shape.
+fn intrinsic_cache_lookup<V: Copy>(
+    map: &HashMap<IntrinsicSizeCacheKey, V>,
+    key: IntrinsicSizeCacheKey,
+    depends_on_percentage_block_size: impl Fn(&V) -> bool,
+) -> Option<V> {
+    if let Some(value) = map.get(&key) {
+        return Some(*value);
+    }
+    let masked_key = key.with_percentage_block_bases_masked();
+    if masked_key == key {
+        return None;
+    }
+    map.get(&masked_key)
+        .copied()
+        .filter(|value| !depends_on_percentage_block_size(value))
+}
+
+fn intrinsic_cache_store<V>(
+    map: &mut HashMap<IntrinsicSizeCacheKey, V>,
+    key: IntrinsicSizeCacheKey,
+    value: V,
+    depends_on_percentage_block_size: bool,
+) {
+    let key = if depends_on_percentage_block_size {
+        key
+    } else {
+        key.with_percentage_block_bases_masked()
+    };
+    map.insert(key, value);
+}
+
 impl Hash for IntrinsicSizeCacheKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         fn hash_optional<H: Hasher>(value: Option<CssPixels>, state: &mut H) {
@@ -319,6 +362,7 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     table_cell_measurement_cache_misses: Cell<u64>,
+    intrinsic_measurements: Cell<u64>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
@@ -344,6 +388,7 @@ impl LayoutNodeArena {
             live_count: 0,
             intrinsic_size_caches: RefCell::new(Vec::new()),
             table_cell_measurement_cache_misses: Cell::new(0),
+            intrinsic_measurements: Cell::new(0),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
@@ -943,12 +988,12 @@ impl LayoutNodeArena {
         if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
             return None;
         }
-        slot.sizes
+        let map = slot
+            .sizes
             .as_ref()?
             .block_sizes(kind)
-            .expect("block size cache kind must use the block axis")
-            .get(&key)
-            .copied()
+            .expect("block size cache kind must use the block axis");
+        intrinsic_cache_lookup(map, key, |measurement| measurement.depends_on_percentage_block_size)
     }
 
     fn with_intrinsic_size_maps_mut(&self, data: &NodeData, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
@@ -976,9 +1021,10 @@ impl LayoutNodeArena {
         value: IntrinsicBlockSizeMeasurement,
     ) {
         self.with_intrinsic_size_maps_mut(data, |maps| {
-            maps.block_sizes_mut(kind)
-                .expect("block size cache kind must use the block axis")
-                .insert(key, value);
+            let map = maps
+                .block_sizes_mut(kind)
+                .expect("block size cache kind must use the block axis");
+            intrinsic_cache_store(map, key, value, value.depends_on_percentage_block_size);
         });
     }
 
@@ -1002,12 +1048,12 @@ impl LayoutNodeArena {
         if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
             return None;
         }
-        slot.sizes
+        let map = slot
+            .sizes
             .as_ref()?
             .inline_measurements(kind)
-            .expect("inline measurement cache kind must use the inline axis")
-            .get(&key)
-            .copied()
+            .expect("inline measurement cache kind must use the inline axis");
+        intrinsic_cache_lookup(map, key, |measurement| measurement.depends_on_percentage_block_size)
     }
 
     pub(crate) fn intrinsic_inline_size_depends_on_block_size(
@@ -1045,9 +1091,10 @@ impl LayoutNodeArena {
         value: IntrinsicInlineSizeMeasurement,
     ) {
         self.with_intrinsic_size_maps_mut(data, |maps| {
-            maps.inline_measurements_mut(kind)
-                .expect("inline measurement cache kind must use the inline axis")
-                .insert(key, value);
+            let map = maps
+                .inline_measurements_mut(kind)
+                .expect("inline measurement cache kind must use the inline axis");
+            intrinsic_cache_store(map, key, value, value.depends_on_percentage_block_size);
         });
     }
 
@@ -1083,6 +1130,14 @@ impl LayoutNodeArena {
 
     pub(crate) fn table_cell_measurement_cache_miss_count(&self) -> u64 {
         self.table_cell_measurement_cache_misses.get()
+    }
+
+    pub(crate) fn note_intrinsic_measurement(&self) {
+        self.intrinsic_measurements.set(self.intrinsic_measurements.get() + 1);
+    }
+
+    pub(crate) fn intrinsic_measurement_count(&self) -> u64 {
+        self.intrinsic_measurements.get()
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, data: *const NodeData) -> Option<AbsposLayoutInputs> {
@@ -1841,6 +1896,19 @@ pub unsafe extern "C" fn layout_arena_table_cell_measurement_cache_miss_count(ar
 
 /// # Safety
 ///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_intrinsic_measurement_count(arena: *mut c_void) -> u64 {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_measurement_count()
+    })
+}
+
+/// # Safety
+///
 /// The arena must remain valid for the duration of the call, and `id` must
 /// name a live node in this arena.
 #[unsafe(no_mangle)]
@@ -2272,6 +2340,68 @@ mod tests {
             None
         );
         arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn intrinsic_size_cache_answers_masked_probes_only_from_independent_measurements() {
+        let mut arena = LayoutNodeArena::new();
+        let allocation = arena.allocate();
+        // SAFETY: The allocation remains live until it is explicitly freed below.
+        let data = unsafe { &mut *allocation.data };
+        let key_with_basis = |basis: i32| IntrinsicSizeCacheKey {
+            measured_at_inline_size: Some(CssPixels::from_raw(64)),
+            percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
+            quirks_mode_percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
+            ..Default::default()
+        };
+        let key_without_basis = IntrinsicSizeCacheKey {
+            measured_at_inline_size: Some(CssPixels::from_raw(64)),
+            ..Default::default()
+        };
+        let max_content = IntrinsicSizeCacheKind::MaxContentBlock;
+        let min_content = IntrinsicSizeCacheKind::MinContentBlock;
+
+        let independent = IntrinsicBlockSizeMeasurement {
+            size: CssPixels::from_raw(128),
+            depends_on_percentage_block_size: false,
+        };
+        arena.intrinsic_block_size_cache_put(data, max_content, key_with_basis(100), independent);
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, max_content, key_with_basis(100)),
+            Some(independent)
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, max_content, key_with_basis(200)),
+            Some(independent)
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, max_content, key_without_basis),
+            Some(independent)
+        );
+
+        let dependent = IntrinsicBlockSizeMeasurement {
+            size: CssPixels::from_raw(256),
+            depends_on_percentage_block_size: true,
+        };
+        arena.intrinsic_block_size_cache_put(data, min_content, key_without_basis, dependent);
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, min_content, key_without_basis),
+            Some(dependent)
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(100)),
+            None
+        );
+        arena.intrinsic_block_size_cache_put(data, min_content, key_with_basis(100), dependent);
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(100)),
+            Some(dependent)
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(200)),
+            None
+        );
+        arena.free(allocation.slot, allocation.generation);
     }
 
     #[test]

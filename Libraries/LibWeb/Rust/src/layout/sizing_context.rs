@@ -1854,6 +1854,7 @@ impl SizingContext {
             return cached.automatic_content_inline_size;
         }
 
+        self.callbacks.arena().note_intrinsic_measurement();
         let measurement = MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         // NB: A parent layout can assign a definite block size that is not present in computed style,
@@ -1913,6 +1914,7 @@ impl SizingContext {
             return cached.size;
         }
 
+        self.callbacks.arena().note_intrinsic_measurement();
         let measurement = MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         root.block_size_constraint.set(size_constraint);

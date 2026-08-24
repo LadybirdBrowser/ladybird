@@ -119,6 +119,7 @@ public:
     WebIDL::UnsignedLongLong full_layout_count();
     WebIDL::UnsignedLongLong layout_run_cache_hit_count();
     WebIDL::UnsignedLongLong table_cell_measurement_cache_miss_count();
+    WebIDL::UnsignedLongLong intrinsic_measurement_count();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
     void set_autoplay_policy(Utf16String const& policy);
 

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #flex { display: flex; align-items: flex-start; width: 300px; height: 100px; }
+    .item { padding: 5px; }
+</style>
+<div id="flex"><div class="item">alpha beta</div><div class="item">gamma</div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const measurementsBefore = internals.intrinsicMeasurementCount();
+
+        // The items' intrinsic sizes were measured with the container's old height as their
+        // percentage basis; nothing in them observed it, so the cached measurements still answer.
+        document.getElementById("flex").style.height = "200px";
+        document.body.offsetHeight;
+
+        println(`measurement delta: ${internals.intrinsicMeasurementCount() - measurementsBefore}`);
+        println(`first item height: ${document.querySelector(".item").getBoundingClientRect().height}`);
+    });
+</script>
