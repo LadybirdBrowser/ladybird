@@ -872,6 +872,27 @@ impl SizingContext {
             || unvisited_content_below_a_forwarding_box_is_assumed_dependent
     }
 
+    // Descendants resolve percentages against the measured box itself, so only the box's own style
+    // can reach its containing block's inline basis.
+    fn measurement_root_observes_percentage_inline_basis(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        if facts.is_anonymous() || facts.is_replaced_box() || facts.has_auto_content_box_size() {
+            return true;
+        }
+        let style = self.style(node);
+        style.width().contains_percentage()
+            || style.min_width().contains_percentage()
+            || style.max_width().contains_percentage()
+            || style.padding_left().contains_percentage()
+            || style.padding_right().contains_percentage()
+            || style.padding_top().contains_percentage()
+            || style.padding_bottom().contains_percentage()
+            || style.margin_left().contains_percentage()
+            || style.margin_right().contains_percentage()
+            || style.margin_top().contains_percentage()
+            || style.margin_bottom().contains_percentage()
+    }
+
     pub(crate) fn charge_measurement_dependency_to_measured_box_and_containing_block(
         &self,
         node: Node,
@@ -1465,6 +1486,7 @@ impl SizingContext {
                 has_last_baseline: used.has_last_baseline.get(),
                 last_baseline: used.last_baseline.get(),
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
+                depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
             },
         );
     }
@@ -1944,6 +1966,7 @@ impl SizingContext {
             IntrinsicBlockSizeMeasurement {
                 size: value,
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
+                depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
             },
         );
         value

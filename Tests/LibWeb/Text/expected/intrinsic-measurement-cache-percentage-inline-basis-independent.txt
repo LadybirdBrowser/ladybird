@@ -1,0 +1,2 @@
+measurement delta: 0
+inner width: 154.6875

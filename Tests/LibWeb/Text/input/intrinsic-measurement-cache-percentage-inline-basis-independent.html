@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { display: flex; width: 300px; }
+    #inner { display: flex; flex: none; }
+    .item { padding: 5px; }
+</style>
+<div id="outer"><div id="inner"><div class="item">alpha beta</div><div class="item">gamma</div></div></div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const measurementsBefore = internals.intrinsicMeasurementCount();
+
+        // #inner's intrinsic sizes were measured with #outer's width as their inline percentage
+        // basis; nothing in #inner resolves against it, so the cached measurements still answer.
+        document.getElementById("outer").style.width = "400px";
+        document.body.offsetHeight;
+
+        println(`measurement delta: ${internals.intrinsicMeasurementCount() - measurementsBefore}`);
+        println(`inner width: ${document.getElementById("inner").getBoundingClientRect().width}`);
+    });
+</script>

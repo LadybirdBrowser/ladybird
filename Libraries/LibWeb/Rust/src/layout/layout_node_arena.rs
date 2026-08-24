@@ -61,39 +61,77 @@ impl IntrinsicSizeCacheKey {
             ..self
         }
     }
+
+    fn with_percentage_inline_basis_masked(self) -> Self {
+        Self {
+            percentage_basis_inline_size: None,
+            ..self
+        }
+    }
+
+    fn masked_for(self, dependencies: IntrinsicMeasurementDependencies) -> Self {
+        let mut key = self;
+        if !dependencies.percentage_block_size {
+            key = key.with_percentage_block_bases_masked();
+        }
+        if !dependencies.percentage_inline_basis {
+            key = key.with_percentage_inline_basis_masked();
+        }
+        key
+    }
 }
 
-// Independent measurements are stored under the masked key. A masked probe must skip dependent
-// entries: a dependent measurement made without a basis shares the masked key's shape.
-fn intrinsic_cache_lookup<V: Copy>(
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct IntrinsicMeasurementDependencies {
+    pub(crate) percentage_block_size: bool,
+    pub(crate) percentage_inline_basis: bool,
+}
+
+pub(crate) trait IntrinsicMeasurement: Copy {
+    fn dependencies(&self) -> IntrinsicMeasurementDependencies;
+}
+
+// Measurements are stored under their key with every basis they never observed masked out. A
+// probe that had to mask a basis must skip entries that observed it: a measurement made without
+// that basis shares the masked key's shape.
+fn intrinsic_cache_lookup<V: IntrinsicMeasurement>(
     map: &HashMap<IntrinsicSizeCacheKey, V>,
     key: IntrinsicSizeCacheKey,
-    depends_on_percentage_block_size: impl Fn(&V) -> bool,
 ) -> Option<V> {
     if let Some(value) = map.get(&key) {
         return Some(*value);
     }
-    let masked_key = key.with_percentage_block_bases_masked();
-    if masked_key == key {
-        return None;
-    }
-    map.get(&masked_key)
-        .copied()
-        .filter(|value| !depends_on_percentage_block_size(value))
+    let block_masked = key.with_percentage_block_bases_masked();
+    let inline_masked = key.with_percentage_inline_basis_masked();
+    let masking_block_changes_key = block_masked != key;
+    let masking_inline_changes_key = inline_masked != key;
+    let candidates = [
+        (block_masked, masking_block_changes_key, true, false),
+        (inline_masked, masking_inline_changes_key, false, true),
+        (
+            block_masked.with_percentage_inline_basis_masked(),
+            masking_block_changes_key && masking_inline_changes_key,
+            true,
+            true,
+        ),
+    ];
+    candidates.into_iter().filter(|(_, applies, _, _)| *applies).find_map(
+        |(candidate, _, block_was_masked, inline_was_masked)| {
+            let value = *map.get(&candidate)?;
+            let dependencies = value.dependencies();
+            let observed_a_masked_basis = (block_was_masked && dependencies.percentage_block_size)
+                || (inline_was_masked && dependencies.percentage_inline_basis);
+            (!observed_a_masked_basis).then_some(value)
+        },
+    )
 }
 
-fn intrinsic_cache_store<V>(
+fn intrinsic_cache_store<V: IntrinsicMeasurement>(
     map: &mut HashMap<IntrinsicSizeCacheKey, V>,
     key: IntrinsicSizeCacheKey,
     value: V,
-    depends_on_percentage_block_size: bool,
 ) {
-    let key = if depends_on_percentage_block_size {
-        key
-    } else {
-        key.with_percentage_block_bases_masked()
-    };
-    map.insert(key, value);
+    map.insert(key.masked_for(value.dependencies()), value);
 }
 
 impl Hash for IntrinsicSizeCacheKey {
@@ -186,12 +224,32 @@ pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) has_last_baseline: bool,
     pub(crate) last_baseline: CssPixels,
     pub(crate) depends_on_percentage_block_size: bool,
+    pub(crate) depends_on_percentage_inline_basis: bool,
+}
+
+impl IntrinsicMeasurement for IntrinsicInlineSizeMeasurement {
+    fn dependencies(&self) -> IntrinsicMeasurementDependencies {
+        IntrinsicMeasurementDependencies {
+            percentage_block_size: self.depends_on_percentage_block_size,
+            percentage_inline_basis: self.depends_on_percentage_inline_basis,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct IntrinsicBlockSizeMeasurement {
     pub(crate) size: CssPixels,
     pub(crate) depends_on_percentage_block_size: bool,
+    pub(crate) depends_on_percentage_inline_basis: bool,
+}
+
+impl IntrinsicMeasurement for IntrinsicBlockSizeMeasurement {
+    fn dependencies(&self) -> IntrinsicMeasurementDependencies {
+        IntrinsicMeasurementDependencies {
+            percentage_block_size: self.depends_on_percentage_block_size,
+            percentage_inline_basis: self.depends_on_percentage_inline_basis,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -993,7 +1051,7 @@ impl LayoutNodeArena {
             .as_ref()?
             .block_sizes(kind)
             .expect("block size cache kind must use the block axis");
-        intrinsic_cache_lookup(map, key, |measurement| measurement.depends_on_percentage_block_size)
+        intrinsic_cache_lookup(map, key)
     }
 
     fn with_intrinsic_size_maps_mut(&self, data: &NodeData, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
@@ -1024,7 +1082,7 @@ impl LayoutNodeArena {
             let map = maps
                 .block_sizes_mut(kind)
                 .expect("block size cache kind must use the block axis");
-            intrinsic_cache_store(map, key, value, value.depends_on_percentage_block_size);
+            intrinsic_cache_store(map, key, value);
         });
     }
 
@@ -1053,7 +1111,7 @@ impl LayoutNodeArena {
             .as_ref()?
             .inline_measurements(kind)
             .expect("inline measurement cache kind must use the inline axis");
-        intrinsic_cache_lookup(map, key, |measurement| measurement.depends_on_percentage_block_size)
+        intrinsic_cache_lookup(map, key)
     }
 
     pub(crate) fn intrinsic_inline_size_depends_on_block_size(
@@ -1094,7 +1152,7 @@ impl LayoutNodeArena {
             let map = maps
                 .inline_measurements_mut(kind)
                 .expect("inline measurement cache kind must use the inline axis");
-            intrinsic_cache_store(map, key, value, value.depends_on_percentage_block_size);
+            intrinsic_cache_store(map, key, value);
         });
     }
 
@@ -2257,6 +2315,7 @@ mod tests {
         let value = IntrinsicBlockSizeMeasurement {
             size: CssPixels::from_raw(128),
             depends_on_percentage_block_size: false,
+            depends_on_percentage_inline_basis: false,
         };
         let inline_measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(192),
@@ -2271,6 +2330,7 @@ mod tests {
             has_last_baseline: true,
             last_baseline: CssPixels::from_raw(128),
             depends_on_percentage_block_size: false,
+            depends_on_percentage_inline_basis: false,
         };
         let dependency_computations = Cell::new(0);
 
@@ -2364,6 +2424,7 @@ mod tests {
         let independent = IntrinsicBlockSizeMeasurement {
             size: CssPixels::from_raw(128),
             depends_on_percentage_block_size: false,
+            depends_on_percentage_inline_basis: false,
         };
         arena.intrinsic_block_size_cache_put(data, max_content, key_with_basis(100), independent);
         assert_eq!(
@@ -2382,6 +2443,7 @@ mod tests {
         let dependent = IntrinsicBlockSizeMeasurement {
             size: CssPixels::from_raw(256),
             depends_on_percentage_block_size: true,
+            depends_on_percentage_inline_basis: false,
         };
         arena.intrinsic_block_size_cache_put(data, min_content, key_without_basis, dependent);
         assert_eq!(
@@ -2399,6 +2461,42 @@ mod tests {
         );
         assert_eq!(
             arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(200)),
+            None
+        );
+
+        let key_at_another_inline_size_with_inline_basis = |basis: i32| IntrinsicSizeCacheKey {
+            measured_at_inline_size: Some(CssPixels::from_raw(96)),
+            percentage_basis_inline_size: Some(CssPixels::from_raw(basis)),
+            ..key_with_basis(100)
+        };
+        let observes_inline_basis = IntrinsicBlockSizeMeasurement {
+            size: CssPixels::from_raw(512),
+            depends_on_percentage_block_size: false,
+            depends_on_percentage_inline_basis: true,
+        };
+        arena.intrinsic_block_size_cache_put(
+            data,
+            max_content,
+            key_at_another_inline_size_with_inline_basis(300),
+            observes_inline_basis,
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, max_content, key_at_another_inline_size_with_inline_basis(300)),
+            Some(observes_inline_basis)
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(
+                data,
+                max_content,
+                IntrinsicSizeCacheKey {
+                    percentage_basis_block_size: Some(CssPixels::from_raw(200)),
+                    ..key_at_another_inline_size_with_inline_basis(300)
+                }
+            ),
+            Some(observes_inline_basis)
+        );
+        assert_eq!(
+            arena.intrinsic_block_size_cache_get(data, max_content, key_at_another_inline_size_with_inline_basis(400)),
             None
         );
         arena.free(allocation.slot, allocation.generation);
