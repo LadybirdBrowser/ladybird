@@ -31,6 +31,22 @@ TEST_CASE(rule_matches_url_patterns)
     EXPECT(!rule.matches(url("https://www.example.com.evil.test/article"sv)));
 }
 
+TEST_CASE(rule_matches_apex_and_subdomain_patterns)
+{
+    auto rule = MUST(Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
+        {
+            "matches": ["https://example.com/*", "https://*.example.com/*"],
+            "user_agent": ["hide_Ladybird"]
+        }
+    )"sv))));
+
+    EXPECT(rule.matches(url("https://example.com/article"sv)));
+    EXPECT(rule.matches(url("https://www.example.com/article"sv)));
+    EXPECT(rule.matches(url("https://edition.news.example.com/article"sv)));
+    EXPECT(!rule.matches(url("https://example.com.evil.test/article"sv)));
+    EXPECT(!rule.matches(url("https://notexample.com/article"sv)));
+}
+
 TEST_CASE(rule_transforms_user_agent)
 {
     auto rule = MUST(Web::SiteCompatibilityRule::create(
