@@ -382,7 +382,6 @@ class LengthPercentageOrAuto;
 class LengthStyleValue;
 class LinearGradientStyleValue;
 class MediaList;
-class MediaFeatureValue;
 class MediaQuery;
 class MediaQueryList;
 class MediaQueryListEvent;
@@ -526,6 +525,12 @@ using StyleValueTuple = Vector<ValueComparingRefPtr<StyleValue const>>;
 }
 
 namespace Web::CSS::Invalidation {
+
+}
+
+namespace Web::CSS::Parser::ValueParserFFI {
+
+struct FfiMediaFeatureValue;
 
 }
 

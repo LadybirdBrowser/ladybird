@@ -6,86 +6,22 @@
 
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
-#include <LibWeb/CSS/StyleValues/ComputationContext.h>
-#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
-bool MediaFeatureValue::is_ident() const { return m_type == Type::Ident; }
-bool MediaFeatureValue::is_integer() const { return m_type == Type::Integer; }
-bool MediaFeatureValue::is_length() const { return m_type == Type::Length; }
-bool MediaFeatureValue::is_ratio() const { return m_type == Type::Ratio; }
-bool MediaFeatureValue::is_resolution() const { return m_type == Type::Resolution; }
-
-Keyword MediaFeatureValue::ident() const
-{
-    VERIFY(is_ident());
-    return m_value->to_keyword();
-}
-
-i32 MediaFeatureValue::integer(ComputationContext const& context) const
-{
-    VERIFY(is_integer());
-    return int_from_style_value(m_value->absolutized(context));
-}
-
-Length MediaFeatureValue::length(ComputationContext const& context) const
-{
-    VERIFY(is_length());
-    return Length::from_style_value(m_value->absolutized(context), {});
-}
-
-Ratio MediaFeatureValue::ratio(ComputationContext const& context) const
-{
-    VERIFY(is_ratio());
-    return m_value->absolutized(context)->as_ratio().resolved();
-}
-
-Resolution MediaFeatureValue::resolution(ComputationContext const& context) const
-{
-    VERIFY(is_resolution());
-    return Resolution::from_style_value(m_value->absolutized(context));
-}
-
 MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document)
 {
     if (!document.window())
         return;
 
-    auto computation_context = ComputationContext {
-        .length_resolution_context = Length::ResolutionContext::for_document(document),
-    };
     m_length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
-        computation_context.length_resolution_context, all_container_relative_length_units_mask);
+        Length::ResolutionContext::for_document(document), all_container_relative_length_units_mask);
 
-    for (size_t index = 0; index < m_values.size(); ++index) {
-        auto queried_value = document.window()->query_media_feature(static_cast<MediaFeatureID>(index));
-        if (!queried_value.has_value())
-            continue;
-        auto& ffi_value = m_values[index];
-        auto const& value = queried_value.value();
-        if (value.is_ident()) {
-            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Ident;
-            ffi_value.keyword = to_underlying(value.ident());
-        } else if (value.is_integer()) {
-            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Integer;
-            ffi_value.value = value.integer(computation_context);
-        } else if (value.is_length()) {
-            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Length;
-            ffi_value.value = value.length(computation_context).absolute_length_to_px().to_double();
-        } else if (value.is_ratio()) {
-            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Ratio;
-            auto ratio = value.ratio(computation_context);
-            ffi_value.value = ratio.numerator();
-            ffi_value.second_value = ratio.denominator();
-        } else if (value.is_resolution()) {
-            ffi_value.kind = Parser::ValueParserFFI::FfiMediaFeatureValueKind::Resolution;
-            ffi_value.value = value.resolution(computation_context).to_dots_per_pixel();
-        }
-    }
+    for (size_t index = 0; index < m_values.size(); ++index)
+        m_values[index] = document.window()->query_media_feature(static_cast<MediaFeatureID>(index));
 }
 
 NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()

@@ -9,52 +9,15 @@
 #include <AK/Array.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
-#include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/Query.h>
-#include <LibWeb/CSS/Ratio.h>
-#include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
-#include <LibWeb/CSS/StyleValues/ComputationContext.h>
-#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
-
-class MediaFeatureValue {
-public:
-    enum class Type : u8 {
-        Ident,
-        Integer,
-        Length,
-        Ratio,
-        Resolution,
-    };
-
-    MediaFeatureValue(Type type, NonnullRefPtr<StyleValue const> value)
-        : m_type(type)
-        , m_value(move(value))
-    {
-    }
-
-    bool is_ident() const;
-    bool is_integer() const;
-    bool is_length() const;
-    bool is_ratio() const;
-    bool is_resolution() const;
-
-    Keyword ident() const;
-    i32 integer(ComputationContext const&) const;
-    Length length(ComputationContext const&) const;
-    Ratio ratio(ComputationContext const&) const;
-    Resolution resolution(ComputationContext const&) const;
-
-private:
-    Type m_type;
-    NonnullRefPtr<StyleValue const> m_value;
-};
 
 class MediaEnvironmentSnapshot {
 public:
