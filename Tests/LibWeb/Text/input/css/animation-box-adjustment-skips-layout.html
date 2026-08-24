@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="display: flex"><span id="target"></span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.animate(
+            { opacity: [0, 1] },
+            { duration: 1000, fill: "both" });
+        animation.pause();
+
+        animation.currentTime = 100;
+        target.offsetWidth;
+        const layoutsBefore = internals.fullLayoutCount();
+
+        for (const time of [200, 300, 400]) {
+            animation.currentTime = time;
+            target.offsetWidth;
+        }
+
+        println(`full layouts: ${internals.fullLayoutCount() - layoutsBefore}`);
+    });
+</script>

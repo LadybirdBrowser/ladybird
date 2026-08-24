@@ -827,6 +827,7 @@ struct AnimatedPropertyInvalidation {
 static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties, DOM::AbstractElement const& target)
 {
     AnimatedPropertyInvalidation result;
+    auto current_style = target.computed_style();
     auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
     bool text_decoration_line_animated = false;
     if (old_properties) {
@@ -843,6 +844,18 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto const* old_value = animated_property_value(old_properties, property_id);
         auto const* new_value = animated_property_value(new_properties, property_id);
+        RefPtr<CSS::StyleValue const> old_effective_value;
+        RefPtr<CSS::StyleValue const> new_effective_value;
+        // Box-type adjustments can add a synthetic animated value for a property not covered by
+        // the effect. Compare that value with the effective style instead of treating it as new.
+        if (!old_value && current_style) {
+            old_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::Yes);
+            old_value = old_effective_value.ptr();
+        }
+        if (!new_value && current_style) {
+            new_effective_value = current_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::No);
+            new_value = new_effective_value.ptr();
+        }
         if (!old_value && !new_value)
             continue;
         if (old_value && new_value && old_value->equals(*new_value))
