@@ -1075,7 +1075,9 @@ impl StyleSheetProgram {
         declared: Vec<DeclaredProperty>,
         declarations_are_complete: bool,
     ) {
-        self.invalidate_semantic_declarations();
+        if self.rules[rule.0 as usize].semantic_declaration != SemanticDeclarationID::default() {
+            self.invalidate_semantic_declarations();
+        }
         let entry = &mut self.rules[rule.0 as usize];
         let previous_capacity = (entry.declared_properties.capacity() * size_of::<DeclaredProperty>()) as u64;
         entry.declared_properties = declared;
@@ -1407,6 +1409,7 @@ mod tests {
         let first = program.append_rule(sheet, None, RuleKind::Style);
         let second = program.append_rule(sheet, None, RuleKind::Style);
         let third = program.append_rule(sheet, None, RuleKind::Style);
+        let never_interned = program.append_rule(sheet, None, RuleKind::Style);
         let declared = |value| DeclaredProperty {
             property: 1,
             important: false,
@@ -1424,6 +1427,9 @@ mod tests {
         assert_ne!(first_identity, SemanticDeclarationID::default());
         assert_eq!(first_identity, second_identity);
         assert_ne!(first_identity, third_identity);
+
+        program.set_rule_declared_properties(never_interned, vec![declared(30)], true);
+        assert_eq!(program.ensure_semantic_declaration(first), first_identity);
 
         program.set_rule_declared_properties(second, vec![declared(10)], false);
         assert_eq!(
