@@ -1,0 +1,16 @@
+<!doctype html>
+<!-- A <legend> gets a block container box whatever its computed display is, so an inline outer
+     display leaves a box that is still its children's containing block. Inline layout has to lay it
+     out as one box on the line: walking into it would lay the block inside out against the block
+     container of the flex item's inline formatting context instead. -->
+<style>
+    #legend {
+        display: inline;
+        overflow: hidden;
+    }
+</style>
+<div style="display: flex">
+    <fieldset>
+        <legend id="legend"><div></div></legend>
+    </fieldset>
+</div>

@@ -7,7 +7,7 @@
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::fragment_ownership;
@@ -100,14 +100,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_atomic_inline(&self, paintable: NodeSlotId) -> bool {
-        if crate::painting::style_queries::is_replaced_element(self.layout_arena, paintable) {
-            return true;
-        }
-        if self.layout_kind(paintable) == Some(NodeKind::ListItemMarkerBox) {
-            return true;
-        }
-        let display = self.display(paintable);
-        display.is_inline_outside() && !display.is_flow_inside()
+        crate::painting::style_queries::is_atomic_inline(self.layout_arena, paintable)
     }
 
     pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: NodeSlotId) {

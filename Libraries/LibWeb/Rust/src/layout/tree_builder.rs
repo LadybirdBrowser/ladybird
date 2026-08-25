@@ -2367,6 +2367,20 @@ pub unsafe extern "C" fn layout_node_data_can_have_children(data: *const NodeDat
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_node_data_is_atomic_inline(data: *const NodeData) -> bool {
+    // SAFETY: The C++ caller passes the node's live arena slot.
+    let data = unsafe { &*data };
+    node_facts::node_is_atomic_inline(data, node_facts::node_style_view(data))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_node_data_is_fragmented_inline(data: *const NodeData) -> bool {
+    // SAFETY: The C++ caller passes the node's live arena slot.
+    let data = unsafe { &*data };
+    node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data))
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_node_data_may_have_replaced_content_facts(data: *const NodeData) -> bool {
     // SAFETY: The C++ caller passes the node's live arena slot.
     node_facts::node_may_have_replaced_content_facts_including_size_containment(unsafe { &*data })
@@ -2397,12 +2411,7 @@ fn node_has_replaced_element_table_display_adjustment(host: &TreeBuilderHost<'_>
 
 fn node_is_fragmented_inline(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     let data = host.data(node);
-    data.kind == NodeKind::InlineNode
-        || (data.kind == NodeKind::ListItemBox
-            && host.style(node).is_some_and(|style| {
-                let display = style.display();
-                display.is_inline_outside() && display.is_flow_inside()
-            }))
+    node_facts::node_is_fragmented_inline(data, host.style(node))
 }
 
 impl TreeBuilderHost<'_> {

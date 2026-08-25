@@ -310,6 +310,12 @@ pub(crate) fn has_css_transform(arena: &LayoutNodeArena, node: NodeSlotId, style
     has_transform && is_transformable(arena, node)
 }
 
+pub(crate) fn is_atomic_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+    arena
+        .node_data_if_live(node)
+        .is_some_and(|data| node_facts::node_is_atomic_inline(data, arena.node_style_if_live(node)))
+}
+
 pub(crate) fn is_transformable(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
@@ -347,10 +353,7 @@ pub(crate) fn is_transformable(arena: &LayoutNodeArena, node: NodeSlotId) -> boo
         if display.is_table_column() || display.is_table_column_group() {
             return false;
         }
-        let is_atomic_inline = has_flag(arena, node, NodeFlag::IsReplacedElement)
-            || kind == NodeKind::ListItemMarkerBox
-            || (display.is_inline_outside() && !display.is_flow_inside());
-        if display.is_inline_outside() && !is_atomic_inline {
+        if display.is_inline_outside() && !is_atomic_inline(arena, node) {
             return false;
         }
         return true;
@@ -489,13 +492,7 @@ pub(crate) fn is_text_decoration_propagation_boundary(arena: &LayoutNodeArena, n
     if arena.node_is_out_of_flow_if_live(node) {
         return true;
     }
-    if has_flag(arena, node, NodeFlag::IsReplacedElement) || kind == NodeKind::ListItemMarkerBox {
-        return true;
-    }
-    arena.node_style_if_live(node).is_some_and(|style| {
-        let display = style.display();
-        display.is_inline_outside() && !display.is_flow_inside()
-    })
+    is_atomic_inline(arena, node)
 }
 
 pub(crate) fn z_index(arena: &LayoutNodeArena, node: NodeSlotId) -> Option<i32> {
@@ -548,10 +545,6 @@ pub(crate) fn is_flex_or_grid_item(arena: &LayoutNodeArena, node: NodeSlotId) ->
 
 pub(crate) fn is_anonymous(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     has_flag(arena, node, NodeFlag::Anonymous)
-}
-
-pub(crate) fn is_replaced_element(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    has_flag(arena, node, NodeFlag::IsReplacedElement)
 }
 
 pub(crate) fn is_replaced_box(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {

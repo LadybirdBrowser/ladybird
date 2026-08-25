@@ -22,14 +22,25 @@ pub(crate) fn node_may_have_replaced_content_facts_including_size_containment(da
     if node_may_have_replaced_content_facts(data) {
         return true;
     }
-    if !kind_is_box(data.kind) || data.style.is_null() {
+    if !kind_is_box(data.kind) {
         return false;
+    }
+    let Some(style) = node_style_view(data) else {
+        return false;
+    };
+    style.has_size_containment() || style.is_size_container()
+}
+
+/// The node's own computed style, read off the style container the node data points at. Callers inside a layout pass go
+/// through the pass callbacks instead; this is for the node-data entry points the C++ side calls directly.
+pub(crate) fn node_style_view(data: &NodeData) -> Option<ComputedValuesView<'_>> {
+    if data.style.is_null() {
+        return None;
     }
     // SAFETY: A non-null style pointer addresses the container's group
     // pointer array, which FfiStylePayloads mirrors exactly.
     let payloads = unsafe { &*data.style.cast::<crate::layout::FfiStylePayloads>() };
-    let style = ComputedValuesView::new(&payloads.groups);
-    style.has_size_containment() || style.is_size_container()
+    Some(ComputedValuesView::new(&payloads.groups))
 }
 
 pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
@@ -80,6 +91,48 @@ pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
     }
 }
 
+/// Whether a box's in-flow descendants name it as their containing block. This is the question LayoutNodeArena answers
+/// when it assigns containing blocks, so anything that walks past a box on behalf of an enclosing formatting context
+/// has to ask it too: the boxes inside such a box are laid out against it, not against the block container of the
+/// context the walk started in.
+pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+    if kind_is_block_container(data.kind) && !node_is_fragmented_inline(data, style) {
+        return true;
+    }
+    if let Some(style) = style {
+        let display = style.display();
+        if display.is_flex_inside() || display.is_grid_inside() {
+            return true;
+        }
+    }
+    kind_is_replaced_box(data.kind) && node_can_have_children(data)
+}
+
+/// https://drafts.csswg.org/css-display/#atomic-inline
+/// An inline-level box laid out as a single opaque box on the line rather than as a fragmented inline. Inline flow
+/// boxes are otherwise walked into by inline layout, which would lay the boxes inside out against the containing block
+/// of the enclosing inline formatting context: a box that is its own children's containing block has to be laid out as
+/// one box instead. Elements whose box type does not follow from their display reach that case, since <legend> and
+/// <fieldset> get a block container box whatever their computed display says.
+pub(crate) fn node_is_atomic_inline(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+    has_flag(data, NodeFlag::IsReplacedElement)
+        || data.kind == NodeKind::ListItemMarkerBox
+        || style.is_some_and(|style| {
+            let display = style.display();
+            display.is_inline_outside()
+                && (!display.is_flow_inside() || node_forms_containing_block_for_children(data, Some(style)))
+        })
+}
+
+pub(crate) fn node_is_fragmented_inline(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+    data.kind == NodeKind::InlineNode
+        || (data.kind == NodeKind::ListItemBox
+            && style.is_some_and(|style| {
+                let display = style.display();
+                display.is_inline_outside() && display.is_flow_inside()
+            }))
+}
+
 pub(crate) fn node_has_auto_content_box_size(data: &NodeData) -> bool {
     (kind_is_replaced_box(data.kind) && data.kind != NodeKind::AudioBox)
         || matches!(
@@ -111,6 +164,15 @@ pub(crate) fn node_creates_block_formatting_context(
         }
         if (style.is_floating() && !has_flag(data, NodeFlag::IsFlexItem))
             || style.own_style_establishes_block_formatting_context()
+        {
+            return true;
+        }
+        // An inline flow box that is its own children's containing block is laid out as an atomic inline, and an atomic
+        // inline establishes an independent formatting context: the boxes inside it belong to a context it establishes
+        // rather than to the one its line is part of.
+        if display.is_inline_outside()
+            && display.is_flow_inside()
+            && node_forms_containing_block_for_children(data, Some(style))
         {
             return true;
         }
@@ -331,13 +393,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_atomic_inline(&self) -> bool {
-        let data = self.data();
-        has_flag(data, NodeFlag::IsReplacedElement)
-            || data.kind == NodeKind::ListItemMarkerBox
-            || self.computed_values_view_if_styled().is_some_and(|style| {
-                let display = style.display();
-                display.is_inline_outside() && !display.is_flow_inside()
-            })
+        node_is_atomic_inline(self.data(), self.computed_values_view_if_styled())
     }
 
     pub(crate) fn has_box_model_metrics(&self) -> bool {
@@ -353,13 +409,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_fragmented_inline(&self) -> bool {
-        let data = self.data();
-        data.kind == NodeKind::InlineNode
-            || (data.kind == NodeKind::ListItemBox
-                && self.computed_values_view_if_styled().is_some_and(|style| {
-                    let display = style.display();
-                    display.is_inline_outside() && display.is_flow_inside()
-                }))
+        node_is_fragmented_inline(self.data(), self.computed_values_view_if_styled())
     }
 
     /// A box whose committed geometry is its own single box record; a

@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- The fieldset box's "behave as inline-block" adjustment is applied when the box is created, and a
+     restyle that keeps the box republishes the element's computed display over it. The box is left
+     with an inline outer display while still being its children's containing block, which inline
+     layout must treat as an atomic inline. -->
+<style>
+    #fieldset {
+        display: inline;
+    }
+</style>
+<div style="display: flex">
+    <div style="width: max-content">
+        before
+        <fieldset id="fieldset">
+            text
+            <div>block</div>
+        </fieldset>
+        after
+    </div>
+</div>
+<script>
+    document.body.offsetHeight;
+    document.getElementById("fieldset").style.color = "red";
+    document.body.offsetHeight;
+</script>
