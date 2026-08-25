@@ -4404,6 +4404,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let longhand_table = unsafe { &mut *longhand_table };
         longhand_table.finish_drive_inheritance_dependent_values();
         longhand_table.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
+        longhand_table.merge_dependency_flags(
+            results.depends_on_viewport_metrics,
+            results.font_metrics_depend_on_viewport_metrics,
+        );
         if phase != LONGHAND_DRIVE_PHASE_REMAINING {
             return publish_longhand_store_batch(cpp_store_side_effects, pending_effective_color_scheme);
         }

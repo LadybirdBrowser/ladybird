@@ -1295,7 +1295,8 @@ impl ComputedGroupSets {
         };
         let longhand_table = unsafe { longhand_table.as_ref() };
         let inherited_group_swap_eligible = dependency_flags & INHERITED_GROUP_SWAP_ELIGIBLE != 0;
-        let dependency_flags = dependency_flags & COMPUTED_VALUE_DEPENDENCY_FLAGS;
+        let dependency_flags = (dependency_flags & COMPUTED_VALUE_DEPENDENCY_FLAGS)
+            | longhand_table.map_or(0, ComputedLonghandTable::dependency_flags);
         assert!(inherited_group_count <= payloads.len());
         let previous_group_set = target.and_then(|target| {
             let ComputedStyleTarget { node, pseudo_kind } = target;
