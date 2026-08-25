@@ -32,6 +32,11 @@ enum class WindowResizingInProgress : u8 {
     Yes,
 };
 
+enum class ContextVisibility : u8 {
+    Visible,
+    Hidden,
+};
+
 enum class PagePresentationRegistration {
     No,
     Yes,

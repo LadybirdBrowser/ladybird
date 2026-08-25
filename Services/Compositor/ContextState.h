@@ -134,9 +134,13 @@ public:
     bool set_display_metadata(Optional<u64> display_id, double refresh_rate);
     Optional<u64> display_id() const { return m_display_id; }
     double display_refresh_rate() const { return m_display_refresh_rate; }
+    bool set_visibility(Web::Compositor::ContextVisibility);
+    Web::Compositor::ContextVisibility visibility() const { return m_visibility; }
 
     void queue_present_frame(PendingFrame);
+    Optional<Gfx::IntRect> pending_present_frame_viewport_rect() const;
     void mark_pending_present_frame_scheduled();
+    void unschedule_pending_present_frame() { m_pending_present_frame_scheduled = false; }
     bool has_pending_present_frame_scheduled_on(Optional<u64> display_id) const;
     bool can_schedule_pending_present_frame_if_unblocked() const;
     Optional<PendingFrame> take_pending_present_frame_if_unblocked();
@@ -216,6 +220,7 @@ private:
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };
+    Web::Compositor::ContextVisibility m_visibility { Web::Compositor::ContextVisibility::Visible };
 
     Optional<PendingFrame> m_pending_present_frame;
     bool m_pending_present_frame_scheduled { false };

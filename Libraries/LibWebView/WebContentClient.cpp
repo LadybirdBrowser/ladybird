@@ -376,6 +376,7 @@ void WebContentClient::replay_compositor_view_state_after_reconnect(Badge<Applic
             continue;
         Application::the().update_compositor_viewport(context_id, view->viewport_size().to_type<int>());
         Application::the().update_compositor_display_metadata(context_id, view->display_id(), view->maximum_frames_per_second());
+        Application::the().update_compositor_context_visibility(context_id, view->traversable().system_visibility_state());
     }
 }
 

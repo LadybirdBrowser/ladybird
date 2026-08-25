@@ -33,6 +33,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/DownloadStore.h>
@@ -177,6 +178,7 @@ public:
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::Compositor::CompositorContextId, Optional<u64> page_id);
     void update_compositor_viewport(Web::Compositor::CompositorContextId, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress = Web::Compositor::WindowResizingInProgress::No);
     void update_compositor_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
+    void update_compositor_context_visibility(Web::Compositor::CompositorContextId, Web::HTML::VisibilityState);
     bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
     bool handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool handle_pinch_event_in_compositor(Web::Compositor::CompositorContextId, Web::PinchEvent const&);

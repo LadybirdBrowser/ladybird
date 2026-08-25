@@ -22,5 +22,6 @@ endpoint CompositorControlServer
     async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels) => (bool handled)
     presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id) =|
     set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
+    set_context_visibility(Web::Compositor::CompositorContextId context_id, Web::Compositor::ContextVisibility visibility) =|
     crash() =|
 }

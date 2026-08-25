@@ -8,6 +8,8 @@
 #include <AK/Queue.h>
 #include <AK/Stream.h>
 #include <Compositor/CompositorState.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
@@ -21,6 +23,36 @@ struct TestWebContentClient final : public Compositor::CompositorStateWebContent
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
 };
+
+struct TestCompositorClient final : public Compositor::CompositorStateClient {
+    struct PresentedFrame {
+        Gfx::IntRect content_rect;
+        Gfx::IntRect damage_rect;
+        i32 bitmap_id { 0 };
+    };
+
+    virtual void did_allocate_backing_stores(Web::Compositor::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&&) override
+    {
+        allocated_bitmap_ids = move(bitmap_ids);
+    }
+
+    virtual void did_present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override
+    {
+        presented_frames.append({ content_rect, damage_rect, bitmap_id });
+    }
+
+    Vector<i32> allocated_bitmap_ids;
+    Vector<PresentedFrame> presented_frames;
+};
+
+static bool spin_event_loop_until(Core::EventLoop& event_loop, int timeout_in_milliseconds, Function<bool()> condition)
+{
+    bool timed_out = false;
+    auto timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&] { timed_out = true; });
+    timeout_timer->start();
+    event_loop.spin_until([&] { return timed_out || condition(); });
+    return !timed_out;
+}
 
 template<Web::Painting::DisplayListCommand Command>
 static void append_display_list_command(ByteBuffer& command_bytes, Command const& command, bool context_geometry_only, Optional<Gfx::IntRect> bounding_rect = {})
@@ -225,4 +257,59 @@ TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
     // The primary-button drag remains captured after another button is released.
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 50, 60)).accepted);
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, 50, 60, Web::UIEvents::MouseButton::Primary)).accepted);
+}
+
+TEST_CASE(context_visibility_and_pending_frame_state)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 1, client, canvas_surface_registry, false };
+    auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
+
+    EXPECT(!context.set_visibility(Web::Compositor::ContextVisibility::Visible));
+    EXPECT(context.set_visibility(Web::Compositor::ContextVisibility::Hidden));
+    EXPECT(!context.set_visibility(Web::Compositor::ContextVisibility::Hidden));
+    EXPECT(context.set_visibility(Web::Compositor::ContextVisibility::Visible));
+    EXPECT(!context.pending_present_frame_viewport_rect().has_value());
+
+    context.viewport_size_updated(viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    VERIFY(context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
+    context.queue_present_frame({ viewport_rect, { 0, 0, 2, 2 } });
+    EXPECT_EQ(context.pending_present_frame_viewport_rect(), viewport_rect);
+    EXPECT(context.can_schedule_pending_present_frame_if_unblocked());
+    context.mark_pending_present_frame_scheduled();
+    EXPECT(!context.can_schedule_pending_present_frame_if_unblocked());
+    context.unschedule_pending_present_frame();
+    EXPECT(context.can_schedule_pending_present_frame_if_unblocked());
+}
+
+TEST_CASE(hidden_context_coalesces_presents_and_presents_once_when_shown)
+{
+    Core::EventLoop event_loop;
+    TestCompositorClient compositor_client;
+    TestWebContentClient web_content_client;
+    auto compositor_state = Compositor::CompositorState::create({}, false);
+    compositor_state->set_client(compositor_client);
+
+    u64 page_id = 1;
+    auto context_id = Web::Compositor::compositor_context_id_for_page(page_id);
+    auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+
+    compositor_state->create_context(context_id, page_id, web_content_client);
+    compositor_state->viewport_size_updated(context_id, viewport_rect.size(), Web::Compositor::WindowResizingInProgress::No);
+    EXPECT(!compositor_client.allocated_bitmap_ids.is_empty());
+    compositor_state->update_display_list(context_id, make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree, {}, {});
+
+    compositor_state->set_context_visibility(context_id, Web::Compositor::ContextVisibility::Hidden);
+    compositor_state->present_frame(context_id, viewport_rect, { 0, 0, 2, 2 });
+    compositor_state->present_frame(context_id, viewport_rect, { 2, 2, 2, 2 });
+    compositor_state->presented_bitmap_ready_to_paint(context_id, compositor_client.allocated_bitmap_ids[0]);
+    EXPECT(!spin_event_loop_until(event_loop, 100, [&] { return !compositor_client.presented_frames.is_empty(); }));
+
+    compositor_state->set_context_visibility(context_id, Web::Compositor::ContextVisibility::Visible);
+    EXPECT(spin_event_loop_until(event_loop, 2000, [&] { return !compositor_client.presented_frames.is_empty(); }));
+    EXPECT(!spin_event_loop_until(event_loop, 100, [&] { return compositor_client.presented_frames.size() > 1; }));
+    EXPECT_EQ(compositor_client.presented_frames.size(), 1u);
+    EXPECT_EQ(compositor_client.presented_frames[0].damage_rect, viewport_rect);
 }

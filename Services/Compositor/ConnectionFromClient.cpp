@@ -83,6 +83,11 @@ void ConnectionFromClient::set_display_metadata(Web::Compositor::CompositorConte
     m_compositor_state->set_display_metadata(context_id, display_id, refresh_rate);
 }
 
+void ConnectionFromClient::set_context_visibility(Web::Compositor::CompositorContextId context_id, Web::Compositor::ContextVisibility visibility)
+{
+    m_compositor_state->set_context_visibility(context_id, visibility);
+}
+
 Messages::CompositorControlServer::HandleMouseEventResponse ConnectionFromClient::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event)
 {
     return m_compositor_state->handle_mouse_event(context_id, event);
