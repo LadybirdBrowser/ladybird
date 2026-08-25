@@ -25,11 +25,13 @@ EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Option
 
 void FontCascadeList::add(NonnullRefPtr<Font const> font)
 {
+    m_first_available_font_cache = nullptr;
     m_fonts.append({ move(font), {} });
 }
 
 void FontCascadeList::add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges)
 {
+    m_first_available_font_cache = nullptr;
     if (unicode_ranges.is_empty()) {
         m_fonts.append({ move(font), {} });
         return;
@@ -69,6 +71,7 @@ void FontCascadeList::add_pending_face(Vector<UnicodeRange> unicode_ranges, Func
 
 void FontCascadeList::extend(FontCascadeList const& other)
 {
+    m_first_available_font_cache = nullptr;
     m_fonts.extend(other.m_fonts);
     m_pending_faces.extend(other.m_pending_faces);
 }
@@ -78,20 +81,48 @@ void FontCascadeList::extend_fallback(FontCascadeList const& other)
     m_fallback_fonts.extend(other.m_fonts);
 }
 
+// https://drafts.csswg.org/css-fonts/#first-available-font
+Gfx::Font const& FontCascadeList::first_available_font() const
+{
+    if (m_first_available_font_cache)
+        return *m_first_available_font_cache;
+
+    // The first available font, used for example in the definition of font-relative lengths such as ex or in the
+    // definition of the line-height property, is defined to be the first font for which the character U+0020 (space)
+    // is not excluded by a unicode-range, given the font families in the font-family list (or a user agent’s default
+    // font if none are available).
+    static constexpr u32 space_code_point = 0x20;
+
+    for (auto const& entry : m_fonts) {
+        if (!entry.range_data.has_value()) {
+            m_first_available_font_cache = entry.font.ptr();
+            return *m_first_available_font_cache;
+        }
+        if (!entry.range_data->enclosing_range.contains(space_code_point))
+            continue;
+
+        for (auto const& range : entry.range_data->unicode_ranges) {
+            if (range.contains(space_code_point)) {
+                m_first_available_font_cache = entry.font.ptr();
+                return *m_first_available_font_cache;
+            }
+        }
+    }
+
+    m_first_available_font_cache = m_last_resort_font.ptr();
+    return *m_first_available_font_cache;
+}
+
 Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, TriggerPendingLoads trigger_pending_loads, EmojiPresentationResult emoji_presentation) const
 {
-    // Only the text-shaping paths pass TriggerPendingLoads::Yes. Probes that don't
-    // lead to a glyph being drawn (the U+0020 check used to compute first-available-
-    // font metrics, for instance) skip this block so they can't initiate a download
-    // for a subset face that happens to cover the probe codepoint.
+    // Only the text-shaping paths pass TriggerPendingLoads::Yes. Probes that don't lead to a glyph being drawn skip
+    // this block so they can't initiate a download for a subset face that happens to cover the probe codepoint.
     if (trigger_pending_loads == TriggerPendingLoads::Yes) {
-        // Walk pending entries first: if this codepoint falls in an unloaded face's
-        // unicode-range we kick off the fetch and drop the entry — a fallback font
-        // that happens to cover the codepoint shouldn't prevent the real face from
-        // loading. FontComputer::clear_computed_font_cache() rebuilds the cascade
-        // once the fetch completes, so later shapes pick up the loaded face. Run
-        // before the ASCII cache lookup so a previously-cached codepoint still
-        // triggers a newly-added face.
+        // Walk pending entries first: if this codepoint falls in an unloaded face's unicode-range we kick off the
+        // fetch and drop the entry — a fallback font that happens to cover the codepoint shouldn't prevent the real
+        // face from loading. FontComputer::clear_computed_font_cache() rebuilds the cascade once the fetch completes,
+        // so later shapes pick up the loaded face. Run before the ASCII cache lookup so a previously-cached codepoint
+        // still triggers a newly-added face.
         m_pending_faces.remove_all_matching([code_point](auto const& pending) {
             if (!pending->covers(code_point))
                 return false;

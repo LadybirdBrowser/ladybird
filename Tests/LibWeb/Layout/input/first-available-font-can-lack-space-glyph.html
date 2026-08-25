@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+    <head>
+        <style>
+            @font-face {
+                font-family: NoSpace;
+                src: url("../../Assets/HashSansNoSpace.woff");
+            }
+            @font-face {
+                font-family: TallMetrics;
+                src: url("../../Assets/NotoSansEthiopic.woff2");
+            }
+            @font-face {
+                font-family: LettersOnly;
+                src: url("../../Assets/HashSans.woff");
+                unicode-range: U+0041-005A;
+            }
+            body {
+                margin: 0;
+            }
+            #test {
+                font-family: NoSpace, TallMetrics;
+                font-size: 20px;
+                line-height: normal;
+            }
+            #fallback {
+                font-family: TallMetrics;
+                font-size: 20px;
+                line-height: normal;
+            }
+            #subset {
+                font-family: LettersOnly, TallMetrics;
+                font-size: 20px;
+                line-height: normal;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- NoSpace's default unicode-range includes U+0020, so it supplies this
+             line's metrics even though it does not contain a space glyph. -->
+        <div id="test">A</div>
+        <!-- If the first font were incorrectly skipped due to its missing space glyph,
+             the test line would instead have the same tall metrics as this line. -->
+        <div id="fallback">A</div>
+        <!-- LettersOnly supplies the A glyph, but its unicode-range excludes U+0020,
+             so TallMetrics must supply the line metrics. -->
+        <div id="subset">A</div>
+    </body>
+</html>

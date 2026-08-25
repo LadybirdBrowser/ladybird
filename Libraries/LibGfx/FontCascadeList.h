@@ -61,10 +61,11 @@ public:
 
     void extend_fallback(FontCascadeList const& other);
 
-    // A pending-face fetch should only be initiated for codepoints that are actually
-    // being shaped into glyph runs. Callers that merely probe the cascade (e.g. the
-    // U+0020 check in "first available font" metrics) pass No so that probing does
-    // not kick off downloads for subset faces that happen to cover the probe point.
+    Gfx::Font const& first_available_font() const;
+
+    // A pending-face fetch should only be initiated for codepoints that are actually being shaped into glyph runs.
+    // Callers that merely probe the cascade pass TriggerPendingLoads::No so that probing does not kick off downloads
+    // for subset faces that cover the point.
     enum class TriggerPendingLoads : u8 {
         No,
         Yes,
@@ -112,7 +113,11 @@ public:
         Function<void()> m_start_load;
     };
 
-    void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
+    void set_last_resort_font(NonnullRefPtr<Font> font)
+    {
+        m_first_available_font_cache = nullptr;
+        m_last_resort_font = move(font);
+    }
     void set_system_font_fallback_callback(SystemFontFallbackCallback callback) { m_system_font_fallback_callback = move(callback); }
 
 private:
@@ -125,6 +130,9 @@ private:
     // OPTIMIZATION: Cache of resolved fonts for ASCII code points. Since m_fonts only grows and the cascade returns
     //               the first matching font, a cached hit can never become stale.
     mutable Array<Font const*, 128> m_ascii_cache {};
+
+    // This cannot share m_ascii_cache because the first available font does not need to contain a space glyph.
+    mutable Font const* m_first_available_font_cache { nullptr };
 };
 
 }
