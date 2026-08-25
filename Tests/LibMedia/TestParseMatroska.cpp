@@ -130,6 +130,63 @@ size_t append_seek_head(ByteBuffer& data, u32 target_id)
     return seek_position_payload_offset;
 }
 
+void append_ebml_binary(ByteBuffer& data, u32 id, ReadonlyBytes value)
+{
+    append_ebml_id(data, id);
+    append_ebml_size(data, value.size());
+    MUST(data.try_append(value));
+}
+
+// An AV1 configuration record whose sequence header describes BT.2020 with the SMPTE 2084 transfer function.
+constexpr Array<u8, 21> BT2020_PQ_AV1_CONFIGURATION_RECORD {
+    0x81, 0x08, 0x0c, 0x00,
+    0x0a, 0x0f, 0x00, 0x00, 0x00, 0x43, 0xfc, 0x1d, 0xfc, 0x10, 0xdd, 0xc2, 0x79, 0x90, 0x91, 0x00, 0x90
+};
+
+enum class WithColorElement : u8 {
+    No,
+    Yes,
+};
+
+ByteBuffer make_matroska_with_av1_track(WithColorElement with_color_element)
+{
+    ByteBuffer data;
+    auto ebml_header = begin_ebml_master(data, Media::Matroska::EBML_MASTER_ELEMENT_ID);
+    append_ebml_string(data, Media::Matroska::DOCTYPE_ELEMENT_ID, "webm"sv);
+    append_ebml_uint(data, Media::Matroska::DOCTYPE_VERSION_ELEMENT_ID, 4);
+    finish_ebml_master(data, ebml_header);
+
+    auto segment = begin_ebml_master(data, Media::Matroska::SEGMENT_ELEMENT_ID);
+    auto info = begin_ebml_master(data, Media::Matroska::SEGMENT_INFORMATION_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_SCALE_ID, 1000000);
+    finish_ebml_master(data, info);
+
+    auto tracks = begin_ebml_master(data, Media::Matroska::TRACK_ELEMENT_ID);
+    auto track_entry = begin_ebml_master(data, Media::Matroska::TRACK_ENTRY_ID);
+    append_ebml_uint(data, Media::Matroska::TRACK_NUMBER_ID, 1);
+    append_ebml_uint(data, Media::Matroska::TRACK_UID_ID, 1);
+    append_ebml_uint(data, Media::Matroska::TRACK_TYPE_ID, 1);
+    append_ebml_string(data, Media::Matroska::TRACK_CODEC_ID, "V_AV1"sv);
+    append_ebml_binary(data, Media::Matroska::TRACK_CODEC_PRIVATE_ID, BT2020_PQ_AV1_CONFIGURATION_RECORD);
+    auto video = begin_ebml_master(data, Media::Matroska::TRACK_VIDEO_ID);
+    append_ebml_uint(data, Media::Matroska::PIXEL_WIDTH_ID, 1920);
+    append_ebml_uint(data, Media::Matroska::PIXEL_HEIGHT_ID, 1080);
+    if (with_color_element == WithColorElement::Yes) {
+        auto color = begin_ebml_master(data, Media::Matroska::COLOR_ENTRY_ID);
+        append_ebml_uint(data, Media::Matroska::PRIMARIES_ID, 1);
+        append_ebml_uint(data, Media::Matroska::TRANSFER_CHARACTERISTICS_ID, 1);
+        append_ebml_uint(data, Media::Matroska::MATRIX_COEFFICIENTS_ID, 1);
+        finish_ebml_master(data, color);
+    }
+    finish_ebml_master(data, video);
+    finish_ebml_master(data, track_entry);
+    finish_ebml_master(data, tracks);
+
+    append_empty_ebml_master(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+    finish_ebml_master(data, segment);
+    return data;
+}
+
 struct LinkedSeekHeadsTestFile {
     ByteBuffer data;
     size_t cluster_end { 0 };
@@ -1067,4 +1124,32 @@ TEST_CASE(buffered_time_ranges_evicted_start_appended_end)
     byte_ranges[0] = { 113303, file_data.size() };
     time_ranges = reader.buffered_time_ranges_by_track_number(cursor, byte_ranges).get(track_number).value_or({}).time_ranges;
     EXPECT_EQ(time_ranges.size(), 0u);
+}
+
+TEST_CASE(track_entry_parses_its_codec_private_configuration_record)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::No);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto track_entry = MUST(reader.track_for_track_number(1));
+
+    EXPECT(track_entry->parsed_codec().has_value());
+    EXPECT_EQ(track_entry->parsed_codec()->codec_id(), Media::CodecID::AV1);
+    EXPECT_EQ(track_entry->parsed_codec()->av1_parameters()->level, 8);
+
+    auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+    EXPECT(track.video_data().cicp.color_primaries() == Media::ColorPrimaries::BT2020);
+    EXPECT(track.video_data().cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084);
+}
+
+TEST_CASE(color_element_overrides_the_codec_private_configuration_record)
+{
+    auto data = make_matroska_with_av1_track(WithColorElement::Yes);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto track_entry = MUST(reader.track_for_track_number(1));
+
+    auto track = Media::Matroska::track_from_track_entry(*track_entry, true);
+    EXPECT(track.video_data().cicp.color_primaries() == Media::ColorPrimaries::BT709);
+    EXPECT(track.video_data().cicp.transfer_characteristics() == Media::TransferCharacteristics::BT709);
 }

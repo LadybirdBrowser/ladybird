@@ -16,6 +16,7 @@
 #include <AK/Vector.h>
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/CodecParameters.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Containers/ISOBMFF/BoxTypes.h>
 #include <LibMedia/Track.h>
@@ -76,6 +77,7 @@ struct SampleEntry {
     FourCC format;
     CodecID codec_id { CodecID::Unknown };
     FixedArray<u8> codec_initialization_data;
+    Optional<ParsedCodec> parsed_codec;
     Optional<VideoSampleData> video;
     Optional<AudioSampleData> audio;
 };

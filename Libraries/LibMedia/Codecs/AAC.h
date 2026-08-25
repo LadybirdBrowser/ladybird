@@ -14,6 +14,8 @@ namespace Media::Codecs {
 
 class AAC {
 public:
+    static constexpr u8 MPEG4_AUDIO_OBJECT_TYPE_INDICATION = 0x40;
+
     struct Parameters {
         u8 object_type_indication;
         Optional<u32> audio_object_type;

@@ -15,6 +15,10 @@
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/Codecs/AAC.h>
+#include <LibMedia/Codecs/AV1.h>
+#include <LibMedia/Codecs/H264.h>
+#include <LibMedia/Codecs/H265.h>
 #include <LibMedia/Codecs/Opus.h>
 #include <LibMedia/Containers/Matroska/ElementIDs.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
@@ -474,6 +478,32 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
     return audio_track;
 }
 
+static Optional<ParsedCodec> parse_codec_private_data(CodecID codec_id, ReadonlyBytes codec_private_data)
+{
+    auto parsed_codec_from = [](auto parameters) -> Optional<ParsedCodec> {
+        if (!parameters.has_value())
+            return {};
+        return ParsedCodec { *parameters };
+    };
+
+    switch (codec_id) {
+    case CodecID::AAC:
+        return parsed_codec_from(Codecs::AAC::parse_configuration_record(codec_private_data, Codecs::AAC::MPEG4_AUDIO_OBJECT_TYPE_INDICATION));
+    case CodecID::AV1:
+        return parsed_codec_from(Codecs::AV1::parse_configuration_record(codec_private_data));
+    case CodecID::H264:
+        return parsed_codec_from(Codecs::H264::parse_configuration_record(codec_private_data));
+    case CodecID::H265:
+        return parsed_codec_from(Codecs::H265::parse_configuration_record(codec_private_data));
+    case CodecID::VP9:
+        // According to the WebM Project, VP9's CodecPrivate data uses tagged values, so all fields are optional.
+        // This isn't used by FFmpeg, so we likely won't find any use out of parsing it either.
+        // See: https://www.webmproject.org/docs/container/#vp9-codec-feature-metadata-codecprivate
+    default:
+        return {};
+    }
+}
+
 DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& streamer)
 {
     auto track_entry = DECODER_TRY_ALLOC(try_make_ref_counted<TrackEntry>());
@@ -568,6 +598,10 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& st
             break;
         }
     }
+
+    if (auto parsed_codec = parse_codec_private_data(codec_id_from_matroska_track_entry(*track_entry), track_entry->codec_private_data()); parsed_codec.has_value())
+        track_entry->set_parsed_codec(*parsed_codec);
+
     return track_entry;
 }
 
