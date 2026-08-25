@@ -5,7 +5,8 @@
  */
 
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::stacking_context::NO_STACKING_CONTEXT;
@@ -68,13 +69,9 @@ pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintableRowsRead, pai
 }
 
 pub(crate) fn node_is_fragmented_inline(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    match layout_arena.node_kind_if_live(node) {
-        Some(NodeKind::InlineNode) => true,
-        Some(NodeKind::ListItemBox) => layout_arena
-            .node_style_if_live(node)
-            .is_some_and(|style| style.display().is_inline_outside() && style.display().is_flow_inside()),
-        _ => false,
-    }
+    layout_arena
+        .node_data_if_live(node)
+        .is_some_and(|data| node_facts::node_is_fragmented_inline(data, layout_arena.node_style_if_live(node)))
 }
 
 pub(crate) fn nearest_fragmented_inline_ancestor(

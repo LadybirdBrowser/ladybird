@@ -776,18 +776,7 @@ impl LayoutNodeArena {
     fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
         // SAFETY: data() validated that id names a live slot.
         let data = unsafe { &*self.data(id) };
-        if super::node_facts::kind_is_block_container(data.kind)
-            && !crate::painting::fragment_ownership::node_is_fragmented_inline(self, id)
-        {
-            return true;
-        }
-        if let Some(style) = self.node_style_if_live(id) {
-            let display = style.display();
-            if display.is_flex_inside() || display.is_grid_inside() {
-                return true;
-            }
-        }
-        super::node_facts::kind_is_replaced_box(data.kind) && super::node_facts::node_can_have_children(data)
+        super::node_facts::node_forms_containing_block_for_children(data, self.node_style_if_live(id))
     }
 
     fn nearest_ancestor_capable_of_forming_a_containing_block(&self, node: NodeSlotId) -> NodeSlotId {

@@ -785,19 +785,12 @@ bool Node::is_replaced_element() const
 
 bool Node::is_atomic_inline() const
 {
-    if (is_replaced_element() || is_list_item_marker_box())
-        return true;
-    auto const* node_with_style = as_if<NodeWithStyle>(*this);
-    if (!node_with_style)
-        return false;
-    auto display = node_with_style->display();
-    return display.is_inline_outside() && !display.is_flow_inside();
+    return RustFFI::layout_node_data_is_atomic_inline(m_data);
 }
 
 bool Node::is_fragmented_inline() const
 {
-    return is_inline_node()
-        || (is_list_item_box() && as<NodeWithStyle>(*this).display().is_inline_outside() && as<NodeWithStyle>(*this).display().is_flow_inside());
+    return RustFFI::layout_node_data_is_fragmented_inline(m_data);
 }
 
 NodeWithStyle const* Node::nearest_fragmented_inline_ancestor() const
