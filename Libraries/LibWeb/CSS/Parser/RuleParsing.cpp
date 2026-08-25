@@ -65,55 +65,45 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
     return rule.visit(
         [this, nested](AtRule const& at_rule) -> GC::Ptr<CSSRule> {
-            // https://compat.spec.whatwg.org/#css-at-rules
-            // @-webkit-keyframes must be supported as an alias of @keyframes.
-            if (at_rule.name.equals_ignoring_ascii_case("keyframes"sv) || at_rule.name.equals_ignoring_ascii_case("-webkit-keyframes"sv))
-                return convert_to_keyframes_rule(at_rule);
-
-            if (has_ignored_vendor_prefix(at_rule.name))
+            switch (at_rule.kind) {
+            case ValueParserFFI::FfiRuleKind::Qualified:
+                VERIFY_NOT_REACHED();
+            case ValueParserFFI::FfiRuleKind::Unknown:
+            case ValueParserFFI::FfiRuleKind::FontFeatureValuesRule:
+                break;
+            case ValueParserFFI::FfiRuleKind::IgnoredVendor:
                 return {};
-
-            if (at_rule.name.equals_ignoring_ascii_case("container"sv))
+            case ValueParserFFI::FfiRuleKind::Container:
                 return convert_to_container_rule<NestedDeclarationsRule>(at_rule, nested);
-
-            if (at_rule.name.equals_ignoring_ascii_case("counter-style"sv))
+            case ValueParserFFI::FfiRuleKind::CounterStyle:
                 return convert_to_counter_style_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("font-face"sv))
+            case ValueParserFFI::FfiRuleKind::FontFace:
                 return convert_to_font_face_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("font-feature-values"sv))
+            case ValueParserFFI::FfiRuleKind::FontFeatureValues:
                 return convert_to_font_feature_values_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("function"sv))
+            case ValueParserFFI::FfiRuleKind::Function:
                 return convert_to_function_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("import"sv))
+            case ValueParserFFI::FfiRuleKind::Import:
                 return convert_to_import_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
+            case ValueParserFFI::FfiRuleKind::Keyframes:
+                return convert_to_keyframes_rule(at_rule);
+            case ValueParserFFI::FfiRuleKind::Layer:
                 return convert_to_layer_rule<NestedDeclarationsRule>(at_rule, nested);
-
-            if (is_margin_rule_name(at_rule.name))
+            case ValueParserFFI::FfiRuleKind::Margin:
                 return convert_to_margin_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("media"sv))
+            case ValueParserFFI::FfiRuleKind::Media:
                 return convert_to_media_rule<NestedDeclarationsRule>(at_rule, nested);
-
-            if (at_rule.name.equals_ignoring_ascii_case("namespace"sv))
+            case ValueParserFFI::FfiRuleKind::Namespace:
                 return convert_to_namespace_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("page"sv))
+            case ValueParserFFI::FfiRuleKind::Page:
                 return convert_to_page_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("property"sv))
+            case ValueParserFFI::FfiRuleKind::Property:
                 return convert_to_property_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("scope"sv))
+            case ValueParserFFI::FfiRuleKind::Scope:
                 return convert_to_scope_rule<NestedDeclarationsRule>(at_rule, nested);
-
-            if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
+            case ValueParserFFI::FfiRuleKind::Supports:
                 return convert_to_supports_rule<NestedDeclarationsRule>(at_rule, nested);
+            }
 
             // FIXME: More at rules!
             ErrorReporter::the().report(UnknownRuleError { .rule_name = Utf16String::formatted("@{}", at_rule.name) });
@@ -122,6 +112,23 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
         [this, nested](QualifiedRule const& qualified_rule) -> GC::Ptr<CSSRule> {
             return convert_to_style_rule(qualified_rule, nested);
         });
+}
+
+template<typename NestedDeclarationsRule>
+GC::Ref<CSSRuleList> Parser::convert_child_rules(Vector<RuleOrListOfDeclarations> const& children, Nested nested)
+{
+    GC::RootVector<GC::Ref<CSSRule>> child_rules;
+    for (auto const& child : children) {
+        child.visit(
+            [&](Rule const& rule) {
+                if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
+                    child_rules.append(*child_rule);
+            },
+            [&](Vector<Declaration> const& declarations) {
+                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
+            });
+    }
+    return CSSRuleList::create(child_rules);
 }
 
 static StyleNestingParent parent_rule_for_style_nesting(Vector<RuleContext> rule_context)
@@ -286,20 +293,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         }
         auto layer_name = rule.parsed_prelude.name.value();
 
-        // Then the rules
-        GC::RootVector<GC::Ref<CSSRule>> child_rules;
-        for (auto const& child : rule.child_rules_and_lists_of_declarations) {
-            child.visit(
-                [&](Rule const& rule) {
-                    if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
-                        child_rules.append(*child_rule);
-                },
-                [&](Vector<Declaration> const& declarations) {
-                    child_rules.append(NestedDeclarationsRule::create(*this, declarations));
-                });
-        }
-        auto rule_list = CSSRuleList::create(child_rules);
-        return CSSLayerBlockRule::create(layer_name, rule_list);
+        return CSSLayerBlockRule::create(layer_name, convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
     }
 
     // CSSLayerStatementRule
@@ -455,18 +449,7 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
         media_queries.unchecked_append(MediaQuery::create(*item.query));
     }
     auto media_list = MediaList::create(move(media_queries));
-    GC::RootVector<GC::Ref<CSSRule>> child_rules;
-    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
-        child.visit(
-            [&](Rule const& rule) {
-                if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
-                    child_rules.append(*child_rule);
-            },
-            [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
-            });
-    }
-    return CSSMediaRule::create(media_list, CSSRuleList::create(child_rules));
+    return CSSMediaRule::create(media_list, convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
 }
 
 template<typename NestedDeclarationsRule>
@@ -503,20 +486,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     }
     auto supports = RustQueryParser::reevaluate_supports_condition(*this, *rule.parsed_prelude.items.first().query);
 
-    GC::RootVector<GC::Ref<CSSRule>> child_rules;
-    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
-        child.visit(
-            [&](Rule const& rule) {
-                if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
-                    child_rules.append(*child_rule);
-            },
-            [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
-            });
-    }
-
-    auto rule_list = CSSRuleList::create(child_rules);
-    return CSSSupportsRule::create(move(supports), rule_list);
+    return CSSSupportsRule::create(move(supports), convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
 }
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
@@ -562,18 +532,7 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
     }
     if (nested == Nested::Yes && start.has_value())
         start = adapt_nested_relative_selector_list(*start, nesting_parent);
-    GC::RootVector<GC::Ref<CSSRule>> child_rules;
-    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
-        child.visit(
-            [&](Rule const& child_rule) {
-                if (auto converted_rule = convert_to_rule<NestedDeclarationsRule>(child_rule, Nested::Yes))
-                    child_rules.append(*converted_rule);
-            },
-            [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
-            });
-    }
-    return CSSScopeRule::create(move(start), move(end), CSSRuleList::create(child_rules));
+    return CSSScopeRule::create(move(start), move(end), convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, Nested::Yes));
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
@@ -619,20 +578,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
         conditions.unchecked_empend(item.value, move(query));
     }
 
-    GC::RootVector<GC::Ref<CSSRule>> child_rules;
-    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
-        child.visit(
-            [&](Rule const& child_rule) {
-                if (auto converted_rule = convert_to_rule<NestedDeclarationsRule>(child_rule, nested))
-                    child_rules.append(*converted_rule);
-            },
-            [&](Vector<Declaration> const& declarations) {
-                child_rules.append(NestedDeclarationsRule::create(*this, declarations));
-            });
-    }
-
-    auto rule_list = CSSRuleList::create(child_rules);
-    return CSSContainerRule::create(move(conditions), rule_list);
+    return CSSContainerRule::create(move(conditions), convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
 }
 
 GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const& rule)
@@ -809,21 +755,8 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
         parameters.append({ *item.value, item.syntax.value(), item.style_value });
     }
 
-    Vector<GC::Ref<CSSRule>> child_rules {};
-
     // https://drafts.csswg.org/css-mixins-1/#function-body
-    for (auto const& child : function_rule.child_rules_and_lists_of_declarations) {
-        child.visit(
-            [&](Rule const& rule) {
-                if (auto child_rule = convert_to_rule<CSSFunctionDeclarations>(rule, Nested::Yes))
-                    child_rules.append(*child_rule);
-            },
-            [&](Vector<Declaration> const& declarations) {
-                child_rules.append(CSSFunctionDeclarations::create(*this, declarations));
-            });
-    }
-
-    return CSSFunctionRule::create(CSSRuleList::create(child_rules), *function_rule.parsed_prelude.name, move(parameters), function_rule.parsed_prelude.syntax.value());
+    return CSSFunctionRule::create(convert_child_rules<CSSFunctionDeclarations>(function_rule.child_rules_and_lists_of_declarations, Nested::Yes), *function_rule.parsed_prelude.name, move(parameters), function_rule.parsed_prelude.syntax.value());
 }
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)

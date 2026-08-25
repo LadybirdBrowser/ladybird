@@ -163,6 +163,8 @@ private:
     static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
+    template<typename NestedDeclarationsRule>
+    GC::Ref<CSSRuleList> convert_child_rules(Vector<RuleOrListOfDeclarations> const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSContainerRule> convert_to_container_rule(AtRule const&, Nested);

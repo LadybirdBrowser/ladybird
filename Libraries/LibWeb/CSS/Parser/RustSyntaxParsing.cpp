@@ -401,6 +401,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     auto children = items(data, rule.children_start, rule.child_count);
     if (rule.rule_type == 0) {
         return AtRule {
+            .kind = rule.rule_kind,
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
             .prelude_text = move(prelude_text),
             .parsed_prelude = parsed_rule_prelude(data, rule),

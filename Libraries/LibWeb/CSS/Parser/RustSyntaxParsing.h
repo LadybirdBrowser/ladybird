@@ -73,6 +73,7 @@ struct ParsedRulePrelude {
 };
 
 struct AtRule {
+    ValueParserFFI::FfiRuleKind kind;
     Utf16FlyString name;
     Utf16String prelude_text;
     ParsedRulePrelude parsed_prelude;
