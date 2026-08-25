@@ -32,6 +32,28 @@ namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(SourceBuffer);
 
+static Bindings::AppendMode to_bindings_append_mode(AppendMode mode)
+{
+    switch (mode) {
+    case AppendMode::Segments:
+        return Bindings::AppendMode::Segments;
+    case AppendMode::Sequence:
+        return Bindings::AppendMode::Sequence;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static AppendMode append_mode_from_bindings(Bindings::AppendMode mode)
+{
+    switch (mode) {
+    case Bindings::AppendMode::Segments:
+        return AppendMode::Segments;
+    case Bindings::AppendMode::Sequence:
+        return AppendMode::Sequence;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 GC::Ref<SourceBuffer> SourceBuffer::create(MediaSource& media_source, GC::Ref<HTML::AudioTrackList> audio_tracks, GC::Ref<HTML::VideoTrackList> video_tracks, GC::Ref<HTML::TextTrackList> text_tracks)
 {
     return GC::Heap::the().allocate<SourceBuffer>(media_source, audio_tracks, video_tracks, text_tracks);
@@ -188,9 +210,9 @@ void SourceBuffer::set_content_type(Utf16View type)
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-AppendMode SourceBuffer::mode() const
+Bindings::AppendMode SourceBuffer::mode() const
 {
-    return m_processor->mode();
+    return to_bindings_append_mode(m_processor->mode());
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
@@ -271,8 +293,10 @@ AK::Duration SourceBuffer::highest_end_time() const
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-WebIDL::ExceptionOr<void> SourceBuffer::set_mode(AppendMode mode)
+WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode bindings_mode)
 {
+    auto mode = append_mode_from_bindings(bindings_mode);
+
     // 1. If this object has been removed from the sourceBuffers attribute of the parent media source
     //    then throw an InvalidStateError exception and abort these steps.
     if (!m_media_source->source_buffers()->contains(*this))
@@ -526,7 +550,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(Utf16String const& type)
     //       Keep the previous value of the mode attribute on this SourceBuffer object, without running
     //       any associated steps for that attribute being set.
     if (m_processor->generate_timestamps_flag())
-        TRY(set_mode(AppendMode::Sequence));
+        TRY(set_mode(Bindings::AppendMode::Sequence));
 
     // 9. Set the [[pending initialization segment for changeType flag]] on this SourceBuffer object to true.
     m_processor->set_pending_initialization_segment_for_change_type_flag(true);
