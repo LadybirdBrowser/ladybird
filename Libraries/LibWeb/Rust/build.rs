@@ -1559,6 +1559,18 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             properties[name].as_object().unwrap().contains_key("logical-alias-for")
         })
         .collect();
+    let mut logical_group_property_names = std::collections::HashSet::new();
+    for group in groups.values() {
+        for member_kind in ["physical", "logical"] {
+            for property_name in group[member_kind].as_object().unwrap().values() {
+                logical_group_property_names.insert(property_name.as_str().unwrap());
+            }
+        }
+    }
+    let logical_group_members: Vec<bool> = property_names
+        .iter()
+        .map(|name| logical_group_property_names.contains(name))
+        .collect();
     let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
 
     // Accepted property keywords and legacy aliases mirror property_accepts_keyword()
@@ -1699,6 +1711,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_IS_LOGICAL_ALIAS: [bool; {}] = {:?};\n\n",
         logical_aliases.len(),
         logical_aliases
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_IS_LOGICAL_GROUP_MEMBER: [bool; {}] = {:?};\n\n",
+        logical_group_members.len(),
+        logical_group_members
     ));
     output.push_str(&format!(
         "pub(crate) static SHORTHAND_EXPANDED_LONGHAND_COUNTS: [usize; {}] = {:?};\n\n",

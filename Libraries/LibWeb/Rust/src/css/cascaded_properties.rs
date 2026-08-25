@@ -134,7 +134,7 @@ pub struct CascadedPropertyStore {
 }
 
 impl CascadedPropertyStore {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             arena: Vec::new(),
             last_entry_index: HashMap::default(),
