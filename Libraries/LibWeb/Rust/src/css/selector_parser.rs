@@ -302,13 +302,13 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
 }
 
 struct SelectorParser<'a> {
-    declared_namespaces: &'a [&'a [u16]],
+    declared_namespaces: Option<&'a [&'a [u16]]>,
     pseudo_class_context: Vec<PseudoClassType>,
     nesting_limit_exceeded: bool,
 }
 
 impl<'a> SelectorParser<'a> {
-    fn new(declared_namespaces: &'a [&'a [u16]]) -> Self {
+    fn new(declared_namespaces: Option<&'a [&'a [u16]]>) -> Self {
         Self {
             declared_namespaces,
             pseudo_class_context: Vec::new(),
@@ -490,10 +490,11 @@ impl<'a> SelectorParser<'a> {
                 NamespaceType::Named
             };
             if namespace_type == NamespaceType::Named
-                && !self
-                    .declared_namespaces
-                    .iter()
-                    .any(|namespace| *namespace == first_name.as_ref())
+                && self.declared_namespaces.is_some_and(|declared_namespaces| {
+                    !declared_namespaces
+                        .iter()
+                        .any(|namespace| *namespace == first_name.as_ref())
+                })
             {
                 stream.position = original;
                 return None;
@@ -1059,14 +1060,14 @@ pub(crate) fn parse_selector_list<'a>(
 ) -> Result<SelectorList, ()> {
     let tokens = tokenize_for_parser(input);
     let values = consume_a_list_of_component_values(tokens.as_slice())?;
-    SelectorParser::new(declared_namespaces).parse_selector_list(&values, selector_type, parsing_mode)
+    SelectorParser::new(Some(declared_namespaces)).parse_selector_list(&values, selector_type, parsing_mode)
 }
 
 fn parse_pseudo_element_selector(input: TokenizerInput<'_>) -> Result<(Rc<CompiledSelector>, PseudoElementType), ()> {
     let tokens = tokenize_for_parser(input);
     let values = consume_a_list_of_component_values(tokens.as_slice())?;
     let mut stream = Stream::new(&values);
-    let simple = SelectorParser::new(&[]).parse_pseudo_element(&mut stream)?;
+    let simple = SelectorParser::new(Some(&[])).parse_pseudo_element(&mut stream)?;
     if !stream.is_empty() {
         return Err(());
     }
@@ -1217,6 +1218,19 @@ pub struct RustParsedSelectorList {
     interned_names: Box<[SelectorString]>,
 }
 
+impl RustParsedSelectorList {
+    fn new(selectors: SelectorList) -> Self {
+        let mut interned_names = Vec::new();
+        for selector in &selectors {
+            collect_interned_names_from_selector(&mut interned_names, selector);
+        }
+        Self {
+            selectors,
+            interned_names: interned_names.into_boxed_slice(),
+        }
+    }
+}
+
 /// # Safety
 /// `input` and each namespace view must point to readable storage for the duration of this call.
 #[unsafe(no_mangle)]
@@ -1265,14 +1279,7 @@ pub unsafe extern "C" fn rust_selector_parse(
             ) else {
                 return std::ptr::null_mut();
             };
-            let mut interned_names = Vec::new();
-            for selector in &selectors {
-                collect_interned_names_from_selector(&mut interned_names, selector);
-            }
-            Box::into_raw(Box::new(RustParsedSelectorList {
-                selectors,
-                interned_names: interned_names.into_boxed_slice(),
-            }))
+            Box::into_raw(Box::new(RustParsedSelectorList::new(selectors)))
         })
     }
 }
