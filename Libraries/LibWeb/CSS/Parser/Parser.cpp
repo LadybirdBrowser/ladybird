@@ -540,19 +540,6 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
     return LengthStyleValue::create(Length(100, LengthUnit::Vw));
 }
 
-bool Parser::has_ignored_vendor_prefix(Utf16View string)
-{
-    if (!string.starts_with('-'))
-        return false;
-    if (string.starts_with("--"sv))
-        return false;
-    if (string.starts_with("-libweb-"sv))
-        return false;
-    if (string.count("-"sv) == 1)
-        return false;
-    return true;
-}
-
 DOM::Document const* Parser::document() const
 {
     return m_document.ptr();

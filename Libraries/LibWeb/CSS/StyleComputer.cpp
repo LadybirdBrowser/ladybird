@@ -6669,7 +6669,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
             auto const& string_value = entry->as_string().string_value();
 
             // AD-HOC: We shouldn't convert strings that aren't valid <custom-ident>s
-            if (!is_valid_custom_ident(string_value, { { "none"sv } }))
+            if (!is_valid_animation_name_custom_ident(string_value))
                 return entry;
 
             return CustomIdentStyleValue::create(entry->as_string().string_value());

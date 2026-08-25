@@ -396,15 +396,25 @@ fn is_css_wide_keyword(keyword: u16) -> bool {
     )
 }
 
-pub(crate) fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> bool {
-    if keyword_from_ascii_case_insensitive(identifier).is_some_and(is_css_wide_keyword)
-        || equals_ascii_case_insensitive(identifier, b"default")
+fn is_valid_custom_ident_matching<F>(matches: F, blacklist: &[&str]) -> bool
+where
+    F: Fn(&[u8]) -> bool,
+{
+    if [b"inherit".as_slice(), b"initial", b"unset", b"revert", b"revert-layer"]
+        .iter()
+        .any(|keyword| matches(keyword))
+        || matches(b"default")
     {
         return false;
     }
-    !blacklist
-        .iter()
-        .any(|blocked| equals_ascii_case_insensitive(identifier, blocked.as_bytes()))
+    !blacklist.iter().any(|blocked| matches(blocked.as_bytes()))
+}
+
+pub(crate) fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> bool {
+    is_valid_custom_ident_matching(
+        |expected| equals_ascii_case_insensitive(identifier, expected),
+        blacklist,
+    )
 }
 
 pub(crate) fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
@@ -5898,6 +5908,27 @@ pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSim
             blue,
             alpha,
         }
+    })
+}
+
+/// # Safety
+/// The source view must contain exactly one valid pointer when non-empty.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_is_valid_animation_name_custom_ident(source: FfiUtf16View) -> bool {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return false;
+        };
+        is_valid_custom_ident_matching(
+            |expected| {
+                source.len() == expected.len()
+                    && expected.iter().enumerate().all(|(index, &expected)| {
+                        u8::try_from(source.code_unit_at(index))
+                            .is_ok_and(|code_unit| code_unit.eq_ignore_ascii_case(&expected))
+                    })
+            },
+            &["none"],
+        )
     })
 }
 

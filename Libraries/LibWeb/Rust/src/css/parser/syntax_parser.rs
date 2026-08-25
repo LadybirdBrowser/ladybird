@@ -1117,11 +1117,29 @@ fn is_margin_rule_name(name: &[u16]) -> bool {
     .any(|expected| equals_ascii_case_insensitive(name, expected))
 }
 
-fn has_ignored_vendor_prefix(name: &[u16]) -> bool {
-    name.first() == Some(&u16::from(b'-'))
-        && !starts_with_ascii(name, b"--")
-        && !starts_with_ascii(name, b"-libweb-")
-        && name.iter().filter(|&&code_unit| code_unit == u16::from(b'-')).count() > 1
+fn has_ignored_vendor_prefix(name: TokenizerInput<'_>) -> bool {
+    let starts_with = |expected: &[u8]| {
+        name.len() >= expected.len()
+            && expected
+                .iter()
+                .enumerate()
+                .all(|(index, &expected)| name.code_unit_at(index) == u16::from(expected))
+    };
+    !name.is_empty()
+        && name.code_unit_at(0) == u16::from(b'-')
+        && !starts_with(b"--")
+        && !starts_with(b"-libweb-")
+        && (0..name.len())
+            .filter(|&index| name.code_unit_at(index) == u16::from(b'-'))
+            .count()
+            > 1
+}
+
+/// # Safety
+/// The source view must contain exactly one valid pointer when non-empty.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_has_ignored_vendor_prefix(source: FfiUtf16View) -> bool {
+    crate::abort_on_panic(|| unsafe { source.units() }.is_some_and(has_ignored_vendor_prefix))
 }
 
 fn rule_kind(rule: &Rule) -> FfiRuleKind {
@@ -1134,7 +1152,7 @@ fn rule_kind(rule: &Rule) -> FfiRuleKind {
 fn at_rule_kind(name: &[u16]) -> FfiRuleKind {
     if equals_ascii_case_insensitive(name, b"keyframes") || equals_ascii_case_insensitive(name, b"-webkit-keyframes") {
         FfiRuleKind::Keyframes
-    } else if has_ignored_vendor_prefix(name) {
+    } else if has_ignored_vendor_prefix(name.into()) {
         FfiRuleKind::IgnoredVendor
     } else if equals_ascii_case_insensitive(name, b"container") {
         FfiRuleKind::Container
@@ -3142,9 +3160,9 @@ mod tests {
     use super::{
         Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiRuleKind,
         FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, at_rule_kind,
-        collect_descriptors, consume_a_list_of_component_values, parse_block_contents, parse_font_feature_values,
-        parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet, rule_kind, token_diagnostics,
-        tokenize_for_parser,
+        collect_descriptors, consume_a_list_of_component_values, has_ignored_vendor_prefix, parse_block_contents,
+        parse_font_feature_values, parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet,
+        rule_kind, token_diagnostics, tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -3387,6 +3405,8 @@ mod tests {
         for (name, expected) in expected {
             assert_eq!(at_rule_kind(&utf16(name)), expected, "{name}");
         }
+        assert!(has_ignored_vendor_prefix(b"-webkit-unknown".into()));
+        assert!(!has_ignored_vendor_prefix(b"-libweb-unknown".into()));
         assert_eq!(rule_kind(&parse_stylesheet(b"a {}")[0]), FfiRuleKind::Qualified);
     }
 
