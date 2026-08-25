@@ -120,6 +120,30 @@ pub enum FfiFontFeatureValuesRuleKind {
     Swash,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiRuleKind {
+    Qualified,
+    Unknown,
+    IgnoredVendor,
+    Container,
+    CounterStyle,
+    FontFace,
+    FontFeatureValues,
+    FontFeatureValuesRule,
+    Function,
+    Import,
+    Keyframes,
+    Layer,
+    Margin,
+    Media,
+    Namespace,
+    Page,
+    Property,
+    Scope,
+    Supports,
+}
+
 const UNUSED_PRELUDE_ITEM_KIND: u8 = 0;
 
 type ParsedPreludeItemPayload = (
@@ -961,43 +985,43 @@ fn parse_property_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePr
     }
 }
 
-fn parse_rule_prelude<R>(rule: &Rule, parse_context: Option<&ParseContext>, resolve_feature: &R) -> ParsedRulePrelude
+fn parse_rule_prelude<R>(
+    rule: &Rule,
+    rule_kind: FfiRuleKind,
+    parse_context: Option<&ParseContext>,
+    resolve_feature: &R,
+) -> ParsedRulePrelude
 where
     R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
 {
-    match rule {
-        Rule::Qualified(rule) if !rule.prelude_is_selector => parse_keyframe_selectors(&rule.prelude),
-        Rule::Qualified(_) => ParsedRulePrelude::Unparsed,
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"layer") => {
-            parse_layer_prelude(&rule.prelude, rule.has_block)
+    match (rule, rule_kind) {
+        (Rule::Qualified(rule), FfiRuleKind::Qualified) if !rule.prelude_is_selector => {
+            parse_keyframe_selectors(&rule.prelude)
         }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"property") => parse_context
+        (Rule::Qualified(_), FfiRuleKind::Qualified) => ParsedRulePrelude::Unparsed,
+        (Rule::At(rule), FfiRuleKind::Layer) => parse_layer_prelude(&rule.prelude, rule.has_block),
+        (Rule::At(rule), FfiRuleKind::Property) => parse_context
             .map(|context| parse_property_prelude(rule, context))
             .unwrap_or_else(|| {
                 parse_single_name(&rule.prelude, |name| {
                     name.starts_with(&[u16::from(b'-'), u16::from(b'-')]) && name.len() > 2
                 })
             }),
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"counter-style") => {
-            parse_single_name(&rule.prelude, |name| {
-                is_valid_custom_ident(name, &["none"])
-                    && (parse_context.is_some_and(|context| context.is_ua_style_sheet)
-                        || ![
-                            b"decimal".as_slice(),
-                            b"disc",
-                            b"square",
-                            b"circle",
-                            b"disclosure-open",
-                            b"disclosure-closed",
-                        ]
-                        .iter()
-                        .any(|reserved| equals_ascii_case_insensitive(name, reserved)))
-            })
-        }
-        Rule::At(rule)
-            if equals_ascii_case_insensitive(rule.name.as_ref(), b"keyframes")
-                || equals_ascii_case_insensitive(rule.name.as_ref(), b"-webkit-keyframes") =>
-        {
+        (Rule::At(rule), FfiRuleKind::CounterStyle) => parse_single_name(&rule.prelude, |name| {
+            is_valid_custom_ident(name, &["none"])
+                && (parse_context.is_some_and(|context| context.is_ua_style_sheet)
+                    || ![
+                        b"decimal".as_slice(),
+                        b"disc",
+                        b"square",
+                        b"circle",
+                        b"disclosure-open",
+                        b"disclosure-closed",
+                    ]
+                    .iter()
+                    .any(|reserved| equals_ascii_case_insensitive(name, reserved)))
+        }),
+        (Rule::At(rule), FfiRuleKind::Keyframes) => {
             let values = non_whitespace(&rule.prelude);
             match values.as_slice() {
                 [value] if value.string().is_some() => {
@@ -1009,54 +1033,42 @@ where
                 _ => ParsedRulePrelude::Invalid,
             }
         }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"namespace") => {
-            parse_namespace_prelude(&rule.prelude)
-        }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"page") => {
-            parse_page_selectors(&rule.prelude)
-        }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"font-feature-values") => {
-            parse_font_family_names(&rule.prelude)
-        }
-        Rule::At(rule) if let Some((kind, _)) = font_feature_values_rule(rule.name.as_ref()) => {
+        (Rule::At(rule), FfiRuleKind::Namespace) => parse_namespace_prelude(&rule.prelude),
+        (Rule::At(rule), FfiRuleKind::Page) => parse_page_selectors(&rule.prelude),
+        (Rule::At(rule), FfiRuleKind::FontFeatureValues) => parse_font_family_names(&rule.prelude),
+        (Rule::At(rule), FfiRuleKind::FontFeatureValuesRule) => {
+            let (kind, _) = font_feature_values_rule(rule.name.as_ref()).unwrap();
             ParsedRulePrelude::FontFeatureValuesRule(kind)
         }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"scope") => {
-            parse_scope_prelude(&rule.prelude)
-        }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"import") => parse_context
+        (Rule::At(rule), FfiRuleKind::Scope) => parse_scope_prelude(&rule.prelude),
+        (Rule::At(rule), FfiRuleKind::Import) => parse_context
             .map(|context| parse_import_prelude(&rule.prelude, context, resolve_feature))
             .unwrap_or(ParsedRulePrelude::Invalid),
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"function") => parse_context
+        (Rule::At(rule), FfiRuleKind::Function) => parse_context
             .map(|context| parse_function_prelude(rule, context))
             .unwrap_or(ParsedRulePrelude::Invalid),
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"media") => {
-            ParsedRulePrelude::MediaQueries(parse_media_query_list_from_component_values(
-                &rule.prelude,
-                resolve_feature,
-            ))
-        }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"supports") => {
+        (Rule::At(rule), FfiRuleKind::Media) => ParsedRulePrelude::MediaQueries(
+            parse_media_query_list_from_component_values(&rule.prelude, resolve_feature),
+        ),
+        (Rule::At(rule), FfiRuleKind::Supports) => {
             parse_supports_condition_from_component_values(&rule.prelude, &|_, _| false)
                 .map(ParsedRulePrelude::SupportsCondition)
                 .unwrap_or(ParsedRulePrelude::Invalid)
         }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"container") => {
+        (Rule::At(rule), FfiRuleKind::Container) => {
             parse_container_condition_list_from_component_values(&rule.prelude, resolve_feature)
                 .map(ParsedRulePrelude::ContainerConditions)
                 .unwrap_or(ParsedRulePrelude::Invalid)
         }
-        Rule::At(rule)
-            if equals_ascii_case_insensitive(rule.name.as_ref(), b"font-face")
-                || is_margin_rule_name(rule.name.as_ref()) =>
-        {
+        (Rule::At(rule), FfiRuleKind::FontFace | FfiRuleKind::Margin) => {
             if non_whitespace(&rule.prelude).is_empty() {
                 ParsedRulePrelude::Empty
             } else {
                 ParsedRulePrelude::Invalid
             }
         }
-        Rule::At(_) => ParsedRulePrelude::Unparsed,
+        (Rule::At(_), FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor) => ParsedRulePrelude::Unparsed,
+        _ => unreachable!(),
     }
 }
 
@@ -1103,6 +1115,60 @@ fn is_margin_rule_name(name: &[u16]) -> bool {
     ]
     .iter()
     .any(|expected| equals_ascii_case_insensitive(name, expected))
+}
+
+fn has_ignored_vendor_prefix(name: &[u16]) -> bool {
+    name.first() == Some(&u16::from(b'-'))
+        && !starts_with_ascii(name, b"--")
+        && !starts_with_ascii(name, b"-libweb-")
+        && name.iter().filter(|&&code_unit| code_unit == u16::from(b'-')).count() > 1
+}
+
+fn rule_kind(rule: &Rule) -> FfiRuleKind {
+    let Rule::At(rule) = rule else {
+        return FfiRuleKind::Qualified;
+    };
+    at_rule_kind(rule.name.as_ref())
+}
+
+fn at_rule_kind(name: &[u16]) -> FfiRuleKind {
+    if equals_ascii_case_insensitive(name, b"keyframes") || equals_ascii_case_insensitive(name, b"-webkit-keyframes") {
+        FfiRuleKind::Keyframes
+    } else if has_ignored_vendor_prefix(name) {
+        FfiRuleKind::IgnoredVendor
+    } else if equals_ascii_case_insensitive(name, b"container") {
+        FfiRuleKind::Container
+    } else if equals_ascii_case_insensitive(name, b"counter-style") {
+        FfiRuleKind::CounterStyle
+    } else if equals_ascii_case_insensitive(name, b"font-face") {
+        FfiRuleKind::FontFace
+    } else if equals_ascii_case_insensitive(name, b"font-feature-values") {
+        FfiRuleKind::FontFeatureValues
+    } else if font_feature_values_rule(name).is_some() {
+        FfiRuleKind::FontFeatureValuesRule
+    } else if equals_ascii_case_insensitive(name, b"function") {
+        FfiRuleKind::Function
+    } else if equals_ascii_case_insensitive(name, b"import") {
+        FfiRuleKind::Import
+    } else if equals_ascii_case_insensitive(name, b"layer") {
+        FfiRuleKind::Layer
+    } else if is_margin_rule_name(name) {
+        FfiRuleKind::Margin
+    } else if equals_ascii_case_insensitive(name, b"media") {
+        FfiRuleKind::Media
+    } else if equals_ascii_case_insensitive(name, b"namespace") {
+        FfiRuleKind::Namespace
+    } else if equals_ascii_case_insensitive(name, b"page") {
+        FfiRuleKind::Page
+    } else if equals_ascii_case_insensitive(name, b"property") {
+        FfiRuleKind::Property
+    } else if equals_ascii_case_insensitive(name, b"scope") {
+        FfiRuleKind::Scope
+    } else if equals_ascii_case_insensitive(name, b"supports") {
+        FfiRuleKind::Supports
+    } else {
+        FfiRuleKind::Unknown
+    }
 }
 
 fn font_feature_values_rule(name: &[u16]) -> Option<(FfiFontFeatureValuesRuleKind, usize)> {
@@ -1769,6 +1835,7 @@ pub struct FfiSyntaxDescriptor {
 #[repr(C)]
 pub struct FfiSyntaxRule {
     pub rule_type: u8,
+    pub rule_kind: FfiRuleKind,
     pub name_offset: usize,
     pub name_length: usize,
     pub prelude_start: usize,
@@ -2400,6 +2467,7 @@ impl FfiSyntaxParse {
     }
 
     fn append_rule(&mut self, rule: &Rule) -> usize {
+        let rule_kind = rule_kind(rule);
         let (rule_type, name, prelude, prelude_is_selector, declarations, children, has_block, source_position) =
             match rule {
                 Rule::At(rule) => (
@@ -2453,8 +2521,8 @@ impl FfiSyntaxParse {
         };
         let parse_context = unsafe { self.parse_context.as_ref() };
         let parsed_prelude = self.resolve_query_feature.map_or_else(
-            || parse_rule_prelude(rule, parse_context, &|_, _| None),
-            |resolve_feature| parse_rule_prelude(rule, parse_context, &ffi_resolver(resolve_feature)),
+            || parse_rule_prelude(rule, rule_kind, parse_context, &|_, _| None),
+            |resolve_feature| parse_rule_prelude(rule, rule_kind, parse_context, &ffi_resolver(resolve_feature)),
         );
         let mut parsed_prelude_name = None;
         let mut parsed_prelude_secondary = None;
@@ -2810,6 +2878,7 @@ impl FfiSyntaxParse {
         let index = self.rules.len();
         self.rules.push(FfiSyntaxRule {
             rule_type,
+            rule_kind,
             name_offset,
             name_length,
             prelude_start,
@@ -3071,10 +3140,11 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 #[cfg(test)]
 mod tests {
     use super::{
-        Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiSyntaxParse,
-        ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, collect_descriptors,
-        consume_a_list_of_component_values, parse_block_contents, parse_font_feature_values, parse_keyframe_selectors,
-        parse_rule, parse_rule_prelude, parse_stylesheet, token_diagnostics, tokenize_for_parser,
+        Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiRuleKind,
+        FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, at_rule_kind,
+        collect_descriptors, consume_a_list_of_component_values, parse_block_contents, parse_font_feature_values,
+        parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet, rule_kind, token_diagnostics,
+        tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -3083,7 +3153,7 @@ mod tests {
     }
 
     fn parse_test_rule_prelude(rule: &Rule) -> ParsedRulePrelude {
-        parse_rule_prelude(rule, None, &|_, _| None)
+        parse_rule_prelude(rule, rule_kind(rule), None, &|_, _| None)
     }
 
     unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
@@ -3116,7 +3186,7 @@ mod tests {
     }
 
     fn parse_test_rule_prelude_with_context(rule: &Rule) -> ParsedRulePrelude {
-        parse_rule_prelude(rule, Some(&parse_context()), &|_, _| None)
+        parse_rule_prelude(rule, rule_kind(rule), Some(&parse_context()), &|_, _| None)
     }
 
     #[test]
@@ -3289,6 +3359,38 @@ mod tests {
     }
 
     #[test]
+    fn exports_rule_kinds() {
+        let expected = [
+            ("container", FfiRuleKind::Container),
+            ("counter-style", FfiRuleKind::CounterStyle),
+            ("font-face", FfiRuleKind::FontFace),
+            ("font-feature-values", FfiRuleKind::FontFeatureValues),
+            ("annotation", FfiRuleKind::FontFeatureValuesRule),
+            ("function", FfiRuleKind::Function),
+            ("import", FfiRuleKind::Import),
+            ("keyframes", FfiRuleKind::Keyframes),
+            ("-webkit-keyframes", FfiRuleKind::Keyframes),
+            ("layer", FfiRuleKind::Layer),
+            ("top-left", FfiRuleKind::Margin),
+            ("media", FfiRuleKind::Media),
+            ("namespace", FfiRuleKind::Namespace),
+            ("page", FfiRuleKind::Page),
+            ("property", FfiRuleKind::Property),
+            ("scope", FfiRuleKind::Scope),
+            ("supports", FfiRuleKind::Supports),
+            ("unknown", FfiRuleKind::Unknown),
+            ("-webkit-unknown", FfiRuleKind::IgnoredVendor),
+            ("-libweb-unknown", FfiRuleKind::Unknown),
+            ("-unknown", FfiRuleKind::Unknown),
+            ("--unknown", FfiRuleKind::Unknown),
+        ];
+        for (name, expected) in expected {
+            assert_eq!(at_rule_kind(&utf16(name)), expected, "{name}");
+        }
+        assert_eq!(rule_kind(&parse_stylesheet(b"a {}")[0]), FfiRuleKind::Qualified);
+    }
+
+    #[test]
     fn parses_query_preludes_from_component_values() {
         unsafe extern "C" fn resolve_query_feature(_: u8, _: *const u16, _: usize) -> u16 {
             0
@@ -3401,7 +3503,7 @@ mod tests {
         let mut context = parse_context();
         context.is_ua_style_sheet = true;
         assert_eq!(
-            parse_rule_prelude(&rules[0], Some(&context), &|_, _| None),
+            parse_rule_prelude(&rules[0], rule_kind(&rules[0]), Some(&context), &|_, _| None),
             ParsedRulePrelude::Name(utf16("decimal").into_boxed_slice().into())
         );
     }
