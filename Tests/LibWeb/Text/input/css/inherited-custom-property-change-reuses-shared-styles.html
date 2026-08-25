@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    #outer {
+        --theme: 1px;
+    }
+
+    .child {
+        --own: 2px;
+        margin-left: var(--own);
+    }
+</style>
+<div id="outer"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        for (let i = 0; i < 20; i++) {
+            const child = document.createElement("div");
+            child.className = "child";
+            child.textContent = "child";
+            outer.append(child);
+        }
+        getComputedStyle(outer.lastChild).marginLeft;
+        const before = internals.getStyleInvalidationCounters().elementStyleInputReused;
+        outer.style.setProperty("--theme", "2px");
+        println("margin after change: " + getComputedStyle(outer.lastChild).marginLeft);
+        const reused = internals.getStyleInvalidationCounters().elementStyleInputReused - before;
+        println("all shared styles reused: " + (reused === 20));
+    });
+</script>

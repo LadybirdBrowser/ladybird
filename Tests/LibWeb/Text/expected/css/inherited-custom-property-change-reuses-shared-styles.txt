@@ -1,0 +1,2 @@
+margin after change: 2px
+all shared styles reused: true

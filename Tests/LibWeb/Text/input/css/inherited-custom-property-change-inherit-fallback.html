@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<div id="outer" style="--x: 10px">
+    <div id="inner" style="--x: var(--missing, inherit)"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const inner = document.getElementById("inner");
+        println("initial: " + getComputedStyle(inner).getPropertyValue("--x"));
+        outer.style.setProperty("--x", "20px");
+        println("after change: " + getComputedStyle(inner).getPropertyValue("--x"));
+        outer.style.setProperty("--x", "30px");
+        println("after second change: " + getComputedStyle(inner).getPropertyValue("--x"));
+    });
+</script>

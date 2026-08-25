@@ -389,7 +389,7 @@ pub(crate) fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> b
             .all(|(&left, &right)| u8::try_from(left).is_ok_and(|left| left.eq_ignore_ascii_case(&right)))
 }
 
-fn is_css_wide_keyword(keyword: u16) -> bool {
+pub(crate) fn is_css_wide_keyword(keyword: u16) -> bool {
     matches!(
         keyword,
         keyword::INHERIT | keyword::INITIAL | keyword::UNSET | keyword::REVERT | keyword::REVERT_LAYER

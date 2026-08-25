@@ -37,6 +37,7 @@ struct StyleInputRecord {
     // The inherited custom-property bindings the computation actually read. The parent environment
     // can change identity without moving any of these, in which case the computed style still stands.
     Vector<Utf16FlyString> custom_property_references;
+    Optional<Vector<Utf16FlyString>> declared_custom_property_names;
 
     // Whether the computation this record describes read something the record does not name - its
     // container, its attributes, its place among its siblings, the environment an `if()` asks about.
