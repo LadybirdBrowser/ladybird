@@ -2258,6 +2258,13 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     if (partial_relayout_roots.is_empty())
         return PartialRelayoutResult::NotEligible;
 
+    // The final boundary can be wider than the rebuilt roots that led us to it. Replaying such a
+    // boundary may re-enter intrinsic sizing for descendants outside those rebuilt roots, including
+    // anonymous layout nodes created during the incremental tree build, so refresh the metadata for
+    // the whole subtree that is about to be laid out.
+    for (auto* root : partial_relayout_roots)
+        recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *root);
+
     layout_node_arena().sync_enrolled_content_for_layout();
     for (auto* root : partial_relayout_roots) {
         relayout_subtree(*root);

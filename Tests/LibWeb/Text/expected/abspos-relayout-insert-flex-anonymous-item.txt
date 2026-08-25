@@ -1,0 +1,4 @@
+boundary-before=20,10,40,100
+boundary-after=20,10,160,100
+partial-layouts=1 full-layouts=0
+PASS

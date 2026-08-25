@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 400px; height: 200px; }
+    #boundary {
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        width: min-content;
+        height: 100px;
+        overflow: hidden;
+    }
+    #flex { display: flex; }
+    #anchor { width: 40px; height: 20px; }
+    .block { width: 120px; height: 20px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="flex"><div id="anchor"></div></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    test(() => {
+        document.body.offsetHeight;
+
+        const boundary = document.getElementById("boundary");
+        const before = rectToString(boundary.getBoundingClientRect());
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        const block = document.createElement("div");
+        block.className = "block";
+        block.textContent = "inserted";
+        document.getElementById("flex").appendChild(block);
+        document.body.offsetHeight;
+
+        const after = rectToString(boundary.getBoundingClientRect());
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`boundary-before=${before}`);
+        println(`boundary-after=${after}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(before === "20,10,40,100" && after === "20,10,160,100"
+            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+    });
+</script>
