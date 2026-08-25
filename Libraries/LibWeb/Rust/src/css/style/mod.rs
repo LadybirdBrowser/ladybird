@@ -777,6 +777,8 @@ pub struct StyleEngine {
     exact_covered_scratch: Vec<StyleNodeID>,
     /// Monotonic identity assigned to each non-empty normalized style transaction.
     next_style_transaction_version: StyleTransactionVersion,
+    /// Latest document-wide scalar computation facts, copied at the transaction boundary.
+    document_style_computation_inputs: Option<bridge::FfiDocumentStyleComputationInputs>,
     layer_topology_version: u64,
     sheet_order_version: u64,
 

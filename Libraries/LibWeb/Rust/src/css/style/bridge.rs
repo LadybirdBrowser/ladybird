@@ -134,6 +134,23 @@ pub struct FfiStyleTransactionView {
     pub style_atoms_swept: bool,
 }
 
+/// Document-wide scalar computation inputs captured at a style transaction boundary.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FfiDocumentStyleComputationInputs {
+    pub viewport_width: f64,
+    pub viewport_height: f64,
+    pub root_font_size: f64,
+    pub root_font_x_height: f64,
+    pub root_font_cap_height: f64,
+    pub root_font_zero_advance: f64,
+    pub root_line_height: f64,
+    pub root_font_metrics_depend_on_viewport_metrics: bool,
+    pub initial_font_size_raw: i32,
+    pub default_font_size_raw: i32,
+    pub device_pixels_per_css_pixel: f64,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleNodeSlice {
@@ -2583,12 +2600,14 @@ pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usiz
 pub unsafe extern "C" fn style_engine_take_style_transaction(
     engine: *mut c_void,
     root: u32,
+    computation_inputs: FfiDocumentStyleComputationInputs,
 ) -> FfiStyleTransactionView {
     abort_on_panic(|| {
         let Some(root) = StyleNodeID::from_raw(root) else {
             return FfiStyleTransactionView::default();
         };
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.document_style_computation_inputs = Some(computation_inputs);
         engine.clear_ffi_style_transaction_output();
         let mut output = FfiStyleTransactionOutput::default();
         output.scoped = engine.take_style_transaction(root, |transaction_version, program_version, answers| {

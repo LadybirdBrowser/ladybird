@@ -585,7 +585,25 @@ void StyleEngine::discard_style_transaction_outputs()
 StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)
 {
     submit_recorded_input();
-    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value());
+    StyleEngineFFI::FfiDocumentStyleComputationInputs computation_inputs {};
+    if (m_style_computer) {
+        auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
+        auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
+        computation_inputs = {
+            .viewport_width = viewport_rect.width().to_double(),
+            .viewport_height = viewport_rect.height().to_double(),
+            .root_font_size = root_font_metrics.font_size.to_double(),
+            .root_font_x_height = root_font_metrics.x_height.to_double(),
+            .root_font_cap_height = root_font_metrics.cap_height.to_double(),
+            .root_font_zero_advance = root_font_metrics.zero_advance.to_double(),
+            .root_line_height = root_font_metrics.line_height.to_double(),
+            .root_font_metrics_depend_on_viewport_metrics = m_style_computer->root_element_font_metrics_depend_on_viewport_metrics(),
+            .initial_font_size_raw = InitialValues::font_size().raw_value(),
+            .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
+            .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),
+        };
+    }
+    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value(), computation_inputs);
     if (view.reclaimed_style_atom_count != 0) {
         HashTable<StyleAtomID> reclaimed_atoms;
         reclaimed_atoms.ensure_capacity(view.reclaimed_style_atom_count);

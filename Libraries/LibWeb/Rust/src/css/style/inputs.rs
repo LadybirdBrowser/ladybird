@@ -61,6 +61,7 @@ impl StyleEngine {
             match_workspace: MatchEvaluationWorkspace::default(),
             exact_covered_scratch: Vec::new(),
             next_style_transaction_version: StyleTransactionVersion(1),
+            document_style_computation_inputs: None,
             layer_topology_version: 0,
             sheet_order_version: 0,
             specified_values: SpecifiedValues::new(),
