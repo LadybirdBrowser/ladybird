@@ -1,0 +1,8 @@
+Declared namespace: rgb(0, 128, 0)
+Undeclared namespace: rgba(0, 0, 0, 0)
+Declared in pseudo-element: rgb(0, 128, 0)
+Undeclared in pseudo-element: rgb(0, 128, 0)
+conditionText: selector(known|widget)
+Rule with declared pseudo-element namespace: rgb(0, 128, 0)
+Rule with undeclared pseudo-element namespace: rgba(0, 0, 0, 0)
+Rule count: 7

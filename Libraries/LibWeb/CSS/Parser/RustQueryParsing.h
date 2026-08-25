@@ -37,7 +37,9 @@ public:
     static Optional<Vector<ContainerCondition>> parse_container_condition_list(Parser&, Utf16View);
     static RefPtr<StyleValue const> parse_source_size_value(Parser&, Utf16View);
     static Optional<Vector<SizesAttributeEntry>> split_sizes_attribute(Utf16View);
+    static u16 resolve_query_feature(u8, u16 const*, size_t);
     static bool evaluate_supports_feature(void*, ValueParserFFI::FfiSupportsFeatureKind, ValueParserFFI::FfiUtf16View);
+    static RustQueryHandle reevaluate_supports_condition(Parser&, RustQueryHandle const&);
 };
 
 }
