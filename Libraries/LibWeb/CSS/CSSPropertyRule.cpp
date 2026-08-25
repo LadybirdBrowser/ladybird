@@ -15,12 +15,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(Utf16FlyString name, Utf16FlyString syntax, Parser::RustSyntaxHandle parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
 {
     return GC::Heap::the().allocate<CSSPropertyRule>(move(name), move(syntax), move(parsed_syntax), inherits, move(initial_value));
 }
 
-CSSPropertyRule::CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+CSSPropertyRule::CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, Parser::RustSyntaxHandle parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
     : CSSRule(Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))
@@ -104,7 +104,8 @@ void CSSPropertyRule::dump(StringBuilder& builder, int indent_levels) const
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Syntax: `{}`\n", syntax());
-    m_parsed_syntax->dump(builder, indent_levels + 2);
+    dump_indent(builder, indent_levels + 2);
+    builder.appendff("Parsed syntax: {}\n", m_parsed_syntax.serialize());
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Inherits: {}\n", inherits());

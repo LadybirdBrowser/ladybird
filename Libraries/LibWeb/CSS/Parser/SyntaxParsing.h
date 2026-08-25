@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <AK/OwnPtr.h>
-#include <AK/Vector.h>
-#include <LibWeb/DOM/AbstractElement.h>
+#include <AK/Optional.h>
+#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -18,7 +17,7 @@ enum class LimitSingleComponentIdentToCustomIdent : u8 {
     No,
     Yes,
 };
-WEB_API RefPtr<SyntaxNode> parse_as_syntax(Utf16View, LimitSingleComponentIdentToCustomIdent = LimitSingleComponentIdentToCustomIdent::No);
-NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const&, Utf16View input, SyntaxNode const& syntax);
+WEB_API Optional<RustSyntaxHandle> parse_as_syntax(Utf16View, LimitSingleComponentIdentToCustomIdent = LimitSingleComponentIdentToCustomIdent::No);
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const&, Utf16View input, RustSyntaxHandle const& syntax);
 
 }

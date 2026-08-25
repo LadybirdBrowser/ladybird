@@ -39,7 +39,6 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
-#include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
@@ -585,12 +584,12 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     // If the provided string is not a valid syntax string (if it returns failure when consume
     // a syntax definition is called on it), the descriptor is invalid and must be ignored.
-    if (!maybe_syntax) {
+    if (!maybe_syntax.has_value()) {
         return {};
     }
     // The initial-value descriptor is optional only if the syntax is the universal syntax definition,
     // otherwise the descriptor is required; if it’s missing, the entire rule is invalid and must be ignored.
-    if (!initial_value_maybe && maybe_syntax->type() != CSS::Parser::SyntaxNode::NodeType::Universal) {
+    if (!initial_value_maybe && !maybe_syntax->is_universal()) {
         return {};
     }
 
@@ -600,7 +599,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
         // Otherwise, if the value of the syntax descriptor is not the universal syntax definition,
         // the following conditions must be met for the @property rule to be valid:
-        if (maybe_syntax->type() != CSS::Parser::SyntaxNode::NodeType::Universal) {
+        if (!maybe_syntax->is_universal()) {
             //  - The initial-value descriptor must be present.
             //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
             //  - The initial-value must be computationally independent.
@@ -609,7 +608,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         }
     }
 
-    return CSSPropertyRule::create(move(name), syntax_maybe.value(), maybe_syntax.release_nonnull(), inherits_maybe.value(), move(initial_value_maybe));
+    return CSSPropertyRule::create(move(name), syntax_maybe.value(), maybe_syntax.release_value(), inherits_maybe.value(), move(initial_value_maybe));
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule
@@ -1190,15 +1189,15 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
         auto const& name_item = rule.parsed_prelude.items[position++];
         if (static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(name_item.kind) != ValueParserFFI::FfiFunctionParameterItemKind::Name || !name_item.value.has_value())
             return {};
-        NonnullRefPtr<SyntaxNode> type = UniversalSyntaxNode::create();
+        auto type = RustSyntaxHandle::universal();
         if (position < rule.parsed_prelude.items.size() && static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(rule.parsed_prelude.items[position].kind) == ValueParserFFI::FfiFunctionParameterItemKind::Type) {
             auto const& type_item = rule.parsed_prelude.items[position++];
             if (!type_item.value.has_value())
                 return {};
             auto parsed_type = parse_as_syntax(*type_item.value);
-            if (!parsed_type)
+            if (!parsed_type.has_value())
                 return {};
-            type = parsed_type.release_nonnull();
+            type = parsed_type.release_value();
         }
         RefPtr<StyleValue const> default_value;
         if (position < rule.parsed_prelude.items.size() && static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(rule.parsed_prelude.items[position].kind) == ValueParserFFI::FfiFunctionParameterItemKind::Default) {
@@ -1212,7 +1211,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
             if (unparsed_default->is_css_wide_keyword() || unparsed_default->as_unresolved().contains_arbitrary_substitution_function()) {
                 default_value = move(unparsed_default);
             } else {
-                auto parsed = parse_with_a_syntax(unparsed_default->as_unresolved().token_source(), *type);
+                auto parsed = parse_with_a_syntax(unparsed_default->as_unresolved().token_source(), type);
                 if (parsed->is_guaranteed_invalid())
                     return {};
                 default_value = move(parsed);
@@ -1220,12 +1219,12 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
         }
         parameters.append({ *name_item.value, move(type), move(default_value) });
     }
-    NonnullRefPtr<SyntaxNode> return_type = UniversalSyntaxNode::create();
+    auto return_type = RustSyntaxHandle::universal();
     if (rule.parsed_prelude.secondary.has_value()) {
         auto parsed = parse_as_syntax(*rule.parsed_prelude.secondary);
-        if (!parsed)
+        if (!parsed.has_value())
             return {};
-        return_type = parsed.release_nonnull();
+        return_type = parsed.release_value();
     }
     return FunctionPrelude { *rule.parsed_prelude.name, move(parameters), move(return_type) };
 }

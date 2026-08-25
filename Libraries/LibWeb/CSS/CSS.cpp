@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -84,14 +83,14 @@ WebIDL::ExceptionOr<void> register_property(DOM::Document& document, PropertyDef
     // 3. Attempt to consume a syntax definition from syntax. If it returns failure, throw a SyntaxError.
     //    Otherwise, let syntax definition be the returned syntax definition.
     auto maybe_syntax = parse_as_syntax(definition.syntax, Parser::LimitSingleComponentIdentToCustomIdent::Yes);
-    if (!maybe_syntax) {
+    if (!maybe_syntax.has_value()) {
         return WebIDL::SyntaxError::create("Invalid syntax definition"_utf16);
     }
 
     RefPtr<StyleValue const> initial_value_maybe;
 
     // 4. If syntax definition is the universal syntax definition, and initialValue is not present,
-    if (maybe_syntax->type() == Parser::SyntaxNode::NodeType::Universal) {
+    if (maybe_syntax->is_universal()) {
         if (!definition.initial_value.has_value()) {
             // let parsed initial value be empty.
             // This must be treated identically to the "default" initial value of custom properties, as defined in [css-variables].
@@ -140,7 +139,7 @@ WebIDL::ExceptionOr<void> register_property(DOM::Document& document, PropertyDef
     //    an initial value of parsed initial value, and an inherit flag of inherit flag.
     CustomPropertyRegistration registered_property {
         .property_name = property_name,
-        .syntax = maybe_syntax.release_nonnull(),
+        .syntax = maybe_syntax.release_value(),
         .inherit = definition.inherits,
         .initial_value = initial_value_maybe,
     };

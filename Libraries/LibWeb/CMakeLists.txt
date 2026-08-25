@@ -216,7 +216,6 @@ set(SOURCES
     CSS/Parser/RuleContext.cpp
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
-    CSS/Parser/Syntax.cpp
     CSS/Percentage.cpp
     CSS/PreferredColorScheme.cpp
     CSS/Ratio.cpp

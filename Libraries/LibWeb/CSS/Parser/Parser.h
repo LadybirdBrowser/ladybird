@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
+#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/Parser/SubstitutionFunctionsPresence.h>
 #include <LibWeb/CSS/Selector.h>
@@ -135,8 +136,8 @@ public:
 
     [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
-    NonnullRefPtr<StyleValue const> parse_with_a_syntax(Utf16View input, SyntaxNode const& syntax);
-    NonnullRefPtr<StyleValue const> parse_with_a_syntax(SyntaxNode const& syntax) { return parse_with_a_syntax(m_source, syntax); }
+    NonnullRefPtr<StyleValue const> parse_with_a_syntax(Utf16View input, RustSyntaxHandle const& syntax);
+    NonnullRefPtr<StyleValue const> parse_with_a_syntax(RustSyntaxHandle const& syntax) { return parse_with_a_syntax(m_source, syntax); }
 
     template<typename Descriptors>
     GC::Ref<Descriptors> convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations);
@@ -166,7 +167,7 @@ private:
     struct FunctionPrelude {
         Utf16FlyString name;
         Vector<FunctionParameterInternal> parameters;
-        NonnullRefPtr<SyntaxNode> return_type;
+        RustSyntaxHandle return_type;
     };
     struct ImportPrelude {
         URL url;

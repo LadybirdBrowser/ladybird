@@ -35,7 +35,7 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
 
         // type
         // The type of the function parameter, represented as a syntax string, or "*" if the parameter has no type.
-        internal.type->to_string(),
+        internal.type.serialize(),
 
         // defaultValue
         // The default value of the function parameter, or `null` if the argument does not have a default.
@@ -46,26 +46,13 @@ FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionPa
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-css-type
-static void serialize_a_css_type(Utf16StringBuilder& builder, Parser::SyntaxNode const& type)
+static void serialize_a_css_type(Utf16StringBuilder& builder, Parser::RustSyntaxHandle const& type)
 {
     // To serialize a CSS type, return the concatenation of the following:
 
     // If the <css-type> consists of a single <syntax-component>, return the corresponding syntax string.
-    auto const is_single_syntax_component = [&]() {
-        if (type.type() == Parser::SyntaxNode::NodeType::Universal)
-            return true;
-
-        if (first_is_one_of(type.type(), Parser::SyntaxNode::NodeType::Ident, Parser::SyntaxNode::NodeType::Type))
-            return true;
-
-        if (first_is_one_of(type.type(), Parser::SyntaxNode::NodeType::Multiplier, Parser::SyntaxNode::NodeType::CommaSeparatedMultiplier) && first_is_one_of(as<Parser::MultiplierSyntaxNode>(type).child().type(), Parser::SyntaxNode::NodeType::Ident, Parser::SyntaxNode::NodeType::Type))
-            return true;
-
-        return false;
-    }();
-
-    if (is_single_syntax_component) {
-        builder.append(type.to_string());
+    if (type.is_single_component()) {
+        builder.append(type.serialize());
         return;
     }
 
@@ -74,7 +61,7 @@ static void serialize_a_css_type(Utf16StringBuilder& builder, Parser::SyntaxNode
     builder.append_ascii("type("sv);
 
     // The corresponding syntax string.
-    builder.append(type.to_string());
+    builder.append(type.serialize());
 
     // The string ")", i.e. a single RIGHT PARENTHESIS (U+0029).
     builder.append_ascii(')');
@@ -89,10 +76,10 @@ void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
     serialize_an_identifier(builder, name);
 
     // If the function parameter has a type, and that type is not the universal syntax definition:
-    if (type->type() != Parser::SyntaxNode::NodeType::Universal) {
+    if (!type.is_universal()) {
         // - A single SPACE (U+0020), followed by the result of performing serialize a CSS type on that type.
         builder.append_ascii(' ');
-        serialize_a_css_type(builder, *type);
+        serialize_a_css_type(builder, type);
     }
 
     // If the function parameter has a default value:
@@ -103,12 +90,12 @@ void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
     }
 }
 
-GC::Ref<CSSFunctionRule> CSSFunctionRule::create(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
+GC::Ref<CSSFunctionRule> CSSFunctionRule::create(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type)
 {
     return GC::Heap::the().allocate<CSSFunctionRule>(rules, move(name), move(parameters), move(return_type));
 }
 
-CSSFunctionRule::CSSFunctionRule(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
+CSSFunctionRule::CSSFunctionRule(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type)
     : CSSGroupingRule(rules, Type::Function)
     , m_name(move(name))
     , m_parameters(move(parameters))
@@ -139,7 +126,7 @@ Utf16String CSSFunctionRule::return_type() const
     // The return type of the custom function, represented as a syntax string. If the custom function has no return
     // type, returns "*".
     // NB: We always store a return type (defaulting to "*")
-    return m_return_type->to_string();
+    return m_return_type.serialize();
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-cssfunctionrule
@@ -168,12 +155,12 @@ Utf16String CSSFunctionRule::serialized() const
     builder.append_ascii(')');
 
     // 5. If the custom function has return type, and that return type is not the universal syntax definition ("*"):
-    if (m_return_type->type() != Parser::SyntaxNode::NodeType::Universal) {
+    if (!m_return_type.is_universal()) {
         // - A single SPACE (U+0020), followed by the string "returns", followed by a single SPACE (U+0020).
         builder.append_ascii(" returns "sv);
 
         // - The result of performing serialize a CSS type on that type.
-        serialize_a_css_type(builder, *m_return_type);
+        serialize_a_css_type(builder, m_return_type);
     }
 
     // 6. A single SPACE (U+0020), followed by a LEFT CURLY BRACKET (U+007B).

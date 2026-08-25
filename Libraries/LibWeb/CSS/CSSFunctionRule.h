@@ -9,7 +9,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
-#include <LibWeb/CSS/Parser/Syntax.h>
+#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 
 namespace Web::CSS {
 
@@ -17,7 +17,7 @@ namespace Web::CSS {
 //     convenient types (i.e. not just strings)
 struct FunctionParameterInternal {
     Utf16FlyString name;
-    NonnullRefPtr<Parser::SyntaxNode> type;
+    Parser::RustSyntaxHandle type;
     RefPtr<StyleValue const> default_value;
 
     void serialize(Utf16StringBuilder& builder) const;
@@ -38,7 +38,7 @@ class CSSFunctionRule : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+    static GC::Ref<CSSFunctionRule> create(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type);
     virtual ~CSSFunctionRule() override = default;
 
     Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
@@ -48,17 +48,17 @@ public:
     Utf16String return_type() const;
 
     ReadonlySpan<FunctionParameterInternal const> parameters_internal() const { return m_parameters; }
-    Parser::SyntaxNode const& return_type_internal() const { return m_return_type; }
+    Parser::RustSyntaxHandle const& return_type_internal() const { return m_return_type; }
     void for_each_effective_declaration(DOM::AbstractElement&, Function<void(Utf16FlyString const&, NonnullRefPtr<StyleValue const> const&)> const&) const;
 
     Utf16String serialized() const override;
 
 private:
-    CSSFunctionRule(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+    CSSFunctionRule(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type);
 
     Utf16FlyString m_name;
     Vector<FunctionParameterInternal> m_parameters;
-    NonnullRefPtr<Parser::SyntaxNode> m_return_type;
+    Parser::RustSyntaxHandle m_return_type;
 };
 
 }

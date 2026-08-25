@@ -223,7 +223,7 @@ struct SubstitutionData {
                     .scope = &definition.scope,
                     .name = definition.function->name(),
                     .parameters = {},
-                    .return_syntax = definition.function->return_type_internal().to_string(),
+                    .return_syntax = definition.function->return_type_internal().serialize(),
                     .declarations = {},
                     .ffi_parameters = {},
                     .ffi_declarations = {},
@@ -232,7 +232,7 @@ struct SubstitutionData {
                 for (auto const& parameter : definition.function->parameters_internal()) {
                     snapshot.parameters.unchecked_append({
                         .name = parameter.name.to_utf16_string(),
-                        .syntax = parameter.type->to_string(),
+                        .syntax = parameter.type.serialize(),
                         .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
                     });
                 }
@@ -6102,7 +6102,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
 
         // -> The property is a non-registered custom property
         // -> The property is a registered custom property with universal syntax
-        if (!registration.has_value() || registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal) {
+        if (!registration.has_value() || registration->syntax.is_universal()) {
             // The computed value is the guaranteed-invalid value.
             return invalid_value;
         }
@@ -6127,7 +6127,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     if (resolved_value->is_guaranteed_invalid())
         return invalid_custom_property_fallback_value(move(resolved_value));
 
-    if (!registration.has_value() || registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal)
+    if (!registration.has_value() || registration->syntax.is_universal())
         return resolved_value;
 
     auto resolved_value_contains_attr_tainted_values = resolved_value->is_unresolved() && resolved_value->as_unresolved().contains_attr_tainted_values();
@@ -6135,7 +6135,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         auto registration_generation = document.custom_property_registration_generation();
         auto& parses = m_registered_custom_property_parses.ensure(resolved_value->rust_style_value_data());
         for (auto const& parse : parses) {
-            if (parse.syntax_identity == registration->syntax.ptr() && parse.registration_generation == registration_generation)
+            if (parse.syntax_identity == registration->syntax.data() && parse.registration_generation == registration_generation)
                 return parse.parsed;
         }
         auto parsing_params = Parser::ParsingParams { document };
@@ -6144,7 +6144,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
             ? resolved_value->as_unresolved().token_source()
             : resolved_value->to_utf16_string(SerializationMode::ResolvedValueForReparse);
         auto parsed = Parser::parse_with_a_syntax(parsing_params, source, registration->syntax);
-        parses.append({ resolved_value, registration->syntax.ptr(), registration_generation, parsed });
+        parses.append({ resolved_value, registration->syntax.data(), registration_generation, parsed });
         return parsed;
     }();
     if (parsed_value->is_guaranteed_invalid())

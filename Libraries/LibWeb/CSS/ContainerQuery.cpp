@@ -310,7 +310,7 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleRange
                 if (auto cached_parsed_value = computed_value->as_unresolved().parsed_value()) {
                     comparable_value = compute_registered_custom_property_value(registration.value(), cached_parsed_value.release_nonnull(), computation_context);
                 } else {
-                    VERIFY(registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal);
+                    VERIFY(registration->syntax.is_universal());
                 }
             } else if (!registration.has_value() || computed_value->is_unresolved()) {
                 auto computed_source = computed_value->is_unresolved()
@@ -403,7 +403,7 @@ static MatchResult evaluate_style_feature(EvaluatedStyleFeature const& style_fea
         if (auto cached_parsed_value = computed_value->as_unresolved().parsed_value()) {
             comparable_computed_value = compute_registered_custom_property_value(registration.value(), cached_parsed_value.release_nonnull(), computation_context);
         } else {
-            VERIFY(registration->syntax->type() == Parser::SyntaxNode::NodeType::Universal);
+            VERIFY(registration->syntax.is_universal());
         }
     }
 

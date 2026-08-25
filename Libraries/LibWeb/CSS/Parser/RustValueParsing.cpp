@@ -5,13 +5,12 @@
  */
 
 #include <AK/GenericShorthands.h>
-#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/RustTokenizer.h>
-#include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -72,85 +71,23 @@ Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_prese
     return collect_substitution_function_presence_in_rust(source, presence);
 }
 
-static RefPtr<SyntaxNode> syntax_node_from_rust(void const* syntax, size_t node_index)
-{
-    auto node_type = static_cast<SyntaxNode::NodeType>(ValueParserFFI::rust_syntax_node_type(syntax, node_index));
-    switch (node_type) {
-    case SyntaxNode::NodeType::Universal:
-        return UniversalSyntaxNode::create();
-    case SyntaxNode::NodeType::Ident:
-    case SyntaxNode::NodeType::Type: {
-        size_t value_length = 0;
-        auto value = ValueParserFFI::rust_syntax_node_value(syntax, node_index, &value_length);
-        auto fly_string = Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(value), value_length });
-        if (node_type == SyntaxNode::NodeType::Type)
-            return TypeSyntaxNode::create(move(fly_string));
-        auto case_sensitivity = ValueParserFFI::rust_syntax_node_is_case_sensitive(syntax, node_index) ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive;
-        return IdentSyntaxNode::create(move(fly_string), case_sensitivity);
-    }
-    case SyntaxNode::NodeType::Multiplier:
-    case SyntaxNode::NodeType::CommaSeparatedMultiplier: {
-        auto child = syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_node_child(syntax, node_index, 0));
-        VERIFY(child);
-        if (node_type == SyntaxNode::NodeType::Multiplier)
-            return MultiplierSyntaxNode::create(child.release_nonnull());
-        return CommaSeparatedMultiplierSyntaxNode::create(child.release_nonnull());
-    }
-    case SyntaxNode::NodeType::Alternatives: {
-        Vector<NonnullRefPtr<SyntaxNode>> children;
-        auto child_count = ValueParserFFI::rust_syntax_node_child_count(syntax, node_index);
-        children.ensure_capacity(child_count);
-        for (size_t index = 0; index < child_count; ++index) {
-            auto child = syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_node_child(syntax, node_index, index));
-            VERIFY(child);
-            children.unchecked_append(child.release_nonnull());
-        }
-        return AlternativesSyntaxNode::create(move(children));
-    }
-    }
-    VERIFY_NOT_REACHED();
-}
-
-RefPtr<SyntaxNode> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
+Optional<RustSyntaxHandle> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     auto normalized_source = RustTokenizer::normalize_input(source);
     auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(normalized_source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
     if (!syntax)
-        return nullptr;
-    ScopeGuard free_syntax = [&] { ValueParserFFI::rust_syntax_free(syntax); };
-    return syntax_node_from_rust(syntax, ValueParserFFI::rust_syntax_root(syntax));
+        return {};
+    return RustSyntaxHandle { syntax };
 }
 
-NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Utf16View input, SyntaxNode const& syntax)
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Utf16View input, RustSyntaxHandle const& syntax)
 {
     return Parser::create(parsing_params, input).parse_with_a_syntax(syntax);
 }
 
-static bool syntax_contains_case_sensitive_identifier(SyntaxNode const& syntax)
-{
-    switch (syntax.type()) {
-    case SyntaxNode::NodeType::Universal:
-    case SyntaxNode::NodeType::Type:
-        return false;
-    case SyntaxNode::NodeType::Ident:
-        return as<IdentSyntaxNode>(syntax).case_sensitivity() == CaseSensitivity::CaseSensitive;
-    case SyntaxNode::NodeType::Multiplier:
-        return syntax_contains_case_sensitive_identifier(as<MultiplierSyntaxNode>(syntax).child());
-    case SyntaxNode::NodeType::CommaSeparatedMultiplier:
-        return syntax_contains_case_sensitive_identifier(as<CommaSeparatedMultiplierSyntaxNode>(syntax).child());
-    case SyntaxNode::NodeType::Alternatives:
-        return any_of(as<AlternativesSyntaxNode>(syntax).children(), [](auto const& child) {
-            return syntax_contains_case_sensitive_identifier(*child);
-        });
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
-NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, SyntaxNode const& syntax)
+NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, RustSyntaxHandle const& syntax)
 {
-    auto serialized_syntax = syntax.to_string();
-
     Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
     ValueParserFFI::FfiValueParsingContext single_property_context {};
     ValueParserFFI::FfiValueParsingContext const* value_context_data;
@@ -225,8 +162,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, Sy
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::Invalid };
     auto parsed = ValueParserFFI::rust_parse_with_syntax(
         &context,
-        ffi_utf16_view(source), ffi_utf16_view(serialized_syntax),
-        syntax_contains_case_sensitive_identifier(syntax), &status);
+        ffi_utf16_view(source), syntax.data(), &status);
     if (status != ValueParserFFI::FfiParseStatus::Parsed)
         return GuaranteedInvalidStyleValue::create();
     VERIFY(parsed);
