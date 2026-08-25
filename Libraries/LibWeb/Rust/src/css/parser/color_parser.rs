@@ -174,17 +174,28 @@ fn parse_fast_number(input: TokenizerInput<'_>) -> Option<f64> {
     let is_ascii_digit = |code_unit| (u16::from(b'0')..=u16::from(b'9')).contains(&code_unit);
 
     let mut offset = 0;
+    let mut is_negative = false;
     if matches!(input.code_unit_at(offset), code_unit if code_unit == u16::from(b'+') || code_unit == u16::from(b'-')) {
+        is_negative = input.code_unit_at(offset) == u16::from(b'-');
         offset += 1;
         if offset == input.len() {
             return None;
         }
     }
 
+    let digits_start = offset;
     let mut has_digits = false;
     while offset < input.len() && is_ascii_digit(input.code_unit_at(offset)) {
         has_digits = true;
         offset += 1;
+    }
+    if offset == input.len() && offset - digits_start <= 9 {
+        let mut integer = 0_u32;
+        for index in digits_start..offset {
+            integer = integer * 10 + u32::from(input.code_unit_at(index) - u16::from(b'0'));
+        }
+        let integer = f64::from(integer);
+        return Some(if is_negative { -integer } else { integer });
     }
 
     if offset < input.len() && input.code_unit_at(offset) == u16::from(b'.') {
@@ -322,10 +333,10 @@ pub(crate) fn parse_simple_color(input: TokenizerInput<'_>) -> Option<[u8; 4]> {
     if input_equals_ascii_case_insensitive(input, b"transparent") {
         return Some([0, 0, 0, 0]);
     }
-    if let Some(color) = named_color_from_name(input) {
+    if let Some(color) = parse_fast_legacy_rgb_color(input) {
         return Some(color);
     }
-    parse_fast_legacy_rgb_color(input)
+    named_color_from_name(input)
 }
 
 fn quirky_hex_digits(component: &ComponentValue) -> Option<Vec<u16>> {
