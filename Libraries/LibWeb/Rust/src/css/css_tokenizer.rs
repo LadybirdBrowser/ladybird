@@ -2282,7 +2282,7 @@ mod tests {
 
     #[test]
     fn syntax_highlighting_tokens_only_contain_types_and_positions() {
-        let input = b"color:\n rgb(1 2 3)";
+        let input = b"color:\r\n rgb(1 2 3)";
         let mut tokens = Vec::<CssSyntaxToken>::new();
 
         unsafe extern "C" fn append_token(ctx: *mut c_void, token: *const CssSyntaxToken) {

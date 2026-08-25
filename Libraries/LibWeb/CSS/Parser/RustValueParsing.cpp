@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
-#include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -73,8 +72,7 @@ Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_prese
 
 Optional<RustSyntaxHandle> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
-    auto normalized_source = RustTokenizer::normalize_input(source);
-    auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(normalized_source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
+    auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
     if (!syntax)
         return {};
     return RustSyntaxHandle { syntax };

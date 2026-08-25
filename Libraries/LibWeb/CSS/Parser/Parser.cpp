@@ -27,7 +27,6 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
-#include <LibWeb/CSS/Parser/RustTokenizer.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -65,16 +64,14 @@ ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
 {
 }
 
-Parser Parser::create(ParsingParams const& context, StringView input, StringView encoding)
+Parser Parser::create(ParsingParams const& context, StringView input)
 {
-    auto source = RustTokenizer::normalize_input(input, encoding);
-    return Parser { context, move(source) };
+    return Parser { context, Utf16String::from_utf8(input) };
 }
 
 Parser Parser::create(ParsingParams const& context, Utf16View input)
 {
-    auto source = RustTokenizer::normalize_input(input);
-    return Parser { context, move(source) };
+    return Parser { context, Utf16String::from_utf16(input) };
 }
 
 Parser::Parser(ParsingParams const& context, Utf16String source)
@@ -419,7 +416,7 @@ RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)
     return parsed_value.release_value();
 }
 
-RefPtr<StyleValue const> Parser::parse_css_value_from_filtered_source(ParsingParams const& context, Utf16View source, PropertyID property_id)
+RefPtr<StyleValue const> Parser::parse_css_value_from_source(ParsingParams const& context, Utf16View source, PropertyID property_id)
 {
     Parser parser { context, {} };
     auto parsed_value = parser.parse_css_value_from_source(property_id, source);
