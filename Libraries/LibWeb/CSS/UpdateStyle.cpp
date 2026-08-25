@@ -405,7 +405,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
 
         auto light_tree_child_reaction = common_child_reaction;
         u8 light_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
-        if (!invalidation.is_none() && element->children_may_depend_on_non_inherited_property_inheritance())
+        if (!invalidation.is_none() && element->children_explicitly_inherited_non_inherited_style_groups() != 0)
             light_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
         if (light_tree_inherited_style_groups != 0)
             light_tree_child_reaction |= StyleEngine::InheritedStyle;
@@ -414,7 +414,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         if (auto shadow_root = element->shadow_root()) {
             auto shadow_tree_child_reaction = common_child_reaction;
             u8 shadow_tree_inherited_style_groups = invalidation.inherited_style_groups_changed();
-            if (!invalidation.is_none() && shadow_root->children_may_depend_on_non_inherited_property_inheritance())
+            if (!invalidation.is_none() && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0)
                 shadow_tree_inherited_style_groups = RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
             if (shadow_tree_inherited_style_groups != 0)
                 shadow_tree_child_reaction |= StyleEngine::InheritedStyle;
@@ -670,13 +670,13 @@ static void apply_targeted_style_invalidation(DOM::Element& element, RequiredInv
         || did_change_custom_properties
         || descendant_style_recompute_needed;
 
-    if (children_may_be_reached || (!invalidation.is_none() && element.children_may_depend_on_non_inherited_property_inheritance()))
+    if (children_may_be_reached || (!invalidation.is_none() && element.children_explicitly_inherited_non_inherited_style_groups() != 0))
         record_direct_child_style_engine_inputs(element, child_materialized_by_targeted_update);
 
     // A shadow tree's children inherit from the host, so they answer the same question against the
     // flag the shadow root carries.
     if (auto shadow_root = element.shadow_root()) {
-        if (children_may_be_reached || (!invalidation.is_none() && shadow_root->children_may_depend_on_non_inherited_property_inheritance()))
+        if (children_may_be_reached || (!invalidation.is_none() && shadow_root->children_explicitly_inherited_non_inherited_style_groups() != 0))
             record_direct_child_style_engine_inputs(*shadow_root, child_materialized_by_targeted_update);
     }
 

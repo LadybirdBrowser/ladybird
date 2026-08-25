@@ -371,7 +371,7 @@ void StyleComputer::clear_style_sharing_cache() const
 {
     for (auto const& bucket : m_style_sharing_cache) {
         for (auto const& entry : bucket.value) {
-            if (entry.explicitly_inherited_non_inherited_property && !!entry.parent_style_record_identity)
+            if (entry.explicitly_inherited_non_inherited_style_groups != 0 && !!entry.parent_style_record_identity)
                 unpin_style_record(entry.parent_style_record_identity);
             if (entry.style_record_identity.has_value())
                 unpin_style_record(*entry.style_record_identity);
@@ -724,15 +724,15 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
         collect_animation_effects_into(abstract_element, effects, computed_properties);
         return;
     }
-    m_keyframes_inherited_non_inherited_property = false;
+    m_keyframes_inherited_non_inherited_style_groups = 0;
     collect_animation_effects_into(abstract_element, effects, computed_properties);
     // An animation-only overlay update resolves keyframe values just like a full style computation does, so a
     // keyframe-borne `inherit` on a non-inherited property discovered here must leave the same invalidation
     // mark behind, or a later change to the parent's value never reaches this element's animated style.
-    if (m_keyframes_inherited_non_inherited_property) {
+    if (m_keyframes_inherited_non_inherited_style_groups != 0) {
         if (auto* parent = abstract_element.element().parent())
-            parent->set_children_may_depend_on_non_inherited_property_inheritance();
-        m_keyframes_inherited_non_inherited_property = false;
+            parent->add_children_explicitly_inherited_non_inherited_style_groups(m_keyframes_inherited_non_inherited_style_groups);
+        m_keyframes_inherited_non_inherited_style_groups = 0;
     }
     adjust_animated_element_style_if_needed(computed_properties, abstract_element);
 }
@@ -932,7 +932,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                                 // half of the parent's style ordinary inheritance does not carry,
                                 // exactly like an explicitly inherited declaration.
                                 if (!is_inherited_property(longhand_id))
-                                    m_keyframes_inherited_non_inherited_property = true;
+                                    m_keyframes_inherited_non_inherited_style_groups |= ComputedValues::style_group_bit_of_property(longhand_id);
                                 if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
                                     return inherited_animated_value->value;
                                 return get_non_animated_inherit_value(longhand_id, abstract_element);
@@ -4089,7 +4089,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
             record->read_beyond_the_record = !computation_read_only_the_key;
             record->style_uses_var_css_function = element.style_uses_var_css_function();
             record->style_uses_inherit_css_function = element.style_uses_inherit_css_function();
-            record->explicitly_inherited_non_inherited_property = sharing.explicitly_inherited_non_inherited_property;
+            record->explicitly_inherited_non_inherited_style_groups = sharing.explicitly_inherited_non_inherited_style_groups;
         }
         if (computation_read_only_the_key) {
             auto key_hash = compute_style_sharing_key_hash(sharing.key);
@@ -4102,14 +4102,14 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
                 pinned_style_input_values = element.style_input_record()->pinned_values;
                 cascade_declares_custom_properties = element.style_input_record()->cascade_declares_custom_properties;
             }
-            if (sharing.explicitly_inherited_non_inherited_property && !!sharing.parent_style_record_identity)
+            if (sharing.explicitly_inherited_non_inherited_style_groups != 0 && !!sharing.parent_style_record_identity)
                 pin_style_record(sharing.parent_style_record_identity);
             m_style_sharing_cache.ensure(key_hash).append({
                 .key = move(sharing.key),
                 .pinned_parent_groups = move(sharing.pinned_parent_groups),
                 .pinned_key_values = move(sharing.pinned_key_values),
                 .parent_style_record_identity = sharing.parent_style_record_identity,
-                .explicitly_inherited_non_inherited_property = sharing.explicitly_inherited_non_inherited_property,
+                .explicitly_inherited_non_inherited_style_groups = sharing.explicitly_inherited_non_inherited_style_groups,
                 .values = computed_values,
                 .custom_property_data = abstract_element.custom_property_data(),
                 .style_record_identity = {},
@@ -4679,7 +4679,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         bool style_uses_tree_counting_function { false };
         bool style_depends_on_size_container_query { false };
         bool style_depends_on_style_container_query { false };
-        bool explicitly_inherited_non_inherited_property { false };
+        u32 explicitly_inherited_non_inherited_style_groups { 0 };
         Vector<Utf16FlyString> custom_property_references;
     };
     Optional<PreviousComputation> previous_computation;
@@ -4709,7 +4709,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         record->style_uses_tree_counting_function = false;
         record->style_depends_on_size_container_query = false;
         record->style_depends_on_style_container_query = false;
-        record->explicitly_inherited_non_inherited_property = false;
+        record->explicitly_inherited_non_inherited_style_groups = 0;
         record->cascade_reads_custom_properties = false;
         record->cascade_declares_custom_properties = false;
         record->pinned_parent_custom_property_data = nullptr;
@@ -4764,7 +4764,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 record->style_uses_tree_counting_function = previous->style_uses_tree_counting_function;
                 record->style_depends_on_size_container_query = previous->style_depends_on_size_container_query;
                 record->style_depends_on_style_container_query = previous->style_depends_on_style_container_query;
-                record->explicitly_inherited_non_inherited_property = previous->explicitly_inherited_non_inherited_property;
+                record->explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups;
                 record->custom_property_references = previous->custom_property_references;
                 break;
             case StyleInputRecord::Difference::ParentStyle:
@@ -4781,7 +4781,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                         .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
                         .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
                         .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
-                        .explicitly_inherited_non_inherited_property = previous->explicitly_inherited_non_inherited_property,
+                        .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
                         .custom_property_references = previous->custom_property_references,
                     };
                 }
@@ -4803,7 +4803,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                     .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
                     .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
                     .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
-                    .explicitly_inherited_non_inherited_property = previous->explicitly_inherited_non_inherited_property,
+                    .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
                     .custom_property_references = previous->custom_property_references,
                 };
                 break;
@@ -4856,9 +4856,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             element.set_style_depends_on_size_container_query();
         if (record.style_depends_on_style_container_query)
             element.set_style_depends_on_style_container_query();
-        if (record.explicitly_inherited_non_inherited_property) {
+        if (record.explicitly_inherited_non_inherited_style_groups != 0) {
             if (auto* parent = element.parent())
-                parent->set_children_may_depend_on_non_inherited_property_inheritance();
+                parent->add_children_explicitly_inherited_non_inherited_style_groups(record.explicitly_inherited_non_inherited_style_groups);
         }
         auto existing = abstract_element.computed_style();
         VERIFY(existing);
@@ -4883,7 +4883,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 continue;
             // An entry that read the half of its inherited style the key does not name answers only
             // for an element inheriting from that very style.
-            if (entry.explicitly_inherited_non_inherited_property && entry.parent_style_record_identity != inheritance_parent->style_record_identity())
+            if (entry.explicitly_inherited_non_inherited_style_groups != 0 && entry.parent_style_record_identity != inheritance_parent->style_record_identity())
                 continue;
             if (!new_style_input_record)
                 record_style_input(&entry);
@@ -4903,9 +4903,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 abstract_element.element().set_style_uses_var_css_function();
             if (entry.style_uses_inherit_css_function)
                 abstract_element.element().set_style_uses_inherit_css_function();
-            if (entry.explicitly_inherited_non_inherited_property) {
+            if (entry.explicitly_inherited_non_inherited_style_groups != 0) {
                 if (auto* parent = abstract_element.element().parent())
-                    parent->set_children_may_depend_on_non_inherited_property_inheritance();
+                    parent->add_children_explicitly_inherited_non_inherited_style_groups(entry.explicitly_inherited_non_inherited_style_groups);
             }
             compute_transitioned_properties(*sharing->shared_values, abstract_element);
             // An entry is only published by a computation that read nothing beyond the key, so an
@@ -4916,7 +4916,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 record->read_beyond_the_record = false;
                 record->style_uses_var_css_function = entry.style_uses_var_css_function;
                 record->style_uses_inherit_css_function = entry.style_uses_inherit_css_function;
-                record->explicitly_inherited_non_inherited_property = entry.explicitly_inherited_non_inherited_property;
+                record->explicitly_inherited_non_inherited_style_groups = entry.explicitly_inherited_non_inherited_style_groups;
                 record->custom_property_references = entry.custom_property_references;
             }
             report_shared_custom_property_environment_change(abstract_element, old_custom_property_data, did_change_custom_properties);
@@ -5051,7 +5051,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && !previous_computation->read_beyond_the_record
             && !previous_computation->style_uses_var_css_function
             && !previous_computation->style_uses_inherit_css_function
-            && !previous_computation->explicitly_inherited_non_inherited_property) {
+            && previous_computation->explicitly_inherited_non_inherited_style_groups == 0) {
             sharing->computed_groups_to_rebuild = publication.computed_group_mask & ComputedValues::all_style_groups;
             sharing->computed_properties_to_evaluate = Array<u64, (number_of_longhand_properties + 63) / 64> {
                 publication.computed_property_word_0,
@@ -5071,7 +5071,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         // A computation that read the other half of its inherited style, through `inherit` on a
         // non-inherited property, read what the record does not name, so an unchanged cascade does
         // not mean an unchanged answer.
-        && !previous_computation->explicitly_inherited_non_inherited_property
+        && previous_computation->explicitly_inherited_non_inherited_style_groups == 0
         // A transition starts by comparing the style that was to the style that is, and a
         // computation skipped here never makes that comparison. The element that starts none is the
         // one this asks about, which is the same question the transition step itself asks first.
@@ -5094,7 +5094,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         new_style_input_record->style_uses_tree_counting_function = previous_computation->style_uses_tree_counting_function;
         new_style_input_record->style_depends_on_size_container_query = previous_computation->style_depends_on_size_container_query;
         new_style_input_record->style_depends_on_style_container_query = previous_computation->style_depends_on_style_container_query;
-        new_style_input_record->explicitly_inherited_non_inherited_property = previous_computation->explicitly_inherited_non_inherited_property;
+        new_style_input_record->explicitly_inherited_non_inherited_style_groups = previous_computation->explicitly_inherited_non_inherited_style_groups;
         new_style_input_record->custom_property_references = move(previous_computation->custom_property_references);
         reuse_last_computed_style();
         return {};
@@ -5285,7 +5285,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             computed_properties_to_evaluate = sharing->computed_properties_to_evaluate->data();
     }
     auto computed_properties = compute_properties(abstract_element, cascaded_properties, cascade_input.matching_pseudo_element_styles,
-        sharing ? &sharing->explicitly_inherited_non_inherited_property : nullptr, previous_computed_values, computed_group_mask, computed_properties_to_evaluate, inheritance_parent_values);
+        sharing ? &sharing->explicitly_inherited_non_inherited_style_groups : nullptr, previous_computed_values, computed_group_mask, computed_properties_to_evaluate, inheritance_parent_values);
     if (new_style_input_record)
         new_style_input_record->bind_next_published_style = true;
     static bool const verify_computed_closure = getenv("LIBWEB_VERIFY_COMPUTED_CLOSURE") != nullptr;
@@ -5512,7 +5512,7 @@ void StyleComputer::ensure_style_metadata_tables_installed()
     (void)installed;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, bool* explicitly_inherited_non_inherited_property, ComputedValues const* previous_values, u32 computed_group_mask, u64 const* computed_properties_to_evaluate, ComputedValues const* inheritance_parent_values, bool stop_after_longhand_drive) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, ComputedValues const* previous_values, u32 computed_group_mask, u64 const* computed_properties_to_evaluate, ComputedValues const* inheritance_parent_values, bool stop_after_longhand_drive) const
 {
     ensure_style_metadata_tables_installed();
     VERIFY(computation_context_cache_is_empty());
@@ -5820,10 +5820,19 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     // property is the exception, so the node it was read from remembers that its children are not
     // bounded that way.
     if (driver_results.explicitly_inherited_non_inherited_property) {
+        u32 style_groups = 0;
+        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+            auto property_id = static_cast<PropertyID>(i);
+            if (is_inherited_property(property_id) || !computed_style.is_property_inherited(property_id))
+                continue;
+            style_groups |= ComputedValues::style_group_bit_of_property(property_id);
+        }
+        if (style_groups == 0)
+            style_groups = ComputedValues::all_style_groups;
         if (auto* parent = abstract_element.element().parent())
-            parent->set_children_may_depend_on_non_inherited_property_inheritance();
-        if (explicitly_inherited_non_inherited_property)
-            *explicitly_inherited_non_inherited_property = true;
+            parent->add_children_explicitly_inherited_non_inherited_style_groups(style_groups);
+        if (explicitly_inherited_non_inherited_style_groups)
+            *explicitly_inherited_non_inherited_style_groups |= style_groups;
     }
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element())) {
@@ -5858,7 +5867,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     if (animation_values_applied)
         restore_values_before_post_compute_adjustments();
 
-    m_keyframes_inherited_non_inherited_property = false;
+    m_keyframes_inherited_non_inherited_style_groups = 0;
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
         Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
@@ -5926,12 +5935,12 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     // Rust animation boundary only once per effect.
     animation_values_applied |= !newly_started_transition_effects.is_empty();
 
-    if (m_keyframes_inherited_non_inherited_property) {
+    if (m_keyframes_inherited_non_inherited_style_groups != 0) {
         if (auto* parent = abstract_element.element().parent())
-            parent->set_children_may_depend_on_non_inherited_property_inheritance();
-        if (explicitly_inherited_non_inherited_property)
-            *explicitly_inherited_non_inherited_property = true;
-        m_keyframes_inherited_non_inherited_property = false;
+            parent->add_children_explicitly_inherited_non_inherited_style_groups(m_keyframes_inherited_non_inherited_style_groups);
+        if (explicitly_inherited_non_inherited_style_groups)
+            *explicitly_inherited_non_inherited_style_groups |= m_keyframes_inherited_non_inherited_style_groups;
+        m_keyframes_inherited_non_inherited_style_groups = 0;
     }
 
     if (parent_style_in_display_none_subtree || computed_style.display().is_none())
