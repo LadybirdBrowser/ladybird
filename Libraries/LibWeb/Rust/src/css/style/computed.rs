@@ -1024,17 +1024,37 @@ impl ComputedGroupSets {
         identity
     }
 
-    /// Replace a fully inheriting element's static inherited groups with its flat-tree parent's
-    /// groups and publish the resulting base style record without rebuilding computed values.
-    pub(super) fn replace_static_inherited_groups(
+    /// Replace a fully inheriting element's engine-resolvable inherited groups with its flat-tree
+    /// parent's groups and publish the resulting base style record without rebuilding computed values.
+    pub(super) fn replace_engine_resolvable_inherited_groups(
         &mut self,
         node: StyleNodeID,
         parent: StyleNodeID,
         inherited_style_groups: u8,
     ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
         const STATIC_INHERITED_GROUPS: u8 = (1 << 0) | (1 << 1) | (1 << 3);
+        const INHERITED_UI_GROUP: u8 = 1 << 2;
+        const INHERITED_TEXT_GROUP: u8 = 1 << 4;
+        const ENGINE_RESOLVABLE_INHERITED_GROUPS: u8 =
+            STATIC_INHERITED_GROUPS | INHERITED_UI_GROUP | INHERITED_TEXT_GROUP;
         const INHERITED_GROUP_COUNT: usize = 7;
-        if inherited_style_groups == 0 || inherited_style_groups & !STATIC_INHERITED_GROUPS != 0 {
+        const INHERITED_GROUP_MASK: u32 = (1 << INHERITED_GROUP_COUNT) - 1;
+        if inherited_style_groups == 0 || inherited_style_groups & !ENGINE_RESOLVABLE_INHERITED_GROUPS != 0 {
+            return None;
+        }
+        let target = ComputedStyleTarget::new(node, u8::MAX);
+        if inherited_style_groups & INHERITED_TEXT_GROUP != 0
+            && self
+                .current_color_dependency_mask(target)
+                .is_none_or(|dependencies| dependencies & !INHERITED_GROUP_MASK != 0)
+        {
+            return None;
+        }
+        if inherited_style_groups & INHERITED_UI_GROUP != 0
+            && self
+                .color_scheme_dependency_mask(target)
+                .is_none_or(|dependencies| dependencies & !INHERITED_GROUP_MASK != 0)
+        {
             return None;
         }
         let index = node.element_index()? as usize;

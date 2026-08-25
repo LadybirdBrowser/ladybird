@@ -1288,8 +1288,11 @@ impl StyleEngine {
                     .then(|| self.tree.flat_tree_parent(node))
                     .flatten()
                     .and_then(|parent| {
-                        self.computed_group_sets
-                            .replace_static_inherited_groups(node, parent, inherited_style_groups)
+                        self.computed_group_sets.replace_engine_resolvable_inherited_groups(
+                            node,
+                            parent,
+                            inherited_style_groups,
+                        )
                     });
                 let (old_style_record, new_style_record, damage, gap) = direct_inherited_delta.map_or(
                     (
