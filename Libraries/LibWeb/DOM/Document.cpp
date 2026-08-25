@@ -10143,8 +10143,14 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text
 {
     static constexpr size_t MAX_SELECTOR_QUERY_CACHE_SIZE = 512;
 
-    if (auto it = m_selector_query_cache.find(selector_text); it != m_selector_query_cache.end())
+    if (m_last_selector_query_text.has_value() && selector_text == *m_last_selector_query_text)
+        return m_last_selector_query;
+
+    if (auto it = m_selector_query_cache.find(selector_text); it != m_selector_query_cache.end()) {
+        m_last_selector_query_text = it->key;
+        m_last_selector_query = it->value;
         return it->value;
+    }
 
     auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { *this }, selector_text);
 
@@ -10159,7 +10165,10 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text
     if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE)
         m_selector_query_cache.remove(m_selector_query_cache.begin());
 
-    m_selector_query_cache.set(Utf16String::from_utf16(selector_text), query);
+    auto selector_text_copy = Utf16String::from_utf16(selector_text);
+    m_last_selector_query_text = selector_text_copy;
+    m_last_selector_query = query;
+    m_selector_query_cache.set(move(selector_text_copy), query);
     return query;
 }
 

@@ -1988,6 +1988,8 @@ private:
     // Cache of parsed selector queries for querySelectorAll/querySelector/matches/closest.
     // A null value means the selector string failed to parse.
     mutable HashMap<Utf16String, RefPtr<SelectorQuery const>> m_selector_query_cache;
+    mutable Optional<Utf16String> m_last_selector_query_text;
+    mutable RefPtr<SelectorQuery const> m_last_selector_query;
 
     // Cache of querySelectorAll results, validated lazily against dom_tree_version/character_data_version.
     OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;
