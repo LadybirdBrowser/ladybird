@@ -33,6 +33,18 @@ AppendMode SourceBufferProcessor::mode() const
     return m_mode;
 }
 
+// Subtitle tracks have no decoder to ask, so only the media tracks are checked.
+static bool codecs_are_supported(Vector<Media::Track> const& tracks)
+{
+    for (auto const& track : tracks) {
+        if (track.type() == Media::TrackType::Subtitles)
+            continue;
+        if (!Media::decoder_capabilities(track.parsed_codec()).has_value())
+            return false;
+    }
+    return true;
+}
+
 bool SourceBufferProcessor::is_parsing_media_segment() const
 {
     return m_append_state == AppendState::ParsingMediaSegment;
@@ -377,13 +389,10 @@ bool SourceBufferProcessor::initialization_segment_received()
                     m_append_error_callback();
                     return false;
                 }
-                if (track.type() == Media::TrackType::Subtitles)
-                    continue;
-                auto codec_id = m_parser->codec_id_for_track(track.identifier());
-                if (!Media::decoder_capabilities(Media::ParsedCodec { codec_id }).has_value()) {
-                    m_append_error_callback();
-                    return false;
-                }
+            }
+            if (!codecs_are_supported(*tracks)) {
+                m_append_error_callback();
+                return false;
             }
         }
         if (track_count != m_track_buffers.size()) {
@@ -405,8 +414,14 @@ bool SourceBufferProcessor::initialization_segment_received()
 
     // 5. If the [[first initialization segment received flag]] is false, then run the following steps:
     if (!m_first_initialization_segment_received_flag) {
-        // FIXME: 1. If the initialization segment contains tracks with codecs the user agent does not support,
-        //           then run the append error algorithm and abort these steps.
+        // 1. If the initialization segment contains tracks with codecs the user agent does not support, then run
+        //    the append error algorithm and abort these steps.
+        for (auto const* tracks : { &m_parser->audio_tracks(), &m_parser->video_tracks(), &m_parser->text_tracks() }) {
+            if (!codecs_are_supported(*tracks)) {
+                m_append_error_callback();
+                return false;
+            }
+        }
 
         auto build_tracks = [&](Vector<Media::Track> const& tracks) {
             Vector<InitializationSegmentTrack> result;

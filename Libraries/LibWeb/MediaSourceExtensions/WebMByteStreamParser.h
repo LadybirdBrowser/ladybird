@@ -40,7 +40,7 @@ public:
         return duration;
     }
 
-    virtual Media::CodecID codec_id_for_track(u64 track_number) const override
+    Media::CodecID codec_id_for_track(u64 track_number) const
     {
         auto entry = m_track_entries.get(track_number);
         if (!entry.has_value())

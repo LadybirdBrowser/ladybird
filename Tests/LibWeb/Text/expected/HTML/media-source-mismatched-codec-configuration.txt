@@ -1,0 +1,3 @@
+unmodified file: accepted
+replaced the configuration box's four-character code: true
+file with a mismatched configuration box: rejected
