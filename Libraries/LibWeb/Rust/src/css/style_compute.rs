@@ -1289,6 +1289,7 @@ pub(crate) struct ExternalValueDependencies {
     pub container_relative_length_unit_mask: u8,
     pub has_unfixed_random_sharing: bool,
     pub needs_document_base_url: bool,
+    pub may_need_style_sheet_resource_context: bool,
     pub inheritance_dependent: bool,
 }
 
@@ -1361,6 +1362,7 @@ pub(crate) fn external_value_dependencies(value: &StyleValueData) -> ExternalVal
                 url, resource_context, ..
             } => {
                 dependencies.needs_document_base_url |= !url.as_bytes().is_empty() && !resource_context.has_base_url;
+                dependencies.may_need_style_sheet_resource_context |= !url.as_bytes().is_empty();
             }
             StyleValueData::Calculated { rust_calculation, .. } => {
                 collect_calculation(rust_calculation.node(), dependencies);

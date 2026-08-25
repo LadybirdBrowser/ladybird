@@ -225,6 +225,10 @@ fn property_is_logical_alias_including_shorthands(property_id: u16) -> bool {
     PROPERTY_IS_LOGICAL_ALIAS[property_index(property_id)]
 }
 
+pub(crate) fn property_is_in_logical_group(property_id: u16) -> bool {
+    PROPERTY_IS_LOGICAL_GROUP_MEMBER[property_index(property_id)]
+}
+
 /// Returns whether `a` wins a keyframe declaration conflict with `b`.
 pub(crate) fn animation_property_is_preferred(a: u16, b: u16) -> bool {
     // https://drafts.csswg.org/web-animations-1/#ref-for-computed-keyframes

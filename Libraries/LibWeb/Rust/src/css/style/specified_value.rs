@@ -122,6 +122,23 @@ impl SpecifiedValues {
         }
     }
 
+    /// Return an owned reference to one maintained declaration payload.
+    #[must_use]
+    #[allow(dead_code)]
+    pub(super) fn retained_value(&self, id: SpecifiedValueID) -> Lookup<RetainedStyleValueData, SpecifiedValueGap> {
+        if let Some(index) = self.entries_by_id.get(&id) {
+            return Lookup::Known(self.entries[*index as usize].value.clone_retained());
+        }
+        match self.coverage() {
+            SpecifiedValueCoverage::Complete => Lookup::KnownAbsent,
+            SpecifiedValueCoverage::Partial { eviction_generation } => {
+                Lookup::Missing(SpecifiedValueGap::RetiredPayloads {
+                    eviction_generation: *eviction_generation,
+                })
+            }
+        }
+    }
+
     /// # Safety
     /// `value` must point at live `StyleValueData`.
     pub(super) unsafe fn intern(

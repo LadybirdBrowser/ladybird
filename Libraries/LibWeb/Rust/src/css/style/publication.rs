@@ -7,6 +7,59 @@
 use super::*;
 
 impl StyleEngine {
+    pub(super) fn retained_store_supports_property(target: computed::ComputedStyleTarget, property: u16) -> bool {
+        if property > crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
+            || (crate::css::property_metadata::property_id::ANIMATION_COMPOSITION
+                ..=crate::css::property_metadata::property_id::ANIMATION_TIMING_FUNCTION)
+                .contains(&property)
+            || (crate::css::property_metadata::property_id::TRANSITION_BEHAVIOR
+                ..=crate::css::property_metadata::property_id::TRANSITION_TIMING_FUNCTION)
+                .contains(&property)
+            || crate::css::property_metadata::property_is_in_logical_group(property)
+        {
+            return false;
+        }
+        !target.is_pseudo()
+            || (property != crate::css::property_metadata::property_id::CONTENT
+                && crate::css::property_metadata::pseudo_element_supports_property(target.pseudo_kind(), property))
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn engine_constructed_cascade_store(
+        &self,
+        target: computed::ComputedStyleTarget,
+    ) -> Option<CascadedPropertyStore> {
+        let answer = self.published_match_answers.lookup(target.node())?;
+        if !answer.cascade_winners_are_complete {
+            return None;
+        }
+        let key = target.pseudo_element_target().map_or_else(
+            || WinnerGroupKey::current(target.node(), self.program.version()),
+            |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
+        );
+        let Lookup::Known((_, state)) = self.winner_groups.token_for(key) else {
+            return None;
+        };
+
+        let mut store = CascadedPropertyStore::new();
+        for winner in self.winner_groups.winners_in_state(state) {
+            let winner = self.winner_groups.resolved_winner(winner)?;
+            if !Self::retained_store_supports_property(target, winner.property) {
+                return None;
+            }
+            let Lookup::Known(value) = self.specified_values.retained_value(winner.key.value) else {
+                return None;
+            };
+            if crate::css::style_compute::external_value_dependencies(value.data())
+                .may_need_style_sheet_resource_context
+            {
+                return None;
+            }
+            store.seed_retained_property(winner.property, value, winner.important, false);
+        }
+        Some(store)
+    }
+
     /// Publish the immutable computed-group payloads of one element's base style. This assigns
     /// dense identities to shared payloads and their ordered tuple, so an equal handle proves equal
     /// groups and downstream operators can consume one node handle.
@@ -399,36 +452,12 @@ impl StyleEngine {
             return Vec::new();
         };
 
-        let has_logical_counterpart = |property| {
-            (0..4).any(|writing_mode| {
-                (0..3).any(|direction| {
-                    crate::css::style_compute::map_logical_alias_to_physical(property, writing_mode, direction)
-                        != property
-                        || crate::css::style_compute::map_physical_to_logical_alias(property, writing_mode, direction)
-                            != property
-                })
-            })
-        };
         let mut assignments = Vec::new();
         for winner in self.winner_groups.winners_in_state(state) {
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
                 continue;
             };
-            if winner.property > crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
-                || (target.is_pseudo() && winner.property == crate::css::property_metadata::property_id::CONTENT)
-                || (target.is_pseudo()
-                    && !crate::css::property_metadata::pseudo_element_supports_property(
-                        target.pseudo_kind(),
-                        winner.property,
-                    ))
-                || (crate::css::property_metadata::property_id::ANIMATION_COMPOSITION
-                    ..=crate::css::property_metadata::property_id::ANIMATION_TIMING_FUNCTION)
-                    .contains(&winner.property)
-                || (crate::css::property_metadata::property_id::TRANSITION_BEHAVIOR
-                    ..=crate::css::property_metadata::property_id::TRANSITION_TIMING_FUNCTION)
-                    .contains(&winner.property)
-                || has_logical_counterpart(winner.property)
-            {
+            if !Self::retained_store_supports_property(target, winner.property) {
                 continue;
             }
             let block = match winner.source {
