@@ -91,7 +91,13 @@ pub struct ClipPathData {
 pub struct EffectsData {
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
-    pub filter: Option<std::rc::Rc<FilterHandle>>,
+    pub filter: Option<EffectsFilter>,
+}
+
+#[derive(Clone)]
+pub enum EffectsFilter {
+    Bytes(std::rc::Rc<Vec<u8>>),
+    Host(std::rc::Rc<FilterHandle>),
 }
 
 impl EffectsData {
@@ -298,6 +304,8 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
         opacity: 1.0,
         blend_mode: CompositingAndBlendingOperator::Normal,
         filter: std::ptr::null_mut(),
+        filter_bytes: std::ptr::null(),
+        filter_bytes_length: 0,
         path: std::ptr::null_mut(),
         winding_rule: WindingRule::Nonzero,
         mask_kind: MaskKind::Alpha,
@@ -345,10 +353,15 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
         VisualContextData::Effects(effects) => {
             out.opacity = effects.opacity;
             out.blend_mode = effects.blend_mode;
-            out.filter = effects
-                .filter
-                .as_ref()
-                .map_or(std::ptr::null_mut(), |filter| filter.as_raw());
+            if let Some(filter) = &effects.filter {
+                match filter {
+                    EffectsFilter::Bytes(bytes) => {
+                        out.filter_bytes = bytes.as_ptr();
+                        out.filter_bytes_length = bytes.len();
+                    }
+                    EffectsFilter::Host(filter) => out.filter = filter.as_raw(),
+                }
+            }
         }
         VisualContextData::ScrollCompensation(compensation) => {
             out.index_value = compensation.scroll_node_index;

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::{ClipData, EffectsData, PerspectiveData, TransformData, TransformDataRole};
+use super::{ClipData, EffectsData, EffectsFilter, PerspectiveData, TransformData, TransformDataRole};
 use crate::css::computed_value_types::{ComputedClipEdge, ComputedStyleValueHandle};
 use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
 use crate::css::css_enums;
@@ -511,24 +511,33 @@ pub(crate) fn compute_effects_data(
     layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
+    device_pixels_per_css_pixel: f64,
 ) -> Option<EffectsData> {
     use crate::css::css_enums::mix_blend_mode;
-    let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(slot));
-    layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
-        resolved_filter
-            .svg_filter_bounds
-            .has_value
-            .then_some(resolved_filter.svg_filter_bounds.value),
-    );
-    let filter_raw = resolved_filter.gfx_filter;
-    let filter = if filter_raw.is_null() {
-        None
-    } else {
-        // SAFETY: The host hands over a heap-allocated Gfx::Filter for us to own.
-        Some(std::rc::Rc::new(unsafe { super::FilterHandle::adopt(filter_raw) }))
-    };
     let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
+    let filter = if crate::painting::filter_bytes::contains_url(&effects_values.filter) {
+        let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(slot));
+        layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
+            resolved_filter
+                .svg_filter_bounds
+                .has_value
+                .then_some(resolved_filter.svg_filter_bounds.value),
+        );
+        let filter_raw = resolved_filter.gfx_filter;
+        if filter_raw.is_null() {
+            None
+        } else {
+            // SAFETY: The host hands over a heap-allocated Gfx::Filter for us to own.
+            Some(EffectsFilter::Host(std::rc::Rc::new(unsafe {
+                super::FilterHandle::adopt(filter_raw)
+            })))
+        }
+    } else {
+        layout_arena.paintable_side_data(slot).svg_filter_bounds.set(None);
+        crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
+            .map(|bytes| EffectsFilter::Bytes(std::rc::Rc::new(bytes)))
+    };
     if filter.is_none() && effects_values.opacity == 1.0 && effects_values.mix_blend_mode == mix_blend_mode::NORMAL {
         return None;
     }

@@ -10,6 +10,7 @@
 #include <LibCore/Environment.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Filter.h>
+#include <LibGfx/FilterImpl.h>
 #include <LibGfx/GradientInterpolation.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
@@ -74,6 +75,27 @@ namespace Web::Painting {
 static_assert(sizeof(Layout::RustFFI::ScrollDirection) == sizeof(ScrollDirection));
 static_assert(to_underlying(Layout::RustFFI::ScrollDirection::Horizontal) == to_underlying(ScrollDirection::Horizontal));
 static_assert(to_underlying(Layout::RustFFI::ScrollDirection::Vertical) == to_underlying(ScrollDirection::Vertical));
+
+static_assert(sizeof(Layout::RustFFI::FilterOperationType) == sizeof(Gfx::FilterImpl::OperationType));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Arithmetic) == to_underlying(Gfx::FilterImpl::OperationType::Arithmetic));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Compose) == to_underlying(Gfx::FilterImpl::OperationType::Compose));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Blend) == to_underlying(Gfx::FilterImpl::OperationType::Blend));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Flood) == to_underlying(Gfx::FilterImpl::OperationType::Flood));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::DisplacementMap) == to_underlying(Gfx::FilterImpl::OperationType::DisplacementMap));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::DropShadow) == to_underlying(Gfx::FilterImpl::OperationType::DropShadow));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Blur) == to_underlying(Gfx::FilterImpl::OperationType::Blur));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::ColorFilter) == to_underlying(Gfx::FilterImpl::OperationType::ColorFilter));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::ColorMatrix) == to_underlying(Gfx::FilterImpl::OperationType::ColorMatrix));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::ColorTable) == to_underlying(Gfx::FilterImpl::OperationType::ColorTable));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Saturate) == to_underlying(Gfx::FilterImpl::OperationType::Saturate));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::HueRotate) == to_underlying(Gfx::FilterImpl::OperationType::HueRotate));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Image) == to_underlying(Gfx::FilterImpl::OperationType::Image));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Merge) == to_underlying(Gfx::FilterImpl::OperationType::Merge));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Offset) == to_underlying(Gfx::FilterImpl::OperationType::Offset));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Erode) == to_underlying(Gfx::FilterImpl::OperationType::Erode));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Dilate) == to_underlying(Gfx::FilterImpl::OperationType::Dilate));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::Turbulence) == to_underlying(Gfx::FilterImpl::OperationType::Turbulence));
+static_assert(to_underlying(Layout::RustFFI::FilterOperationType::ColorSpaceConversion) == to_underlying(Gfx::FilterImpl::OperationType::ColorSpaceConversion));
 
 static_assert(sizeof(RustFFI::IntPoint) == sizeof(Gfx::IntPoint));
 static_assert(alignof(RustFFI::IntPoint) == alignof(Gfx::IntPoint));
@@ -358,6 +380,8 @@ static VisualContextData visual_context_data_from_export(Layout::RustFFI::FfiVis
         EffectsData effects { .opacity = node.opacity, .blend_mode = node.blend_mode, .gfx_filter = {} };
         if (node.filter)
             effects.gfx_filter = *static_cast<Gfx::Filter const*>(node.filter);
+        else if (node.filter_bytes_length)
+            effects.gfx_filter = Gfx::deserialize_filter({ node.filter_bytes, node.filter_bytes_length }, [](u64) -> Gfx::DecodedImageFrame { VERIFY_NOT_REACHED(); });
         return effects;
     }
     case Layout::RustFFI::FfiVisualContextNodeKind::ScrollCompensation:
