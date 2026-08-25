@@ -847,7 +847,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
     sink: *mut c_void,
-    color: u32,
+    color: libgfx_rust::Color,
     offset_x: CssPixels,
     offset_y: CssPixels,
     blur_radius: CssPixels,
@@ -857,7 +857,7 @@ pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
         // FfiPaintHostCallbacks::selection_style_facts.
         let shadows = unsafe { &mut *sink.cast::<Vec<crate::painting::record::paint::text::ShadowLayer>>() };
         shadows.push(crate::painting::record::paint::text::ShadowLayer {
-            color,
+            color: color.0,
             offset_x,
             offset_y,
             blur_radius,
@@ -869,7 +869,11 @@ pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_color_stop(sink: *mut c_void, color: u32, position: f32) {
+pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
+    sink: *mut c_void,
+    color: libgfx_rust::Color,
+    position: f32,
+) {
     abort_on_panic(|| {
         // SAFETY: `sink` is the ColorStopSink pointer handed out by FfiPaintHostCallbacks::background_layer_image.
         let sink = unsafe { &mut *sink.cast::<crate::painting::host::ColorStopSink>() };
@@ -893,22 +897,19 @@ pub enum FfiImagePaintRecordKind {
 pub struct FfiImagePaintRecordInputs {
     pub kind: FfiImagePaintRecordKind,
     pub device_pixels_per_css_pixel: f64,
-    pub dest_rect: [f32; 4],
+    pub dest_rect: libgfx_rust::FloatRect,
     pub frame_id: u64,
-    pub scaling_mode: i32,
+    pub scaling_mode: libgfx_rust::ScalingMode,
     pub nested_display_list_id: u64,
-    pub nested_display_list_size: [i32; 2],
+    pub nested_display_list_size: libgfx_rust::IntSize,
     pub gradient_angle: f32,
     pub first_stop_position: f32,
     pub repeat_length: f32,
-    pub interpolation_type: u8,
-    pub rectangular_color_space: u8,
-    pub polar_color_space: u8,
-    pub hue_interpolation_method: u8,
+    pub interpolation_method: libgfx_rust::GradientInterpolationMethod,
     pub center: crate::layout::FfiCssPixelPoint,
     pub size: crate::layout::FfiCssPixelSize,
     pub position: crate::layout::FfiCssPixelPoint,
-    pub color_stop_colors: *const u32,
+    pub color_stop_colors: *const libgfx_rust::Color,
     pub color_stop_positions: *const f32,
     pub color_stop_count: usize,
     pub color_stops_repeating: bool,
@@ -927,24 +928,16 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     use crate::painting::display_list::recorder::{
         ColorStops, ConicGradientData, DisplayListRecorder, LinearGradientData, RadialGradientData,
     };
-    use libgfx_rust::{
-        CompositingAndBlendingOperator, FloatRect, GradientInterpolationMethod, GradientInterpolationType,
-        HueInterpolationMethod, IntRect, IntSize, PolarColorSpace, RectangularColorSpace, ScalingMode,
-    };
+    use libgfx_rust::{CompositingAndBlendingOperator, IntRect};
     abort_on_panic(|| {
         let inputs = unsafe { &*inputs };
         let mut recorder = DisplayListRecorder::new(Vec::new());
-        let dest_rect = FloatRect::new(
-            inputs.dest_rect[0],
-            inputs.dest_rect[1],
-            inputs.dest_rect[2],
-            inputs.dest_rect[3],
-        );
+        let dest_rect = inputs.dest_rect;
         let dest_int_rect = IntRect::new(
-            inputs.dest_rect[0] as i32,
-            inputs.dest_rect[1] as i32,
-            inputs.dest_rect[2] as i32,
-            inputs.dest_rect[3] as i32,
+            inputs.dest_rect.x as i32,
+            inputs.dest_rect.y as i32,
+            inputs.dest_rect.width as i32,
+            inputs.dest_rect.height as i32,
         );
         let color_stops = || {
             let count = inputs.color_stop_count;
@@ -954,10 +947,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                 // SAFETY: the host borrows the stop arrays for the duration of the call.
                 unsafe {
                     (
-                        std::slice::from_raw_parts(inputs.color_stop_colors, count)
-                            .iter()
-                            .map(|value| libgfx_rust::Color(*value))
-                            .collect(),
+                        std::slice::from_raw_parts(inputs.color_stop_colors, count).to_vec(),
                         std::slice::from_raw_parts(inputs.color_stop_positions, count).to_vec(),
                     )
                 }
@@ -968,28 +958,20 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                 repeating: inputs.color_stops_repeating,
             }
         };
-        let interpolation_method = GradientInterpolationMethod {
-            interpolation_type: GradientInterpolationType::from_u8(inputs.interpolation_type),
-            rectangular_color_space: RectangularColorSpace::from_u8(inputs.rectangular_color_space),
-            polar_color_space: PolarColorSpace::from_u8(inputs.polar_color_space),
-            hue_interpolation_method: HueInterpolationMethod::from_u8(inputs.hue_interpolation_method),
-        };
+        let interpolation_method = inputs.interpolation_method;
         match inputs.kind {
             FfiImagePaintRecordKind::DecodedFrame => recorder.draw_scaled_decoded_image_frame(
                 dest_rect,
                 None,
                 ImageFrameResourceId(inputs.frame_id),
-                ScalingMode::from_raw(inputs.scaling_mode),
+                inputs.scaling_mode,
                 CompositingAndBlendingOperator::Normal,
                 None,
             ),
             FfiImagePaintRecordKind::NestedDisplayList => recorder.paint_nested_display_list(
                 DisplayListResourceId(inputs.nested_display_list_id),
                 dest_rect,
-                IntSize {
-                    width: inputs.nested_display_list_size[0],
-                    height: inputs.nested_display_list_size[1],
-                },
+                inputs.nested_display_list_size,
             ),
             FfiImagePaintRecordKind::LinearGradient => recorder.fill_rect_with_linear_gradient(
                 dest_int_rect,
@@ -2069,28 +2051,25 @@ pub unsafe extern "C" fn layout_arena_main_visual_context_tree(arena: *mut c_voi
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread; `out`
-/// must have room for `capacity` floats.
+/// must have room for `capacity` points.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_scroll_state_snapshot(
     arena: *mut c_void,
-    out: *mut f32,
+    out: *mut libgfx_rust::FloatPoint,
     capacity: usize,
 ) -> usize {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paint_state = arena.paint_state().borrow();
         let snapshot = &paint_state.visual_context.scroll_state_snapshot;
-        let needed = snapshot.len() * 2;
+        let needed = snapshot.len();
         if !out.is_null() {
             for (index, offset) in snapshot.iter().enumerate() {
-                if index * 2 + 1 >= capacity {
+                if index >= capacity {
                     break;
                 }
                 // SAFETY: within the caller's capacity.
-                unsafe {
-                    *out.add(index * 2) = offset.x;
-                    *out.add(index * 2 + 1) = offset.y;
-                }
+                unsafe { *out.add(index) = *offset };
             }
         }
         needed
@@ -2104,8 +2083,7 @@ pub unsafe extern "C" fn layout_arena_scroll_state_snapshot(
 pub unsafe extern "C" fn layout_arena_cumulative_scroll_offset_for_node(
     arena: *mut c_void,
     scroll_node_index: usize,
-    out_raw: *mut i32,
-) {
+) -> FfiCssPixelPoint {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paint_state = arena.paint_state().borrow();
@@ -2115,12 +2093,8 @@ pub unsafe extern "C" fn layout_arena_cumulative_scroll_offset_for_node(
                 .scroll_state
                 .cumulative_offset(tree.scroll_state_slot_for_node(scroll_node_index))
         });
-        // SAFETY: the caller passes room for two values.
-        unsafe {
-            *out_raw = offset.x.raw_value();
-            *out_raw.add(1) = offset.y.raw_value();
-        }
-    });
+        offset.into()
+    })
 }
 
 /// # Safety
@@ -2166,8 +2140,7 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
                 kind: item.kind as u8,
                 paintable: item.paintable,
                 chrome_widget_kind: item.chrome_widget_kind,
-                has_text_fragment_index: item.text_fragment_index.is_some(),
-                text_fragment_index: item.text_fragment_index.unwrap_or(0),
+                text_fragment_index: item.text_fragment_index.into(),
                 caret_node_shell: arena.shell_if_live(item.caret_node),
                 caret_offset: item.caret_offset,
                 rect: rect(item.rect),
@@ -2392,17 +2365,12 @@ fn with_hit_test_list<R>(
     query(list, arena)
 }
 
-fn css_point(x_raw: i32, y_raw: i32) -> crate::css::css_pixels::CssPixelPoint {
-    crate::css::css_pixels::CssPixelPoint::new(CssPixels::from_raw(x_raw), CssPixels::from_raw(y_raw))
-}
-
 fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> crate::painting::host::FfiTopmostItem {
     match item {
         Some(item) => crate::painting::host::FfiTopmostItem {
             has_item: true,
             index: item.index,
-            local_x: item.local_point.x.raw_value(),
-            local_y: item.local_point.y.raw_value(),
+            local: item.local_point.into(),
         },
         None => crate::painting::host::FfiTopmostItem::default(),
     }
@@ -2415,12 +2383,11 @@ fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> c
 pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
     arena: *mut c_void,
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    x_raw: i32,
-    y_raw: i32,
+    point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItem {
     abort_on_panic(|| {
         with_hit_test_list(arena, Default::default(), |list, arena| {
-            ffi_topmost(list.find_topmost_item(arena, &callbacks, css_point(x_raw, y_raw)))
+            ffi_topmost(list.find_topmost_item(arena, &callbacks, point.into()))
         })
     })
 }
@@ -2432,12 +2399,11 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
 pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
     arena: *mut c_void,
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    x_raw: i32,
-    y_raw: i32,
+    point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItemsForCaret {
     abort_on_panic(|| {
         with_hit_test_list(arena, Default::default(), |list, arena| {
-            let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, &callbacks, css_point(x_raw, y_raw));
+            let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, &callbacks, point.into());
             crate::painting::host::FfiTopmostItemsForCaret {
                 caret_item: ffi_topmost(caret_item),
                 hit_item: ffi_topmost(hit_item),
@@ -2453,14 +2419,13 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
 pub unsafe extern "C" fn layout_arena_hit_test_all(
     arena: *mut c_void,
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    x_raw: i32,
-    y_raw: i32,
+    point: FfiCssPixelPoint,
     push_context: *mut c_void,
     push: unsafe extern "C" fn(*mut c_void, usize),
 ) {
     abort_on_panic(|| {
         let indices = with_hit_test_list(arena, Vec::new(), |list, arena| {
-            list.hit_test_all(arena, &callbacks, css_point(x_raw, y_raw))
+            list.hit_test_all(arena, &callbacks, point.into())
         });
         for index in indices {
             // SAFETY: The C++ sink consumes the index synchronously.
@@ -2493,15 +2458,14 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_at_line_edge(
 pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
     arena: *mut c_void,
     line_index: usize,
-    x_raw: i32,
-    y_raw: i32,
+    point: FfiCssPixelPoint,
     mode: u8,
 ) -> crate::painting::host::FfiCaretItemForLine {
     abort_on_panic(|| {
         with_hit_test_list(arena, Default::default(), |list, _| {
             match list.caret_item_for_line(
                 line_index,
-                css_point(x_raw, y_raw),
+                point.into(),
                 crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
             ) {
                 Some((item_index, position_type)) => crate::painting::host::FfiCaretItemForLine {
@@ -2546,8 +2510,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_is_inline_adjacent_to_line(
 pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
     arena: *mut c_void,
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    x_raw: i32,
-    y_raw: i32,
+    point: FfiCssPixelPoint,
     mode: u8,
     scoped: bool,
     respect_clip: bool,
@@ -2556,7 +2519,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
         with_hit_test_list(arena, Default::default(), |list, _| {
             let closest = list.find_closest_line(
                 &callbacks,
-                css_point(x_raw, y_raw),
+                point.into(),
                 crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
                 scoped,
                 respect_clip,
@@ -2569,8 +2532,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
                 block_distance: closest.block_distance.raw_value(),
                 block_start_distance: closest.block_start_distance.raw_value(),
                 inline_distance: closest.inline_distance.raw_value(),
-                has_block_container_margin_rect: closest.block_container_margin_rect.is_some(),
-                block_container_margin_rect: closest.block_container_margin_rect.unwrap_or_default().into(),
+                block_container_margin_rect: closest.block_container_margin_rect.map(Into::into).into(),
                 is_before_point: closest.is_before_point,
                 contains_point_in_block_axis: closest.contains_point_in_block_axis,
             }
@@ -2646,7 +2608,7 @@ pub struct FfiResolvedGradientPaint {
     pub first_stop_position: f32,
     pub repeat_length: f32,
     pub color_stops_repeating: bool,
-    pub interpolation_method: [u8; 4],
+    pub interpolation_method: libgfx_rust::GradientInterpolationMethod,
     pub center: FfiCssPixelPoint,
     pub size: crate::layout::FfiCssPixelSize,
 }
@@ -2659,14 +2621,13 @@ pub struct FfiResolvedGradientPaint {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_resolve_gradient_paint_for_size(
     gradient_value: *const c_void,
-    current_color: u32,
+    current_color: libgfx_rust::Color,
     current_color_value: *const c_void,
     color_scheme: u8,
-    size_width: CssPixels,
-    size_height: CssPixels,
+    size: FfiCssPixelSize,
     out: *mut FfiResolvedGradientPaint,
     stop_context: *mut c_void,
-    append_stop: unsafe extern "C" fn(*mut c_void, u32, f32),
+    append_stop: unsafe extern "C" fn(*mut c_void, libgfx_rust::Color, f32),
 ) {
     abort_on_panic(|| {
         use crate::painting::record::paint::gradient_resolution::{
@@ -2681,16 +2642,16 @@ pub unsafe extern "C" fn layout_arena_resolve_gradient_paint_for_size(
         let color_input = crate::css::color_resolution::ColorResolutionInput {
             scheme: Some(color_scheme),
             current_color: Some(crate::css::color_resolution::Rgba {
-                r: (current_color >> 16) as u8,
-                g: (current_color >> 8) as u8,
-                b: current_color as u8,
-                a: (current_color >> 24) as u8,
+                r: current_color.red(),
+                g: current_color.green(),
+                b: current_color.blue(),
+                a: current_color.alpha(),
             }),
             current_color_value,
             length: None,
             channels: None,
         };
-        let tile_size = crate::css::css_pixels::CssPixelSize::new(size_width, size_height);
+        let tile_size = size.into();
         let resolved = resolve_gradient_paint_with_input(gradient_value, tile_size, &color_input);
         let out = unsafe { &mut *out };
         let (data_stops, interpolation_method) = match &resolved {
@@ -2724,15 +2685,10 @@ pub unsafe extern "C" fn layout_arena_resolve_gradient_paint_for_size(
             }
         };
         out.color_stops_repeating = data_stops.repeating;
-        out.interpolation_method = [
-            interpolation_method.interpolation_type as u8,
-            interpolation_method.rectangular_color_space as u8,
-            interpolation_method.polar_color_space as u8,
-            interpolation_method.hue_interpolation_method as u8,
-        ];
+        out.interpolation_method = interpolation_method;
         for (color, position) in data_stops.colors.iter().zip(data_stops.positions.iter()) {
             // SAFETY: The C++ caller appends into its own storage synchronously.
-            unsafe { append_stop(stop_context, color.0, *position) };
+            unsafe { append_stop(stop_context, *color, *position) };
         }
     });
 }

@@ -138,8 +138,8 @@ fn compute_render_spans(
         } = selection_offsets;
         let answer = recorder.selection_style(fragment.layout_node);
         let facts = &answer.facts;
-        let selection_text_color = if facts.has_text_color {
-            facts.text_color
+        let selection_text_color = if facts.text_color.has_value {
+            facts.text_color.value.0
         } else {
             text_color
         };
@@ -163,7 +163,7 @@ fn compute_render_spans(
                 start_code_unit: selection_start,
                 end_code_unit: selection_end,
                 text_color: selection_text_color,
-                background_color: facts.background_color,
+                background_color: facts.background_color.0,
                 shadow_layers: if facts.has_text_shadow {
                     answer.shadows.clone()
                 } else {
@@ -174,7 +174,7 @@ fn compute_render_spans(
                     lines: facts.text_decoration_lines,
                     line_count: facts.text_decoration_line_count,
                     style: facts.text_decoration_style,
-                    color: facts.text_decoration_color,
+                    color: facts.text_decoration_color.0,
                 }),
             });
         }
@@ -481,7 +481,7 @@ pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, 
     if !facts.paints {
         return;
     }
-    let color = Color(facts.color);
+    let color = facts.color;
     if color.alpha() == 0 {
         return;
     }

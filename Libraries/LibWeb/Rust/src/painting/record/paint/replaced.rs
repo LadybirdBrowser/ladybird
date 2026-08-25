@@ -250,8 +250,8 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
 
         // https://drafts.csswg.org/css-images/#the-object-fit
         let natural_size = SizeWithAspectRatio {
-            width: facts.has_natural_width.then_some(facts.natural_width),
-            height: facts.has_natural_height.then_some(facts.natural_height),
+            width: facts.natural_width.has_value.then_some(facts.natural_width.value),
+            height: facts.natural_height.has_value.then_some(facts.natural_height.value),
             aspect_ratio: facts.has_natural_aspect_ratio.then(|| {
                 Fraction::of(
                     facts.natural_aspect_ratio_numerator,
@@ -272,7 +272,7 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
             let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
             let paint = recorder.paint_host.replaced_image_paint(
                 recorder.layout_node_shell(paintable),
-                [dest_rect.x, dest_rect.y, dest_rect.width, dest_rect.height],
+                dest_rect,
                 accumulated_scale,
             );
             if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
@@ -286,7 +286,7 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
     }
 
     if recorder.data(paintable).selection_state != 0 {
-        let selection_background_color = Color(facts.selection_background_color);
+        let selection_background_color = facts.selection_background_color;
         if selection_background_color.alpha() > 0 {
             recorder
                 .recorder

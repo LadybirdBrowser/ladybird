@@ -2108,16 +2108,99 @@ fn generate_ffi_header(config: cbindgen::Config, sources: &[PathBuf], out_dir: &
     );
 }
 
-// CssPixels is a single i32 fixed-point value shared with the CSS module; C++
-// already has the matching CSSPixels class, so expose its raw representation in
-// the generated ABI rather than generating a second C++ pixel type in the
-// RustFFI namespace.
-fn expose_css_pixels_as_raw_i32(config: &mut cbindgen::Config) {
-    config.export.exclude.push("CssPixels".to_string());
-    config
-        .export
-        .rename
-        .insert("CssPixels".to_string(), "int32_t".to_string());
+fn expose_css_pixel_types_as_web_types(config: &mut cbindgen::Config) {
+    for (rust_name, cpp_name) in [
+        ("CssPixels", "Web::CSSPixels"),
+        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
+        ("FfiCssPixelSize", "Web::CSSPixelSize"),
+        ("FfiCssPixelRect", "Web::CSSPixelRect"),
+    ] {
+        config.export.exclude.push(rust_name.to_string());
+        config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
+    }
+    config.includes.push("LibWeb/PixelUnits.h".to_string());
+    config.after_includes = Some(
+        "#if defined(__clang__)\n#pragma clang diagnostic push\n#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"\n#endif"
+            .to_string(),
+    );
+    config.trailer = Some("#if defined(__clang__)\n#pragma clang diagnostic pop\n#endif".to_string());
+}
+
+fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
+    config.export.exclude.extend(
+        [
+            "OptionalFloatRect",
+            "OptionalColor",
+            "OptionalU32",
+            "OptionalF32",
+            "OptionalAffineTransform",
+            "OptionalCssPixels",
+            "OptionalCssPixelRect",
+            "OptionalIntRect",
+            "OptionalFloatPoint",
+            "OptionalFloatSize",
+            "OptionalI64",
+            "OptionalUsize",
+            "MaskLayerOrigin",
+            "TransformDataRole",
+        ]
+        .map(String::from),
+    );
+    for (rust_name, cpp_name) in [
+        ("IntPoint", "Gfx::IntPoint"),
+        ("FloatPoint", "Gfx::FloatPoint"),
+        ("IntSize", "Gfx::IntSize"),
+        ("FloatSize", "Gfx::FloatSize"),
+        ("IntRect", "Gfx::IntRect"),
+        ("FloatRect", "Gfx::FloatRect"),
+        ("Color", "Gfx::Color"),
+        ("AffineTransform", "Gfx::AffineTransform"),
+        ("FloatMatrix4x4", "Gfx::FloatMatrix4x4"),
+        ("CornerRadius", "Gfx::CornerRadius"),
+        ("CornerRadii", "Gfx::CornerRadii"),
+        ("GradientInterpolationMethod", "Gfx::GradientInterpolationMethod"),
+        ("WindingRule", "Gfx::WindingRule"),
+        ("MaskKind", "Gfx::MaskKind"),
+        ("CompositingAndBlendingOperator", "Gfx::CompositingAndBlendingOperator"),
+        ("ScalingMode", "Gfx::ScalingMode"),
+        ("InterpolationColorSpace", "Gfx::InterpolationColorSpace"),
+        ("OptionalFloatRect", "Optional<Gfx::FloatRect>"),
+        ("OptionalColor", "Optional<Gfx::Color>"),
+        ("OptionalU32", "Optional<u32>"),
+        ("OptionalF32", "Optional<float>"),
+        ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
+        ("OptionalCssPixels", "Optional<Web::CSSPixels>"),
+        ("OptionalCssPixelRect", "Optional<Web::CSSPixelRect>"),
+        ("OptionalIntRect", "Optional<Gfx::IntRect>"),
+        ("OptionalFloatPoint", "Optional<Gfx::FloatPoint>"),
+        ("OptionalFloatSize", "Optional<Gfx::FloatSize>"),
+        ("OptionalI64", "Optional<i64>"),
+        ("OptionalUsize", "Optional<size_t>"),
+        ("MaskLayerOrigin", "Web::Painting::MaskLayerOrigin"),
+        ("TransformDataRole", "Web::Painting::TransformDataRole"),
+    ] {
+        config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
+    }
+
+    config.includes.extend(
+        [
+            "AK/Optional.h",
+            "LibGfx/AffineTransform.h",
+            "LibGfx/Color.h",
+            "LibGfx/CompositingAndBlendingOperator.h",
+            "LibGfx/CornerRadii.h",
+            "LibGfx/GradientInterpolation.h",
+            "LibGfx/InterpolationColorSpace.h",
+            "LibGfx/Matrix4x4.h",
+            "LibGfx/Point.h",
+            "LibGfx/Rect.h",
+            "LibGfx/ScalingMode.h",
+            "LibGfx/Size.h",
+            "LibGfx/WindingRule.h",
+            "LibWeb/Painting/AccumulatedVisualContext.h",
+        ]
+        .map(String::from),
+    );
 }
 
 fn public_type_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
@@ -2417,6 +2500,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "EFFECTIVE_LONGHAND_SOURCE_OVERLAY".to_string(),
         "EFFECTIVE_LONGHAND_SOURCE_SPECIFIED".to_string(),
     ];
+    expose_css_pixel_types_as_web_types(&mut computed_values_config);
 
     generate_ffi_header(
         computed_values_config,
@@ -2471,7 +2555,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "rust_calc_node_create_numeric_dimension".to_string(),
         "rust_calc_resolve".to_string(),
     ];
-    expose_css_pixels_as_raw_i32(&mut tree_builder_config);
+    expose_css_pixel_types_as_web_types(&mut tree_builder_config);
     generate_ffi_header(
         tree_builder_config,
         &[
@@ -2495,7 +2579,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "rust_calc_external_resolutions".to_string(),
         "rust_calc_external_resolutions_release".to_string(),
     ];
-    expose_css_pixels_as_raw_i32(&mut layout_config);
+    expose_css_pixel_types_as_web_types(&mut layout_config);
+    expose_shared_abi_types_as_cpp_types(&mut layout_config);
     layout_config
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
@@ -2534,7 +2619,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut painting_config = base_config.clone();
     painting_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string(), "RustFFI".to_string()]);
-    expose_css_pixels_as_raw_i32(&mut painting_config);
+    expose_css_pixel_types_as_web_types(&mut painting_config);
     let libgfx_src_dir = manifest_dir.join("../../LibGfx/Rust/src");
     let painting_sources = [
         libgfx_src_dir.join("geometry.rs"),

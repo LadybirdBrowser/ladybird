@@ -8923,7 +8923,7 @@ Optional<CSSPixelRect> Document::current_caret_rect()
             auto result = Layout::RustFFI::layout_arena_text_caret_rect_in_dom_range(
                 layout_node->arena_handle(), text_slots.data(), text_slots.size(), position->offset());
             if (result.has_value)
-                return to_viewport_rect(Painting::from_ffi_css_pixel_rect(result.rect));
+                return to_viewport_rect(result.rect);
         }
     }
 

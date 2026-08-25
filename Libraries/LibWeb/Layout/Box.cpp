@@ -278,12 +278,12 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
     RustFFI::FfiReplacedContentFacts facts {};
     auto auto_content_size = auto_content_box_size();
     facts.has_auto_content_width = auto_content_size.has_width();
-    facts.auto_content_width = auto_content_size.width.value_or(0).raw_value();
+    facts.auto_content_width = auto_content_size.width.value_or(0);
     facts.has_auto_content_height = auto_content_size.has_height();
-    facts.auto_content_height = auto_content_size.height.value_or(0).raw_value();
+    facts.auto_content_height = auto_content_size.height.value_or(0);
     if (auto_content_size.aspect_ratio.has_value()) {
-        facts.auto_content_aspect_ratio_numerator = auto_content_size.aspect_ratio->numerator().raw_value();
-        facts.auto_content_aspect_ratio_denominator = auto_content_size.aspect_ratio->denominator().raw_value();
+        facts.auto_content_aspect_ratio_numerator = auto_content_size.aspect_ratio->numerator();
+        facts.auto_content_aspect_ratio_denominator = auto_content_size.aspect_ratio->denominator();
     }
     if (appearance() == CSS::Appearance::None) {
         if (auto const* input = as_if<HTML::HTMLInputElement>(dom_node())) {
@@ -297,9 +297,9 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
             case HTML::HTMLInputElement::TypeAttributeState::Number: {
                 auto default_preferred_size = default_preferred_size_for_text_control(*input, *this);
                 facts.has_default_preferred_width = default_preferred_size.has_width();
-                facts.default_preferred_width = default_preferred_size.width.value_or(0).raw_value();
+                facts.default_preferred_width = default_preferred_size.width.value_or(0);
                 facts.has_default_preferred_height = default_preferred_size.has_height();
-                facts.default_preferred_height = default_preferred_size.height.value_or(0).raw_value();
+                facts.default_preferred_height = default_preferred_size.height.value_or(0);
                 break;
             }
             default:

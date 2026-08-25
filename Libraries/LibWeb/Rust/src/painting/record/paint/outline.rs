@@ -19,7 +19,7 @@ pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: N
         recorder.layout_arena,
         node,
         recorder.inputs.window_is_focused,
-        recorder.inputs.outline_auto_color,
+        recorder.inputs.outline_auto_color.0,
     );
     let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
     let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
@@ -123,7 +123,7 @@ fn paint_focused_area_outline(
         dash_offset: 0.0,
         path: &transformed,
         opacity: 1.0,
-        paint_style_or_color: PaintStyleOrColor::Color(Color(facts.focused_area_color)),
+        paint_style_or_color: PaintStyleOrColor::Color(facts.focused_area_color),
         thickness: facts.focused_area_width.to_double() as f32 * scale,
         should_anti_alias: ShouldAntiAlias::Yes,
     });

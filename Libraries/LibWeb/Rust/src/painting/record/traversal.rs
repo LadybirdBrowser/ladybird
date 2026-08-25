@@ -132,12 +132,10 @@ pub(crate) fn record_display_list(
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
     };
-    let int_rect = |values: [i32; 4]| libgfx_rust::IntRect::new(values[0], values[1], values[2], values[3]);
-    if inputs.has_canvas_fill_rect {
-        recorder.recorder.fill_rect(
-            int_rect(inputs.canvas_fill_rect),
-            libgfx_rust::Color(inputs.canvas_color),
-        );
+    if inputs.canvas_fill_rect.has_value {
+        recorder
+            .recorder
+            .fill_rect(inputs.canvas_fill_rect.value, inputs.canvas_color);
     }
     // .. in the case of embedded documents typically rendered over a transparent canvas
     // (such as provided via an HTML iframe element), if the used color scheme of the element
@@ -145,14 +143,9 @@ pub(crate) fn record_display_list(
     // then the UA must use an opaque canvas of the Canvas color appropriate to the
     // embedded document’s used color scheme instead of a transparent canvas.
     if inputs.opaque_canvas {
-        recorder
-            .recorder
-            .fill_rect(int_rect(inputs.bitmap_rect), libgfx_rust::Color(inputs.canvas_color));
+        recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.canvas_color);
     }
-    recorder.recorder.fill_rect(
-        int_rect(inputs.bitmap_rect),
-        libgfx_rust::Color(inputs.background_color),
-    );
+    recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.background_color);
     recorder.prerecord_nested_display_lists();
     if !stacking_contexts.nodes.is_empty() {
         recorder.recorder.save_layer();

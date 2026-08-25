@@ -1206,7 +1206,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return line_height;
         auto const* font_values = element.style_group<ComputedValues::FontValues>(pseudo_element);
         VERIFY(font_values);
-        return LengthStyleValue::create(Length::make_px(CSSPixels::from_raw(font_values->line_height_used)));
+        return LengthStyleValue::create(Length::make_px(font_values->line_height_used));
     }
 
         // -> block-size

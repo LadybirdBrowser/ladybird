@@ -1400,13 +1400,13 @@ public:
     Optional<CSSPixels> perspective() const { return m_noninherited.transform->perspective_value(); }
 
     Gfx::FontCascadeList const& font_list() const { return m_inherited.font->font_list_value(); }
-    CSSPixels font_size() const { return CSSPixels::from_raw(m_inherited.font->font_size); }
+    CSSPixels font_size() const { return m_inherited.font->font_size; }
     double font_weight() const { return m_inherited.font->font_weight; }
-    CSSPixels line_height() const { return CSSPixels::from_raw(m_inherited.font->line_height_used); }
+    CSSPixels line_height() const { return m_inherited.font->line_height_used; }
 
     Color outline_color() const { return Color::from_bgra(m_noninherited.misc->outline_color); }
     OutlineStyle outline_style() const { return static_cast<OutlineStyle>(m_noninherited.misc->outline_style); }
-    CSSPixels outline_width() const { return CSSPixels::from_raw(m_noninherited.misc->outline_width); }
+    CSSPixels outline_width() const { return m_noninherited.misc->outline_width; }
 
     QuotesData quotes() const { return m_inherited.list->quotes_value(); }
 
@@ -1604,7 +1604,7 @@ public:
 
         TextAlign text_align_value() const { return static_cast<TextAlign>(text_align); }
         WhiteSpaceCollapse white_space_collapse_value() const { return static_cast<WhiteSpaceCollapse>(white_space_collapse); }
-        CSSPixels letter_spacing_value() const { return CSSPixels::from_raw(letter_spacing); }
+        CSSPixels letter_spacing_value() const { return letter_spacing; }
         Color color_value() const { return Color::from_bgra(color); }
         Color webkit_text_fill_color_value() const { return Color::from_bgra(webkit_text_fill_color); }
         ReadonlySpan<ShadowData> text_shadow_span() const
@@ -2359,7 +2359,7 @@ public:
     {
         if (m_values.m_inherited.text->letter_spacing_value() == value)
             return;
-        m_values.m_inherited.text.access().letter_spacing = value.raw_value();
+        m_values.m_inherited.text.access().letter_spacing = value;
     }
     void set_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::width, move(value)); }
     void set_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::height, move(value)); }

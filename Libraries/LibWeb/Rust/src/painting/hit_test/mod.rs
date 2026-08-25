@@ -291,12 +291,7 @@ pub(crate) fn local_float_point(
     // Returned in float local units: fixed-point CSSPixels quantization here would be magnified by the
     // accumulated transform for content in scaled-down local spaces, such as SVG user units under a
     // small viewBox.
-    callbacks.local_point_for_visual_context(
-        visual_context_index,
-        point.x.raw_value(),
-        point.y.raw_value(),
-        respect_clip,
-    )
+    callbacks.local_point_for_visual_context(visual_context_index, point.into(), respect_clip)
 }
 
 pub(crate) fn to_css_point(local: (f32, f32)) -> CssPixelPoint {

@@ -242,8 +242,8 @@ impl PaintRecorder<'_> {
             IntRect::new(
                 0,
                 0,
-                self.inputs.device_viewport_rect[2],
-                self.inputs.device_viewport_rect[3],
+                self.inputs.device_viewport_rect.width,
+                self.inputs.device_viewport_rect.height,
             )
         } else {
             self.converter
@@ -315,8 +315,8 @@ impl PaintRecorder<'_> {
                     } else {
                         max_scroll_offset.x
                     },
-                    thumb_color: libgfx_rust::Color(scrollbar.thumb_color),
-                    track_color: libgfx_rust::Color(scrollbar.track_color),
+                    thumb_color: scrollbar.thumb_color,
+                    track_color: scrollbar.track_color,
                     vertical,
                 });
         }

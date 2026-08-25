@@ -1304,8 +1304,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             Layout::RustFFI::layout_arena_text_range_rects(
                 mapping.primary()->arena_handle(), text_slots.data(), text_slots.size(),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
-                &rects, [](void* context, Layout::RustFFI::FfiCssPixelRect ffi_rect) {
-                    auto rect = Painting::from_ffi_css_pixel_rect(ffi_rect);
+                &rects, [](void* context, CSSPixelRect rect) {
                     static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));
                 });
         }

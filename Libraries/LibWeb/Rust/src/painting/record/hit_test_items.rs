@@ -468,14 +468,14 @@ impl<'a> PaintRecorder<'a> {
         &mut self,
         target: NodeSlotId,
         path: Rc<libgfx_rust::path::OwnedPath>,
-        winding_rule: i32,
+        winding_rule: libgfx_rust::WindingRule,
         bounding_box: CssPixelRect,
         context: usize,
     ) {
         let item = HitTestItem {
             rect: bounding_box,
             path: Some(path),
-            winding_rule,
+            winding_rule: winding_rule as i32,
             ..self.base_hit_test_item(HitTestItemKind::SvgPath, target, context)
         };
         self.list.append(item);

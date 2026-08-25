@@ -81,7 +81,7 @@ Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrack
         result.lines.unchecked_append(move(line_names));
 
         if (line_index < list.track_count)
-            result.track_sizes.unchecked_append(CSSPixels::from_raw(list.track_sizes[line_index]));
+            result.track_sizes.unchecked_append(list.track_sizes[line_index]);
     }
     return result;
 }
@@ -302,8 +302,8 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
 {
     auto const& graphics_box = as<Box>(node);
     CSSPixelSize viewport_size {
-        CSSPixels::from_raw(request.viewport_width),
-        CSSPixels::from_raw(request.viewport_height),
+        request.viewport_width,
+        request.viewport_height,
     };
     Gfx::FloatPoint text_position {
         request.current_text_position.x,
@@ -524,12 +524,12 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
 {
     return {
         .context = this,
-        .content_size_changed = [](void*, void* layout_node_shell, RustFFI::FfiCssPixelSize old_size, RustFFI::FfiCssPixelSize new_size) {
+        .content_size_changed = [](void*, void* layout_node_shell, CSSPixelSize old_size, CSSPixelSize new_size) {
             auto& layout_node = *static_cast<Node*>(layout_node_shell);
             invalidate_descendant_styles_for_container_query_size_change(
                 layout_node.dom_node(),
-                { CSSPixels::from_raw(old_size.width), CSSPixels::from_raw(old_size.height) },
-                { CSSPixels::from_raw(new_size.width), CSSPixels::from_raw(new_size.height) }); },
+                old_size,
+                new_size); },
         .finish_commit = [](void*, void* const* viewport_shells, size_t viewport_count) {
             for (size_t index = 0; index < viewport_count; ++index)
                 as<Box>(*static_cast<Node*>(viewport_shells[index])).notify_content_navigable_of_committed_viewport(); },
@@ -584,7 +584,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
     return {
         .context = this,
         .arena = m_commit_root->arena_handle(),
-        .initial_containing_block_inline_size = m_commit_root->document().viewport_rect().width().raw_value(),
+        .initial_containing_block_inline_size = m_commit_root->document().viewport_rect().width(),
         .document_in_quirks_mode = m_commit_root->document().in_quirks_mode(),
         .report_unexpected_fragmented_inline = [](void*, void* node) {
             auto const& box = *static_cast<Box const*>(node);
@@ -598,11 +598,11 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);
             return compute_svg_path(*node_with_style, request); },
-        .svg_image_bounding_box = [](void*, void* node, i32 viewport_width, i32 viewport_height) {
+        .svg_image_bounding_box = [](void*, void* node, CSSPixels viewport_width, CSSPixels viewport_height) {
             auto const& image_element = as<SVG::SVGImageElement>(*static_cast<Node const*>(node)->dom_node());
             auto bounding_box = image_element.bounding_box({
-                CSSPixels::from_raw(viewport_width),
-                CSSPixels::from_raw(viewport_height),
+                viewport_width,
+                viewport_height,
             });
             return RustFFI::FfiFloatRect {
                 .x = bounding_box.x(),

@@ -45,6 +45,118 @@ pub struct FfiCssPixelRect {
     pub height: CssPixels,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct OptionalCssPixels {
+    pub value: CssPixels,
+    pub has_value: bool,
+}
+
+impl From<Option<CssPixels>> for OptionalCssPixels {
+    fn from(value: Option<CssPixels>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct OptionalCssPixelRect {
+    pub value: FfiCssPixelRect,
+    pub has_value: bool,
+}
+
+impl From<Option<FfiCssPixelRect>> for OptionalCssPixelRect {
+    fn from(value: Option<FfiCssPixelRect>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct OptionalIntRect {
+    pub value: libgfx_rust::IntRect,
+    pub has_value: bool,
+}
+
+impl From<Option<libgfx_rust::IntRect>> for OptionalIntRect {
+    fn from(value: Option<libgfx_rust::IntRect>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct OptionalFloatPoint {
+    pub value: libgfx_rust::FloatPoint,
+    pub has_value: bool,
+}
+
+impl From<Option<libgfx_rust::FloatPoint>> for OptionalFloatPoint {
+    fn from(value: Option<libgfx_rust::FloatPoint>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct OptionalFloatSize {
+    pub value: libgfx_rust::FloatSize,
+    pub has_value: bool,
+}
+
+impl From<Option<libgfx_rust::FloatSize>> for OptionalFloatSize {
+    fn from(value: Option<libgfx_rust::FloatSize>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct OptionalI64 {
+    pub value: i64,
+    pub has_value: bool,
+}
+
+impl From<Option<i64>> for OptionalI64 {
+    fn from(value: Option<i64>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct OptionalUsize {
+    pub value: usize,
+    pub has_value: bool,
+}
+
+impl From<Option<usize>> for OptionalUsize {
+    fn from(value: Option<usize>) -> Self {
+        Self {
+            value: value.unwrap_or_default(),
+            has_value: value.is_some(),
+        }
+    }
+}
+
 impl From<FfiCssPixelPoint> for CssPixelPoint {
     fn from(point: FfiCssPixelPoint) -> Self {
         Self { x: point.x, y: point.y }
