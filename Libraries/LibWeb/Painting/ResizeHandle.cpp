@@ -26,14 +26,6 @@ ResizeHandle::ResizeHandle(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId
 {
 }
 
-bool ResizeHandle::contains(CSSPixelPoint position, ChromeMetrics const& metrics) const
-{
-    auto* node = layout_node();
-    if (!node)
-        return false;
-    return resizer_contains(*node, position, metrics);
-}
-
 Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
 {
     auto* node = layout_node();
@@ -42,7 +34,7 @@ Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
     auto axes = physical_resize_axes(*node);
     if (axes.vertical) {
         if (axes.horizontal) {
-            if (is_chrome_mirrored(*node))
+            if (Layout::RustFFI::layout_arena_paintable_is_chrome_mirrored(node->arena_handle(), committed_row_slot(*node)))
                 return CSS::CursorPredefined::SwResize;
             return CSS::CursorPredefined::SeResize;
         }

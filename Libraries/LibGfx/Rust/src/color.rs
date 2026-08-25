@@ -31,6 +31,28 @@ impl Color {
     pub const fn with_alpha(self, alpha: u8) -> Self {
         Self((self.0 & 0x00ff_ffff) | (alpha as u32) << 24)
     }
+    pub fn blend(self, source: Self) -> Self {
+        if self.alpha() == 0 || source.alpha() == 255 {
+            return source;
+        }
+        if source.alpha() == 0 {
+            return self;
+        }
+
+        let destination_alpha = self.alpha() as u32;
+        let source_alpha = source.alpha() as u32;
+        let denominator = 255 * (destination_alpha + source_alpha) - destination_alpha * source_alpha;
+        let blend_channel = |destination: u8, source: u8| {
+            ((destination as u32 * destination_alpha * (255 - source_alpha) + source as u32 * 255 * source_alpha)
+                / denominator) as u8
+        };
+        Self::from_rgba(
+            blend_channel(self.red(), source.red()),
+            blend_channel(self.green(), source.green()),
+            blend_channel(self.blue(), source.blue()),
+            (denominator / 255) as u8,
+        )
+    }
     pub fn with_opacity(self, opacity: f32) -> Self {
         self.with_alpha((self.alpha() as f32 * opacity).round() as u8)
     }

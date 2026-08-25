@@ -6,6 +6,8 @@
 
 use super::*;
 use crate::layout::LayoutNodeArena;
+use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_enlarged};
+use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -54,8 +56,27 @@ impl HitTestList {
                 if !layout_arena.paintable_row_is_populated(item.paintable) {
                     return false;
                 }
+                assert!(
+                    callbacks.has_chrome_metrics,
+                    "chrome widget hit testing needs the chrome metrics"
+                );
                 let node = item.paintable;
-                callbacks.chrome_widget_contains(layout_arena.shell_if_live(node), item.chrome_widget_kind, local_point)
+                let rows = layout_arena.paintable_rows();
+                let chrome_geometry = ChromeGeometry::for_hit_test_query(&rows, callbacks);
+                match item.chrome_widget_kind {
+                    1 => chrome_geometry.resizer_contains(node, local_point),
+                    2 | 3 => {
+                        let direction = if item.chrome_widget_kind == 2 {
+                            ScrollDirection::Horizontal
+                        } else {
+                            ScrollDirection::Vertical
+                        };
+                        chrome_geometry
+                            .absolute_scrollbar_rect(node, direction, scrollbar_is_enlarged(&rows, node, direction))
+                            .is_some_and(|rect| rect.contains_point(local_point))
+                    }
+                    _ => false,
+                }
             }
         }
     }

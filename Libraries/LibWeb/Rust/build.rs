@@ -2227,6 +2227,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "OptionalUsize",
             "MaskLayerOrigin",
             "TransformDataRole",
+            "FfiChromeMetrics",
         ]
         .map(String::from),
     );
@@ -2262,6 +2263,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("OptionalUsize", "Optional<size_t>"),
         ("MaskLayerOrigin", "Web::Painting::MaskLayerOrigin"),
         ("TransformDataRole", "Web::Painting::TransformDataRole"),
+        ("FfiChromeMetrics", "Web::ChromeMetrics"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -2282,6 +2284,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/Size.h",
             "LibGfx/WindingRule.h",
             "LibWeb/Painting/AccumulatedVisualContext.h",
+            "LibWeb/Painting/ChromeMetrics.h",
         ]
         .map(String::from),
     );

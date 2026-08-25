@@ -327,13 +327,4 @@ impl<'a> PaintRecorder<'a> {
     pub(crate) fn own_accumulated_2d_scale(&self, paintable: NodeSlotId) -> libgfx_rust::FloatSize {
         self.accumulated_2d_scale_at(self.own_context_index(paintable))
     }
-
-    pub(crate) fn is_chrome_mirrored(&self, paintable: NodeSlotId) -> bool {
-        self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {
-            let writing_mode = style.writing_mode();
-            (writing_mode == css_enums::writing_mode::HORIZONTAL_TB && style.direction() == css_enums::direction::RTL)
-                || writing_mode == css_enums::writing_mode::VERTICAL_RL
-                || writing_mode == css_enums::writing_mode::SIDEWAYS_RL
-        })
-    }
 }

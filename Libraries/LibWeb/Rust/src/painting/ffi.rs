@@ -27,6 +27,204 @@ unsafe fn arena_from_handle_mut<'a>(arena: *mut c_void) -> &'a mut LayoutNodeAre
     unsafe { LayoutNodeArena::from_handle_mut(arena) }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ScrollDirection {
+    #[default]
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiChromeMetrics {
+    pub scroll_thumb_min_length: CssPixels,
+    pub scroll_thumb_padding_thin: CssPixels,
+    pub scroll_thumb_thickness_thin: CssPixels,
+    pub scroll_thumb_thickness: CssPixels,
+    pub scroll_gutter_thickness: CssPixels,
+    pub resize_gripper_size: CssPixels,
+    pub resize_gripper_padding: CssPixels,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiPhysicalResizeAxes {
+    pub horizontal: bool,
+    pub vertical: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiScrollbarData {
+    pub gutter_rect: FfiCssPixelRect,
+    pub thumb_rect: FfiCssPixelRect,
+    pub track_rect: FfiCssPixelRect,
+    pub thumb_travel_to_scroll_ratio: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiOptionalScrollbarData {
+    pub has_value: bool,
+    pub value: FfiScrollbarData,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_scrollbar_enlarged(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    direction: ScrollDirection,
+    enlarged: bool,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle_mut(arena) };
+        let mut rows = arena.paintable_rows_mut();
+        if !rows.paintable_row_is_populated(slot) {
+            return;
+        }
+        let flag = match direction {
+            ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarEnlarged,
+            ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarEnlarged,
+        };
+        rows.paintable_data_mut(slot).set_flag(flag, enlarged);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_physical_resize_axes(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+) -> FfiPhysicalResizeAxes {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let axes = crate::painting::chrome_geometry::physical_resize_axes(&arena.paintable_rows(), slot);
+        FfiPhysicalResizeAxes {
+            horizontal: axes.horizontal,
+            vertical: axes.vertical,
+        }
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_is_chrome_mirrored(arena: *mut c_void, slot: NodeSlotId) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        crate::painting::chrome_geometry::is_chrome_mirrored(&arena.paintable_rows(), slot)
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_compute_scrollbar_data(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    direction: ScrollDirection,
+    metrics: FfiChromeMetrics,
+    viewport_overflow_x: u8,
+    viewport_overflow_y: u8,
+    enlarged: bool,
+    has_device_scroll_offset: bool,
+    device_scroll_offset: f32,
+    device_pixels_per_css_pixel: f64,
+) -> FfiOptionalScrollbarData {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintable_rows = arena.paintable_rows();
+        let data = crate::painting::chrome_geometry::ChromeGeometry {
+            arena: &paintable_rows,
+            metrics,
+            viewport_wheel_overflow_x: viewport_overflow_x,
+            viewport_wheel_overflow_y: viewport_overflow_y,
+        }
+        .compute_scrollbar_data(
+            slot,
+            direction,
+            enlarged,
+            has_device_scroll_offset.then_some(crate::painting::chrome_geometry::ScrollbarScrollState {
+                device_scroll_offset,
+                device_pixels_per_css_pixel,
+            }),
+        );
+        let Some(data) = data else {
+            return FfiOptionalScrollbarData::default();
+        };
+        FfiOptionalScrollbarData {
+            has_value: true,
+            value: FfiScrollbarData {
+                gutter_rect: data.gutter_rect.into(),
+                thumb_rect: data.thumb_rect.into(),
+                track_rect: data.track_rect.into(),
+                thumb_travel_to_scroll_ratio: data.thumb_travel_to_scroll_ratio.to_double(),
+            },
+        }
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_minimum_scroll_offset(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+) -> FfiCssPixelPoint {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        crate::painting::chrome_geometry::minimum_scroll_offset(&arena.paintable_rows(), slot).into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+) -> FfiCssPixelPoint {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        crate::painting::chrome_geometry::maximum_scroll_offset(&arena.paintable_rows(), slot).into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_wheel_scrollable_axes(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    viewport_overflow_x: u8,
+    viewport_overflow_y: u8,
+) -> FfiPhysicalResizeAxes {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
+            &arena.paintable_rows(),
+            slot,
+            viewport_overflow_x,
+            viewport_overflow_y,
+        );
+        FfiPhysicalResizeAxes {
+            horizontal: axes.horizontal,
+            vertical: axes.vertical,
+        }
+    })
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

@@ -7,7 +7,11 @@
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::chrome_geometry::{
+    ChromeGeometry, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
+};
 use crate::painting::display_list::commands::*;
+use crate::painting::ffi::ScrollDirection;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
@@ -64,30 +68,6 @@ impl PaintRecorder<'_> {
             candidate = self.data(candidate).containing_block;
         }
         None
-    }
-
-    fn minimum_scroll_offset(&self, paintable: NodeSlotId) -> CssPixelPoint {
-        let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.layout_arena, paintable) else {
-            return CssPixelPoint::default();
-        };
-        let scrollport = paintable_geometry::absolute_padding_box_rect(self.layout_arena, paintable);
-        let zero = CssPixels::from_raw(0);
-        CssPixelPoint::new(
-            (overflow.left() - scrollport.left()).min(zero),
-            (overflow.top() - scrollport.top()).min(zero),
-        )
-    }
-
-    fn maximum_scroll_offset(&self, paintable: NodeSlotId) -> CssPixelPoint {
-        let Some(overflow) = paintable_geometry::scrollable_overflow_rect(self.layout_arena, paintable) else {
-            return CssPixelPoint::default();
-        };
-        let scrollport = paintable_geometry::absolute_padding_box_rect(self.layout_arena, paintable);
-        let zero = CssPixels::from_raw(0);
-        CssPixelPoint::new(
-            (overflow.right() - scrollport.right()).max(zero),
-            (overflow.bottom() - scrollport.bottom()).max(zero),
-        )
     }
 
     fn wheel_hit_test_target_scroll_node_index_for(&mut self, paintable: NodeSlotId) -> usize {
@@ -256,8 +236,8 @@ impl PaintRecorder<'_> {
             scroll_node_index: VisualContextIndex(self.data(paintable).own_scroll_node_index),
             parent_scroll_node_index: VisualContextIndex(parent_scroll_node_index),
             scrollport_rect,
-            min_scroll_offset: css_point_to_device_point(self.minimum_scroll_offset(paintable), scale),
-            max_scroll_offset: css_point_to_device_point(self.maximum_scroll_offset(paintable), scale),
+            min_scroll_offset: css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale),
+            max_scroll_offset: css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale),
             scroll_node_kind,
             pseudo_element_type: facts.pseudo_element_type,
             is_viewport,
@@ -268,41 +248,45 @@ impl PaintRecorder<'_> {
         });
     }
 
-    fn record_viewport_scrollbar_state(
-        &mut self,
-        paintable: NodeSlotId,
-        facts: &crate::painting::host::FfiAsyncScrollFacts,
-    ) {
-        if !facts.records_viewport_scrollbars {
+    fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {
+        let records_viewport_scrollbars = self.data(paintable).kind == PaintableKind::ViewportPaintable
+            && self.inputs.async_scrolling_enabled
+            && self.inputs.paint_viewport_scrollbars
+            && self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {
+                style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
+            });
+        if !records_viewport_scrollbars {
             return;
         }
         let scale = self.inputs.device_pixels_per_css_pixel;
-        let min_scroll_offset = css_point_to_device_point(self.minimum_scroll_offset(paintable), scale);
-        let max_scroll_offset = css_point_to_device_point(self.maximum_scroll_offset(paintable), scale);
+        let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale);
+        let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale);
         let scroll_node_index = VisualContextIndex(self.data(paintable).own_scroll_node_index);
-        for (index, scrollbar) in facts.viewport_scrollbars.iter().enumerate() {
-            if !scrollbar.present {
+        let (thumb_color, track_color) = scrollbar_colors_for_paint(
+            self.layout_arena,
+            paintable,
+            self.inputs.root_background_source,
+            self.inputs.canvas_color.blend(self.inputs.background_color),
+        );
+        let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, &self.inputs);
+        for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
+            let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, false, None) else {
                 continue;
-            }
-            let vertical = index == 0;
+            };
+            let expanded = chrome_geometry
+                .compute_scrollbar_data(paintable, direction, true, None)
+                .expect("an enlarged scrollbar must exist when the regular scrollbar exists");
+            let vertical = direction == ScrollDirection::Vertical;
             self.recorder
                 .compositor_viewport_scrollbar(CompositorViewportScrollbar {
                     document_id: UniqueNodeId(self.inputs.document_id),
                     scroll_node_index,
-                    gutter_rect: self
-                        .converter
-                        .rounded_device_rect(CssPixelRect::from(scrollbar.gutter_rect)),
-                    thumb_rect: self
-                        .converter
-                        .rounded_device_rect(CssPixelRect::from(scrollbar.thumb_rect)),
-                    expanded_gutter_rect: self
-                        .converter
-                        .rounded_device_rect(CssPixelRect::from(scrollbar.expanded_gutter_rect)),
-                    expanded_thumb_rect: self
-                        .converter
-                        .rounded_device_rect(CssPixelRect::from(scrollbar.expanded_thumb_rect)),
-                    scroll_size: scrollbar.scroll_size,
-                    expanded_scroll_size: scrollbar.expanded_scroll_size,
+                    gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
+                    thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
+                    expanded_gutter_rect: self.converter.rounded_device_rect(expanded.gutter_rect),
+                    expanded_thumb_rect: self.converter.rounded_device_rect(expanded.thumb_rect),
+                    scroll_size: scrollbar.thumb_travel_to_scroll_ratio.to_double(),
+                    expanded_scroll_size: expanded.thumb_travel_to_scroll_ratio.to_double(),
                     min_scroll_offset: if vertical {
                         min_scroll_offset.y
                     } else {
@@ -313,8 +297,8 @@ impl PaintRecorder<'_> {
                     } else {
                         max_scroll_offset.x
                     },
-                    thumb_color: scrollbar.thumb_color,
-                    track_color: scrollbar.track_color,
+                    thumb_color,
+                    track_color,
                     vertical,
                 });
         }
@@ -334,7 +318,7 @@ impl PaintRecorder<'_> {
         } else if self.data(paintable).own_scroll_node_index != 0 && self.could_be_scrolled_by_wheel_event(paintable) {
             self.record_scroll_node(paintable, &facts);
         }
-        self.record_viewport_scrollbar_state(paintable, &facts);
+        self.record_viewport_scrollbar_state(paintable);
 
         let sticky_node_index = self.data(paintable).enclosing_scroll_node_index;
         if style_queries::is_sticky_position(self.layout_arena, paintable) && sticky_node_index != 0 {

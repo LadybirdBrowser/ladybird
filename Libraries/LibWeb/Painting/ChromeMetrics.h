@@ -20,6 +20,7 @@ struct ChromeMetrics {
     static constexpr CSSPixels ZOOM_INVARIANT_RESIZE_GRIPPER_SIZE { 12 };
     static constexpr CSSPixels ZOOM_INVARIANT_RESIZE_GRIPPER_PADDING { 2 };
 
+    ChromeMetrics() = default;
     explicit ChromeMetrics(double zoom_factor)
     {
         VERIFY(zoom_factor > 0);

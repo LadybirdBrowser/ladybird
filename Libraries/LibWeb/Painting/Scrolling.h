@@ -13,7 +13,7 @@
 
 namespace Web::Painting {
 
-enum class ScrollDirection {
+enum class ScrollDirection : u8 {
     Horizontal,
     Vertical,
 };

@@ -27,16 +27,6 @@ Scrollbar::Scrollbar(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot,
 {
 }
 
-bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) const
-{
-    auto* node = layout_node();
-    if (!node)
-        return false;
-    if (auto rect = absolute_scrollbar_rect(*node, m_direction, is_enlarged(), metrics); rect.has_value())
-        return rect->contains(position);
-    return false;
-}
-
 MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
     if (type == UIEvents::EventNames::pointermove || type == UIEvents::EventNames::pointerup) {
@@ -90,6 +80,16 @@ void Scrollbar::release_thumb_grab()
 {
     m_thumb_grab_position.clear();
     m_thumb_grab_gesture_hold = nullptr;
+    push_enlarged_state();
+}
+
+void Scrollbar::push_enlarged_state()
+{
+    auto* node = layout_node();
+    if (!node)
+        return;
+    Layout::RustFFI::layout_arena_paintable_set_scrollbar_enlarged(
+        node->arena_handle(), committed_row_slot(*node), static_cast<Layout::RustFFI::ScrollDirection>(m_direction), is_enlarged());
 }
 
 void Scrollbar::mouse_enter()
@@ -97,6 +97,7 @@ void Scrollbar::mouse_enter()
     if (m_hovered)
         return;
     m_hovered = true;
+    push_enlarged_state();
     if (auto* node = layout_node())
         Painting::set_needs_repaint(*node);
 }
@@ -106,6 +107,7 @@ void Scrollbar::mouse_leave()
     if (!m_hovered)
         return;
     m_hovered = false;
+    push_enlarged_state();
     if (auto* node = layout_node())
         Painting::set_needs_repaint(*node);
 }
@@ -140,6 +142,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
         m_thumb_grab_position = position_is_along_thumb
             ? (position - scrollbar_data->thumb_rect.location()).primary_offset_for_orientation(orientation)
             : max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
+        push_enlarged_state();
         if (auto navigable = node->document().navigable())
             m_thumb_grab_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable);
     }

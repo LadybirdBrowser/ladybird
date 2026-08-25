@@ -564,18 +564,13 @@ pub(crate) fn resolve_background_for_paint<'a>(
     let node_flags = layout_arena.node_flags_if_live(node);
     let node_is_body = node_flags & crate::layout::node_data::NodeFlag::IsBody as u32 != 0;
     // If the body's background properties were propagated to the root element, do not re-paint the body's background.
-    if node_is_body
-        && recorder
-            .paint_host
-            .root_background_source()
-            .use_body_background_properties
-    {
+    if node_is_body && recorder.inputs.root_background_source.use_body_background_properties {
         return None;
     }
 
     // https://drafts.csswg.org/css-backgrounds/#root-background
     if style_queries::node_is_root_element(layout_arena, node) {
-        let root_background_source = recorder.paint_host.root_background_source();
+        let root_background_source = recorder.inputs.root_background_source;
         let background_rect =
             crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
         let border_radii =
