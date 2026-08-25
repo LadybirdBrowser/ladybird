@@ -26,8 +26,6 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
-#include <LibWeb/SVG/SVGFitToViewBox.h>
-#include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
 
@@ -50,41 +48,6 @@ bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_n
     // Reachable at invalidation time, when the root element's layout node may already be detached.
     auto const* html_element = layout_node.document().html_element();
     return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
-}
-
-Layout::Node const* nearest_svg_viewport_of(Layout::Node const& layout_node)
-{
-    for (auto const* ancestor = layout_node.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (svg_viewport_transform(*ancestor).has_value())
-            return ancestor;
-    }
-    return nullptr;
-}
-
-// active_view_box covers <view> redirection and the svg-as-image fallback viewBox, which
-// layout used to build the geometry these callers interpret.
-static Gfx::FloatRect svg_svg_box_view_box_or_viewport_rect(Layout::Box const& svg_svg_box)
-{
-    if (auto view_box = as<SVG::SVGSVGElement>(*svg_svg_box.dom_node()).active_view_box(); view_box.has_value())
-        return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
-    if (has_committed_box(svg_svg_box)) {
-        auto size = svg_viewport_size(svg_svg_box);
-        return { {}, { size.width().to_float(), size.height().to_float() } };
-    }
-    return {};
-}
-
-Gfx::FloatRect svg_viewport_user_rect(Layout::Node const& viewport)
-{
-    if (viewport.is_svg_svg_box())
-        return svg_svg_box_view_box_or_viewport_rect(static_cast<Layout::Box const&>(viewport));
-    if (auto const* dom_node = viewport.dom_node()) {
-        if (auto const* fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node)) {
-            if (auto view_box = fit_to_view_box->view_box(); view_box.has_value())
-                return { static_cast<float>(view_box->min_x), static_cast<float>(view_box->min_y), static_cast<float>(view_box->width), static_cast<float>(view_box->height) };
-        }
-    }
-    return { {}, absolute_rect(viewport).size().to_type<float>() };
 }
 
 ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Layout::NodeWithStyle const& layout_node)
@@ -118,8 +81,9 @@ ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, La
                 // geometry of its own falls back to the whole enclosing viewport rect there.
                 auto bounds = absolute_border_box_rect(layout_node);
                 if (bounds.is_empty()) {
-                    if (auto const* viewport = nearest_svg_viewport_of(layout_node))
-                        result.svg_filter_bounds = svg_viewport_user_rect(*viewport).to_type<CSSPixels>();
+                    auto viewport_rect = Layout::RustFFI::layout_arena_paintable_svg_viewport_user_rect(layout_node.arena_handle(), committed_row_slot(layout_node));
+                    if (viewport_rect.has_value())
+                        result.svg_filter_bounds = viewport_rect.value();
                 }
                 if (!bounds.is_empty())
                     result.svg_filter_bounds = bounds;
@@ -845,71 +809,7 @@ CSSPixels outline_offset(Layout::Node const& node)
 
 CSSPixelRect transform_reference_box(Layout::Node const& node)
 {
-    if (!has_committed_box(node))
-        return {};
-
-    auto transform_box = as<Layout::NodeWithStyle>(node).transform_box();
-    // For SVG elements without associated CSS layout box, the used value for content-box is fill-box and for
-    // border-box is stroke-box.
-    // FIXME: This currently detects any SVG element except the <svg> one. Is that correct?
-    //        And is it correct to use `else` below?
-    if (is_svg_paintable(node)) {
-        switch (transform_box) {
-        case CSS::TransformBox::ContentBox:
-            transform_box = CSS::TransformBox::FillBox;
-            break;
-        case CSS::TransformBox::BorderBox:
-            transform_box = CSS::TransformBox::StrokeBox;
-            break;
-        default:
-            break;
-        }
-    }
-    // For elements with associated CSS layout box, the used value for fill-box is content-box and for
-    // stroke-box and view-box is border-box.
-    else {
-        switch (transform_box) {
-        case CSS::TransformBox::FillBox:
-            transform_box = CSS::TransformBox::ContentBox;
-            break;
-        case CSS::TransformBox::StrokeBox:
-        case CSS::TransformBox::ViewBox:
-            transform_box = CSS::TransformBox::BorderBox;
-            break;
-        default:
-            break;
-        }
-    }
-
-    switch (transform_box) {
-    case CSS::TransformBox::ContentBox:
-        // Uses the content box as reference box.
-        // FIXME: The reference box of a table is the border box of its table wrapper box, not its table box.
-        return absolute_rect(node);
-    case CSS::TransformBox::BorderBox:
-        // Uses the border box as reference box.
-        // FIXME: The reference box of a table is the border box of its table wrapper box, not its table box.
-        return absolute_border_box_rect(node);
-    case CSS::TransformBox::FillBox:
-        // Uses the object bounding box as reference box.
-        // FIXME: For now we're using the content rect as an approximation.
-        return absolute_rect(node);
-    case CSS::TransformBox::StrokeBox:
-        // Uses the stroke bounding box as reference box.
-        // FIXME: For now we're using the border rect as an approximation.
-        return absolute_border_box_rect(node);
-    case CSS::TransformBox::ViewBox: {
-        // Uses the nearest SVG viewport as reference box.
-        // FIXME: If a viewBox attribute is specified for the SVG viewport creating element:
-        //  - The reference box is positioned at the origin of the coordinate system established by the viewBox attribute.
-        //  - The dimension of the reference box is set to the width and height values of the viewBox attribute.
-        auto const* viewport_paintable = nearest_svg_viewport_of(node);
-        if (!viewport_paintable)
-            return absolute_border_box_rect(node);
-        return svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
-    }
-    }
-    VERIFY_NOT_REACHED();
+    return Layout::RustFFI::layout_arena_paintable_transform_reference_box(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)

@@ -29,6 +29,8 @@ pub(crate) struct Fragment {
     pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
     pub(crate) svg_viewport_transform: Option<crate::layout::FfiAffineTransform>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
+    pub(crate) svg_view_box: Option<crate::layout::FfiSvgViewBox>,
+    pub(crate) svg_viewport_percentage_basis: CssPixels,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) children: Vec<FragmentLink>,
 }
@@ -78,6 +80,8 @@ impl Fragment {
             && same_allocation(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
             && self.svg_viewport_transform == previous.svg_viewport_transform
             && self.svg_viewport_size == previous.svg_viewport_size
+            && self.svg_view_box == previous.svg_view_box
+            && self.svg_viewport_percentage_basis == previous.svg_viewport_percentage_basis
             && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
             && self.children.len() == previous.children.len()
             && self
@@ -241,6 +245,8 @@ fn snapshot_fragment(
             rare.used_grid_tracks.take(),
             rare.svg_viewport_transform,
             rare.svg_viewport_size,
+            rare.svg_view_box,
+            rare.svg_viewport_percentage_basis,
             rare.computed_svg_path.take(),
         )
     });
@@ -251,6 +257,8 @@ fn snapshot_fragment(
         used_grid_tracks,
         svg_viewport_transform,
         svg_viewport_size,
+        svg_view_box,
+        svg_viewport_percentage_basis,
         computed_svg_path,
     ) = rare_payloads.unwrap_or_default();
     let mut fragment = Fragment {
@@ -278,6 +286,8 @@ fn snapshot_fragment(
         used_grid_tracks,
         svg_viewport_transform,
         svg_viewport_size,
+        svg_view_box,
+        svg_viewport_percentage_basis,
         computed_svg_path,
         children,
     };

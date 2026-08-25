@@ -396,6 +396,52 @@ pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_transform(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_transform_reference_box(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+) -> FfiCssPixelRect {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        if !arena.paintable_row_is_populated(slot) {
+            return FfiCssPixelRect::default();
+        }
+        let Some(style) = arena.node_style_if_live(slot) else {
+            return FfiCssPixelRect::default();
+        };
+        let paintable_rows = arena.paintable_rows();
+        crate::painting::visual_context::node_values::transform_reference_box(style, &paintable_rows, slot).into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_user_rect(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+) -> crate::layout::OptionalCssPixelRect {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        if !arena.paintable_row_is_populated(slot) {
+            return None.into();
+        }
+        let paintable_rows = arena.paintable_rows();
+        crate::painting::svg_viewport::nearest_svg_viewport_user_rect(&paintable_rows, slot)
+            .map(|rect| crate::layout::FfiCssPixelRect {
+                x: crate::css::css_pixels::CssPixels::nearest_value_for(rect.x as f64),
+                y: crate::css::css_pixels::CssPixels::nearest_value_for(rect.y as f64),
+                width: crate::css::css_pixels::CssPixels::nearest_value_for(rect.width as f64),
+                height: crate::css::css_pixels::CssPixels::nearest_value_for(rect.height as f64),
+            })
+            .into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_box_model(arena: *mut c_void, slot: NodeSlotId) -> FfiBoxModelMetrics {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };

@@ -11,6 +11,7 @@ use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
 use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvgPaintStyleKind};
+use crate::painting::paintable_data::PaintableKind;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::paint::background::paint_image;
 use crate::painting::record::{PaintPhase, PaintRecorder};
@@ -44,7 +45,7 @@ struct SvgPaintFacts {
     image_rendering: u8,
 }
 
-fn svg_paint_color(paint: &crate::css::computed_value_types::ComputedSvgPaint) -> Option<u32> {
+pub(crate) fn svg_paint_color(paint: &crate::css::computed_value_types::ComputedSvgPaint) -> Option<u32> {
     match paint.kind {
         0 => None,
         1 => Some(paint.color),
@@ -54,24 +55,25 @@ fn svg_paint_color(paint: &crate::css::computed_value_types::ComputedSvgPaint) -
 
 fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (SvgPaintFacts, Vec<f32>) {
     use crate::css::css_enums::{fill_rule, overflow, stroke_linecap, stroke_linejoin, vector_effect};
-    let host = recorder
-        .paint_host
-        .svg_host_facts(recorder.layout_node_shell(paintable));
+    let layout_arena = recorder.layout_arena;
+    let kind = layout_arena.paintable_data(paintable).kind;
+    let viewport = (kind == PaintableKind::SVGPathPaintable)
+        .then(|| crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, paintable))
+        .flatten();
     let mut facts = SvgPaintFacts {
-        has_viewport: host.viewport.has_value,
-        viewport: [
-            host.viewport.value.x,
-            host.viewport.value.y,
-            host.viewport.value.width,
-            host.viewport.value.height,
-        ],
-        has_decoded_image_data: host.has_decoded_image_data,
-        has_natural_size: host.natural_size.has_value,
-        natural_width: host.natural_size.value.width,
-        natural_height: host.natural_size.value.height,
+        has_viewport: viewport.is_some(),
+        viewport: viewport.map_or([0.0; 4], |rect| [rect.x, rect.y, rect.width, rect.height]),
         ..SvgPaintFacts::default()
     };
-    let layout_arena = recorder.layout_arena;
+    if kind == PaintableKind::SVGImagePaintable {
+        let image = recorder
+            .paint_host
+            .svg_image_facts(recorder.layout_node_shell(paintable));
+        facts.has_decoded_image_data = image.has_decoded_image_data;
+        facts.has_natural_size = image.natural_size.has_value;
+        facts.natural_width = image.natural_size.value.width;
+        facts.natural_height = image.natural_size.value.height;
+    }
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return (facts, Vec::new());
     };
@@ -115,7 +117,7 @@ fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (
         style.box_values().overflow_x == overflow::VISIBLE && style.box_values().overflow_y == overflow::VISIBLE;
     facts.image_rendering = style.image_rendering();
 
-    let basis = host.percentage_basis;
+    let basis = crate::painting::paintable_geometry::committed_svg_viewport_percentage_basis(layout_arena, paintable);
     let resolve = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle, default: f32| {
         handle
             .length_percentage()

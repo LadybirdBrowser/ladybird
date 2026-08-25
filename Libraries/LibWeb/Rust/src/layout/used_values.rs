@@ -298,6 +298,8 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) svg_viewport_transform: Option<crate::layout::FfiAffineTransform>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
+    pub(crate) svg_view_box: Option<crate::layout::FfiSvgViewBox>,
+    pub(crate) svg_viewport_percentage_basis: CssPixels,
     pub(crate) grid_layout_data: Option<std::rc::Rc<GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::rc::Rc<FlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
@@ -311,6 +313,8 @@ impl UsedValuesRareData {
             computed_svg_path,
             svg_viewport_transform,
             svg_viewport_size,
+            svg_view_box,
+            svg_viewport_percentage_basis,
             grid_layout_data,
             flex_layout_data,
             used_grid_tracks,
@@ -324,6 +328,8 @@ impl UsedValuesRareData {
         if computed_svg_path.is_none()
             && svg_viewport_transform.is_none()
             && svg_viewport_size.is_none()
+            && svg_view_box.is_none()
+            && svg_viewport_percentage_basis == CssPixels::default()
             && grid_layout_data.is_none()
             && flex_layout_data.is_none()
             && used_grid_tracks.is_none()
@@ -341,6 +347,10 @@ impl UsedValuesRareData {
         if let Some(size) = svg_viewport_size {
             rare.svg_viewport_size = Some(size);
         }
+        if let Some(view_box) = svg_view_box {
+            rare.svg_view_box = Some(view_box);
+        }
+        rare.svg_viewport_percentage_basis = svg_viewport_percentage_basis;
         if let Some(data) = grid_layout_data {
             rare.grid_layout_data = Some(data);
         }

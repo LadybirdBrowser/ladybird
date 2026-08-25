@@ -27,11 +27,6 @@ WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();
 ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView, Layout::NodeWithStyle const&);
 
-// Walks layout ancestors so it also covers content of unconnected resource subtrees.
-WEB_API Layout::Node const* nearest_svg_viewport_of(Layout::Node const&);
-// The viewport's rect in its own user units: the active viewBox rect, else {0,0} + the used size.
-WEB_API Gfx::FloatRect svg_viewport_user_rect(Layout::Node const& viewport);
-
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
 Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const&);

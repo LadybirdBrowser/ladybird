@@ -168,7 +168,7 @@ impl BoxFacts {
             facts.transform = Some(transform);
             facts.transform_is_invertible = transform_is_invertible;
         }
-        facts.perspective = super::node_values::compute_perspective_data(layout_arena, callbacks, slot, pixel_ratio);
+        facts.perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
         facts.effects = super::node_values::compute_effects_data(layout_arena, callbacks, slot).map(std::rc::Rc::new);
         facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
         let node = slot;
@@ -986,7 +986,7 @@ pub(crate) fn update_visual_context_values(
     let transform = transform_with_invertibility.map(|(transform, _)| transform);
     let transform_is_invertible = transform_with_invertibility.is_some_and(|(_, invertible)| invertible);
     let effects = super::node_values::compute_effects_data(layout_arena, callbacks, slot);
-    let perspective = super::node_values::compute_perspective_data(layout_arena, callbacks, slot, pixel_ratio);
+    let perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
     let svg_viewport_transform_data = svg_viewport_transform_of(layout_arena, slot)
         .map(|transform| compute_svg_viewport_transform_data(layout_arena, slot, transform, pixel_ratio));
 

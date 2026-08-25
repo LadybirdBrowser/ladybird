@@ -173,6 +173,19 @@ pub(crate) fn committed_svg_viewport_size(
     })
 }
 
+pub(crate) fn committed_svg_view_box(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> Option<crate::layout::FfiSvgViewBox> {
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_view_box))
+}
+
+pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixels {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.map_or_else(CssPixels::default, |link| link.fragment.svg_viewport_percentage_basis)
+    })
+}
+
 pub(crate) fn absolute_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;

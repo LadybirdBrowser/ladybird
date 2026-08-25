@@ -6,7 +6,7 @@
 
 use super::*;
 use crate::layout::{OptionalCssPixelRect, OptionalCssPixels, OptionalFloatSize, OptionalIntRect};
-use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor, OptionalFloatRect};
+use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use libgfx_rust::{
     AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
 };
@@ -150,9 +150,7 @@ pub struct FfiReplacedPaintFacts {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiSvgHostFacts {
-    pub viewport: OptionalFloatRect,
-    pub percentage_basis: crate::css::css_pixels::CssPixels,
+pub struct FfiSvgImageFacts {
     pub has_decoded_image_data: bool,
     pub natural_size: OptionalFloatSize,
 }
@@ -411,7 +409,7 @@ pub struct FfiPaintHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
     pub backdrop_filter_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
     pub nested_display_list_from_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, IntPoint) -> u64,
-    pub svg_host_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgHostFacts,
+    pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
@@ -615,9 +613,9 @@ impl FfiPaintHostCallbacks {
             unsafe { (self.nested_display_list_from_bytes)(self.context, bytes.as_ptr(), bytes.len(), content_offset) };
         crate::painting::display_list::commands::DisplayListResourceId(id)
     }
-    pub(crate) fn svg_host_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgHostFacts {
+    pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.svg_host_facts)(self.context, layout_node_shell) }
+        unsafe { (self.svg_image_facts)(self.context, layout_node_shell) }
     }
     pub(crate) fn svg_paint_style(
         &self,

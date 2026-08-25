@@ -438,14 +438,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
         .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {
             return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
         },
-        .svg_transform_view_box_rect = [](void*, void* layout_node_shell, CSSPixelRect* out) -> bool {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto const* viewport_paintable = nearest_svg_viewport_of(layout_node);
-            if (!viewport_paintable)
-                return false;
-            *out = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
-            return true;
-        },
         .svg_additional_element_transform = [](void*, void* layout_node_shell, Gfx::AffineTransform* out) -> bool {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(layout_node.dom_node());
@@ -1210,22 +1202,16 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto display_list = DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes));
             return context.resource_storage.add_display_list(move(display_list), visual_context_tree).value();
         },
-        .svg_host_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgHostFacts {
+        .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* row = committed_row(layout_node);
             VERIFY(row);
-            Layout::RustFFI::FfiSvgHostFacts facts {};
-            if (is_svg_path_paintable(layout_node)) {
-                facts.percentage_basis = as<SVG::SVGGraphicsElement>(*layout_node.dom_node()).viewport_percentage_basis();
-                if (auto const* viewport_paintable = nearest_svg_viewport_of(layout_node))
-                    facts.viewport = svg_viewport_user_rect(*viewport_paintable);
-            }
-            if (row->kind == Layout::RustFFI::PaintableKind::SVGImagePaintable) {
-                auto const& image_provider = as<SVG::SVGImageElement>(*layout_node.dom_node());
-                facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
-                if (auto natural_size = image_provider.intrinsic_size(); natural_size.has_value())
-                    facts.natural_size = natural_size->to_type<float>();
-            }
+            VERIFY(row->kind == Layout::RustFFI::PaintableKind::SVGImagePaintable);
+            Layout::RustFFI::FfiSvgImageFacts facts {};
+            auto const& image_provider = as<SVG::SVGImageElement>(*layout_node.dom_node());
+            facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
+            if (auto natural_size = image_provider.intrinsic_size(); natural_size.has_value())
+                facts.natural_size = natural_size->to_type<float>();
             return facts;
         },
         .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintStyle {
