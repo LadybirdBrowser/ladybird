@@ -525,7 +525,7 @@ bool HTMLTextAreaElement::is_mutable() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#attr-textarea-placeholder
 Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
 {
-    if (!m_text_node || !m_text_node->data().is_empty())
+    if (!api_value().is_empty())
         return {};
     if (!has_attribute(HTML::AttributeNames::placeholder))
         return {};

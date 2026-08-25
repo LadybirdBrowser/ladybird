@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const textarea = document.createElement("textarea");
+        textarea.placeholder = "Placeholder";
+
+        println(`empty detached textarea: ${textarea.matches(":placeholder-shown")}`);
+        println(`shadow before value: ${internals.hasShadowRoot(textarea)}`);
+
+        textarea.value = "value";
+        println(`non-empty value: ${textarea.matches(":placeholder-shown")}`);
+        println(`shadow after value: ${internals.hasShadowRoot(textarea)}`);
+
+        textarea.value = "";
+        println(`cleared value: ${textarea.matches(":placeholder-shown")}`);
+    });
+</script>
