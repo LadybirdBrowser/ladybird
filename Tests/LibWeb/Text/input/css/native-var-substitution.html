@@ -31,8 +31,8 @@
         println(`fallback outside cycle used: ${computed.backgroundColor}`);
 
         const nativeCounters = internals.styleFfiCounters();
-        println(`native worker parses: ${nativeCounters.substitutionWorkerParses > 0}`);
-        println(`native main-thread parse requests: ${nativeCounters.substitutionMainThreadParseRequests}`);
+        println(`native callback-free parses: ${nativeCounters.substitutionCallbackFreeParses > 0}`);
+        println(`native callback parse requests: ${nativeCounters.substitutionCallbackParseRequests}`);
 
         CSS.registerProperty({
             name: "--registered-native-fallback",
@@ -62,15 +62,15 @@
         println(`registered universal initial: ${getComputedStyle(registered).marginLeft}`);
 
         const registeredCounters = internals.styleFfiCounters();
-        println(`registered worker parses: ${registeredCounters.substitutionWorkerParses > 0}`);
-        println(`registered main-thread parse requests: ${registeredCounters.substitutionMainThreadParseRequests}`);
+        println(`registered callback-free parses: ${registeredCounters.substitutionCallbackFreeParses > 0}`);
+        println(`registered callback parse requests: ${registeredCounters.substitutionCallbackParseRequests}`);
 
         const stringBearing = document.createElement("div");
-        stringBearing.style.cssText = "--family: LadybirdWorkerFallback; font-family: var(--family)";
+        stringBearing.style.cssText = "--family: LadybirdCallbackFallback; font-family: var(--family)";
         document.body.appendChild(stringBearing);
         println(`string-bearing family: ${getComputedStyle(stringBearing).fontFamily}`);
 
         const stringBearingCounters = internals.styleFfiCounters();
-        println(`string-bearing main-thread parse: ${stringBearingCounters.substitutionMainThreadParseRequests > registeredCounters.substitutionMainThreadParseRequests}`);
+        println(`string-bearing callback parse: ${stringBearingCounters.substitutionCallbackParseRequests > registeredCounters.substitutionCallbackParseRequests}`);
     });
 </script>

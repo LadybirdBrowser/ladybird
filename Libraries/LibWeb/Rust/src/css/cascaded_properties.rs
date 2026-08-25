@@ -682,7 +682,7 @@ struct PrecomputedSvgPath {
     normalized: Option<Vec<u16>>,
 }
 
-struct WorkerParseInput {
+struct CallbackFreeParseInput {
     in_quirks_mode: bool,
     is_svg_presentation_attribute: bool,
     contains_attr_tainted_values: bool,
@@ -693,23 +693,18 @@ struct WorkerParseInput {
     svg_paths: Vec<PrecomputedSvgPath>,
 }
 
-struct WorkerParseOutcome {
+struct CallbackFreeParseOutcome {
     outcome: ParseOutcome,
     source: Vec<u16>,
 }
 
-// SAFETY: Worker parsing has no C++ callbacks and cannot create non-zero AK fly-string handles.
-// Parsed values contain immutable Rust-owned data or the zero fly-string sentinel, and the result
-// is transferred without being inspected or destroyed on the worker.
-unsafe impl Send for WorkerParseOutcome {}
-
 #[allow(clippy::arc_with_non_send_sync)]
-fn parse_substituted_on_worker(
+fn parse_substituted_without_callbacks(
     base_context: &ParseContext,
     property_id: u16,
     source: Vec<u16>,
     contains_attr_tainted_values: bool,
-) -> WorkerParseOutcome {
+) -> CallbackFreeParseOutcome {
     let svg_paths = svg_path_strings_from_source(&source)
         .into_iter()
         .map(|path| {
@@ -730,7 +725,7 @@ fn parse_substituted_on_worker(
             }
         })
         .collect();
-    let input = WorkerParseInput {
+    let input = CallbackFreeParseInput {
         in_quirks_mode: base_context.in_quirks_mode,
         is_svg_presentation_attribute: base_context.is_svg_presentation_attribute,
         contains_attr_tainted_values,
@@ -746,71 +741,65 @@ fn parse_substituted_on_worker(
         source,
         svg_paths,
     };
-    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
-    crate::css::worker_pool::run(vec![move || {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionWorkerParse);
-        let ffi_svg_paths: Vec<_> = input
-            .svg_paths
-            .iter()
-            .map(|path| FfiPrecomputedSvgPath {
-                source: path.source.as_ptr(),
-                source_length: path.source.len(),
-                normalized: path.normalized.as_ref().map_or(std::ptr::null(), |path| path.as_ptr()),
-                normalized_length: path.normalized.as_ref().map_or(0, Vec::len),
-            })
-            .collect();
-        let mut random_function_index = 0;
-        let value_context = FfiValueParsingContext {
-            kind: FfiValueParsingContextKind::Property,
-            value: input.property_id,
-            secondary_value: 0,
-            name: Default::default(),
-        };
-        let context = ParseContext {
-            in_quirks_mode: input.in_quirks_mode,
-            is_svg_presentation_attribute: input.is_svg_presentation_attribute,
-            is_substituted_value: true,
-            contains_attr_tainted_values: input.contains_attr_tainted_values,
-            value_contexts: &raw const value_context,
-            value_context_count: 1,
-            document_url: input.document_url.as_ptr(),
-            document_url_length: input.document_url.len(),
-            document_base_url: input.document_base_url.as_ptr(),
-            document_base_url_length: input.document_base_url.len(),
-            intern_utf16_fly_string: None,
-            normalize_svg_path_data: None,
-            precomputed_svg_paths: ffi_svg_paths.as_ptr(),
-            precomputed_svg_path_count: ffi_svg_paths.len(),
-            font_format_is_supported: None,
-            font_tech_is_supported: None,
-            descriptor_integer_resolution_context: std::ptr::null(),
-            resolve_descriptor_integer: None,
-            random_function_index: &raw mut random_function_index,
-        };
-        let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {
-            // A callback-free parse can report Invalid when an Option-returning grammar could not
-            // retain a string. Let the main thread distinguish that from a genuinely invalid value.
-            ParseOutcome::Invalid => ParseOutcome::NotHandled,
-            outcome => outcome,
-        };
-        sender
-            .send(WorkerParseOutcome {
-                outcome,
-                source: input.source,
-            })
-            .unwrap();
-    }]);
-    receiver.recv().unwrap()
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionCallbackFreeParse);
+    let ffi_svg_paths: Vec<_> = input
+        .svg_paths
+        .iter()
+        .map(|path| FfiPrecomputedSvgPath {
+            source: path.source.as_ptr(),
+            source_length: path.source.len(),
+            normalized: path.normalized.as_ref().map_or(std::ptr::null(), |path| path.as_ptr()),
+            normalized_length: path.normalized.as_ref().map_or(0, Vec::len),
+        })
+        .collect();
+    let mut random_function_index = 0;
+    let value_context = FfiValueParsingContext {
+        kind: FfiValueParsingContextKind::Property,
+        value: input.property_id,
+        secondary_value: 0,
+        name: Default::default(),
+    };
+    let context = ParseContext {
+        in_quirks_mode: input.in_quirks_mode,
+        is_svg_presentation_attribute: input.is_svg_presentation_attribute,
+        is_substituted_value: true,
+        contains_attr_tainted_values: input.contains_attr_tainted_values,
+        value_contexts: &raw const value_context,
+        value_context_count: 1,
+        document_url: input.document_url.as_ptr(),
+        document_url_length: input.document_url.len(),
+        document_base_url: input.document_base_url.as_ptr(),
+        document_base_url_length: input.document_base_url.len(),
+        intern_utf16_fly_string: None,
+        normalize_svg_path_data: None,
+        precomputed_svg_paths: ffi_svg_paths.as_ptr(),
+        precomputed_svg_path_count: ffi_svg_paths.len(),
+        font_format_is_supported: None,
+        font_tech_is_supported: None,
+        descriptor_integer_resolution_context: std::ptr::null(),
+        resolve_descriptor_integer: None,
+        random_function_index: &raw mut random_function_index,
+    };
+    let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {
+        // A callback-free parse can report Invalid when an Option-returning grammar could not
+        // retain a string. Report that as unhandled so the caller can retry with the callbacks.
+        ParseOutcome::Invalid => ParseOutcome::NotHandled,
+        outcome => outcome,
+    };
+    CallbackFreeParseOutcome {
+        outcome,
+        source: input.source,
+    }
 }
 
 #[allow(clippy::arc_with_non_send_sync)]
-fn parse_substituted_on_main_thread(
+fn parse_substituted_with_callbacks(
     base_context: &ParseContext,
     property_id: u16,
     source: &[u16],
     contains_attr_tainted_values: bool,
 ) -> std::sync::Arc<StyleValueData> {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionMainThreadParseRequest);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionCallbackParseRequest);
     let mut random_function_index = 0;
     let value_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Property,
@@ -1335,13 +1324,13 @@ fn resolve_cascade_value(
                         ..
                     }
                 );
-            let WorkerParseOutcome { outcome, source } =
-                parse_substituted_on_worker(base_context, property_id, source, contains_attr_tainted_values);
+            let CallbackFreeParseOutcome { outcome, source } =
+                parse_substituted_without_callbacks(base_context, property_id, source, contains_attr_tainted_values);
             match outcome {
                 ParseOutcome::Parsed(value) => value,
                 ParseOutcome::Invalid => std::sync::Arc::new(StyleValueData::GuaranteedInvalid),
                 ParseOutcome::NotHandled => {
-                    parse_substituted_on_main_thread(base_context, property_id, &source, contains_attr_tainted_values)
+                    parse_substituted_with_callbacks(base_context, property_id, &source, contains_attr_tainted_values)
                 }
             }
         }
