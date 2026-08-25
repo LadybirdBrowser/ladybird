@@ -158,10 +158,10 @@ public:
     };
     void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
 
-    // `explicitly_inherited_non_inherited_property` reports whether the computation read the half of
-    // the style it inherits from that a child normally cannot see, which decides whether its answer
-    // can be offered to another element.
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, bool* explicitly_inherited_non_inherited_property = nullptr, ComputedValues const* previous_values = nullptr, u32 computed_group_mask = ComputedValues::all_style_groups, u64 const* computed_properties_to_evaluate = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false) const;
+    // `explicitly_inherited_non_inherited_style_groups` reports the style groups whose values the
+    // computation read from the half of the style it inherits from that a child normally cannot
+    // see, which decides whether its answer can be offered to another element.
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, ComputedValues const* previous_values = nullptr, u32 computed_group_mask = ComputedValues::all_style_groups, u64 const* computed_properties_to_evaluate = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false) const;
 
     void compute_property_values(ComputedStyleWorkingSet&, Optional<DOM::AbstractElement>) const;
     void apply_post_compute_adjustments(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
@@ -269,9 +269,9 @@ public:
         // mint afresh whenever any of them recomputes.
         bool cascade_reads_custom_properties { false };
         RefPtr<CustomPropertyData const> pinned_parent_custom_property_data;
-        // Set when the computation read the inherited style's non-inherited half, which the key
-        // does not name.
-        bool explicitly_inherited_non_inherited_property { false };
+        // The style groups whose values the computation read from the inherited style's
+        // non-inherited half, which the key does not name.
+        u32 explicitly_inherited_non_inherited_style_groups { 0 };
         // Set when an entry with this key was found, in which case nothing was computed.
         RefPtr<ComputedValues const> shared_values;
         Optional<StyleRecordID> shared_style_record_identity;
@@ -373,9 +373,10 @@ private:
         StyleGroupPayloadPins pinned_parent_groups;
         Vector<NonnullRefPtr<StyleValue const>> pinned_key_values;
         StyleRecordID parent_style_record_identity;
-        // Set when the computation read the inherited style's non-inherited half, which the key does
-        // not name. Such an entry answers only for an element inheriting from that same style.
-        bool explicitly_inherited_non_inherited_property { false };
+        // The style groups whose values the computation read from the inherited style's
+        // non-inherited half, which the key does not name. An entry with any such group answers
+        // only for an element inheriting from that same style.
+        u32 explicitly_inherited_non_inherited_style_groups { 0 };
         NonnullRefPtr<ComputedValues const> values;
         RefPtr<CustomPropertyData const> custom_property_data;
         Optional<StyleRecordID> style_record_identity;
@@ -511,7 +512,7 @@ private:
     };
     // Whether the animation collection of the computation in progress resolved a keyframe-borne
     // `inherit` for a non-inherited property; folded into the explicit-inheritance bookkeeping.
-    mutable bool m_keyframes_inherited_non_inherited_property { false };
+    mutable u32 m_keyframes_inherited_non_inherited_style_groups { 0 };
     mutable Vector<ProvisionalTransitionState> m_provisional_transition_states;
     mutable HashMap<u64, size_t> m_provisional_transition_state_indices;
     mutable HashMap<u64, Vector<size_t>> m_provisional_transition_state_indices_by_target;

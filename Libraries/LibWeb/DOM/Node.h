@@ -408,8 +408,8 @@ public:
     [[nodiscard]] bool child_needs_layout_tree_update() const { return m_child_needs_layout_tree_update; }
     void set_child_needs_layout_tree_update(bool b) { m_child_needs_layout_tree_update = b; }
 
-    [[nodiscard]] bool children_may_depend_on_non_inherited_property_inheritance() const { return m_children_may_depend_on_non_inherited_property_inheritance; }
-    void set_children_may_depend_on_non_inherited_property_inheritance() { m_children_may_depend_on_non_inherited_property_inheritance = true; }
+    [[nodiscard]] u32 children_explicitly_inherited_non_inherited_style_groups() const { return m_children_explicitly_inherited_non_inherited_style_groups; }
+    void add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups) { m_children_explicitly_inherited_non_inherited_style_groups |= style_groups; }
 
     void record_style_environment_change();
     CSS::StyleScope& style_scope();
@@ -582,7 +582,7 @@ protected:
     bool m_child_needs_layout_tree_update { false };
     bool m_may_reuse_layout_node_for_child_list_insertion { false };
 
-    bool m_children_may_depend_on_non_inherited_property_inheritance { false };
+    u32 m_children_explicitly_inherited_non_inherited_style_groups { 0 };
     bool m_in_editable_subtree { false };
     bool m_is_connected { false };
     bool m_inside_blocking_wheel_event_handler { false };

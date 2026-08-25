@@ -1130,6 +1130,11 @@ public:
     // group payloads build from, plus explicit bindings for the bespoke-built groups. A longhand
     // without a binding has no single known group and must be treated conservatively.
     static Optional<StyleGroupIndex> style_group_of_property(PropertyID);
+    static u32 style_group_bit_of_property(PropertyID property_id)
+    {
+        auto group = style_group_of_property(property_id);
+        return group.has_value() ? 1u << to_underlying(*group) : all_style_groups;
+    }
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<StyleValue const> computed_style_value_for_inheritance(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
