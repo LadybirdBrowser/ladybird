@@ -3960,21 +3960,13 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
         for (size_t index = 0; index < animation_overlay_payloads.size(); ++index)
             animation_overlay_payloads[index] = values.style_group_payload(static_cast<StyleGroupIndex>(index));
     }
-    // A drive-built style borrows its recorded inheritance-dependent values from its table's
-    // span, while a builder-copied style carries them as owned wrappers; publish both, with the
-    // borrowed span winning like the snapshot's merge order.
+    // Builder-copied styles can carry inheritance-dependent values as owned wrappers. Rust
+    // publication merges these with the table's borrowed entries, with table entries winning.
     Vector<u16> inheritance_dependent_properties;
     Vector<void const*> inheritance_dependent_values;
-    auto borrowed_inheritance_dependent = base.borrowed_inheritance_dependent_values();
-    inheritance_dependent_properties.ensure_capacity(base.inheritance_dependent_specified_values().size() + borrowed_inheritance_dependent.size());
-    inheritance_dependent_values.ensure_capacity(base.inheritance_dependent_specified_values().size() + borrowed_inheritance_dependent.size());
-    for (auto const& entry : borrowed_inheritance_dependent) {
-        inheritance_dependent_properties.unchecked_append(entry.property);
-        inheritance_dependent_values.unchecked_append(entry.value);
-    }
+    inheritance_dependent_properties.ensure_capacity(base.inheritance_dependent_specified_values().size());
+    inheritance_dependent_values.ensure_capacity(base.inheritance_dependent_specified_values().size());
     for (auto const& [property_id, value] : base.inheritance_dependent_specified_values()) {
-        if (inheritance_dependent_properties.contains_slow(to_underlying(property_id)))
-            continue;
         inheritance_dependent_properties.unchecked_append(to_underlying(property_id));
         inheritance_dependent_values.unchecked_append(value->rust_style_value_data());
     }
