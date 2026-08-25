@@ -1,1 +1,2 @@
+style update record view pins unchanged: true
 computed style record view pins increased: true

@@ -895,9 +895,10 @@ void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payl
     VERIFY(index == payloads.size());
 }
 
-ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const& view, StyleComputer const& style_computer, StyleRecordID style_record_identity)
+ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const& view, StyleComputer const& style_computer, StyleRecordID style_record_identity, bool owns_style_record_pin)
     : m_style_computer(&style_computer)
     , m_style_record_identity(style_record_identity)
+    , m_owns_style_record_pin(owns_style_record_pin)
 {
     VERIFY(view.present);
     VERIFY(style_record_identity);
@@ -908,8 +909,9 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     auto base_payloads = ReadonlySpan<void const*> { view.base_payloads, view.payload_count };
     m_values.borrow_style_record_payloads(payloads);
     if (view.animation_overlay_identity != 0) {
-        m_base_values.borrow_style_record_payloads(base_payloads);
-        m_values.m_borrowed_base_values = &m_base_values;
+        m_base_values.emplace(ComputedValues::BorrowedStyleRecord::Yes);
+        m_base_values->borrow_style_record_payloads(base_payloads);
+        m_values.m_borrowed_base_values = &*m_base_values;
     }
 
     VERIFY(view.property_importance_count == m_values.m_property_important.size_in_bytes());
@@ -927,22 +929,22 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     m_values.m_longhand_values = { view.longhand_values, view.longhand_value_count };
     m_values.m_animated_properties = static_cast<AnimatedProperties const*>(view.animated_properties);
     if (view.animation_overlay_identity != 0) {
-        m_base_values.m_property_important = m_values.m_property_important;
-        m_base_values.m_property_inherited = m_values.m_property_inherited;
-        m_base_values.m_pseudo_element_styles = m_values.m_pseudo_element_styles;
-        m_base_values.m_depends_on_viewport_metrics = m_values.m_depends_on_viewport_metrics;
-        m_base_values.m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
-        m_base_values.m_in_display_none_subtree = m_values.m_in_display_none_subtree;
-        m_base_values.m_borrowed_raw_cascaded_font_size = m_values.m_borrowed_raw_cascaded_font_size;
-        m_base_values.m_borrowed_inheritance_dependent_values = m_values.m_borrowed_inheritance_dependent_values;
-        m_base_values.m_longhand_values = m_values.m_longhand_values;
+        m_base_values->m_property_important = m_values.m_property_important;
+        m_base_values->m_property_inherited = m_values.m_property_inherited;
+        m_base_values->m_pseudo_element_styles = m_values.m_pseudo_element_styles;
+        m_base_values->m_depends_on_viewport_metrics = m_values.m_depends_on_viewport_metrics;
+        m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
+        m_base_values->m_in_display_none_subtree = m_values.m_in_display_none_subtree;
+        m_base_values->m_borrowed_raw_cascaded_font_size = m_values.m_borrowed_raw_cascaded_font_size;
+        m_base_values->m_borrowed_inheritance_dependent_values = m_values.m_borrowed_inheritance_dependent_values;
+        m_base_values->m_longhand_values = m_values.m_longhand_values;
     }
     m_present = true;
 }
 
 ComputedStyleRecordView::~ComputedStyleRecordView()
 {
-    if (m_style_computer)
+    if (m_style_computer && m_owns_style_record_pin)
         m_style_computer->unpin_style_record(m_style_record_identity);
 }
 
@@ -952,7 +954,8 @@ void ComputedStyleRecordView::retain_across_style_record_publication()
     VERIFY(m_style_computer);
     VERIFY(m_values.animated_properties());
     m_retained_values = ComputedValues::Builder { m_values }.build();
-    m_style_computer->unpin_style_record(m_style_record_identity);
+    if (m_owns_style_record_pin)
+        m_style_computer->unpin_style_record(m_style_record_identity);
     m_style_computer = nullptr;
 }
 
@@ -1984,14 +1987,19 @@ RefPtr<AnimatedProperties const> ComputedValues::animated_properties_snapshot() 
 RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID property_id, RustStyleValueHandle const& handle) const
 {
     if (!handle) {
-        m_style_value_cache.remove(property_id);
+        if (m_style_value_cache)
+            m_style_value_cache->remove(property_id);
         return nullptr;
     }
-    if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == handle.data())
-        return it->value;
+    if (m_style_value_cache) {
+        if (auto it = m_style_value_cache->find(property_id); it != m_style_value_cache->end() && it->value->rust_style_value_data() == handle.data())
+            return it->value;
+    }
     auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(handle.data()));
     count_longhand_wrapper_mint();
-    m_style_value_cache.set(property_id, value);
+    if (!m_style_value_cache)
+        m_style_value_cache = make<HashMap<PropertyID, NonnullRefPtr<StyleValue const>>>();
+    m_style_value_cache->set(property_id, value);
     return value;
 }
 
@@ -2135,11 +2143,15 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     auto const* stored = m_longhand_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
     if (!stored)
         return {};
-    if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == stored)
-        return it->value;
+    if (m_style_value_cache) {
+        if (auto it = m_style_value_cache->find(property_id); it != m_style_value_cache->end() && it->value->rust_style_value_data() == stored)
+            return it->value;
+    }
     auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(stored)));
     count_longhand_wrapper_mint();
-    m_style_value_cache.set(property_id, value);
+    if (!m_style_value_cache)
+        m_style_value_cache = make<HashMap<PropertyID, NonnullRefPtr<StyleValue const>>>();
+    m_style_value_cache->set(property_id, value);
     return value;
 }
 

@@ -89,7 +89,9 @@
     [86, "EndDeferredGeometryTransactionFlush"],
     [87, "HasDeferredGeometryTransaction"],
     [88, "HasDeferredElementStyleInputs"],
-    [89, "HasDeferredElementStyleInput"]
+    [89, "HasDeferredElementStyleInput"],
+    [90, "BeginStyleRecordViewEpoch"],
+    [91, "EndStyleRecordViewEpoch"]
   ],
   "operations": [
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
@@ -136,6 +138,8 @@
     { "event": "DiscardPendingExactCascadeState", "ffi": "style_engine_discard_pending_exact_cascade_state", "cpp": "discard_pending_exact_cascade_state", "return": "void", "args": [["node", "style_node"], ["pseudo_kind", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.discard_pending_exact_cascade_state(super::computed::ComputedStyleTarget::new(node, pseudo_kind));" },
     { "event": "PinStyleRecord", "ffi": "style_engine_pin_style_record", "cpp": "pin_style_record", "return": "void", "args": [["style_record", "style_record"]], "body": "engine.pin_style_record(style_record);" },
     { "event": "UnpinStyleRecord", "ffi": "style_engine_unpin_style_record", "cpp": "unpin_style_record", "return": "void", "args": [["style_record", "style_record"]], "body": "engine.unpin_style_record(style_record);" },
+    { "event": "BeginStyleRecordViewEpoch", "ffi": "style_engine_begin_style_record_view_epoch", "cpp": "begin_style_record_view_epoch", "return": "void", "args": [], "body": "engine.begin_style_record_view_epoch();" },
+    { "event": "EndStyleRecordViewEpoch", "ffi": "style_engine_end_style_record_view_epoch", "cpp": "end_style_record_view_epoch", "return": "void", "args": [], "body": "engine.end_style_record_view_epoch();" },
     { "event": "SetRuleGatedByContainerQuery", "ffi": "style_engine_set_rule_gated_by_container_query", "cpp": "set_rule_gated_by_container_query", "return": "void", "args": [["rule", "style_rule_id"]], "body": "if rule == 0 { return; } engine.set_rule_gated_by_container_query(RuleID(rule - 1));" },
     { "event": "SetTreeScopeUsesDocumentSheets", "ffi": "style_engine_set_tree_scope_uses_document_sheets", "cpp": "set_tree_scope_uses_document_sheets", "return": "void", "args": [["tree_scope", "tree_scope_id"]], "body": "engine.set_tree_scope_uses_document_sheets(TreeScopeID(tree_scope));" },
     { "event": "SetRuleLayer", "ffi": "style_engine_set_rule_layer", "cpp": "set_rule_layer", "return": "void", "args": [["rule", "style_rule_id"], ["layer", "u32"]], "body": "if rule == 0 { return; } engine.set_rule_layer(RuleID(rule - 1), CascadeLayerID(layer));" },

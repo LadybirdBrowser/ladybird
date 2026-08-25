@@ -140,6 +140,8 @@ public:
     [[nodiscard]] void const* style_record_payloads(StyleRecordID) const;
     void pin_style_record(StyleRecordID) const;
     void unpin_style_record(StyleRecordID) const;
+    void begin_style_record_view_epoch() const;
+    void end_style_record_view_epoch() const;
     [[nodiscard]] u64 computed_style_record_view_pin_count() const { return m_computed_style_record_view_pin_count; }
 
     // Two elements whose cascade declares the same custom properties against the same inherited
@@ -538,6 +540,7 @@ private:
 
     mutable StyleEngine m_style_engine;
     mutable u64 m_computed_style_record_view_pin_count { 0 };
+    mutable u32 m_style_record_view_epoch_depth { 0 };
     Vector<GC::Ptr<DOM::Element>> m_style_nodes;
     TreeScopeID m_next_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;

@@ -409,9 +409,12 @@ ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID 
     auto view = m_style_engine.style_record_view(style_record_identity);
     if (!view.present)
         return {};
-    pin_style_record(style_record_identity);
-    ++m_computed_style_record_view_pin_count;
-    return ComputedStyleRecordView { view, *this, style_record_identity };
+    bool owns_style_record_pin = m_style_record_view_epoch_depth == 0 || view.animation_overlay_identity != 0;
+    if (owns_style_record_pin) {
+        pin_style_record(style_record_identity);
+        ++m_computed_style_record_view_pin_count;
+    }
+    return ComputedStyleRecordView { view, *this, style_record_identity, owns_style_record_pin };
 }
 
 StyleComputer::StyleRecordStatus StyleComputer::style_record_status(StyleRecordID style_record_identity) const
@@ -444,6 +447,19 @@ void StyleComputer::unpin_style_record(StyleRecordID style_record_identity) cons
 {
     VERIFY(style_record_identity);
     const_cast<StyleComputer&>(*this).m_style_engine.unpin_style_record(style_record_identity);
+}
+
+void StyleComputer::begin_style_record_view_epoch() const
+{
+    if (m_style_record_view_epoch_depth++ == 0)
+        const_cast<StyleComputer&>(*this).m_style_engine.begin_style_record_view_epoch();
+}
+
+void StyleComputer::end_style_record_view_epoch() const
+{
+    VERIFY(m_style_record_view_epoch_depth > 0);
+    if (--m_style_record_view_epoch_depth == 0)
+        const_cast<StyleComputer&>(*this).m_style_engine.end_style_record_view_epoch();
 }
 
 void StyleComputer::register_style_node(StyleNodeID style_node_id, DOM::Element& element)
@@ -5018,8 +5034,10 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto materialize_style_record_view = [&](StyleEngine::StyleRecordView const& view, StyleRecordID identity) -> OwnPtr<ComputedStyleRecordView> {
         if (!view.present)
             return {};
-        pin_style_record(identity);
-        return make<ComputedStyleRecordView>(view, *this, identity);
+        bool owns_style_record_pin = m_style_record_view_epoch_depth == 0 || view.animation_overlay_identity != 0;
+        if (owns_style_record_pin)
+            pin_style_record(identity);
+        return make<ComputedStyleRecordView>(view, *this, identity, owns_style_record_pin);
     };
     inheritance_parent_style = materialize_style_record_view(inheritance_parent_style_record, inheritance_parent_style_record_identity);
     inheritance_parent_values = inheritance_parent_style ? &**inheritance_parent_style : nullptr;

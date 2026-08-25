@@ -1,12 +1,23 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<style>
+    #target.changed {
+        color: blue;
+    }
+</style>
 <div id="target" style="color: red"></div>
 <script>
     test(() => {
         document.body.offsetWidth;
-        const before = internals.styleEngineCounters().computedStyleRecordViewPins;
+        let before = internals.styleEngineCounters().computedStyleRecordViewPins;
+        target.classList.add("changed");
+        target.offsetWidth;
+        let after = internals.styleEngineCounters().computedStyleRecordViewPins;
+        println(`style update record view pins unchanged: ${after === before}`);
+
+        before = after;
         getComputedStyle(document.getElementById("target")).color;
-        const after = internals.styleEngineCounters().computedStyleRecordViewPins;
+        after = internals.styleEngineCounters().computedStyleRecordViewPins;
         println(`computed style record view pins increased: ${after > before}`);
     });
 </script>
