@@ -189,6 +189,113 @@ impl TokenizerInput<'_> {
     }
 }
 
+enum FilteredTokenizerInput<'a> {
+    Borrowed(TokenizerInput<'a>),
+    Owned(Vec<u16>),
+}
+
+impl FilteredTokenizerInput<'_> {
+    fn as_input(&self) -> TokenizerInput<'_> {
+        match self {
+            Self::Borrowed(input) => *input,
+            Self::Owned(units) => TokenizerInput::Utf16(units),
+        }
+    }
+}
+
+fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
+    let needs_filtering = match input {
+        TokenizerInput::Ascii(units) => units.iter().any(|unit| matches!(unit, b'\r' | b'\x0c' | b'\0')),
+        TokenizerInput::Utf16(units) => {
+            let mut index = 0;
+            let mut needs_filtering = false;
+            while index < units.len() {
+                let unit = units[index];
+                if matches!(unit, 0 | 0x0c | 0x0d) {
+                    needs_filtering = true;
+                    break;
+                }
+                if (0xd800..=0xdbff).contains(&unit)
+                    && units
+                        .get(index + 1)
+                        .is_some_and(|unit| (0xdc00..=0xdfff).contains(unit))
+                {
+                    index += 2;
+                    continue;
+                }
+                if (0xd800..=0xdfff).contains(&unit) {
+                    needs_filtering = true;
+                    break;
+                }
+                index += 1;
+            }
+            needs_filtering
+        }
+    };
+    if !needs_filtering {
+        return FilteredTokenizerInput::Borrowed(input);
+    }
+
+    let mut output = Vec::with_capacity(input.len());
+    let mut index = 0;
+    let mut last_was_carriage_return = false;
+    while index < input.len() {
+        let (code_point, length) = match input {
+            TokenizerInput::Ascii(units) => (u32::from(units[index]), 1),
+            TokenizerInput::Utf16(units) => {
+                let first = units[index];
+                if (0xd800..=0xdbff).contains(&first)
+                    && let Some(&second) = units.get(index + 1)
+                    && (0xdc00..=0xdfff).contains(&second)
+                {
+                    (
+                        0x10000 + ((u32::from(first) - 0xd800) << 10) + (u32::from(second) - 0xdc00),
+                        2,
+                    )
+                } else {
+                    (u32::from(first), 1)
+                }
+            }
+        };
+        index += length;
+
+        if code_point == u32::from(b'\r') {
+            if last_was_carriage_return {
+                output.push(u16::from(b'\n'));
+            } else {
+                last_was_carriage_return = true;
+            }
+            continue;
+        }
+
+        if last_was_carriage_return {
+            output.push(u16::from(b'\n'));
+        }
+
+        match code_point {
+            value if value == u32::from(b'\n') => {
+                if !last_was_carriage_return {
+                    output.push(u16::from(b'\n'));
+                }
+            }
+            value if value == u32::from(b'\x0c') => output.push(u16::from(b'\n')),
+            0 | 0xd800..=0xdfff => output.push(REPLACEMENT_CHARACTER as u16),
+            value if value <= u32::from(u16::MAX) => output.push(value as u16),
+            value => {
+                let value = value - 0x10000;
+                output.push(0xd800 | (value >> 10) as u16);
+                output.push(0xdc00 | (value & 0x3ff) as u16);
+            }
+        }
+        last_was_carriage_return = false;
+    }
+
+    // NB: The former C++ RustTokenizer::normalize_input() did not flush a
+    // trailing carriage return. Keep that observable behavior while moving
+    // filtering across the FFI boundary.
+    FilteredTokenizerInput::Owned(output)
+}
+
 impl<'a> From<ak::Utf16StringUnits<'a>> for TokenizerInput<'a> {
     fn from(value: ak::Utf16StringUnits<'a>) -> Self {
         match value {
@@ -554,14 +661,20 @@ fn tokenize_for_parser_internal<'a>(
     let estimated_token_count = input.len() / 3;
     let mut tokens = Vec::with_capacity(estimated_token_count);
     let mut string_storage = Vec::with_capacity(input.len() / 2);
-    let source_storage = Rc::new(match input {
-        TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
-        TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
-    });
-    tokenize(input, |token, _| {
+    let mut source_storage = None;
+    tokenize(input, |token, filtered_input| {
         if matches!(token.token_type, TokenType::EndOfFile) {
             return;
         }
+        // Copy the filtered source only when tokens will keep slices into it.
+        let source_storage = retain_original_source.then(|| {
+            source_storage.get_or_insert_with(|| {
+                Rc::new(match filtered_input {
+                    TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
+                    TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
+                })
+            })
+        });
         let mut string = |value: &[u16]| {
             let start = string_storage.len();
             string_storage.extend_from_slice(value);
@@ -607,17 +720,11 @@ fn tokenize_for_parser_internal<'a>(
             TokenType::CloseCurly => ParserTokenKind::CloseCurly,
             TokenType::EndOfFile => unreachable!(),
         };
-        let source = if retain_original_source {
-            token.original_source_range.clone()
-        } else {
-            0..0
-        };
         tokens.push(ParserToken {
             kind,
-            source: if retain_original_source {
-                ParserSource::shared(source_storage.clone(), source)
-            } else {
-                ParserSource::Empty
+            source: match source_storage {
+                Some(storage) => ParserSource::shared(storage.clone(), token.original_source_range.clone()),
+                None => ParserSource::Empty,
             },
             start_position: token.range.start,
             end_position: token.range.end,
@@ -632,12 +739,15 @@ fn tokenize_for_parser_internal<'a>(
 
 pub(crate) fn tokenize_owned<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<OwnedToken> {
     let input = input.into();
-    let storage = Rc::new(match input {
-        TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
-        TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
-    });
+    let mut storage = None;
     let mut tokens = Vec::new();
-    tokenize(input, |token, _| {
+    tokenize(input, |token, filtered_input| {
+        let storage = storage.get_or_insert_with(|| {
+            Rc::new(match filtered_input {
+                TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
+                TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
+            })
+        });
         if matches!(token.token_type, TokenType::EndOfFile) {
             return;
         }
@@ -749,11 +859,12 @@ impl Token {
     }
 }
 
-pub(crate) fn tokenize<F>(filtered_input: TokenizerInput<'_>, callback: F)
+pub(crate) fn tokenize<F>(input: TokenizerInput<'_>, callback: F)
 where
     F: FnMut(&Token, TokenizerInput<'_>),
 {
-    Tokenizer::new(filtered_input).tokenize(callback);
+    let filtered_input = filter_code_points(input);
+    Tokenizer::new(filtered_input.as_input()).tokenize(callback);
 }
 
 struct Tokenizer<'a> {
@@ -2027,34 +2138,7 @@ mod tests {
         format!("{name}({})", fields.join(", "))
     }
 
-    fn normalize_utf16(input: Vec<u16>) -> Vec<u16> {
-        let mut output = Vec::with_capacity(input.len());
-        let mut index = 0;
-        while index < input.len() {
-            match input[index] {
-                0x0d if input.get(index + 1) == Some(&0x0a) => {
-                    output.push(0x0a);
-                    index += 2;
-                }
-                0x0d | 0x0c => {
-                    output.push(0x0a);
-                    index += 1;
-                }
-                0 => {
-                    output.push(REPLACEMENT_CHARACTER as u16);
-                    index += 1;
-                }
-                value => {
-                    output.push(value);
-                    index += 1;
-                }
-            }
-        }
-        output
-    }
-
     fn check_tokenizer_corpus(input: Vec<u16>, expected: &str) {
-        let input = normalize_utf16(input);
         let mut actual = Vec::new();
         tokenize(TokenizerInput::Utf16(&input), |token, input| {
             actual.push(debug_token(token, input));
@@ -2133,6 +2217,48 @@ mod tests {
         let utf16 = ascii.iter().copied().map(u16::from).collect::<Vec<_>>();
 
         assert_eq!(tokenize_owned(ascii), tokenize_owned(&utf16));
+    }
+
+    #[test]
+    fn filters_code_points_before_tokenizing() {
+        let unfiltered = vec![
+            b'a' as u16,
+            b'\r' as u16,
+            b'b' as u16,
+            b'\r' as u16,
+            b'\n' as u16,
+            b'c' as u16,
+            b'\x0c' as u16,
+            b'd' as u16,
+            0,
+            b'e' as u16,
+            0xd800,
+            b'f' as u16,
+        ];
+        let filtered = "a\nb\nc\nd\u{fffd}e\u{fffd}f".encode_utf16().collect::<Vec<_>>();
+
+        assert_eq!(tokenize_owned(&unfiltered), tokenize_owned(&filtered));
+    }
+
+    #[test]
+    fn clean_input_is_not_copied_by_code_point_filtering() {
+        let input = b"color: red";
+        let FilteredTokenizerInput::Borrowed(TokenizerInput::Ascii(filtered)) =
+            filter_code_points(TokenizerInput::Ascii(input))
+        else {
+            panic!("clean input should remain borrowed");
+        };
+        assert!(std::ptr::eq(input.as_ptr(), filtered.as_ptr()));
+    }
+
+    #[test]
+    fn filtering_preserves_trailing_carriage_return_oracle_behavior() {
+        let FilteredTokenizerInput::Owned(filtered) =
+            filter_code_points(TokenizerInput::Utf16(&[b'a' as u16, b'\r' as u16]))
+        else {
+            panic!("a carriage return should require filtering");
+        };
+        assert_eq!(filtered, vec![b'a' as u16]);
     }
 
     #[test]
