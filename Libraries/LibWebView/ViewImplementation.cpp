@@ -319,6 +319,11 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
     m_top_level_traversable.set_system_visibility_state(visibility_state);
     client().async_set_system_visibility_state(m_client_state.page_index, visibility_state);
+    m_top_level_traversable.for_each_in_subtree([&](CanonicalNavigable& navigable) {
+        if (navigable.has_remote_host())
+            navigable.remote_host_client().async_set_system_visibility_state(navigable.remote_host_page_id(), visibility_state);
+        return IterationDecision::Continue;
+    });
 }
 
 void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
