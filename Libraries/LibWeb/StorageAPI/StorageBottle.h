@@ -8,7 +8,11 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
 #include <AK/String.h>
+#include <AK/WeakPtr.h>
+#include <AK/Weakable.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
@@ -21,6 +25,29 @@
 namespace Web::StorageAPI {
 
 using StorageSetResult = Variant<WebView::StorageOperationError, Optional<Utf16String>>;
+
+// The storage map for one endpoint and storage key — shared by every bottle in this process that addresses it. Reads
+// are answered from here, rather than from a synchronous round trip to the process that owns the store — so two windows
+// of the same origin can't observe different maps.
+class CachedStorageMap : public RefCounted<CachedStorageMap>
+    , public Weakable<CachedStorageMap> {
+public:
+    OrderedHashMap<Utf16String, Utf16String> entries;
+    // Bytes these entries contribute toward the storage key's quota, maintained the way the owning
+    // process maintains it so both agree on when a write does not fit.
+    u64 quota_used { 0 };
+    bool primed { false };
+};
+
+// The cached map for one endpoint and cache key — created empty, and unprimed on first ask. The cache key has to
+// partition maps exactly the way the owning process does when it resolves a store. Otherwise, two distinct maps would
+// share one cache: local storage is per storage key, while session storage is additionally per-page — because the owner
+// resolves it through that page's top-level traversable.
+NonnullRefPtr<CachedStorageMap> cached_storage_map(StorageEndpointType, String const& cache_key);
+String storage_cache_key(StorageEndpointType, String const& storage_key);
+
+// Drop every cached map for one endpoint and storage key — whatever traversable each was partitioned under.
+WEB_API void invalidate_cached_storage_maps(StorageEndpointType, String const& storage_key);
 
 // https://storage.spec.whatwg.org/#storage-bottle
 class StorageBottle : public GC::Cell {
@@ -44,12 +71,14 @@ public:
     Optional<u64> quota() const { return m_quota; }
 
 protected:
-    explicit StorageBottle(Optional<u64> quota)
+    StorageBottle(Optional<u64> quota, StorageEndpointType endpoint_type, String const& storage_key)
         : m_quota(quota)
+        , m_cache(cached_storage_map(endpoint_type, storage_cache_key(endpoint_type, storage_key)))
     {
     }
 
     Optional<u64> m_quota;
+    NonnullRefPtr<CachedStorageMap> m_cache;
 };
 
 class LocalStorageBottle final : public StorageBottle {
@@ -72,8 +101,10 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
+    void ensure_primed() const;
+
     explicit LocalStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
-        : StorageBottle(quota)
+        : StorageBottle(quota, endpoint_type, key.to_string())
         , m_page(move(page))
         , m_endpoint_type(endpoint_type)
         , m_storage_key(move(key))
@@ -107,8 +138,10 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
+    void ensure_primed() const;
+
     explicit SessionStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
-        : StorageBottle(quota)
+        : StorageBottle(quota, endpoint_type, key.to_string())
         , m_page(move(page))
         , m_endpoint_type(endpoint_type)
         , m_storage_key(move(key))

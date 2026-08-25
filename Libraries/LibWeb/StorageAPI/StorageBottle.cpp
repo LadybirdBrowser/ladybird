@@ -99,76 +99,288 @@ GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageType typ
     return SessionStorageBottle::create(page, key, quota);
 }
 
+static HashMap<String, WeakPtr<CachedStorageMap>>& storage_map_registry(StorageEndpointType endpoint_type)
+{
+    // Weak — so a map lives exactly as long as some bottle addresses it. Otherwise, a registry owning the maps would
+    // retain every map this process ever primed — for every traversable it ever had.
+    using Registry = Array<HashMap<String, WeakPtr<CachedStorageMap>>, to_underlying(StorageEndpointType::Count)>;
+    // Outlives the process, rather than running a destructor at exit.
+    static Registry* registries = new Registry;
+    return (*registries)[to_underlying(endpoint_type)];
+}
+
+// Bytes one string contributes toward a storage key's quota. The owning process measures the same way — so a write this
+// process accepts is a write that process also accepts.
+static u64 storage_quota_size(Utf16String const& string)
+{
+    auto utf8_string = string.to_utf8();
+    return utf8_string.bytes().size();
+}
+
+void invalidate_cached_storage_maps(StorageEndpointType endpoint_type, String const& storage_key)
+{
+    for (auto& entry : storage_map_registry(endpoint_type)) {
+        // A session storage cache key carries the page it was partitioned under ahead of the storage key — so, match
+        // either the whole key or that trailing component.
+        auto const& cache_key = entry.key;
+        if (cache_key != storage_key && !cache_key.ends_with_bytes(MUST(String::formatted("/{}", storage_key))))
+            continue;
+        auto map = entry.value.strong_ref();
+        if (!map)
+            continue;
+        map->entries.clear();
+        map->quota_used = 0;
+        map->primed = false;
+    }
+}
+
+static u64 next_session_storage_cache_id()
+{
+    static u64 last_id = 0;
+    return ++last_id;
+}
+
+String storage_cache_key(StorageEndpointType endpoint_type, String const& storage_key)
+{
+    // Session storage has exactly one bottle per traversable and storage key: The shed hands out one shelf per storage
+    // key, and one bottle per endpoint within it. So a session bottle is not one of several addressing a map — it's the
+    // only one, and its cache is its own. That also keeps this off the page's top level traversable — which isn't set
+    // yet while an auxiliary page's session storage is being cloned.
+    if (endpoint_type == StorageEndpointType::SessionStorage)
+        return MUST(String::formatted("{}/{}", next_session_storage_cache_id(), storage_key));
+
+    // Local storage bottles are made one per document, so every bottle for a storage key has to find the same map.
+    return storage_key;
+}
+
+NonnullRefPtr<CachedStorageMap> cached_storage_map(StorageEndpointType endpoint_type, String const& cache_key)
+{
+    auto& registry = storage_map_registry(endpoint_type);
+    if (auto existing = registry.find(cache_key); existing != registry.end()) {
+        if (auto live = existing->value.strong_ref())
+            return live.release_nonnull();
+    }
+
+    // A weak reference dies with the last bottle addressing it — but its key doesn't. A session-storage key names one
+    // bottle, and is never asked for again — so without this, every page ever closed would leave one behind. Sweep them
+    // when a new map is made — which is the only moment this registry grows.
+    registry.remove_all_matching([](auto const&, auto const& map) { return !map.strong_ref(); });
+
+    auto map = adopt_ref(*new CachedStorageMap);
+    registry.set(cache_key, map->make_weak_ptr());
+    return map;
+}
+
+void LocalStorageBottle::ensure_primed() const
+{
+    if (m_cache->primed)
+        return;
+
+    Vector<Utf16String> keys;
+    Vector<Utf16String> values;
+    m_page->client().page_did_request_storage_entries(m_endpoint_type, m_storage_key.to_string(), keys, values);
+
+    // The owner sends one value per key. Taking the shorter of the two would prime a map that's quietly missing
+    // entries — and nothing downstream could tell that from an empty bottle.
+    VERIFY(keys.size() == values.size());
+
+    for (size_t i = 0; i < keys.size(); ++i) {
+        m_cache->quota_used += storage_quota_size(keys[i]) + storage_quota_size(values[i]);
+        m_cache->entries.set(keys[i], values[i]);
+    }
+    m_cache->primed = true;
+}
+
+size_t LocalStorageBottle::size() const
+{
+    ensure_primed();
+    return m_cache->entries.size();
+}
+
+Vector<Utf16String> LocalStorageBottle::keys() const
+{
+    ensure_primed();
+    Vector<Utf16String> keys;
+    keys.ensure_capacity(m_cache->entries.size());
+    for (auto const& entry : m_cache->entries)
+        keys.unchecked_append(entry.key);
+    return keys;
+}
+
+Optional<Utf16String> LocalStorageBottle::get(Utf16View key) const
+{
+    ensure_primed();
+    auto entry = m_cache->entries.find(Utf16String::from_utf16(key));
+    if (entry == m_cache->entries.end())
+        return {};
+    return entry->value;
+}
+
+StorageSetResult LocalStorageBottle::set(Utf16View key, Utf16View value)
+{
+    // OPTIMIZATION: An item too large to ever fit is rejected before priming — so storing one enormous string into an
+    // origin this process hasn't read yet costs no round trip. Quota is measured in UTF-8 bytes, and a UTF-16 code unit
+    // never encodes to fewer than one of those. So, the code unit count is a lower bound — and exceeding the quota with
+    // it means exceeding the quota outright.
+    if (m_quota.has_value() && key.length_in_code_units() + value.length_in_code_units() > *m_quota)
+        return WebView::StorageOperationError::QuotaExceededError;
+
+    ensure_primed();
+    auto owned_key = Utf16String::from_utf16(key);
+    auto owned_value = Utf16String::from_utf16(value);
+
+    Optional<Utf16String> old_value;
+    u64 replaced_size = 0;
+    if (auto existing = m_cache->entries.find(owned_key); existing != m_cache->entries.end()) {
+        old_value = existing->value;
+        replaced_size = storage_quota_size(owned_key) + storage_quota_size(existing->value);
+    }
+
+    // INTEROP: This answers quota from the cache and sends the write without waiting — so a refusal the owner makes
+    //          afterwards reaches no one. Chromium decides the same way — from its renderer-local StorageAreaMap in
+    //          CachedStorageArea::SetItem() — and discards what the browser process answers. Waiting for that answer
+    //          would put a sync round trip back on every write — which is exactly the cost this cache exists to remove.
+    //          The owner still refuses a write that doesn't fit – so nothing over quota is persisted. And it tells this
+    //          process to drop the map — so what gets read afterwards is right.
+    auto new_size = storage_quota_size(owned_key) + storage_quota_size(owned_value);
+    auto used_after = m_cache->quota_used - replaced_size + new_size;
+    if (m_quota.has_value() && used_after > *m_quota)
+        return WebView::StorageOperationError::QuotaExceededError;
+
+    m_cache->quota_used = used_after;
+    m_cache->entries.set(owned_key, owned_value);
+    m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), owned_key, owned_value);
+    return old_value;
+}
+
+void LocalStorageBottle::clear()
+{
+    m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
+    m_cache->entries.clear();
+    m_cache->quota_used = 0;
+    m_cache->primed = true;
+}
+
+void LocalStorageBottle::remove(Utf16View key)
+{
+    ensure_primed();
+    auto owned_key = Utf16String::from_utf16(key);
+    if (auto existing = m_cache->entries.find(owned_key); existing != m_cache->entries.end())
+        m_cache->quota_used -= storage_quota_size(owned_key) + storage_quota_size(existing->value);
+    m_cache->entries.remove(owned_key);
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), owned_key);
+}
+
 void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
 }
 
-size_t LocalStorageBottle::size() const
+void SessionStorageBottle::ensure_primed() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
+    if (m_cache->primed)
+        return;
+
+    Vector<Utf16String> keys;
+    Vector<Utf16String> values;
+    m_page->client().page_did_request_storage_entries(m_endpoint_type, m_storage_key.to_string(), keys, values);
+
+    // The owner sends one value per key. Taking the shorter of the two would prime a map that is
+    // quietly missing entries, and nothing downstream could tell that from an empty bottle.
+    VERIFY(keys.size() == values.size());
+
+    for (size_t i = 0; i < keys.size(); ++i) {
+        m_cache->quota_used += storage_quota_size(keys[i]) + storage_quota_size(values[i]);
+        m_cache->entries.set(keys[i], values[i]);
+    }
+    m_cache->primed = true;
 }
 
-Vector<Utf16String> LocalStorageBottle::keys() const
+size_t SessionStorageBottle::size() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
+    ensure_primed();
+    return m_cache->entries.size();
 }
 
-Optional<Utf16String> LocalStorageBottle::get(Utf16View key) const
+Vector<Utf16String> SessionStorageBottle::keys() const
 {
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
+    ensure_primed();
+    Vector<Utf16String> keys;
+    keys.ensure_capacity(m_cache->entries.size());
+    for (auto const& entry : m_cache->entries)
+        keys.unchecked_append(entry.key);
+    return keys;
 }
 
-StorageSetResult LocalStorageBottle::set(Utf16View key, Utf16View value)
+Optional<Utf16String> SessionStorageBottle::get(Utf16View key) const
 {
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key), Utf16String::from_utf16(value));
+    ensure_primed();
+    auto entry = m_cache->entries.find(Utf16String::from_utf16(key));
+    if (entry == m_cache->entries.end())
+        return {};
+    return entry->value;
 }
 
-void LocalStorageBottle::clear()
+StorageSetResult SessionStorageBottle::set(Utf16View key, Utf16View value)
+{
+    // OPTIMIZATION: An item too large to ever fit is rejected before priming — so storing one enormous string into an
+    // origin this process hasn't read yet costs no round trip. Quota is measured in UTF-8 bytes, and a UTF-16 code unit
+    // never encodes to fewer than one of those. So, the code unit count is a lower bound — and exceeding the quota with
+    // it means exceeding the quota outright.
+    if (m_quota.has_value() && key.length_in_code_units() + value.length_in_code_units() > *m_quota)
+        return WebView::StorageOperationError::QuotaExceededError;
+
+    ensure_primed();
+    auto owned_key = Utf16String::from_utf16(key);
+    auto owned_value = Utf16String::from_utf16(value);
+
+    Optional<Utf16String> old_value;
+    u64 replaced_size = 0;
+    if (auto existing = m_cache->entries.find(owned_key); existing != m_cache->entries.end()) {
+        old_value = existing->value;
+        replaced_size = storage_quota_size(owned_key) + storage_quota_size(existing->value);
+    }
+
+    // INTEROP: This answers quota from the cache and sends the write without waiting — so a refusal the owner makes
+    //          afterwards reaches no one. Chromium decides the same way — from its renderer-local StorageAreaMap in
+    //          CachedStorageArea::SetItem() — and discards what the browser process answers. Waiting for that answer
+    //          would put a sync round trip back on every write — which is exactly the cost this cache exists to remove.
+    //          The owner still refuses a write that doesn't fit – so nothing over quota is persisted. And it tells this
+    //          process to drop the map — so what gets read afterwards is right.
+    auto new_size = storage_quota_size(owned_key) + storage_quota_size(owned_value);
+    auto used_after = m_cache->quota_used - replaced_size + new_size;
+    if (m_quota.has_value() && used_after > *m_quota)
+        return WebView::StorageOperationError::QuotaExceededError;
+
+    m_cache->quota_used = used_after;
+    m_cache->entries.set(owned_key, owned_value);
+    m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), owned_key, owned_value);
+    return old_value;
+}
+
+void SessionStorageBottle::clear()
 {
     m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
+    m_cache->entries.clear();
+    m_cache->quota_used = 0;
+    m_cache->primed = true;
 }
 
-void LocalStorageBottle::remove(Utf16View key)
+void SessionStorageBottle::remove(Utf16View key)
 {
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
+    ensure_primed();
+    auto owned_key = Utf16String::from_utf16(key);
+    if (auto existing = m_cache->entries.find(owned_key); existing != m_cache->entries.end())
+        m_cache->quota_used -= storage_quota_size(owned_key) + storage_quota_size(existing->value);
+    m_cache->entries.remove(owned_key);
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), owned_key);
 }
 
 void SessionStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
-}
-
-size_t SessionStorageBottle::size() const
-{
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
-}
-
-Vector<Utf16String> SessionStorageBottle::keys() const
-{
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
-}
-
-Optional<Utf16String> SessionStorageBottle::get(Utf16View key) const
-{
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
-}
-
-StorageSetResult SessionStorageBottle::set(Utf16View key, Utf16View value)
-{
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key), Utf16String::from_utf16(value));
-}
-
-void SessionStorageBottle::clear()
-{
-    m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
-}
-
-void SessionStorageBottle::remove(Utf16View key)
-{
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
 }
 
 void SessionStorageBottle::copy_map_from(SessionStorageBottle const& other)
