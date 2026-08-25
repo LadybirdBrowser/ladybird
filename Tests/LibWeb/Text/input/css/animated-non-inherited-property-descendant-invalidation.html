@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    #decorationInheritor {
+        text-decoration-line: inherit;
+    }
+    #transformInheritor {
+        transform: inherit;
+    }
+</style>
+<div id="plainContainer">
+    <div><span>a</span></div>
+    <div><span>b</span></div>
+</div>
+<div id="decorationContainer">
+    <div id="decorationInheritor"><span>c</span></div>
+</div>
+<div id="transformContainer">
+    <div id="transformInheritor"><span>d</span></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const keyframes = [{ transform: "translateY(0)" }, { transform: "translateY(-100px)" }];
+
+        async function descendantsRecomputedDuringAnimationUpdate(container) {
+            const animation = container.animate(keyframes, { duration: 1000 });
+            animation.pause();
+            animation.currentTime = 250;
+            await animation.ready;
+            await animationFrame();
+            internals.resetStyleInvalidationCounters();
+            animation.currentTime = 500;
+            getComputedStyle(container).transform;
+            const counters = internals.getStyleInvalidationCounters();
+            animation.cancel();
+            return counters.elementStyleRecomputations + counters.elementInheritedStyleRecomputations > 0;
+        }
+
+        println(`plain descendants recomputed: ${await descendantsRecomputedDuringAnimationUpdate(plainContainer)}`);
+        println(
+            `text-decoration-line inheritor recomputed: ${await descendantsRecomputedDuringAnimationUpdate(decorationContainer)}`
+        );
+        println(
+            `transform inheritor recomputed: ${await descendantsRecomputedDuringAnimationUpdate(transformContainer)}`
+        );
+    });
+</script>
