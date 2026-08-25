@@ -32,6 +32,7 @@ WEB_API i32 rust_css_pixels_divide_as_fraction(i32 numerator, i32 denominator);
 WEB_API i32 rust_css_pixels_nearest_value_for(double value);
 WEB_API i32 rust_css_pixels_scaled(i32 value, double factor);
 
-WEB_API StyleValueFFI::FfiNumericType invoke_rust_numeric_type_operate(u8 operation, StyleValueFFI::FfiNumericType const* first, StyleValueFFI::FfiNumericType const* second);
+WEB_API StyleValueFFI::FfiNumericType invoke_rust_numeric_type_operate(StyleValueFFI::FfiNumericTypeOperation operation, StyleValueFFI::FfiNumericType const* first, StyleValueFFI::FfiNumericType const* second, u8 parameter);
+WEB_API bool invoke_rust_numeric_type_matches(StyleValueFFI::FfiNumericTypeMatch match_kind, StyleValueFFI::FfiNumericType const* numeric_type, u8 base_type, bool has_percentages_resolve_as, u8 percentages_resolve_as);
 
 }
