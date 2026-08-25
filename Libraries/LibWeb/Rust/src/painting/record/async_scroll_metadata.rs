@@ -187,18 +187,14 @@ impl PaintRecorder<'_> {
             });
     }
 
-    fn record_blocking_wheel_event_region(
-        &mut self,
-        paintable: NodeSlotId,
-        facts: &crate::painting::host::FfiAsyncScrollFacts,
-    ) {
+    fn record_blocking_wheel_event_region(&mut self, paintable: NodeSlotId) {
         if self.inputs.has_blocking_wheel_event_region_covering_viewport {
             return;
         }
         if !self.is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
             return;
         }
-        if !facts.inside_blocking_wheel_event_handler {
+        if !self.hit_test_facts(paintable).inside_blocking_wheel_event_handler {
             return;
         }
         let rect = css_rect_to_device_rect(
@@ -331,7 +327,7 @@ impl PaintRecorder<'_> {
         let facts = self.paint_host.async_scroll_facts(self.layout_node_shell(paintable));
 
         self.record_wheel_hit_test_target(paintable);
-        self.record_blocking_wheel_event_region(paintable, &facts);
+        self.record_blocking_wheel_event_region(paintable);
 
         if facts.is_nested_navigable_container {
             self.record_main_thread_wheel_event_region(paintable);

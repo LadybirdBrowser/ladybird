@@ -58,6 +58,7 @@
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
+#include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -709,22 +710,10 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
         .paintable_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiHitTestPaintableFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiHitTestPaintableFacts facts {};
-            facts.opacity_is_zero = layout_node.opacity() == 0;
-            facts.visible_for_hit_testing = visible_for_hit_testing(layout_node);
             auto dom_node = layout_node.dom_node();
+            facts.is_inert = dom_node && dom_node->is_inert();
             facts.dom_node_has_parent = dom_node && dom_node->parent();
             facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
-            facts.has_resizer = has_resizer(layout_node);
-            auto wheel_scrollable_axes = Painting::wheel_scrollable_axes(layout_node);
-            facts.could_be_scrolled_horizontally = wheel_scrollable_axes.horizontal;
-            facts.could_be_scrolled_vertically = wheel_scrollable_axes.vertical;
-            if (is_svg_path_paintable(layout_node)) {
-                auto const& graphics_element = as<SVG::SVGGraphicsElement>(*dom_node);
-                facts.svg_path_has_fill = graphics_element.fill_color().has_value();
-                facts.svg_path_winding_rule = graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero) == SVG::FillRule::Evenodd
-                    ? Gfx::WindingRule::EvenOdd
-                    : Gfx::WindingRule::Nonzero;
-            }
             if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node); graphics_element && graphics_element->unsafe_layout_node()) {
                 for (auto child = graphics_element->unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
                     if (child->kind() == Layout::RustFFI::NodeKind::SVGMaskBox)
@@ -733,15 +722,13 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                         facts.svg_clip_path_units_object_bbox = as<SVG::SVGClipPathElement>(*child->dom_node()).clip_path_units() == SVG::ClipPathUnits::ObjectBoundingBox;
                 }
             }
+            facts.inside_blocking_wheel_event_handler = dom_node && dom_node->inside_blocking_wheel_event_handler();
             return facts;
         },
         .text_node_facts = [](void*, void* node_shell) -> Layout::RustFFI::FfiHitTestTextNodeFacts {
             auto const& text_node = *static_cast<Layout::TextNode const*>(node_shell);
-            auto const& style_source = *text_node.parent();
             auto const* dom_text = text_node.dom_text();
             return {
-                .parent_opacity_is_zero = style_source.opacity() == 0,
-                .parent_pointer_events_none = style_source.pointer_events() == CSS::PointerEvents::None,
                 .is_inert = dom_text && dom_text->is_inert(),
             };
         },
@@ -817,7 +804,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.snaps_scroll_position_horizontally = snap_axes.x;
                 facts.snaps_scroll_position_vertically = snap_axes.y;
             }
-            facts.inside_blocking_wheel_event_handler = dom_node && dom_node->inside_blocking_wheel_event_handler();
             facts.records_viewport_scrollbars = is_viewport_paintable(layout_node)
                 && layout_node.document().page().async_scrolling_enabled()
                 && should_paint_viewport_scrollbars()
@@ -1377,6 +1363,8 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     inputs.is_recording_async_scrolling_metadata = true;
     inputs.document_id = document.unique_id().value();
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
+    inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal)));
+    inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Vertical)));
     inputs.paint_command_cache_read_write = cache_mode == PaintCommandCacheMode::ReadWrite;
     inputs.display_list_id = placeholder_display_list.id();
     {

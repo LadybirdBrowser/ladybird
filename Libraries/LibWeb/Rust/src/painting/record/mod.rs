@@ -19,8 +19,8 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiHitTestPaintableFacts, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks,
-    FfiRecordingInputs, FfiVisualContextHostCallbacks,
+    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks, FfiRecordingInputs,
+    FfiVisualContextHostCallbacks,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -84,7 +84,7 @@ pub struct PaintRecorder<'a> {
     uncacheable_paint_generation: u64,
     list: HitTestList,
     base_paint_facts_cache: Vec<Option<(NodeSlotId, BasePaintFacts)>>,
-    paintable_facts_cache: Vec<Option<(NodeSlotId, FfiHitTestPaintableFacts)>>,
+    paintable_facts_cache: Vec<Option<(NodeSlotId, hit_test_items::HitTestFacts)>>,
     pub(crate) absolute_position_cache: Vec<std::cell::Cell<Option<(NodeSlotId, crate::layout::FfiCssPixelPoint)>>>,
     // Validity checks must compare against this recording-start snapshot, not the live per-row
     // cell: the first phase that re-records a moved row updates the cell, and later phases
@@ -125,18 +125,19 @@ impl<'a> PaintRecorder<'a> {
         self.layout_arena.shell_if_live(paintable)
     }
 
-    pub(crate) fn hit_test_facts(&mut self, paintable: NodeSlotId) -> FfiHitTestPaintableFacts {
+    pub(crate) fn hit_test_facts(&mut self, paintable: NodeSlotId) -> hit_test_items::HitTestFacts {
         self.paintable_facts(paintable)
     }
 
-    fn paintable_facts(&mut self, paintable: NodeSlotId) -> FfiHitTestPaintableFacts {
+    fn paintable_facts(&mut self, paintable: NodeSlotId) -> hit_test_items::HitTestFacts {
         let index = paintable.slot_index() as usize;
         if let Some((memoized_id, facts)) = self.paintable_facts_cache[index]
             && memoized_id == paintable
         {
             return facts;
         }
-        let facts = self.host.paintable_facts(self.layout_node_shell(paintable));
+        let dom_facts = self.host.paintable_facts(self.layout_node_shell(paintable));
+        let facts = hit_test_items::hit_test_facts(self.layout_arena, paintable, &self.inputs, dom_facts);
         self.paintable_facts_cache[index] = Some((paintable, facts));
         facts
     }
@@ -299,7 +300,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn is_visible(&mut self, paintable: NodeSlotId) -> bool {
-        self.visibility_is_visible(paintable) && !self.paintable_facts(paintable).opacity_is_zero
+        self.base_paint_facts(paintable).is_visible
     }
 
     pub(crate) fn visible_for_hit_testing(&mut self, paintable: NodeSlotId) -> bool {

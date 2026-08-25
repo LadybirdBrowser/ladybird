@@ -6,6 +6,7 @@
 
 pub mod border_radii;
 mod caret;
+pub(crate) mod chrome_geometry;
 mod devtools_layout;
 pub mod display_list;
 mod dump;

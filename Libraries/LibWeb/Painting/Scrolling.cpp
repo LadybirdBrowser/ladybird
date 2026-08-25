@@ -114,7 +114,7 @@ CSSPixelRect scroll_snapport_rect(Layout::Node const& node, CSSPixelRect scrollp
     return scrollport;
 }
 
-static CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, ScrollDirection direction)
+CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, ScrollDirection direction)
 {
     auto overflow_for_direction = [direction](CSS::ComputedValues::BoxValues const& style) {
         return direction == ScrollDirection::Horizontal
