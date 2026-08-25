@@ -180,10 +180,6 @@ private:
     Optional<ImportPrelude> parse_import_prelude(AtRule const&);
     Optional<Vector<u32>> parse_font_feature_values(Declaration const&, size_t max_value_count);
     Optional<FunctionPrelude> parse_function_prelude(AtRule const&);
-    bool is_valid_in_the_current_context(Declaration const&) const;
-    bool is_valid_in_the_current_context(AtRule const&) const;
-    bool is_valid_in_the_current_context(QualifiedRule const&) const;
-
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
