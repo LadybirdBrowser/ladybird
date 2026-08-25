@@ -159,6 +159,23 @@ private:
         No,
         Yes,
     };
+    enum class ParseContextMode {
+        Syntax,
+        Value,
+        RegisteredSyntax,
+    };
+    // Self-referential: `context.value_contexts` points into this object.
+    struct ParseContextStorage {
+        AK_MAKE_NONCOPYABLE(ParseContextStorage);
+        AK_MAKE_NONMOVABLE(ParseContextStorage);
+
+    public:
+        ParseContextStorage(Parser&, ParseContextMode, Optional<PropertyID>);
+
+        Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
+        ValueParserFFI::FfiValueParsingContext single_property_context {};
+        ValueParserFFI::ParseContext context {};
+    };
 
     static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
     template<typename NestedDeclarationsRule>
@@ -195,6 +212,7 @@ private:
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Optional<PropertyID> direct_property_context = {});
+    ParseContextStorage make_parse_context(ParseContextMode, Optional<PropertyID> direct_property_context = {});
     static bool has_ignored_vendor_prefix(Utf16View);
 
     void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);

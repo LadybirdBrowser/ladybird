@@ -11,7 +11,9 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/StyleValueRustFFI.h>
@@ -51,6 +53,118 @@ static bool rust_font_tech_is_supported(u8 tech)
     return font_tech_is_supported(static_cast<FontTech>(tech));
 }
 
+static bool resolve_descriptor_integer(void const* document_pointer, void const* value_pointer, i32* result)
+{
+    auto const* document = static_cast<DOM::Document const*>(document_pointer);
+    if (!document || !result)
+        return false;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+        static_cast<StyleValueFFI::StyleValueData const*>(value_pointer)));
+    if (value->is_integer()) {
+        *result = value->as_integer().integer();
+        return true;
+    }
+    if (!value->is_calculated())
+        return false;
+    auto absolutized = value->absolutized(ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) });
+    if (absolutized->is_integer()) {
+        *result = absolutized->as_integer().integer();
+        return true;
+    }
+    if (!absolutized->is_calculated())
+        return false;
+    auto resolved = absolutized->as_calculated().resolve_integer({});
+    if (!resolved.has_value())
+        return false;
+    *result = resolved.value();
+    return true;
+}
+
+Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMode mode, Optional<PropertyID> direct_property_context)
+{
+    if (mode != ParseContextMode::Syntax) {
+        if (direct_property_context.has_value()) {
+            VERIFY(parser.m_value_context.is_empty());
+            single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+            single_property_context.value = to_underlying(*direct_property_context);
+            context.value_contexts = &single_property_context;
+            context.value_context_count = 1;
+        } else if (parser.m_value_context.size() == 1 && parser.m_value_context[0].has<PropertyID>()) {
+            single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+            single_property_context.value = to_underlying(parser.m_value_context[0].get<PropertyID>());
+            context.value_contexts = &single_property_context;
+            context.value_context_count = 1;
+        } else {
+            value_contexts.ensure_capacity(parser.m_value_context.size());
+            for (auto const& value_context : parser.m_value_context) {
+                ValueParserFFI::FfiValueParsingContext ffi_context {};
+                value_context.visit(
+                    [&](PropertyID property_id) {
+                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+                        ffi_context.value = to_underlying(property_id);
+                    },
+                    [&](FunctionContext const& function_context) {
+                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
+                        ffi_context.name = ffi_utf16_view(function_context.name);
+                    },
+                    [&](DescriptorContext const& descriptor_context) {
+                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
+                        ffi_context.value = to_underlying(descriptor_context.at_rule);
+                        ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
+                    },
+                    [&](SpecialContext special_context) {
+                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
+                        ffi_context.value = to_underlying(special_context);
+                    });
+                value_contexts.append(ffi_context);
+            }
+            context.value_contexts = value_contexts.data();
+            context.value_context_count = value_contexts.size();
+        }
+    }
+
+    ReadonlyBytes document_url;
+    ReadonlyBytes document_base_url;
+    if (parser.m_document) {
+        if (!parser.m_serialized_document_url.has_value())
+            parser.m_serialized_document_url = parser.m_document->url().serialize();
+        if (!parser.m_serialized_document_base_url.has_value())
+            parser.m_serialized_document_base_url = parser.m_document->base_url().serialize();
+        document_url = parser.m_serialized_document_url->bytes();
+        document_base_url = parser.m_serialized_document_base_url->bytes();
+    }
+
+    bool provide_value_callbacks = mode != ParseContextMode::RegisteredSyntax;
+    bool provide_descriptor_resolution = mode == ParseContextMode::Syntax;
+    context = {
+        .in_quirks_mode = parser.in_quirks_mode(),
+        .is_svg_presentation_attribute = parser.is_parsing_svg_presentation_attribute(),
+        .is_substituted_value = false,
+        .contains_attr_tainted_values = false,
+        .is_ua_style_sheet = mode == ParseContextMode::Syntax && parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes,
+        .value_contexts = context.value_contexts,
+        .value_context_count = context.value_context_count,
+        .document_url = document_url.data(),
+        .document_url_length = document_url.size(),
+        .document_base_url = document_base_url.data(),
+        .document_base_url_length = document_base_url.size(),
+        .intern_utf16_fly_string = retain_utf16_fly_string,
+        .normalize_svg_path_data = provide_value_callbacks ? normalize_svg_path_data : nullptr,
+        .precomputed_svg_paths = nullptr,
+        .precomputed_svg_path_count = 0,
+        .font_format_is_supported = provide_value_callbacks ? rust_font_format_is_supported : nullptr,
+        .font_tech_is_supported = provide_value_callbacks ? rust_font_tech_is_supported : nullptr,
+        .descriptor_integer_resolution_context = provide_descriptor_resolution ? parser.m_document.ptr() : nullptr,
+        .resolve_descriptor_integer = provide_descriptor_resolution ? resolve_descriptor_integer : nullptr,
+        .random_function_index = &parser.m_random_function_index,
+    };
+}
+
+Parser::ParseContextStorage Parser::make_parse_context(ParseContextMode mode, Optional<PropertyID> direct_property_context)
+{
+    return ParseContextStorage { *this, mode, direct_property_context };
+}
+
 static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust(Utf16View source, SubstitutionFunctionsPresence& presence)
 {
     u8 rust_presence = 0;
@@ -86,81 +200,10 @@ NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
 NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, RustSyntaxHandle const& syntax)
 {
-    Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-    ValueParserFFI::FfiValueParsingContext single_property_context {};
-    ValueParserFFI::FfiValueParsingContext const* value_context_data;
-    size_t value_context_count;
-    if (m_value_context.size() == 1 && m_value_context[0].has<PropertyID>()) {
-        single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-        single_property_context.value = to_underlying(m_value_context[0].get<PropertyID>());
-        value_context_data = &single_property_context;
-        value_context_count = 1;
-    } else {
-        value_contexts.ensure_capacity(m_value_context.size());
-        for (auto const& value_context : m_value_context) {
-            ValueParserFFI::FfiValueParsingContext ffi_context {};
-            value_context.visit(
-                [&](PropertyID context_property_id) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                    ffi_context.value = to_underlying(context_property_id);
-                },
-                [&](FunctionContext const& function_context) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                    ffi_context.name = ffi_utf16_view(function_context.name);
-                },
-                [&](DescriptorContext const& descriptor_context) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                    ffi_context.value = to_underlying(descriptor_context.at_rule);
-                    ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
-                },
-                [&](SpecialContext special_context) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                    ffi_context.value = to_underlying(special_context);
-                });
-            value_contexts.append(ffi_context);
-        }
-        value_context_data = value_contexts.data();
-        value_context_count = value_contexts.size();
-    }
-
-    ReadonlyBytes document_url;
-    ReadonlyBytes document_base_url;
-    if (m_document) {
-        if (!m_serialized_document_url.has_value())
-            m_serialized_document_url = m_document->url().serialize();
-        if (!m_serialized_document_base_url.has_value())
-            m_serialized_document_base_url = m_document->base_url().serialize();
-        document_url = m_serialized_document_url->bytes();
-        document_base_url = m_serialized_document_base_url->bytes();
-    }
-    auto retain_utf16_fly_string = [](u16 const* code_units, size_t length) -> size_t {
-        return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
-    };
-    ValueParserFFI::ParseContext context {
-        .in_quirks_mode = in_quirks_mode(),
-        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = false,
-        .contains_attr_tainted_values = false,
-        .is_ua_style_sheet = false,
-        .value_contexts = value_context_data,
-        .value_context_count = value_context_count,
-        .document_url = document_url.data(),
-        .document_url_length = document_url.size(),
-        .document_base_url = document_base_url.data(),
-        .document_base_url_length = document_base_url.size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string,
-        .normalize_svg_path_data = nullptr,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = nullptr,
-        .font_tech_is_supported = nullptr,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = &m_random_function_index,
-    };
+    auto context = make_parse_context(ParseContextMode::RegisteredSyntax);
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::Invalid };
     auto parsed = ValueParserFFI::rust_parse_with_syntax(
-        &context,
+        &context.context,
         ffi_utf16_view(source), syntax.data(), &status);
     if (status != ValueParserFFI::FfiParseStatus::Parsed)
         return GuaranteedInvalidStyleValue::create();
@@ -180,84 +223,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_fr
 
 Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_rust(PropertyID property_id, Utf16View source, Optional<PropertyID> direct_property_context)
 {
-    Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-    ValueParserFFI::FfiValueParsingContext single_property_context {};
-    ValueParserFFI::FfiValueParsingContext const* value_context_data;
-    size_t value_context_count;
-    if (direct_property_context.has_value()) {
-        VERIFY(m_value_context.is_empty());
-        single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-        single_property_context.value = to_underlying(*direct_property_context);
-        value_context_data = &single_property_context;
-        value_context_count = 1;
-    } else if (m_value_context.size() == 1 && m_value_context[0].has<PropertyID>()) {
-        single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-        single_property_context.value = to_underlying(m_value_context[0].get<PropertyID>());
-        value_context_data = &single_property_context;
-        value_context_count = 1;
-    } else {
-        value_contexts.ensure_capacity(m_value_context.size());
-        for (auto const& value_context : m_value_context) {
-            ValueParserFFI::FfiValueParsingContext ffi_context {};
-            value_context.visit(
-                [&](PropertyID context_property_id) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                    ffi_context.value = to_underlying(context_property_id);
-                },
-                [&](FunctionContext const& function_context) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                    ffi_context.name = ffi_utf16_view(function_context.name);
-                },
-                [&](DescriptorContext const& descriptor_context) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                    ffi_context.value = to_underlying(descriptor_context.at_rule);
-                    ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
-                },
-                [&](SpecialContext special_context) {
-                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                    ffi_context.value = to_underlying(special_context);
-                });
-            value_contexts.append(ffi_context);
-        }
-        value_context_data = value_contexts.data();
-        value_context_count = value_contexts.size();
-    }
-
-    ReadonlyBytes document_url;
-    ReadonlyBytes document_base_url;
-    if (m_document) {
-        if (!m_serialized_document_url.has_value())
-            m_serialized_document_url = m_document->url().serialize();
-        if (!m_serialized_document_base_url.has_value())
-            m_serialized_document_base_url = m_document->base_url().serialize();
-        document_url = m_serialized_document_url->bytes();
-        document_base_url = m_serialized_document_base_url->bytes();
-    }
-    ValueParserFFI::ParseContext context {
-        .in_quirks_mode = in_quirks_mode(),
-        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = false,
-        .contains_attr_tainted_values = false,
-        .is_ua_style_sheet = false,
-        .value_contexts = value_context_data,
-        .value_context_count = value_context_count,
-        .document_url = document_url.data(),
-        .document_url_length = document_url.size(),
-        .document_base_url = document_base_url.data(),
-        .document_base_url_length = document_base_url.size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string,
-        .normalize_svg_path_data = normalize_svg_path_data,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = rust_font_format_is_supported,
-        .font_tech_is_supported = rust_font_tech_is_supported,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = &m_random_function_index,
-    };
+    auto context = make_parse_context(ParseContextMode::Value, direct_property_context);
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
-        &context, to_underlying(property_id), ffi_utf16_view(source), &status);
+        &context.context, to_underlying(property_id), ffi_utf16_view(source), &status);
 
     if (status != ValueParserFFI::FfiParseStatus::Parsed) {
         if (status == ValueParserFFI::FfiParseStatus::NotHandled)
@@ -271,64 +240,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in
 
 RefPtr<StyleValue const> Parser::parse_primitive_value_from_source(ValueType value_type, Utf16View source, NumericRange const& accepted_range)
 {
-    Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-    value_contexts.ensure_capacity(m_value_context.size());
-    for (auto const& value_context : m_value_context) {
-        ValueParserFFI::FfiValueParsingContext ffi_context {};
-        value_context.visit(
-            [&](PropertyID property) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                ffi_context.value = to_underlying(property);
-            },
-            [&](FunctionContext const& function) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                ffi_context.name = ffi_utf16_view(function.name);
-            },
-            [&](DescriptorContext const& descriptor) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                ffi_context.value = to_underlying(descriptor.at_rule);
-                ffi_context.secondary_value = to_underlying(descriptor.descriptor);
-            },
-            [&](SpecialContext special) {
-                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                ffi_context.value = to_underlying(special);
-            });
-        value_contexts.append(ffi_context);
-    }
-    ReadonlyBytes document_url;
-    ReadonlyBytes document_base_url;
-    if (m_document) {
-        if (!m_serialized_document_url.has_value())
-            m_serialized_document_url = m_document->url().serialize();
-        if (!m_serialized_document_base_url.has_value())
-            m_serialized_document_base_url = m_document->base_url().serialize();
-        document_url = m_serialized_document_url->bytes();
-        document_base_url = m_serialized_document_base_url->bytes();
-    }
-    ValueParserFFI::ParseContext context {
-        .in_quirks_mode = in_quirks_mode(),
-        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
-        .is_substituted_value = false,
-        .contains_attr_tainted_values = false,
-        .is_ua_style_sheet = false,
-        .value_contexts = value_contexts.data(),
-        .value_context_count = value_contexts.size(),
-        .document_url = document_url.data(),
-        .document_url_length = document_url.size(),
-        .document_base_url = document_base_url.data(),
-        .document_base_url_length = document_base_url.size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string,
-        .normalize_svg_path_data = normalize_svg_path_data,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
-        .font_format_is_supported = rust_font_format_is_supported,
-        .font_tech_is_supported = rust_font_tech_is_supported,
-        .descriptor_integer_resolution_context = nullptr,
-        .resolve_descriptor_integer = nullptr,
-        .random_function_index = &m_random_function_index,
-    };
+    auto context = make_parse_context(ParseContextMode::Value);
     auto const* parsed = ValueParserFFI::rust_parse_entire_css_primitive_from_source(
-        &context, to_underlying(value_type), ffi_utf16_view(source), accepted_range.min, accepted_range.max);
+        &context.context, to_underlying(value_type), ffi_utf16_view(source), accepted_range.min, accepted_range.max);
     if (!parsed)
         return nullptr;
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
