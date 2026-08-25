@@ -191,8 +191,8 @@ DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIn
             return VideoFullRangeFlag::Unspecified;
         }
     }();
-    auto cicp = CodingIndependentCodePoints { color_primaries, transfer_characteristics, matrix_coefficients, color_range };
-    cicp.adopt_specified_values(container_cicp);
+    auto cicp = container_cicp;
+    cicp.adopt_specified_values({ color_primaries, transfer_characteristics, matrix_coefficients, color_range });
 
     auto bit_depth = [&] {
         switch (m_frame->format) {
