@@ -1,0 +1,12 @@
+matrix(1, 0, 0, 1, 10, 20)
+matrix(1, 0, 0, 1, 30, 40)
+none
+matrix(1, 0, 0, 1, 50, 60)
+none
+rgb(255, 0, 0)
+rgb(255, 0, 0)
+rgb(255, 0, 0)
+rgb(0, 0, 255)
+rgb(0, 128, 0)
+rgb(255, 0, 0)
+consecutive mutations preserved the transition start style: true
