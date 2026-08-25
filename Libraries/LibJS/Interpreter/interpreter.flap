@@ -30,23 +30,23 @@ inline fn check_tag_is_double(tag: inout ValueTag, else failure: Label) {
 }
 
 inline fn box_cell(cell: Environment) -> Value {
-    let bits: u64 = alias(cell);
+    let mut bits: u64 = alias(cell);
     bits = heap_region_offset(bits);
     bits = bits | SHIFTED_IS_CELL_PATTERN;
     # FIXME: Use a representation alias once it can coalesce with an inline
     #        function return without leaving its result uninitialized.
-    let value: Value;
+    let mut value: Value;
     mov(value, bits);
     value
 }
 
 inline fn box_object(object: Object) -> Value<Object> {
-    let pointer: u64 = alias(object);
+    let mut pointer: u64 = alias(object);
     pointer = heap_region_offset(pointer);
     pointer = pointer | OBJECT_TAG_SHIFTED;
     # FIXME: Use a representation alias once it can coalesce with an inline
     #        function return without leaving its result uninitialized.
-    let value: Value<Object>;
+    let mut value: Value<Object>;
     mov(value, pointer);
     value
 }
@@ -72,7 +72,7 @@ inline fn load_direct_getter_value(
 
     let result_implementation = implementation_words[direct_getter.implementation_value_word_offset];
     if result_implementation == 0 {
-        let null_value: Value;
+        let mut null_value: Value;
         mov(null_value, NULL_VALUE);
         null_value
     } else {
@@ -126,7 +126,7 @@ inline fn load_property_lookup_cache(
 ) -> PropertyLookupCache {
     let executable = exec_ctx.executable;
     assert_nonzero(executable);
-    let property_cache = executable.property_lookup_caches[load(cache)];
+    let mut property_cache = executable.property_lookup_caches[load(cache)];
     guard property_cache != 0 else fail;
     and(property_cache, PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK);
     assert_nonzero(property_cache);
@@ -163,9 +163,9 @@ inline fn walk_environment_chain(
     initial_environment: Environment,
     coordinate: EnvironmentCoordinate
 ) -> (DeclarativeEnvironment, u32) {
-    let environment = initial_environment;
+    let mut environment = initial_environment;
     let coordinate = &coordinate;
-    let hops = coordinate.hops;
+    let mut hops = coordinate.hops;
     let binding_index = coordinate.binding_index;
     assert_nonzero(environment);
     if hops != 0 {
@@ -198,8 +198,8 @@ inline fn walk_cached_environment_chain(
     initial_hops: u32,
     else failure: Label
 ) -> DeclarativeEnvironment {
-    let environment = initial_environment;
-    let hops = initial_hops;
+    let mut environment = initial_environment;
+    let mut hops = initial_hops;
     assert_nonzero(environment);
     if hops != 0 {
         do {
@@ -336,7 +336,7 @@ inline fn primitive_storage_cage_base() -> u64 {
 }
 
 inline fn normalize_completion_value(initial_value: Value) -> (Value, Value) {
-    let value = initial_value;
+    let mut value = initial_value;
     let empty_tag: Value = Value<Empty>;
     # FIXME: Use an immutable value-producing if once its result can coalesce
     #        with an inline function output on AArch64.
@@ -386,14 +386,14 @@ inline fn update_operand(
     slow_path: SlowPath
 ) {
     let value = load(operand);
-    guard let Value<i32>(integer) = value else slow;
+    guard let mut Value<i32>(integer) = value else slow;
     integer_operation(integer, 1) else overflow;
     store(operand, box_i32(integer));
     dispatch_next;
 
     let overflow = || @cold {
         let overflowed_integer = unbox_i32(load(operand));
-        let result = to_f64(overflowed_integer);
+        let mut result = to_f64(overflowed_integer);
         let one = unbox_f64(DOUBLE_ONE);
         float_operation(result, one);
         store(operand, box_f64(result));
@@ -412,7 +412,7 @@ inline fn post_update_operand(
     slow_path: SlowPath
 ) {
     let old = load(operand);
-    guard let Value<i32>(integer) = old else slow;
+    guard let mut Value<i32>(integer) = old else slow;
     store(dst, old);
     integer_operation(integer, 1) else overflow;
     store(operand, box_i32(integer));
@@ -420,7 +420,7 @@ inline fn post_update_operand(
 
     let overflow = || @cold {
         let overflowed_integer = unbox_i32(load(operand));
-        let result = to_f64(overflowed_integer);
+        let mut result = to_f64(overflowed_integer);
         let one = unbox_f64(DOUBLE_ONE);
         float_operation(result, one);
         store(operand, box_f64(result));
@@ -462,13 +462,13 @@ inline fn bitwise_binary(
     };
 
     let non_int32 = || @cold {
-        guard let lhs_integer = numeric_value_to_i32(lhs) else slow;
+        guard let mut lhs_integer = numeric_value_to_i32(lhs) else slow;
         guard let rhs_integer = numeric_value_to_i32(rhs) else slow;
         operation(lhs_integer, rhs_integer);
         store(dst, box_i32(lhs_integer));
         dispatch_next;
     };
-    guard let Value<i32>(lhs_integer) = lhs else non_int32;
+    guard let mut Value<i32>(lhs_integer) = lhs else non_int32;
     guard let Value<i32>(rhs_integer) = rhs else non_int32;
 
     operation(lhs_integer, rhs_integer);
@@ -487,8 +487,8 @@ inline fn signed_shift(
         call_binary_slow_path(slow_path, dst, lhs, rhs);
     };
 
-    guard let Value<i32>(integer) = lhs else slow;
-    guard let Value<i32>(count) = rhs else slow;
+    guard let mut Value<i32>(integer) = lhs else slow;
+    guard let mut Value<i32>(count) = rhs else slow;
     count = count & 31;
     operation(integer, count);
     store(dst, box_i32(integer));
@@ -577,9 +577,9 @@ inline fn strict_equality(
     not_equal: Label,
     else slow: Label
 ) {
-    let rhs_tag = extract_tag(rhs);
+    let mut rhs_tag = extract_tag(rhs);
     branch_eq(rhs_tag, INT32_TAG, rhs_i32);
-    let lhs_tag = extract_tag(lhs);
+    let mut lhs_tag = extract_tag(lhs);
     guard lhs_tag == rhs_tag else different_tags;
     equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64) else slow;
 
@@ -627,9 +627,9 @@ inline fn loose_equality(
     not_equal: Label,
     else slow: Label
 ) {
-    let rhs_tag = extract_tag(rhs);
+    let mut rhs_tag = extract_tag(rhs);
     branch_eq(rhs_tag, INT32_TAG, rhs_i32);
-    let lhs_tag = extract_tag(lhs);
+    let mut lhs_tag = extract_tag(lhs);
     guard lhs_tag == rhs_tag else different_tags;
     equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64) else slow;
 
@@ -1863,8 +1863,8 @@ handler BitwiseNot(
 ) {
     match load(src) {
         Value<i32>(integer) => {
-            integer = ~integer;
-            store(dst, box_i32(integer));
+            let result = ~integer;
+            store(dst, box_i32(result));
             dispatch_next;
         },
 
@@ -1911,8 +1911,8 @@ handler UnsignedRightShift(
     };
 
     guard let Value<i32>(integer) = lhs else slow;
-    guard let Value<i32>(count) = rhs else slow;
-    let value = u32(integer);
+    guard let mut Value<i32>(count) = rhs else slow;
+    let mut value = u32(integer);
     let as_double = || @cold {
         store(dst, box_f64(u32_to_f64(value)));
         dispatch_next;
@@ -2035,10 +2035,10 @@ handler UnaryMinus(
     dst: out Operand,
     src: in Operand
 ) {
-    let value = load(src);
+    let mut value = load(src);
 
     match value {
-        Value<i32>(integer) => {
+        Value<i32>(mut integer) => {
             let negative_zero = || @cold {
                 store(dst, Value<NegativeZero>);
                 dispatch_next;
@@ -2207,7 +2207,7 @@ handler PutByValue(
         }
     };
 
-    guard let Value<i32>(source_i32) = source else store_non_integer;
+    guard let mut Value<i32>(source_i32) = source else store_non_integer;
     match typed_array_kind {
         TYPED_ARRAY_KIND_UINT8 | TYPED_ARRAY_KIND_INT8 => {
             let values: Sequence<u8> = alias(
@@ -2382,7 +2382,7 @@ handler GetById(
         exec_ctx = native_frame;
         values = exec_ctx.slots;
         let native_function = native_function_entry.function;
-        let [native_return, variant] = call_raw_native(native_function);
+        let mut [native_return, variant] = call_raw_native(native_function);
         let native_payload = native_return;
         variant = variant & 255;
         assert_lt_unsigned(variant, 2);
@@ -2425,7 +2425,7 @@ handler GetById(
 
     # FIXME: Restore a value-producing if once SSA destruction can coalesce its
     #        holder phi with object without adding a hot-path jump.
-    let holder = object;
+    let mut holder = object;
     if cached_prototype != 0 {
         let prototype_chain_validity = property_cache.prototype_chain_validity;
         guard prototype_chain_validity != 0 else try_cache;
@@ -2793,7 +2793,7 @@ handler Call(
     let metadata = shared_data.asm_call_metadata;
     guard metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL else slow;
     guard metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION else invoke_interp_inline;
-    let receiver: Value = Value<Empty>;
+    let mut receiver: Value = Value<Empty>;
     if metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS {
         receiver = load(this_value);
         if metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT {
@@ -2858,7 +2858,7 @@ handler Call(
     let [_, return_pc, return_destination] = call_site_info(length, dst);
     frame.caller_return_pc = return_pc;
     frame.caller_dst_raw = return_destination;
-    let slot_index: u64 = RESERVED_REGISTER_COUNT;
+    let mut slot_index: u64 = RESERVED_REGISTER_COUNT;
     while slot_index + 1 < alias(registers_and_locals_count) {
         let next_slot_index = slot_index + 1;
         frame_values[slot_index] = empty_tag;
@@ -2872,8 +2872,8 @@ handler Call(
     assert_nonzero(executable);
     let constant_count = executable.asm_constants_size;
     let constant_data = executable.asm_constants_data;
-    let write_index: u64 = alias(registers_and_locals_count);
-    let constant_index: u64 = 0;
+    let mut write_index: u64 = alias(registers_and_locals_count);
+    let mut constant_index: u64 = 0;
     while constant_index < alias(constant_count) {
         assert_nonzero(constant_data);
         frame_values[write_index] = constant_data[constant_index];
@@ -2885,7 +2885,7 @@ handler Call(
     write_index = alias(registers_and_locals_count) + alias(constant_count);
     let caller_values = exec_ctx.slots;
     let argument_operand_indices = &arguments;
-    let argument_index: u32 = 0;
+    let mut argument_index: u32 = 0;
     while argument_index < actual_argument_count {
         frame_values[write_index] = caller_values[argument_operand_indices[argument_index]];
         argument_index = argument_index + 1;
@@ -2976,7 +2976,7 @@ handler Call(
         let native_caller_values = exec_ctx.slots;
         let native_argument_operand_indices = &arguments;
         let native_frame_values = native_frame.slots;
-        let argument_index: u32 = 0;
+        let mut argument_index: u32 = 0;
         while argument_index < actual_argument_count {
             native_frame_values[argument_index] = native_caller_values[native_argument_operand_indices[argument_index]];
             argument_index = argument_index + 1;
@@ -2992,7 +2992,7 @@ handler Call(
         let native_function = native_function_entry.function;
         # FIXME: Bind native_payload directly once the allocator can keep the
         #        ABI-pinned result live alongside the native result variant.
-        let [native_return, variant] = call_raw_native(native_function);
+        let mut [native_return, variant] = call_raw_native(native_function);
         let native_payload = native_return;
         variant = variant & 255;
         assert_lt_unsigned(variant, 2);
@@ -3041,7 +3041,7 @@ handler CallBuiltinMathAbs(
     };
 
     validate_builtin(callee, BUILTIN_MATH_ABS) else slow;
-    let argument_value = load(argument);
+    let mut argument_value = load(argument);
     match argument_value {
         Value<f64> => {
             clear_bit(argument_value, 63);
@@ -3049,9 +3049,9 @@ handler CallBuiltinMathAbs(
             dispatch_next;
         },
 
-        Value<i32>(integer_value) => {
+        Value<i32>(mut integer_value) => {
             let overflow = || @cold {
-                let overflowed_integer = unbox_i32(argument_value);
+                let mut overflowed_integer = unbox_i32(argument_value);
                 neg(overflowed_integer);
                 let unsigned_integer: u32 = alias(overflowed_integer);
                 store(dst, box_f64(u32_to_f64(unsigned_integer)));
@@ -3283,7 +3283,7 @@ handler CallBuiltinStringFromCharCode(
     };
 
     validate_builtin(callee, BUILTIN_STRING_FROM_CHAR_CODE) else slow;
-    guard let Value<i32>(code_unit) = load(argument) else slow;
+    guard let mut Value<i32>(code_unit) = load(argument) else slow;
     let single_utf16_code_unit = || {
         assert_lt_unsigned(code_unit, 0x10000);
         let result: Value = call_helper(asm_helper_single_utf16_code_unit_string, code_unit);

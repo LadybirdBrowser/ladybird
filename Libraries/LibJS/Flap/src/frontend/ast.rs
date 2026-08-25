@@ -136,6 +136,7 @@ pub(crate) enum Pattern {
     Binding {
         name: String,
         ty: Option<Type>,
+        mutable: bool,
     },
     Tuple(Vec<Pattern>),
     Wildcard,
@@ -231,6 +232,7 @@ pub(crate) struct ScalarMatchArm {
 pub(crate) struct ValueMatchArm {
     pub(crate) representation: String,
     pub(crate) binding: Option<String>,
+    pub(crate) binding_mutable: bool,
     pub(crate) temperature: BlockTemperature,
     pub(crate) body: Block,
 }
