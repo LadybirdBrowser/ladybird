@@ -42,9 +42,6 @@ public:
         return components;
     }
 
-    CSSPixels resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
-    CSSPixelSize resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
-
 private:
     friend class StyleValue;
 
