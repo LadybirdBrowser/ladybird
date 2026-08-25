@@ -9,14 +9,12 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Types.h>
+#include <LibMedia/MediaSourceExtensions/Forward.h>
 #include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::MediaSourceExtensions {
-
-class SourceBufferProcessor;
-struct InitializationSegmentData;
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer
 class SourceBuffer : public DOM::EventTarget {
@@ -91,12 +89,12 @@ private:
     void abort_buffer_append_algorithm();
     void run_range_removal(AK::Duration start, AK::Duration end);
     void run_append_error_algorithm();
-    void on_first_initialization_segment_processed(InitializationSegmentData const&);
+    void on_first_initialization_segment_processed(Media::MediaSourceExtensions::InitializationSegmentData const&);
     void update_ready_state_and_duration_after_coded_frame_processing();
     void finish_buffer_append();
 
     GC::Ref<MediaSource> m_media_source;
-    NonnullRefPtr<SourceBufferProcessor> m_processor;
+    NonnullRefPtr<Media::MediaSourceExtensions::SourceBufferProcessor> m_processor;
 
     // NB: The generation of the current buffer-append run — captured by the run when it starts. Bumped by
     //     abort_buffer_append_algorithm(). A run whose captured generation no longer matches does nothing further.

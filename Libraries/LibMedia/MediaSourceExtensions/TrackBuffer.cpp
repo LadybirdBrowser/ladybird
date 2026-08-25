@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/MediaSourceExtensions/TrackBuffer.h>
-#include <LibWeb/MediaSourceExtensions/TrackBufferDemuxer.h>
+#include <LibMedia/MediaSourceExtensions/TrackBuffer.h>
+#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 TrackBuffer::TrackBuffer(NonnullRefPtr<TrackBufferDemuxer> demuxer)
     : m_demuxer(move(demuxer))

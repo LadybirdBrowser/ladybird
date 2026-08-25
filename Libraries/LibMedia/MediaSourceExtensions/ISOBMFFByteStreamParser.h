@@ -12,8 +12,9 @@
 #include <AK/Vector.h>
 #include <LibMedia/Containers/ISOBMFF/Boxes.h>
 #include <LibMedia/Containers/ISOBMFF/FragmentSampleIterator.h>
+#include <LibMedia/Export.h>
+#include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
 #include <LibMedia/Track.h>
-#include <LibWeb/MediaSourceExtensions/ByteStreamParser.h>
 
 namespace Media::ISOBMFF {
 
@@ -21,10 +22,10 @@ class Streamer;
 
 }
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 // https://w3c.github.io/mse-byte-stream-format-isobmff/
-class ISOBMFFByteStreamParser final : public ByteStreamParser {
+class MEDIA_API ISOBMFFByteStreamParser final : public ByteStreamParser {
 public:
     ISOBMFFByteStreamParser();
     virtual ~ISOBMFFByteStreamParser() override;

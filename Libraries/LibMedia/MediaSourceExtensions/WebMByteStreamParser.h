@@ -11,13 +11,14 @@
 #include <LibMedia/Containers/Matroska/Document.h>
 #include <LibMedia/Containers/Matroska/TrackBlockContext.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
+#include <LibMedia/Export.h>
+#include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
 #include <LibMedia/Track.h>
-#include <LibWeb/MediaSourceExtensions/ByteStreamParser.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 // https://w3c.github.io/mse-byte-stream-format-webm/
-class WebMByteStreamParser final : public ByteStreamParser {
+class MEDIA_API WebMByteStreamParser final : public ByteStreamParser {
 public:
     WebMByteStreamParser();
     virtual ~WebMByteStreamParser() override;

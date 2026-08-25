@@ -14,11 +14,12 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 class ByteStreamParser;
 struct DemuxedCodedFrame;
@@ -49,7 +50,7 @@ struct InitializationSegmentData {
     Vector<InitializationSegmentTrack> text_tracks;
 };
 
-class SourceBufferProcessor : public AtomicRefCounted<SourceBufferProcessor> {
+class MEDIA_API SourceBufferProcessor : public AtomicRefCounted<SourceBufferProcessor> {
 public:
     SourceBufferProcessor();
     ~SourceBufferProcessor();

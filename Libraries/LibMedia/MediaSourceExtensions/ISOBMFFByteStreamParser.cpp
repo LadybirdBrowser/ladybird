@@ -9,10 +9,10 @@
 #include <AK/QuickSort.h>
 #include <LibMedia/Containers/ISOBMFF/Reader.h>
 #include <LibMedia/Containers/ISOBMFF/Streamer.h>
+#include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibMedia/MediaStream.h>
-#include <LibWeb/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 using namespace Media::ISOBMFF;
 

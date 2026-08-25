@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <LibMedia/Track.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 class TrackBufferDemuxer;
 

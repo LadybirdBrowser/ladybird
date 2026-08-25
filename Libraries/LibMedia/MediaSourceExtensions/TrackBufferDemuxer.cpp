@@ -6,9 +6,9 @@
 
 #include <AK/BinarySearch.h>
 #include <LibCore/EventLoop.h>
-#include <LibWeb/MediaSourceExtensions/TrackBufferDemuxer.h>
+#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 TrackBufferDemuxer::TrackBufferDemuxer(Media::Track const& track)
     : m_track(track)

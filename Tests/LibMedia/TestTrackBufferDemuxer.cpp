@@ -6,8 +6,8 @@
 
 #include <AK/Array.h>
 #include <AK/ByteBuffer.h>
+#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/MediaSourceExtensions/TrackBufferDemuxer.h>
 
 static Media::CodedFrame coded_frame_at(u64 seconds, Optional<ReadonlyBytes> new_codec_configuration = {})
 {
@@ -35,7 +35,7 @@ TEST_CASE(seek_provides_the_active_codec_configuration)
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
     constexpr Array changed_configuration { static_cast<u8>(2) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     demuxer->add_coded_frame(coded_frame_at(1, changed_configuration.span()));
@@ -59,7 +59,7 @@ TEST_CASE(crossing_into_a_run_with_an_unchanged_configuration_does_not_resend_it
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     demuxer->add_coded_frame(coded_frame_at(1));
@@ -82,7 +82,7 @@ TEST_CASE(crossing_into_a_run_with_a_changed_configuration_sends_it)
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
     constexpr Array changed_configuration { static_cast<u8>(2) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     demuxer->add_coded_frame(coded_frame_at(1));
@@ -101,7 +101,7 @@ TEST_CASE(seeking_within_one_configuration_does_not_resend_it)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     for (u64 second = 1; second < 4; second++)
@@ -119,7 +119,7 @@ TEST_CASE(seeking_onto_a_run_head_does_not_resend_its_configuration)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     demuxer->add_coded_frame(coded_frame_at(1));
@@ -139,7 +139,7 @@ TEST_CASE(seeking_onto_a_run_head_does_not_resend_its_configuration)
 TEST_CASE(an_empty_configuration_is_delivered_rather_than_treated_as_absent)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, ReadonlyBytes {}));
     demuxer->add_coded_frame(coded_frame_at(1));
@@ -155,7 +155,7 @@ TEST_CASE(seeking_with_need_codec_configuration_resends_an_unchanged_configurati
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     for (u64 second = 1; second < 4; second++)
@@ -173,7 +173,7 @@ TEST_CASE(evicting_the_first_frame_of_a_run_preserves_its_configuration)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     for (u64 second = 1; second < 3; second++)
@@ -192,7 +192,7 @@ TEST_CASE(a_pending_reanchor_outranks_a_later_jump)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     demuxer->add_coded_frame(coded_frame_at(1));
@@ -217,7 +217,7 @@ TEST_CASE(removing_a_configuration_change_preserves_it_for_the_remaining_run)
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
     constexpr Array initial_configuration { static_cast<u8>(1) };
     constexpr Array changed_configuration { static_cast<u8>(2) };
-    auto demuxer = make_ref_counted<Web::MediaSourceExtensions::TrackBufferDemuxer>(track);
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::TrackBufferDemuxer>(track);
 
     demuxer->add_coded_frame(coded_frame_at(0, initial_configuration.span()));
     demuxer->add_coded_frame(coded_frame_at(1, changed_configuration.span()));
