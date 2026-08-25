@@ -1063,6 +1063,15 @@ pub(crate) fn parse_selector_list<'a>(
     SelectorParser::new(Some(declared_namespaces)).parse_selector_list(&values, selector_type, parsing_mode)
 }
 
+pub(crate) fn parse_selector_list_from_component_values(
+    values: &[ComponentValue],
+    selector_type: SelectorType,
+) -> Result<RustParsedSelectorList, ()> {
+    let selectors =
+        SelectorParser::new(None).parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
+    Ok(RustParsedSelectorList::new(selectors))
+}
+
 fn parse_pseudo_element_selector(input: TokenizerInput<'_>) -> Result<(Rc<CompiledSelector>, PseudoElementType), ()> {
     let tokens = tokenize_for_parser(input);
     let values = consume_a_list_of_component_values(tokens.as_slice())?;
@@ -1228,6 +1237,11 @@ impl RustParsedSelectorList {
             selectors,
             interned_names: interned_names.into_boxed_slice(),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn selectors(&self) -> &SelectorList {
+        &self.selectors
     }
 }
 

@@ -22,6 +22,7 @@ namespace Web::CSS {
 namespace SelectorFFI {
 
 struct RustSelector;
+struct RustParsedSelectorList;
 
 }
 
@@ -91,6 +92,8 @@ private:
 };
 
 Optional<SelectorList> parse_selector_list_in_rust(Utf16View, HashTable<Utf16FlyString> const&, bool is_relative, bool is_forgiving);
+SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList*);
+bool selector_list_has_undeclared_namespace(SelectorList const&, HashTable<Utf16FlyString> const&);
 Utf16String serialize_a_group_of_selectors(SelectorList const&, GC::Ptr<CSSStyleSheet const> = nullptr);
 u8 pseudo_element_to_ffi(Optional<PseudoElement>);
 Optional<PseudoElement> pseudo_element_from_ffi(u8);

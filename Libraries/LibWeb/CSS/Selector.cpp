@@ -120,6 +120,14 @@ Optional<SelectorList> parse_selector_list_in_rust(Utf16View input, HashTable<Ut
     if (!parsed)
         return {};
 
+    auto selectors = selector_list_from_rust(parsed);
+    SelectorFFI::rust_parsed_selector_list_destroy(parsed);
+    return selectors;
+}
+
+SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList* parsed)
+{
+    VERIFY(parsed);
     Vector<Utf16FlyString> names;
     auto name_count = SelectorFFI::rust_parsed_selector_list_interned_name_count(parsed);
     names.ensure_capacity(name_count);
@@ -138,8 +146,20 @@ Optional<SelectorList> parse_selector_list_in_rust(Utf16View input, HashTable<Ut
     selectors.ensure_capacity(selector_count);
     for (size_t index = 0; index < selector_count; ++index)
         selectors.append(Selector::create(SelectorFFI::rust_parsed_selector_list_selector(parsed, index)));
-    SelectorFFI::rust_parsed_selector_list_destroy(parsed);
     return selectors;
+}
+
+bool selector_list_has_undeclared_namespace(SelectorList const& selectors, HashTable<Utf16FlyString> const& namespaces)
+{
+    Vector<uintptr_t> namespace_identities;
+    namespace_identities.ensure_capacity(namespaces.size());
+    for (auto const& namespace_ : namespaces)
+        namespace_identities.unchecked_append(namespace_.raw_identity());
+
+    return any_of(selectors, [&](auto const& selector) {
+        return SelectorFFI::rust_selector_has_undeclared_namespace(
+            &selector->rust_selector(), namespace_identities.data(), namespace_identities.size());
+    });
 }
 
 static Vector<SelectorFFI::StringView> namespace_prefixes_mapping_to_default(CSSStyleSheet const& style_sheet, Vector<Vector<u16>>& storage)
