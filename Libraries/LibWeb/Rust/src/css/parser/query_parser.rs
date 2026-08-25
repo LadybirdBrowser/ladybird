@@ -800,16 +800,15 @@ where
     }
 }
 
-pub(crate) fn parse_media_query_list<'a, R>(
-    source: impl Into<TokenizerInput<'a>>,
+pub(crate) fn parse_media_query_list_from_component_values<R>(
+    values: &[ComponentValue],
     resolve_feature: &R,
-) -> Option<Vec<MediaQuery>>
+) -> Vec<MediaQuery>
 where
     R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
 {
-    let values = components_from_source(source)?;
-    if trim_whitespace(&values).is_empty() {
-        return Some(Vec::new());
+    if trim_whitespace(values).is_empty() {
+        return Vec::new();
     }
     let mut result = Vec::new();
     let mut start = 0;
@@ -819,7 +818,18 @@ where
             start = index + 1;
         }
     }
-    Some(result)
+    result
+}
+
+pub(crate) fn parse_media_query_list<'a, R>(
+    source: impl Into<TokenizerInput<'a>>,
+    resolve_feature: &R,
+) -> Option<Vec<MediaQuery>>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let values = components_from_source(source)?;
+    Some(parse_media_query_list_from_component_values(&values, resolve_feature))
 }
 
 fn single_ident(values: &[ComponentValue]) -> Option<ParserString> {
@@ -930,6 +940,21 @@ where
     Some(Expression::SupportsFeature(feature))
 }
 
+pub(crate) fn parse_supports_condition_from_component_values<E>(
+    values: &[ComponentValue],
+    evaluate_feature: &E,
+) -> Option<Expression>
+where
+    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+{
+    let mut stream = TokenStream::new(values);
+    let expression = parse_boolean_expression(&mut stream, MatchResult::False, &|stream| {
+        parse_supports_feature(stream, evaluate_feature)
+    })?;
+    stream.discard_whitespace();
+    (!stream.has_next_token()).then_some(expression)
+}
+
 pub(crate) fn parse_supports_condition<'a, E>(
     source: impl Into<TokenizerInput<'a>>,
     evaluate_feature: &E,
@@ -938,12 +963,7 @@ where
     E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
 {
     let values = components_from_source(source)?;
-    let mut stream = TokenStream::new(&values);
-    let expression = parse_boolean_expression(&mut stream, MatchResult::False, &|stream| {
-        parse_supports_feature(stream, evaluate_feature)
-    })?;
-    stream.discard_whitespace();
-    (!stream.has_next_token()).then_some(expression)
+    parse_supports_condition_from_component_values(&values, evaluate_feature)
 }
 
 fn parse_supports_declaration_from_source<'a, E>(
@@ -1166,15 +1186,14 @@ where
     Some(ContainerCondition { name, query })
 }
 
-pub(crate) fn parse_container_condition_list<'a, R>(
-    source: impl Into<TokenizerInput<'a>>,
+pub(crate) fn parse_container_condition_list_from_component_values<R>(
+    values: &[ComponentValue],
     resolve_feature: &R,
 ) -> Option<Vec<ContainerCondition>>
 where
     R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
 {
-    let values = components_from_source(source)?;
-    if trim_whitespace(&values).is_empty() {
+    if trim_whitespace(values).is_empty() {
         return None;
     }
     let mut result = Vec::new();
@@ -1188,6 +1207,17 @@ where
     Some(result)
 }
 
+pub(crate) fn parse_container_condition_list<'a, R>(
+    source: impl Into<TokenizerInput<'a>>,
+    resolve_feature: &R,
+) -> Option<Vec<ContainerCondition>>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let values = components_from_source(source)?;
+    parse_container_condition_list_from_component_values(&values, resolve_feature)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum QueryTree {
     MediaQuery(MediaQuery),
@@ -1197,6 +1227,20 @@ enum QueryTree {
 pub struct FfiQueryHandle {
     #[allow(dead_code)] // Read by query operations added in subsequent porting stages.
     tree: QueryTree,
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+pub(crate) fn media_query_handle(query: MediaQuery) -> Arc<FfiQueryHandle> {
+    Arc::new(FfiQueryHandle {
+        tree: QueryTree::MediaQuery(query),
+    })
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+pub(crate) fn expression_query_handle(expression: Expression, kind: QueryKind) -> Arc<FfiQueryHandle> {
+    Arc::new(FfiQueryHandle {
+        tree: QueryTree::Expression { expression, kind },
+    })
 }
 
 fn push_utf16(sink: &mut TextSink, value: &[u16]) {
@@ -2294,7 +2338,7 @@ fn evaluate_media_query(
     result
 }
 
-type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
+pub(crate) type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
 
 type EvaluateSupportsFeature = unsafe extern "C" fn(*mut c_void, FfiSupportsFeatureKind, FfiUtf16View) -> bool;
 
@@ -2337,7 +2381,7 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
     })
 }
 
-fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
+pub(crate) fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
     move |kind, name| {
         // SAFETY: The name slice remains live for the duration of the callback.
         let result = unsafe { callback(kind as u8, name.as_ptr(), name.len()) };
@@ -2360,6 +2404,50 @@ fn ffi_supports_evaluator(
         };
         // SAFETY: The UTF-16 slice remains live for the duration of the callback.
         unsafe { callback(context, kind, value) }
+    }
+}
+
+fn reevaluate_supports_features<E>(expression: &mut Expression, evaluate_feature: &E)
+where
+    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+{
+    match expression {
+        Expression::Not(child) | Expression::InParens(child) => {
+            reevaluate_supports_features(child, evaluate_feature);
+        }
+        Expression::And(children) | Expression::Or(children) => {
+            for child in children {
+                reevaluate_supports_features(child, evaluate_feature);
+            }
+        }
+        Expression::SupportsFeature(feature) => {
+            let (kind, value, matches) = match feature {
+                SupportsFeature::Declaration { components, matches } => (
+                    FfiSupportsFeatureKind::Declaration,
+                    supports_components_source(components),
+                    matches,
+                ),
+                SupportsFeature::Selector { components, matches } => (
+                    FfiSupportsFeatureKind::Selector,
+                    supports_components_source(components),
+                    matches,
+                ),
+                SupportsFeature::FontTech { name, matches } => {
+                    (FfiSupportsFeatureKind::FontTech, name.as_ref().to_vec(), matches)
+                }
+                SupportsFeature::FontFormat { name, matches } => {
+                    (FfiSupportsFeatureKind::FontFormat, name.as_ref().to_vec(), matches)
+                }
+                SupportsFeature::AtRule { name, matches } => {
+                    (FfiSupportsFeatureKind::AtRule, name.as_ref().to_vec(), matches)
+                }
+                SupportsFeature::Env { name, matches } => {
+                    (FfiSupportsFeatureKind::Env, name.as_ref().to_vec(), matches)
+                }
+            };
+            *matches = evaluate_feature(kind, &value);
+        }
+        _ => {}
     }
 }
 
@@ -2455,6 +2543,33 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
         else {
             return std::ptr::null();
         };
+        create_expression_handle(expression, QueryKind::Supports)
+    })
+}
+
+/// Re-evaluates the features in an already parsed supports condition and returns an owned handle.
+///
+/// This keeps feature evaluation at the C++ rule-conversion point, after preceding namespace rules
+/// have been installed, without tokenizing and parsing the supports condition again.
+///
+/// # Safety
+/// `handle` must point to a live supports-query handle and the callback must be valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_reevaluate_supports_condition(
+    handle: *const FfiQueryHandle,
+    context: *mut c_void,
+    evaluate_feature: EvaluateSupportsFeature,
+) -> *const FfiQueryHandle {
+    crate::abort_on_panic(|| {
+        let QueryTree::Expression {
+            expression,
+            kind: QueryKind::Supports,
+        } = &unsafe { &*handle }.tree
+        else {
+            return std::ptr::null();
+        };
+        let mut expression = expression.clone();
+        reevaluate_supports_features(&mut expression, &ffi_supports_evaluator(context, evaluate_feature));
         create_expression_handle(expression, QueryKind::Supports)
     })
 }
@@ -2851,6 +2966,12 @@ mod tests {
         assert!(parse_supports_condition(b"(--: a)".as_slice(), &supported).is_some());
         assert!(parse_supports_condition(b"(display : grid)".as_slice(), &supported).is_some());
         assert!(parse_supports_declaration_from_source(b"display : grid".as_slice(), &supported).is_some());
+
+        let mut condition =
+            parse_supports_condition(b"(display: grid) and selector(:has(*))".as_slice(), &|_, _| false).unwrap();
+        assert_eq!(evaluate_supports_expression(&condition), MatchResult::False);
+        reevaluate_supports_features(&mut condition, &supported);
+        assert_eq!(evaluate_supports_expression(&condition), MatchResult::True);
     }
 
     #[test]

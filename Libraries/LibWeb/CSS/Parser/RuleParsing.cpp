@@ -435,7 +435,14 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
         return nullptr;
     }
 
-    auto media_list = MediaList::create(RustQueryParser::parse_media_query_list(*this, rule.prelude_text));
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::MediaQueries);
+    Vector<NonnullRefPtr<MediaQuery>> media_queries;
+    media_queries.ensure_capacity(rule.parsed_prelude.items.size());
+    for (auto const& item : rule.parsed_prelude.items) {
+        VERIFY(item.query.has_value());
+        media_queries.unchecked_append(MediaQuery::create(*item.query));
+    }
+    auto media_list = MediaList::create(move(media_queries));
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
@@ -472,17 +479,9 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    if (rule.prelude_text.trim_ascii_whitespace().is_empty()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@supports"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Empty prelude."_string,
-        });
-        return {};
-    }
-
-    auto supports = RustQueryParser::parse_supports_condition(*this, rule.prelude_text);
-    if (!supports.has_value()) {
+    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::SupportsCondition
+        || rule.parsed_prelude.items.size() != 1
+        || !rule.parsed_prelude.items.first().query.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@supports"_utf16_fly_string,
             .prelude = rule.prelude_text.to_utf8(),
@@ -490,6 +489,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         });
         return {};
     }
+    auto supports = RustQueryParser::reevaluate_supports_condition(*this, *rule.parsed_prelude.items.first().query);
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
@@ -504,7 +504,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     }
 
     auto rule_list = CSSRuleList::create(child_rules);
-    return CSSSupportsRule::create(supports.release_value(), rule_list);
+    return CSSSupportsRule::create(move(supports), rule_list);
 }
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
@@ -681,8 +681,7 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
         return nullptr;
     }
 
-    auto rust_conditions = RustQueryParser::parse_container_condition_list(*this, rule.prelude_text);
-    if (!rust_conditions.has_value()) {
+    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::ContainerConditions) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@container"_utf16_fly_string,
             .prelude = rule.prelude_text.to_utf8(),
@@ -692,9 +691,13 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
     }
 
     Vector<CSSContainerRule::Condition> conditions;
-    conditions.ensure_capacity(rust_conditions->size());
-    for (auto& condition : *rust_conditions)
-        conditions.unchecked_empend(move(condition.name), move(condition.query));
+    conditions.ensure_capacity(rule.parsed_prelude.items.size());
+    for (auto const& item : rule.parsed_prelude.items) {
+        RefPtr<ContainerQuery> query;
+        if (item.query.has_value())
+            query = ContainerQuery::create(*item.query);
+        conditions.unchecked_empend(item.value, move(query));
+    }
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {

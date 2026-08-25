@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @namespace known "urn:known";
+
+    #target {
+        color: red;
+    }
+
+    @supports selector(known|widget) {
+        #target {
+            color: green;
+        }
+    }
+
+    @supports selector(missing|widget) {
+        #target {
+            background-color: red;
+        }
+    }
+
+    @supports selector(::slotted(known|widget)) {
+        #target {
+            outline-color: green;
+        }
+    }
+
+    @supports selector(::slotted(missing|widget)) {
+        #target {
+            border-color: red;
+        }
+    }
+
+    /* A declared namespace inside a pseudo-element compound selector keeps the list valid. */
+    #target2, ::slotted(known|widget) {
+        color: green;
+    }
+
+    /* An undeclared one invalidates the entire selector list, dropping the rule. */
+    #target2, ::slotted(missing|widget) {
+        background-color: red;
+    }
+</style>
+<div id="target"></div>
+<div id="target2"></div>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.getElementById("target"));
+        println(`Declared namespace: ${style.color}`);
+        println(`Undeclared namespace: ${style.backgroundColor}`);
+        println(`Declared in pseudo-element: ${style.outlineColor}`);
+        println(`Undeclared in pseudo-element: ${style.borderTopColor}`);
+        println(`conditionText: ${document.styleSheets[0].cssRules[2].conditionText}`);
+        const style2 = getComputedStyle(document.getElementById("target2"));
+        println(`Rule with declared pseudo-element namespace: ${style2.color}`);
+        println(`Rule with undeclared pseudo-element namespace: ${style2.backgroundColor}`);
+        println(`Rule count: ${document.styleSheets[0].cssRules.length}`);
+    });
+</script>
