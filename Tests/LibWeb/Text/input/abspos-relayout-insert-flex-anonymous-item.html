@@ -2,22 +2,34 @@
 <script src="include.js"></script>
 <style>
     body { margin: 0; }
-    #root { position: relative; width: 400px; height: 200px; }
-    #boundary {
+    #root { position: relative; width: 600px; height: 400px; }
+    .boundary {
         position: absolute;
-        left: 20px;
-        top: 10px;
         width: min-content;
         height: 100px;
         overflow: hidden;
     }
-    #flex { display: flex; }
-    #anchor { width: 40px; height: 20px; }
+    .flex { display: flex; }
+    .grid { display: grid; grid-auto-flow: column; }
+    .anchor { width: 40px; height: 20px; }
     .block { width: 120px; height: 20px; }
+    .wide { width: 150px; height: 20px; }
 </style>
 <div id="root">
-    <div id="boundary">
-        <div id="flex"><div id="anchor"></div></div>
+    <div class="boundary" id="flex-boundary" style="left: 20px; top: 10px">
+        <div class="flex" id="flex"><div class="anchor"></div></div>
+    </div>
+    <div class="boundary" id="grid-boundary" style="left: 20px; top: 130px">
+        <div class="grid" id="grid"><div class="anchor"></div></div>
+    </div>
+    <div class="boundary" id="nested-boundary" style="left: 260px; top: 10px">
+        <div class="flex" id="nested-flex">
+            <div class="anchor"></div>
+            <div id="nested-wrapper"></div>
+        </div>
+    </div>
+    <div class="boundary" id="text-boundary" style="left: 260px; top: 130px">
+        <div class="flex" id="text-flex"><div class="anchor"></div></div>
     </div>
 </div>
 <script>
@@ -25,28 +37,60 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    test(() => {
-        document.body.offsetHeight;
-
-        const boundary = document.getElementById("boundary");
-        const before = rectToString(boundary.getBoundingClientRect());
+    function runScenario(name, boundaryId, mutate, printAfterRect = true) {
+        const boundary = document.getElementById(boundaryId);
+        const beforeRect = boundary.getBoundingClientRect();
+        const before = rectToString(beforeRect);
         const partialBefore = internals.partialLayoutCount();
         const fullBefore = internals.fullLayoutCount();
 
-        const block = document.createElement("div");
-        block.className = "block";
-        block.textContent = "inserted";
-        document.getElementById("flex").appendChild(block);
+        mutate();
         document.body.offsetHeight;
 
-        const after = rectToString(boundary.getBoundingClientRect());
+        const afterRect = boundary.getBoundingClientRect();
+        const after = rectToString(afterRect);
         const partialDelta = internals.partialLayoutCount() - partialBefore;
         const fullDelta = internals.fullLayoutCount() - fullBefore;
 
-        println(`boundary-before=${before}`);
-        println(`boundary-after=${after}`);
-        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
-        println(before === "20,10,40,100" && after === "20,10,160,100"
-            && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
+        println(`${name}-before=${before}`);
+        if (printAfterRect)
+            println(`${name}-after=${after}`);
+        else
+            println(`${name}-width-grew=${afterRect.width > beforeRect.width}`);
+        println(`${name}-partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        return { beforeRect, afterRect, before, after, partialDelta, fullDelta };
+    }
+
+    function block(className = "block") {
+        const element = document.createElement("div");
+        element.className = className;
+        element.textContent = "inserted";
+        return element;
+    }
+
+    test(() => {
+        document.body.offsetHeight;
+
+        const flex = runScenario("flex", "flex-boundary", () => {
+            document.getElementById("flex").appendChild(block());
+        });
+        const grid = runScenario("grid", "grid-boundary", () => {
+            document.getElementById("grid").appendChild(block());
+        });
+        const nested = runScenario("nested", "nested-boundary", () => {
+            document.getElementById("nested-wrapper").appendChild(block("wide"));
+        });
+        const text = runScenario("text", "text-boundary", () => {
+            document.getElementById("text-flex").appendChild(document.createTextNode("inserted-text"));
+        }, false);
+
+        println(flex.before === "20,10,40,100" && flex.after === "20,10,160,100"
+            && flex.partialDelta === 1 && flex.fullDelta === 0 ? "PASS" : "FAIL");
+        println(grid.before === "20,130,40,100" && grid.after === "20,130,160,100"
+            && grid.partialDelta === 1 && grid.fullDelta === 0 ? "PASS" : "FAIL");
+        println(nested.before === "260,10,40,100" && nested.after === "260,10,190,100"
+            && nested.partialDelta === 1 && nested.fullDelta === 0 ? "PASS" : "FAIL");
+        println(text.before === "260,130,40,100" && text.afterRect.width > text.beforeRect.width
+            && text.partialDelta === 1 && text.fullDelta === 0 ? "PASS" : "FAIL");
     });
 </script>
