@@ -19,38 +19,38 @@ struct BoxMarker {
     size_t start { 0 };
 };
 
-static void append_u16(ByteBuffer& bytes, u16 value)
+void append_u16(ByteBuffer& bytes, u16 value)
 {
     bytes.append(static_cast<u8>(value >> 8));
     bytes.append(static_cast<u8>(value));
 }
 
-static void append_u32(ByteBuffer& bytes, u32 value)
+void append_u32(ByteBuffer& bytes, u32 value)
 {
     for (int shift = 24; shift >= 0; shift -= 8)
         bytes.append(static_cast<u8>(value >> shift));
 }
 
-static void append_u64(ByteBuffer& bytes, u64 value)
+void append_u64(ByteBuffer& bytes, u64 value)
 {
     for (int shift = 56; shift >= 0; shift -= 8)
         bytes.append(static_cast<u8>(value >> shift));
 }
 
-static void patch_u32(ByteBuffer& bytes, size_t position, u32 value)
+void patch_u32(ByteBuffer& bytes, size_t position, u32 value)
 {
     VERIFY(position + sizeof(value) <= bytes.size());
     for (size_t index = 0; index < sizeof(value); ++index)
         bytes[position + index] = static_cast<u8>(value >> ((sizeof(value) - index - 1) * 8));
 }
 
-static void append_four_cc(ByteBuffer& bytes, char const (&type)[5])
+void append_four_cc(ByteBuffer& bytes, char const (&type)[5])
 {
     for (size_t index = 0; index < 4; ++index)
         bytes.append(type[index]);
 }
 
-static BoxMarker begin_box(ByteBuffer& bytes, char const (&type)[5])
+BoxMarker begin_box(ByteBuffer& bytes, char const (&type)[5])
 {
     auto start = bytes.size();
     append_u32(bytes, 0);
@@ -58,24 +58,24 @@ static BoxMarker begin_box(ByteBuffer& bytes, char const (&type)[5])
     return { start };
 }
 
-static void finish_box(ByteBuffer& bytes, BoxMarker box)
+void finish_box(ByteBuffer& bytes, BoxMarker box)
 {
     auto size = bytes.size() - box.start;
     VERIFY(size <= NumericLimits<u32>::max());
     patch_u32(bytes, box.start, size);
 }
 
-static void append_full_box_header(ByteBuffer& bytes, u8 version = 0, u32 flags = 0)
+void append_full_box_header(ByteBuffer& bytes, u8 version = 0, u32 flags = 0)
 {
     append_u32(bytes, (static_cast<u32>(version) << 24) | flags);
 }
 
-static Media::ISOBMFF::Streamer streamer_for(ByteBuffer const& bytes)
+Media::ISOBMFF::Streamer streamer_for(ByteBuffer const& bytes)
 {
     return Media::ISOBMFF::Streamer(make_ref_counted<Media::ReadonlyBytesCursor>(bytes.bytes()));
 }
 
-static void append_sample_count_box(ByteBuffer& bytes, char const (&type)[5], u32 entry_count)
+void append_sample_count_box(ByteBuffer& bytes, char const (&type)[5], u32 entry_count)
 {
     auto box = begin_box(bytes, type);
     append_full_box_header(bytes);
@@ -83,7 +83,7 @@ static void append_sample_count_box(ByteBuffer& bytes, char const (&type)[5], u3
     finish_box(bytes, box);
 }
 
-static void append_minimal_track(ByteBuffer& bytes, bool overflowing_sample_table_counts = false, bool nonzero_media_rate_fraction = false, u32 timescale = 1'000)
+void append_minimal_track(ByteBuffer& bytes, bool overflowing_sample_table_counts = false, bool nonzero_media_rate_fraction = false, u32 timescale = 1'000)
 {
     auto track = begin_box(bytes, "trak");
 
@@ -144,7 +144,7 @@ static void append_minimal_track(ByteBuffer& bytes, bool overflowing_sample_tabl
     finish_box(bytes, track);
 }
 
-static void append_movie_extends_box(ByteBuffer& bytes)
+void append_movie_extends_box(ByteBuffer& bytes)
 {
     auto movie_extends = begin_box(bytes, "mvex");
     auto track_extends = begin_box(bytes, "trex");
@@ -158,7 +158,7 @@ static void append_movie_extends_box(ByteBuffer& bytes)
     finish_box(bytes, movie_extends);
 }
 
-static void append_movie_box(ByteBuffer& bytes, bool overflowing_sample_table_counts = false, bool nonzero_media_rate_fraction = false, u32 movie_timescale = 1'000, u32 track_timescale = 1'000)
+void append_movie_box(ByteBuffer& bytes, bool overflowing_sample_table_counts = false, bool nonzero_media_rate_fraction = false, u32 movie_timescale = 1'000, u32 track_timescale = 1'000)
 {
     auto movie = begin_box(bytes, "moov");
 
@@ -174,7 +174,7 @@ static void append_movie_box(ByteBuffer& bytes, bool overflowing_sample_table_co
     finish_box(bytes, movie);
 }
 
-static void append_version_2_audio_movie(ByteBuffer& bytes)
+void append_version_2_audio_movie(ByteBuffer& bytes)
 {
     auto movie = begin_box(bytes, "moov");
     auto track = begin_box(bytes, "trak");
@@ -234,7 +234,7 @@ static void append_version_2_audio_movie(ByteBuffer& bytes)
     finish_box(bytes, movie);
 }
 
-static void append_movie_fragment_header(ByteBuffer& bytes)
+void append_movie_fragment_header(ByteBuffer& bytes)
 {
     auto movie_fragment_header = begin_box(bytes, "mfhd");
     append_full_box_header(bytes);
@@ -242,7 +242,7 @@ static void append_movie_fragment_header(ByteBuffer& bytes)
     finish_box(bytes, movie_fragment_header);
 }
 
-static Media::ISOBMFF::TrackFragmentContexts fragment_contexts()
+Media::ISOBMFF::TrackFragmentContexts fragment_contexts()
 {
     Media::ISOBMFF::TrackFragmentContexts contexts;
     contexts.set(1, {
