@@ -95,6 +95,8 @@ pub struct ComputedLonghandTable {
     inheritance_dependent: Vec<(u16, RetainedStyleValueData)>,
     /// The borrowed view over `inheritance_dependent` handed to C++.
     inheritance_dependent_view: Vec<FfiTableInheritanceDependentValue>,
+    /// Viewport dependency flags accumulated by the longhand drive.
+    dependency_flags: u8,
     frozen: bool,
 }
 
@@ -109,6 +111,7 @@ impl ComputedLonghandTable {
             evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
             inheritance_dependent: Vec::new(),
             inheritance_dependent_view: Vec::new(),
+            dependency_flags: 0,
             frozen: false,
         }
     }
@@ -178,6 +181,19 @@ impl ComputedLonghandTable {
         }
     }
 
+    pub(crate) fn merge_dependency_flags(
+        &mut self,
+        depends_on_viewport_metrics: bool,
+        font_metrics_depend_on_viewport_metrics: bool,
+    ) {
+        self.dependency_flags |=
+            u8::from(depends_on_viewport_metrics) | (u8::from(font_metrics_depend_on_viewport_metrics) << 1);
+    }
+
+    pub(crate) fn dependency_flags(&self) -> u8 {
+        self.dependency_flags
+    }
+
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
         assert!(
             !self.frozen,
@@ -189,6 +205,7 @@ impl ComputedLonghandTable {
         self.important_bits = source.important_bits;
         self.inherited_bits = source.inherited_bits;
         self.evaluated_bits = source.evaluated_bits;
+        self.dependency_flags = source.dependency_flags;
         self.inheritance_dependent.clone_from(&source.inheritance_dependent);
         self.rebuild_inheritance_dependent_view();
     }
@@ -209,6 +226,7 @@ impl ComputedLonghandTable {
         self.important_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
+        self.dependency_flags = 0;
         self.inheritance_dependent.clear();
         self.inheritance_dependent_view.clear();
     }
@@ -698,6 +716,23 @@ pub unsafe extern "C" fn rust_computed_longhand_table_remove_inheritance_depende
     abort_on_panic(|| unsafe { &mut *table }.remove_inheritance_dependent_value(property_id));
 }
 
+/// Records dependency bits produced outside the native longhand drive.
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_set_dependency_flag(table: *mut ComputedLonghandTable, flag: u8) {
+    abort_on_panic(|| {
+        let table = unsafe { &mut *table };
+        assert!(
+            !table.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        assert!(flag < 2, "only viewport dependency flags belong to the longhand table");
+        table.dependency_flags |= 1 << flag;
+    });
+}
+
 /// The recorded inheritance-dependent specified values as a borrowed span.
 /// The span stays valid while the caller's table reference is live and no
 /// further add or remove mutates the table.
@@ -842,5 +877,18 @@ mod tests {
 
         assert_eq!(copy.get(FIRST_LONGHAND_PROPERTY_ID).unwrap().pointer(), source_pointer);
         assert_eq!(copy.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(3));
+    }
+
+    #[test]
+    fn dependency_flags_follow_the_table() {
+        let mut source = ComputedLonghandTable::new();
+        source.merge_dependency_flags(true, false);
+
+        let mut copy = ComputedLonghandTable::new();
+        copy.copy_from(&source);
+        assert_eq!(copy.dependency_flags(), 1);
+
+        copy.merge_dependency_flags(false, true);
+        assert_eq!(copy.dependency_flags(), 3);
     }
 }

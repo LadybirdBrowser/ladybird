@@ -149,6 +149,10 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
 
 void ComputedStyleWorkingSet::freeze_computed_longhand_table()
 {
+    if (m_depends_on_viewport_metrics)
+        ComputedValuesFFI::rust_computed_longhand_table_set_dependency_flag(m_computed_longhand_table, 0);
+    if (m_font_metrics_depend_on_viewport_metrics)
+        ComputedValuesFFI::rust_computed_longhand_table_set_dependency_flag(m_computed_longhand_table, 1);
     ComputedValuesFFI::rust_computed_longhand_table_freeze(m_computed_longhand_table);
 }
 
