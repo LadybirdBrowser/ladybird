@@ -1,0 +1,2 @@
+callbacks after removal: 1
+callbacks after detached mutation: 1

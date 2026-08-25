@@ -118,18 +118,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
             updated_existing_observer = true;
 
             // 1. For each node of this’s node list, remove all transient registered observers whose source is registered from node’s registered observer list.
-            for (auto& node : m_node_list) {
-                // FIXME: Is this correct?
-                if (!node)
-                    continue;
-
-                if (node->registered_observer_list()) {
-                    node->registered_observer_list()->remove_all_matching([&registered_observer](RegisteredObserver& observer) {
-                        auto* transient = as_if<TransientRegisteredObserver>(observer);
-                        return transient && transient->source().ptr() == registered_observer.ptr();
-                    });
-                }
-            }
+            remove_transient_registered_observers(registered_observer.ptr());
 
             // 2. Set registered’s options to options.
             registered_observer->set_options(move(options));
@@ -171,6 +160,8 @@ void MutationObserver::disconnect()
         }
     }
 
+    remove_transient_registered_observers();
+
     // 2. Empty this’s record queue.
     m_record_queue.clear();
 }
@@ -188,6 +179,49 @@ Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
 
     // 3. Return records.
     return records;
+}
+
+void MutationObserver::add_transient_registered_node(Badge<Node>, Node& node)
+{
+    for (auto& transient_registered_node : m_transient_registered_node_list) {
+        if (transient_registered_node.ptr().ptr() == &node)
+            return;
+    }
+    m_transient_registered_node_list.append(node);
+}
+
+void MutationObserver::remove_transient_registered_observers(RegisteredObserver const* source)
+{
+    for (auto& node : m_transient_registered_node_list) {
+        if (!node)
+            continue;
+
+        if (auto* registered_observer_list = node->registered_observer_list()) {
+            registered_observer_list->remove_all_matching([this, source](RegisteredObserver& registered_observer) {
+                auto* transient = as_if<TransientRegisteredObserver>(registered_observer);
+                return transient && transient->observer().ptr() == this && (!source || transient->source().ptr() == source);
+            });
+        }
+    }
+
+    if (!source) {
+        m_transient_registered_node_list.clear();
+        return;
+    }
+
+    m_transient_registered_node_list.remove_all_matching([this](GC::Weak<Node> const& node) {
+        if (!node)
+            return true;
+        auto const* registered_observer_list = node->registered_observer_list();
+        if (!registered_observer_list)
+            return true;
+        for (auto const& registered_observer : *registered_observer_list) {
+            auto const* transient = as_if<TransientRegisteredObserver>(*registered_observer);
+            if (transient && transient->observer().ptr() == this)
+                return false;
+        }
+        return true;
+    });
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
@@ -222,17 +256,7 @@ void queue_mutation_observer_microtask(HTML::SimilarOriginWindowAgent& surroundi
 
             // 3. For each node of mo’s node list, remove all transient registered observers whose observer is mo from
             //    node’s registered observer list.
-            for (auto& node : mutation_observer->node_list()) {
-                // FIXME: Is this correct?
-                if (!node)
-                    continue;
-
-                if (node->registered_observer_list()) {
-                    node->registered_observer_list()->remove_all_matching([&mutation_observer](RegisteredObserver& registered_observer) {
-                        return is<TransientRegisteredObserver>(registered_observer) && static_cast<TransientRegisteredObserver&>(registered_observer).observer().ptr() == mutation_observer.ptr();
-                    });
-                }
-            }
+            mutation_observer->remove_transient_registered_observers();
 
             // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with
             //    callback this value mo.

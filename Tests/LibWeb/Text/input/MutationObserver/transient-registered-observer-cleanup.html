@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const parent = document.createElement("div");
+        const child = document.createElement("div");
+        parent.append(child);
+
+        let callbacks = 0;
+        const observer = new MutationObserver(() => ++callbacks);
+        observer.observe(parent, { attributes: true, childList: true, subtree: true });
+
+        child.remove();
+        child.setAttribute("before-delivery", "");
+        await Promise.resolve();
+        println(`callbacks after removal: ${callbacks}`);
+
+        child.setAttribute("after-delivery", "");
+        await Promise.resolve();
+        println(`callbacks after detached mutation: ${callbacks}`);
+        done();
+    });
+</script>
