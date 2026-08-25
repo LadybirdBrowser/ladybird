@@ -286,7 +286,7 @@ static Vector<Declaration> declarations(FfiSyntaxParseData const& data, size_t s
 
 static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, FfiSyntaxRule const& rule)
 {
-    VERIFY(rule.parsed_prelude_kind <= to_underlying(ParsedRulePreludeKind::ContainerConditions));
+    VERIFY(rule.parsed_prelude_kind <= to_underlying(ParsedRulePreludeKind::Property));
     VERIFY(rule.parsed_prelude_items_start <= data.prelude_item_count);
     VERIFY(rule.parsed_prelude_item_count <= data.prelude_item_count - rule.parsed_prelude_items_start);
     auto optional_string = [&](size_t offset, size_t length) -> Optional<Utf16FlyString> {
@@ -304,10 +304,18 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
         Optional<RustQueryHandle> query;
         if (item.query)
             query = RustQueryHandle::retained(static_cast<FfiQueryHandle const*>(item.query));
+        Optional<RustSyntaxHandle> syntax;
+        if (item.syntax)
+            syntax = RustSyntaxHandle { item.syntax };
+        RefPtr<StyleValue const> style_value;
+        if (item.style_value)
+            style_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(item.style_value));
         items.unchecked_append({
             .value = optional_string(item.value_offset, item.value_length),
             .selectors = move(selectors),
             .query = move(query),
+            .syntax = move(syntax),
+            .style_value = move(style_value),
             .number_value = item.number_value,
             .kind = item.kind,
         });
@@ -316,6 +324,7 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
         .kind = static_cast<ParsedRulePreludeKind>(rule.parsed_prelude_kind),
         .name = optional_string(rule.parsed_prelude_name_offset, rule.parsed_prelude_name_length),
         .secondary = optional_string(rule.parsed_prelude_secondary_offset, rule.parsed_prelude_secondary_length),
+        .syntax = rule.parsed_prelude_syntax ? Optional<RustSyntaxHandle> { RustSyntaxHandle { rule.parsed_prelude_syntax } } : OptionalNone {},
         .items = move(items),
     };
 }

@@ -508,107 +508,15 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 {
-    m_rule_context.append(RuleContext::AtProperty);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtProperty);
-    };
-
-    // https://drafts.css-houdini.org/css-properties-values-api-1/#at-ruledef-property
-    // @property <custom-property-name> {
-    // <declaration-list>
-    // }
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
+    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Property)
         return {};
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Name || !rule.parsed_prelude.name.has_value()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@property"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Name must be an ident starting with '--'."_string,
-        });
-        return {};
-    }
-
-    auto name = rule.parsed_prelude.name.value();
-
-    Optional<Utf16FlyString> syntax_maybe;
-    Optional<bool> inherits_maybe;
-    RefPtr<StyleValue const> initial_value_maybe;
-
-    rule.for_each_as_declaration_list([&](auto& declaration) {
-        if (auto descriptor = convert_to_descriptor(AtRuleID::Property, declaration); descriptor.has_value()) {
-            if (descriptor->descriptor_name_and_id.id() == DescriptorID::Syntax) {
-                if (descriptor->value->is_string())
-                    syntax_maybe = descriptor->value->as_string().string_value();
-                return;
-            }
-            if (descriptor->descriptor_name_and_id.id() == DescriptorID::Inherits) {
-                switch (descriptor->value->to_keyword()) {
-                case Keyword::True:
-                    inherits_maybe = true;
-                    break;
-                case Keyword::False:
-                    inherits_maybe = false;
-                    break;
-                default:
-                    break;
-                }
-                return;
-            }
-            if (descriptor->descriptor_name_and_id.id() == DescriptorID::InitialValue) {
-                initial_value_maybe = *descriptor->value;
-                return;
-            }
-        }
-    });
-
-    // @property rules require a syntax and inherits descriptor; if either are missing, the entire rule is invalid and must be ignored.
-    if (!syntax_maybe.has_value() || syntax_maybe->is_empty() || !inherits_maybe.has_value()) {
-        return {};
-    }
-
-    CSS::Parser::ParsingParams parsing_params;
-    if (document())
-        parsing_params = CSS::Parser::ParsingParams { *document() };
-    else
-        parsing_params = CSS::Parser::ParsingParams {};
-
-    auto maybe_syntax = parse_as_syntax(syntax_maybe.value(), LimitSingleComponentIdentToCustomIdent::Yes);
-
-    // If the provided string is not a valid syntax string (if it returns failure when consume
-    // a syntax definition is called on it), the descriptor is invalid and must be ignored.
-    if (!maybe_syntax.has_value()) {
-        return {};
-    }
-    // The initial-value descriptor is optional only if the syntax is the universal syntax definition,
-    // otherwise the descriptor is required; if it’s missing, the entire rule is invalid and must be ignored.
-    if (!initial_value_maybe && !maybe_syntax->is_universal()) {
-        return {};
-    }
-
-    if (initial_value_maybe) {
-        initial_value_maybe = Web::CSS::Parser::parse_with_a_syntax(parsing_params, initial_value_maybe->is_unresolved() ? initial_value_maybe->as_unresolved().token_source() : initial_value_maybe->to_utf16_string(SerializationMode::ResolvedValueForReparse),
-            *maybe_syntax);
-
-        // Otherwise, if the value of the syntax descriptor is not the universal syntax definition,
-        // the following conditions must be met for the @property rule to be valid:
-        if (!maybe_syntax->is_universal()) {
-            //  - The initial-value descriptor must be present.
-            //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
-            //  - The initial-value must be computationally independent.
-            if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid() || !initial_value_maybe->is_computationally_independent())
-                return {};
-        }
-    }
-
-    return CSSPropertyRule::create(move(name), syntax_maybe.value(), maybe_syntax.release_value(), inherits_maybe.value(), move(initial_value_maybe));
+    VERIFY(rule.parsed_prelude.name.has_value());
+    VERIFY(rule.parsed_prelude.secondary.has_value());
+    VERIFY(rule.parsed_prelude.syntax.has_value());
+    VERIFY(rule.parsed_prelude.items.size() == 1);
+    auto& item = rule.parsed_prelude.items.first();
+    auto inherits = static_cast<ValueParserFFI::FfiPropertyPreludeItemKind>(item.kind) == ValueParserFFI::FfiPropertyPreludeItemKind::InheritsTrue;
+    return CSSPropertyRule::create(*rule.parsed_prelude.name, *rule.parsed_prelude.secondary, rule.parsed_prelude.syntax.value(), inherits, item.style_value);
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule

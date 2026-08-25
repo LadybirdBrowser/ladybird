@@ -2322,6 +2322,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiImportPreludeItemKind".to_string(),
         "FfiScopePreludeItemKind".to_string(),
         "FfiFunctionParameterItemKind".to_string(),
+        "FfiPropertyPreludeItemKind".to_string(),
         "FfiValueParsingContext".to_string(),
         "FfiValueParsingContextKind".to_string(),
         "FfiUtf16View".to_string(),
