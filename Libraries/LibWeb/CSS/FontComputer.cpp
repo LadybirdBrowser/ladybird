@@ -791,6 +791,7 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names)
 {
     VERIFY(!family_names.is_empty());
+    ++m_environment_generation;
 
     // Only clear cache entries that reference the loaded font family.
     m_computed_font_cache.remove_all_matching([&](auto const& key, auto const&) {

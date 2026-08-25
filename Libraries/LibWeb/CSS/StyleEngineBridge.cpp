@@ -25,6 +25,45 @@ static void ladybird_utf16_fly_string_unref_raw(size_t raw)
     Utf16FlyString::unref_raw(static_cast<FlatPtr>(raw));
 }
 
+static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFFI::FfiFontResolutionRequest request)
+{
+    auto& style_computer = *static_cast<StyleComputer*>(context);
+    auto& font_computer = style_computer.document().font_computer();
+    auto font_family = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+        static_cast<StyleValueFFI::StyleValueData const*>(request.font_family)));
+    auto font_list = font_computer.compute_font_for_style_values(
+        *font_family,
+        CSSPixels::from_raw(request.font_size_raw),
+        request.font_slope,
+        request.font_weight,
+        Percentage(request.font_width),
+        static_cast<FontOpticalSizing>(request.font_optical_sizing),
+        {},
+        {});
+    font_computer.pin_font_list_for_style_record(font_list);
+    auto const& first_available_font = font_list->font_for_code_point(' ');
+    auto const metrics = first_available_font.pixel_metrics();
+    auto* handle = &font_list.leak_ref();
+    return {
+        .handle = handle,
+        .first_available_font = &first_available_font,
+        .font_cascade_list = handle,
+        .ascent = metrics.ascent,
+        .descent = metrics.descent,
+        .x_height = metrics.x_height,
+    };
+}
+
+static void retain_resolved_font(void const* handle)
+{
+    static_cast<Gfx::FontCascadeList const*>(handle)->ref();
+}
+
+static void release_resolved_font(void const* handle)
+{
+    static_cast<Gfx::FontCascadeList const*>(handle)->unref();
+}
+
 static_assert(!IsMoveConstructible<StyleEngine>);
 static_assert(!IsMoveAssignable<StyleEngine>);
 
@@ -44,6 +83,14 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
     , m_style_computer(style_computer)
 {
     StyleEngineFFI::style_engine_install_raw_atom_callbacks(ladybird_utf16_fly_string_ref_raw, ladybird_utf16_fly_string_unref_raw);
+    if (m_style_computer) {
+        StyleEngineFFI::style_engine_install_font_resolver(
+            m_impl,
+            m_style_computer.ptr(),
+            resolve_font,
+            retain_resolved_font,
+            release_resolved_font);
+    }
 }
 
 StyleEngine::~StyleEngine()
@@ -601,6 +648,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .initial_font_size_raw = InitialValues::font_size().raw_value(),
             .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
             .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),
+            .font_environment_generation = m_style_computer->document().font_computer().environment_generation(),
         };
     }
     auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value(), computation_inputs);

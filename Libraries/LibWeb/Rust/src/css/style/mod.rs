@@ -65,6 +65,7 @@ pub mod exact_matcher;
 pub mod fast_hash;
 mod flush;
 mod fnv;
+mod font_resolution;
 pub mod impact;
 pub mod index;
 mod input_routing;
@@ -779,6 +780,7 @@ pub struct StyleEngine {
     next_style_transaction_version: StyleTransactionVersion,
     /// Latest document-wide scalar computation facts, copied at the transaction boundary.
     document_style_computation_inputs: Option<bridge::FfiDocumentStyleComputationInputs>,
+    font_resolver: Option<font_resolution::FontResolver>,
     layer_topology_version: u64,
     sheet_order_version: u64,
 
