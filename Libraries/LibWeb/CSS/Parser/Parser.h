@@ -164,11 +164,6 @@ private:
         Standalone,
         Relative
     };
-    struct FunctionPrelude {
-        Utf16FlyString name;
-        Vector<FunctionParameterInternal> parameters;
-        RustSyntaxHandle return_type;
-    };
     struct ImportPrelude {
         URL url;
         Optional<Utf16FlyString> layer;
@@ -181,7 +176,6 @@ private:
     static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
     Optional<ImportPrelude> parse_import_prelude(AtRule const&);
     Optional<Vector<u32>> parse_font_feature_values(Declaration const&, size_t max_value_count);
-    Optional<FunctionPrelude> parse_function_prelude(AtRule const&);
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);

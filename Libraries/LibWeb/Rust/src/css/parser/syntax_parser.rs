@@ -27,6 +27,7 @@ use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
     is_valid_custom_ident, parse_css_value_with_utf16_source,
 };
+use crate::css::property_metadata::property_id;
 use crate::css::selector_parser::{RustParsedSelectorList, SelectorType, parse_selector_list_from_component_values};
 use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_compute::value_is_computationally_independent;
@@ -94,9 +95,7 @@ pub enum FfiScopePreludeItemKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiFunctionParameterItemKind {
-    Name = 0,
-    Type = 1,
-    Default = 2,
+    Parameter = 0,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -194,8 +193,8 @@ enum ParsedRulePrelude {
     Import(Vec<(Option<ParserString>, FfiImportPreludeItemKind)>),
     Function {
         name: ParserString,
-        parameters: Vec<(ParserString, Option<ParserString>, Option<ParserString>)>,
-        return_type: Option<ParserString>,
+        parameters: Vec<ParsedFunctionParameter>,
+        return_type: Arc<SyntaxNode>,
     },
     Property {
         name: ParserString,
@@ -213,6 +212,13 @@ enum ParsedRulePrelude {
 struct ParsedPageSelector {
     name: Option<ParserString>,
     pseudo_classes: Vec<FfiPageSelectorItemKind>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct ParsedFunctionParameter {
+    name: ParserString,
+    syntax: Arc<SyntaxNode>,
+    default_value: Option<ParsedStyleValue>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -669,7 +675,50 @@ fn parse_css_type(values: &[ComponentValue], position: &mut usize) -> Option<Par
     Some(component_slice_source(contents))
 }
 
-fn parse_function_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
+fn unresolved_contains_arbitrary_substitution_function(value: &StyleValueData) -> bool {
+    matches!(
+        value,
+        StyleValueData::Unresolved {
+            presence_attr: true,
+            ..
+        } | StyleValueData::Unresolved {
+            presence_dashed_function: true,
+            ..
+        } | StyleValueData::Unresolved { presence_env: true, .. }
+            | StyleValueData::Unresolved { presence_if: true, .. }
+            | StyleValueData::Unresolved {
+                presence_inherit: true,
+                ..
+            }
+            | StyleValueData::Unresolved { presence_var: true, .. }
+    )
+}
+
+fn parse_function_default(
+    context: &ParseContext,
+    values: &[ComponentValue],
+    syntax: &SyntaxNode,
+) -> Option<ParsedStyleValue> {
+    let source = component_list_source(values);
+    let ParseOutcome::Parsed(unparsed) =
+        parse_css_value_with_utf16_source(context, property_id::CUSTOM, values, source.as_ref())
+    else {
+        return None;
+    };
+    if crate::css::style_compute::value_is_css_wide_keyword(&unparsed)
+        || unresolved_contains_arbitrary_substitution_function(&unparsed)
+    {
+        return Some(ParsedStyleValue(unparsed));
+    }
+    let source = serialize_component_values_to_utf16(values, ComponentSerializationMode::Retokenize);
+    parse_with_syntax(context, &source, syntax).map(|value| ParsedStyleValue(Arc::new(value)))
+}
+
+fn parse_function_prelude(rule: &AtRule, context: &ParseContext) -> ParsedRulePrelude {
+    if !rule.has_block {
+        return ParsedRulePrelude::Invalid;
+    }
+    let values = &rule.prelude;
     let mut position = 0;
     skip_whitespace(values, &mut position);
     let Some((name, parameter_values)) = values.get(position).and_then(ComponentValue::function) else {
@@ -695,12 +744,24 @@ fn parse_function_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
             }
             parameter_position += 1;
             let type_source = parse_css_type(parameter, &mut parameter_position);
+            let syntax = match type_source {
+                Some(ref source) => {
+                    let Some(syntax) = parse_syntax(source.as_ref(), false) else {
+                        return ParsedRulePrelude::Invalid;
+                    };
+                    syntax
+                }
+                None => SyntaxNode::Universal,
+            };
             skip_whitespace(parameter, &mut parameter_position);
-            let default_source = if parameter.get(parameter_position).is_some_and(ComponentValue::is_colon) {
+            let default_value = if parameter.get(parameter_position).is_some_and(ComponentValue::is_colon) {
                 parameter_position += 1;
-                let source = component_slice_source(&parameter[parameter_position..]);
+                let Some(default_value) = parse_function_default(context, &parameter[parameter_position..], &syntax)
+                else {
+                    return ParsedRulePrelude::Invalid;
+                };
                 parameter_position = parameter.len();
-                Some(source)
+                Some(default_value)
             } else {
                 None
             };
@@ -708,11 +769,11 @@ fn parse_function_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
             if parameter_position != parameter.len() {
                 return ParsedRulePrelude::Invalid;
             }
-            parameters.push((
-                parameter_name.to_vec().into_boxed_slice().into(),
-                type_source,
-                default_source,
-            ));
+            parameters.push(ParsedFunctionParameter {
+                name: parameter_name.to_vec().into_boxed_slice().into(),
+                syntax: Arc::new(syntax),
+                default_value,
+            });
         }
     }
     skip_whitespace(values, &mut position);
@@ -722,12 +783,15 @@ fn parse_function_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
         .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"returns"))
     {
         position += 1;
-        let Some(return_type) = parse_css_type(values, &mut position) else {
+        let Some(return_type_source) = parse_css_type(values, &mut position) else {
             return ParsedRulePrelude::Invalid;
         };
-        Some(return_type)
+        let Some(return_type) = parse_syntax(return_type_source.as_ref(), false) else {
+            return ParsedRulePrelude::Invalid;
+        };
+        Arc::new(return_type)
     } else {
-        None
+        Arc::new(SyntaxNode::Universal)
     };
     skip_whitespace(values, &mut position);
     if position != values.len() {
@@ -891,9 +955,9 @@ where
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"import") => {
             parse_import_prelude(&rule.prelude)
         }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"function") => {
-            parse_function_prelude(&rule.prelude)
-        }
+        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"function") => parse_context
+            .map(|context| parse_function_prelude(rule, context))
+            .unwrap_or(ParsedRulePrelude::Invalid),
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"media") => {
             ParsedRulePrelude::MediaQueries(parse_media_query_list_from_component_values(
                 &rule.prelude,
@@ -2238,39 +2302,19 @@ impl FfiSyntaxParse {
                 return_type,
             } => {
                 parsed_prelude_name = Some(name);
-                parsed_prelude_secondary = return_type;
-                for (name, type_source, default_source) in parameters {
+                parsed_prelude_syntax = Arc::into_raw(return_type).cast();
+                for parameter in parameters {
                     parsed_items.push((
-                        Some(name),
+                        Some(parameter.name),
                         0.0,
-                        FfiFunctionParameterItemKind::Name as u8,
+                        FfiFunctionParameterItemKind::Parameter as u8,
                         std::ptr::null_mut(),
                         std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
+                        Arc::into_raw(parameter.syntax).cast(),
+                        parameter
+                            .default_value
+                            .map_or(std::ptr::null(), |value| Arc::into_raw(value.0).cast()),
                     ));
-                    if let Some(type_source) = type_source {
-                        parsed_items.push((
-                            Some(type_source),
-                            0.0,
-                            FfiFunctionParameterItemKind::Type as u8,
-                            std::ptr::null_mut(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                        ));
-                    }
-                    if let Some(default_source) = default_source {
-                        parsed_items.push((
-                            Some(default_source),
-                            0.0,
-                            FfiFunctionParameterItemKind::Default as u8,
-                            std::ptr::null_mut(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                        ));
-                    }
                 }
                 11
             }
@@ -2626,10 +2670,11 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 mod tests {
     use super::{
         Declaration, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiSyntaxParse, ParsedRulePrelude, Rule,
-        RuleContext, RuleOrDeclarations, consume_a_list_of_component_values, parse_block_contents,
+        RuleContext, RuleOrDeclarations, SyntaxNode, consume_a_list_of_component_values, parse_block_contents,
         parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet, token_diagnostics,
         tokenize_for_parser,
     };
+    use crate::css::parser::value_parser::ParseContext;
 
     fn utf16(value: &str) -> Vec<u16> {
         value.encode_utf16().collect()
@@ -2637,6 +2682,38 @@ mod tests {
 
     fn parse_test_rule_prelude(rule: &Rule) -> ParsedRulePrelude {
         parse_rule_prelude(rule, None, &|_, _| None)
+    }
+
+    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
+        0
+    }
+
+    fn parse_context() -> ParseContext {
+        ParseContext {
+            in_quirks_mode: false,
+            is_svg_presentation_attribute: false,
+            is_substituted_value: false,
+            contains_attr_tainted_values: false,
+            value_contexts: std::ptr::null(),
+            value_context_count: 0,
+            document_url: std::ptr::null(),
+            document_url_length: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            intern_utf16_fly_string: Some(discard_interned_string),
+            normalize_svg_path_data: None,
+            precomputed_svg_paths: std::ptr::null(),
+            precomputed_svg_path_count: 0,
+            font_format_is_supported: None,
+            font_tech_is_supported: None,
+            descriptor_integer_resolution_context: std::ptr::null(),
+            resolve_descriptor_integer: None,
+            random_function_index: std::ptr::null_mut(),
+        }
+    }
+
+    fn parse_test_rule_prelude_with_context(rule: &Rule) -> ParsedRulePrelude {
+        parse_rule_prelude(rule, Some(&parse_context()), &|_, _| None)
     }
 
     #[test]
@@ -2940,19 +3017,19 @@ mod tests {
             name,
             parameters,
             return_type,
-        } = parse_test_rule_prelude(&rules[1])
+        } = parse_test_rule_prelude_with_context(&rules[1])
         else {
             panic!("expected function prelude");
         };
         assert_eq!(name.as_ref(), utf16("--size"));
         assert_eq!(parameters.len(), 2);
-        assert_eq!(parameters[0].0.as_ref(), utf16("--base"));
-        assert!(parameters[0].1.is_some());
-        assert!(parameters[0].2.is_some());
-        assert_eq!(parameters[1].0.as_ref(), utf16("--scale"));
-        assert!(parameters[1].1.is_some());
-        assert!(parameters[1].2.is_none());
-        assert!(return_type.is_some());
+        assert_eq!(parameters[0].name.as_ref(), utf16("--base"));
+        assert!(!matches!(parameters[0].syntax.as_ref(), SyntaxNode::Universal));
+        assert!(parameters[0].default_value.is_some());
+        assert_eq!(parameters[1].name.as_ref(), utf16("--scale"));
+        assert!(!matches!(parameters[1].syntax.as_ref(), SyntaxNode::Universal));
+        assert!(parameters[1].default_value.is_none());
+        assert!(!matches!(return_type.as_ref(), SyntaxNode::Universal));
     }
 
     #[test]
