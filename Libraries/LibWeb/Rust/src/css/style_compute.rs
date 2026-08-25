@@ -3175,19 +3175,7 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &FfiC
 }
 
 fn requires_cpp_store_side_effect(entry: &FfiComputedStoreEntry, has_animated_inheritance_parent: bool) -> bool {
-    use crate::css::property_metadata::property_id as prop;
-    entry.has_style_sheet_context
-        || entry.inherited && has_animated_inheritance_parent
-        || matches!(
-            entry.property_id,
-            prop::COLOR_SCHEME
-                | prop::FONT_FAMILY
-                | prop::FONT_SIZE
-                | prop::FONT_STYLE
-                | prop::FONT_VARIATION_SETTINGS
-                | prop::FONT_WEIGHT
-                | prop::FONT_WIDTH
-        )
+    entry.has_style_sheet_context || entry.inherited && has_animated_inheritance_parent
 }
 
 fn publish_longhand_store_batch(
