@@ -18,7 +18,7 @@ use crate::css::css_tokenizer::OwnedTokenKind;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
-use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
+use crate::css::parser::syntax::{SyntaxNode, clone_syntax_handle, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{FfiValueParsingContext, FfiValueParsingContextKind, ParseContext};
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::RetainedUtf16FlyString;
@@ -161,7 +161,7 @@ struct FunctionLocalScope {
 #[repr(C)]
 pub struct FfiCustomPropertyRegistration {
     pub name: FfiUtf16View,
-    pub syntax: FfiUtf16View,
+    pub syntax: *const c_void,
     pub inherits: bool,
     pub has_initial_value: bool,
     pub initial_value: FfiUtf16View,
@@ -185,7 +185,7 @@ pub struct FfiSubstitutionAttribute {
 #[repr(C)]
 pub struct FfiSubstitutionFunctionParameter {
     pub name: FfiUtf16View,
-    pub syntax: FfiUtf16View,
+    pub syntax: *const c_void,
     pub default_data: *const c_void,
 }
 
@@ -202,7 +202,7 @@ pub struct FfiSubstitutionFunctionDefinition {
     pub name: FfiUtf16View,
     pub parameters: *const FfiSubstitutionFunctionParameter,
     pub parameter_count: usize,
-    pub return_syntax: FfiUtf16View,
+    pub return_syntax: *const c_void,
     pub declarations: *const FfiSubstitutionFunctionDeclaration,
     pub declaration_count: usize,
 }
@@ -504,7 +504,7 @@ unsafe fn custom_function_registry_from_ffi(
     let mut parsed_definitions = Vec::with_capacity(definitions.len());
     for definition in definitions {
         let name = unsafe { definition.name.to_utf16() }?;
-        let return_syntax = parse_syntax(&unsafe { definition.return_syntax.to_utf16() }?, true)?;
+        let return_syntax = unsafe { clone_syntax_handle(definition.return_syntax) }?;
         let parameters = if definition.parameter_count == 0 {
             &[]
         } else {
@@ -513,7 +513,7 @@ unsafe fn custom_function_registry_from_ffi(
         let mut parsed_parameters = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             let name = unsafe { parameter.name.to_utf16() }?;
-            let syntax = parse_syntax(&unsafe { parameter.syntax.to_utf16() }?, true)?;
+            let syntax = unsafe { clone_syntax_handle(parameter.syntax) }?;
             let default_tokens = if parameter.default_data.is_null() {
                 None
             } else {
@@ -2575,8 +2575,7 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
             } else {
                 None
             };
-            let Some(syntax) = unsafe { registration.syntax.to_utf16() }.and_then(|syntax| parse_syntax(&syntax, true))
-            else {
+            let Some(syntax) = (unsafe { clone_syntax_handle(registration.syntax) }) else {
                 continue;
             };
             registry.registrations.insert(

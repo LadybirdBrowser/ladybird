@@ -470,6 +470,12 @@ pub unsafe extern "C" fn rust_syntax_release(syntax: *const c_void) {
 }
 
 /// # Safety
+/// `syntax` must be null or a live parsed-syntax handle.
+pub(crate) unsafe fn clone_syntax_handle(syntax: *const c_void) -> Option<SyntaxNode> {
+    unsafe { syntax.cast::<SyntaxNode>().as_ref() }.cloned()
+}
+
+/// # Safety
 /// `syntax` must be a live parsed-syntax handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_syntax_is_universal(syntax: *const c_void) -> bool {
