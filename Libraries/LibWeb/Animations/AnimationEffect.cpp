@@ -821,6 +821,7 @@ static CSS::StyleValue const* animated_property_value(CSS::AnimatedProperties co
 
 struct AnimatedPropertyInvalidation {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
+    u32 changed_non_inherited_style_groups { 0 };
     bool requires_base_style_recomputation { false };
 };
 
@@ -877,6 +878,8 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
             else
                 property_invalidation.mark_all_inherited_style_groups_changed();
         }
+        if (!CSS::is_inherited_property(property_id))
+            result.changed_non_inherited_style_groups |= CSS::ComputedValues::style_group_bit_of_property(property_id);
         if (property_id == CSS::PropertyID::TextDecorationLine)
             text_decoration_line_animated = true;
         result.invalidation |= property_invalidation;
@@ -947,13 +950,26 @@ AnimationUpdateContext::~AnimationUpdateContext()
         // An animated value can be inherited through shadow and slot boundaries. Publish the exact
         // flat-tree descendants as one feedback batch; the ordinary transaction owns their style
         // materialization and observer consequences.
-        if (!element.pseudo_element().has_value())
-            target->document().style_computer().style_engine().record_flat_tree_descendant_style_input_changes(
-                target->style_node_id(),
-                CSS::StyleEngine::InheritedStyle,
-                invalidation.inherited_style_changed()
-                    ? invalidation.inherited_style_groups_changed()
-                    : CSS::RequiredInvalidationAfterStyleChange::all_inherited_style_groups);
+        if (!element.pseudo_element().has_value()) {
+            auto inherited_style_groups = invalidation.inherited_style_groups_changed();
+            if (!invalidation.inherited_style_changed()) {
+                auto shadow_root = target->shadow_root();
+                auto child_explicit_inheritance_groups = target->children_explicitly_inherited_non_inherited_style_groups();
+                if (shadow_root)
+                    child_explicit_inheritance_groups |= shadow_root->children_explicitly_inherited_non_inherited_style_groups();
+                auto descendants_may_observe_non_inherited_properties = (child_explicit_inheritance_groups & animated_property_invalidation.changed_non_inherited_style_groups) != 0
+                    || invalidation.recompute_descendant_styles
+                    || invalidation.needs_layout_tree_rebuild()
+                    || target->is_html_slot_element();
+                if (descendants_may_observe_non_inherited_properties)
+                    inherited_style_groups = CSS::RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
+            }
+            if (inherited_style_groups != 0)
+                target->document().style_computer().style_engine().record_flat_tree_descendant_style_input_changes(
+                    target->style_node_id(),
+                    CSS::StyleEngine::InheritedStyle,
+                    inherited_style_groups);
+        }
 
         // NB: Called from animation update context destructor during style recalculation.
         if (!element.pseudo_element().has_value()) {

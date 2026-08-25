@@ -1,0 +1,3 @@
+plain descendants recomputed: false
+text-decoration-line inheritor recomputed: false
+transform inheritor recomputed: true
