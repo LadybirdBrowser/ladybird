@@ -986,7 +986,7 @@ inline fn apply(
     value: i32,
     operation: CheckedBinaryOperation<i32>
 ) {
-    let result = value;
+    let mut result = value;
     operation(result, 1) else @cold {
         dispatch_next;
     };

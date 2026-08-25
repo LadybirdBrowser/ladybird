@@ -49,6 +49,7 @@ pub(crate) struct Variable {
     pub(crate) name: String,
     pub(crate) ty: Type,
     pub(crate) parameter_mode: Option<ParameterMode>,
+    pub(crate) mutable: bool,
     pub(crate) span: SourceSpan,
 }
 

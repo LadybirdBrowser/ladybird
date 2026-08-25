@@ -632,13 +632,19 @@ impl<'a> Parser<'a> {
             self.advance();
             if self.at_keyword("let") {
                 self.advance();
+                let mutable = if self.at_keyword("mut") {
+                    self.advance();
+                    true
+                } else {
+                    false
+                };
                 if self.current().kind == TokenKind::LeftParen {
                     return self.error("tuple return bindings use '[...]'");
                 }
                 if self.at_keyword("Value") {
-                    return self.parse_value_refinement(start);
+                    return self.parse_value_refinement(start, mutable);
                 }
-                return self.parse_fallible_binding(start);
+                return self.parse_fallible_binding(start, mutable);
             }
             let condition = self.parse_expression()?;
             self.consume_keyword("else")?;
@@ -665,6 +671,12 @@ impl<'a> Parser<'a> {
         }
         if self.at_keyword("let") {
             self.advance();
+            let mutable = if self.at_keyword("mut") {
+                self.advance();
+                true
+            } else {
+                false
+            };
             if self.at_keyword("Value") {
                 return self.error("refutable bindings use 'guard let'");
             }
@@ -672,7 +684,7 @@ impl<'a> Parser<'a> {
                 return self.error("tuple return bindings use '[...]'");
             }
             if self.current().kind == TokenKind::LeftBracket {
-                let pattern = self.parse_tuple_pattern()?;
+                let pattern = self.parse_tuple_pattern(mutable)?;
                 self.consume(TokenKind::Equals, "'='")?;
                 let initializer = self.parse_expression()?;
                 let end = self.consume(TokenKind::Semicolon, "';'")?.span.end;
@@ -691,6 +703,9 @@ impl<'a> Parser<'a> {
                     .get(self.index + 1)
                     .is_some_and(|token| matches!(token.kind, TokenKind::DoublePipe | TokenKind::Pipe))
             {
+                if mutable {
+                    return self.error("a continuation binding cannot be mutable");
+                }
                 self.advance();
                 let parameters = if self.current().kind == TokenKind::DoublePipe {
                     self.advance();
@@ -751,7 +766,7 @@ impl<'a> Parser<'a> {
             let end = self.consume(TokenKind::Semicolon, "';'")?.span.end;
             return Ok(Statement::new(
                 StatementKind::Let {
-                    pattern: Pattern::Binding { name, ty },
+                    pattern: Pattern::Binding { name, ty, mutable },
                     initializer,
                 },
                 SourceSpan { start, end },
@@ -891,7 +906,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_tuple_pattern(&mut self) -> Result<Pattern, Diagnostic> {
+    fn parse_tuple_pattern(&mut self, mutable: bool) -> Result<Pattern, Diagnostic> {
         self.consume(TokenKind::LeftBracket, "'['")?;
         let mut patterns = Vec::new();
         loop {
@@ -899,7 +914,11 @@ impl<'a> Parser<'a> {
             patterns.push(if name == "_" {
                 Pattern::Wildcard
             } else {
-                Pattern::Binding { name, ty: None }
+                Pattern::Binding {
+                    name,
+                    ty: None,
+                    mutable,
+                }
             });
             if self.current().kind != TokenKind::Comma {
                 break;
@@ -913,9 +932,9 @@ impl<'a> Parser<'a> {
         Ok(Pattern::Tuple(patterns))
     }
 
-    fn parse_fallible_binding(&mut self, start: SourceLocation) -> Result<Statement, Diagnostic> {
+    fn parse_fallible_binding(&mut self, start: SourceLocation, mutable: bool) -> Result<Statement, Diagnostic> {
         let pattern = if self.current().kind == TokenKind::LeftBracket {
-            self.parse_tuple_pattern()?
+            self.parse_tuple_pattern(mutable)?
         } else {
             let (name, _) = self.consume_identifier("binding name")?;
             let ty = if self.current().kind == TokenKind::Colon {
@@ -924,7 +943,7 @@ impl<'a> Parser<'a> {
             } else {
                 None
             };
-            Pattern::Binding { name, ty }
+            Pattern::Binding { name, ty, mutable }
         };
         self.consume(TokenKind::Equals, "'='")?;
         let initializer = self.parse_expression()?;
@@ -967,7 +986,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_value_refinement(&mut self, start: SourceLocation) -> Result<Statement, Diagnostic> {
+    fn parse_value_refinement(&mut self, start: SourceLocation, mutable: bool) -> Result<Statement, Diagnostic> {
         self.consume_keyword("Value")?;
         self.consume(TokenKind::LeftAngle, "'<'")?;
         let (refined_type, _) = self.consume_identifier("refined Value type")?;
@@ -990,6 +1009,7 @@ impl<'a> Parser<'a> {
                     binding: Some(Box::new(Pattern::Binding {
                         name: binding,
                         ty: None,
+                        mutable,
                     })),
                 },
                 initializer: value,
@@ -1234,18 +1254,24 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_value_match_pattern(&mut self) -> Result<(String, Option<String>), Diagnostic> {
+    fn parse_value_match_pattern(&mut self) -> Result<(String, Option<String>, bool), Diagnostic> {
         self.consume_keyword("Value")?;
         self.consume(TokenKind::LeftAngle, "'<'")?;
         let (representation, _) = self.consume_identifier("Value representation")?;
         self.consume(TokenKind::RightAngle, "'>'")?;
         if self.current().kind != TokenKind::LeftParen {
-            return Ok((representation, None));
+            return Ok((representation, None, false));
         }
         self.consume(TokenKind::LeftParen, "'('")?;
+        let mutable = if self.at_keyword("mut") {
+            self.advance();
+            true
+        } else {
+            false
+        };
         let (binding, _) = self.consume_identifier("pattern binding")?;
         self.consume(TokenKind::RightParen, "')'")?;
-        Ok((representation, Some(binding)))
+        Ok((representation, Some(binding), mutable))
     }
 
     fn parse_value_match_arms(
@@ -1254,7 +1280,7 @@ impl<'a> Parser<'a> {
     ) -> Result<(Vec<ValueMatchArm>, ValueMatchFallback), Diagnostic> {
         let mut arms = Vec::new();
         while !self.at_keyword("_") {
-            let (representation, binding) = self.parse_value_match_pattern()?;
+            let (representation, binding, binding_mutable) = self.parse_value_match_pattern()?;
             self.consume(TokenKind::FatArrow, "'=>'")?;
             let temperature = self.parse_block_temperature()?;
             let body = if value_producing {
@@ -1265,6 +1291,7 @@ impl<'a> Parser<'a> {
             arms.push(ValueMatchArm {
                 representation,
                 binding,
+                binding_mutable,
                 temperature,
                 body,
             });
@@ -1671,6 +1698,27 @@ handler Mod(lhs: Value, rhs: Value) {
                 pattern: Pattern::ValueRepresentation { ref representation, .. },
                 ..
             } if representation == "i32"
+        ));
+    }
+
+    #[test]
+    fn parses_mutable_bindings() {
+        let handler = parse_handler(
+            "handler Mutate(value: i32) { let mut scalar = value; let mut [lhs, rhs] = pair(value); dispatch_next; }",
+        );
+        assert!(matches!(
+            handler.body.statements[0].kind,
+            StatementKind::Let {
+                pattern: Pattern::Binding { mutable: true, .. },
+                ..
+            }
+        ));
+        assert!(matches!(
+            handler.body.statements[1].kind,
+            StatementKind::Let {
+                pattern: Pattern::Tuple(ref patterns),
+                ..
+            } if patterns.iter().all(|pattern| matches!(pattern, Pattern::Binding { mutable: true, .. }))
         ));
     }
 

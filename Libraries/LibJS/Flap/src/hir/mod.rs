@@ -156,6 +156,28 @@ impl<'a> Checker<'a> {
         parameter_mode: Option<ParameterMode>,
         span: SourceSpan,
     ) -> Result<VariableId, Diagnostic> {
+        let mutable = matches!(parameter_mode, Some(ParameterMode::Out | ParameterMode::InOut));
+        self.declare_with_mutability(name, ty, parameter_mode, mutable, span)
+    }
+
+    fn declare_local(
+        &mut self,
+        name: &str,
+        ty: Type,
+        mutable: bool,
+        span: SourceSpan,
+    ) -> Result<VariableId, Diagnostic> {
+        self.declare_with_mutability(name, ty, None, mutable, span)
+    }
+
+    fn declare_with_mutability(
+        &mut self,
+        name: &str,
+        ty: Type,
+        parameter_mode: Option<ParameterMode>,
+        mutable: bool,
+        span: SourceSpan,
+    ) -> Result<VariableId, Diagnostic> {
         if self.scopes.last().unwrap().contains_key(name) {
             return self.error(span, format!("duplicate binding '{name}' in the same scope"));
         }
@@ -164,6 +186,7 @@ impl<'a> Checker<'a> {
             name: name.to_string(),
             ty: ty.clone(),
             parameter_mode,
+            mutable,
             span,
         });
         self.scopes
@@ -196,7 +219,12 @@ impl<'a> Checker<'a> {
                     }
                     continuation_parameters.push(ContinuationParameter {
                         name: parameter.name.clone(),
-                        id: self.declare_hidden(&parameter.name, parameter.ty.clone(), parameter.span),
+                        id: self.declare_hidden_with_mutability(
+                            &parameter.name,
+                            parameter.ty.clone(),
+                            false,
+                            parameter.span,
+                        ),
                         ty: parameter.ty.clone(),
                     });
                 }
@@ -356,7 +384,11 @@ impl<'a> Checker<'a> {
             .iter()
             .zip(element_types)
             .map(|(pattern, ty)| match pattern {
-                ast::Pattern::Binding { name, ty: None } => self.declare(name, ty, None, span),
+                ast::Pattern::Binding {
+                    name,
+                    ty: None,
+                    mutable,
+                } => self.declare_local(name, ty, *mutable, span),
                 ast::Pattern::Wildcard => Ok(self.declare_hidden("discard", ty, span)),
                 _ => self.error(span, "invalid tuple binding pattern"),
             })
@@ -376,6 +408,7 @@ impl<'a> Checker<'a> {
     fn check_bound_block(
         &mut self,
         binding: Option<&str>,
+        binding_mutable: bool,
         ty: Type,
         block: &ast::Block,
         span: SourceSpan,
@@ -383,7 +416,7 @@ impl<'a> Checker<'a> {
         let facts = self.type_facts();
         self.scopes.push(HashMap::default());
         let binding = binding
-            .map(|binding| self.declare(binding, ty, None, span))
+            .map(|binding| self.declare_local(binding, ty, binding_mutable, span))
             .transpose()?;
         let start = self.statements.len();
         let result = self.check_block(block, false);
@@ -397,6 +430,7 @@ impl<'a> Checker<'a> {
     fn check_bound_value_block(
         &mut self,
         binding: Option<&str>,
+        binding_mutable: bool,
         binding_type: Type,
         block: &ast::Block,
         expected: Option<&Type>,
@@ -405,7 +439,7 @@ impl<'a> Checker<'a> {
         let facts = self.type_facts();
         self.scopes.push(HashMap::default());
         let binding = binding
-            .map(|binding| self.declare(binding, binding_type, None, span))
+            .map(|binding| self.declare_local(binding, binding_type, binding_mutable, span))
             .transpose()?;
         let result = self.check_value_block(block, expected);
         self.scopes.pop();
@@ -474,6 +508,7 @@ impl<'a> Checker<'a> {
             let (binding, mut body, value) = if name.is_some() {
                 let (binding, body, value) = self.check_bound_value_block(
                     arm.binding.as_deref(),
+                    arm.binding_mutable,
                     binding_type,
                     &arm.body,
                     result_type.as_ref(),
@@ -497,8 +532,13 @@ impl<'a> Checker<'a> {
                 result_type = Some(arm_type);
                 (binding, body, Some(value))
             } else {
-                let (binding, body) =
-                    self.check_bound_block(arm.binding.as_deref(), binding_type, &arm.body, statement.span)?;
+                let (binding, body) = self.check_bound_block(
+                    arm.binding.as_deref(),
+                    arm.binding_mutable,
+                    binding_type,
+                    &arm.body,
+                    statement.span,
+                )?;
                 if !body.last().is_some_and(statement_is_terminal) {
                     return self.error(statement.span, "every match arm must terminate control flow");
                 }
@@ -728,6 +768,7 @@ impl<'a> Checker<'a> {
         let Some(ast::Pattern::Binding {
             name: binding,
             ty: None,
+            mutable,
         }) = binding.as_deref()
         else {
             return self.error(statement.span, "Value refinement requires an untyped binding");
@@ -767,7 +808,7 @@ impl<'a> Checker<'a> {
             self.ensure_writable(&binding_symbol, statement.span)?;
             binding_symbol.id
         } else {
-            self.declare(binding, binding_type, None, statement.span)?
+            self.declare_local(binding, binding_type, *mutable, statement.span)?
         };
         let value = self.check_materialized_value(value, &Type::Value)?;
         let failure = self.check_guard_continuation(failure, statement.span)?;
@@ -1001,12 +1042,14 @@ impl<'a> Checker<'a> {
     fn check_guard_let_binding_statement(
         &mut self,
         statement: &ast::Statement,
-        name: &str,
-        ty: &Option<Type>,
+        pattern: &ast::Pattern,
         callee: &str,
         arguments: &[ast::Expression],
         failure: &ast::ElseContinuation,
     ) -> Result<(), Diagnostic> {
+        let ast::Pattern::Binding { name, ty, mutable } = pattern else {
+            unreachable!()
+        };
         let outer_variable_count = self.variables.len();
         let failure = self.check_else_continuation(failure, statement.span)?;
         let structured_failure = resolve_intrinsic(callee, arguments.len()).is_some_and(|resolved| {
@@ -1040,7 +1083,7 @@ impl<'a> Checker<'a> {
                 format!("cannot initialize '{name}' of type {destination_type} with {return_type}"),
             );
         }
-        let destination = self.declare(name, destination_type, None, statement.span)?;
+        let destination = self.declare_local(name, destination_type, *mutable, statement.span)?;
         if let Some(failure) = failure {
             call.failure = Some(CallFailure {
                 captures: collect_captures(&failure.body, outer_variable_count),
@@ -1059,6 +1102,7 @@ impl<'a> Checker<'a> {
         statement: &ast::Statement,
         name: &str,
         ty: &Option<Type>,
+        mutable: bool,
         initializer: &Option<ast::Expression>,
     ) -> Result<(), Diagnostic> {
         if let Some(initializer) = initializer {
@@ -1082,17 +1126,17 @@ impl<'a> Checker<'a> {
                 );
             }
             let declared_type = ty.clone().unwrap_or(return_type);
-            let id = self.declare(name, declared_type.clone(), None, statement.span)?;
+            let id = self.declare_local(name, declared_type.clone(), mutable, statement.span)?;
             self.update_known_null_pointer(id, initializer, &declared_type);
             self.update_known_integer_literal(id, initializer, &declared_type);
             self.statements
                 .push(Statement::new(StatementKindIr::call([id], call), statement.span));
         } else {
-            self.declare(
+            self.declare_local(
                 name,
                 ty.clone()
                     .expect("parser rejects inferred declarations without initializers"),
-                None,
+                mutable,
                 statement.span,
             )?;
         }
@@ -1133,9 +1177,9 @@ impl<'a> Checker<'a> {
     fn check_statement(&mut self, statement: &ast::Statement) -> Result<(), Diagnostic> {
         match &statement.kind {
             StatementKind::Let {
-                pattern: ast::Pattern::Binding { name, ty },
+                pattern: ast::Pattern::Binding { name, ty, mutable },
                 initializer,
-            } => self.check_let_binding_statement(statement, name, ty, initializer)?,
+            } => self.check_let_binding_statement(statement, name, ty, *mutable, initializer)?,
             StatementKind::Let {
                 pattern: ast::Pattern::Tuple(patterns),
                 initializer: Some(initializer),
@@ -1151,14 +1195,14 @@ impl<'a> Checker<'a> {
                 failure,
             } => self.check_guard_let_tuple_statement(statement, patterns, callee, arguments, failure)?,
             StatementKind::GuardLet {
-                pattern: ast::Pattern::Binding { name, ty },
+                pattern: pattern @ ast::Pattern::Binding { .. },
                 initializer:
                     ast::Expression {
                         kind: ExpressionKind::Call { callee, arguments },
                         ..
                     },
                 failure,
-            } => self.check_guard_let_binding_statement(statement, name, ty, callee, arguments, failure)?,
+            } => self.check_guard_let_binding_statement(statement, pattern, callee, arguments, failure)?,
             StatementKind::Assign { name, initializer } => self.check_assign_statement(statement, name, initializer)?,
             StatementKind::IndexAssign { base, index, value } => {
                 let (base, element_type) = self.check_index_base(base)?;
@@ -1300,11 +1344,16 @@ impl<'a> Checker<'a> {
     }
 
     fn declare_hidden(&mut self, base: &str, ty: Type, span: SourceSpan) -> VariableId {
+        self.declare_hidden_with_mutability(base, ty, true, span)
+    }
+
+    fn declare_hidden_with_mutability(&mut self, base: &str, ty: Type, mutable: bool, span: SourceSpan) -> VariableId {
         let id = self.variables.len();
         self.variables.push(Variable {
             name: format!("{base}_{id}"),
             ty,
             parameter_mode: None,
+            mutable,
             span,
         });
         id
@@ -1474,6 +1523,12 @@ impl<'a> Checker<'a> {
                         parameter_mode: self.variables[*id].parameter_mode,
                     };
                     self.ensure_writable(&symbol, argument.span)?;
+                    if !self.variables[*id].mutable {
+                        return self.error(
+                            argument.span,
+                            format!("cannot assign to immutable binding '{}'", self.variables[*id].name),
+                        );
+                    }
                 } else if !matches!(value.kind, ValueKind::MachineRegister(_)) {
                     return self.error(argument.span, "an output argument must be a writable binding");
                 }
@@ -3815,6 +3870,149 @@ mod tests {
         };
     }
 
+    rejects!(
+        rejects_assignment_to_immutable_binding,
+        "handler Bad(value: i32) { let binding = value; binding = 1; dispatch_next; }",
+        "cannot assign to immutable binding 'binding'"
+    );
+
+    rejects!(
+        rejects_output_through_immutable_binding,
+        r#"
+inline fn initialize(value: out i32) {
+    value = 1;
+}
+handler Bad() {
+    let value: i32 = 0;
+    initialize(value);
+    dispatch_next;
+}
+"#,
+        "cannot assign to immutable binding 'value'"
+    );
+
+    rejects!(
+        rejects_initialization_through_immutable_output_binding,
+        r#"
+inline fn initialize(value: out i32) {
+    value = 1;
+}
+handler Bad() {
+    let value: i32;
+    initialize(value);
+    dispatch_next;
+}
+"#,
+        "cannot assign to immutable binding 'value'"
+    );
+
+    rejects!(
+        rejects_inout_through_immutable_binding,
+        r#"
+inline fn increment(value: inout i32) {
+    value = value + 1;
+}
+handler Bad() {
+    let value: i32 = 0;
+    increment(value);
+    dispatch_next;
+}
+"#,
+        "cannot assign to immutable binding 'value'"
+    );
+
+    rejects!(
+        rejects_uninitialized_mutable_inout_binding,
+        r#"
+inline fn increment(value: inout i32) {
+    value = value + 1;
+}
+handler Bad() {
+    let mut value: i32;
+    increment(value);
+    dispatch_next;
+}
+"#,
+        "binding 'value' is read before it is initialized"
+    );
+
+    accepts!(
+        accepts_initialization_through_mutable_output_binding,
+        r#"
+inline fn initialize(value: out i32) {
+    value = 1;
+}
+handler Good() {
+    let mut value: i32;
+    initialize(value);
+    assert_nonzero(value);
+    dispatch_next;
+}
+"#
+    );
+
+    accepts!(
+        accepts_inout_through_mutable_binding,
+        r#"
+inline fn increment(value: inout i32) {
+    value = value + 1;
+}
+handler Good() {
+    let mut value: i32 = 1;
+    increment(value);
+    assert_nonzero(value);
+    dispatch_next;
+}
+"#
+    );
+
+    accepts!(
+        accepts_assignment_to_mutable_binding,
+        "handler Good(value: i32) { let mut binding = value; binding = 1; dispatch_next; }"
+    );
+
+    accepts!(
+        accepts_single_initialization_of_immutable_binding,
+        "handler Good(value: i32) { let binding: i32; binding = value; assert_nonzero(binding); dispatch_next; }"
+    );
+
+    rejects!(
+        rejects_reinitialization_of_immutable_binding,
+        "handler Bad(value: i32) { let binding: i32; binding = value; binding = 1; dispatch_next; }",
+        "cannot assign to immutable binding 'binding'"
+    );
+
+    rejects!(
+        rejects_assignment_to_immutable_pattern_binding,
+        r#"
+handler Bad(value: Value) {
+    match value {
+        Value<i32>(integer) => {
+            integer = 1;
+            dispatch_next;
+        },
+        _ => { dispatch_next; },
+    }
+}
+"#,
+        "cannot assign to immutable binding 'integer'"
+    );
+
+    accepts!(
+        accepts_assignment_to_mutable_pattern_binding,
+        r#"
+handler Good(value: Value) {
+    match value {
+        Value<i32>(mut integer) => {
+            integer = 1;
+            dispatch_next;
+        },
+        _ => { dispatch_next; },
+    }
+}
+"#
+    );
+
     #[test]
     fn keeps_int32_refinement_in_typed_ir() {
         let program = check_source(
@@ -3872,7 +4070,7 @@ handler Read(src: in Operand) {
         let program = check_source(
             r#"
 inline fn apply(value: i32, operation: BinaryOperation<i32>) {
-    let result = value;
+    let mut result = value;
     operation(result, 1);
     dispatch_next;
 }
@@ -4004,7 +4202,7 @@ handler Dispatch(value: Value) {
         let program = check_source(
             r#"
 handler Add(lhs: i32, rhs: i32) {
-    let dst = box_i32(lhs);
+    let mut dst = box_i32(lhs);
     guard let sum = checked_add(lhs, rhs) else @cold {
         dst = box_i32(lhs);
         dispatch_next;
@@ -4082,7 +4280,7 @@ handler Check(value: i32) {
 handler Add() {
     let number: f64;
     if true {
-        let integer: i32;
+        let mut integer: i32;
         mov(integer, 0);
         let inner_number = to_f64(integer);
     }
@@ -4254,7 +4452,7 @@ handler StoreNull(address: u64, flag: u32) {
             r#"
 handler StoreShape(address: u64) {
     let object: Object = alias(address);
-    let shape: Shape = null;
+    let mut shape: Shape = null;
     shape = object.shape;
     object.shape = shape;
     dispatch_next;
@@ -4340,7 +4538,7 @@ handler Read(address: u64) {
         explicitly_widens_refined_values,
         r#"
 inline fn box(object: Object) -> Value<Object> {
-    let value: Value<Object>;
+    let mut value: Value<Object>;
     mov(value, object);
     value
 }
@@ -4382,7 +4580,7 @@ handler Box(dst: out Operand, value: bool) {
         rejects_aliasing_conditionally_assigned_integer_literals_to_pointer_types,
         r#"
 handler Bad(address: u64, flag: u32) {
-    let raw: u64 = 1;
+    let mut raw: u64 = 1;
     if load(flag) == 0 {
         raw = address;
     } else {
@@ -4398,7 +4596,7 @@ handler Bad(address: u64, flag: u32) {
         accepts_aliasing_reassigned_integer_variables_to_pointer_types,
         r#"
 handler Good(address: u64) {
-    let raw: u64 = 1;
+    let mut raw: u64 = 1;
     raw = address;
     let object: Object = alias(raw);
     assert_nonzero(object);
@@ -4423,7 +4621,7 @@ handler FrameSize(slot_count: u32) {
         checks_value_tag_bitwise_arithmetic,
         r#"
 handler Mask(value: Value) {
-    let tag = extract_tag(value);
+    let mut tag = extract_tag(value);
     tag = tag & NAN_BASE_TAG;
     dispatch_next;
 }
@@ -4521,7 +4719,7 @@ inline fn terminal(value: out Value, input: Value, slow: SlowPath) {
         r#"
 handler Jump(target: BytecodeOffset) {
     let take = || {
-        let target_offset: BytecodeOffset;
+        let mut target_offset: BytecodeOffset;
         load_label(target_offset, target);
         goto_handler(target_offset);
     };
@@ -4610,7 +4808,7 @@ inline fn recurse(lhs: inout i32, rhs: i32) {
 }
 
 handler Loop(lhs: i32, rhs: i32) {
-    let value = lhs;
+    let mut value = lhs;
     recurse(value, rhs);
     assert_nonzero(value);
     dispatch_next;
@@ -4783,7 +4981,7 @@ handler Bad() {
         treats_self_xor_as_initialization,
         r#"
 handler Zero() {
-    let value: u64;
+    let mut value: u64;
     xor(value, value);
     store64([values, 0], value);
     dispatch_next;

@@ -71,6 +71,16 @@ fn check_definite_initialization_with_entry(
                 format!("binding '{}' is read before it is initialized", variables[id].name),
             ));
         }
+        if let Some(id) = definitions
+            .iter()
+            .find(|id| initialized.contains(id) && !variables[**id].mutable)
+        {
+            return Err(Diagnostic::new(
+                filename,
+                statement.span,
+                format!("cannot assign to immutable binding '{}'", variables[*id].name),
+            ));
+        }
         if let StatementKindIr::ValueMatch {
             tag, arms, fallback, ..
         } = &statement.kind
