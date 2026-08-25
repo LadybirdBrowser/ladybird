@@ -2160,6 +2160,8 @@ mod tests {
                 used_grid_tracks: None,
                 svg_viewport_transform: None,
                 svg_viewport_size: None,
+                svg_view_box: None,
+                svg_viewport_percentage_basis: CssPixels::default(),
                 computed_svg_path: None,
                 children: Vec::new(),
             }),

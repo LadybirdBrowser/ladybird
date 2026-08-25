@@ -48,7 +48,6 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
 pub(crate) fn transform_reference_box(
     style: ComputedValuesView<'_>,
     layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
 ) -> CssPixelRect {
     use css_enums::transform_box::{BORDER_BOX, CONTENT_BOX, FILL_BOX, STROKE_BOX, VIEW_BOX};
@@ -69,9 +68,15 @@ pub(crate) fn transform_reference_box(
     }
     match transform_box {
         CONTENT_BOX | FILL_BOX => paintable_geometry::absolute_rect(layout_arena, slot),
-        VIEW_BOX => callbacks
-            .svg_transform_view_box_rect(layout_arena.shell_if_live(slot))
-            .map(CssPixelRect::from)
+        VIEW_BOX => crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, slot)
+            .map(|rect| {
+                CssPixelRect::new(
+                    CssPixels::nearest_value_for(rect.x as f64),
+                    CssPixels::nearest_value_for(rect.y as f64),
+                    CssPixels::nearest_value_for(rect.width as f64),
+                    CssPixels::nearest_value_for(rect.height as f64),
+                )
+            })
             .unwrap_or_else(|| paintable_geometry::absolute_border_box_rect(layout_arena, slot)),
         _ => paintable_geometry::absolute_border_box_rect(layout_arena, slot),
     }
@@ -138,7 +143,7 @@ pub(crate) fn compute_transform(
 
     // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
     // offset properties as follows:
-    let reference_box = transform_reference_box(style, layout_arena, callbacks, node);
+    let reference_box = transform_reference_box(style, layout_arena, node);
     let origin_lp = |handle: &ComputedStyleValueHandle| {
         handle
             .length_percentage()
@@ -201,7 +206,6 @@ pub(crate) fn compute_transform(
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
 pub(crate) fn compute_perspective_data(
     layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<PerspectiveData> {
@@ -218,7 +222,7 @@ pub(crate) fn compute_perspective_data(
     // 2. Translate by the computed X and Y values of 'perspective-origin'
     // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
     // Percentages: refer to the size of the reference box
-    let reference_box = transform_reference_box(style, layout_arena, callbacks, slot);
+    let reference_box = transform_reference_box(style, layout_arena, slot);
     let origin_x = transform_values
         .perspective_origin_x
         .length_percentage()

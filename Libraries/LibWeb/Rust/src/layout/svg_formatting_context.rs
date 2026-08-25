@@ -72,6 +72,7 @@ pub struct FfiSvgElementFacts {
     pub preserve_aspect_ratio_meet_or_slice: u8,
     pub element_transform: FfiAffineTransform,
     pub visible_stroke_width: f32,
+    pub viewport_percentage_basis: CssPixels,
     pub content_units: u8,
     pub pattern_units: u8,
     pub pattern_width: FfiSvgNumberPercentage,
@@ -466,6 +467,13 @@ impl SvgFormattingContext {
         self.used_values(node).rare_data_mut().svg_viewport_size = Some(viewport_size);
     }
 
+    fn commit_svg_element_facts(&self, node: Node, facts: FfiSvgElementFacts) {
+        let used = self.used_values(node);
+        let mut rare = used.rare_data_mut();
+        rare.svg_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
+        rare.svg_viewport_percentage_basis = facts.viewport_percentage_basis;
+    }
+
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
         crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
     }
@@ -496,6 +504,7 @@ impl SvgFormattingContext {
         let facts = self.svg_facts(self.box_);
         let used_pointer = self.used_values(self.box_);
         let used = &used_pointer;
+        self.commit_svg_element_facts(self.box_, facts);
 
         if facts.is_document_element && !facts.document_is_decoded_svg && !used.has_content_offset.get() {
             // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
@@ -712,6 +721,8 @@ impl SvgFormattingContext {
 
     fn layout_graphics_element(&mut self, run: &FormattingContextRun, graphics_box: Node, input: LayoutInput) {
         self.create_used_values(graphics_box);
+        let facts = self.svg_facts(graphics_box);
+        self.commit_svg_element_facts(graphics_box, facts);
         let kind = self.node_kind(graphics_box);
 
         // https://svgwg.org/svg2-draft/struct.html#GroupsOverview
@@ -820,6 +831,7 @@ impl SvgFormattingContext {
         assert!(kind_is_svg_resource_box(kind));
         // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
         let used_pointer = self.create_used_values(resource);
+        self.commit_svg_element_facts(resource, facts);
 
         if kind == NodeKind::SVGPatternBox && facts.has_active_view_box {
             if facts.pattern_units == SVG_UNITS_USER_SPACE_ON_USE {

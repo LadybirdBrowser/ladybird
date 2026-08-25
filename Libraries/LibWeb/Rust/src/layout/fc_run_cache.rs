@@ -567,6 +567,8 @@ macro_rules! shadow_comparable_rare_payloads {
         (
             $carrier.svg_viewport_transform,
             $carrier.svg_viewport_size,
+            $carrier.svg_view_box,
+            $carrier.svg_viewport_percentage_basis,
             &$carrier.computed_svg_path,
             &$carrier.grid_layout_data,
             &$carrier.flex_layout_data,

@@ -144,8 +144,9 @@ Optional<CSSPixelRect> mask_area(Layout::Node const& node)
     // computation stays in the target's user space: that is the coordinate space of the mask node
     // in the visual context tree.
     Gfx::FloatSize viewport_size {};
-    if (auto const* viewport_paintable = nearest_svg_viewport_of(*mask_box))
-        viewport_size = svg_viewport_user_rect(*viewport_paintable).size();
+    auto viewport_rect = Layout::RustFFI::layout_arena_paintable_svg_viewport_user_rect(mask_box->arena_handle(), committed_row_slot(*mask_box));
+    if (viewport_rect.has_value())
+        viewport_size = viewport_rect.value().size().to_type<float>();
 
     auto target_object_bounding_box = target_user_space_object_bounding_box(target);
     return as<SVG::SVGMaskElement>(*mask_box->dom_node()).resolve_masking_area(target_object_bounding_box, viewport_size, Gfx::AffineTransform {});
