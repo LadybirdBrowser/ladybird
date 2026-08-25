@@ -190,6 +190,8 @@ public:
     [[nodiscard]] bool has_recorded_input() const;
     [[nodiscard]] bool has_pending_transaction() const;
     [[nodiscard]] bool has_deferred_geometry_transaction() const;
+    [[nodiscard]] bool has_deferred_element_style_inputs() const;
+    [[nodiscard]] bool has_deferred_element_style_input(StyleNodeID style_node) const;
     [[nodiscard]] bool pending_transaction_may_affect_layout_geometry();
     [[nodiscard]] bool defer_pending_transaction_for_geometry_read();
     [[nodiscard]] bool begin_deferred_geometry_transaction_flush();

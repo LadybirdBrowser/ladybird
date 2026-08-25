@@ -1975,6 +1975,15 @@ bool is_block_end_point(DOM::BoundaryPoint boundary_point)
     return offset_child && is_block_node(*offset_child) && is_visible_node(*offset_child);
 }
 
+// Whether a resolved display qualifies an Element as a block node; see is_block_node() below.
+static bool is_block_display(Optional<CSS::Display> const& display)
+{
+    if (!display.has_value())
+        return true;
+    return !(display->is_inline_outside() && (display->is_flow_inside() || display->is_flow_root_inside() || display->is_table_inside()))
+        && !display->is_none();
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#block-node
 bool is_block_node(GC::Ref<DOM::Node> node)
 {
@@ -1986,11 +1995,7 @@ bool is_block_node(GC::Ref<DOM::Node> node)
     if (!is<DOM::Element>(*node))
         return false;
 
-    auto display = resolved_display(node);
-    if (!display.has_value())
-        return true;
-    return !(display->is_inline_outside() && (display->is_flow_inside() || display->is_flow_root_inside() || display->is_table_inside()))
-        && !display->is_none();
+    return is_block_display(resolved_display(node));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#block-start-point
@@ -2654,9 +2659,18 @@ bool is_visible_node(GC::Ref<DOM::Node> node)
 {
     // excluding any node with an inclusive ancestor Element whose "display" property has resolved
     // value "none".
+    // NB: Only Elements have a display of their own; on any other node, resolved_display() answers
+    //     with the nearest inclusive ancestor Element's display. So, walking the ancestor Elements
+    //     covers every node in between. The display of node itself also feeds the block-node check
+    //     below. So, it's resolved once here — rather than a second time there.
+    Optional<CSS::Display> node_display;
     bool has_display_none = false;
-    node->for_each_inclusive_ancestor([&has_display_none](GC::Ref<DOM::Node> ancestor) {
+    node->for_each_inclusive_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+        if (!is<DOM::Element>(*ancestor))
+            return IterationDecision::Continue;
         auto display = resolved_display(ancestor);
+        if (ancestor.ptr() == node.ptr())
+            node_display = display;
         if (display.has_value() && display->is_none()) {
             has_display_none = true;
             return IterationDecision::Break;
@@ -2667,7 +2681,7 @@ bool is_visible_node(GC::Ref<DOM::Node> node)
         return false;
 
     // Something is visible if it is a node that either is a block node,
-    if (is_block_node(node))
+    if (is<DOM::Element>(*node) ? is_block_display(node_display) : is_block_node(node))
         return true;
 
     // or a Text node that is not a collapsed whitespace node,
@@ -4941,9 +4955,15 @@ RefPtr<CSS::StyleValue const> resolved_value(GC::Ref<DOM::Node> node, CSS::Prope
         element = element->parent();
     if (!element)
         return {};
+    DOM::AbstractElement abstract_element { static_cast<DOM::Element&>(*element) };
+
+    // OPTIMIZATION: For properties whose resolved value is the plain computed value, read it straight off the element's
+    // computed style — instead of materializing a whole resolved-style declaration just to extract a single property.
+    if (auto fast_value = CSS::CSSStyleProperties::resolved_value_read_from_computed_style(abstract_element, property_id); fast_value.has_value())
+        return fast_value.release_value();
 
     // Retrieve resolved style value
-    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
+    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(abstract_element);
     auto optional_style_property = resolved_css_style_declaration->get_property(property_id);
     if (!optional_style_property.has_value())
         return {};

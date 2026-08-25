@@ -623,6 +623,16 @@ bool StyleEngine::has_deferred_geometry_transaction() const
     return StyleEngineFFI::style_engine_has_deferred_geometry_transaction(m_impl);
 }
 
+bool StyleEngine::has_deferred_element_style_inputs() const
+{
+    return StyleEngineFFI::style_engine_has_deferred_element_style_inputs(m_impl);
+}
+
+bool StyleEngine::has_deferred_element_style_input(StyleNodeID style_node) const
+{
+    return StyleEngineFFI::style_engine_has_deferred_element_style_input(m_impl, style_node.value());
+}
+
 bool StyleEngine::defer_pending_transaction_for_geometry_read()
 {
     submit_recorded_input();

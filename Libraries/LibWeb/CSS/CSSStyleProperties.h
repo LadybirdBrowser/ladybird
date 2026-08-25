@@ -33,6 +33,8 @@ public:
     virtual Utf16String item(size_t index) const override;
 
     Optional<StyleProperty> get_property(PropertyID) const;
+
+    [[nodiscard]] static Optional<RefPtr<StyleValue const>> resolved_value_read_from_computed_style(DOM::AbstractElement, PropertyID);
     Optional<StyleProperty const&> custom_property(Utf16FlyString const& custom_property_name) const;
 
     WebIDL::ExceptionOr<void> set_property(PropertyID, Utf16View css_text, Utf16View priority = u""sv);
