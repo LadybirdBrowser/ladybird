@@ -11,7 +11,7 @@ use std::rc::Rc;
 use super::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
 use super::selector::{
     Combinator, CompiledSelector, CompoundSelector, PseudoClassSelector, PseudoClassType, PseudoElementType,
-    RustSelector, SelectorList, SimpleSelector, pseudo_class_from_ffi,
+    PseudoElementValue, RustSelector, SelectorList, SimpleSelector, pseudo_class_from_ffi,
 };
 
 fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> SimpleSelector {
@@ -100,6 +100,37 @@ fn contains_named_namespace(selector: &CompiledSelector) -> bool {
             .argument_selector_list
             .iter()
             .any(|selector| contains_named_namespace(selector)),
+        SimpleSelector::PseudoElement(pseudo_element) => match &pseudo_element.value {
+            PseudoElementValue::CompoundSelector(selector) => contains_named_namespace(selector),
+            _ => false,
+        },
+        _ => false,
+    })
+}
+
+fn has_undeclared_namespace(selector: &CompiledSelector, declared_namespaces: &[usize]) -> bool {
+    any_simple(selector, &|simple| match simple {
+        SimpleSelector::Universal(name) | SimpleSelector::TagName(name) => {
+            name.namespace_type == super::selector::NamespaceType::Named
+                && !name
+                    .interned_namespace_identity()
+                    .is_some_and(|namespace| declared_namespaces.contains(&namespace))
+        }
+        SimpleSelector::Attribute(attribute) => {
+            attribute.qualified_name.namespace_type == super::selector::NamespaceType::Named
+                && !attribute
+                    .qualified_name
+                    .interned_namespace_identity()
+                    .is_some_and(|namespace| declared_namespaces.contains(&namespace))
+        }
+        SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
+            .argument_selector_list
+            .iter()
+            .any(|selector| has_undeclared_namespace(selector, declared_namespaces)),
+        SimpleSelector::PseudoElement(pseudo_element) => match &pseudo_element.value {
+            PseudoElementValue::CompoundSelector(selector) => has_undeclared_namespace(selector, declared_namespaces),
+            _ => false,
+        },
         _ => false,
     })
 }
@@ -273,6 +304,29 @@ pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const
         crate::abort_on_panic(|| {
             assert!(!selector.is_null());
             contains_named_namespace((*selector).compiled())
+        })
+    }
+}
+
+/// # Safety
+/// `selector` must point to a live `RustSelector`. `declared_namespaces` must address
+/// `declared_namespace_count` interned string identities, or be null when the count is zero.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_has_undeclared_namespace(
+    selector: *const RustSelector,
+    declared_namespaces: *const usize,
+    declared_namespace_count: usize,
+) -> bool {
+    unsafe {
+        crate::abort_on_panic(|| {
+            assert!(!selector.is_null());
+            let declared_namespaces = if declared_namespace_count == 0 {
+                &[]
+            } else {
+                assert!(!declared_namespaces.is_null());
+                std::slice::from_raw_parts(declared_namespaces, declared_namespace_count)
+            };
+            has_undeclared_namespace((*selector).compiled(), declared_namespaces)
         })
     }
 }
