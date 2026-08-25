@@ -160,21 +160,7 @@ private:
         Yes,
     };
 
-    enum class SelectorType {
-        Standalone,
-        Relative
-    };
-    struct ImportPrelude {
-        URL url;
-        Optional<Utf16FlyString> layer;
-        bool has_scope { false };
-        Optional<SelectorList> scope_start;
-        Optional<SelectorList> scope_end;
-        Optional<RustQueryHandle> supports;
-        Vector<NonnullRefPtr<MediaQuery>> media_queries;
-    };
     static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
-    Optional<ImportPrelude> parse_import_prelude(AtRule const&);
     Optional<Vector<u32>> parse_font_feature_values(Declaration const&, size_t max_value_count);
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);

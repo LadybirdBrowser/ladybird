@@ -21,17 +21,18 @@ use crate::css::parser::query_parser::{
     ContainerCondition, Expression, FfiQueryHandle, MediaQuery, QueryKind, ResolveQueryFeature,
     expression_query_handle, ffi_resolver, media_query_handle, parse_container_condition_list_from_component_values,
     parse_media_query_list_from_component_values, parse_supports_condition_from_component_values,
+    parse_supports_declaration_from_component_values,
 };
 use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
-    is_valid_custom_ident, parse_css_value_with_utf16_source,
+    is_valid_custom_ident, parse_css_value_with_utf16_source, parse_url_value,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::selector_parser::{RustParsedSelectorList, SelectorType, parse_selector_list_from_component_values};
 use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_compute::value_is_computationally_independent;
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value::{RetainedRequestUrlModifierList, RetainedString, StyleValueData};
 use std::borrow::Cow;
 use std::ffi::c_void;
 use std::fmt;
@@ -190,7 +191,7 @@ enum ParsedRulePrelude {
         has_start: bool,
         has_end: bool,
     },
-    Import(Vec<(Option<ParserString>, FfiImportPreludeItemKind)>),
+    Import(ParsedImportPrelude),
     Function {
         name: ParserString,
         parameters: Vec<ParsedFunctionParameter>,
@@ -219,6 +220,18 @@ struct ParsedFunctionParameter {
     name: ParserString,
     syntax: Arc<SyntaxNode>,
     default_value: Option<ParsedStyleValue>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct ParsedImportPrelude {
+    url: ParsedStyleValue,
+    url_kind: FfiImportPreludeItemKind,
+    layer: Option<ParserString>,
+    has_scope: bool,
+    scope_start: Option<RustParsedSelectorList>,
+    scope_end: Option<RustParsedSelectorList>,
+    supports: Option<Expression>,
+    media_queries: Vec<MediaQuery>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -449,11 +462,6 @@ fn parse_font_family_names(values: &[ComponentValue]) -> ParsedRulePrelude {
     }
 }
 
-fn parenthesized_source(value: &ComponentValue) -> Option<ParserString> {
-    let values = parenthesized_values(value)?;
-    Some(component_list_source(values).into_owned().into_boxed_slice().into())
-}
-
 fn parenthesized_values(value: &ComponentValue) -> Option<&[ComponentValue]> {
     let ComponentKind::SimpleBlock {
         opening: ParserTokenKind::OpenParen,
@@ -513,13 +521,13 @@ fn component_slice_source(values: &[ComponentValue]) -> ParserString {
     component_list_source(values).into_owned().into_boxed_slice().into()
 }
 
-fn parse_import_scope(contents: &[ComponentValue]) -> Option<(Option<ParserString>, Option<ParserString>)> {
+fn parse_import_scope(contents: &[ComponentValue]) -> Option<ScopeSelectorComponents<'_>> {
     let mut position = 0;
     skip_whitespace(contents, &mut position);
     let start = contents.get(position).and_then(|value| {
-        let source = parenthesized_source(value)?;
+        let values = parenthesized_values(value)?;
         position += 1;
-        Some(source)
+        Some(values)
     });
     skip_whitespace(contents, &mut position);
     let end = if contents
@@ -529,9 +537,9 @@ fn parse_import_scope(contents: &[ComponentValue]) -> Option<(Option<ParserStrin
     {
         position += 1;
         skip_whitespace(contents, &mut position);
-        let source = contents.get(position).and_then(parenthesized_source)?;
+        let values = contents.get(position).and_then(parenthesized_values)?;
         position += 1;
-        Some(source)
+        Some(values)
     } else {
         None
     };
@@ -552,61 +560,85 @@ fn parse_import_scope(contents: &[ComponentValue]) -> Option<(Option<ParserStrin
             }
             previous_non_whitespace = Some(value);
         }
-        let source = component_slice_source(&contents[position..]);
+        let values = &contents[position..];
         position = contents.len();
-        Some(source)
+        Some(values)
     } else {
         start
     };
     (position == contents.len()).then_some((start, end))
 }
 
-fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
+fn parse_import_selector(values: &[ComponentValue], selector_type: SelectorType) -> Option<RustParsedSelectorList> {
+    let selectors = parse_selector_list_from_component_values(values, selector_type).ok()?;
+    if selectors.is_empty() || selectors.contains_pseudo_element() {
+        return None;
+    }
+    Some(selectors)
+}
+
+fn parse_import_url(
+    context: &ParseContext,
+    value: &ComponentValue,
+) -> Option<(ParsedStyleValue, FfiImportPreludeItemKind)> {
+    let (url, kind) = match &value.kind {
+        ComponentKind::Token(ParserTokenKind::String(url)) => (
+            StyleValueData::Url {
+                url: RetainedString::from_utf16(url)?,
+                url_type: 0,
+                modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
+            },
+            FfiImportPreludeItemKind::UrlValue,
+        ),
+        ComponentKind::Token(ParserTokenKind::Url(_)) => {
+            (parse_url_value(context, value)?, FfiImportPreludeItemKind::UrlValue)
+        }
+        ComponentKind::Function { name, .. } if equals_ascii_case_insensitive(name, b"url") => {
+            (parse_url_value(context, value)?, FfiImportPreludeItemKind::UrlFunction)
+        }
+        _ => return None,
+    };
+    Some((ParsedStyleValue(Arc::new(url)), kind))
+}
+
+fn parse_import_prelude<R>(values: &[ComponentValue], context: &ParseContext, resolve_feature: &R) -> ParsedRulePrelude
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
     let mut position = 0;
     skip_whitespace(values, &mut position);
     let Some(url) = values.get(position) else {
         return ParsedRulePrelude::Invalid;
     };
-    let url_item = match &url.kind {
-        ComponentKind::Token(ParserTokenKind::Url(url) | ParserTokenKind::String(url)) => {
-            (Some(url.clone()), FfiImportPreludeItemKind::UrlValue)
-        }
-        ComponentKind::Function { name, .. } if equals_ascii_case_insensitive(name, b"url") => (
-            Some(component_slice_source(std::slice::from_ref(url))),
-            FfiImportPreludeItemKind::UrlFunction,
-        ),
-        _ => return ParsedRulePrelude::Invalid,
+    let Some((url, url_kind)) = parse_import_url(context, url) else {
+        return ParsedRulePrelude::Invalid;
     };
-    let mut items = vec![url_item];
     position += 1;
-    let mut has_layer = false;
+    let mut layer = None;
     let mut has_scope = false;
-    let mut has_supports = false;
+    let mut scope_start = None;
+    let mut scope_end = None;
+    let mut supports = None;
     loop {
         skip_whitespace(values, &mut position);
         let Some(value) = values.get(position) else {
             break;
         };
-        if !has_layer
+        if layer.is_none()
             && value
                 .ident()
                 .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"layer"))
         {
-            items.push((
-                Some(Vec::new().into_boxed_slice().into()),
-                FfiImportPreludeItemKind::Layer,
-            ));
-            has_layer = true;
+            layer = Some(Vec::new().into_boxed_slice().into());
             position += 1;
             continue;
         }
-        if !has_layer
+        if layer.is_none()
             && let Some((name, contents)) = value.function()
             && equals_ascii_case_insensitive(name, b"layer")
-            && let Some(layer) = parse_layer_name(contents, false)
+            && let Some(layer_name) = parse_layer_name(contents, false)
         {
-            items.push((Some(layer), FfiImportPreludeItemKind::Layer));
-            has_layer = true;
+            layer = Some(layer_name);
             position += 1;
             continue;
         }
@@ -615,7 +647,6 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
                 .ident()
                 .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"scope"))
         {
-            items.push((None, FfiImportPreludeItemKind::Scope));
             has_scope = true;
             position += 1;
             continue;
@@ -625,38 +656,48 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
             && equals_ascii_case_insensitive(name, b"scope")
             && let Some((start, end)) = parse_import_scope(contents)
         {
-            items.push((None, FfiImportPreludeItemKind::Scope));
             if let Some(start) = start {
-                items.push((Some(start), FfiImportPreludeItemKind::ScopeStart));
+                let Some(selectors) = parse_import_selector(start, SelectorType::Standalone) else {
+                    return ParsedRulePrelude::Invalid;
+                };
+                scope_start = Some(selectors);
             }
             if let Some(end) = end {
-                items.push((Some(end), FfiImportPreludeItemKind::ScopeEnd));
+                let Some(selectors) = parse_import_selector(end, SelectorType::Relative) else {
+                    return ParsedRulePrelude::Invalid;
+                };
+                scope_end = Some(selectors);
             }
             has_scope = true;
             position += 1;
             continue;
         }
-        if !has_supports
+        if supports.is_none()
             && let Some((name, contents)) = value.function()
             && equals_ascii_case_insensitive(name, b"supports")
         {
-            items.push((
-                Some(component_slice_source(contents)),
-                FfiImportPreludeItemKind::Supports,
-            ));
-            has_supports = true;
+            let Some(expression) = parse_supports_condition_from_component_values(contents, &|_, _| false)
+                .or_else(|| parse_supports_declaration_from_component_values(contents, &|_, _| false))
+            else {
+                return ParsedRulePrelude::Invalid;
+            };
+            supports = Some(expression);
             position += 1;
             continue;
         }
         break;
     }
-    if position < values.len() {
-        items.push((
-            Some(component_slice_source(&values[position..])),
-            FfiImportPreludeItemKind::Media,
-        ));
-    }
-    ParsedRulePrelude::Import(items)
+    let media_queries = parse_media_query_list_from_component_values(&values[position..], resolve_feature);
+    ParsedRulePrelude::Import(ParsedImportPrelude {
+        url,
+        url_kind,
+        layer,
+        has_scope,
+        scope_start,
+        scope_end,
+        supports,
+        media_queries,
+    })
 }
 
 fn parse_css_type(values: &[ComponentValue], position: &mut usize) -> Option<ParserString> {
@@ -952,9 +993,9 @@ where
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"scope") => {
             parse_scope_prelude(&rule.prelude)
         }
-        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"import") => {
-            parse_import_prelude(&rule.prelude)
-        }
+        Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"import") => parse_context
+            .map(|context| parse_import_prelude(&rule.prelude, context, resolve_feature))
+            .unwrap_or(ParsedRulePrelude::Invalid),
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"function") => parse_context
             .map(|context| parse_function_prelude(rule, context))
             .unwrap_or(ParsedRulePrelude::Invalid),
@@ -2076,10 +2117,14 @@ impl FfiSyntaxParse {
 
     fn append_selector_list(&mut self, values: &[ComponentValue], selector_type: SelectorType) -> Option<*mut c_void> {
         let selector_list = parse_selector_list_from_component_values(values, selector_type).ok()?;
+        Some(self.retain_selector_list(selector_list))
+    }
+
+    fn retain_selector_list(&mut self, selector_list: RustParsedSelectorList) -> *mut c_void {
         let mut selector_list = Box::pin(selector_list);
         let pointer = std::ptr::from_mut(selector_list.as_mut().get_mut()).cast::<c_void>();
         self.selector_lists.push(selector_list);
-        Some(pointer)
+        pointer
     }
 
     fn append_query_handle(&mut self, handle: Arc<FfiQueryHandle>) -> *const c_void {
@@ -2282,18 +2327,86 @@ impl FfiSyntaxParse {
                     1
                 }
             }
-            ParsedRulePrelude::Import(items) => {
-                parsed_items.extend(items.into_iter().map(|(value, kind)| {
-                    (
-                        value,
+            ParsedRulePrelude::Import(import) => {
+                parsed_items.push((
+                    None,
+                    0.0,
+                    import.url_kind as u8,
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    Arc::into_raw(import.url.0).cast(),
+                ));
+                if let Some(layer) = import.layer {
+                    parsed_items.push((
+                        Some(layer),
                         0.0,
-                        kind as u8,
+                        FfiImportPreludeItemKind::Layer as u8,
                         std::ptr::null_mut(),
                         std::ptr::null(),
                         std::ptr::null(),
                         std::ptr::null(),
-                    )
-                }));
+                    ));
+                }
+                if import.has_scope {
+                    parsed_items.push((
+                        None,
+                        0.0,
+                        FfiImportPreludeItemKind::Scope as u8,
+                        std::ptr::null_mut(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    ));
+                }
+                if let Some(selectors) = import.scope_start {
+                    let selectors = self.retain_selector_list(selectors);
+                    parsed_items.push((
+                        None,
+                        0.0,
+                        FfiImportPreludeItemKind::ScopeStart as u8,
+                        selectors,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    ));
+                }
+                if let Some(selectors) = import.scope_end {
+                    let selectors = self.retain_selector_list(selectors);
+                    parsed_items.push((
+                        None,
+                        0.0,
+                        FfiImportPreludeItemKind::ScopeEnd as u8,
+                        selectors,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    ));
+                }
+                if let Some(supports) = import.supports {
+                    let supports = self.append_query_handle(expression_query_handle(supports, QueryKind::Supports));
+                    parsed_items.push((
+                        None,
+                        0.0,
+                        FfiImportPreludeItemKind::Supports as u8,
+                        std::ptr::null_mut(),
+                        supports,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    ));
+                }
+                for media_query in import.media_queries {
+                    let media_query = self.append_query_handle(media_query_handle(media_query));
+                    parsed_items.push((
+                        None,
+                        0.0,
+                        FfiImportPreludeItemKind::Media as u8,
+                        std::ptr::null_mut(),
+                        media_query,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    ));
+                }
                 10
             }
             ParsedRulePrelude::Function {
@@ -2998,21 +3111,16 @@ mod tests {
             br#"@import url("theme.css") layer(theme) scope((.card) to (> .end)) supports(display: grid) screen;
                 @function --size(--base <length>: 10px, --scale type(<number>)) returns <length> {}"#,
         );
-        let ParsedRulePrelude::Import(items) = parse_test_rule_prelude(&rules[0]) else {
+        let ParsedRulePrelude::Import(import) = parse_test_rule_prelude_with_context(&rules[0]) else {
             panic!("expected import prelude");
         };
-        assert_eq!(
-            items.iter().map(|(_, kind)| *kind).collect::<Vec<_>>(),
-            vec![
-                FfiImportPreludeItemKind::UrlFunction,
-                FfiImportPreludeItemKind::Layer,
-                FfiImportPreludeItemKind::Scope,
-                FfiImportPreludeItemKind::ScopeStart,
-                FfiImportPreludeItemKind::ScopeEnd,
-                FfiImportPreludeItemKind::Supports,
-                FfiImportPreludeItemKind::Media,
-            ]
-        );
+        assert_eq!(import.url_kind, FfiImportPreludeItemKind::UrlFunction);
+        assert_eq!(import.layer.as_deref(), Some(utf16("theme").as_slice()));
+        assert!(import.has_scope);
+        assert!(import.scope_start.is_some());
+        assert!(import.scope_end.is_some());
+        assert!(import.supports.is_some());
+        assert_eq!(import.media_queries.len(), 1);
         let ParsedRulePrelude::Function {
             name,
             parameters,

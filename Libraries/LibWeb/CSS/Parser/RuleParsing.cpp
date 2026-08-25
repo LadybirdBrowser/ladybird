@@ -39,10 +39,8 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
-#include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
-#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
@@ -237,13 +235,62 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 {
     if (rule.is_block_rule)
         return {};
-    auto prelude = parse_import_prelude(rule);
-    if (!prelude.has_value())
+    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Import)
         return {};
+
+    VERIFY(!rule.parsed_prelude.items.is_empty());
+    auto const& url_item = rule.parsed_prelude.items.first();
+    auto url_kind = static_cast<ValueParserFFI::FfiImportPreludeItemKind>(url_item.kind);
+    VERIFY(url_kind == ValueParserFFI::FfiImportPreludeItemKind::UrlFunction
+        || url_kind == ValueParserFFI::FfiImportPreludeItemKind::UrlValue);
+    VERIFY(url_item.style_value && url_item.style_value->is_url());
+    auto url = url_item.style_value->as_url().url();
+
+    Optional<Utf16FlyString> layer;
+    bool has_scope = false;
+    Optional<SelectorList> scope_start;
+    Optional<SelectorList> scope_end;
+    Optional<RustQueryHandle> supports;
+    Vector<NonnullRefPtr<MediaQuery>> media_queries;
+    for (auto const& item : rule.parsed_prelude.items.span().slice(1)) {
+        switch (static_cast<ValueParserFFI::FfiImportPreludeItemKind>(item.kind)) {
+        case ValueParserFFI::FfiImportPreludeItemKind::Layer:
+            VERIFY(item.value.has_value());
+            layer = *item.value;
+            break;
+        case ValueParserFFI::FfiImportPreludeItemKind::Scope:
+            has_scope = true;
+            break;
+        case ValueParserFFI::FfiImportPreludeItemKind::ScopeStart:
+            VERIFY(item.selectors.has_value());
+            if (selector_list_has_undeclared_namespace(*item.selectors, m_declared_namespaces))
+                return {};
+            scope_start = *item.selectors;
+            break;
+        case ValueParserFFI::FfiImportPreludeItemKind::ScopeEnd:
+            VERIFY(item.selectors.has_value());
+            if (selector_list_has_undeclared_namespace(*item.selectors, m_declared_namespaces))
+                return {};
+            scope_end = *item.selectors;
+            break;
+        case ValueParserFFI::FfiImportPreludeItemKind::Supports:
+            VERIFY(item.query.has_value());
+            supports = RustQueryParser::reevaluate_supports_condition(*this, *item.query);
+            break;
+        case ValueParserFFI::FfiImportPreludeItemKind::Media:
+            VERIFY(item.query.has_value());
+            media_queries.append(MediaQuery::create(*item.query));
+            break;
+        case ValueParserFFI::FfiImportPreludeItemKind::UrlFunction:
+        case ValueParserFFI::FfiImportPreludeItemKind::UrlValue:
+            VERIFY_NOT_REACHED();
+        }
+    }
+
     Optional<CSSImportRule::ImportScope> scope;
-    if (prelude->has_scope)
-        scope = CSSImportRule::ImportScope { move(prelude->scope_start), move(prelude->scope_end) };
-    return CSSImportRule::create(move(prelude->url), const_cast<DOM::Document*>(m_document.ptr()), move(prelude->layer), move(scope), move(prelude->supports), MediaList::create(move(prelude->media_queries)));
+    if (has_scope)
+        scope = CSSImportRule::ImportScope { move(scope_start), move(scope_end) };
+    return CSSImportRule::create(move(url), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(scope), move(supports), MediaList::create(move(media_queries)));
 }
 
 template<typename NestedDeclarationsRule>
@@ -996,85 +1043,6 @@ template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(A
 
 template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSNestedDeclarations>(AtRule const&, Nested);
 template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
-
-Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
-{
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Import)
-        return {};
-    if (rule.parsed_prelude.items.is_empty())
-        return {};
-    auto const& url_item = rule.parsed_prelude.items[0];
-    if (!url_item.value.has_value())
-        return {};
-    Optional<URL> url;
-    if (static_cast<ValueParserFFI::FfiImportPreludeItemKind>(url_item.kind) == ValueParserFFI::FfiImportPreludeItemKind::UrlValue) {
-        url = URL { MUST(url_item.value->view().to_utf8()) };
-    } else {
-        auto value = parse_primitive_value_from_source(ValueType::Url, *url_item.value);
-        if (value && value->is_url())
-            url = value->as_url().url();
-    }
-    if (!url.has_value())
-        return {};
-    Optional<Utf16FlyString> layer;
-    bool has_scope = false;
-    Optional<SelectorList> scope_start;
-    Optional<SelectorList> scope_end;
-    Optional<RustQueryHandle> supports;
-    Vector<NonnullRefPtr<MediaQuery>> media_queries;
-    auto parse_scope_selector_list = [&](Utf16View source, SelectorType selector_type) -> Optional<SelectorList> {
-        auto selectors = parse_selector_list_in_rust(source, m_declared_namespaces, selector_type == SelectorType::Relative, false);
-        if (!selectors.has_value() || selectors->is_empty())
-            return {};
-        if (selector_list_contains_pseudo_element(*selectors))
-            return {};
-        return selectors;
-    };
-    for (auto const& item : rule.parsed_prelude.items.span().slice(1)) {
-        switch (static_cast<ValueParserFFI::FfiImportPreludeItemKind>(item.kind)) {
-        case ValueParserFFI::FfiImportPreludeItemKind::Layer:
-            if (!item.value.has_value())
-                return {};
-            layer = *item.value;
-            break;
-        case ValueParserFFI::FfiImportPreludeItemKind::Scope:
-            has_scope = true;
-            break;
-        case ValueParserFFI::FfiImportPreludeItemKind::ScopeStart:
-            if (!item.value.has_value())
-                return {};
-            scope_start = parse_scope_selector_list(*item.value, SelectorType::Standalone);
-            if (!scope_start.has_value())
-                return {};
-            break;
-        case ValueParserFFI::FfiImportPreludeItemKind::ScopeEnd:
-            if (!item.value.has_value())
-                return {};
-            scope_end = parse_scope_selector_list(*item.value, SelectorType::Relative);
-            if (!scope_end.has_value())
-                return {};
-            break;
-        case ValueParserFFI::FfiImportPreludeItemKind::Supports: {
-            if (!item.value.has_value())
-                return {};
-            supports = RustQueryParser::parse_supports_condition(*this, *item.value);
-            if (!supports.has_value())
-                supports = RustQueryParser::parse_supports_declaration(*this, *item.value);
-            if (!supports.has_value())
-                return {};
-            break;
-        }
-        case ValueParserFFI::FfiImportPreludeItemKind::Media:
-            if (!item.value.has_value())
-                return {};
-            media_queries = RustQueryParser::parse_media_query_list(*this, *item.value);
-            break;
-        default:
-            return {};
-        }
-    }
-    return ImportPrelude { url.release_value(), move(layer), has_scope, move(scope_start), move(scope_end), move(supports), move(media_queries) };
-}
 
 Optional<Vector<u32>> Parser::parse_font_feature_values(Declaration const& declaration, size_t max_value_count)
 {
