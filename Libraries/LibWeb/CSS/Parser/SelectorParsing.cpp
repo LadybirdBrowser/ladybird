@@ -39,16 +39,9 @@ Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_select
     return Selector::PseudoElementSelector { pseudo_element.release_value(), selector->serialize() };
 }
 
-Optional<PageSelectorList> Parser::parse_as_page_selector_list()
+PageSelectorList Parser::page_selector_list_from_parsed_prelude(ParsedRulePrelude const& prelude)
 {
-    auto source = Utf16String::formatted("@page {} {{}}", m_source);
-    auto parser = Parser::create(ParsingParams {}, source);
-    auto rule = RustSyntaxParser::parse_rule(parser, {}, RuleNesting::No);
-    if (!rule.has_value() || !rule->has<AtRule>())
-        return {};
-    auto const& prelude = rule->get<AtRule>().parsed_prelude;
-    if (prelude.kind != ParsedRulePreludeKind::PageSelectors)
-        return {};
+    VERIFY(prelude.kind == ParsedRulePreludeKind::PageSelectors);
     PageSelectorList selectors;
     Optional<Utf16FlyString> name;
     Vector<PagePseudoClass> pseudo_classes;
@@ -66,6 +59,19 @@ Optional<PageSelectorList> Parser::parse_as_page_selector_list()
     if (name.has_value() || !pseudo_classes.is_empty())
         selectors.empend(move(name), move(pseudo_classes));
     return selectors;
+}
+
+Optional<PageSelectorList> Parser::parse_as_page_selector_list()
+{
+    auto source = Utf16String::formatted("@page {} {{}}", m_source);
+    auto parser = Parser::create(ParsingParams {}, source);
+    auto rule = RustSyntaxParser::parse_rule(parser, {}, RuleNesting::No);
+    if (!rule.has_value() || !rule->has<AtRule>())
+        return {};
+    auto const& prelude = rule->get<AtRule>().parsed_prelude;
+    if (prelude.kind != ParsedRulePreludeKind::PageSelectors)
+        return {};
+    return page_selector_list_from_parsed_prelude(prelude);
 }
 
 }

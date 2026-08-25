@@ -177,6 +177,7 @@ private:
         Optional<RustQueryHandle> supports;
         Vector<NonnullRefPtr<MediaQuery>> media_queries;
     };
+    static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
     Optional<ImportPrelude> parse_import_prelude(AtRule const&);
     Optional<Vector<u32>> parse_font_feature_values(Declaration const&, size_t max_value_count);
     Optional<FunctionPrelude> parse_function_prelude(AtRule const&);

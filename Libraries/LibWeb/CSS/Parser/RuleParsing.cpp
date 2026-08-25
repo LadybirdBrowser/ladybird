@@ -982,22 +982,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 
     if (page_rule.parsed_prelude.kind != ParsedRulePreludeKind::PageSelectors)
         return nullptr;
-    PageSelectorList page_selectors;
-    Optional<Utf16FlyString> page_name;
-    Vector<PagePseudoClass> pseudo_classes;
-    for (auto const& item : page_rule.parsed_prelude.items) {
-        auto item_kind = static_cast<ValueParserFFI::FfiPageSelectorItemKind>(item.kind);
-        if (item_kind != ValueParserFFI::FfiPageSelectorItemKind::Name) {
-            VERIFY(item_kind <= ValueParserFFI::FfiPageSelectorItemKind::Blank);
-            pseudo_classes.append(static_cast<PagePseudoClass>(item.kind));
-            continue;
-        }
-        if (page_name.has_value() || !pseudo_classes.is_empty())
-            page_selectors.empend(move(page_name), move(pseudo_classes));
-        page_name = item.value;
-    }
-    if (page_name.has_value() || !pseudo_classes.is_empty())
-        page_selectors.empend(move(page_name), move(pseudo_classes));
+    auto page_selectors = page_selector_list_from_parsed_prelude(page_rule.parsed_prelude);
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     DescriptorList descriptors { AtRuleID::Page };
