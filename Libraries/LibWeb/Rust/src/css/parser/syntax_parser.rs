@@ -146,15 +146,29 @@ pub enum FfiRuleKind {
 
 const UNUSED_PRELUDE_ITEM_KIND: u8 = 0;
 
-type ParsedPreludeItemPayload = (
-    Option<ParserString>,
-    f64,
-    u8,
-    *mut c_void,
-    *const c_void,
-    *const c_void,
-    *const c_void,
-);
+struct ParsedPreludeItem {
+    value: Option<ParserString>,
+    number_value: f64,
+    kind: u8,
+    selector_list: *mut c_void,
+    query: *const c_void,
+    syntax: *const c_void,
+    style_value: *const c_void,
+}
+
+impl Default for ParsedPreludeItem {
+    fn default() -> Self {
+        Self {
+            value: None,
+            number_value: 0.0,
+            kind: UNUSED_PRELUDE_ITEM_KIND,
+            selector_list: std::ptr::null_mut(),
+            query: std::ptr::null(),
+            syntax: std::ptr::null(),
+            style_value: std::ptr::null(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Rule {
@@ -2545,351 +2559,260 @@ impl FfiSyntaxParse {
         let mut parsed_prelude_name = None;
         let mut parsed_prelude_secondary = None;
         let mut parsed_prelude_syntax = std::ptr::null();
-        let mut parsed_items: Vec<ParsedPreludeItemPayload> = Vec::new();
-        let parsed_prelude_kind = match parsed_prelude {
-            ParsedRulePrelude::Unparsed => 0,
-            ParsedRulePrelude::Invalid => 1,
-            ParsedRulePrelude::Empty => 2,
-            ParsedRulePrelude::Name(name) => {
-                parsed_prelude_name = Some(name);
-                3
-            }
-            ParsedRulePrelude::Names(names) => {
-                parsed_items.extend(names.into_iter().map(|name| {
-                    (
-                        Some(name),
-                        0.0,
-                        UNUSED_PRELUDE_ITEM_KIND,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    )
-                }));
-                4
-            }
-            ParsedRulePrelude::KeyframeSelectors(selectors) => {
-                parsed_items.extend(selectors.into_iter().map(|value| {
-                    (
-                        None,
-                        value,
-                        UNUSED_PRELUDE_ITEM_KIND,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    )
-                }));
-                5
-            }
-            ParsedRulePrelude::Namespace { prefix, uri } => {
-                parsed_prelude_name = prefix;
-                parsed_prelude_secondary = Some(uri);
-                6
-            }
-            ParsedRulePrelude::PageSelectors(selectors) => {
-                for selector in selectors {
-                    parsed_items.push((
-                        selector.name,
-                        0.0,
-                        FfiPageSelectorItemKind::Name as u8,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                    parsed_items.extend(selector.pseudo_classes.into_iter().map(|pseudo_class| {
-                        (
-                            None,
-                            0.0,
-                            pseudo_class as u8,
-                            std::ptr::null_mut(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                            std::ptr::null(),
-                        )
+        let mut parsed_items: Vec<ParsedPreludeItem> = Vec::new();
+        let parsed_prelude_kind =
+            match parsed_prelude {
+                ParsedRulePrelude::Unparsed => 0,
+                ParsedRulePrelude::Invalid => 1,
+                ParsedRulePrelude::Empty => 2,
+                ParsedRulePrelude::Name(name) => {
+                    parsed_prelude_name = Some(name);
+                    3
+                }
+                ParsedRulePrelude::Names(names) => {
+                    parsed_items.extend(names.into_iter().map(|name| ParsedPreludeItem {
+                        value: Some(name),
+                        ..Default::default()
                     }));
+                    4
                 }
-                7
-            }
-            ParsedRulePrelude::FontFamilyNames(names) => {
-                parsed_items.extend(names.into_iter().map(|name| {
-                    (
-                        Some(name),
-                        0.0,
-                        UNUSED_PRELUDE_ITEM_KIND,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    )
-                }));
-                8
-            }
-            ParsedRulePrelude::Scope { has_start, has_end } => {
-                let Rule::At(at_rule) = rule else {
-                    unreachable!();
-                };
-                let Some((start_components, end_components)) = scope_selector_components(prelude) else {
-                    unreachable!();
-                };
-                let mut valid = true;
-                if has_start {
-                    let start_components = start_components.unwrap();
-                    let selector_list = self
-                        .append_selector_list(
-                            start_components,
-                            if at_rule.style_nested {
-                                SelectorType::Relative
-                            } else {
-                                SelectorType::Standalone
-                            },
-                        )
-                        .unwrap_or_else(|| {
-                            valid = false;
-                            std::ptr::null_mut()
+                ParsedRulePrelude::KeyframeSelectors(selectors) => {
+                    parsed_items.extend(selectors.into_iter().map(|value| ParsedPreludeItem {
+                        number_value: value,
+                        ..Default::default()
+                    }));
+                    5
+                }
+                ParsedRulePrelude::Namespace { prefix, uri } => {
+                    parsed_prelude_name = prefix;
+                    parsed_prelude_secondary = Some(uri);
+                    6
+                }
+                ParsedRulePrelude::PageSelectors(selectors) => {
+                    for selector in selectors {
+                        parsed_items.push(ParsedPreludeItem {
+                            value: selector.name,
+                            kind: FfiPageSelectorItemKind::Name as u8,
+                            ..Default::default()
                         });
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiScopePreludeItemKind::Start as u8,
-                        selector_list,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
+                        parsed_items.extend(selector.pseudo_classes.into_iter().map(|pseudo_class| {
+                            ParsedPreludeItem {
+                                kind: pseudo_class as u8,
+                                ..Default::default()
+                            }
+                        }));
+                    }
+                    7
                 }
-                if has_end {
-                    let end_components = end_components.unwrap();
-                    let selector_list = self
-                        .append_selector_list(end_components, SelectorType::Relative)
-                        .unwrap_or_else(|| {
-                            valid = false;
-                            std::ptr::null_mut()
+                ParsedRulePrelude::FontFamilyNames(names) => {
+                    parsed_items.extend(names.into_iter().map(|name| ParsedPreludeItem {
+                        value: Some(name),
+                        ..Default::default()
+                    }));
+                    8
+                }
+                ParsedRulePrelude::Scope { has_start, has_end } => {
+                    let Rule::At(at_rule) = rule else {
+                        unreachable!();
+                    };
+                    let Some((start_components, end_components)) = scope_selector_components(prelude) else {
+                        unreachable!();
+                    };
+                    let mut valid = true;
+                    if has_start {
+                        let start_components = start_components.unwrap();
+                        let selector_list = self
+                            .append_selector_list(
+                                start_components,
+                                if at_rule.style_nested {
+                                    SelectorType::Relative
+                                } else {
+                                    SelectorType::Standalone
+                                },
+                            )
+                            .unwrap_or_else(|| {
+                                valid = false;
+                                std::ptr::null_mut()
+                            });
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiScopePreludeItemKind::Start as u8,
+                            selector_list,
+                            ..Default::default()
                         });
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiScopePreludeItemKind::End as u8,
-                        selector_list,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                if valid {
-                    9
-                } else {
-                    parsed_items.clear();
-                    1
-                }
-            }
-            ParsedRulePrelude::Import(import) => {
-                parsed_items.push((
-                    None,
-                    0.0,
-                    import.url_kind as u8,
-                    std::ptr::null_mut(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    Arc::into_raw(import.url.0).cast(),
-                ));
-                if let Some(layer) = import.layer {
-                    parsed_items.push((
-                        Some(layer),
-                        0.0,
-                        FfiImportPreludeItemKind::Layer as u8,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                if import.has_scope {
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiImportPreludeItemKind::Scope as u8,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                if let Some(selectors) = import.scope_start {
-                    let selectors = self.retain_selector_list(selectors);
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiImportPreludeItemKind::ScopeStart as u8,
-                        selectors,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                if let Some(selectors) = import.scope_end {
-                    let selectors = self.retain_selector_list(selectors);
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiImportPreludeItemKind::ScopeEnd as u8,
-                        selectors,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                if let Some(supports) = import.supports {
-                    let supports = self.append_query_handle(expression_query_handle(supports, QueryKind::Supports));
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiImportPreludeItemKind::Supports as u8,
-                        std::ptr::null_mut(),
-                        supports,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                for media_query in import.media_queries {
-                    let media_query = self.append_query_handle(media_query_handle(media_query));
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        FfiImportPreludeItemKind::Media as u8,
-                        std::ptr::null_mut(),
-                        media_query,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
-                }
-                10
-            }
-            ParsedRulePrelude::Function {
-                name,
-                parameters,
-                return_type,
-            } => {
-                parsed_prelude_name = Some(name);
-                parsed_prelude_syntax = Arc::into_raw(return_type).cast();
-                for parameter in parameters {
-                    parsed_items.push((
-                        Some(parameter.name),
-                        0.0,
-                        FfiFunctionParameterItemKind::Parameter as u8,
-                        std::ptr::null_mut(),
-                        std::ptr::null(),
-                        Arc::into_raw(parameter.syntax).cast(),
-                        parameter
-                            .default_value
-                            .map_or(std::ptr::null(), |value| Arc::into_raw(value.0).cast()),
-                    ));
-                }
-                11
-            }
-            ParsedRulePrelude::Property {
-                name,
-                syntax_source,
-                syntax,
-                inherits,
-                initial_value,
-            } => {
-                parsed_prelude_name = Some(name);
-                parsed_prelude_secondary = Some(syntax_source);
-                parsed_prelude_syntax = Arc::into_raw(syntax).cast();
-                parsed_items.push((
-                    None,
-                    0.0,
-                    if inherits {
-                        FfiPropertyPreludeItemKind::InheritsTrue as u8
+                    }
+                    if has_end {
+                        let end_components = end_components.unwrap();
+                        let selector_list = self
+                            .append_selector_list(end_components, SelectorType::Relative)
+                            .unwrap_or_else(|| {
+                                valid = false;
+                                std::ptr::null_mut()
+                            });
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiScopePreludeItemKind::End as u8,
+                            selector_list,
+                            ..Default::default()
+                        });
+                    }
+                    if valid {
+                        9
                     } else {
-                        FfiPropertyPreludeItemKind::InheritsFalse as u8
-                    },
-                    std::ptr::null_mut(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    initial_value.map_or(std::ptr::null(), |value| Arc::into_raw(value.0).cast()),
-                ));
-                15
-            }
-            ParsedRulePrelude::MediaQueries(queries) => {
-                for query in queries {
-                    let query = self.append_query_handle(media_query_handle(query));
-                    parsed_items.push((
-                        None,
-                        0.0,
-                        UNUSED_PRELUDE_ITEM_KIND,
-                        std::ptr::null_mut(),
-                        query,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
+                        parsed_items.clear();
+                        1
+                    }
                 }
-                12
-            }
-            ParsedRulePrelude::SupportsCondition(expression) => {
-                let query = self.append_query_handle(expression_query_handle(expression, QueryKind::Supports));
-                parsed_items.push((
-                    None,
-                    0.0,
-                    UNUSED_PRELUDE_ITEM_KIND,
-                    std::ptr::null_mut(),
-                    query,
-                    std::ptr::null(),
-                    std::ptr::null(),
-                ));
-                13
-            }
-            ParsedRulePrelude::ContainerConditions(conditions) => {
-                for condition in conditions {
-                    let query = condition
-                        .query
-                        .map(|expression| {
-                            self.append_query_handle(expression_query_handle(expression, QueryKind::Size))
-                        })
-                        .unwrap_or(std::ptr::null());
-                    parsed_items.push((
-                        condition.name,
-                        0.0,
-                        UNUSED_PRELUDE_ITEM_KIND,
-                        std::ptr::null_mut(),
-                        query,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    ));
+                ParsedRulePrelude::Import(import) => {
+                    parsed_items.push(ParsedPreludeItem {
+                        kind: import.url_kind as u8,
+                        style_value: Arc::into_raw(import.url.0).cast(),
+                        ..Default::default()
+                    });
+                    if let Some(layer) = import.layer {
+                        parsed_items.push(ParsedPreludeItem {
+                            value: Some(layer),
+                            kind: FfiImportPreludeItemKind::Layer as u8,
+                            ..Default::default()
+                        });
+                    }
+                    if import.has_scope {
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiImportPreludeItemKind::Scope as u8,
+                            ..Default::default()
+                        });
+                    }
+                    if let Some(selectors) = import.scope_start {
+                        let selectors = self.retain_selector_list(selectors);
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiImportPreludeItemKind::ScopeStart as u8,
+                            selector_list: selectors,
+                            ..Default::default()
+                        });
+                    }
+                    if let Some(selectors) = import.scope_end {
+                        let selectors = self.retain_selector_list(selectors);
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiImportPreludeItemKind::ScopeEnd as u8,
+                            selector_list: selectors,
+                            ..Default::default()
+                        });
+                    }
+                    if let Some(supports) = import.supports {
+                        let supports = self.append_query_handle(expression_query_handle(supports, QueryKind::Supports));
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiImportPreludeItemKind::Supports as u8,
+                            query: supports,
+                            ..Default::default()
+                        });
+                    }
+                    for media_query in import.media_queries {
+                        let media_query = self.append_query_handle(media_query_handle(media_query));
+                        parsed_items.push(ParsedPreludeItem {
+                            kind: FfiImportPreludeItemKind::Media as u8,
+                            query: media_query,
+                            ..Default::default()
+                        });
+                    }
+                    10
                 }
-                14
-            }
-            ParsedRulePrelude::FontFeatureValuesRule(kind) => {
-                parsed_items.push((
-                    None,
-                    0.0,
-                    kind as u8,
-                    std::ptr::null_mut(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                ));
-                16
-            }
-        };
+                ParsedRulePrelude::Function {
+                    name,
+                    parameters,
+                    return_type,
+                } => {
+                    parsed_prelude_name = Some(name);
+                    parsed_prelude_syntax = Arc::into_raw(return_type).cast();
+                    for parameter in parameters {
+                        parsed_items.push(ParsedPreludeItem {
+                            value: Some(parameter.name),
+                            kind: FfiFunctionParameterItemKind::Parameter as u8,
+                            syntax: Arc::into_raw(parameter.syntax).cast(),
+                            style_value: parameter
+                                .default_value
+                                .map_or(std::ptr::null(), |value| Arc::into_raw(value.0).cast()),
+                            ..Default::default()
+                        });
+                    }
+                    11
+                }
+                ParsedRulePrelude::Property {
+                    name,
+                    syntax_source,
+                    syntax,
+                    inherits,
+                    initial_value,
+                } => {
+                    parsed_prelude_name = Some(name);
+                    parsed_prelude_secondary = Some(syntax_source);
+                    parsed_prelude_syntax = Arc::into_raw(syntax).cast();
+                    parsed_items.push(ParsedPreludeItem {
+                        kind: if inherits {
+                            FfiPropertyPreludeItemKind::InheritsTrue as u8
+                        } else {
+                            FfiPropertyPreludeItemKind::InheritsFalse as u8
+                        },
+                        style_value: initial_value.map_or(std::ptr::null(), |value| Arc::into_raw(value.0).cast()),
+                        ..Default::default()
+                    });
+                    15
+                }
+                ParsedRulePrelude::MediaQueries(queries) => {
+                    for query in queries {
+                        let query = self.append_query_handle(media_query_handle(query));
+                        parsed_items.push(ParsedPreludeItem {
+                            query,
+                            ..Default::default()
+                        });
+                    }
+                    12
+                }
+                ParsedRulePrelude::SupportsCondition(expression) => {
+                    let query = self.append_query_handle(expression_query_handle(expression, QueryKind::Supports));
+                    parsed_items.push(ParsedPreludeItem {
+                        query,
+                        ..Default::default()
+                    });
+                    13
+                }
+                ParsedRulePrelude::ContainerConditions(conditions) => {
+                    for condition in conditions {
+                        let query = condition
+                            .query
+                            .map(|expression| {
+                                self.append_query_handle(expression_query_handle(expression, QueryKind::Size))
+                            })
+                            .unwrap_or(std::ptr::null());
+                        parsed_items.push(ParsedPreludeItem {
+                            value: condition.name,
+                            query,
+                            ..Default::default()
+                        });
+                    }
+                    14
+                }
+                ParsedRulePrelude::FontFeatureValuesRule(kind) => {
+                    parsed_items.push(ParsedPreludeItem {
+                        kind: kind as u8,
+                        ..Default::default()
+                    });
+                    16
+                }
+            };
         let (parsed_prelude_name_offset, parsed_prelude_name_length) =
             self.append_optional_value(parsed_prelude_name.as_deref());
         let (parsed_prelude_secondary_offset, parsed_prelude_secondary_length) =
             self.append_optional_value(parsed_prelude_secondary.as_deref());
         let parsed_prelude_items_start = self.prelude_items.len();
-        for (value, number_value, kind, selector_list, query, syntax, style_value) in parsed_items {
-            let (value_offset, value_length) = self.append_optional_value(value.as_deref());
+        for item in parsed_items {
+            let (value_offset, value_length) = self.append_optional_value(item.value.as_deref());
             self.prelude_items.push(FfiSyntaxPreludeItem {
                 value_offset,
                 value_length,
-                number_value,
-                kind,
-                selector_list,
-                query,
-                syntax,
-                style_value,
+                number_value: item.number_value,
+                kind: item.kind,
+                selector_list: item.selector_list,
+                query: item.query,
+                syntax: item.syntax,
+                style_value: item.style_value,
             });
         }
         let parsed_prelude_item_count = self.prelude_items.len() - parsed_prelude_items_start;
