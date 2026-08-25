@@ -56,6 +56,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
+    virtual void adopted_from(DOM::Document&) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
@@ -70,7 +71,13 @@ private:
 
     virtual bool is_svg_element() const final { return true; }
 
+    RefPtr<CSS::StyleValue const> parse_presentation_attribute(CSS::PropertyID, Utf16View) const;
+    void update_presentation_attribute_style(Utf16FlyString const&, Optional<Utf16FlyString> const& namespace_);
+    void publish_presentation_attribute_style();
+
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
+
+    mutable Optional<Vector<CSS::StyleProperty>> m_presentation_attribute_style;
 
     // Many reflecting attributes are marked as SameObject so we cache the objects we create here.
     HashMap<Utf16FlyString, GC::Ref<SVGAnimatedLength>> m_reflected_attribute_cache;
