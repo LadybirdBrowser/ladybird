@@ -13,6 +13,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
+#include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -46,6 +47,7 @@ enum class ParsedRulePreludeKind : u8 {
 
 struct ParsedRulePreludeItem {
     Optional<Utf16FlyString> value;
+    Optional<SelectorList> selectors;
     double number_value { 0 };
     u8 kind { 0 };
 };
@@ -72,6 +74,7 @@ struct AtRule {
 
 struct QualifiedRule {
     Utf16String prelude_text;
+    Optional<SelectorList> selectors;
     ParsedRulePrelude parsed_prelude;
     Vector<Declaration> declarations;
     Vector<RuleOrListOfDeclarations> child_rules;

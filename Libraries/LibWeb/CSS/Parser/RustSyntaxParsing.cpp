@@ -297,8 +297,12 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
     items.ensure_capacity(rule.parsed_prelude_item_count);
     for (size_t index = 0; index < rule.parsed_prelude_item_count; ++index) {
         auto const& item = data.prelude_items[rule.parsed_prelude_items_start + index];
+        Optional<SelectorList> selectors;
+        if (item.selector_list)
+            selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList*>(item.selector_list));
         items.unchecked_append({
             .value = optional_string(item.value_offset, item.value_length),
+            .selectors = move(selectors),
             .number_value = item.number_value,
             .kind = item.kind,
         });
@@ -350,8 +354,12 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     }
 
     VERIFY(rule.rule_type == 1);
+    Optional<SelectorList> selectors;
+    if (rule.selector_list)
+        selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList*>(rule.selector_list));
     return QualifiedRule {
         .prelude_text = move(prelude_text),
+        .selectors = move(selectors),
         .parsed_prelude = parsed_rule_prelude(data, rule),
         .declarations = declarations(data, rule.declarations_start, rule.declaration_count),
         .child_rules = move(children),

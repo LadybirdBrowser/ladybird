@@ -181,10 +181,8 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
         [[maybe_unused]] auto last = m_rule_context.take_last();
         VERIFY(last == RuleContext::Style);
     };
-    auto maybe_selectors = parse_selector_list_in_rust(qualified_rule.prelude_text, m_declared_namespaces,
-        nested == Nested::Yes, false);
-
-    if (!maybe_selectors.has_value()) {
+    if (!qualified_rule.selectors.has_value()
+        || selector_list_has_undeclared_namespace(*qualified_rule.selectors, m_declared_namespaces)) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "style"_utf16_fly_string,
             .prelude = qualified_rule.prelude_text.to_utf8(),
@@ -193,7 +191,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
         return {};
     }
 
-    if (maybe_selectors.value().is_empty()) {
+    if (qualified_rule.selectors->is_empty()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "style"_utf16_fly_string,
             .prelude = qualified_rule.prelude_text.to_utf8(),
@@ -202,7 +200,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
         return {};
     }
 
-    SelectorList selectors = maybe_selectors.release_value();
+    SelectorList selectors = *qualified_rule.selectors;
     if (nested == Nested::Yes)
         selectors = adapt_nested_relative_selector_list(selectors, nesting_parent);
 
@@ -631,16 +629,16 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
     Optional<SelectorList> start;
     Optional<SelectorList> end;
     for (auto const& item : rule.parsed_prelude.items) {
-        VERIFY(item.value.has_value());
+        VERIFY(item.selectors.has_value());
         bool is_end = static_cast<ValueParserFFI::FfiScopePreludeItemKind>(item.kind) == ValueParserFFI::FfiScopePreludeItemKind::End;
-        auto selectors = parse_selector_list_in_rust(*item.value, m_declared_namespaces,
-            is_end || nested == Nested::Yes, false);
-        if (!selectors.has_value() || selectors->is_empty() || selector_list_contains_pseudo_element(*selectors))
+        auto const& selectors = *item.selectors;
+        if (selectors.is_empty() || selector_list_contains_pseudo_element(selectors)
+            || selector_list_has_undeclared_namespace(selectors, m_declared_namespaces))
             return nullptr;
         if (is_end)
-            end = selectors.release_value();
+            end = selectors;
         else
-            start = selectors.release_value();
+            start = selectors;
     }
     if (nested == Nested::Yes && start.has_value())
         start = adapt_nested_relative_selector_list(*start, nesting_parent);

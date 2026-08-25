@@ -513,3 +513,44 @@ pub unsafe extern "C" fn rust_selector_absolutize(
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::css_tokenizer::tokenize_for_parser;
+    use super::super::parser::component_value::consume_a_list_of_component_values;
+    use super::super::selector::SelectorList;
+    use super::super::selector_parser::{SelectorType, parse_selector_list_from_component_values};
+    use super::{contains_named_namespace, has_undeclared_namespace};
+
+    /// Parses the way the syntax parser does: from component values, with namespace
+    /// declarations unknown, so prefix validity is decided later by
+    /// `has_undeclared_namespace` against the rule's tree scope.
+    fn parse_without_namespace_context(source: &str) -> SelectorList {
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
+        parse_selector_list_from_component_values(&values, SelectorType::Standalone)
+            .unwrap()
+            .selectors()
+            .clone()
+    }
+
+    #[test]
+    fn named_namespace_inside_pseudo_element_compound_selector_is_seen() {
+        let selectors = parse_without_namespace_context("::slotted(foo|div)");
+        assert!(selectors.iter().all(|selector| contains_named_namespace(selector)));
+        assert!(selectors.iter().all(|selector| has_undeclared_namespace(selector, &[])));
+    }
+
+    #[test]
+    fn named_namespace_inside_pseudo_class_argument_is_seen() {
+        let selectors = parse_without_namespace_context(":is(foo|div)");
+        assert!(selectors.iter().all(|selector| contains_named_namespace(selector)));
+        assert!(selectors.iter().all(|selector| has_undeclared_namespace(selector, &[])));
+    }
+
+    #[test]
+    fn pseudo_element_compound_selector_without_namespace_is_clean() {
+        let selectors = parse_without_namespace_context("::slotted(div.a)");
+        assert!(!selectors.iter().any(|selector| contains_named_namespace(selector)));
+        assert!(!selectors.iter().any(|selector| has_undeclared_namespace(selector, &[])));
+    }
+}
