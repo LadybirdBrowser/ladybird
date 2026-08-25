@@ -112,7 +112,7 @@ struct DemuxerAndTrack {
     Media::Track track;
 };
 
-static DemuxerAndTrack demuxer_and_video_track_for(StringView path)
+DemuxerAndTrack demuxer_and_video_track_for(StringView path)
 {
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
