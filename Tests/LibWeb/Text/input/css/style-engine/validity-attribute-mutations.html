@@ -10,6 +10,8 @@
 <form id="fieldset-form">
     <fieldset id="disabled-fieldset"><input id="fieldset-input" required></fieldset>
 </form>
+<form id="external-form"></form>
+<input id="external-input" form="external-form" required>
 <script>
     class FormAssociatedElement extends HTMLElement {
         static formAssociated = true;
@@ -52,6 +54,11 @@
         println(`disabled fieldset input: ${state(fieldsetInput)}`);
         println(`disabled fieldset: ${state(disabledFieldset)}`);
         println(`disabled fieldset form: ${state(fieldsetForm)}`);
+
+        const externalForm = document.getElementById("external-form");
+        const externalInput = document.getElementById("external-input");
+        println(`external input: ${state(externalInput)}`);
+        println(`external input form: ${state(externalForm)}`);
 
         const customForm = document.createElement("form");
         const customControl = document.createElement("form-associated");

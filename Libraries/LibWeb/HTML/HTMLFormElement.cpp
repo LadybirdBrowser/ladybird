@@ -1220,20 +1220,25 @@ FormAssociatedElement* HTMLFormElement::default_button() const
     // A form element's default button is the first submit button in tree order whose form owner is that form element.
     FormAssociatedElement* default_button = nullptr;
 
-    root().for_each_in_subtree([&](auto& node) {
-        auto* form_associated_element = const_cast<FormAssociatedElement*>(as_if<FormAssociatedElement>(node));
-        if (!form_associated_element)
-            return TraversalDecision::Continue;
-
-        if (form_associated_element->form() == this && form_associated_element->is_submit_button()) {
-            default_button = form_associated_element;
-            return TraversalDecision::Break;
-        }
-
-        return TraversalDecision::Continue;
-    });
+    for (auto const& element : m_associated_elements) {
+        auto& form_associated_element = as<FormAssociatedElement>(*element);
+        if (!form_associated_element.is_submit_button())
+            continue;
+        if (!default_button || element->is_before(default_button->form_associated_element_to_html_element()))
+            default_button = &form_associated_element;
+    }
 
     return default_button;
+}
+
+bool HTMLFormElement::has_invalid_associated_element() const
+{
+    for (auto const& element : m_associated_elements) {
+        auto const& form_associated_element = as<FormAssociatedElement>(*element);
+        if (form_associated_element.is_candidate_for_constraint_validation() && !form_associated_element.satisfies_its_constraints())
+            return true;
+    }
+    return false;
 }
 
 void HTMLFormElement::default_button_state_maybe_changed()

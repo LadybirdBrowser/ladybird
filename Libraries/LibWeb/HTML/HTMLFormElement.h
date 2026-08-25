@@ -108,6 +108,7 @@ public:
     void set_action(Utf16View);
 
     FormAssociatedElement* default_button() const;
+    bool has_invalid_associated_element() const;
     void default_button_state_maybe_changed();
     void default_button_state_maybe_changed(DOM::Element&, bool was_default);
 
