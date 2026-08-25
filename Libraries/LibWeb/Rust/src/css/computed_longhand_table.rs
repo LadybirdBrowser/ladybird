@@ -194,6 +194,12 @@ impl ComputedLonghandTable {
         self.dependency_flags
     }
 
+    pub(crate) fn inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, *const c_void)> + '_ {
+        self.inheritance_dependent
+            .iter()
+            .map(|(property, value)| (*property, value.pointer().cast()))
+    }
+
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
         assert!(
             !self.frozen,

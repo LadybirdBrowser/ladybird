@@ -1464,8 +1464,21 @@ impl ComputedGroupSets {
             .iter()
             .copied()
             .zip(reconstruction_metadata.inheritance_dependent_values.iter().copied())
+            .map(|(property, value)| (property, value, 1u8))
             .collect();
-        inheritance_dependent_values.sort_unstable_by_key(|&(property, _)| property);
+        if let Some(longhand_table) = longhand_table {
+            inheritance_dependent_values.extend(
+                longhand_table
+                    .inheritance_dependent_values()
+                    .map(|(property, value)| (property, value, 0u8)),
+            );
+        }
+        inheritance_dependent_values.sort_unstable_by_key(|&(property, _, source_rank)| (property, source_rank));
+        inheritance_dependent_values.dedup_by_key(|(property, _, _)| *property);
+        let inheritance_dependent_values: Vec<_> = inheritance_dependent_values
+            .into_iter()
+            .map(|(property, value, _)| (property, value))
+            .collect();
         let reconstruction_hash = reconstruction_metadata_hash(
             reconstruction_metadata.property_importance,
             reconstruction_metadata.property_inheritance,
