@@ -266,6 +266,7 @@ public:
         // then does the key name that environment, which is an object the element's own ancestors
         // mint afresh whenever any of them recomputes.
         bool cascade_reads_custom_properties { false };
+        bool cascade_font_family_is_monospace { true };
         RefPtr<CustomPropertyData const> pinned_parent_custom_property_data;
         // The style groups whose values the computation read from the inherited style's
         // non-inherited half, which the key does not name.

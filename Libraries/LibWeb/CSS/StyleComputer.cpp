@@ -4085,7 +4085,6 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     auto const* previous_base = previous_values ? &previous_values->base_values() : nullptr;
     auto groups_to_rebuild = sharing.computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups);
     auto& element = abstract_element.element();
-    bool has_monospace_font_size_recascade = ComputedValuesFFI::rust_font_family_is_monospace(computed_properties->effective_property_data(PropertyID::FontFamily));
     if (groups_to_rebuild != ComputedValues::all_style_groups) {
         if (element.has_relevant_animations()
             || element.has_css_defined_animations())
@@ -4115,7 +4114,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
             && !element.style_depends_on_viewport_metrics()
             && !element.style_depends_on_size_container_query()
             && !element.style_depends_on_style_container_query()
-            && !has_monospace_font_size_recascade
+            && !sharing.cascade_font_family_is_monospace
             && !computed_values->animated_properties()
             && !computed_values->has_animated_values();
         // The same question decides whether this element's own next computation can be skipped, and
@@ -5246,6 +5245,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     }
     auto font_family = cascaded_properties->property(PropertyID::FontFamily);
     bool has_monospace_font_size_recascade = font_family && ComputedValuesFFI::rust_font_family_is_monospace(font_family->rust_style_value_data());
+    if (sharing)
+        sharing->cascade_font_family_is_monospace = has_monospace_font_size_recascade;
     bool must_compute_all_properties = !previous_computed_values
         || has_monospace_font_size_recascade
         || element.has_relevant_animations()
