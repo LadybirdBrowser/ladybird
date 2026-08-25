@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .light { color-scheme: light; }
+    .dark { color-scheme: dark; }
+    .scheme-dependent { background-color: Canvas; }
+</style>
+<div id="parent" class="light">
+    <div id="child">child</div>
+    <div id="dependent" class="scheme-dependent">dependent child</div>
+</div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const dependent = document.getElementById("dependent");
+        internals.updateStyle();
+        const oldDependentBackground = getComputedStyle(dependent).backgroundColor;
+        internals.resetStyleInvalidationCounters();
+
+        parent.className = "dark";
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`child color scheme: ${getComputedStyle(child).colorScheme}`);
+        println(`dependent background changed: ${getComputedStyle(dependent).backgroundColor !== oldDependentBackground}`);
+        println(`materialized gaps: ${counters.styleEngineMaterializedGaps}`);
+        println(`engine record publications: ${counters.styleEngineRecordDeltasApplied}`);
+    });
+</script>
