@@ -1,0 +1,14 @@
+peer initial: length 0
+after actor sets a=1, peer sees length 1: a=1
+after peer sets b=2, actor sees length 2: a=1,b=2
+after actor overwrites a=3, peer sees length 2: a=3,b=2
+after peer overwrites b=4, actor sees length 2: a=3,b=4
+after actor removes a, peer sees length 1: b=4
+after peer removes b, actor sees length 0
+after actor sets c=5 and peer sets d=6, actor sees length 2: c=5,d=6
+after actor sets c=5 and peer sets d=6, peer sees length 2: c=5,d=6
+after peer clears, actor sees length 0
+after actor sets e=7 then clears, peer sees length 0
+after both write 3 MiB at once from stale caches, neither write threw: true
+after both write 3 MiB at once from stale caches, actor keeps 1 key: a 3 MiB write
+after both write 3 MiB at once from stale caches, peer agrees: true

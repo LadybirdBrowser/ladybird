@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Every bottle one page makes for a storage key has to answer from the same process-local cache — session storage
+    // included, which is partitioned per page. So a same-origin iframe and its parent must see one session map and one
+    // local map, in both directions and with no reload in between: a write in either frame is visible to a read in the
+    // other, and so is a removal.
+    asyncTest(done => {
+        sessionStorage.clear();
+        localStorage.clear();
+        sessionStorage.setItem("from-parent", "s1");
+        localStorage.setItem("from-parent", "l1");
+
+        window.addEventListener("message", event => {
+            const report = event.data;
+            println("child read session from-parent: " + report.session);
+            println("child read local from-parent: " + report.local);
+            println("parent read session from-child: " + sessionStorage.getItem("from-child"));
+            println("parent read local from-child: " + localStorage.getItem("from-child"));
+            println("parent session keys: " + Object.keys(sessionStorage).sort().join(","));
+            println("parent local keys: " + Object.keys(localStorage).sort().join(","));
+            println("child session keys: " + report.sessionKeys);
+            println("child local keys: " + report.localKeys);
+            sessionStorage.removeItem("from-parent");
+            localStorage.removeItem("from-parent");
+            println("child sees removal: " + event.source.sessionStorage.getItem("from-parent") + " " + event.source.localStorage.getItem("from-parent"));
+            println("child session length after removal: " + event.source.sessionStorage.length);
+            sessionStorage.clear();
+            localStorage.clear();
+            done();
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<script>
+            const session = sessionStorage.getItem("from-parent");
+            const local = localStorage.getItem("from-parent");
+            sessionStorage.setItem("from-child", "s2");
+            localStorage.setItem("from-child", "l2");
+            parent.postMessage({
+                session,
+                local,
+                sessionKeys: Object.keys(sessionStorage).sort().join(","),
+                localKeys: Object.keys(localStorage).sort().join(","),
+            }, "*");
+        <\/script>`;
+        document.body.appendChild(iframe);
+    });
+</script>
