@@ -189,6 +189,13 @@ pub struct CssPixelFraction {
 }
 
 impl CssPixelFraction {
+    pub fn zero() -> Self {
+        Self {
+            numerator: CssPixels::from_raw(0),
+            denominator: CssPixels::from_integer(1),
+        }
+    }
+
     pub fn one() -> Self {
         Self {
             numerator: CssPixels::from_integer(1),
@@ -199,6 +206,10 @@ impl CssPixelFraction {
     pub fn ratio_of(numerator: CssPixels, denominator: CssPixels) -> Self {
         assert!(denominator.raw_value() != 0);
         Self { numerator, denominator }
+    }
+
+    pub fn to_double(self) -> f64 {
+        self.numerator.to_double() / self.denominator.to_double()
     }
 
     fn cross_products(self, other: Self) -> (i64, i64) {

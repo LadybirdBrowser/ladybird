@@ -37,10 +37,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
         let background_is_propagated_to_root = {
             let node_flags = recorder.layout_arena.node_flags_if_live(paintable);
             node_flags & crate::layout::node_data::NodeFlag::IsBody as u32 != 0
-                && recorder
-                    .paint_host
-                    .root_background_source()
-                    .use_body_background_properties
+                && recorder.inputs.root_background_source.use_body_background_properties
         };
         let has_borders = {
             let style = recorder.layout_arena.node_style_if_live(paintable);

@@ -15,8 +15,6 @@ class ResizeHandle final : public ChromeWidget {
 public:
     static NonnullRefPtr<ResizeHandle> create(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
 
-    virtual bool contains(CSSPixelPoint position, ChromeMetrics const&) const override;
-
     virtual MouseAction handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) override;
     virtual void mouse_enter() override { }
     virtual void mouse_leave() override { }

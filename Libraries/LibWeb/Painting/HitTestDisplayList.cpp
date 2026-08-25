@@ -12,11 +12,13 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/Scrollbar.h>
+#include <LibWeb/Painting/Scrolling.h>
 
 namespace Web::Painting {
 
@@ -201,8 +203,12 @@ struct HitTestDisplayList::QueryContext {
 
     Layout::RustFFI::FfiHitTestQueryCallbacks callbacks()
     {
-        return {
+        Layout::RustFFI::FfiHitTestQueryCallbacks callbacks {
             .context = this,
+            .has_chrome_metrics = chrome_metrics != nullptr,
+            .chrome_metrics = {},
+            .viewport_wheel_overflow_x = 0,
+            .viewport_wheel_overflow_y = 0,
             .local_point_for_visual_context = [](void* context_pointer, size_t index, CSSPixelPoint point, bool respect_clip, Gfx::FloatPoint* out) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.document);
@@ -212,24 +218,6 @@ struct HitTestDisplayList::QueryContext {
                     return false;
                 *out = *local_point;
                 return true;
-            },
-            .chrome_widget_contains = [](void* context_pointer, void* layout_node_shell, u8 kind, CSSPixelPoint local_point) -> bool {
-                auto& context = *static_cast<QueryContext*>(context_pointer);
-                VERIFY(context.chrome_metrics);
-                auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-                auto paintable_slot = committed_row_slot(layout_node);
-                auto contains = [&](auto widget) { return widget && widget->contains(local_point, *context.chrome_metrics); };
-                switch (static_cast<ChromeWidgetKind>(kind)) {
-                case ChromeWidgetKind::None:
-                    return false;
-                case ChromeWidgetKind::ResizeHandle:
-                    return contains(context.list.m_chrome_widget_registry->resize_handle(paintable_slot));
-                case ChromeWidgetKind::HorizontalScrollbar:
-                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable_slot, ScrollDirection::Horizontal));
-                case ChromeWidgetKind::VerticalScrollbar:
-                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable_slot, ScrollDirection::Vertical));
-                }
-                VERIFY_NOT_REACHED();
             },
             .line_in_scope = [](void* context_pointer, size_t line_index) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
@@ -269,6 +257,13 @@ struct HitTestDisplayList::QueryContext {
                 return true;
             },
         };
+        if (chrome_metrics)
+            callbacks.chrome_metrics = *chrome_metrics;
+        if (document) {
+            callbacks.viewport_wheel_overflow_x = to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(*document, ScrollDirection::Horizontal));
+            callbacks.viewport_wheel_overflow_y = to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(*document, ScrollDirection::Vertical));
+        }
+        return callbacks;
     }
 };
 

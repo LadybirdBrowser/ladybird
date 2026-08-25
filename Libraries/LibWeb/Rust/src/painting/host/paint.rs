@@ -25,6 +25,12 @@ pub struct FfiRecordingInputs {
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
+    pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
+    pub paint_viewport_scrollbars: bool,
+    pub async_scrolling_enabled: bool,
+    pub middle_button_scroll_active: bool,
+    pub middle_button_scroll_origin: crate::layout::FfiCssPixelPoint,
+    pub root_background_source: FfiRootBackgroundSource,
     pub canvas_fill_rect: OptionalIntRect,
     pub canvas_color: Color,
     pub opaque_canvas: bool,
@@ -215,20 +221,6 @@ pub enum FfiScrollNodeKind {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiViewportScrollbarFacts {
-    pub present: bool,
-    pub gutter_rect: crate::layout::FfiCssPixelRect,
-    pub thumb_rect: crate::layout::FfiCssPixelRect,
-    pub expanded_gutter_rect: crate::layout::FfiCssPixelRect,
-    pub expanded_thumb_rect: crate::layout::FfiCssPixelRect,
-    pub scroll_size: f64,
-    pub expanded_scroll_size: f64,
-    pub thumb_color: Color,
-    pub track_color: Color,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
 pub struct FfiAsyncScrollFacts {
     pub is_nested_navigable_container: bool,
     pub scroll_node_kind: FfiScrollNodeKind,
@@ -236,31 +228,6 @@ pub struct FfiAsyncScrollFacts {
     pub pseudo_element_type: u8,
     pub snaps_scroll_position_horizontally: bool,
     pub snaps_scroll_position_vertically: bool,
-    pub records_viewport_scrollbars: bool,
-    pub viewport_scrollbars: [FfiViewportScrollbarFacts; 2],
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiScrollbarPaintFacts {
-    pub present: bool,
-    pub gutter_rect: crate::layout::FfiCssPixelRect,
-    pub thumb_rect: crate::layout::FfiCssPixelRect,
-    pub track_rect: crate::layout::FfiCssPixelRect,
-    pub thumb_travel_to_scroll_ratio: f64,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiOverlayFacts {
-    pub paints_scrollbars: bool,
-    pub scrollbars: [FfiScrollbarPaintFacts; 2],
-    pub thumb_color: Color,
-    pub track_color: Color,
-    pub resizer_rect: OptionalCssPixelRect,
-    pub resize_gripper_padding: crate::css::css_pixels::CssPixels,
-    pub middle_button_scroll_active: bool,
-    pub middle_button_scroll_origin: crate::layout::FfiCssPixelPoint,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -375,11 +342,9 @@ pub struct FfiPaintTreeDumpEntry {
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
     pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,
-    pub overlay_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiOverlayFacts,
     pub outline_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiOutlineFacts,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
-    pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub text_control_selection: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTextControlSelection,
     pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
     pub register_font: unsafe extern "C" fn(*mut c_void, *const c_void) -> u64,
@@ -443,10 +408,6 @@ impl FfiPaintHostCallbacks {
     pub(crate) fn outline_facts(&self, layout_node_shell: *mut c_void) -> FfiOutlineFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.outline_facts)(self.context, layout_node_shell) }
-    }
-    pub(crate) fn overlay_facts(&self, layout_node_shell: *mut c_void) -> FfiOverlayFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.overlay_facts)(self.context, layout_node_shell) }
     }
     pub(crate) fn async_scroll_facts(&self, layout_node_shell: *mut c_void) -> FfiAsyncScrollFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
@@ -579,10 +540,6 @@ impl FfiPaintHostCallbacks {
     ) -> FfiImageIntrinsicFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.image_intrinsic_facts)(self.context, layout_node_shell, list, computed_index) }
-    }
-    pub(crate) fn root_background_source(&self) -> FfiRootBackgroundSource {
-        // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.root_background_source)(self.context) }
     }
     pub(crate) fn replaced_paint_facts(&self, layout_node_shell: *mut c_void) -> FfiReplacedPaintFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.

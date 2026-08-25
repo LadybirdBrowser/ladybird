@@ -44,28 +44,12 @@ CSSPixelPoint scroll_offset(Layout::Node const& node)
 
 CSSPixelPoint minimum_scroll_offset(Layout::Node const& node)
 {
-    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(node);
-    if (!scrollable_overflow_rect.has_value())
-        return {};
-
-    auto scrollport_rect = absolute_padding_box_rect(node);
-    return {
-        min(scrollable_overflow_rect->left() - scrollport_rect.left(), CSSPixels(0)),
-        min(scrollable_overflow_rect->top() - scrollport_rect.top(), CSSPixels(0)),
-    };
+    return Layout::RustFFI::layout_arena_paintable_minimum_scroll_offset(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelPoint maximum_scroll_offset(Layout::Node const& node)
 {
-    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(node);
-    if (!scrollable_overflow_rect.has_value())
-        return {};
-
-    auto scrollport_rect = absolute_padding_box_rect(node);
-    return {
-        max(scrollable_overflow_rect->right() - scrollport_rect.right(), CSSPixels(0)),
-        max(scrollable_overflow_rect->bottom() - scrollport_rect.bottom(), CSSPixels(0)),
-    };
+    return Layout::RustFFI::layout_arena_paintable_maximum_scroll_offset(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelPoint clamp_scroll_offset(Layout::Node const& node, CSSPixelPoint offset)
@@ -150,34 +134,13 @@ CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Docume
     return overflow;
 }
 
-static bool overflow_allows_wheel_scrolling(Layout::NodeWithStyle const& node, ScrollDirection direction)
-{
-    auto overflow = direction == ScrollDirection::Horizontal ? node.overflow_x() : node.overflow_y();
-    if (node.is_viewport())
-        overflow = overflow_value_applied_to_viewport_for_wheel_scrolling(node.document(), direction);
-    return overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll;
-}
-
 WheelScrollableAxes wheel_scrollable_axes(Layout::Node const& node)
 {
-    auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
-    if (!node_with_style)
-        return {};
-    WheelScrollableAxes axes {
-        .horizontal = overflow_allows_wheel_scrolling(*node_with_style, ScrollDirection::Horizontal),
-        .vertical = overflow_allows_wheel_scrolling(*node_with_style, ScrollDirection::Vertical),
-    };
-    if (!axes.horizontal && !axes.vertical)
-        return {};
-
-    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(node);
-    if (!scrollable_overflow_rect.has_value())
-        return {};
-
-    auto scrollport_rect = absolute_padding_box_rect(node);
-    axes.horizontal = axes.horizontal && scrollable_overflow_rect->width() > scrollport_rect.width();
-    axes.vertical = axes.vertical && scrollable_overflow_rect->height() > scrollport_rect.height();
-    return axes;
+    auto overflow_x = overflow_value_applied_to_viewport_for_wheel_scrolling(node.document(), ScrollDirection::Horizontal);
+    auto overflow_y = overflow_value_applied_to_viewport_for_wheel_scrolling(node.document(), ScrollDirection::Vertical);
+    auto axes = Layout::RustFFI::layout_arena_paintable_wheel_scrollable_axes(
+        node.arena_handle(), committed_row_slot(node), to_underlying(overflow_x), to_underlying(overflow_y));
+    return { axes.horizontal, axes.vertical };
 }
 
 bool could_be_scrolled_by_wheel_event(Layout::Node const& node, ScrollDirection direction)

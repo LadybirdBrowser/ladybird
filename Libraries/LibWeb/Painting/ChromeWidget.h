@@ -60,13 +60,7 @@ struct PhysicalResizeAxes {
     bool vertical;
 };
 
-CSS::ScrollbarColorData scrollbar_colors_for_paint(Layout::NodeWithStyle const&);
 Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const&, ScrollDirection, ChromeMetrics const&, ScrollStateSnapshot const* = nullptr, ScrollbarSizing = ScrollbarSizing::Regular);
-Optional<CSSPixelRect> absolute_scrollbar_rect(Layout::Node const&, ScrollDirection, bool with_gutter, ChromeMetrics const&);
-bool resizer_contains(Layout::Node const&, CSSPixelPoint, ChromeMetrics const&);
-Optional<CSSPixelRect> absolute_resizer_rect(Layout::Node const&, ChromeMetrics const&);
-bool has_resizer(Layout::Node const&);
-bool is_chrome_mirrored(Layout::Node const&);
 PhysicalResizeAxes physical_resize_axes(Layout::Node const&);
 
 class Scrollbar;
@@ -100,7 +94,6 @@ class ChromeWidget
 public:
     virtual ~ChromeWidget() = default;
 
-    virtual bool contains(CSSPixelPoint, ChromeMetrics const&) const = 0;
     virtual MouseAction handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) = 0;
     virtual void mouse_enter() = 0;
     virtual void mouse_leave() = 0;

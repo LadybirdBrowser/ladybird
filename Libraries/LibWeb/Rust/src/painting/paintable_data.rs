@@ -86,6 +86,8 @@ impl PaintableKind {
 #[repr(u32)]
 pub enum PaintableFlag {
     HasNonInvertibleCssTransform = 1 << 0,
+    HorizontalScrollbarEnlarged = 1 << 1,
+    VerticalScrollbarEnlarged = 1 << 2,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
