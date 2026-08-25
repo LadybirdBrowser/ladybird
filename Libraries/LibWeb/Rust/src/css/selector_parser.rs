@@ -1222,6 +1222,7 @@ fn bind_interned_names_in_selector(
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct RustParsedSelectorList {
     selectors: SelectorList,
     interned_names: Box<[SelectorString]>,
@@ -1242,6 +1243,16 @@ impl RustParsedSelectorList {
     #[cfg(test)]
     pub(crate) fn selectors(&self) -> &SelectorList {
         &self.selectors
+    }
+
+    pub(crate) fn contains_pseudo_element(&self) -> bool {
+        self.selectors
+            .iter()
+            .any(|selector| selector.target_pseudo_element.is_some())
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.selectors.is_empty()
     }
 }
 

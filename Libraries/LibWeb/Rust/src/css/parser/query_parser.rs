@@ -966,6 +966,24 @@ where
     parse_supports_condition_from_component_values(&values, evaluate_feature)
 }
 
+pub(crate) fn parse_supports_declaration_from_component_values<E>(
+    values: &[ComponentValue],
+    evaluate_feature: &E,
+) -> Option<Expression>
+where
+    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+{
+    let trimmed = trim_whitespace(values);
+    if !looks_like_supports_declaration(trimmed) || !contains_only_any_value(values) {
+        return None;
+    }
+    let matches = evaluate_feature(FfiSupportsFeatureKind::Declaration, &supports_components_source(values));
+    Some(Expression::SupportsFeature(SupportsFeature::Declaration {
+        components: values.to_vec(),
+        matches,
+    }))
+}
+
 fn parse_supports_declaration_from_source<'a, E>(
     source: impl Into<TokenizerInput<'a>>,
     evaluate_feature: &E,
@@ -974,18 +992,7 @@ where
     E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
 {
     let values = components_from_source(source)?;
-    let trimmed = trim_whitespace(&values);
-    if !looks_like_supports_declaration(trimmed) || !contains_only_any_value(&values) {
-        return None;
-    }
-    let matches = evaluate_feature(
-        FfiSupportsFeatureKind::Declaration,
-        &supports_components_source(&values),
-    );
-    Some(Expression::SupportsFeature(SupportsFeature::Declaration {
-        components: values,
-        matches,
-    }))
+    parse_supports_declaration_from_component_values(&values, evaluate_feature)
 }
 
 fn parse_style_range_value(values: &[ComponentValue]) -> Option<StyleRangeValue> {
