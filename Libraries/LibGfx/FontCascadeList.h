@@ -62,15 +62,7 @@ public:
     void extend_fallback(FontCascadeList const& other);
 
     Gfx::Font const& first_available_font() const;
-
-    // A pending-face fetch should only be initiated for codepoints that are actually being shaped into glyph runs.
-    // Callers that merely probe the cascade pass TriggerPendingLoads::No so that probing does not kick off downloads
-    // for subset faces that cover the point.
-    enum class TriggerPendingLoads : u8 {
-        No,
-        Yes,
-    };
-    Gfx::Font const& font_for_code_point(u32 code_point, TriggerPendingLoads = TriggerPendingLoads::No, EmojiPresentationResult = {}) const;
+    Gfx::Font const& font_for_code_point(u32 code_point, EmojiPresentationResult = {}) const;
 
     bool equals(FontCascadeList const& other) const;
 
