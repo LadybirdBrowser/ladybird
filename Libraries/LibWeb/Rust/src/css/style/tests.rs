@@ -8763,7 +8763,17 @@ fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
         bridge::style_engine_set_replay_reclaimed_style_atoms(engine_pointer, recorded.as_ptr(), recorded.len());
     }
 
-    let output = unsafe { bridge::style_engine_take_style_transaction(engine_pointer, nodes[0].raw()) };
+    let computation_inputs = bridge::FfiDocumentStyleComputationInputs {
+        viewport_width: 800.0,
+        viewport_height: 600.0,
+        root_font_size: 16.0,
+        device_pixels_per_css_pixel: 2.0,
+        ..Default::default()
+    };
+    let output =
+        unsafe { bridge::style_engine_take_style_transaction(engine_pointer, nodes[0].raw(), computation_inputs) };
+
+    assert_eq!(engine.document_style_computation_inputs, Some(computation_inputs));
 
     assert!(output.style_atoms_swept);
     assert_eq!(output.reclaimed_style_atom_count, 1);
