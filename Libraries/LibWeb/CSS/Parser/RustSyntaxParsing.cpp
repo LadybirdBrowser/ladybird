@@ -251,16 +251,33 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         original_value_text = Utf16String::from_utf16(utf16_value(data, declaration.original_value_offset, declaration.original_value_length));
     auto value_text = Utf16String::from_utf16(utf16_value(data, declaration.value_source_offset, declaration.value_source_length));
     Optional<PropertyID> parsed_property_id;
+    Optional<DescriptorNameAndID> descriptor_name_and_id;
     RefPtr<StyleValue const> parsed_value;
     if (declaration.is_property) {
         if (declaration.property_id != NumericLimits<u16>::max())
             parsed_property_id = static_cast<PropertyID>(declaration.property_id);
+        VERIFY(declaration.descriptor_id == NumericLimits<u8>::max());
+    } else if (declaration.descriptor_id != NumericLimits<u8>::max()) {
+        VERIFY(declaration.descriptor_id <= to_underlying(DescriptorID::Custom));
+        auto descriptor_id = static_cast<DescriptorID>(declaration.descriptor_id);
+        descriptor_name_and_id = descriptor_id == DescriptorID::Custom
+            ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)))
+            : DescriptorNameAndID::from_id(descriptor_id);
     }
     if (declaration.parse_status == FfiParseStatus::Parsed) {
         VERIFY(declaration.parsed_value);
         parsed_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value));
     } else {
         VERIFY(!declaration.parsed_value);
+    }
+    Optional<Vector<u32>> font_feature_values;
+    if (declaration.font_feature_values_start != NumericLimits<size_t>::max()) {
+        VERIFY(declaration.font_feature_values_start <= data.font_feature_value_count);
+        VERIFY(declaration.font_feature_value_count <= data.font_feature_value_count - declaration.font_feature_values_start);
+        font_feature_values = Vector<u32> {};
+        font_feature_values->ensure_capacity(declaration.font_feature_value_count);
+        for (size_t index = 0; index < declaration.font_feature_value_count; ++index)
+            font_feature_values->unchecked_append(data.font_feature_values[declaration.font_feature_values_start + index]);
     }
     return Declaration {
         .name = Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)),
@@ -270,8 +287,32 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         .source_position = source_position(declaration.start_line, declaration.start_column),
         .value_text = move(value_text),
         .parsed_property_id = parsed_property_id,
+        .descriptor_name_and_id = move(descriptor_name_and_id),
         .parsed_value = move(parsed_value),
+        .font_feature_values = move(font_feature_values),
     };
+}
+
+static Vector<Descriptor> descriptors(FfiSyntaxParseData const& data, size_t start, size_t count)
+{
+    VERIFY(start <= data.descriptor_count);
+    VERIFY(count <= data.descriptor_count - start);
+    Vector<Descriptor> result;
+    result.ensure_capacity(count);
+    for (size_t index = 0; index < count; ++index) {
+        auto const& descriptor = data.descriptors[start + index];
+        VERIFY(descriptor.descriptor_id <= to_underlying(DescriptorID::Custom));
+        VERIFY(descriptor.value);
+        auto descriptor_id = static_cast<DescriptorID>(descriptor.descriptor_id);
+        auto name_and_id = descriptor_id == DescriptorID::Custom
+            ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(utf16_value(data, descriptor.name_offset, descriptor.name_length)))
+            : DescriptorNameAndID::from_id(descriptor_id);
+        result.unchecked_append({
+            .descriptor_name_and_id = move(name_and_id),
+            .value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(descriptor.value)),
+        });
+    }
+    return result;
 }
 
 static Vector<Declaration> declarations(FfiSyntaxParseData const& data, size_t start, size_t count)
@@ -287,7 +328,7 @@ static Vector<Declaration> declarations(FfiSyntaxParseData const& data, size_t s
 
 static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, FfiSyntaxRule const& rule)
 {
-    VERIFY(rule.parsed_prelude_kind <= to_underlying(ParsedRulePreludeKind::Property));
+    VERIFY(rule.parsed_prelude_kind <= to_underlying(ParsedRulePreludeKind::FontFeatureValuesRule));
     VERIFY(rule.parsed_prelude_items_start <= data.prelude_item_count);
     VERIFY(rule.parsed_prelude_item_count <= data.prelude_item_count - rule.parsed_prelude_items_start);
     auto optional_string = [&](size_t offset, size_t length) -> Optional<Utf16FlyString> {
@@ -363,6 +404,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
             .prelude_text = move(prelude_text),
             .parsed_prelude = parsed_rule_prelude(data, rule),
+            .descriptors = descriptors(data, rule.descriptors_start, rule.descriptor_count),
             .child_rules_and_lists_of_declarations = move(children),
             .is_block_rule = rule.has_block,
         };

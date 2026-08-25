@@ -161,7 +161,6 @@ private:
     };
 
     static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
-    Optional<Vector<u32>> parse_font_feature_values(Declaration const&, size_t max_value_count);
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
@@ -191,8 +190,6 @@ private:
     GC::Ptr<CSSScopeRule> convert_to_scope_rule(AtRule const&, Nested);
 
     Optional<StylePropertyAndName> convert_to_style_property(Declaration const&);
-
-    Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Optional<PropertyID> direct_property_context = {});

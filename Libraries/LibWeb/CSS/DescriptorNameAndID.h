@@ -35,6 +35,12 @@ public:
         return DescriptorNameAndID(CSS::to_string(descriptor_id), descriptor_id);
     }
 
+    static DescriptorNameAndID from_custom_name(Utf16FlyString name)
+    {
+        VERIFY(is_a_custom_property_name_string(name));
+        return DescriptorNameAndID(move(name), DescriptorID::Custom);
+    }
+
     DescriptorID id() const { return m_id; }
 
     Utf16FlyString const& name() const
