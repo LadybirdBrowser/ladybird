@@ -150,6 +150,30 @@ pub struct FfiDocumentStyleComputationInputs {
     pub initial_font_size_raw: i32,
     pub default_font_size_raw: i32,
     pub device_pixels_per_css_pixel: f64,
+    pub font_environment_generation: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiFontResolutionRequest {
+    pub font_family: *const c_void,
+    pub font_size_raw: i32,
+    pub font_slope: i32,
+    pub font_weight: f64,
+    pub font_width: f64,
+    pub font_optical_sizing: u8,
+    pub font_environment_generation: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct FfiResolvedFont {
+    pub handle: *const c_void,
+    pub first_available_font: *const c_void,
+    pub font_cascade_list: *const c_void,
+    pub ascent: f32,
+    pub descent: f32,
+    pub x_height: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -945,6 +969,27 @@ pub extern "C" fn style_engine_install_raw_atom_callbacks(
     release: unsafe extern "C" fn(usize),
 ) {
     super::atoms::install_raw_atom_callbacks(retain, release);
+}
+
+/// Installs the document's synchronous platform font resolver once.
+///
+/// # Safety
+/// The context and callbacks must remain valid until the engine is destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_install_font_resolver(
+    engine: *mut c_void,
+    context: *mut c_void,
+    resolve: unsafe extern "C" fn(*mut c_void, FfiFontResolutionRequest) -> FfiResolvedFont,
+    retain: unsafe extern "C" fn(*const c_void),
+    release: unsafe extern "C" fn(*const c_void),
+) {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        assert!(engine.font_resolver.is_none(), "font resolver is installed once");
+        engine.font_resolver = Some(super::font_resolution::FontResolver::new(
+            context, resolve, retain, release,
+        ));
+    });
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.
