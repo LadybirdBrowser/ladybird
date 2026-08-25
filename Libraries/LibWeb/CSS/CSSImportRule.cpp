@@ -29,12 +29,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(URL url, GC::Ptr<DOM::Document> document, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports> supports, GC::Ref<MediaList> media)
+GC::Ref<CSSImportRule> CSSImportRule::create(URL url, GC::Ptr<DOM::Document> document, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, Optional<RustQueryHandle> supports, GC::Ref<MediaList> media)
 {
     return GC::Heap::the().allocate<CSSImportRule>(move(url), document, move(layer), move(scope), move(supports), move(media));
 }
 
-CSSImportRule::CSSImportRule(URL url, GC::Ptr<DOM::Document> document, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports> supports, GC::Ref<MediaList> media)
+CSSImportRule::CSSImportRule(URL url, GC::Ptr<DOM::Document> document, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, Optional<RustQueryHandle> supports, GC::Ref<MediaList> media)
     : CSSRule(Type::Import)
     , m_url(move(url))
     , m_document(document)
@@ -126,9 +126,9 @@ Utf16String CSSImportRule::serialized() const
 
     // AD-HOC: Serialize the rule's supports condition if it exists.
     //         This isn't currently specified, but major browsers include this in their serialization of import rules
-    if (m_supports) {
+    if (m_supports.has_value()) {
         builder.append_ascii(" supports("sv);
-        builder.append(m_supports->to_string());
+        builder.append(serialize_supports_condition(*m_supports));
         builder.append_ascii(')');
     }
 
@@ -155,7 +155,7 @@ void CSSImportRule::fetch()
     auto& parent_style_sheet = *this->parent_style_sheet();
 
     // 2. If rule has a <supports-condition>, and that condition is not true, return.
-    if (m_supports && !m_supports->matches()) {
+    if (m_supports.has_value() && !supports_condition_matches(*m_supports)) {
         set_loading_state(CSSStyleSheet::LoadingState::Loaded);
         return;
     }
@@ -288,9 +288,9 @@ Optional<Utf16String> CSSImportRule::supports_text() const
 {
     // The supportsText attribute must return the <supports-condition> declared in the at-rule itself, or null if the
     // at-rule does not declare a supports condition.
-    if (!m_supports)
+    if (!m_supports.has_value())
         return {};
-    return m_supports->to_string();
+    return serialize_supports_condition(*m_supports);
 }
 
 Optional<SelectorList> const& CSSImportRule::scope_start_selectors_for_matching() const
@@ -333,7 +333,7 @@ Optional<Utf16FlyString> CSSImportRule::internal_qualified_layer_name(Badge<Styl
 
 bool CSSImportRule::matches() const
 {
-    if (m_supports && !m_supports->matches())
+    if (m_supports.has_value() && !supports_condition_matches(*m_supports))
         return false;
     return m_media->matches();
 }
@@ -363,8 +363,8 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
     if (m_media->length() != 0)
         m_media->dump(builder, indent_levels + 1);
 
-    if (m_supports)
-        m_supports->dump(builder, indent_levels + 1);
+    if (m_supports.has_value())
+        dump_supports_condition(builder, *m_supports, indent_levels + 1);
 
     if (m_scope.has_value()) {
         dump_indent(builder, indent_levels + 1);

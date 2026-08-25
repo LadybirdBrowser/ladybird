@@ -148,7 +148,7 @@ Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::Parsi
     return CSS::Parser::Parser::create(context, string).parse_as_media_query_list();
 }
 
-RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const& context, Utf16View string)
+Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const& context, Utf16View string)
 {
     if (string.is_empty())
         return {};

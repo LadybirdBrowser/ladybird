@@ -140,14 +140,6 @@ Optional<RustQueryHandle> RustQueryParser::parse_media_feature(Parser&, Utf16Vie
     return RustQueryHandle { handle };
 }
 
-RefPtr<Supports> RustQueryParser::parse_supports(Parser& parser, Utf16View source)
-{
-    auto handle = parse_supports_condition(parser, source);
-    if (!handle.has_value())
-        return nullptr;
-    return Supports::create(handle.release_value());
-}
-
 Optional<RustQueryHandle> RustQueryParser::parse_supports_condition(Parser& parser, Utf16View source)
 {
     parser.m_rule_context.append(RuleContext::SupportsCondition);

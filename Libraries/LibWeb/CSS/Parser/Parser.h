@@ -125,7 +125,7 @@ public:
     Vector<NonnullRefPtr<MediaQuery>> parse_as_media_query_list();
     RefPtr<MediaQuery> parse_as_media_query();
 
-    RefPtr<Supports> parse_as_supports();
+    Optional<RustQueryHandle> parse_as_supports();
 
     RefPtr<StyleValue const> parse_as_css_value(PropertyID);
     RefPtr<StyleValue const> parse_as_descriptor_value(AtRuleID, DescriptorNameAndID const&);
@@ -174,7 +174,7 @@ private:
         bool has_scope { false };
         Optional<SelectorList> scope_start;
         Optional<SelectorList> scope_end;
-        RefPtr<Supports> supports;
+        Optional<RustQueryHandle> supports;
         Vector<NonnullRefPtr<MediaQuery>> media_queries;
     };
     Optional<ImportPrelude> parse_import_prelude(AtRule const&);
@@ -273,7 +273,7 @@ Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS
 CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, Utf16View);
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, Utf16View);
-RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
+Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_custom_ident(Utf16View, ReadonlySpan<Utf16View> const& blacklist);
 

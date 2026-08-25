@@ -31,7 +31,6 @@ public:
     static Vector<NonnullRefPtr<MediaQuery>> parse_media_query_list(Parser&, Utf16View);
     static Optional<RustQueryHandle> parse_media_condition(Parser&, Utf16View);
     static Optional<RustQueryHandle> parse_media_feature(Parser&, Utf16View);
-    static RefPtr<Supports> parse_supports(Parser&, Utf16View);
     static Optional<RustQueryHandle> parse_supports_condition(Parser&, Utf16View);
     static Optional<RustQueryHandle> parse_supports_declaration(Parser&, Utf16View);
     static Optional<RustQueryHandle> parse_style_query(Parser&, Utf16View);

@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, Utf16View condition_text)
 {
     (void)vm;
     // 1. If conditionText, parsed and evaluated as a <supports-condition>, would return true, return true.
-    if (auto supports = parse_css_supports(Parser::ParsingParams {}, condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams {}, condition_text); supports.has_value() && supports_condition_matches(*supports))
         return true;
 
     // 2. Otherwise, If conditionText, wrapped in parentheses and then parsed and evaluated as a <supports-condition>, would return true, return true.
@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, Utf16View condition_text)
     wrapped_condition_text_builder.append_code_unit(u')');
     auto wrapped_condition_text = wrapped_condition_text_builder.to_string();
 
-    if (auto supports = parse_css_supports(Parser::ParsingParams {}, wrapped_condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams {}, wrapped_condition_text); supports.has_value() && supports_condition_matches(*supports))
         return true;
 
     // 3. Otherwise, return false.

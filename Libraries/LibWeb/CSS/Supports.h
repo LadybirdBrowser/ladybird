@@ -6,41 +6,15 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
-namespace Parser {
-
-class RustQueryParser;
-
-}
-
 // https://www.w3.org/TR/css-conditional-3/#at-supports
-class WEB_API Supports final : public RefCounted<Supports> {
-    friend class Parser::RustQueryParser;
-
-public:
-    static NonnullRefPtr<Supports> create(RustQueryHandle handle)
-    {
-        return adopt_ref(*new Supports(move(handle)));
-    }
-
-    bool matches() const;
-    Utf16String to_string() const;
-
-    void dump(StringBuilder&, int indent_levels = 0) const;
-
-private:
-    explicit Supports(RustQueryHandle handle)
-        : m_rust_query_handle(move(handle))
-    {
-    }
-
-    RustQueryHandle m_rust_query_handle;
-};
+WEB_API bool supports_condition_matches(RustQueryHandle const&);
+WEB_API Utf16String serialize_supports_condition(RustQueryHandle const&);
+void dump_supports_condition(StringBuilder&, RustQueryHandle const&, int indent_levels = 0);
 
 }

@@ -31,7 +31,7 @@ public:
         Optional<SelectorList> end_selectors;
     };
 
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL, GC::Ptr<DOM::Document>, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, RefPtr<Supports>, GC::Ref<MediaList>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL, GC::Ptr<DOM::Document>, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, Optional<RustQueryHandle>, GC::Ref<MediaList>);
 
     virtual ~CSSImportRule() override;
 
@@ -57,7 +57,7 @@ public:
     Optional<Utf16FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
 
 private:
-    CSSImportRule(URL, GC::Ptr<DOM::Document>, Optional<Utf16FlyString>, Optional<ImportScope>&&, RefPtr<Supports>, GC::Ref<MediaList>);
+    CSSImportRule(URL, GC::Ptr<DOM::Document>, Optional<Utf16FlyString>, Optional<ImportScope>&&, Optional<RustQueryHandle>, GC::Ref<MediaList>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
@@ -79,7 +79,7 @@ private:
     Optional<ImportScope> m_scope;
     mutable Optional<SelectorList> m_cached_scope_start_selectors_for_matching;
     mutable Optional<SelectorList> m_cached_scope_end_selectors_for_matching;
-    RefPtr<Supports> m_supports;
+    Optional<RustQueryHandle> m_supports;
     GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
 };

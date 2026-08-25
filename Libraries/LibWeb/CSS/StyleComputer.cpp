@@ -315,7 +315,7 @@ static u8 evaluate_condition_for_substitution(AbstractOrHypotheticalElement elem
     if (kind == 0) {
         matches = evaluate_media_condition(*query, MediaEnvironmentSnapshot { element.document() }) == MatchResult::True;
     } else if (kind == 1) {
-        matches = Parser::ValueParserFFI::css_query_evaluate_supports(query->data()) == to_underlying(MatchResult::True);
+        matches = supports_condition_matches(*query);
     } else {
         matches = evaluate_style_query(*query, element) == MatchResult::True;
     }

@@ -483,8 +483,8 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    auto supports = RustQueryParser::parse_supports(*this, rule.prelude_text);
-    if (!supports) {
+    auto supports = RustQueryParser::parse_supports_condition(*this, rule.prelude_text);
+    if (!supports.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@supports"_utf16_fly_string,
             .prelude = rule.prelude_text.to_utf8(),
@@ -506,7 +506,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
     }
 
     auto rule_list = CSSRuleList::create(child_rules);
-    return CSSSupportsRule::create(supports.release_nonnull(), rule_list);
+    return CSSSupportsRule::create(supports.release_value(), rule_list);
 }
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
@@ -1116,7 +1116,7 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
     bool has_scope = false;
     Optional<SelectorList> scope_start;
     Optional<SelectorList> scope_end;
-    RefPtr<Supports> supports;
+    Optional<RustQueryHandle> supports;
     Vector<NonnullRefPtr<MediaQuery>> media_queries;
     auto parse_scope_selector_list = [&](Utf16View source, SelectorType selector_type) -> Optional<SelectorList> {
         auto selectors = parse_selector_list_in_rust(source, m_declared_namespaces, selector_type == SelectorType::Relative, false);
@@ -1153,13 +1153,10 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
         case 5: {
             if (!item.value.has_value())
                 return {};
-            supports = RustQueryParser::parse_supports(*this, *item.value);
-            if (!supports) {
-                auto declaration = RustQueryParser::parse_supports_declaration(*this, *item.value);
-                if (declaration.has_value())
-                    supports = Supports::create(declaration.release_value());
-            }
-            if (!supports)
+            supports = RustQueryParser::parse_supports_condition(*this, *item.value);
+            if (!supports.has_value())
+                supports = RustQueryParser::parse_supports_declaration(*this, *item.value);
+            if (!supports.has_value())
                 return {};
             break;
         }
