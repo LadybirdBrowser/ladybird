@@ -1969,8 +1969,10 @@ bool is_block_end_point(DOM::BoundaryPoint boundary_point)
         return true;
 
     // or node has a child with index offset, and that child is a visible block node.
+    // AD-HOC: Test block-ness first. Both conditions are side-effect free, and is_visible_node() resolves style for
+    //         every inclusive ancestor, while is_block_node() rejects a non-Element outright.
     auto offset_child = boundary_point.node->child_at_index(boundary_point.offset);
-    return offset_child && is_visible_node(*offset_child) && is_block_node(*offset_child);
+    return offset_child && is_block_node(*offset_child) && is_visible_node(*offset_child);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#block-node
@@ -1999,9 +2001,11 @@ bool is_block_start_point(DOM::BoundaryPoint boundary_point)
         return true;
 
     // or node has a child with index offset − 1, and that child is either a visible block node or a visible br.
+    // AD-HOC: Test block-ness first, as in is_block_end_point().
     auto offset_minus_one_child = boundary_point.node->child_at_index(boundary_point.offset - 1);
-    return offset_minus_one_child && is_visible_node(*offset_minus_one_child)
-        && (is_block_node(*offset_minus_one_child) || is<HTML::HTMLBRElement>(*offset_minus_one_child));
+    return offset_minus_one_child
+        && (is_block_node(*offset_minus_one_child) || is<HTML::HTMLBRElement>(*offset_minus_one_child))
+        && is_visible_node(*offset_minus_one_child);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#collapsed-block-prop
