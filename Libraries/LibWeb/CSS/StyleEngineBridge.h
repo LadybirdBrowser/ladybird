@@ -85,6 +85,7 @@ public:
         StyleRecordID new_style_record;
     };
     using StyleRecordView = StyleEngineFFI::FfiStyleRecordView;
+    using StyleRecordState = StyleEngineFFI::FfiStyleRecordState;
     using ExactCascadePublication = StyleEngineFFI::FfiExactCascadePublication;
     // The returned assignments borrow Rust storage until the next mutable engine call or an
     // explicit discard. Consume them synchronously before asking the engine anything else.
@@ -99,6 +100,7 @@ public:
     // The borrowed payload array is stable while a base record exists or an animation-overlay
     // generation remains assigned or pinned.
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;
+    [[nodiscard]] StyleRecordState style_record_state(StyleRecordID style_record) const;
     [[nodiscard]] StyleRecordView style_record_view(StyleRecordID style_record) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind);

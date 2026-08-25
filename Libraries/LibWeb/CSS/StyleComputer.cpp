@@ -3299,12 +3299,19 @@ void StyleComputer::compute_property_values(ComputedStyleWorkingSet& style, Opti
 ComputationContext StyleComputer::make_computation_context_for_property(PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     auto subject_inline_axis_is_horizontal = [&]() {
+        auto writing_mode = [&](DOM::AbstractElement const& candidate) -> Optional<WritingMode> {
+            auto record = m_style_engine.style_record_view(candidate.style_record_identity());
+            if (!record.present)
+                return {};
+            auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(record.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
+            return static_cast<WritingMode>(inherited_box->writing_mode);
+        };
         if (!abstract_element.has_value())
             return true;
-        if (auto computed_values = abstract_element->computed_style(); computed_values)
-            return computed_values->writing_mode() == WritingMode::HorizontalTb;
+        if (auto mode = writing_mode(*abstract_element); mode.has_value())
+            return *mode == WritingMode::HorizontalTb;
         if (auto inheritance_parent = abstract_element->element_to_inherit_style_from(); inheritance_parent.has_value() && inheritance_parent->has_style())
-            return inheritance_parent->computed_style()->writing_mode() == WritingMode::HorizontalTb;
+            return writing_mode(*inheritance_parent).value_or(WritingMode::HorizontalTb) == WritingMode::HorizontalTb;
         return true;
     }();
 
@@ -4824,8 +4831,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto last_style_still_stands = [&]() -> bool {
         if (!sharing || !sharing->is_candidate || !new_style_input_record)
             return false;
-        auto existing = abstract_element.computed_style();
-        if (!existing || existing->animated_properties() || existing->has_animated_values())
+        if (!previous_style_record.present
+            || previous_style_record.animated_properties
+            || previous_style_record.animation_overlay_identity != 0)
             return false;
         // What the record does not name is everything that reaches the element some other way: a
         // font finishing loading, the viewport moving, or a registration arriving. An environment
