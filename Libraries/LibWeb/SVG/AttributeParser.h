@@ -122,13 +122,6 @@ private:
     bool m_is_percentage { false };
 };
 
-enum class FillRule {
-    Nonzero,
-    Evenodd
-};
-
-using ClipRule = FillRule;
-
 enum class TextAnchor {
     Start,
     Middle,

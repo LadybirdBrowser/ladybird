@@ -7,30 +7,22 @@
 use crate::layout::OptionalCssPixelRect;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::OptionalU32;
-use libgfx_rust::WindingRule;
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiHitTestPaintableFacts {
-    pub opacity_is_zero: bool,
-    pub visible_for_hit_testing: bool,
+    pub is_inert: bool,
     pub dom_node_has_parent: bool,
     pub is_editable_or_editing_host: bool,
-    pub has_resizer: bool,
-    pub could_be_scrolled_horizontally: bool,
-    pub could_be_scrolled_vertically: bool,
-    pub svg_path_has_fill: bool,
-    pub svg_path_winding_rule: WindingRule,
     pub svg_mask_content_units_object_bbox: bool,
     pub svg_clip_path_units_object_bbox: bool,
+    pub inside_blocking_wheel_event_handler: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiHitTestTextNodeFacts {
-    pub parent_opacity_is_zero: bool,
-    pub parent_pointer_events_none: bool,
     pub is_inert: bool,
 }
 

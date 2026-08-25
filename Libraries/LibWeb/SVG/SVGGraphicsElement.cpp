@@ -184,47 +184,6 @@ Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> trans
     return affine_transform;
 }
 
-static FillRule to_svg_fill_rule(CSS::FillRule fill_rule)
-{
-    switch (fill_rule) {
-    case CSS::FillRule::Nonzero:
-        return FillRule::Nonzero;
-    case CSS::FillRule::Evenodd:
-        return FillRule::Evenodd;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-Optional<FillRule> SVGGraphicsElement::fill_rule() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return to_svg_fill_rule(unsafe_layout_node()->fill_rule());
-}
-
-Optional<ClipRule> SVGGraphicsElement::clip_rule() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return to_svg_fill_rule(unsafe_layout_node()->clip_rule());
-}
-
-Optional<Gfx::Color> SVGGraphicsElement::fill_color() const
-{
-    if (!unsafe_layout_node())
-        return {};
-
-    auto paint = unsafe_layout_node()->fill();
-    if (!paint.has_value())
-        return {};
-
-    if (paint->is_url())
-        return paint->fallback_color();
-
-    return paint->as_color();
-}
-
 Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
 {
     if (!unsafe_layout_node())

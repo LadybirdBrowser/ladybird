@@ -32,7 +32,6 @@ class WEB_API SVGGraphicsElement : public SVGElement {
     WEB_WRAPPABLE(SVGGraphicsElement, SVGElement);
 
 public:
-    Optional<Gfx::Color> fill_color() const;
     Optional<Gfx::Color> stroke_color() const;
     Vector<float> stroke_dasharray() const;
     Optional<float> stroke_dashoffset() const;
@@ -43,8 +42,6 @@ public:
     Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
     Optional<double> stroke_miterlimit() const;
     Optional<float> stroke_opacity() const;
-    Optional<FillRule> fill_rule() const;
-    Optional<ClipRule> clip_rule() const;
 
     virtual Optional<ViewBox> active_view_box() const
     {

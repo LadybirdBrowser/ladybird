@@ -23,6 +23,8 @@ pub struct FfiRecordingInputs {
     pub is_recording_async_scrolling_metadata: bool,
     pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
+    pub viewport_wheel_overflow_x: u8,
+    pub viewport_wheel_overflow_y: u8,
     pub canvas_fill_rect: OptionalIntRect,
     pub canvas_color: Color,
     pub opaque_canvas: bool,
@@ -234,7 +236,6 @@ pub struct FfiAsyncScrollFacts {
     pub pseudo_element_type: u8,
     pub snaps_scroll_position_horizontally: bool,
     pub snaps_scroll_position_vertically: bool,
-    pub inside_blocking_wheel_event_handler: bool,
     pub records_viewport_scrollbars: bool,
     pub viewport_scrollbars: [FfiViewportScrollbarFacts; 2],
 }

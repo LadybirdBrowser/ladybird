@@ -14,7 +14,69 @@ use crate::painting::host::FfiHitTestTextNodeFacts;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::text_fragment;
+use libgfx_rust::WindingRule;
 use std::rc::Rc;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct HitTestFacts {
+    pub(crate) visible_for_hit_testing: bool,
+    pub(crate) dom_node_has_parent: bool,
+    pub(crate) is_editable_or_editing_host: bool,
+    pub(crate) has_resizer: bool,
+    pub(crate) could_be_scrolled_horizontally: bool,
+    pub(crate) could_be_scrolled_vertically: bool,
+    pub(crate) svg_path_has_fill: bool,
+    pub(crate) svg_path_winding_rule: WindingRule,
+    pub(crate) svg_mask_content_units_object_bbox: bool,
+    pub(crate) svg_clip_path_units_object_bbox: bool,
+    pub(crate) inside_blocking_wheel_event_handler: bool,
+}
+
+pub(crate) fn hit_test_facts(
+    arena: &impl crate::painting::paintable_rows::PaintableRowsRead,
+    paintable: NodeSlotId,
+    inputs: &crate::painting::host::FfiRecordingInputs,
+    dom: crate::painting::host::FfiHitTestPaintableFacts,
+) -> HitTestFacts {
+    let Some(style) = arena.node_style_if_live(paintable) else {
+        return HitTestFacts {
+            dom_node_has_parent: dom.dom_node_has_parent,
+            is_editable_or_editing_host: dom.is_editable_or_editing_host,
+            svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
+            svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
+            inside_blocking_wheel_event_handler: dom.inside_blocking_wheel_event_handler,
+            ..HitTestFacts::default()
+        };
+    };
+    let wheel_axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
+        arena,
+        paintable,
+        inputs.viewport_wheel_overflow_x,
+        inputs.viewport_wheel_overflow_y,
+    );
+    let kind = arena.paintable_data(paintable).kind;
+    let svg_path = kind == PaintableKind::SVGPathPaintable;
+    let svg = style.inherited_svg();
+    HitTestFacts {
+        visible_for_hit_testing: arena.paintable_row_is_populated(paintable)
+            && !dom.is_inert
+            && style.inherited_ui().pointer_events != css_enums::pointer_events::NONE,
+        dom_node_has_parent: dom.dom_node_has_parent,
+        is_editable_or_editing_host: dom.is_editable_or_editing_host,
+        has_resizer: crate::painting::chrome_geometry::has_resizer(arena, paintable),
+        could_be_scrolled_horizontally: wheel_axes.horizontal,
+        could_be_scrolled_vertically: wheel_axes.vertical,
+        svg_path_has_fill: svg_path && crate::painting::record::paint::svg::svg_paint_color(&svg.fill).is_some(),
+        svg_path_winding_rule: if svg_path && svg.fill_rule == css_enums::fill_rule::EVENODD {
+            WindingRule::EvenOdd
+        } else {
+            WindingRule::Nonzero
+        },
+        svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
+        svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
+        inside_blocking_wheel_event_handler: dom.inside_blocking_wheel_event_handler,
+    }
+}
 
 impl<'a> PaintRecorder<'a> {
     fn text_node_facts(&mut self, text_node: NodeSlotId) -> FfiHitTestTextNodeFacts {
@@ -314,14 +376,16 @@ impl<'a> PaintRecorder<'a> {
         if !parent_visible {
             return false;
         }
+        let Some(parent_style) = self.layout_arena.node_style_if_live(parent) else {
+            return false;
+        };
+        if parent_style.effects().opacity == 0.0
+            || parent_style.inherited_ui().pointer_events == css_enums::pointer_events::NONE
+        {
+            return false;
+        }
         let facts = self.text_node_facts(node);
-        if facts.parent_opacity_is_zero {
-            return false;
-        }
         if facts.is_inert {
-            return false;
-        }
-        if facts.parent_pointer_events_none {
             return false;
         }
         true
