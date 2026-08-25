@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // The test WebM file's initialization segment ends at this offset.
+        const INIT_END = 530;
+
+        function replaceCodecId(data, replacement) {
+            const bytes = new Uint8Array(data);
+            const wanted = new TextEncoder().encode("V_VP9");
+            for (let start = 0; start + wanted.length <= bytes.length; start++) {
+                if (wanted.every((byte, index) => bytes[start + index] === byte)) {
+                    bytes.set(new TextEncoder().encode(replacement), start);
+                    return bytes;
+                }
+            }
+            return null;
+        }
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9,opus"');
+
+            function append(buffer) {
+                return new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () => reject(new Error("append error")), { once: true });
+                    sourceBuffer.appendBuffer(buffer);
+                });
+            }
+
+            const response = await fetch("../../../Assets/test-webm.webm");
+            const data = await response.arrayBuffer();
+
+            // V_VP7 is the same length as V_VP9, so the initialization segment stays well-formed while naming a
+            // codec that no decoder claims.
+            const patched = replaceCodecId(data.slice(0, INIT_END), "V_VP7");
+            println(`patched the track's codec ID: ${patched !== null}`);
+
+            try {
+                await append(patched);
+                println("FAIL: the initialization segment was accepted");
+            } catch (error) {
+                println(`rejected the initialization segment: ${error.message}`);
+            }
+            println(`media source readyState: ${mediaSource.readyState}`);
+            done();
+        });
+    });
+</script>

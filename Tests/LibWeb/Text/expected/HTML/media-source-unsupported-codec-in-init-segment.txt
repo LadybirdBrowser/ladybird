@@ -1,0 +1,3 @@
+patched the track's codec ID: true
+rejected the initialization segment: append error
+media source readyState: ended

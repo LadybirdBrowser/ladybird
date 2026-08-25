@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Test an MP4 with an invalid codec results in an error.
+Pass	Test a WebM with an invalid codec results in an error.

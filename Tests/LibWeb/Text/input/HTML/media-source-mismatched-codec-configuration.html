@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const mimeType = 'video/mp4;codecs="av01.0.00M.08,mp4a.40.2"';
+
+        function replaceFourCC(data, wanted, replacement) {
+            const bytes = new Uint8Array(data);
+            const encoder = new TextEncoder();
+            const target = encoder.encode(wanted);
+            for (let start = 0; start + target.length <= bytes.length; start++) {
+                if (target.every((byte, index) => bytes[start + index] === byte)) {
+                    bytes.set(encoder.encode(replacement), start);
+                    return bytes;
+                }
+            }
+            return null;
+        }
+
+        async function appendToFreshMediaSource(bytes) {
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+            return new Promise(resolve => {
+                sourceBuffer.addEventListener("updateend", () => resolve("accepted"), { once: true });
+                sourceBuffer.addEventListener("error", () => resolve("rejected"), { once: true });
+                sourceBuffer.appendBuffer(bytes);
+            });
+        }
+
+        const response = await fetch("../../../Assets/av1-aac-fragmented.mp4");
+        const data = await response.arrayBuffer();
+
+        println(`unmodified file: ${await appendToFreshMediaSource(new Uint8Array(data))}`);
+
+        // An AVC configuration box under an AV1 sample entry. Both four-character codes are the same length, so the
+        // box structure stays intact while describing a codec the sample entry does not name.
+        const patched = replaceFourCC(data, "av1C", "avcC");
+        println(`replaced the configuration box's four-character code: ${patched !== null}`);
+        println(`file with a mismatched configuration box: ${await appendToFreshMediaSource(patched)}`);
+
+        done();
+    });
+</script>

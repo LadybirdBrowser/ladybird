@@ -15,6 +15,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibMedia/Audio/SampleSpecification.h>
+#include <LibMedia/CodecParameters.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/TrackType.h>
 
@@ -67,6 +68,9 @@ public:
         }
     }
 
+    ParsedCodec const& parsed_codec() const { return m_parsed_codec; }
+    void set_parsed_codec(ParsedCodec parsed_codec) { m_parsed_codec = parsed_codec; }
+
     TrackType type() const { return m_type; }
     size_t identifier() const { return m_identifier; }
     Kind kind() const { return m_kind; }
@@ -117,6 +121,7 @@ private:
         AudioData audio;
     };
 
+    ParsedCodec m_parsed_codec { CodecID::Unknown };
     TrackType m_type { 0 };
     Kind m_kind { Kind::None };
     size_t m_identifier { 0 };

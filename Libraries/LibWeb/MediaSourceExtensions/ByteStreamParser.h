@@ -47,7 +47,6 @@ public:
     virtual void reset_parser_state() = 0;
 
     virtual Optional<AK::Duration> duration() const = 0;
-    virtual Media::CodecID codec_id_for_track(u64 track_number) const = 0;
 
     virtual Vector<Media::Track> const& video_tracks() const = 0;
     virtual Vector<Media::Track> const& audio_tracks() const = 0;

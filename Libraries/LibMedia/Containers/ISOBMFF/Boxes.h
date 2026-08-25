@@ -270,6 +270,8 @@ inline Track track_from_track_entry(TrackEntry const& track_entry, bool is_first
     if (!sample_entry.has_value())
         return track;
 
+    track.set_parsed_codec(sample_entry->parsed_codec.value_or(ParsedCodec { sample_entry->codec_id }));
+
     if (track.type() == TrackType::Video && sample_entry->video.has_value()) {
         auto const& video = sample_entry->video.value();
         track.set_video_data({
