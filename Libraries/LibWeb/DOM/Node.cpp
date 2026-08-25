@@ -1410,6 +1410,7 @@ void Node::remove(bool suppress_observers)
             if (registered->options().subtree) {
                 auto transient_observer = TransientRegisteredObserver::create(registered->observer(), registered->options(), registered);
                 add_registered_observer(move(transient_observer));
+                registered->observer()->add_transient_registered_node({}, *this);
             }
         }
     }

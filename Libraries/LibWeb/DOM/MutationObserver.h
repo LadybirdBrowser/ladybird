@@ -26,6 +26,8 @@ struct SimilarOriginWindowAgent;
 
 namespace Web::DOM {
 
+class RegisteredObserver;
+
 struct MutationObserverOptions {
     Optional<Vector<Utf16FlyString>> attribute_filter;
     Optional<bool> attribute_old_value;
@@ -53,6 +55,9 @@ public:
     Vector<GC::Weak<Node>>& node_list() { return m_node_list; }
     Vector<GC::Weak<Node>> const& node_list() const { return m_node_list; }
 
+    void add_transient_registered_node(Badge<Node>, Node&);
+    void remove_transient_registered_observers(RegisteredObserver const* source = nullptr);
+
     WebIDL::CallbackType& callback() { return *m_callback; }
 
     void enqueue_record(Badge<Node>, GC::Ref<MutationRecord> mutation_record)
@@ -71,6 +76,9 @@ private:
     // https://dom.spec.whatwg.org/#mutationobserver-node-list
     // Registered observers in a node’s registered observer list have a weak reference to the node.
     Vector<GC::Weak<Node>> m_node_list;
+
+    // Nodes that currently have transient registered observers for this observer.
+    Vector<GC::Weak<Node>> m_transient_registered_node_list;
 
     // https://dom.spec.whatwg.org/#concept-mo-queue
     Vector<GC::Ref<MutationRecord>> m_record_queue;
