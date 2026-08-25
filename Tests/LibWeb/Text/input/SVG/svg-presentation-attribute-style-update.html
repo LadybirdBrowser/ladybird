@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <rect id="target" width="10" height="10" transform="translate(10 20)"/>
+</svg>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    println(getComputedStyle(target).transform);
+
+    target.setAttribute("transform", "translate(30 40)");
+    println(getComputedStyle(target).transform);
+
+    target.setAttribute("transform", "invalid");
+    println(getComputedStyle(target).transform);
+
+    target.setAttribute("transform", "translate(50 60)");
+    println(getComputedStyle(target).transform);
+
+    target.removeAttribute("transform");
+    println(getComputedStyle(target).transform);
+
+    const namespacedTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    namespacedTarget.setAttribute("fill", "red");
+    document.body.appendChild(namespacedTarget);
+
+    println(getComputedStyle(namespacedTarget).fill);
+    namespacedTarget.setAttributeNS("urn:test", "x:fill", "blue");
+    println(getComputedStyle(namespacedTarget).fill);
+    namespacedTarget.removeAttributeNS("urn:test", "fill");
+    println(getComputedStyle(namespacedTarget).fill);
+
+    const duplicateTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    duplicateTarget.setAttribute("fill", "red");
+    duplicateTarget.setAttribute("FILL", "blue");
+    document.body.appendChild(duplicateTarget);
+
+    println(getComputedStyle(duplicateTarget).fill);
+    duplicateTarget.setAttribute("FILL", "green");
+    println(getComputedStyle(duplicateTarget).fill);
+    duplicateTarget.removeAttribute("FILL");
+    println(getComputedStyle(duplicateTarget).fill);
+
+    const transitionStyle = document.createElement("style");
+    transitionStyle.textContent = ".transition { transition: fill 1000s linear; }";
+    document.head.appendChild(transitionStyle);
+
+    const transitionTarget = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    transitionTarget.setAttribute("fill", "red");
+    document.querySelector("svg").appendChild(transitionTarget);
+    getComputedStyle(transitionTarget).fill;
+
+    transitionTarget.setAttribute("fill", "green");
+    transitionTarget.getBoundingClientRect();
+    transitionTarget.classList.add("transition");
+    transitionTarget.setAttribute("fill", "blue");
+
+    const transition = transitionTarget.getAnimations()[0];
+    if (transition)
+        transition.currentTime = 0;
+    println(`consecutive mutations preserved the transition start style: ${transition !== undefined
+        && getComputedStyle(transitionTarget).fill === "rgb(0, 128, 0)"}`);
+});
+</script>
