@@ -205,7 +205,6 @@ set(SOURCES
     CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
     CSS/Parser/ErrorReporter.cpp
-    CSS/Parser/FastColorParsing.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/RustQueryParsing.cpp

@@ -5,10 +5,10 @@
  */
 
 #include "AbstractCanvasMixin.h"
-#include <LibWeb/CSS/Parser/FastColorParsing.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::HTML {
 
@@ -41,7 +41,13 @@ Optional<Color> AbstractCanvasMixin::parse_a_css_color_value(Utf16View value) co
     }
 
     if (!found_cached_value) {
-        resolved_color = CSS::Parser::parse_simple_color(value);
+        auto parsed_color = CSS::Parser::ValueParserFFI::rust_parse_simple_color({
+            .ascii = value.has_ascii_storage() ? reinterpret_cast<u8 const*>(value.ascii_span().data()) : nullptr,
+            .utf16 = value.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(value.utf16_span().data()),
+            .length = value.length_in_code_units(),
+        });
+        if (parsed_color.success)
+            resolved_color = Color(parsed_color.red, parsed_color.green, parsed_color.blue, parsed_color.alpha);
         if (!resolved_color.has_value())
             color = parse_css_type(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, value, CSS::ValueType::Color);
 
