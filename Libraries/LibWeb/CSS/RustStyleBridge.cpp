@@ -114,9 +114,9 @@ i32 rust_css_pixels_scaled(i32 value, double factor)
     return ComputedValuesFFI::rust_css_pixels_scaled(value, factor);
 }
 
-StyleValueFFI::FfiNumericType invoke_rust_numeric_type_operate(StyleValueFFI::FfiNumericTypeOperation operation, StyleValueFFI::FfiNumericType const* first, StyleValueFFI::FfiNumericType const* second, u8 parameter)
+StyleValueFFI::FfiNumericType invoke_rust_numeric_type_operate(StyleValueFFI::FfiNumericTypeOperation operation, StyleValueFFI::FfiNumericType const* first, StyleValueFFI::FfiNumericType const* second)
 {
-    return StyleValueFFI::rust_numeric_type_operate(operation, first, second, parameter);
+    return StyleValueFFI::rust_numeric_type_operate(operation, first, second);
 }
 
 bool invoke_rust_numeric_type_matches(StyleValueFFI::FfiNumericTypeMatch match_kind, StyleValueFFI::FfiNumericType const* numeric_type, u8 base_type, bool has_percentages_resolve_as, u8 percentages_resolve_as)

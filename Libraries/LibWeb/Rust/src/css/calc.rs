@@ -504,8 +504,6 @@ pub enum FfiNumericTypeOperation {
     Add,
     Multiply,
     Invert,
-    MakeConsistent,
-    ApplyPercentHint,
 }
 
 #[derive(Clone, Copy)]
@@ -515,7 +513,6 @@ pub enum FfiNumericTypeMatch {
     Percentage,
     DimensionPercentage,
     Number,
-    DimensionCategory,
 }
 
 /// Applies one numeric type algebra operation for C++ callers.
@@ -527,7 +524,6 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
     operation: FfiNumericTypeOperation,
     first: *const FfiNumericType,
     second: *const FfiNumericType,
-    parameter: u8,
 ) -> FfiNumericType {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
@@ -536,12 +532,6 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
             FfiNumericTypeOperation::Add => first.added_to(&unsafe { &*second }.to_calc()),
             FfiNumericTypeOperation::Multiply => first.multiplied_by(&unsafe { &*second }.to_calc()),
             FfiNumericTypeOperation::Invert => Some(first.inverted()),
-            FfiNumericTypeOperation::MakeConsistent => first.made_consistent_with(&unsafe { &*second }.to_calc()),
-            FfiNumericTypeOperation::ApplyPercentHint => {
-                let mut result = first;
-                result.apply_percent_hint(parameter);
-                Some(result)
-            }
         };
         FfiNumericType::from_calc(result)
     })
@@ -570,7 +560,6 @@ pub unsafe extern "C" fn rust_numeric_type_matches(
                 numeric_type.matches_dimension_percentage(base_type as usize, resolve_as)
             }
             FfiNumericTypeMatch::Number => numeric_type.matches_number(resolve_as),
-            FfiNumericTypeMatch::DimensionCategory => numeric_type.matches_dimension_category(),
         }
     })
 }
