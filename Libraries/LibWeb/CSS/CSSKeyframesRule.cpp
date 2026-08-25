@@ -54,7 +54,7 @@ Utf16String CSSKeyframesRule::serialized() const
     // https://drafts.csswg.org/css-animations-1/#keyframes
     // When serialized, the value is serialized as an <ident> unless it’s a disallowed keyword, in which case
     // it’s serialized as a <string>.
-    if (!is_valid_custom_ident(m_name, { { "none"sv } }))
+    if (!is_valid_animation_name_custom_ident(m_name))
         serialize_a_string(builder, m_name);
     else
         serialize_an_identifier(builder, m_name);
