@@ -1,0 +1,26 @@
+initial:
+  plain 3px/0px own=3px shared=2px theme=10px
+  plain-child 2px/10px own=3px shared=2px theme=10px
+  derived 4px/0px own= shared=1px theme=10px
+  derived-child 10px/0px own= shared=1px theme=10px
+theme changed:
+  plain 3px/0px own=3px shared=2px theme=20px
+  plain-child 2px/20px own=3px shared=2px theme=20px
+  derived 4px/0px own= shared=1px theme=20px
+  derived-child 20px/0px own= shared=1px theme=20px
+shared changed:
+  plain 3px/0px own=3px shared=2px theme=20px
+  plain-child 2px/20px own=3px shared=2px theme=20px
+  derived 4px/0px own= shared=5px theme=20px
+  derived-child 20px/0px own= shared=5px theme=20px
+own changed:
+  plain 7px/0px own=7px shared=2px theme=20px
+  plain-child 2px/20px own=7px shared=2px theme=20px
+  derived 4px/0px own= shared=5px theme=20px
+  derived-child 20px/0px own= shared=5px theme=20px
+theme changed again:
+  plain 7px/0px own=7px shared=2px theme=30px
+  plain-child 2px/30px own=7px shared=2px theme=30px
+  derived 4px/0px own= shared=5px theme=30px
+  derived-child 30px/0px own= shared=5px theme=30px
+styles reused: true

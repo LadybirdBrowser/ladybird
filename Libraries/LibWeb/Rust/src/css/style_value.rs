@@ -24,8 +24,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate::abort_on_panic;
+use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition, TokenizerInput};
 use crate::css::parser::component_value::{ComponentKind, ComponentSerializationMode, ComponentValue};
+use crate::css::parser::value_parser::is_css_wide_keyword;
 
 pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 
@@ -251,6 +253,18 @@ pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(Vec<
     Some((references, all_references_visible))
 }
 
+fn contains_css_wide_keyword(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => {
+            contains_css_wide_keyword(values)
+        }
+        _ => value
+            .ident()
+            .and_then(keyword_from_ascii_case_insensitive)
+            .is_some_and(is_css_wide_keyword),
+    })
+}
+
 /// Visits the Typed OM reification of an unresolved style value. Event 0 appends a text segment,
 /// event 1 begins a variable reference, and event 2 ends its optional fallback.
 ///
@@ -288,6 +302,20 @@ pub unsafe extern "C" fn rust_unresolved_style_value_visit_custom_property_refer
             unreachable!("reference scanning requires an unresolved style value");
         };
         scan_custom_property_references(components.as_slice(), context, visit)
+    })
+}
+
+/// Reports whether any component of an unresolved style value is a CSS-wide keyword identifier.
+///
+/// # Safety
+/// `value` must point at live unresolved style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_unresolved_style_value_contains_css_wide_keyword(value: *const c_void) -> bool {
+    abort_on_panic(|| {
+        let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
+            unreachable!("keyword scanning requires an unresolved style value");
+        };
+        contains_css_wide_keyword(components.as_slice())
     })
 }
 

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<style>
+    #outer {
+        --theme: 10px;
+        --shared: 1px;
+    }
+
+    #plain {
+        --own: 3px;
+        --shared: 2px;
+        margin-left: var(--own);
+    }
+
+    #plain-child {
+        margin-left: var(--shared);
+        margin-right: var(--theme);
+    }
+
+    #derived {
+        --derived: var(--theme);
+        margin-left: var(--own, 4px);
+    }
+
+    #derived-child {
+        margin-left: var(--derived);
+    }
+</style>
+<div id="outer">
+    <div id="plain"><div id="plain-child"></div></div>
+    <div id="derived"><div id="derived-child"></div></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const plain = document.getElementById("plain");
+
+        function report(label) {
+            const lines = [];
+            for (const id of ["plain", "plain-child", "derived", "derived-child"]) {
+                const style = getComputedStyle(document.getElementById(id));
+                lines.push(`${id} ${style.marginLeft}/${style.marginRight}` +
+                    ` own=${style.getPropertyValue("--own").trim()}` +
+                    ` shared=${style.getPropertyValue("--shared").trim()}` +
+                    ` theme=${style.getPropertyValue("--theme").trim()}`);
+            }
+            println(`${label}:`);
+            for (const line of lines)
+                println(`  ${line}`);
+        }
+
+        report("initial");
+
+        const reusedBefore = internals.getStyleInvalidationCounters().elementStyleInputReused;
+
+        outer.style.setProperty("--theme", "20px");
+        report("theme changed");
+
+        outer.style.setProperty("--shared", "5px");
+        report("shared changed");
+
+        plain.style.setProperty("--own", "7px");
+        report("own changed");
+
+        outer.style.setProperty("--theme", "30px");
+        report("theme changed again");
+
+        const reused = internals.getStyleInvalidationCounters().elementStyleInputReused - reusedBefore;
+        println(`styles reused: ${reused > 0}`);
+    });
+</script>

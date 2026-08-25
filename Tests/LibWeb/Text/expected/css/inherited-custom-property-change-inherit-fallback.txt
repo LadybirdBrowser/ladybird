@@ -1,0 +1,3 @@
+initial: 10px
+after change: 20px
+after second change: 30px

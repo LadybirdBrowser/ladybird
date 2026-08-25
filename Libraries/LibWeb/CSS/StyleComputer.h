@@ -153,6 +153,7 @@ public:
     // each. What that buys is not the bytes: an environment resolves once, and a child naming its
     // parent's environment by identity is told the truth when two parents agree.
     [[nodiscard]] NonnullRefPtr<CustomPropertyData const> intern_custom_property_data(NonnullRefPtr<CustomPropertyData const>) const;
+    [[nodiscard]] RefPtr<CustomPropertyData const> custom_property_environment_for_own_declarations(OrderedHashMap<Utf16FlyString, StyleProperty>, RefPtr<CustomPropertyData const> parent) const;
     void sweep_custom_property_environments() const;
 
     // Whether the collection refreshes a previously published style outside the drive; a refresh
@@ -384,6 +385,7 @@ private:
         Vector<u64> style_input_declaration_words;
         Vector<NonnullRefPtr<StyleValue const>> pinned_style_input_values;
         bool cascade_declares_custom_properties { false };
+        Optional<Vector<Utf16FlyString>> declared_custom_property_names;
         Vector<Utf16FlyString> custom_property_references;
         bool style_uses_var_css_function { false };
         bool style_uses_inherit_css_function { false };
@@ -426,6 +428,8 @@ private:
         Vector<u64> key;
         RefPtr<CustomPropertyData const> parent;
         RefPtr<CustomPropertyData const> result;
+        Optional<Vector<Utf16FlyString>> declared_names;
+        Vector<Utf16FlyString> inherited_references;
     };
     mutable HashMap<u64, Vector<CascadedCustomPropertyEnvironment>> m_cascaded_custom_property_environments;
 
@@ -439,6 +443,7 @@ private:
         NonnullRefPtr<StyleValue const> value;
         Vector<Utf16FlyString> references;
         bool all_references_visible { true };
+        bool contains_css_wide_keyword { false };
     };
     CustomPropertyReferenceScan const& custom_property_reference_scan(NonnullRefPtr<StyleValue const> const&) const;
     mutable HashMap<void const*, CustomPropertyReferenceScan> m_custom_property_reference_scans;
