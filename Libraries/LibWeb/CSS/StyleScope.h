@@ -38,11 +38,20 @@ struct StyleEngineRuleTarget {
     void visit_edges(GC::Cell::Visitor&) const;
 };
 
+struct CachedFunctionRule {
+    GC::Ptr<CSSFunctionRule const> rule;
+    CascadeOrigin cascade_origin { CascadeOrigin::Author };
+
+    void visit_edges(GC::Cell::Visitor&) const;
+};
+
 // What one style scope holds that is about the program rather than about any element: the keyframes
-// each `@keyframes` name resolves to and whether a size container query is in play. Which rules
-// match and how cascade layers are ordered are StyleEngine's answers and are not filed here.
+// each `@keyframes` name resolves to, the visible `@function` rules, and whether a size container query
+// is in play. Which rules match and how cascade layers are ordered are StyleEngine's answers and are
+// not filed here.
 struct StyleRuleCache {
     HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+    HashMap<Utf16FlyString, Vector<CachedFunctionRule>> function_rules_by_name;
     bool has_size_container_queries { false };
 
     void visit_edges(GC::Cell::Visitor&);

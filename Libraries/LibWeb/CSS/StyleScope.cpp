@@ -43,8 +43,18 @@ void StyleEngineRuleTarget::visit_edges(GC::Cell::Visitor& visitor) const
     visitor.visit(container_rule);
 }
 
-void StyleRuleCache::visit_edges(GC::Cell::Visitor&)
+void CachedFunctionRule::visit_edges(GC::Cell::Visitor& visitor) const
 {
+    visitor.visit(rule);
+}
+
+void StyleRuleCache::visit_edges(GC::Cell::Visitor& visitor)
+{
+    for (auto& [name, rules] : function_rules_by_name) {
+        (void)name;
+        for (auto const& rule : rules)
+            rule.visit_edges(visitor);
+    }
 }
 
 void StyleCache::visit_edges(GC::Cell::Visitor& visitor)
@@ -360,6 +370,10 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
         sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
             if (rule.type() == CSSRule::Type::Container && as<CSSContainerRule>(rule).contains_size_feature())
                 rule_cache.has_size_container_queries = true;
+            if (rule.type() == CSSRule::Type::Function) {
+                auto const& function_rule = as<CSSFunctionRule>(rule);
+                rule_cache.function_rules_by_name.ensure(function_rule.name()).append({ function_rule, cascade_origin });
+            }
         });
 
         // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
@@ -954,26 +968,27 @@ Optional<StyleScope::FunctionDefinitionAndScope> StyleScope::get_function_defini
                 return style_engine.layer_index(tree_scope, layer.value());
             };
 
-            Function<void(CSS::CSSStyleSheet&)> const get_function_definition_from_style_sheet = [&](CSS::CSSStyleSheet& style_sheet) {
-                style_sheet.for_each_effective_function_at_rule([&](CSS::CSSFunctionRule const& function_rule) {
-                    if (function_rule.name() != name)
-                        return;
+            auto cached_rules = scope.rule_cache().function_rules_by_name.get(name);
+            if (!cached_rules.has_value())
+                return cascade_origin_result;
 
-                    auto layer_index = layer_index_of(function_rule.qualified_layer_name());
+            for (auto const& cached_rule : *cached_rules) {
+                if (cached_rule.cascade_origin != cascade_origin)
+                    continue;
 
-                    if (!cascade_origin_result) {
-                        cascade_origin_result = &function_rule;
-                        return;
-                    }
+                auto const& function_rule = *cached_rule.rule;
+                auto layer_index = layer_index_of(function_rule.qualified_layer_name());
 
-                    auto existing_layer_index = layer_index_of(cascade_origin_result->qualified_layer_name());
+                if (!cascade_origin_result) {
+                    cascade_origin_result = &function_rule;
+                    continue;
+                }
 
-                    if (layer_index >= existing_layer_index)
-                        cascade_origin_result = &function_rule;
-                });
-            };
+                auto existing_layer_index = layer_index_of(cascade_origin_result->qualified_layer_name());
 
-            scope.for_each_stylesheet(cascade_origin, get_function_definition_from_style_sheet);
+                if (layer_index >= existing_layer_index)
+                    cascade_origin_result = &function_rule;
+            }
 
             return cascade_origin_result;
         };
@@ -1002,16 +1017,10 @@ void StyleScope::for_each_visible_function_definition(Function<void(FunctionDefi
 {
     HashTable<Utf16FlyString> names;
     Function<void(StyleScope const&)> collect_names = [&](StyleScope const& scope) {
-        Function<void(CSS::CSSStyleSheet&)> collect_from_stylesheet = [&](CSS::CSSStyleSheet& style_sheet) {
-            style_sheet.for_each_effective_function_at_rule([&](CSS::CSSFunctionRule const& function_rule) {
-                names.set(function_rule.name());
-            });
-        };
-        if (scope.m_node->is_document()) {
-            scope.for_each_stylesheet(CSS::CascadeOrigin::UserAgent, collect_from_stylesheet);
-            scope.for_each_stylesheet(CSS::CascadeOrigin::User, collect_from_stylesheet);
+        for (auto const& [name, rules] : scope.rule_cache().function_rules_by_name) {
+            (void)rules;
+            names.set(name);
         }
-        scope.for_each_stylesheet(CSS::CascadeOrigin::Author, collect_from_stylesheet);
 
         if (auto* shadow_root = as_if<DOM::ShadowRoot>(*scope.m_node)) {
             if (auto* host = shadow_root->host()) {
