@@ -23,6 +23,7 @@ use crate::css::parser::value_parser::{
     parse_syntax_numeric_value, parse_url_value, retain_fly_string, unresolved_value, value_list,
 };
 use crate::css::property_metadata::property_id;
+use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier};
 use crate::css::style_value::StyleValueData;
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -68,6 +69,7 @@ pub(crate) enum SyntaxNode {
 }
 
 struct ParsedSyntax {
+    syntax: SyntaxNode,
     nodes: Vec<ParsedSyntaxNode>,
     children: Vec<usize>,
     values: Vec<u16>,
@@ -162,10 +164,65 @@ fn parsed_syntax(syntax: SyntaxNode) -> ParsedSyntax {
     let mut values = Vec::new();
     let root = flatten_syntax_node(&syntax, &mut nodes, &mut children, &mut values);
     ParsedSyntax {
+        syntax,
         nodes,
         children,
         values,
         root,
+    }
+}
+
+fn serialize_syntax(syntax: &SyntaxNode, sink: &mut TextSink) {
+    match syntax {
+        SyntaxNode::Universal => sink.push_ascii("*"),
+        SyntaxNode::Ident { value, .. } => serialize_an_identifier(sink, &StringUnits::Utf16(value)),
+        SyntaxNode::Type(syntax_type) => {
+            sink.push_ascii("<");
+            sink.push_ascii(match syntax_type {
+                SyntaxType::Angle => "angle",
+                SyntaxType::Color => "color",
+                SyntaxType::CustomIdent => "custom-ident",
+                SyntaxType::Image => "image",
+                SyntaxType::Integer => "integer",
+                SyntaxType::Length => "length",
+                SyntaxType::LengthPercentage => "length-percentage",
+                SyntaxType::Number => "number",
+                SyntaxType::Percentage => "percentage",
+                SyntaxType::Resolution => "resolution",
+                SyntaxType::String => "string",
+                SyntaxType::Time => "time",
+                SyntaxType::TransformFunction => "transform-function",
+                SyntaxType::TransformList => "transform-list",
+                SyntaxType::Url => "url",
+            });
+            sink.push_ascii(">");
+        }
+        SyntaxNode::Multiplier { child, multiplier } => {
+            serialize_syntax(child, sink);
+            sink.push_ascii(if *multiplier == SyntaxMultiplier::SpaceSeparated {
+                "+"
+            } else {
+                "#"
+            });
+        }
+        SyntaxNode::Alternatives(alternatives) => {
+            for (index, alternative) in alternatives.iter().enumerate() {
+                if index > 0 {
+                    sink.push_ascii(" | ");
+                }
+                serialize_syntax(alternative, sink);
+            }
+        }
+    }
+}
+
+fn is_single_syntax_component(syntax: &SyntaxNode) -> bool {
+    match syntax {
+        SyntaxNode::Universal | SyntaxNode::Ident { .. } | SyntaxNode::Type(_) => true,
+        SyntaxNode::Multiplier { child, .. } => {
+            matches!(child.as_ref(), SyntaxNode::Ident { .. } | SyntaxNode::Type(_))
+        }
+        SyntaxNode::Alternatives(_) => false,
     }
 }
 
@@ -489,7 +546,57 @@ pub unsafe extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_
         let Some(syntax) = parse_syntax(&source, limit_ident_to_custom_ident) else {
             return std::ptr::null_mut();
         };
-        Box::into_raw(Box::new(parsed_syntax(syntax))).cast()
+        Arc::into_raw(Arc::new(parsed_syntax(syntax))).cast_mut().cast()
+    })
+}
+
+/// Returns an owned universal-syntax handle.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_syntax_create_universal() -> *const c_void {
+    crate::abort_on_panic(|| Arc::into_raw(Arc::new(parsed_syntax(SyntaxNode::Universal))).cast())
+}
+
+/// # Safety
+/// `syntax` must be a live parsed-syntax handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_syntax_retain(syntax: *const c_void) -> *const c_void {
+    crate::abort_on_panic(|| {
+        unsafe { Arc::increment_strong_count(syntax.cast::<ParsedSyntax>()) };
+        syntax
+    })
+}
+
+/// # Safety
+/// `syntax` must be a live parsed-syntax handle whose strong count is released exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_syntax_release(syntax: *const c_void) {
+    crate::abort_on_panic(|| unsafe { Arc::decrement_strong_count(syntax.cast::<ParsedSyntax>()) });
+}
+
+/// # Safety
+/// `syntax` must be a live parsed-syntax handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_syntax_is_universal(syntax: *const c_void) -> bool {
+    crate::abort_on_panic(|| matches!(unsafe { &*syntax.cast::<ParsedSyntax>() }.syntax, SyntaxNode::Universal))
+}
+
+/// # Safety
+/// `syntax` must be a live parsed-syntax handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_syntax_is_single_component(syntax: *const c_void) -> bool {
+    crate::abort_on_panic(|| is_single_syntax_component(&unsafe { &*syntax.cast::<ParsedSyntax>() }.syntax))
+}
+
+/// Serializes a syntax handle into an owned native `AK::Utf16String`.
+///
+/// # Safety
+/// `syntax` must be a live parsed-syntax handle. The returned raw string must be adopted by C++.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_syntax_serialize(syntax: *const c_void) -> usize {
+    crate::abort_on_panic(|| {
+        let mut sink = TextSink::new();
+        serialize_syntax(&unsafe { &*syntax.cast::<ParsedSyntax>() }.syntax, &mut sink);
+        crate::css::serialize::sink_into_ffi(sink).raw
     })
 }
 
@@ -554,7 +661,7 @@ pub unsafe extern "C" fn rust_syntax_node_child(syntax: *const c_void, node: usi
 pub unsafe extern "C" fn rust_syntax_free(syntax: *mut c_void) {
     crate::abort_on_panic(|| {
         if !syntax.is_null() {
-            drop(unsafe { Box::from_raw(syntax.cast::<ParsedSyntax>()) });
+            unsafe { Arc::decrement_strong_count(syntax.cast::<ParsedSyntax>()) };
         }
     });
 }
@@ -694,6 +801,29 @@ mod tests {
         assert!(parse_with_syntax(&context, &utf16("1, 2, calc(1 + 2)"), &syntax).is_some());
         assert!(parse_with_syntax(&context, &utf16("red"), &syntax).is_none());
         assert!(parse_with_syntax(&context, &utf16("1,"), &syntax).is_none());
+    }
+
+    #[test]
+    fn serializes_syntax_like_the_cpp_tree() {
+        let syntax = parse_syntax(&utf16("<length> | auto | <color>#"), true).unwrap();
+        let mut sink = TextSink::new();
+        serialize_syntax(&syntax, &mut sink);
+        assert_eq!(sink.into_utf16(), utf16("<length> | auto | <color>#"));
+
+        let syntax = parse_syntax(&utf16(r"two\ words"), false).unwrap();
+        let mut sink = TextSink::new();
+        serialize_syntax(&syntax, &mut sink);
+        assert_eq!(sink.into_utf16(), utf16(r"two\ words"));
+    }
+
+    #[test]
+    fn identifies_single_syntax_components() {
+        for source in ["*", "auto", "<length>", "<length>+"] {
+            assert!(is_single_syntax_component(&parse_syntax(&utf16(source), true).unwrap()));
+        }
+        assert!(!is_single_syntax_component(
+            &parse_syntax(&utf16("<length> | auto"), true).unwrap()
+        ));
     }
 
     fn utf16(value: &str) -> Vec<u16> {
