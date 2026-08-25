@@ -19,12 +19,14 @@
 
 #include "TestMediaCommon.h"
 
-static Media::Matroska::Streamer streamer_from_bytes(ReadonlyBytes bytes)
+namespace {
+
+Media::Matroska::Streamer streamer_from_bytes(ReadonlyBytes bytes)
 {
     return Media::Matroska::Streamer(make_ref_counted<Media::ReadonlyBytesCursor>(bytes));
 }
 
-static void append_ebml_id(ByteBuffer& data, u32 id)
+void append_ebml_id(ByteBuffer& data, u32 id)
 {
     bool saw_non_zero_byte = false;
     for (int shift = 24; shift >= 0; shift -= 8) {
@@ -36,21 +38,21 @@ static void append_ebml_id(ByteBuffer& data, u32 id)
     }
 }
 
-static void append_big_endian_uint(ByteBuffer& data, u64 value, size_t value_byte_width)
+void append_big_endian_uint(ByteBuffer& data, u64 value, size_t value_byte_width)
 {
     VERIFY(value_byte_width <= sizeof(value));
     for (auto shift = static_cast<int>((value_byte_width - 1) * 8); shift >= 0; shift -= 8)
         data.append(static_cast<u8>(value >> shift));
 }
 
-static void patch_big_endian_uint(ByteBuffer& data, size_t offset, u64 value, size_t value_byte_width)
+void patch_big_endian_uint(ByteBuffer& data, size_t offset, u64 value, size_t value_byte_width)
 {
     VERIFY(offset + value_byte_width <= data.size());
     for (size_t i = 0; i < value_byte_width; ++i)
         data[offset + i] = static_cast<u8>(value >> ((value_byte_width - i - 1) * 8));
 }
 
-static void append_ebml_size(ByteBuffer& data, u64 element_data_size, size_t vint_byte_width = 1)
+void append_ebml_size(ByteBuffer& data, u64 element_data_size, size_t vint_byte_width = 1)
 {
     VERIFY(vint_byte_width >= 1);
     VERIFY(vint_byte_width <= 8);
@@ -61,7 +63,7 @@ static void append_ebml_size(ByteBuffer& data, u64 element_data_size, size_t vin
     data[size_payload_offset] |= 1u << (8 - vint_byte_width);
 }
 
-static void patch_ebml_size(ByteBuffer& data, size_t offset, u64 element_data_size, size_t vint_byte_width)
+void patch_ebml_size(ByteBuffer& data, size_t offset, u64 element_data_size, size_t vint_byte_width)
 {
     VERIFY(vint_byte_width >= 1);
     VERIFY(vint_byte_width <= 8);
@@ -77,7 +79,7 @@ struct EBMLMaster {
     size_t payload_start { 0 };
 };
 
-static EBMLMaster begin_ebml_master(ByteBuffer& data, u32 id)
+EBMLMaster begin_ebml_master(ByteBuffer& data, u32 id)
 {
     append_ebml_id(data, id);
     auto size_offset = data.size();
@@ -85,12 +87,12 @@ static EBMLMaster begin_ebml_master(ByteBuffer& data, u32 id)
     return { size_offset, data.size() };
 }
 
-static void finish_ebml_master(ByteBuffer& data, EBMLMaster master)
+void finish_ebml_master(ByteBuffer& data, EBMLMaster master)
 {
     patch_ebml_size(data, master.size_offset, data.size() - master.payload_start, 8);
 }
 
-static size_t append_ebml_uint(ByteBuffer& data, u32 id, u64 value, size_t value_byte_width = 0)
+size_t append_ebml_uint(ByteBuffer& data, u32 id, u64 value, size_t value_byte_width = 0)
 {
     append_ebml_id(data, id);
     if (value_byte_width == 0) {
@@ -104,20 +106,20 @@ static size_t append_ebml_uint(ByteBuffer& data, u32 id, u64 value, size_t value
     return payload_position;
 }
 
-static void append_ebml_string(ByteBuffer& data, u32 id, StringView value)
+void append_ebml_string(ByteBuffer& data, u32 id, StringView value)
 {
     append_ebml_id(data, id);
     append_ebml_size(data, value.length());
     data.append(value.bytes());
 }
 
-static void append_empty_ebml_master(ByteBuffer& data, u32 id)
+void append_empty_ebml_master(ByteBuffer& data, u32 id)
 {
     auto master = begin_ebml_master(data, id);
     finish_ebml_master(data, master);
 }
 
-static size_t append_seek_head(ByteBuffer& data, u32 target_id)
+size_t append_seek_head(ByteBuffer& data, u32 target_id)
 {
     auto seek_head = begin_ebml_master(data, Media::Matroska::SEEK_HEAD_ELEMENT_ID);
     auto seek = begin_ebml_master(data, Media::Matroska::SEEK_ELEMENT_ID);
@@ -134,7 +136,7 @@ struct LinkedSeekHeadsTestFile {
     size_t cues_position { 0 };
 };
 
-static LinkedSeekHeadsTestFile make_matroska_with_linked_seek_heads(size_t seek_head_count = 3)
+LinkedSeekHeadsTestFile make_matroska_with_linked_seek_heads(size_t seek_head_count = 3)
 {
     VERIFY(seek_head_count > 0);
 
@@ -205,17 +207,17 @@ static LinkedSeekHeadsTestFile make_matroska_with_linked_seek_heads(size_t seek_
     return { move(data), cluster_end, cues_position };
 }
 
-enum class SegmentSize {
+enum class SegmentSize : u8 {
     Undeclared,
     LongerThanTheStream,
 };
 
-enum class ClusterSize {
+enum class ClusterSize : u8 {
     Known,
     Unknown,
 };
 
-static ByteBuffer make_matroska_without_cues(SegmentSize segment_size, ClusterSize cluster_size)
+ByteBuffer make_matroska_without_cues(SegmentSize segment_size, ClusterSize cluster_size)
 {
     ByteBuffer data;
     auto ebml_header = begin_ebml_master(data, Media::Matroska::EBML_MASTER_ELEMENT_ID);
@@ -265,6 +267,8 @@ static ByteBuffer make_matroska_without_cues(SegmentSize segment_size, ClusterSi
     }
 
     return data;
+}
+
 }
 
 TEST_CASE(reader_reads_segment_with_no_declared_size_and_no_cues)
@@ -788,15 +792,17 @@ TEST_CASE(opus_frame_duration)
     }
 }
 
-static ByteBuffer load_test_file_data(StringView path)
+namespace {
+
+ByteBuffer load_test_file_data(StringView path)
 {
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     return MUST(file->read_until_eof());
 }
 
-static constexpr size_t CUES_START = 298382;
+constexpr size_t CUES_START = 298382;
 
-static auto create_incremental_demuxer(ByteBuffer const& file_data, NonnullRefPtr<Media::IncrementallyPopulatedStream>& stream, size_t initial_end)
+auto create_incremental_demuxer(ByteBuffer const& file_data, NonnullRefPtr<Media::IncrementallyPopulatedStream>& stream, size_t initial_end)
 {
     stream = Media::IncrementallyPopulatedStream::create_empty();
     stream->add_chunk_at(0, file_data.bytes().slice(0, initial_end));
@@ -804,8 +810,7 @@ static auto create_incremental_demuxer(ByteBuffer const& file_data, NonnullRefPt
     return MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
 }
 
-// These tests assert on the video track's ranges specifically.
-static Media::TimeRanges video_track_buffered_ranges(Media::Demuxer& demuxer)
+Media::TimeRanges video_track_buffered_ranges(Media::Demuxer& demuxer)
 {
     for (auto const& track_state : demuxer.scan_state().tracks) {
         if (track_state.track.type() == Media::TrackType::Video)
@@ -814,9 +819,8 @@ static Media::TimeRanges video_track_buffered_ranges(Media::Demuxer& demuxer)
     return {};
 }
 
-// Wait until the scan has caught up with the stream; the change handler's dispatch wakes the pump.
 template<typename Condition>
-static Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::Demuxer& demuxer, Condition condition)
+Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::Demuxer& demuxer, Condition condition)
 {
     demuxer.set_scan_state_change_handler([] { });
     ScopeGuard remove_handler = [&] { demuxer.set_scan_state_change_handler(nullptr); };
@@ -828,6 +832,8 @@ static Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::
     loop.spin_until([&] { return condition(video_track_buffered_ranges(demuxer)) || deadline_expired; });
     EXPECT(!deadline_expired);
     return video_track_buffered_ranges(demuxer);
+}
+
 }
 
 TEST_CASE(buffered_time_ranges_full_file)
