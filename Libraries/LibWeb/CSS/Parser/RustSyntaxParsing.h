@@ -13,6 +13,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
+#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -47,12 +48,15 @@ enum class ParsedRulePreludeKind : u8 {
     MediaQueries,
     SupportsCondition,
     ContainerConditions,
+    Property,
 };
 
 struct ParsedRulePreludeItem {
     Optional<Utf16FlyString> value;
     Optional<SelectorList> selectors;
     Optional<RustQueryHandle> query;
+    Optional<RustSyntaxHandle> syntax;
+    RefPtr<StyleValue const> style_value;
     double number_value { 0 };
     u8 kind { 0 };
 };
@@ -61,6 +65,7 @@ struct ParsedRulePrelude {
     ParsedRulePreludeKind kind { ParsedRulePreludeKind::Unparsed };
     Optional<Utf16FlyString> name;
     Optional<Utf16FlyString> secondary;
+    Optional<RustSyntaxHandle> syntax;
     Vector<ParsedRulePreludeItem> items;
 };
 
