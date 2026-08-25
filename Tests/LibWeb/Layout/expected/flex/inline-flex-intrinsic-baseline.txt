@@ -1,0 +1,111 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 124 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 108 0+0+8] children: not-inline
+      Box <div.control> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
+        BlockContainer <span> at [8,0] flex-item [0+0+0 80 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+          Box <span.trigger> at [8,0] flex-container(row) [0+0+0 80 0+0+0] [0+0+0 52 0+0+0] [FFC] children: not-inline
+            BlockContainer <span> at [8,0] flex-item [0+0+0 80 0+0+0] [0+0+0 52 0+0+0] [BFC] children: inline
+              frag 0 from Box start: 0, length: 0, rect: [8,0 64x26] baseline: 17.796875
+              frag 1 from Box start: 0, length: 0, rect: [72,0 16x52] baseline: 17.796875
+              Box <span.label> at [8,0] flex-container(row) [0+0+0 64 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
+                BlockContainer <span> at [8,0] flex-item [0+0+0 64 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 4, rect: [8,5 64x16] baseline: 12.796875
+                      "High"
+                  TextNode <#text> (not painted)
+              Box <span.label.column> at [72,0] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 52 0+0+0] [FFC] children: not-inline
+                BlockContainer <span> at [72,0] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [72,5 16x16] baseline: 12.796875
+                      "A"
+                  TextNode <#text> (not painted)
+                BlockContainer <span> at [72,26] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [72,31 16x16] baseline: 12.796875
+                      "B"
+                  TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.control> at [8,44] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
+        BlockContainer <span> at [8,23] flex-item [0+0+0 80 0+0+0] [0+0+0 78 0+0+0] [BFC] children: not-inline
+          Box <span.trigger> at [8,23] flex-container(row) [0+0+0 80 0+0+0] [0+0+0 78 0+0+0] [FFC] children: not-inline
+            BlockContainer <span> at [8,23] flex-item [0+0+0 80 0+0+0] [0+0+0 78 0+0+0] [BFC] children: inline
+              frag 0 from Box start: 0, length: 0, rect: [8,36 64x26] baseline: 17.796875
+              frag 1 from Box start: 0, length: 0, rect: [72,23 16x78] baseline: 30.796875
+              Box <span.label> at [8,36] flex-container(row) [0+0+0 64 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
+                BlockContainer <span> at [8,36] flex-item [0+0+0 64 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 4, rect: [8,41 64x16] baseline: 12.796875
+                      "High"
+                  TextNode <#text> (not painted)
+              Box <span.label.column.min-tall> at [72,23] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 78 0+0+0] [FFC] children: not-inline
+                BlockContainer <span> at [72,36] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [72,41 16x16] baseline: 12.796875
+                      "A"
+                  TextNode <#text> (not painted)
+                BlockContainer <span> at [72,62] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [72,67 16x16] baseline: 12.796875
+                      "B"
+                  TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.control> at [8,80] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
+        BlockContainer <span> at [8,59] flex-item [0+0+0 96 0+0+0] [0+0+0 78 0+0+0] [BFC] children: not-inline
+          Box <span.trigger> at [8,59] flex-container(row) [0+0+0 96 0+0+0] [0+0+0 78 0+0+0] [FFC] children: not-inline
+            BlockContainer <span> at [8,59] flex-item [0+0+0 96 0+0+0] [0+0+0 78 0+0+0] [BFC] children: inline
+              frag 0 from Box start: 0, length: 0, rect: [8,72 64x26] baseline: 17.796875
+              frag 1 from Box start: 0, length: 0, rect: [72,59 32x78] baseline: 30.796875
+              Box <span.label> at [8,72] flex-container(row) [0+0+0 64 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
+                BlockContainer <span> at [8,72] flex-item [0+0+0 64 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 4, rect: [8,77 64x16] baseline: 12.796875
+                      "High"
+                  TextNode <#text> (not painted)
+              Box <span.label.wrapped> at [72,59] flex-container(row) [0+0+0 32 0+0+0] [0+0+0 78 0+0+0] [FFC] children: not-inline
+                BlockContainer <span> at [72,72] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [72,77 16x16] baseline: 12.796875
+                      "A"
+                  TextNode <#text> (not painted)
+                BlockContainer <span> at [88,72] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [88,77 16x16] baseline: 12.796875
+                      "B"
+                  TextNode <#text> (not painted)
+                BlockContainer <span> at [72,98] flex-item [0+0+0 16 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [72,103 16x16] baseline: 12.796875
+                      "C"
+                  TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,116] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x124]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x108]
+      Paintable (Box<DIV>.control) [8,8 784x36]
+        PaintableWithLines (BlockContainer<SPAN>) [8,0 80x52]
+          Paintable (Box<SPAN>.trigger) [8,0 80x52]
+            PaintableWithLines (BlockContainer<SPAN>) [8,0 80x52]
+              Paintable (Box<SPAN>.label) [8,0 64x26]
+                PaintableWithLines (BlockContainer<SPAN>) [8,0 64x26]
+              Paintable (Box<SPAN>.label.column) [72,0 16x52]
+                PaintableWithLines (BlockContainer<SPAN>) [72,0 16x26]
+                PaintableWithLines (BlockContainer<SPAN>) [72,26 16x26]
+      PaintableWithLines (BlockContainer(anonymous)) [8,44 784x0]
+      Paintable (Box<DIV>.control) [8,44 784x36]
+        PaintableWithLines (BlockContainer<SPAN>) [8,23 80x78]
+          Paintable (Box<SPAN>.trigger) [8,23 80x78]
+            PaintableWithLines (BlockContainer<SPAN>) [8,23 80x78]
+              Paintable (Box<SPAN>.label) [8,36 64x26]
+                PaintableWithLines (BlockContainer<SPAN>) [8,36 64x26]
+              Paintable (Box<SPAN>.label.column.min-tall) [72,23 16x78]
+                PaintableWithLines (BlockContainer<SPAN>) [72,36 16x26]
+                PaintableWithLines (BlockContainer<SPAN>) [72,62 16x26]
+      PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
+      Paintable (Box<DIV>.control) [8,80 784x36]
+        PaintableWithLines (BlockContainer<SPAN>) [8,59 96x78]
+          Paintable (Box<SPAN>.trigger) [8,59 96x78]
+            PaintableWithLines (BlockContainer<SPAN>) [8,59 96x78]
+              Paintable (Box<SPAN>.label) [8,72 64x26]
+                PaintableWithLines (BlockContainer<SPAN>) [8,72 64x26]
+              Paintable (Box<SPAN>.label.wrapped) [72,59 32x78]
+                PaintableWithLines (BlockContainer<SPAN>) [72,72 16x26]
+                PaintableWithLines (BlockContainer<SPAN>) [88,72 16x26]
+                PaintableWithLines (BlockContainer<SPAN>) [72,98 16x26]
+      PaintableWithLines (BlockContainer(anonymous)) [8,116 784x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x124] (z-index: auto)

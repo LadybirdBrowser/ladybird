@@ -1,0 +1,43 @@
+<!doctype html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .control {
+        display: flex;
+        align-items: center;
+        height: 36px;
+        font: 16px/26px Ahem;
+    }
+
+    .trigger {
+        display: flex;
+        align-items: center;
+    }
+
+    .label {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .column {
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .min-tall {
+        min-height: 78px;
+    }
+
+    .wrapped {
+        align-content: center;
+        flex-wrap: wrap;
+        min-height: 78px;
+        width: 32px;
+    }
+</style>
+<div class="control"><span><span class="trigger"><span><span class="label"><span>High</span></span><span class="label column"><span>A</span><span>B</span></span></span></span></span></div>
+<div class="control"><span><span class="trigger"><span><span class="label"><span>High</span></span><span class="label column min-tall"><span>A</span><span>B</span></span></span></span></span></div>
+<div class="control"><span><span class="trigger"><span><span class="label"><span>High</span></span><span class="label wrapped"><span>A</span><span>B</span><span>C</span></span></span></span></span></div>
