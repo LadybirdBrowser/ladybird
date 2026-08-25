@@ -890,6 +890,7 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_visible()
     if (!style) {
         style = CSS::CSSStyleProperties::create({}, {});
         style->set_declarations_from_text(R"~~~(
+                display: block;
                 width: 100%;
                 height: 1lh;
                 overflow: hidden;
