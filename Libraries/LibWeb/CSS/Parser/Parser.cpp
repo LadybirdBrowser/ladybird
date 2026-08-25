@@ -158,9 +158,9 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
     return CSSStyleSheet::create(rule_list, *media_list, move(location));
 }
 
-RefPtr<Supports> Parser::parse_as_supports()
+Optional<RustQueryHandle> Parser::parse_as_supports()
 {
-    return RustQueryParser::parse_supports(*this, m_source);
+    return RustQueryParser::parse_supports_condition(*this, m_source);
 }
 
 CSSRule* Parser::parse_as_css_rule(bool nested)

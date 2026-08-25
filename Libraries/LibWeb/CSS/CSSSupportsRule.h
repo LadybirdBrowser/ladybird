@@ -20,24 +20,24 @@ class CSSSupportsRule final : public CSSConditionRule {
     GC_DECLARE_ALLOCATOR(CSSSupportsRule);
 
 public:
-    static GC::Ref<CSSSupportsRule> create(NonnullRefPtr<Supports>&&, CSSRuleList&);
+    static GC::Ref<CSSSupportsRule> create(RustQueryHandle, CSSRuleList&);
 
     virtual ~CSSSupportsRule() = default;
 
     virtual Utf16String serialized_condition_text() const override;
     bool matches() const { return condition_matches(); }
 
-    virtual bool condition_matches() const override { return m_supports->matches(); }
+    virtual bool condition_matches() const override { return supports_condition_matches(m_supports); }
 
-    Supports const& supports() const { return m_supports; }
+    RustQueryHandle const& supports() const { return m_supports; }
 
 private:
-    CSSSupportsRule(NonnullRefPtr<Supports>&&, CSSRuleList&);
+    CSSSupportsRule(RustQueryHandle, CSSRuleList&);
 
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
-    NonnullRefPtr<Supports> m_supports;
+    RustQueryHandle m_supports;
 };
 
 template<>
