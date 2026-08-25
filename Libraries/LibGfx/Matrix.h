@@ -39,26 +39,8 @@ public:
     {
     }
 
-    constexpr Matrix(Matrix const& other)
-    {
-        *this = other;
-    }
-
-    constexpr Matrix& operator=(Matrix const& other)
-    {
-#ifndef __clang__
-        if consteval {
-            for (size_t i = 0; i < N; i++) {
-                for (size_t j = 0; j < N; j++) {
-                    (*this)[i, j] = other[i, j];
-                }
-            }
-            return *this;
-        }
-#endif
-        __builtin_memcpy(m_elements, other.elements(), sizeof(T) * N * N);
-        return *this;
-    }
+    constexpr Matrix(Matrix const&) = default;
+    constexpr Matrix& operator=(Matrix const&) = default;
 
     constexpr auto elements() const { return m_elements; }
     constexpr auto elements() { return m_elements; }
