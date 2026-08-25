@@ -784,9 +784,7 @@ inline NodeWithStyle* Node::parent()
 
 inline Gfx::Font const& NodeWithStyle::first_available_font() const
 {
-    // https://drafts.csswg.org/css-fonts/#first-available-font
-    // First font for which the character U+0020 (space) is not excluded by a unicode-range
-    return font_list().font_for_code_point(' ');
+    return font_list().first_available_font();
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow);

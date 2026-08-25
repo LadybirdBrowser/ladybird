@@ -219,8 +219,8 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 
     return Length::ResolutionContext {
         .viewport_rect = element.element().navigable()->viewport_rect(),
-        .font_metrics = { computed_values.font_size(), computed_values.font_list().font_for_code_point(' ').pixel_metrics(), computed_values.line_height() },
-        .root_font_metrics = { root_computed_values->font_size(), root_computed_values->font_list().font_for_code_point(' ').pixel_metrics(), root_computed_values->line_height() },
+        .font_metrics = { computed_values.font_size(), computed_values.font_list().first_available_font().pixel_metrics(), computed_values.line_height() },
+        .root_font_metrics = { root_computed_values->font_size(), root_computed_values->font_list().first_available_font().pixel_metrics(), root_computed_values->line_height() },
         .font_metrics_depend_on_viewport_metrics = computed_values.font_metrics_depend_on_viewport_metrics(),
         .root_font_metrics_depend_on_viewport_metrics = root_computed_values->font_metrics_depend_on_viewport_metrics(),
         .subject_inline_axis_is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),

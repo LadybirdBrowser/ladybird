@@ -1283,12 +1283,8 @@ ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedStyleWorkingSet:
 
 ValueComparingNonnullRefPtr<Gfx::Font const> ComputedStyleWorkingSet::first_available_computed_font(FontComputer const& font_computer) const
 {
-    if (!m_cached_first_available_computed_font) {
-        // https://drafts.csswg.org/css-fonts/#first-available-font
-        // First font for which the character U+0020 (space) is not excluded by a unicode-range
-        m_cached_first_available_computed_font = computed_font_list(font_computer)->font_for_code_point(' ');
-    }
-
+    if (!m_cached_first_available_computed_font)
+        m_cached_first_available_computed_font = computed_font_list(font_computer)->first_available_font();
     return *m_cached_first_available_computed_font;
 }
 

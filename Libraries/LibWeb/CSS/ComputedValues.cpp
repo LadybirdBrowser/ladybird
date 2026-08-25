@@ -1630,7 +1630,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     if (applies(StyleGroupIndex::FontValues)) {
         auto font_list = computed_style.computed_font_list(document.font_computer());
         document.font_computer().pin_font_list_for_style_record(font_list);
-        auto const& first_available_font = font_list->font_for_code_point(' ');
+        auto const& first_available_font = font_list->first_available_font();
         auto const metrics = first_available_font.pixel_metrics();
         auto math_shift = keyword_to_math_shift(computed_style.property(PropertyID::MathShift).to_keyword()).release_value();
         auto math_style = keyword_to_math_style(computed_style.property(PropertyID::MathStyle).to_keyword()).release_value();
