@@ -53,9 +53,10 @@ Optional<PageSelectorList> Parser::parse_as_page_selector_list()
     Optional<Utf16FlyString> name;
     Vector<PagePseudoClass> pseudo_classes;
     for (auto const& item : prelude.items) {
-        if (item.flags != 0x80) {
-            VERIFY(item.flags <= to_underlying(PagePseudoClass::Blank));
-            pseudo_classes.append(static_cast<PagePseudoClass>(item.flags));
+        auto item_kind = static_cast<ValueParserFFI::FfiPageSelectorItemKind>(item.kind);
+        if (item_kind != ValueParserFFI::FfiPageSelectorItemKind::Name) {
+            VERIFY(item_kind <= ValueParserFFI::FfiPageSelectorItemKind::Blank);
+            pseudo_classes.append(static_cast<PagePseudoClass>(item.kind));
             continue;
         }
         if (name.has_value() || !pseudo_classes.is_empty())

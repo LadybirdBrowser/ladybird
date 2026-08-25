@@ -47,7 +47,7 @@ enum class ParsedRulePreludeKind : u8 {
 struct ParsedRulePreludeItem {
     Optional<Utf16FlyString> value;
     double number_value { 0 };
-    u8 flags { 0 };
+    u8 kind { 0 };
 };
 
 struct ParsedRulePrelude {

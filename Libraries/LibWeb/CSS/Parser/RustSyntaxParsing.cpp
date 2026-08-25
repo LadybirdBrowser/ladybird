@@ -300,7 +300,7 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
         items.unchecked_append({
             .value = optional_string(item.value_offset, item.value_length),
             .number_value = item.number_value,
-            .flags = item.flags,
+            .kind = item.kind,
         });
     }
     return {
