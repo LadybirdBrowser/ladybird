@@ -1133,6 +1133,11 @@ bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
     return element.is_playing_audio();
 }
 
+bool Internals::media_element_video_sink_is_ticking(HTML::HTMLMediaElement& element)
+{
+    return element.m_video_sink_is_ticking;
+}
+
 void Internals::set_media_element_ready_state(HTML::HTMLMediaElement& element, u16 ready_state)
 {
     if (ready_state > to_underlying(HTML::HTMLMediaElement::ReadyState::HaveEnoughData))

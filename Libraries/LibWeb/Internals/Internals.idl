@@ -209,6 +209,7 @@ interface Internals {
     object imageAnimationStateForURL(Utf16USVString url);
     boolean mediaElementIsFetching(HTMLMediaElement element);
     boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
+    boolean mediaElementVideoSinkIsTicking(HTMLMediaElement element);
     undefined setMediaElementReadyState(HTMLMediaElement element, unsigned short readyState);
     undefined setMediaElementPaused(HTMLMediaElement element, boolean paused);
     undefined setMediaElementSeeking(HTMLMediaElement element, boolean seeking);

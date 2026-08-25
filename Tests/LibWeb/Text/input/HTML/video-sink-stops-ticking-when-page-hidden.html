@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video" muted loop></video>
+<script>
+    const video = document.getElementById("video");
+
+    function nextVisibilityChange() {
+        return new Promise(resolve => document.addEventListener("visibilitychange", resolve, { once: true }));
+    }
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/test-webm.webm";
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        await video.play();
+        await animationFrame();
+        println(`ticking while visible: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        let visibilityChanged = nextVisibilityChange();
+        internals.setSystemVisibilityState("hidden");
+        await visibilityChanged;
+        println(`document.hidden: ${document.hidden}`);
+        println(`ticking while hidden: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        const videoCreatedWhileHidden = document.createElement("video");
+        videoCreatedWhileHidden.muted = true;
+        videoCreatedWhileHidden.src = "../../../Assets/test-webm.webm";
+        await new Promise(resolve => videoCreatedWhileHidden.addEventListener("loadedmetadata", resolve, { once: true }));
+        println(`ticking for a sink created while hidden: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`);
+
+        video.getBoundingClientRect();
+        visibilityChanged = nextVisibilityChange();
+        internals.setSystemVisibilityState("visible");
+        await visibilityChanged;
+        println(`ticking after becoming visible: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+        document.body.appendChild(videoCreatedWhileHidden);
+        await animationFrame();
+        await animationFrame();
+        println(`ticking for the late sink after two frames: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`);
+        done();
+    });
+</script>
