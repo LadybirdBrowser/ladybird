@@ -1,4 +1,16 @@
-boundary-before=20,10,40,100
-boundary-after=20,10,160,100
-partial-layouts=1 full-layouts=0
+flex-before=20,10,40,100
+flex-after=20,10,160,100
+flex-partial-layouts=1 full-layouts=0
+grid-before=20,130,40,100
+grid-after=20,130,160,100
+grid-partial-layouts=1 full-layouts=0
+nested-before=260,10,40,100
+nested-after=260,10,190,100
+nested-partial-layouts=1 full-layouts=0
+text-before=260,130,40,100
+text-width-grew=true
+text-partial-layouts=1 full-layouts=0
+PASS
+PASS
+PASS
 PASS
