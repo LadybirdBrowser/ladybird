@@ -356,6 +356,13 @@ impl<'pass> NodeFacts<'pass> {
         kind_is_replaced_box(self.data().kind)
     }
 
+    pub(crate) fn is_native_form_control_box(&self) -> bool {
+        matches!(
+            self.data().kind,
+            NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
+        )
+    }
+
     pub(crate) fn is_replaced_box_with_children(&self) -> bool {
         let data = self.data();
         kind_is_replaced_box(data.kind) && node_can_have_children(data)

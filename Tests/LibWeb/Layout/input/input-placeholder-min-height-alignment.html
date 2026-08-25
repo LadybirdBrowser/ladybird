@@ -1,0 +1,30 @@
+<!doctype html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    input {
+        box-sizing: border-box;
+        width: 341px;
+        border: 1px solid black;
+        padding: 1px 16px;
+        font: 16px/20px Ahem;
+    }
+
+    input::placeholder {
+        color: black;
+        opacity: 1;
+    }
+
+    .minimum {
+        min-height: 44px;
+    }
+
+    .maximum {
+        max-height: 18px;
+    }
+</style>
+<input class="minimum" placeholder="Email address" />
+<input class="maximum" placeholder="Email address" />

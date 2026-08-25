@@ -1,0 +1,42 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: inline
+      frag 0 from TextInputBox start: 0, length: 0, rect: [25,10 307x40] baseline: 32
+      frag 1 from TextNode start: 0, length: 1, rect: [349,27 8x16] baseline: 12.796875
+          " "
+      frag 2 from TextInputBox start: 0, length: 0, rect: [374,23 307x14] baseline: 19
+      TextInputBox <input.minimum> at [25,10] inline-block [0+1+16 307 16+1+0] [0+1+1 40 1+1+0] [BFC] children: not-inline
+        Box <div> at [25,10] flex-container(row) [0+0+0 307 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [25,20] flex-item [0+0+0 307 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [25,22 0x16] baseline: 12.796875
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [25,20] flex-item [-307+0+0 307 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 13, rect: [25,22 208x16] baseline: 12.796875
+                "Email address"
+            TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      TextInputBox <input.maximum> at [374,23] inline-block [0+1+16 307 16+1+0] [0+1+1 14 1+1+0] [BFC] children: not-inline
+        Box <div> at [374,23] flex-container(row) [0+0+0 307 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [374,20] flex-item [0+0+0 307 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [374,22 0x16] baseline: 12.796875
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [374,20] flex-item [-307+0+0 307 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 13, rect: [374,22 208x16] baseline: 12.796875
+                "Email address"
+            TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x44]
+      PaintableWithLines (TextInputBox<INPUT>.minimum) [8,8 341x44]
+        Paintable (Box<DIV>) [25,10 307x40]
+          PaintableWithLines (BlockContainer<DIV>) [25,20 307x20]
+          PaintableWithLines (BlockContainer<DIV>) [25,20 307x20]
+      PaintableWithLines (TextInputBox<INPUT>.maximum) [357,21 341x18]
+        Paintable (Box<DIV>) [374,23 307x14]
+          PaintableWithLines (BlockContainer<DIV>) [374,20 307x20]
+          PaintableWithLines (BlockContainer<DIV>) [374,20 307x20]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x60] (z-index: auto)

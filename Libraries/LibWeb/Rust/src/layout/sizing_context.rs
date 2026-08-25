@@ -1270,14 +1270,28 @@ impl SizingContext {
         if self.box_is_sized_as_replaced_element(node, available_space, constraints) {
             let inline_size = self.compute_inline_size_for_replaced_element(node, available_space, constraints);
             self.used(node).set_content_inline_size(inline_size);
+
             let block_size = self.compute_block_size_for_replaced_element(node, available_space, constraints);
             self.used(node).set_content_block_size(block_size);
+
+            // Native form controls lay out their internal shadow contents against the concrete size produced by
+            // replaced sizing. That size remains definite when a min/max constraint clamps the automatic preferred
+            // height, unless the preferred height is itself an intrinsic sizing constraint.
+            let native_control_block_size_constraint_is_active = facts.is_native_form_control_box()
+                && facts.has_auto_content_height()
+                && !style.height().is_intrinsic_sizing_constraint()
+                && ((!style.min_height().is_auto() && block_size > facts.auto_content_height())
+                    || (!style.max_height().is_auto()
+                        && !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+                        && block_size < facts.auto_content_height()));
+
             let block_size_is_automatic =
                 style.height().is_auto() || self.should_treat_block_size_as_auto(node, available_space, constraints);
-            if self.used(node).has_definite_inline_size()
+            let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
                 && facts.has_preferred_aspect_ratio()
-                && block_size_is_automatic
-            {
+                && block_size_is_automatic;
+
+            if native_control_block_size_constraint_is_active || block_size_is_definite_from_aspect_ratio {
                 self.used(node).has_definite_block_size.set(true);
             }
             return;
