@@ -11,7 +11,10 @@
 #include <AK/SaturatingMath.h>
 #include <AK/StringBuilder.h>
 #include <LibMedia/Codecs/FLAC.h>
+#include <LibMedia/Codecs/H264.h>
+#include <LibMedia/Codecs/H265.h>
 #include <LibMedia/Codecs/Opus.h>
+#include <LibMedia/Codecs/VP9.h>
 
 #include "Reader.h"
 #include "Streamer.h"
@@ -521,13 +524,44 @@ DecoderErrorOr<SampleEntry> Reader::parse_sample_entry(Streamer& streamer, BoxHe
         return entry;
     }
 
+    Optional<CodingIndependentCodePoints> color_from_colour_information_box;
     TRY(parse_child_boxes(streamer, header, IsTopLevel::No, [&](BoxHeader const& child) -> DecoderErrorOr<IterationDecision> {
         auto read_configuration = [&] -> DecoderErrorOr<FixedArray<u8>> {
             return streamer.read_bytes(child.content_size.value());
         };
 
-        if (first_is_one_of(child.type, AVC_CONFIGURATION_BOX, HEVC_CONFIGURATION_BOX, AV1_CONFIGURATION_BOX)) {
+        auto require_sample_entry_codec = [&](auto... codec_ids) -> DecoderErrorOr<void> {
+            if (first_is_one_of(entry.codec_id, codec_ids...))
+                return {};
+            return DecoderError::corrupted("Codec configuration box does not match its sample entry's format"sv);
+        };
+        auto adopt_parameters = [&](auto parameters) {
+            if (parameters.has_value())
+                entry.parsed_codec = ParsedCodec { *parameters };
+        };
+
+        if (child.type == AVC_CONFIGURATION_BOX) {
+            TRY(require_sample_entry_codec(CodecID::H264));
             entry.codec_initialization_data = TRY(read_configuration());
+            adopt_parameters(Codecs::H264::parse_configuration_record(entry.codec_initialization_data.span()));
+        } else if (child.type == HEVC_CONFIGURATION_BOX) {
+            TRY(require_sample_entry_codec(CodecID::H265));
+            entry.codec_initialization_data = TRY(read_configuration());
+            adopt_parameters(Codecs::H265::parse_configuration_record(entry.codec_initialization_data.span()));
+        } else if (child.type == AV1_CONFIGURATION_BOX) {
+            TRY(require_sample_entry_codec(CodecID::AV1));
+            entry.codec_initialization_data = TRY(read_configuration());
+            adopt_parameters(Codecs::AV1::parse_configuration_record(entry.codec_initialization_data.span()));
+        } else if (child.type == VP_CONFIGURATION_BOX) {
+            TRY(require_sample_entry_codec(CodecID::VP8, CodecID::VP9));
+            static constexpr size_t FULL_BOX_HEADER_SIZE = 4;
+            if (child.content_size.value() < FULL_BOX_HEADER_SIZE)
+                return DecoderError::corrupted("VP codec configuration box is too small"sv);
+            auto full_box = TRY(read_full_box_header(streamer));
+            if (entry.codec_id == CodecID::VP9 && full_box.version == 1) {
+                auto record = TRY(streamer.read_bytes(child.content_size.value() - FULL_BOX_HEADER_SIZE));
+                adopt_parameters(Codecs::VP9::parse_configuration_record(record.span()));
+            }
         } else if (child.type == OPUS_CONFIGURATION_BOX) {
             auto configuration = TRY(read_configuration());
             entry.codec_initialization_data = TRY(Codecs::Opus::codec_initialization_data_from_isobmff_configuration(configuration.span()));
@@ -535,14 +569,17 @@ DecoderErrorOr<SampleEntry> Reader::parse_sample_entry(Streamer& streamer, BoxHe
             auto configuration = TRY(read_configuration());
             entry.codec_initialization_data = TRY(Codecs::FLAC::codec_initialization_data_from_isobmff_configuration(configuration.span()));
         } else if (child.type == ELEMENTARY_STREAM_DESCRIPTOR_BOX) {
-            entry.codec_initialization_data = TRY(parse_elementary_stream_descriptor_box(streamer, child, entry.codec_id));
+            u8 object_type_indication = 0;
+            entry.codec_initialization_data = TRY(parse_elementary_stream_descriptor_box(streamer, child, entry.codec_id, object_type_indication));
+            if (entry.codec_id == CodecID::AAC)
+                adopt_parameters(Codecs::AAC::parse_configuration_record(entry.codec_initialization_data.span(), object_type_indication));
         } else if (child.type == COLOUR_INFORMATION_BOX && entry.video.has_value()) {
             if (TRY(streamer.read_four_cc()) == NCLX_COLOUR_TYPE) {
                 auto colour_primaries = TRY(streamer.read<u16>());
                 auto transfer_characteristics = TRY(streamer.read<u16>());
                 auto matrix_coefficients = TRY(streamer.read<u16>());
                 auto is_full_range = (TRY(streamer.read<u8>()) & 0x80) != 0;
-                entry.video->cicp = CodingIndependentCodePoints {
+                color_from_colour_information_box = CodingIndependentCodePoints {
                     static_cast<ColorPrimaries>(colour_primaries),
                     static_cast<TransferCharacteristics>(transfer_characteristics),
                     static_cast<MatrixCoefficients>(matrix_coefficients),
@@ -552,6 +589,15 @@ DecoderErrorOr<SampleEntry> Reader::parse_sample_entry(Streamer& streamer, BoxHe
         }
         return IterationDecision::Continue;
     }));
+
+    if (entry.video.has_value()) {
+        auto color_from_configuration_record = entry.parsed_codec.has_value() ? entry.parsed_codec->color_information() : OptionalNone {};
+        if (color_from_configuration_record.has_value() || color_from_colour_information_box.has_value()) {
+            auto cicp = color_from_configuration_record.value_or({});
+            cicp.adopt_specified_values(color_from_colour_information_box.value_or({}));
+            entry.video->cicp = cicp;
+        }
+    }
 
     return entry;
 }
@@ -568,7 +614,7 @@ static DecoderErrorOr<u32> read_descriptor_size(Streamer& streamer)
     return size;
 }
 
-DecoderErrorOr<FixedArray<u8>> Reader::parse_elementary_stream_descriptor_box(Streamer& streamer, BoxHeader const& header, CodecID& codec_id)
+DecoderErrorOr<FixedArray<u8>> Reader::parse_elementary_stream_descriptor_box(Streamer& streamer, BoxHeader const& header, CodecID& codec_id, u8& object_type_indication)
 {
     TRY(read_full_box_header(streamer));
 
@@ -591,7 +637,8 @@ DecoderErrorOr<FixedArray<u8>> Reader::parse_elementary_stream_descriptor_box(St
     if (TRY(streamer.read<u8>()) != DECODER_CONFIGURATION_DESCRIPTOR_TAG)
         return DecoderError::corrupted("ES_Descriptor contains no DecoderConfigDescriptor"sv);
     TRY(read_descriptor_size(streamer));
-    codec_id = codec_id_from_object_type_indication(TRY(streamer.read<u8>()));
+    object_type_indication = TRY(streamer.read<u8>());
+    codec_id = codec_id_from_object_type_indication(object_type_indication);
     // streamType, upStream and reserved, bufferSizeDB, maxBitrate, avgBitrate
     TRY(streamer.skip(1 + 3 + 4 + 4));
 

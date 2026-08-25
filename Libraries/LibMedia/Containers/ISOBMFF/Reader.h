@@ -51,7 +51,7 @@ private:
     static DecoderErrorOr<void> parse_sample_table_box(Streamer&, BoxHeader const&, TrackEntry&);
     static DecoderErrorOr<Vector<SampleEntry>> parse_sample_description_box(Streamer&, BoxHeader const&, HandlerType);
     static DecoderErrorOr<SampleEntry> parse_sample_entry(Streamer&, BoxHeader const&, HandlerType);
-    static DecoderErrorOr<FixedArray<u8>> parse_elementary_stream_descriptor_box(Streamer&, BoxHeader const&, CodecID&);
+    static DecoderErrorOr<FixedArray<u8>> parse_elementary_stream_descriptor_box(Streamer&, BoxHeader const&, CodecID&, u8& object_type_indication);
     static DecoderErrorOr<void> parse_track_fragment_box(Streamer&, BoxHeader const&, MovieFragmentAddressing&, TrackFragmentContexts const&, MovieFragment&);
 };
 

@@ -15,6 +15,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <LibMedia/CodecParameters.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Track.h>
 
@@ -129,6 +130,8 @@ public:
     void set_codec_id(String const& codec_id) { m_codec_id = codec_id; }
     ReadonlyBytes codec_private_data() const LIFETIME_BOUND { return m_codec_private_data.span(); }
     void set_codec_private_data(FixedArray<u8>&& codec_private_data) { m_codec_private_data = move(codec_private_data); }
+    Optional<ParsedCodec> const& parsed_codec() const { return m_parsed_codec; }
+    void set_parsed_codec(ParsedCodec parsed_codec) { m_parsed_codec = parsed_codec; }
     double timestamp_scale() const { return m_timestamp_scale; }
     void set_timestamp_scale(double timestamp_scale) { m_timestamp_scale = timestamp_scale; }
     u64 codec_delay() const { return m_codec_delay; }
@@ -155,6 +158,7 @@ private:
     Optional<String> m_language_bcp_47;
     String m_codec_id;
     FixedArray<u8> m_codec_private_data;
+    Optional<ParsedCodec> m_parsed_codec;
     double m_timestamp_scale { 1 };
     u64 m_codec_delay { 0 };
     u64 m_seek_pre_roll { 0 };
@@ -233,10 +237,15 @@ inline Track track_from_track_entry(TrackEntry const& track_entry, bool is_first
     if (track.type() == TrackType::Video) {
         auto video_track = track_entry.video_track();
         if (video_track.has_value()) {
+            auto cicp = CodingIndependentCodePoints {};
+            if (track_entry.parsed_codec().has_value())
+                cicp = track_entry.parsed_codec()->color_information().value_or({});
+            cicp.adopt_specified_values(video_track->color_format.to_cicp());
+
             track.set_video_data({
                 .pixel_width = video_track->pixel_width,
                 .pixel_height = video_track->pixel_height,
-                .cicp = video_track->color_format.to_cicp(),
+                .cicp = cicp,
             });
         }
     }

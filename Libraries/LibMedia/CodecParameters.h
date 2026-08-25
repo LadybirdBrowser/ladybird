@@ -76,6 +76,20 @@ public:
         }
     }
 
+    constexpr Optional<CodingIndependentCodePoints> color_information() const
+    {
+        if (!m_parameters.has_value())
+            return {};
+        switch (m_codec_id) {
+        case CodecID::AV1:
+            return m_parameters->av1.optional_fields.cicp;
+        case CodecID::VP9:
+            return m_parameters->vp9.color_parameters.cicp;
+        default:
+            return {};
+        }
+    }
+
     constexpr Optional<Codecs::AAC::Parameters const&> aac_parameters() const
     {
         VERIFY(m_codec_id == CodecID::AAC);
