@@ -7,6 +7,8 @@
 #include <LibGC/Heap.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderRegistry.h>
+#include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
+#include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
@@ -17,11 +19,9 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
-#include <LibWeb/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
-#include <LibWeb/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::MediaSourceExtensions {
@@ -454,9 +454,9 @@ Optional<Media::DecoderCapabilities> MediaSource::decoder_capabilities_for_type(
     using SupportsCodec = bool (*)(StringView, Media::CodecID);
     auto supports_codec = [&]() -> SupportsCodec {
         if (mime_type->subtype() == "webm")
-            return WebMByteStreamParser::supports_codec;
+            return Media::MediaSourceExtensions::WebMByteStreamParser::supports_codec;
         if (mime_type->subtype() == "mp4")
-            return ISOBMFFByteStreamParser::supports_codec;
+            return Media::MediaSourceExtensions::ISOBMFFByteStreamParser::supports_codec;
         return nullptr;
     }();
     // NB: A subtype that no byte stream format handles is the media subtype half of the step above.

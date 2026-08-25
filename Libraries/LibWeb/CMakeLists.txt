@@ -805,17 +805,12 @@ set(SOURCES
     MediaCapture/MediaStreamTrackEvent.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
     MediaSourceExtensions/EventNames.cpp
-    MediaSourceExtensions/ISOBMFFByteStreamParser.cpp
     MediaSourceExtensions/ManagedMediaSource.cpp
     MediaSourceExtensions/ManagedSourceBuffer.cpp
     MediaSourceExtensions/MediaSource.cpp
     MediaSourceExtensions/MediaSourceHandle.cpp
     MediaSourceExtensions/SourceBuffer.cpp
     MediaSourceExtensions/SourceBufferList.cpp
-    MediaSourceExtensions/SourceBufferProcessor.cpp
-    MediaSourceExtensions/WebMByteStreamParser.cpp
-    MediaSourceExtensions/TrackBuffer.cpp
-    MediaSourceExtensions/TrackBufferDemuxer.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
     MixedContent/AbstractOperations.cpp

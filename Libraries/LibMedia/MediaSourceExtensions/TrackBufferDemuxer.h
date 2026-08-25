@@ -15,15 +15,15 @@
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/TimeRanges.h>
-#include <LibWeb/Export.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 // TrackBufferDemuxer stores coded frames for a single track and implements the Demuxer
 // interface so that it can be used as a media source for PlaybackManager's data providers.
 // It is shared between TrackBuffer (which writes frames) and PlaybackManager (which reads them).
-class WEB_API TrackBufferDemuxer final : public Media::Demuxer {
+class MEDIA_API TrackBufferDemuxer final : public Media::Demuxer {
 public:
     struct RemovedFrame {
         size_t byte_size { 0 };

@@ -13,7 +13,7 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Forward.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 enum class SegmentType : u8 {
     Incomplete,

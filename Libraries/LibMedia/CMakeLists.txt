@@ -47,6 +47,11 @@ set(SOURCES
     DecoderRegistry.cpp
     DemuxerRegistry.cpp
     IncrementallyPopulatedStream.cpp
+    MediaSourceExtensions/ISOBMFFByteStreamParser.cpp
+    MediaSourceExtensions/SourceBufferProcessor.cpp
+    MediaSourceExtensions/TrackBuffer.cpp
+    MediaSourceExtensions/TrackBufferDemuxer.cpp
+    MediaSourceExtensions/WebMByteStreamParser.cpp
     MediaSupport.cpp
     MediaTime.cpp
     MonotonicMediaClock.cpp

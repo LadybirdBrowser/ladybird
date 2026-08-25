@@ -9,13 +9,13 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/DecoderRegistry.h>
+#include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
+#include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
+#include <LibMedia/MediaSourceExtensions/TrackBuffer.h>
+#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
-#include <LibWeb/MediaSourceExtensions/ByteStreamParser.h>
-#include <LibWeb/MediaSourceExtensions/SourceBufferProcessor.h>
-#include <LibWeb/MediaSourceExtensions/TrackBuffer.h>
-#include <LibWeb/MediaSourceExtensions/TrackBufferDemuxer.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 SourceBufferProcessor::SourceBufferProcessor()
     : m_cursor(adopt_ref(*new Media::ReadonlyBytesCursor({})))
@@ -338,7 +338,7 @@ void SourceBufferProcessor::reset_parser_state()
     // 7. Remove all bytes from the [[input buffer]].
     m_input_buffer.clear();
     m_cursor->set_data({});
-    MUST(m_cursor->seek(0, SeekMode::SetPosition));
+    MUST(m_cursor->seek(0, AK::SeekMode::SetPosition));
 
     // 8. Set [[append state]] to WAITING_FOR_SEGMENT.
     m_append_state = AppendState::WaitingForSegment;
@@ -819,7 +819,7 @@ void SourceBufferProcessor::drop_consumed_bytes_from_input_buffer()
     AK::TypedTransfer<u8>::move(m_input_buffer.data(), remaining_bytes.data(), remaining_bytes.size());
     m_input_buffer.trim(remaining_bytes.size(), false);
     m_cursor->set_data(m_input_buffer.bytes());
-    MUST(m_cursor->seek(0, SeekMode::SetPosition));
+    MUST(m_cursor->seek(0, AK::SeekMode::SetPosition));
 }
 
 void SourceBufferProcessor::unset_all_track_buffer_timestamps()

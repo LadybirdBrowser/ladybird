@@ -7,6 +7,11 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
+#include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
+#include <LibMedia/MediaSourceExtensions/TrackBuffer.h>
+#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
+#include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
@@ -16,14 +21,9 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
-#include <LibWeb/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
-#include <LibWeb/MediaSourceExtensions/SourceBufferProcessor.h>
-#include <LibWeb/MediaSourceExtensions/TrackBuffer.h>
-#include <LibWeb/MediaSourceExtensions/TrackBufferDemuxer.h>
-#include <LibWeb/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
@@ -32,24 +32,26 @@ namespace Web::MediaSourceExtensions {
 
 GC_DEFINE_ALLOCATOR(SourceBuffer);
 
-static Bindings::AppendMode to_bindings_append_mode(AppendMode mode)
+static Bindings::AppendMode to_bindings_append_mode(Media::MediaSourceExtensions::AppendMode mode)
 {
+    using enum Media::MediaSourceExtensions::AppendMode;
     switch (mode) {
-    case AppendMode::Segments:
+    case Segments:
         return Bindings::AppendMode::Segments;
-    case AppendMode::Sequence:
+    case Sequence:
         return Bindings::AppendMode::Sequence;
     }
     VERIFY_NOT_REACHED();
 }
 
-static AppendMode append_mode_from_bindings(Bindings::AppendMode mode)
+static Media::MediaSourceExtensions::AppendMode append_mode_from_bindings(Bindings::AppendMode mode)
 {
+    using enum Bindings::AppendMode;
     switch (mode) {
-    case Bindings::AppendMode::Segments:
-        return AppendMode::Segments;
-    case Bindings::AppendMode::Sequence:
-        return AppendMode::Sequence;
+    case Segments:
+        return Media::MediaSourceExtensions::AppendMode::Segments;
+    case Sequence:
+        return Media::MediaSourceExtensions::AppendMode::Sequence;
     }
     VERIFY_NOT_REACHED();
 }
@@ -62,7 +64,7 @@ GC::Ref<SourceBuffer> SourceBuffer::create(MediaSource& media_source, GC::Ref<HT
 SourceBuffer::SourceBuffer(MediaSource& media_source, GC::Ref<HTML::AudioTrackList> audio_tracks, GC::Ref<HTML::VideoTrackList> video_tracks, GC::Ref<HTML::TextTrackList> text_tracks)
     : DOM::EventTarget()
     , m_media_source(media_source)
-    , m_processor(adopt_ref(*new SourceBufferProcessor()))
+    , m_processor(adopt_ref(*new Media::MediaSourceExtensions::SourceBufferProcessor()))
     , m_audio_tracks(audio_tracks)
     , m_video_tracks(video_tracks)
     , m_text_tracks(text_tracks)
@@ -76,7 +78,7 @@ SourceBuffer::SourceBuffer(MediaSource& media_source, GC::Ref<HTML::AudioTrackLi
             self->m_media_source->assign_duration_change(new_duration);
     });
 
-    m_processor->set_first_initialization_segment_callback([self = GC::Weak(*this)](InitializationSegmentData&& init_data) {
+    m_processor->set_first_initialization_segment_callback([self = GC::Weak(*this)](Media::MediaSourceExtensions::InitializationSegmentData&& init_data) {
         if (!self)
             return;
         self->on_first_initialization_segment_processed(init_data);
@@ -198,11 +200,11 @@ void SourceBuffer::set_content_type(Utf16View type)
     auto mime_type = MimeSniff::MimeType::parse(type);
     VERIFY(mime_type.has_value());
 
-    NonnullOwnPtr<ByteStreamParser> parser = [&]() -> NonnullOwnPtr<ByteStreamParser> {
+    auto parser = [&]() -> NonnullOwnPtr<Media::MediaSourceExtensions::ByteStreamParser> {
         if (mime_type->subtype() == "webm")
-            return make<WebMByteStreamParser>();
+            return make<Media::MediaSourceExtensions::WebMByteStreamParser>();
         if (mime_type->subtype() == "mp4")
-            return make<ISOBMFFByteStreamParser>();
+            return make<Media::MediaSourceExtensions::ISOBMFFByteStreamParser>();
         VERIFY_NOT_REACHED();
     }();
 
@@ -250,7 +252,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double timestamp_of
     auto new_timestamp_offset = AK::Duration::from_seconds_f64(timestamp_offset);
 
     // 6. If the mode attribute equals "sequence", then set the [[group start timestamp]] to new timestamp offset.
-    if (m_processor->mode() == AppendMode::Sequence)
+    if (m_processor->mode() == Media::MediaSourceExtensions::AppendMode::Sequence)
         m_processor->set_group_start_timestamp(new_timestamp_offset);
 
     // 7. Update the attribute to new timestamp offset.
@@ -308,7 +310,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode bindings_m
 
     // 3. If the [[generate timestamps flag]] equals true and the new value equals "segments",
     //    then throw a TypeError exception and abort these steps.
-    if (m_processor->generate_timestamps_flag() && mode == AppendMode::Segments)
+    if (m_processor->generate_timestamps_flag() && mode == Media::MediaSourceExtensions::AppendMode::Segments)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set mode to 'segments' when generate timestamps flag is true"_utf16 };
 
     // 4. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
@@ -324,7 +326,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode bindings_m
         return WebIDL::InvalidStateError::create("Cannot change mode while parsing a media segment"_utf16);
 
     // 6. If the new value equals "sequence", then set the [[group start timestamp]] to the [[group end timestamp]].
-    if (mode == AppendMode::Sequence)
+    if (mode == Media::MediaSourceExtensions::AppendMode::Sequence)
         m_processor->set_group_start_timestamp(m_processor->group_end_timestamp());
 
     // 7. Update the attribute to the new value.
@@ -699,7 +701,7 @@ void SourceBuffer::run_append_error_algorithm()
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-init-segment-received
-void SourceBuffer::on_first_initialization_segment_processed(InitializationSegmentData const& init_data)
+void SourceBuffer::on_first_initialization_segment_processed(Media::MediaSourceExtensions::InitializationSegmentData const& init_data)
 {
     // 4. Let active track flag equal false.
     bool active_track_flag = false;

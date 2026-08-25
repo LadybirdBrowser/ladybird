@@ -30,7 +30,6 @@ set(TEST_SOURCES
     TestStructuredSerializeHardening.cpp
     TestStructuredSerializeSharedArrayBuffer.cpp
     TestStyleEngineBridge.cpp
-    TestTrackBufferDemuxer.cpp
     TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
     TestWindowProxyWorld.cpp

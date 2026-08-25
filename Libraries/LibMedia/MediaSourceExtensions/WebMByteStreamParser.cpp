@@ -8,10 +8,10 @@
 #include <AK/ScopeGuard.h>
 #include <LibMedia/Containers/Matroska/ElementIDs.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
+#include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibMedia/MediaStream.h>
-#include <LibWeb/MediaSourceExtensions/WebMByteStreamParser.h>
 
-namespace Web::MediaSourceExtensions {
+namespace Media::MediaSourceExtensions {
 
 using namespace Media::Matroska;
 
@@ -33,7 +33,7 @@ Media::DecoderErrorOr<void> WebMByteStreamParser::skip_ignored_bytes(Media::Medi
 
     while (true) {
         ArmedScopeGuard restore_position = [&cursor, position_before = cursor.position()] {
-            MUST(cursor.seek(position_before, SeekMode::SetPosition));
+            MUST(cursor.seek(position_before, AK::SeekMode::SetPosition));
         };
 
         auto element_id = TRY(streamer.read_element_id());
@@ -66,7 +66,7 @@ Media::DecoderErrorOr<SegmentType> WebMByteStreamParser::sniff_segment_type(Medi
 
     auto element_id_or_error = streamer.read_element_id();
     // Always restore cursor — sniffing must not consume bytes.
-    TRY(cursor.seek(position_before, SeekMode::SetPosition));
+    TRY(cursor.seek(position_before, AK::SeekMode::SetPosition));
 
     if (element_id_or_error.is_error()) {
         if (element_id_or_error.error().category() == Media::DecoderErrorCategory::EndOfStream)
@@ -94,7 +94,7 @@ Media::DecoderErrorOr<void> WebMByteStreamParser::parse_initialization_segment(M
 {
     Streamer streamer { cursor };
     ArmedScopeGuard restore_position = [&cursor, prior_position = static_cast<i64>(cursor.position())] {
-        MUST(cursor.seek(prior_position, SeekMode::SetPosition));
+        MUST(cursor.seek(prior_position, AK::SeekMode::SetPosition));
     };
 
     // The initialization segment MUST start with an EBML Header element...
@@ -128,7 +128,7 @@ Media::DecoderErrorOr<void> WebMByteStreamParser::parse_initialization_segment(M
 
         // NB: Stop reading the initialization segment upon finding another EBML Header, or a Cluster element.
         if (child_element_id == EBML_MASTER_ELEMENT_ID || child_element_id == CLUSTER_ELEMENT_ID) {
-            TRY(cursor.seek(child_position, SeekMode::SetPosition));
+            TRY(cursor.seek(child_position, AK::SeekMode::SetPosition));
             break;
         }
 
@@ -266,13 +266,13 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                 auto data_position = block.data_position();
                 auto data_size = block.data_size();
                 auto current_position = streamer.position();
-                TRY(cursor.seek(data_position, SeekMode::SetPosition));
+                TRY(cursor.seek(data_position, AK::SeekMode::SetPosition));
 
                 // FIXME: Support lacing.
                 if (block.lacing() != Block::Lacing::None)
                     return Media::DecoderError::with_description(Media::DecoderErrorCategory::NotImplemented, "Block lacing is not supported"sv);
                 auto frame_data = TRY(streamer.read_raw_octets(data_size));
-                TRY(cursor.seek(current_position, SeekMode::SetPosition));
+                TRY(cursor.seek(current_position, AK::SeekMode::SetPosition));
 
                 // Every decode sequence begins with the track's configuration, so that a decoder can be created
                 // for the frame that starts it.
@@ -308,7 +308,7 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
         auto read_block_result = try_read_block();
         if (read_block_result.is_error()) {
             if (read_block_result.error().category() == Media::DecoderErrorCategory::EndOfStream) {
-                TRY(cursor.seek(block_position, SeekMode::SetPosition));
+                TRY(cursor.seek(block_position, AK::SeekMode::SetPosition));
                 return result;
             }
             return read_block_result.release_error();
