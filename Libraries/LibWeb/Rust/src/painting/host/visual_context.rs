@@ -5,16 +5,19 @@
  */
 
 use super::*;
+use crate::layout::OptionalCssPixelRect;
+use crate::painting::visual_context::{MaskLayerOrigin, TransformDataRole};
+use libgfx_rust::{
+    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, IntRect, MaskKind, WindingRule,
+};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSvgMaskFacts {
-    pub has_mask_area: bool,
-    pub mask_area: crate::layout::FfiCssPixelRect,
-    pub mask_kind: i32,
-    pub has_clip_area: bool,
-    pub clip_area: crate::layout::FfiCssPixelRect,
+    pub mask_area: OptionalCssPixelRect,
+    pub mask_kind: MaskKind,
+    pub clip_area: OptionalCssPixelRect,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -31,8 +34,7 @@ pub struct FfiVisualContextTreeInputs {
 #[repr(C)]
 pub struct FfiResolvedEffectsFilter {
     pub gfx_filter: *mut c_void,
-    pub has_svg_filter_bounds: bool,
-    pub svg_filter_bounds: crate::layout::FfiCssPixelRect,
+    pub svg_filter_bounds: OptionalCssPixelRect,
 }
 
 #[derive(Clone, Copy)]
@@ -43,7 +45,8 @@ pub struct FfiVisualContextHostCallbacks {
     pub scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiCssPixelPoint,
     pub svg_transform_view_box_rect:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut crate::layout::FfiCssPixelRect) -> bool,
-    pub svg_additional_element_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut f32) -> bool,
+    pub svg_additional_element_transform:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut libgfx_rust::AffineTransform) -> bool,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
     pub resolve_effects_filter: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiResolvedEffectsFilter,
@@ -65,17 +68,19 @@ impl FfiVisualContextHostCallbacks {
         layout_node_shell: *mut c_void,
     ) -> Option<crate::layout::FfiCssPixelRect> {
         let mut rect = crate::layout::FfiCssPixelRect::default();
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.svg_transform_view_box_rect)(self.context, layout_node_shell, &raw mut rect) }.then_some(rect)
+        // SAFETY: The C++ host writes the rect synchronously when it returns true.
+        let has_rect = unsafe { (self.svg_transform_view_box_rect)(self.context, layout_node_shell, &raw mut rect) };
+        has_rect.then_some(rect)
     }
     pub(crate) fn svg_additional_element_transform(
         &self,
         layout_node_shell: *mut c_void,
     ) -> Option<libgfx_rust::AffineTransform> {
-        let mut values = [0.0f32; 6];
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.svg_additional_element_transform)(self.context, layout_node_shell, values.as_mut_ptr()) }
-            .then_some(libgfx_rust::AffineTransform { values })
+        let mut transform = libgfx_rust::AffineTransform::default();
+        // SAFETY: The C++ host writes the transform synchronously when it returns true.
+        let has_transform =
+            unsafe { (self.svg_additional_element_transform)(self.context, layout_node_shell, &raw mut transform) };
+        has_transform.then_some(transform)
     }
     pub(crate) fn root_background_source(&self) -> FfiRootBackgroundSource {
         // SAFETY: The C++ host answers synchronously.
@@ -118,21 +123,21 @@ pub enum FfiVisualContextNodeKind {
 pub struct FfiVisualContextNodeExport {
     pub kind: FfiVisualContextNodeKind,
     pub parent_index: usize,
-    pub matrix: [f32; 16],
-    pub origin: [f32; 2],
+    pub matrix: FloatMatrix4x4,
+    pub origin: FloatPoint,
     pub flattens_inherited_transform: bool,
-    pub transform_role: u8,
+    pub transform_role: TransformDataRole,
     pub has_sorting_context_root: bool,
     pub synthetic_plane: bool,
-    pub rect: [i32; 4],
-    pub corner_radii: [i32; 8],
+    pub rect: IntRect,
+    pub corner_radii: CornerRadii,
     pub opacity: f32,
-    pub blend_mode: i32,
+    pub blend_mode: CompositingAndBlendingOperator,
     pub filter: *mut c_void,
     pub path: *mut c_void,
-    pub winding_rule: i32,
-    pub mask_kind: i32,
-    pub mask_origin: u8,
+    pub winding_rule: WindingRule,
+    pub mask_kind: MaskKind,
+    pub mask_origin: MaskLayerOrigin,
     pub index_value: usize,
     pub is_sticky: bool,
     pub state_slot: usize,

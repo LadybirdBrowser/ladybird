@@ -287,21 +287,21 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
     let mut out = FfiVisualContextNodeExport {
         kind: node.data.kind(),
         parent_index: node.parent_index,
-        matrix: [0.0; 16],
-        origin: [0.0; 2],
+        matrix: FloatMatrix4x4::default(),
+        origin: FloatPoint::default(),
         flattens_inherited_transform: false,
-        transform_role: 0,
+        transform_role: TransformDataRole::CssTransform,
         has_sorting_context_root: false,
         synthetic_plane: false,
-        rect: [0; 4],
-        corner_radii: [0; 8],
+        rect: IntRect::default(),
+        corner_radii: CornerRadii::default(),
         opacity: 1.0,
-        blend_mode: 0,
+        blend_mode: CompositingAndBlendingOperator::Normal,
         filter: std::ptr::null_mut(),
         path: std::ptr::null_mut(),
-        winding_rule: 0,
-        mask_kind: 0,
-        mask_origin: 0,
+        winding_rule: WindingRule::Nonzero,
+        mask_kind: MaskKind::Alpha,
+        mask_origin: MaskLayerOrigin::CssMaskLayers,
         index_value: 0,
         is_sticky: false,
         state_slot: 0,
@@ -309,40 +309,20 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
         compensate_horizontal_scroll: false,
         compensate_vertical_scroll: false,
     };
-    let write_matrix = |matrix: &FloatMatrix4x4, out: &mut [f32; 16]| {
-        for (row, values) in matrix.elements.iter().enumerate() {
-            for (column, value) in values.iter().enumerate() {
-                out[row * 4 + column] = *value;
-            }
-        }
-    };
-    let write_rect = |rect: &IntRect, out: &mut [i32; 4]| {
-        *out = [rect.x, rect.y, rect.width, rect.height];
-    };
     match &node.data {
         VisualContextData::Scroll(scroll) => {
             out.is_sticky = scroll.is_sticky;
             out.state_slot = scroll.state_slot;
         }
         VisualContextData::Clip(clip) => {
-            write_rect(&clip.rect, &mut out.rect);
-            let radii = &clip.corner_radii;
-            out.corner_radii = [
-                radii.top_left.horizontal_radius,
-                radii.top_left.vertical_radius,
-                radii.top_right.horizontal_radius,
-                radii.top_right.vertical_radius,
-                radii.bottom_right.horizontal_radius,
-                radii.bottom_right.vertical_radius,
-                radii.bottom_left.horizontal_radius,
-                radii.bottom_left.vertical_radius,
-            ];
+            out.rect = clip.rect;
+            out.corner_radii = clip.corner_radii;
         }
         VisualContextData::Transform(transform) => {
-            write_matrix(&transform.matrix, &mut out.matrix);
-            out.origin = [transform.origin.x, transform.origin.y];
+            out.matrix = transform.matrix;
+            out.origin = transform.origin;
             out.flattens_inherited_transform = transform.flattens_inherited_transform;
-            out.transform_role = transform.role as u8;
+            out.transform_role = transform.role;
             if let Some(root) = transform.sorting_context_root_index {
                 out.has_sorting_context_root = true;
                 out.index_value = root;
@@ -350,7 +330,7 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
             out.synthetic_plane = transform.synthetic_plane;
         }
         VisualContextData::Perspective(perspective) => {
-            write_matrix(&perspective.matrix, &mut out.matrix);
+            out.matrix = perspective.matrix;
             out.flattens_inherited_transform = perspective.flattens_inherited_transform;
         }
         VisualContextData::BackfaceVisibility(backface) => {
@@ -359,12 +339,12 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
         }
         VisualContextData::ClipPath(clip_path) => {
             out.path = clip_path.path.as_raw();
-            write_rect(&clip_path.bounding_rect, &mut out.rect);
-            out.winding_rule = clip_path.fill_rule as i32;
+            out.rect = clip_path.bounding_rect;
+            out.winding_rule = clip_path.fill_rule;
         }
         VisualContextData::Effects(effects) => {
             out.opacity = effects.opacity;
-            out.blend_mode = effects.blend_mode as i32;
+            out.blend_mode = effects.blend_mode;
             out.filter = effects
                 .filter
                 .as_ref()
@@ -380,9 +360,9 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
             out.compensate_vertical_scroll = shift.compensate_vertical_scroll;
         }
         VisualContextData::Mask(mask) => {
-            write_rect(&mask.rect, &mut out.rect);
-            out.mask_kind = mask.kind as i32;
-            out.mask_origin = mask.origin as u8;
+            out.rect = mask.rect;
+            out.mask_kind = mask.kind;
+            out.mask_origin = mask.origin;
         }
     }
     out

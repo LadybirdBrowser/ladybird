@@ -521,7 +521,7 @@ fn paint_image_layer(
         *applied = true;
     };
 
-    if prepare.has_single_pixel_color {
+    if prepare.single_pixel_color.has_value {
         apply_blend_layer(recorder, applied_blend_layer);
         // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
         //               However, we must first figure out the real coverage area, taking repeat etc into account.
@@ -534,10 +534,9 @@ fn paint_image_layer(
                 Some(current) => current.united(image_device_rect),
             });
         }
-        recorder.recorder.fill_rect(
-            fill_rect.unwrap_or_default(),
-            libgfx_rust::Color(prepare.single_pixel_color),
-        );
+        recorder
+            .recorder
+            .fill_rect(fill_rect.unwrap_or_default(), prepare.single_pixel_color.value);
     } else if prepare.is_image_style_value
         && ((repeat_x || repeat_y) || compositing_and_blending_operator != CompositingAndBlendingOperator::Normal)
         && !repeat_x_has_gap
@@ -652,13 +651,8 @@ fn paint_image_layer(
                 shell,
                 image.list,
                 image.computed_index,
-                [
-                    tile_dest_rect.x,
-                    tile_dest_rect.y,
-                    tile_dest_rect.width,
-                    tile_dest_rect.height,
-                ],
-                [image_rect.width.raw_value(), image_rect.height.raw_value()],
+                tile_dest_rect,
+                image_rect.size().into(),
                 image_rendering,
                 libgfx_rust::FloatSize {
                     width: 1.0,
@@ -729,8 +723,8 @@ fn paint_image_layer(
                 shell,
                 image.list,
                 image.computed_index,
-                [dest_rect.x, dest_rect.y, dest_rect.width, dest_rect.height],
-                [image_rect.width.raw_value(), image_rect.height.raw_value()],
+                dest_rect,
+                image_rect.size().into(),
                 image_rendering,
                 accumulated_scale,
             );

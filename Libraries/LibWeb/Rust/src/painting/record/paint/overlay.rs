@@ -36,20 +36,20 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
                 converter.rounded_device_rect(CssPixelRect::from(scrollbar.thumb_rect)),
                 converter.rounded_device_rect(CssPixelRect::from(scrollbar.track_rect)),
                 scrollbar.thumb_travel_to_scroll_ratio,
-                Color(facts.thumb_color),
-                Color(facts.track_color),
+                facts.thumb_color,
+                facts.track_color,
                 index == 0,
             );
         }
     }
 
-    if facts.has_resizer_rect {
+    if facts.resizer_rect.has_value {
         let bottom_left_resizer = recorder.is_chrome_mirrored(paintable);
-        let padding = CssPixels::from_raw(facts.resize_gripper_padding);
+        let padding = facts.resize_gripper_padding;
         let two = CssPixels::from_integer(2);
         let half = padding.div_as_fraction(two);
         let negative_half = (-padding).div_as_fraction(two);
-        let mut css_rect = CssPixelRect::from(facts.resizer_rect);
+        let mut css_rect = CssPixelRect::from(facts.resizer_rect.value);
         css_rect.x += half;
         css_rect.width -= padding;
         css_rect.y += half;

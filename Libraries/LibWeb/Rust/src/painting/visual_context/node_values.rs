@@ -512,8 +512,9 @@ pub(crate) fn compute_effects_data(
     let resolved_filter = callbacks.resolve_effects_filter(layout_arena.shell_if_live(slot));
     layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
         resolved_filter
-            .has_svg_filter_bounds
-            .then_some(resolved_filter.svg_filter_bounds),
+            .svg_filter_bounds
+            .has_value
+            .then_some(resolved_filter.svg_filter_bounds.value),
     );
     let filter_raw = resolved_filter.gfx_filter;
     let filter = if filter_raw.is_null() {
@@ -633,15 +634,6 @@ fn kind_overrides_svg_mask_virtuals(kind: crate::painting::paintable_data::Paint
     )
 }
 
-fn mask_kind_from(value: i32) -> libgfx_rust::MaskKind {
-    use libgfx_rust::MaskKind;
-    if value == MaskKind::Luminance as i32 {
-        MaskKind::Luminance
-    } else {
-        MaskKind::Alpha
-    }
-}
-
 pub(crate) fn mask_layer_presence(
     layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
@@ -669,17 +661,17 @@ pub(crate) fn mask_layer_presence(
     }
     if kind_overrides_svg_mask_virtuals(data.kind) {
         let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(slot));
-        if svg_facts.has_mask_area {
+        if svg_facts.mask_area.has_value {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgMask,
-                area: CssPixelRect::from(svg_facts.mask_area),
-                kind: mask_kind_from(svg_facts.mask_kind),
+                area: CssPixelRect::from(svg_facts.mask_area.value),
+                kind: svg_facts.mask_kind,
             });
         }
-        if svg_facts.has_clip_area {
+        if svg_facts.clip_area.has_value {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgClip,
-                area: CssPixelRect::from(svg_facts.clip_area),
+                area: CssPixelRect::from(svg_facts.clip_area.value),
                 kind: libgfx_rust::MaskKind::Alpha,
             });
         }

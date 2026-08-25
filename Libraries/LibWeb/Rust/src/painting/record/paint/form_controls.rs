@@ -43,9 +43,9 @@ impl InputColors {
 fn compute_input_colors(facts: &FfiReplacedPaintFacts) -> InputColors {
     // These shades have been picked to work well for all themes and have enough variation to paint
     // all input states (disabled, enabled, checked, etc).
-    let canvas = Color(facts.canvas_color);
-    let base_text_color = Color(facts.canvas_text_color);
-    let accent = Color(facts.accent_color);
+    let canvas = facts.canvas_color;
+    let base_text_color = facts.canvas_text_color;
+    let accent = facts.accent_color;
     let base = InputColors::get_shade(base_text_color.inverted(), 0.8, canvas);
     let dark_gray = InputColors::get_shade(base_text_color, 0.3, canvas);
     let gray = InputColors::get_shade(dark_gray, 0.4, canvas);
@@ -91,7 +91,7 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable));
     let enabled = facts.enabled;
-    let canvas_color = Color(facts.canvas_color);
+    let canvas_color = facts.canvas_color;
 
     // Keep checkboxes painted as square, centered within the space they occupy.
     let outer_rect = absolute_rect(recorder.layout_arena, paintable);
@@ -184,7 +184,7 @@ pub(crate) fn paint_radio_button_foreground(recorder: &mut PaintRecorder<'_>, pa
     let facts = recorder
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable));
-    let canvas_color = Color(facts.canvas_color);
+    let canvas_color = facts.canvas_color;
 
     let enabled = facts.enabled;
     let input_colors = compute_input_colors(&facts);

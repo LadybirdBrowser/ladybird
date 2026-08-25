@@ -492,15 +492,11 @@ fn image_intrinsic_facts<'a>(
             LayerImageIntrinsics {
                 is_paintable: facts.is_paintable,
                 natural: SizeWithAspectRatio {
-                    width: facts
-                        .has_natural_width
-                        .then(|| CssPixels::from_raw(facts.natural_width)),
-                    height: facts
-                        .has_natural_height
-                        .then(|| CssPixels::from_raw(facts.natural_height)),
-                    aspect_ratio: facts.has_natural_aspect_ratio.then(|| Fraction {
-                        numerator: CssPixels::from_raw(facts.natural_aspect_ratio_numerator),
-                        denominator: CssPixels::from_raw(facts.natural_aspect_ratio_denominator),
+                    width: facts.natural_width.has_value.then_some(facts.natural_width.value),
+                    height: facts.natural_height.has_value.then_some(facts.natural_height.value),
+                    aspect_ratio: facts.has_natural_aspect_ratio.then_some(Fraction {
+                        numerator: facts.natural_aspect_ratio_numerator,
+                        denominator: facts.natural_aspect_ratio_denominator,
                     }),
                 },
                 // SAFETY: The selected image's retained value is kept alive by the memoized

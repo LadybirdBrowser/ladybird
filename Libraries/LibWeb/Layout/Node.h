@@ -559,9 +559,9 @@ public:
     CSS::WillChange will_change() const { return style_group<CSS::ComputedValues::MiscResetValues>().will_change_value(); }
     Optional<Utf16FlyString> view_transition_name() const { return style_group<CSS::ComputedValues::MiscResetValues>().view_transition_name_value(); }
     Color outline_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::MiscResetValues>().outline_color); }
-    CSSPixels outline_offset() const { return CSSPixels::from_raw(style_group<CSS::ComputedValues::MiscResetValues>().outline_offset); }
+    CSSPixels outline_offset() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_offset; }
     CSS::OutlineStyle outline_style() const { return static_cast<CSS::OutlineStyle>(style_group<CSS::ComputedValues::MiscResetValues>().outline_style); }
-    CSSPixels outline_width() const { return CSSPixels::from_raw(style_group<CSS::ComputedValues::MiscResetValues>().outline_width); }
+    CSSPixels outline_width() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_width; }
     Color background_color() const { return style_group<CSS::ComputedValues::BackgroundValues>().background_color_value(); }
     Vector<CSS::BackgroundLayerData> const& background_layers() const
     {
@@ -615,8 +615,8 @@ public:
     CSS::WhiteSpaceCollapse white_space_collapse() const { return style_group<CSS::ComputedValues::InheritedTextValues>().white_space_collapse_value(); }
     Color text_decoration_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::TextResetValues>().text_decoration_color); }
     Optional<CSS::ContentData> const& content() const { return m_content; }
-    CSSPixels line_height() const { return CSSPixels::from_raw(style_group<CSS::ComputedValues::FontValues>().line_height_used); }
-    CSSPixels font_size() const { return CSSPixels::from_raw(style_group<CSS::ComputedValues::FontValues>().font_size); }
+    CSSPixels line_height() const { return style_group<CSS::ComputedValues::FontValues>().line_height_used; }
+    CSSPixels font_size() const { return style_group<CSS::ComputedValues::FontValues>().font_size; }
     Gfx::FontCascadeList const& font_list() const { return style_group<CSS::ComputedValues::FontValues>().font_list_value(); }
     CSS::FlexDirection flex_direction() const { return static_cast<CSS::FlexDirection>(style_group<CSS::ComputedValues::AlignmentValues>().flex_direction); }
     CSS::AlignSelf align_self() const { return static_cast<CSS::AlignSelf>(style_group<CSS::ComputedValues::AlignmentValues>().align_self); }

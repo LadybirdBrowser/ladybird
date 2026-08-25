@@ -122,7 +122,7 @@ static Optional<CSSPixels> caret_inline_coordinate(DOM::Text const& dom_node, Vi
         layout_node->arena_handle(), line.owner_paintable, line.line_index, slots.data(), slots.size(), offset);
     if (!result.has_value)
         return {};
-    return CSSPixels::from_raw(result.value);
+    return result.value;
 }
 
 static size_t offset_in_visual_line_closest_to_inline_coordinate(DOM::Text const& dom_node, VisualLine const& line, Optional<CSSPixels> inline_coordinate)
@@ -135,7 +135,7 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(DOM::Text const
     auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
     return Layout::RustFFI::layout_arena_visual_line_offset_closest_to_inline_coordinate(
         layout_node->arena_handle(), line.owner_paintable, line.line_index, slots.data(), slots.size(),
-        inline_coordinate->raw_value(), line.start_offset);
+        *inline_coordinate, line.start_offset);
 }
 
 Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)

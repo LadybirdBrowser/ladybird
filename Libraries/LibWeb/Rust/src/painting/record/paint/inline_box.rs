@@ -161,7 +161,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             recorder.layout_arena,
             node,
             recorder.inputs.window_is_focused,
-            recorder.inputs.outline_auto_color,
+            recorder.inputs.outline_auto_color.0,
         );
         let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
         for piece_index in piece_indices {
@@ -194,7 +194,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                 recorder.layout_node_shell(paintable),
             );
             if cursor.paints {
-                let color = libgfx_rust::Color(cursor.color);
+                let color = cursor.color;
                 if color.alpha() != 0 {
                     let rect = recorder
                         .converter

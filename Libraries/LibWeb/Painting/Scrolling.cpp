@@ -357,7 +357,7 @@ void scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffi
         return;
     auto const& style_source = *style_source_pointer;
 
-    auto cursor_rect = from_ffi_css_pixel_rect(result.rect);
+    auto cursor_rect = result.rect;
     if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
         if (style_source.inline_axis_is_reverse())
             cursor_rect.set_x(cursor_rect.x() - 1);

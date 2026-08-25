@@ -225,27 +225,81 @@ static_assert(alignof(RustFFI::OptionalAffineTransform) == alignof(Optional<Gfx:
 
 namespace {
 
-void write_matrix(Gfx::FloatMatrix4x4 const& matrix, float (&out)[16])
-{
-    auto const& elements = matrix.elements();
-    for (size_t row = 0; row < 4; ++row) {
-        for (size_t column = 0; column < 4; ++column)
-            out[row * 4 + column] = elements[row][column];
-    }
+template<typename T>
+struct RustOptionalLayout {
+    T value;
+    bool has_value;
+};
+
 }
 
-void write_rect(Gfx::IntRect const& rect, i32 (&out)[4])
-{
-    out[0] = rect.x();
-    out[1] = rect.y();
-    out[2] = rect.width();
-    out[3] = rect.height();
-}
+static_assert(sizeof(CSSPixelRect) == 16);
 
-void write_rect(DevicePixelRect const& rect, i32 (&out)[4])
-{
-    write_rect(rect.to_type<int>(), out);
-}
+static_assert(sizeof(RustOptionalLayout<CSSPixels>) == sizeof(Optional<CSSPixels>));
+static_assert(alignof(RustOptionalLayout<CSSPixels>) == alignof(Optional<CSSPixels>));
+static_assert(sizeof(RustOptionalLayout<CSSPixelRect>) == sizeof(Optional<CSSPixelRect>));
+static_assert(alignof(RustOptionalLayout<CSSPixelRect>) == alignof(Optional<CSSPixelRect>));
+static_assert(sizeof(RustOptionalLayout<Gfx::IntRect>) == sizeof(Optional<Gfx::IntRect>));
+static_assert(alignof(RustOptionalLayout<Gfx::IntRect>) == alignof(Optional<Gfx::IntRect>));
+static_assert(sizeof(RustOptionalLayout<Gfx::FloatPoint>) == sizeof(Optional<Gfx::FloatPoint>));
+static_assert(alignof(RustOptionalLayout<Gfx::FloatPoint>) == alignof(Optional<Gfx::FloatPoint>));
+static_assert(sizeof(RustOptionalLayout<Gfx::FloatSize>) == sizeof(Optional<Gfx::FloatSize>));
+static_assert(alignof(RustOptionalLayout<Gfx::FloatSize>) == alignof(Optional<Gfx::FloatSize>));
+static_assert(sizeof(RustOptionalLayout<i64>) == sizeof(Optional<i64>));
+static_assert(alignof(RustOptionalLayout<i64>) == alignof(Optional<i64>));
+static_assert(sizeof(RustOptionalLayout<size_t>) == sizeof(Optional<size_t>));
+static_assert(alignof(RustOptionalLayout<size_t>) == alignof(Optional<size_t>));
+
+static_assert(sizeof(Optional<CSSPixels>) == 8);
+static_assert(alignof(Optional<CSSPixels>) == 4);
+
+static_assert(sizeof(TransformDataRole) == sizeof(u8));
+static_assert(to_underlying(TransformDataRole::CssTransform) == 0);
+static_assert(to_underlying(TransformDataRole::SvgViewportTransform) == 1);
+static_assert(sizeof(MaskLayerOrigin) == sizeof(u8));
+static_assert(to_underlying(MaskLayerOrigin::CssMaskLayers) == 0);
+static_assert(to_underlying(MaskLayerOrigin::SvgMask) == 1);
+static_assert(to_underlying(MaskLayerOrigin::SvgClip) == 2);
+
+#define VERIFY_SHARED_FFI_TYPE(type) static_assert(IsTriviallyCopyable<type>)
+VERIFY_SHARED_FFI_TYPE(CSSPixels);
+VERIFY_SHARED_FFI_TYPE(CSSPixelPoint);
+VERIFY_SHARED_FFI_TYPE(CSSPixelSize);
+VERIFY_SHARED_FFI_TYPE(CSSPixelRect);
+VERIFY_SHARED_FFI_TYPE(Gfx::IntPoint);
+VERIFY_SHARED_FFI_TYPE(Gfx::FloatPoint);
+VERIFY_SHARED_FFI_TYPE(Gfx::IntSize);
+VERIFY_SHARED_FFI_TYPE(Gfx::FloatSize);
+VERIFY_SHARED_FFI_TYPE(Gfx::IntRect);
+VERIFY_SHARED_FFI_TYPE(Gfx::FloatRect);
+VERIFY_SHARED_FFI_TYPE(Gfx::Color);
+VERIFY_SHARED_FFI_TYPE(Gfx::AffineTransform);
+VERIFY_SHARED_FFI_TYPE(Gfx::FloatMatrix4x4);
+VERIFY_SHARED_FFI_TYPE(Gfx::CornerRadius);
+VERIFY_SHARED_FFI_TYPE(Gfx::CornerRadii);
+VERIFY_SHARED_FFI_TYPE(Gfx::GradientInterpolationMethod);
+VERIFY_SHARED_FFI_TYPE(Gfx::WindingRule);
+VERIFY_SHARED_FFI_TYPE(Gfx::MaskKind);
+VERIFY_SHARED_FFI_TYPE(Gfx::CompositingAndBlendingOperator);
+VERIFY_SHARED_FFI_TYPE(Gfx::ScalingMode);
+VERIFY_SHARED_FFI_TYPE(Gfx::InterpolationColorSpace);
+VERIFY_SHARED_FFI_TYPE(TransformDataRole);
+VERIFY_SHARED_FFI_TYPE(MaskLayerOrigin);
+VERIFY_SHARED_FFI_TYPE(Optional<CSSPixels>);
+VERIFY_SHARED_FFI_TYPE(Optional<CSSPixelRect>);
+VERIFY_SHARED_FFI_TYPE(Optional<Gfx::IntRect>);
+VERIFY_SHARED_FFI_TYPE(Optional<Gfx::FloatPoint>);
+VERIFY_SHARED_FFI_TYPE(Optional<Gfx::FloatSize>);
+VERIFY_SHARED_FFI_TYPE(Optional<Gfx::FloatRect>);
+VERIFY_SHARED_FFI_TYPE(Optional<Gfx::Color>);
+VERIFY_SHARED_FFI_TYPE(Optional<Gfx::AffineTransform>);
+VERIFY_SHARED_FFI_TYPE(Optional<i64>);
+VERIFY_SHARED_FFI_TYPE(Optional<size_t>);
+VERIFY_SHARED_FFI_TYPE(Optional<u32>);
+VERIFY_SHARED_FFI_TYPE(Optional<float>);
+#undef VERIFY_SHARED_FFI_TYPE
+
+namespace {
 
 static bool rust_painting_timing_enabled()
 {
@@ -256,45 +310,36 @@ static bool rust_painting_timing_enabled()
     return enabled;
 }
 
-static Gfx::FloatMatrix4x4 matrix_from_export(float const (&values)[16])
-{
-    Gfx::FloatMatrix4x4 matrix;
-    for (size_t row = 0; row < 4; ++row)
-        for (size_t column = 0; column < 4; ++column)
-            matrix.elements()[row][column] = values[row * 4 + column];
-    return matrix;
-}
-
 static TransformData transform_data_from_export(Layout::RustFFI::FfiVisualContextNodeExport const& node)
 {
     return TransformData {
-        .matrix = matrix_from_export(node.matrix),
-        .origin = { node.origin[0], node.origin[1] },
+        .matrix = node.matrix,
+        .origin = node.origin,
         .sorting_context_root_index = node.has_sorting_context_root ? Optional<VisualContextIndex> { VisualContextIndex { node.index_value } } : OptionalNone {},
         .flattens_inherited_transform = node.flattens_inherited_transform,
-        .role = static_cast<TransformDataRole>(node.transform_role),
+        .role = node.transform_role,
         .synthetic_plane = node.synthetic_plane,
     };
 }
 
 static VisualContextData visual_context_data_from_export(Layout::RustFFI::FfiVisualContextNodeExport const& node)
 {
-    auto rect = [&] { return DevicePixelRect { node.rect[0], node.rect[1], node.rect[2], node.rect[3] }; };
+    auto rect = [&] { return node.rect.to_type<DevicePixels>(); };
     switch (node.kind) {
     case Layout::RustFFI::FfiVisualContextNodeKind::Scroll:
         return ScrollData { .is_sticky = node.is_sticky, .state_slot = static_cast<ScrollStateSlot>(node.state_slot) };
     case Layout::RustFFI::FfiVisualContextNodeKind::Clip:
-        return ClipData { rect(), Gfx::CornerRadii { { node.corner_radii[0], node.corner_radii[1] }, { node.corner_radii[2], node.corner_radii[3] }, { node.corner_radii[4], node.corner_radii[5] }, { node.corner_radii[6], node.corner_radii[7] } } };
+        return ClipData { rect(), node.corner_radii };
     case Layout::RustFFI::FfiVisualContextNodeKind::Transform:
         return transform_data_from_export(node);
     case Layout::RustFFI::FfiVisualContextNodeKind::Perspective:
-        return PerspectiveData { .matrix = matrix_from_export(node.matrix), .flattens_inherited_transform = node.flattens_inherited_transform };
+        return PerspectiveData { .matrix = node.matrix, .flattens_inherited_transform = node.flattens_inherited_transform };
     case Layout::RustFFI::FfiVisualContextNodeKind::BackfaceVisibility:
         return BackfaceVisibilityData { .plane_root_index = VisualContextIndex { node.index_value }, .flattens_inherited_transform = node.flattens_inherited_transform };
     case Layout::RustFFI::FfiVisualContextNodeKind::ClipPath:
-        return ClipPathData { .path = *static_cast<Gfx::Path const*>(node.path), .bounding_rect = rect(), .fill_rule = static_cast<Gfx::WindingRule>(node.winding_rule) };
+        return ClipPathData { .path = *static_cast<Gfx::Path const*>(node.path), .bounding_rect = rect(), .fill_rule = node.winding_rule };
     case Layout::RustFFI::FfiVisualContextNodeKind::Effects: {
-        EffectsData effects { .opacity = node.opacity, .blend_mode = static_cast<Gfx::CompositingAndBlendingOperator>(node.blend_mode), .gfx_filter = {} };
+        EffectsData effects { .opacity = node.opacity, .blend_mode = node.blend_mode, .gfx_filter = {} };
         if (node.filter)
             effects.gfx_filter = *static_cast<Gfx::Filter const*>(node.filter);
         return effects;
@@ -304,7 +349,7 @@ static VisualContextData visual_context_data_from_export(Layout::RustFFI::FfiVis
     case Layout::RustFFI::FfiVisualContextNodeKind::AnchorScrollShift:
         return AnchorScrollShift { .scroll_node_index = VisualContextIndex { node.index_value }, .negate = node.negate, .compensate_horizontal_scroll = node.compensate_horizontal_scroll, .compensate_vertical_scroll = node.compensate_vertical_scroll };
     case Layout::RustFFI::FfiVisualContextNodeKind::Mask:
-        return MaskData { .rect = rect(), .kind = static_cast<Gfx::MaskKind>(node.mask_kind), .origin = static_cast<MaskLayerOrigin>(node.mask_origin) };
+        return MaskData { .rect = rect(), .kind = node.mask_kind, .origin = node.mask_origin };
     }
     VERIFY_NOT_REACHED();
 }
@@ -389,31 +434,23 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             inputs.may_have_default_scroll_shift_anchor = document.may_have_default_scroll_shift_anchor();
             return inputs;
         },
-        .scroll_offset = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiCssPixelPoint {
-            auto offset = scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
-            return { offset.x().raw_value(), offset.y().raw_value() };
+        .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {
+            return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
         },
-        .svg_transform_view_box_rect = [](void*, void* layout_node_shell, Layout::RustFFI::FfiCssPixelRect* out_rect) -> bool {
+        .svg_transform_view_box_rect = [](void*, void* layout_node_shell, CSSPixelRect* out) -> bool {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* viewport_paintable = nearest_svg_viewport_of(layout_node);
             if (!viewport_paintable)
                 return false;
-            auto rect = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
-            *out_rect = to_ffi_css_pixel_rect(rect);
+            *out = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
             return true;
         },
-        .svg_additional_element_transform = [](void*, void* layout_node_shell, float* out_values) -> bool {
+        .svg_additional_element_transform = [](void*, void* layout_node_shell, Gfx::AffineTransform* out) -> bool {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(layout_node.dom_node());
             if (!graphics_element)
                 return false;
-            auto transform = graphics_element->additional_element_transform();
-            out_values[0] = transform.a();
-            out_values[1] = transform.b();
-            out_values[2] = transform.c();
-            out_values[3] = transform.d();
-            out_values[4] = transform.e();
-            out_values[5] = transform.f();
+            *out = graphics_element->additional_element_transform();
             return true;
         },
         .root_background_source = [](void* context) -> Layout::RustFFI::FfiRootBackgroundSource {
@@ -424,14 +461,10 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             Layout::RustFFI::FfiSvgMaskFacts facts {};
             if (auto area = mask_area(layout_node); area.has_value()) {
-                facts.has_mask_area = true;
-                facts.mask_area = to_ffi_css_pixel_rect(*area);
-                facts.mask_kind = to_underlying(mask_type(layout_node).value_or(Gfx::MaskKind::Alpha));
+                facts.mask_area = *area;
+                facts.mask_kind = mask_type(layout_node).value_or(Gfx::MaskKind::Alpha);
             }
-            if (auto area = clip_area(layout_node); area.has_value()) {
-                facts.has_clip_area = true;
-                facts.clip_area = to_ffi_css_pixel_rect(*area);
-            }
+            facts.clip_area = clip_area(layout_node);
             return facts;
         },
         .resolve_effects_filter = [](void* context, void* layout_node_shell) -> Layout::RustFFI::FfiResolvedEffectsFilter {
@@ -441,10 +474,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             ResolvedCSSFilter resolved_filter;
             if (style_source.filter().has_filters())
                 resolved_filter = resolve_css_filter(style_source.filter(), style_source);
-            if (resolved_filter.svg_filter_bounds.has_value()) {
-                result.has_svg_filter_bounds = true;
-                result.svg_filter_bounds = to_ffi_css_pixel_rect(*resolved_filter.svg_filter_bounds);
-            }
+            result.svg_filter_bounds = resolved_filter.svg_filter_bounds;
             if (!resolved_filter.has_filters())
                 return result;
             auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
@@ -536,26 +566,21 @@ CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradien
 
     Layout::RustFFI::FfiResolvedGradientPaint resolved {};
     ColorStopData color_stops;
-    auto append_stop = [](void* stop_context, u32 color, float position) {
+    auto append_stop = [](void* stop_context, Gfx::Color color, float position) {
         auto& color_stops = *static_cast<ColorStopData*>(stop_context);
-        color_stops.colors.append(Color::from_bgra(color));
+        color_stops.colors.append(color);
         color_stops.positions.append(position);
     };
     Layout::RustFFI::layout_arena_resolve_gradient_paint_for_size(
         gradient_style_value.rust_style_value_data(),
-        layout_node.color().value(),
+        layout_node.color(),
         current_color_value,
         static_cast<u8>(to_underlying(layout_node.color_scheme())),
-        size.width().raw_value(), size.height().raw_value(),
+        size,
         &resolved, &color_stops, append_stop);
     color_stops.repeating = resolved.color_stops_repeating;
 
-    Gfx::GradientInterpolationMethod interpolation_method {
-        .type = static_cast<Gfx::GradientInterpolationMethod::Type>(resolved.interpolation_method[0]),
-        .rectangular_color_space = static_cast<Gfx::RectangularColorSpace>(resolved.interpolation_method[1]),
-        .polar_color_space = static_cast<Gfx::PolarColorSpace>(resolved.interpolation_method[2]),
-        .hue_interpolation_method = static_cast<Gfx::HueInterpolationMethod>(resolved.interpolation_method[3]),
-    };
+    auto interpolation_method = resolved.interpolation_method;
     switch (resolved.kind) {
     case Layout::RustFFI::FfiResolvedGradientPaintKind::None:
         break;
@@ -564,13 +589,13 @@ CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradien
     case Layout::RustFFI::FfiResolvedGradientPaintKind::Radial:
         return ResolvedRadialGradient {
             RadialGradientData { move(color_stops), interpolation_method },
-            { CSSPixels::from_raw(resolved.size.width), CSSPixels::from_raw(resolved.size.height) },
-            { CSSPixels::from_raw(resolved.center.x), CSSPixels::from_raw(resolved.center.y) },
+            resolved.size,
+            resolved.center,
         };
     case Layout::RustFFI::FfiResolvedGradientPaintKind::Conic:
         return ResolvedConicGradient {
             ConicGradientData { resolved.gradient_angle, move(color_stops), interpolation_method },
-            { CSSPixels::from_raw(resolved.center.x), CSSPixels::from_raw(resolved.center.y) },
+            resolved.center,
         };
     }
     VERIFY_NOT_REACHED();
@@ -590,21 +615,19 @@ ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document& document)
 {
     auto* arena = layout_arena_handle(document);
     auto count = Layout::RustFFI::layout_arena_scroll_state_snapshot(arena, nullptr, 0);
-    Vector<float> values;
+    Vector<Gfx::FloatPoint> values;
     values.resize(count);
     if (count > 0)
         Layout::RustFFI::layout_arena_scroll_state_snapshot(arena, values.data(), values.size());
     ScrollStateSnapshot snapshot;
-    for (size_t index = 0; index * 2 + 1 < values.size(); ++index)
-        snapshot.set_device_offset_for_index(VisualContextIndex { index }, { values[index * 2], values[index * 2 + 1] });
+    for (size_t index = 0; index < values.size(); ++index)
+        snapshot.set_device_offset_for_index(VisualContextIndex { index }, values[index]);
     return snapshot;
 }
 
 CSSPixelPoint rust_cumulative_scroll_offset_for_node(DOM::Document const& document, VisualContextIndex scroll_node_index)
 {
-    i32 raw[2] = { 0, 0 };
-    Layout::RustFFI::layout_arena_cumulative_scroll_offset_for_node(layout_arena_handle(document), scroll_node_index.value(), raw);
-    return { CSSPixels::from_raw(raw[0]), CSSPixels::from_raw(raw[1]) };
+    return Layout::RustFFI::layout_arena_cumulative_scroll_offset_for_node(layout_arena_handle(document), scroll_node_index.value());
 }
 
 void mirror_rust_refresh_sticky_constraints(DOM::Document& document)
@@ -689,8 +712,8 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                 auto const& graphics_element = as<SVG::SVGGraphicsElement>(*dom_node);
                 facts.svg_path_has_fill = graphics_element.fill_color().has_value();
                 facts.svg_path_winding_rule = graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero) == SVG::FillRule::Evenodd
-                    ? to_underlying(Gfx::WindingRule::EvenOdd)
-                    : to_underlying(Gfx::WindingRule::Nonzero);
+                    ? Gfx::WindingRule::EvenOdd
+                    : Gfx::WindingRule::Nonzero;
             }
             if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node); graphics_element && graphics_element->unsafe_layout_node()) {
                 for (auto child = graphics_element->unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
@@ -724,7 +747,7 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                     continue;
                 Layout::RustFFI::FfiLineBreakCaretTarget target {};
                 target.caret_offset = br->index();
-                target.rect = to_ffi_css_pixel_rect(caret_rect_for_child_offset(layout_node, br->index()));
+                target.rect = caret_rect_for_child_offset(layout_node, br->index());
                 Layout::RustFFI::layout_arena_hit_test_push_line_break_caret_target(sink, target);
             } },
     };
@@ -733,11 +756,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
 }
 
 namespace {
-
-void write_css_rect(CSSPixelRect const& rect, Layout::RustFFI::FfiCssPixelRect& out)
-{
-    out = to_ffi_css_pixel_rect(rect);
-}
 
 struct PaintHostContext {
     DisplayListResourceStorage& resource_storage;
@@ -801,14 +819,14 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     auto expanded_scrollbar_data = compute_scrollbar_data(layout_node, direction, metrics, nullptr, ScrollbarSizing::Enlarged);
                     VERIFY(expanded_scrollbar_data.has_value());
                     out.present = true;
-                    write_css_rect(scrollbar_data->gutter_rect, out.gutter_rect);
-                    write_css_rect(scrollbar_data->thumb_rect, out.thumb_rect);
-                    write_css_rect(expanded_scrollbar_data->gutter_rect, out.expanded_gutter_rect);
-                    write_css_rect(expanded_scrollbar_data->thumb_rect, out.expanded_thumb_rect);
+                    out.gutter_rect = scrollbar_data->gutter_rect;
+                    out.thumb_rect = scrollbar_data->thumb_rect;
+                    out.expanded_gutter_rect = expanded_scrollbar_data->gutter_rect;
+                    out.expanded_thumb_rect = expanded_scrollbar_data->thumb_rect;
                     out.scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
                     out.expanded_scroll_size = expanded_scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
-                    out.thumb_color = scrollbar_colors.thumb_color.value();
-                    out.track_color = scrollbar_colors.track_color.value();
+                    out.thumb_color = scrollbar_colors.thumb_color;
+                    out.track_color = scrollbar_colors.track_color;
                 }
             }
             return facts;
@@ -822,8 +840,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 && layout_node.scrollbar_width() != CSS::ScrollbarWidth::None;
             if (facts.paints_scrollbars) {
                 auto scrollbar_colors = scrollbar_colors_for_paint(layout_node);
-                facts.thumb_color = scrollbar_colors.thumb_color.value();
-                facts.track_color = scrollbar_colors.track_color.value();
+                facts.thumb_color = scrollbar_colors.thumb_color;
+                facts.track_color = scrollbar_colors.track_color;
                 size_t index = 0;
                 for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
                     auto& out = facts.scrollbars[index++];
@@ -833,23 +851,21 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     if (!scrollbar_data.has_value())
                         continue;
                     out.present = true;
-                    write_css_rect(scrollbar_data->gutter_rect, out.gutter_rect);
-                    write_css_rect(scrollbar_data->thumb_rect, out.thumb_rect);
-                    write_css_rect(scrollbar_data->track_rect, out.track_rect);
+                    out.gutter_rect = scrollbar_data->gutter_rect;
+                    out.thumb_rect = scrollbar_data->thumb_rect;
+                    out.track_rect = scrollbar_data->track_rect;
                     out.thumb_travel_to_scroll_ratio = scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
                 }
             }
             if (auto resizer_rect = absolute_resizer_rect(layout_node, metrics); resizer_rect.has_value()) {
-                facts.has_resizer_rect = true;
-                write_css_rect(*resizer_rect, facts.resizer_rect);
-                facts.resize_gripper_padding = metrics.resize_gripper_padding.raw_value();
+                facts.resizer_rect = *resizer_rect;
+                facts.resize_gripper_padding = metrics.resize_gripper_padding;
             }
             if (is_viewport_paintable(layout_node)) {
                 if (auto navigable = document.navigable()) {
                     if (auto handler = navigable->event_handler().middle_button_scroll_handler(); handler.has_value()) {
                         facts.middle_button_scroll_active = true;
-                        facts.middle_button_scroll_origin.x = handler->origin().x().raw_value();
-                        facts.middle_button_scroll_origin.y = handler->origin().y().raw_value();
+                        facts.middle_button_scroll_origin = handler->origin();
                     }
                 }
             }
@@ -867,8 +883,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                             if (auto path = area_element->shape_path(absolute_rect(layout_node).size()); path.has_value()) {
                                 facts.paints_focused_area_outline = true;
                                 facts.focused_area_path = new Gfx::Path(path.release_value());
-                                facts.focused_area_color = outline_data->color.value();
-                                facts.focused_area_width = outline_data->width.raw_value();
+                                facts.focused_area_color = outline_data->color;
+                                facts.focused_area_width = outline_data->width;
                             }
                         }
                     }
@@ -884,18 +900,12 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (!image)
                 return facts;
             facts.is_paintable = image->is_paintable(document);
-            if (auto width = image->natural_width(document); width.has_value()) {
-                facts.has_natural_width = true;
-                facts.natural_width = width->raw_value();
-            }
-            if (auto height = image->natural_height(document); height.has_value()) {
-                facts.has_natural_height = true;
-                facts.natural_height = height->raw_value();
-            }
+            facts.natural_width = image->natural_width(document);
+            facts.natural_height = image->natural_height(document);
             if (auto aspect_ratio = image->natural_aspect_ratio(document); aspect_ratio.has_value()) {
                 facts.has_natural_aspect_ratio = true;
-                facts.natural_aspect_ratio_numerator = aspect_ratio->numerator().raw_value();
-                facts.natural_aspect_ratio_denominator = aspect_ratio->denominator().raw_value();
+                facts.natural_aspect_ratio_numerator = aspect_ratio->numerator();
+                facts.natural_aspect_ratio_denominator = aspect_ratio->denominator();
             }
             if (auto const* image_set = as_if<CSS::ImageSetStyleValue>(*image)) {
                 if (auto const* selected_image = image_set->selected_image()) {
@@ -934,15 +944,12 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (!text_node)
                 return facts;
             auto style = selection_style_for_node(*text_node, text_node->dom_text());
-            facts.background_color = style.background_color.value();
-            if (style.text_color.has_value()) {
-                facts.has_text_color = true;
-                facts.text_color = style.text_color->value();
-            }
+            facts.background_color = style.background_color;
+            facts.text_color = style.text_color;
             if (style.text_shadow.has_value()) {
                 facts.has_text_shadow = true;
                 for (auto const& layer : *style.text_shadow)
-                    Layout::RustFFI::layout_arena_paint_push_selection_shadow(shadow_sink, layer.color.value(), layer.offset_x.raw_value(), layer.offset_y.raw_value(), layer.blur_radius.raw_value());
+                    Layout::RustFFI::layout_arena_paint_push_selection_shadow(shadow_sink, layer.color, layer.offset_x, layer.offset_y, layer.blur_radius);
             }
             if (style.text_decoration.has_value()) {
                 facts.has_text_decoration = true;
@@ -950,7 +957,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 for (size_t i = 0; i < facts.text_decoration_line_count; ++i)
                     facts.text_decoration_lines[i] = to_underlying(style.text_decoration->line[i]);
                 facts.text_decoration_style = to_underlying(style.text_decoration->style);
-                facts.text_decoration_color = style.text_decoration->color.value();
+                facts.text_decoration_color = style.text_decoration->color;
             }
             return facts;
         },
@@ -974,8 +981,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (!caret.has_value())
                 return facts;
             facts.paints = true;
-            write_css_rect(caret->rect, facts.rect);
-            facts.color = caret->color.value();
+            facts.rect = caret->rect;
+            facts.color = caret->color;
             return facts;
         },
         .layer_image_prepare = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {
@@ -985,20 +992,17 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (!image)
                 return facts;
             facts.is_image_style_value = is<CSS::ImageStyleValue>(*image);
-            if (auto color = image->color_if_single_pixel_bitmap(layout_node.document()); color.has_value()) {
-                facts.has_single_pixel_color = true;
-                facts.single_pixel_color = color->value();
-            }
+            facts.single_pixel_color = image->color_if_single_pixel_bitmap(layout_node.document());
             return facts;
         },
-        .layer_image_nested_display_list = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, i32 const* dest) -> Layout::RustFFI::FfiLayerImageNestedDisplayListFacts {
+        .layer_image_nested_display_list = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::IntRect dest) -> Layout::RustFFI::FfiLayerImageNestedDisplayListFacts {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiLayerImageNestedDisplayListFacts facts {};
             auto const* image = layer_image_for(layout_node, list, computed_index);
             if (!image || !is<CSS::ImageStyleValue>(*image))
                 return facts;
-            DevicePixelRect dest_rect { DevicePixels(dest[0]), DevicePixels(dest[1]), DevicePixels(dest[2]), DevicePixels(dest[3]) };
+            auto dest_rect = dest.to_type<DevicePixels>();
             auto color_scheme = layout_node.color_scheme();
             if (auto display_list = static_cast<CSS::ImageStyleValue const&>(*image).record_display_list(context.resource_storage, layout_node.document(), dest_rect, color_scheme); display_list.has_value()) {
                 facts.has_nested_display_list = true;
@@ -1006,14 +1010,14 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             }
             return facts;
         },
-        .layer_image_current_frame = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, i32 const* dest) -> Layout::RustFFI::FfiLayerImageFrameFacts {
+        .layer_image_current_frame = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::IntRect dest) -> Layout::RustFFI::FfiLayerImageFrameFacts {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiLayerImageFrameFacts facts {};
             auto const* image = layer_image_for(layout_node, list, computed_index);
             if (!image || !is<CSS::ImageStyleValue>(*image))
                 return facts;
-            DevicePixelRect dest_rect { DevicePixels(dest[0]), DevicePixels(dest[1]), DevicePixels(dest[2]), DevicePixels(dest[3]) };
+            auto dest_rect = dest.to_type<DevicePixels>();
             if (auto frame = static_cast<CSS::ImageStyleValue const&>(*image).current_frame(layout_node.document(), dest_rect); frame.has_value()) {
                 facts.has_frame = true;
                 facts.frame_id = context.resource_storage.add_image_frame(*frame).value();
@@ -1022,7 +1026,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             }
             return facts;
         },
-        .layer_image_paint = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, float const* dest, i32 const* css_size_raw, u8 image_rendering_raw, float const* accumulated_scale_raw) -> Layout::RustFFI::FfiImagePaintFacts {
+        .layer_image_paint = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::FloatRect dest_rect, CSSPixelSize css_size, u8 image_rendering_raw, Gfx::FloatSize accumulated_scale) -> Layout::RustFFI::FfiImagePaintFacts {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiImagePaintFacts facts {};
@@ -1030,8 +1034,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (!image_pointer)
                 return facts;
             auto const& image = *image_pointer;
-            Gfx::FloatRect dest_rect { dest[0], dest[1], dest[2], dest[3] };
-            Gfx::FloatSize accumulated_scale { accumulated_scale_raw[0], accumulated_scale_raw[1] };
             ImagePaintRequest request {
                 .document = layout_node.document(),
                 .dest_rect = dest_rect,
@@ -1040,7 +1042,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .accumulated_scale = accumulated_scale,
                 .resource_storage = context.resource_storage,
             };
-            CSSPixelSize css_size { CSSPixels::from_raw(css_size_raw[0]), CSSPixels::from_raw(css_size_raw[1]) };
             auto paint = image.image_paint(request, image.resolve_for_size(layout_node, css_size));
             if (paint.has_value())
                 write_image_paint_facts(*paint, context, facts);
@@ -1056,21 +1057,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (kind == Layout::RustFFI::PaintableKind::ImagePaintable) {
                 auto const& image_provider = static_cast<Layout::Box const&>(layout_node).image_provider();
                 facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
-                if (auto width = image_provider.intrinsic_width(); width.has_value()) {
-                    facts.has_natural_width = true;
-                    facts.natural_width = width->raw_value();
-                }
-                if (auto height = image_provider.intrinsic_height(); height.has_value()) {
-                    facts.has_natural_height = true;
-                    facts.natural_height = height->raw_value();
-                }
+                facts.natural_width = image_provider.intrinsic_width();
+                facts.natural_height = image_provider.intrinsic_height();
                 if (auto aspect_ratio = image_provider.intrinsic_aspect_ratio(); aspect_ratio.has_value()) {
                     facts.has_natural_aspect_ratio = true;
-                    facts.natural_aspect_ratio_numerator = aspect_ratio->numerator().raw_value();
-                    facts.natural_aspect_ratio_denominator = aspect_ratio->denominator().raw_value();
+                    facts.natural_aspect_ratio_numerator = aspect_ratio->numerator();
+                    facts.natural_aspect_ratio_denominator = aspect_ratio->denominator();
                 }
                 if (selection_state(layout_node) != SelectionState::None)
-                    facts.selection_background_color = selection_style(layout_node).background_color.value();
+                    facts.selection_background_color = selection_style(layout_node).background_color;
             } else if (kind == Layout::RustFFI::PaintableKind::CanvasPaintable) {
                 auto& canvas_element = as<HTML::HTMLCanvasElement>(*layout_node.dom_node());
                 if (auto content_size = canvas_element.canvas_surface_content_size(); content_size.has_value()) {
@@ -1135,13 +1130,13 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.indeterminate = input.indeterminate();
                 facts.being_activated = input.is_being_activated();
                 auto color_scheme = layout_node.color_scheme();
-                facts.canvas_color = CSS::SystemColor::canvas(color_scheme).value();
-                facts.canvas_text_color = CSS::SystemColor::canvas_text(color_scheme).value();
-                facts.accent_color = layout_node.accent_color().value_or(CSS::SystemColor::accent_color(color_scheme)).value();
+                facts.canvas_color = CSS::SystemColor::canvas(color_scheme);
+                facts.canvas_text_color = CSS::SystemColor::canvas_text(color_scheme);
+                facts.accent_color = layout_node.accent_color().value_or(CSS::SystemColor::accent_color(color_scheme));
             }
             return facts;
         },
-        .replaced_image_paint = [](void* context_pointer, void* layout_node_shell, float const* dest, float const* accumulated_scale_raw) -> Layout::RustFFI::FfiImagePaintFacts {
+        .replaced_image_paint = [](void* context_pointer, void* layout_node_shell, Gfx::FloatRect dest_rect, Gfx::FloatSize accumulated_scale) -> Layout::RustFFI::FfiImagePaintFacts {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             auto const* row = committed_row(layout_node);
@@ -1156,8 +1151,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             }
             if (!decoded_image_data)
                 return facts;
-            Gfx::FloatRect dest_rect { dest[0], dest[1], dest[2], dest[3] };
-            Gfx::FloatSize accumulated_scale { accumulated_scale_raw[0], accumulated_scale_raw[1] };
             ImagePaintRequest request {
                 .document = layout_node.document(),
                 .dest_rect = dest_rect,
@@ -1187,9 +1180,9 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
             return true;
         },
-        .nested_display_list_from_bytes = [](void* context_pointer, u8 const* bytes, size_t length, i32 content_offset_x, i32 content_offset_y) -> u64 {
+        .nested_display_list_from_bytes = [](void* context_pointer, u8 const* bytes, size_t length, Gfx::IntPoint content_offset) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset({ content_offset_x, content_offset_y });
+            auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset(content_offset);
             auto command_bytes = MUST(ByteBuffer::copy(bytes, length));
             auto display_list = DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes));
             return context.resource_storage.add_display_list(move(display_list), visual_context_tree).value();
@@ -1200,24 +1193,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             VERIFY(row);
             Layout::RustFFI::FfiSvgHostFacts facts {};
             if (is_svg_path_paintable(layout_node)) {
-                facts.percentage_basis = as<SVG::SVGGraphicsElement>(*layout_node.dom_node()).viewport_percentage_basis().raw_value();
-                if (auto const* viewport_paintable = nearest_svg_viewport_of(layout_node)) {
-                    facts.has_viewport = true;
-                    auto viewport = svg_viewport_user_rect(*viewport_paintable);
-                    facts.viewport[0] = viewport.x();
-                    facts.viewport[1] = viewport.y();
-                    facts.viewport[2] = viewport.width();
-                    facts.viewport[3] = viewport.height();
-                }
+                facts.percentage_basis = as<SVG::SVGGraphicsElement>(*layout_node.dom_node()).viewport_percentage_basis();
+                if (auto const* viewport_paintable = nearest_svg_viewport_of(layout_node))
+                    facts.viewport = svg_viewport_user_rect(*viewport_paintable);
             }
             if (row->kind == Layout::RustFFI::PaintableKind::SVGImagePaintable) {
                 auto const& image_provider = as<SVG::SVGImageElement>(*layout_node.dom_node());
                 facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
-                if (auto natural_size = image_provider.intrinsic_size(); natural_size.has_value()) {
-                    facts.has_natural_size = true;
-                    facts.natural_width = natural_size->width().to_float();
-                    facts.natural_height = natural_size->height().to_float();
-                }
+                if (auto natural_size = image_provider.intrinsic_size(); natural_size.has_value())
+                    facts.natural_size = natural_size->to_type<float>();
             }
             return facts;
         },
@@ -1225,39 +1209,24 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             Layout::RustFFI::FfiSvgPaintStyle style {};
-            auto const& viewport = ffi_paint_context->viewport;
-            auto const& path_bounding_box = ffi_paint_context->path_bounding_box;
-            auto const& paint_transform = ffi_paint_context->paint_transform;
-            auto const& content_scale = ffi_paint_context->content_scale;
             SVG::SVGPaintContext paint_context {
-                .viewport = { viewport[0], viewport[1], viewport[2], viewport[3] },
-                .path_bounding_box = { path_bounding_box[0], path_bounding_box[1], path_bounding_box[2], path_bounding_box[3] },
-                .paint_transform = Gfx::AffineTransform { paint_transform[0], paint_transform[1], paint_transform[2], paint_transform[3], paint_transform[4], paint_transform[5] },
-                .content_scale = { content_scale[0], content_scale[1] },
+                .viewport = ffi_paint_context->viewport,
+                .path_bounding_box = ffi_paint_context->path_bounding_box,
+                .paint_transform = ffi_paint_context->paint_transform,
+                .content_scale = ffi_paint_context->content_scale,
             };
             auto const& graphics_element = as<SVG::SVGGraphicsElement>(*layout_node.dom_node());
             auto paint_server = is_stroke ? graphics_element.stroke_paint_server(paint_context, context.device_pixels_per_css_pixel) : graphics_element.fill_paint_server(paint_context, context.device_pixels_per_css_pixel);
             if (!paint_server.has_value())
                 return style;
-            auto write_transform = [](Gfx::AffineTransform const& transform, float (&out)[6]) {
-                out[0] = transform.a();
-                out[1] = transform.b();
-                out[2] = transform.c();
-                out[3] = transform.d();
-                out[4] = transform.e();
-                out[5] = transform.f();
-            };
             auto write_gradient = [&](GradientPaintStyle const& gradient) {
-                if (auto const& transform = gradient.gradient_transform(); transform.has_value()) {
-                    style.has_gradient_transform = true;
-                    write_transform(*transform, style.gradient_transform);
-                }
+                style.gradient_transform = gradient.gradient_transform();
                 style.spread_method = static_cast<Layout::RustFFI::FfiSvgGradientSpreadMethod>(to_underlying(gradient.spread_method()));
-                style.color_space = to_underlying(gradient.color_space());
+                style.color_space = gradient.color_space();
                 auto colors = gradient.color_stop_colors();
                 auto positions = gradient.color_stop_positions();
                 for (size_t i = 0; i < colors.size(); ++i)
-                    Layout::RustFFI::layout_arena_paint_push_color_stop(sink, colors[i].value(), positions[i]);
+                    Layout::RustFFI::layout_arena_paint_push_color_stop(sink, colors[i], positions[i]);
             };
             paint_server->visit(
                 [&](PaintStyle const& paint_style) {
@@ -1265,19 +1234,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                         [&](LinearGradientPaintStyle const& linear) {
                             style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::LinearGradient;
                             write_gradient(linear);
-                            style.start[0] = linear.start_point().x();
-                            style.start[1] = linear.start_point().y();
-                            style.end[0] = linear.end_point().x();
-                            style.end[1] = linear.end_point().y();
+                            style.start = linear.start_point();
+                            style.end = linear.end_point();
                         },
                         [&](RadialGradientPaintStyle const& radial) {
                             style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::RadialGradient;
                             write_gradient(radial);
-                            style.start[0] = radial.start_center().x();
-                            style.start[1] = radial.start_center().y();
+                            style.start = radial.start_center();
                             style.start_radius = radial.start_radius();
-                            style.end[0] = radial.end_center().x();
-                            style.end[1] = radial.end_center().y();
+                            style.end = radial.end_center();
                             style.end_radius = radial.end_radius();
                         },
                         [&](PatternPaintStyle const&) {
@@ -1287,27 +1252,20 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 [&](SVG::SVGGraphicsElement::PatternPaintServer const& pattern) {
                     style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
                     style.pattern_paintable = committed_row_slot(*pattern.pattern_layout_node);
-                    write_matrix(pattern.tile_content_transform.matrix, style.tile_content_transform);
-                    style.tile_rect[0] = pattern.tile_rect.x();
-                    style.tile_rect[1] = pattern.tile_rect.y();
-                    style.tile_rect[2] = pattern.tile_rect.width();
-                    style.tile_rect[3] = pattern.tile_rect.height();
-                    style.content_scale[0] = pattern.content_scale.width();
-                    style.content_scale[1] = pattern.content_scale.height();
-                    if (pattern.device_pattern_transform.has_value()) {
-                        style.has_pattern_transform = true;
-                        write_transform(*pattern.device_pattern_transform, style.pattern_transform);
-                    }
+                    style.tile_content_transform = pattern.tile_content_transform.matrix;
+                    style.tile_rect = pattern.tile_rect;
+                    style.content_scale = pattern.content_scale;
+                    style.pattern_transform = pattern.device_pattern_transform;
                 });
             return style;
         },
-        .accumulated_2d_scale = [](void* context_pointer, void const* rust_visual_context_tree, size_t visual_context_index, float* out) {
+        .accumulated_2d_scale = [](void* context_pointer, void const* rust_visual_context_tree, size_t visual_context_index) -> Gfx::FloatSize {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto scale = rust_visual_context_tree
                 ? materialize_rust_visual_context_tree(rust_visual_context_tree).accumulated_2d_scale(VisualContextIndex { visual_context_index }, ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No)
                 : context.document->visual_context_tree().accumulated_2d_scale(VisualContextIndex { visual_context_index }, ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
-            out[0] = scale.width();
-            out[1] = scale.height(); },
+            return scale;
+        },
         .materialize_visual_context_tree = [](void*, void const* tree) -> void* {
             return new AccumulatedVisualContextTree(materialize_rust_visual_context_tree(tree));
         },
@@ -1349,7 +1307,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .device_glyph_width = glyph_run->width(),
                 .device_ascent = metrics.ascent,
                 .device_descent = metrics.descent,
-                .blob_bounds = { bounds.x(), bounds.y(), bounds.width(), bounds.height() },
+                .blob_bounds = bounds,
             };
         },
     };
@@ -1370,9 +1328,9 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         inputs.has_inspector_highlight = true;
         inputs.inspector_highlight_paintable = committed_row_slot(*overlay_inputs.highlighted_layout_node);
     }
-    inputs.tooltip_color = overlay_inputs.tooltip_color.value();
-    inputs.tooltip_text_color = overlay_inputs.tooltip_text_color.value();
-    inputs.tooltip_border_color = overlay_inputs.tooltip_border_color.value();
+    inputs.tooltip_color = overlay_inputs.tooltip_color;
+    inputs.tooltip_text_color = overlay_inputs.tooltip_text_color;
+    inputs.tooltip_border_color = overlay_inputs.tooltip_border_color;
     Vector<Layout::RustFFI::FfiGridOverlayInput> ffi_grid_overlays;
     auto grid_label_css_pixel_size = overlay_inputs.grid_highlights.is_empty()
         ? 0.0f
@@ -1380,8 +1338,8 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     for (auto const& highlight : overlay_inputs.grid_highlights) {
         ffi_grid_overlays.append({
             .paintable = committed_row_slot(*highlight.layout_node),
-            .color = highlight.options.color.value(),
-            .label_foreground_color = highlight.options.color.with_alpha(235).suggested_foreground_color().value(),
+            .color = highlight.options.color,
+            .label_foreground_color = highlight.options.color.with_alpha(235).suggested_foreground_color(),
             .label_css_pixel_size = grid_label_css_pixel_size,
             .show_area_names = highlight.options.show_area_names,
             .show_line_numbers = highlight.options.show_line_numbers,
@@ -1395,19 +1353,16 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     for (auto const& highlight : overlay_inputs.flex_highlights) {
         ffi_flex_overlays.append({
             .paintable = committed_row_slot(*highlight.layout_node),
-            .color = highlight.options.color.value(),
+            .color = highlight.options.color,
         });
     }
     inputs.flex_overlays = ffi_flex_overlays.data();
     inputs.flex_overlay_count = ffi_flex_overlays.size();
-    if (overlay_inputs.caret_debug_rect.has_value()) {
-        inputs.has_caret_debug_rect = true;
-        inputs.caret_debug_rect = to_ffi_css_pixel_rect(*overlay_inputs.caret_debug_rect);
-    }
+    inputs.caret_debug_rect = overlay_inputs.caret_debug_rect;
     inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
-    write_rect(device_viewport_rect, inputs.device_viewport_rect);
+    inputs.device_viewport_rect = device_viewport_rect.to_type<int>();
     if (auto navigable = document.navigable())
-        write_css_rect(navigable->viewport_rect(), inputs.css_viewport_rect);
+        inputs.css_viewport_rect = navigable->viewport_rect();
     inputs.should_show_line_box_borders = config.should_show_line_box_borders;
     inputs.should_paint_overlay = config.paint_overlay;
     inputs.is_recording_async_scrolling_metadata = true;
@@ -1418,7 +1373,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     {
         auto navigable = document.navigable();
         inputs.window_is_focused = navigable && navigable->is_focused();
-        inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto).value();
+        inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto);
     }
     {
         auto color_scheme = document.canvas_color_scheme();
@@ -1429,15 +1384,12 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
                 container_scheme = CSS::PreferredColorScheme::Light;
             opaque_canvas = container_scheme != color_scheme;
         }
-        if (config.canvas_fill_rect.has_value()) {
-            inputs.has_canvas_fill_rect = true;
-            write_rect(*config.canvas_fill_rect, inputs.canvas_fill_rect);
-        }
-        inputs.canvas_color = CSS::SystemColor::canvas(color_scheme).value();
+        inputs.canvas_fill_rect = config.canvas_fill_rect;
+        inputs.canvas_color = CSS::SystemColor::canvas(color_scheme);
         inputs.opaque_canvas = opaque_canvas;
         Gfx::IntRect bitmap_rect { {}, device_viewport_rect.size().to_type<int>() };
-        write_rect(bitmap_rect, inputs.bitmap_rect);
-        inputs.background_color = document.background_color().value();
+        inputs.bitmap_rect = bitmap_rect;
+        inputs.background_color = document.background_color();
     }
     PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
@@ -1478,37 +1430,26 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
 NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& paint, Gfx::FloatRect dest_rect, CSS::ImageRendering image_rendering, double device_pixels_per_css_pixel, AccumulatedVisualContextTree const& visual_context_tree, DisplayListResourceStorage& resource_storage)
 {
     Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
-    inputs.dest_rect[0] = dest_rect.x();
-    inputs.dest_rect[1] = dest_rect.y();
-    inputs.dest_rect[2] = dest_rect.width();
-    inputs.dest_rect[3] = dest_rect.height();
-    Vector<u32> color_stop_colors;
+    inputs.dest_rect = dest_rect;
+    Vector<Gfx::Color> color_stop_colors;
     auto write_color_stops = [&](ColorStopData const& color_stops) {
-        for (auto color : color_stops.colors)
-            color_stop_colors.append(color.value());
+        color_stop_colors = color_stops.colors;
         inputs.color_stop_colors = color_stop_colors.data();
         inputs.color_stop_positions = color_stops.positions.data();
         inputs.color_stop_count = color_stops.colors.size();
         inputs.color_stops_repeating = color_stops.repeating;
-    };
-    auto write_interpolation_method = [&](Gfx::GradientInterpolationMethod const& method) {
-        inputs.interpolation_type = to_underlying(method.type);
-        inputs.rectangular_color_space = to_underlying(method.rectangular_color_space);
-        inputs.polar_color_space = to_underlying(method.polar_color_space);
-        inputs.hue_interpolation_method = to_underlying(method.hue_interpolation_method);
     };
     inputs.device_pixels_per_css_pixel = device_pixels_per_css_pixel;
     paint.value.visit(
         [&](ImagePaint::DecodedFrame const& decoded_frame) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::DecodedFrame;
             inputs.frame_id = resource_storage.add_image_frame(decoded_frame.frame).value();
-            inputs.scaling_mode = to_underlying(CSS::to_gfx_scaling_mode(image_rendering, decoded_frame.natural_size, dest_rect.to_rounded<int>().size()));
+            inputs.scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, decoded_frame.natural_size, dest_rect.to_rounded<int>().size());
         },
         [&](ImagePaint::NestedDisplayList const& nested) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::NestedDisplayList;
             inputs.nested_display_list_id = resource_storage.add_display_list(nested.resource.display_list, nested.resource.visual_context_tree).value();
-            inputs.nested_display_list_size[0] = nested.list_size.width();
-            inputs.nested_display_list_size[1] = nested.list_size.height();
+            inputs.nested_display_list_size = nested.list_size;
         },
         [&](LinearGradientData const& gradient) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::LinearGradient;
@@ -1516,21 +1457,21 @@ NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& pai
             inputs.first_stop_position = gradient.first_stop_position;
             inputs.repeat_length = gradient.repeat_length;
             write_color_stops(gradient.color_stops);
-            write_interpolation_method(gradient.interpolation_method);
+            inputs.interpolation_method = gradient.interpolation_method;
         },
         [&](ResolvedRadialGradient const& gradient) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::RadialGradient;
-            inputs.center = { gradient.center.x().raw_value(), gradient.center.y().raw_value() };
-            inputs.size = { gradient.gradient_size.width().raw_value(), gradient.gradient_size.height().raw_value() };
+            inputs.center = gradient.center;
+            inputs.size = gradient.gradient_size;
             write_color_stops(gradient.data.color_stops);
-            write_interpolation_method(gradient.data.interpolation_method);
+            inputs.interpolation_method = gradient.data.interpolation_method;
         },
         [&](ResolvedConicGradient const& gradient) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::ConicGradient;
             inputs.gradient_angle = gradient.data.start_angle;
-            inputs.position = { gradient.position.x().raw_value(), gradient.position.y().raw_value() };
+            inputs.position = gradient.position;
             write_color_stops(gradient.data.color_stops);
-            write_interpolation_method(gradient.data.interpolation_method);
+            inputs.interpolation_method = gradient.data.interpolation_method;
         });
     ByteBuffer command_bytes;
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &command_bytes,

@@ -21,16 +21,6 @@ namespace Web::Painting {
 
 struct ImagePaint;
 
-inline Layout::RustFFI::FfiCssPixelRect to_ffi_css_pixel_rect(CSSPixelRect const& rect)
-{
-    return { rect.x().raw_value(), rect.y().raw_value(), rect.width().raw_value(), rect.height().raw_value() };
-}
-
-inline CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect const& rect)
-{
-    return { CSSPixels::from_raw(rect.x), CSSPixels::from_raw(rect.y), CSSPixels::from_raw(rect.width), CSSPixels::from_raw(rect.height) };
-}
-
 WEB_API void rust_build_stacking_context_tree(DOM::Document&);
 WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
 

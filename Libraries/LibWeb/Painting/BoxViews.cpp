@@ -188,22 +188,22 @@ Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Layout::R
 
 static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
 {
-    return { CSSPixels::from_raw(box.top), CSSPixels::from_raw(box.right), CSSPixels::from_raw(box.bottom), CSSPixels::from_raw(box.left) };
+    return { box.top, box.right, box.bottom, box.left };
 }
 
 CSSPixelRect absolute_rect(Layout::Node const& node)
 {
-    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_rect(node.arena_handle(), committed_row_slot(node)));
+    return Layout::RustFFI::layout_arena_paintable_absolute_rect(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelRect absolute_padding_box_rect(Layout::Node const& node)
 {
-    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_padding_box_rect(node.arena_handle(), committed_row_slot(node)));
+    return Layout::RustFFI::layout_arena_paintable_absolute_padding_box_rect(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelRect absolute_border_box_rect(Layout::Node const& node)
 {
-    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_border_box_rect(node.arena_handle(), committed_row_slot(node)));
+    return Layout::RustFFI::layout_arena_paintable_absolute_border_box_rect(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelPoint absolute_position(Layout::Node const& node)
@@ -213,14 +213,12 @@ CSSPixelPoint absolute_position(Layout::Node const& node)
 
 CSSPixelPoint offset(Layout::Node const& node)
 {
-    auto offset = Layout::RustFFI::layout_arena_paintable_offset(node.arena_handle(), committed_row_slot(node));
-    return { CSSPixels::from_raw(offset.x), CSSPixels::from_raw(offset.y) };
+    return Layout::RustFFI::layout_arena_paintable_offset(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixelSize content_size(Layout::Node const& node)
 {
-    auto size = Layout::RustFFI::layout_arena_paintable_content_size(node.arena_handle(), committed_row_slot(node));
-    return { CSSPixels::from_raw(size.width), CSSPixels::from_raw(size.height) };
+    return Layout::RustFFI::layout_arena_paintable_content_size(node.arena_handle(), committed_row_slot(node));
 }
 
 CSSPixels content_width(Layout::Node const& node)
@@ -261,7 +259,7 @@ Optional<OverflowData> overflow_data(Layout::Node const& node)
     auto const* row = committed_row(node);
     if (!row || !row->overflow_measured_this_commit)
         return {};
-    return OverflowData { from_ffi_css_pixel_rect(row->overflow_relative_to_padding_box.rect), row->overflow_relative_to_padding_box.has_scrollable_overflow };
+    return OverflowData { row->overflow_relative_to_padding_box.rect, row->overflow_relative_to_padding_box.has_scrollable_overflow };
 }
 
 static void measure_scrollable_overflow_if_missing(Layout::Node const& node, Layout::RustFFI::PaintableData const& row)
@@ -289,7 +287,7 @@ Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
     measure_scrollable_overflow_if_missing(node, *row);
     if (!row->overflow_measured_this_commit && !row->overflow_valid_across_recommits)
         return {};
-    auto rect = from_ffi_css_pixel_rect(row->overflow_relative_to_padding_box.rect);
+    auto rect = row->overflow_relative_to_padding_box.rect;
     rect.translate_by(absolute_padding_box_rect(node).location());
     return rect;
 }
@@ -530,8 +528,7 @@ Gfx::Path const* committed_svg_path(Layout::Node const& node)
 
 CSSPixelSize svg_viewport_size(Layout::Node const& node)
 {
-    auto size = Layout::RustFFI::layout_arena_paintable_svg_viewport_size(node.arena_handle(), committed_row_slot(node));
-    return { CSSPixels::from_raw(size.width), CSSPixels::from_raw(size.height) };
+    return Layout::RustFFI::layout_arena_paintable_svg_viewport_size(node.arena_handle(), committed_row_slot(node));
 }
 
 Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
@@ -571,7 +568,7 @@ CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)
     if (row->kind == Layout::RustFFI::PaintableKind::InlinePaintable) {
         auto result = Layout::RustFFI::layout_arena_inline_paintable_first_piece_position(node.arena_handle(), committed_row_slot(node));
         if (result.has_value)
-            return { CSSPixels::from_raw(result.x), CSSPixels::from_raw(result.y) };
+            return { result.x, result.y };
     }
     return absolute_position(node);
 }
@@ -596,10 +593,10 @@ StickyInsets sticky_insets(Layout::Node const& node)
         return {};
     VERIFY(row->has_sticky_insets);
     auto const& insets = row->sticky_insets;
-    auto side = [](i32 raw, bool present) -> Optional<CSSPixels> {
+    auto side = [](CSSPixels value, bool present) -> Optional<CSSPixels> {
         if (!present)
             return {};
-        return CSSPixels::from_raw(raw);
+        return value;
     };
     return { side(insets.top, insets.has_top), side(insets.right, insets.has_right), side(insets.bottom, insets.has_bottom), side(insets.left, insets.has_left) };
 }
@@ -670,7 +667,7 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
         if (previous_layout_node && previous_layout_node->is_atomic_inline()) {
             auto result = Layout::RustFFI::layout_arena_paintable_first_fragment_rect_for_node(block.arena_handle(), committed_row_slot(block), Layout::Node::slot_id(previous_layout_node));
             if (result.has_value) {
-                auto fragment_rect = from_ffi_css_pixel_rect(result.rect);
+                auto fragment_rect = result.rect;
                 if (styled_block.writing_mode() == CSS::WritingMode::HorizontalTb)
                     rect.set_x(styled_block.inline_axis_is_reverse() ? fragment_rect.left() : fragment_rect.right());
                 else
@@ -693,13 +690,13 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
     } preceding_context { const_cast<DOM::Node&>(*child), {} };
     Layout::RustFFI::layout_arena_for_each_subtree_fragment_rect(
         block.arena_handle(), committed_row_slot(block), &preceding_context,
-        [](void* context_pointer, void* fragment_layout_node_shell, Layout::RustFFI::FfiCssPixelRect rect) {
+        [](void* context_pointer, void* fragment_layout_node_shell, CSSPixelRect rect) {
             auto& context = *static_cast<PrecedingContentContext*>(context_pointer);
             auto const* fragment_layout_node = static_cast<Layout::Node const*>(fragment_layout_node_shell);
             auto* fragment_dom_node = fragment_layout_node ? const_cast<DOM::Node*>(fragment_layout_node->dom_node()) : nullptr;
             if (!fragment_dom_node || !(context.child->compare_document_position(fragment_dom_node) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
                 return;
-            auto bottom = CSSPixels::from_raw(rect.y) + CSSPixels::from_raw(rect.height);
+            auto bottom = rect.bottom();
             if (!context.preceding_content_bottom.has_value() || bottom > *context.preceding_content_bottom)
                 context.preceding_content_bottom = bottom;
         });
@@ -750,7 +747,7 @@ Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);
             if (!style_source || !layout_node_is_visible(*style_source))
                 return {};
-            return CaretPaint { from_ffi_css_pixel_rect(result.rect), style_source->caret_color() };
+            return CaretPaint { result.rect, style_source->caret_color() };
         }
         if (result.found) {
             return {};
@@ -773,7 +770,7 @@ Optional<CaretPaint> resolve_caret_paint(Layout::Node const& block, Layout::Node
             auto const* style_source = static_cast<Layout::NodeWithStyle const*>(empty_line.style_source);
             if (!style_source)
                 return {};
-            auto empty_line_rect = from_ffi_css_pixel_rect(empty_line.rect);
+            auto empty_line_rect = empty_line.rect;
             CSSPixelRect cursor_rect { empty_line_rect.x(), empty_line_rect.y(), 1, empty_line_rect.height() };
             return CaretPaint { cursor_rect, style_source->caret_color() };
         }
@@ -1145,9 +1142,9 @@ void set_sticky_insets(Layout::Node const& node, OwnPtr<StickyInsets> sticky_ins
 {
     Layout::RustFFI::FfiStickyInsets ffi_insets {};
     if (sticky_insets) {
-        auto pack = [](Optional<CSSPixels> const& value, i32& raw, bool& present) {
+        auto pack = [](Optional<CSSPixels> const& value, CSSPixels& output, bool& present) {
             present = value.has_value();
-            raw = value.has_value() ? value->raw_value() : 0;
+            output = value.value_or({});
         };
         pack(sticky_insets->top, ffi_insets.top, ffi_insets.has_top);
         pack(sticky_insets->right, ffi_insets.right, ffi_insets.has_right);
@@ -1169,13 +1166,8 @@ void inline_piece_border_box_rects(Layout::Node const& node, Vector<CSSPixelRect
 {
     Layout::RustFFI::layout_arena_inline_paintable_piece_border_box_rects(
         node.arena_handle(), committed_row_slot(node), &rects,
-        [](void* context, Layout::RustFFI::FfiCssPixelRect rect) {
-            static_cast<Vector<CSSPixelRect>*>(context)->append({
-                CSSPixels::from_raw(rect.x),
-                CSSPixels::from_raw(rect.y),
-                CSSPixels::from_raw(rect.width),
-                CSSPixels::from_raw(rect.height),
-            });
+        [](void* context, CSSPixelRect rect) {
+            static_cast<Vector<CSSPixelRect>*>(context)->append(rect);
         });
 }
 

@@ -5,48 +5,51 @@
  */
 
 use super::*;
+use crate::layout::{OptionalCssPixelRect, OptionalCssPixels, OptionalFloatSize, OptionalIntRect};
+use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor, OptionalFloatRect};
+use libgfx_rust::{
+    AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
+};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiRecordingInputs {
     pub device_pixels_per_css_pixel: f64,
-    pub device_viewport_rect: [i32; 4],
+    pub device_viewport_rect: IntRect,
     pub css_viewport_rect: crate::layout::FfiCssPixelRect,
     pub should_show_line_box_borders: bool,
     pub should_paint_overlay: bool,
     pub is_recording_async_scrolling_metadata: bool,
     pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
-    pub has_canvas_fill_rect: bool,
-    pub canvas_fill_rect: [i32; 4],
-    pub canvas_color: u32,
+    pub canvas_fill_rect: OptionalIntRect,
+    pub canvas_color: Color,
     pub opaque_canvas: bool,
-    pub bitmap_rect: [i32; 4],
-    pub background_color: u32,
+    pub bitmap_rect: IntRect,
+    pub background_color: Color,
     pub paint_command_cache_read_write: bool,
     pub display_list_id: u64,
     pub window_is_focused: bool,
-    pub outline_auto_color: u32,
+    pub outline_auto_color: Color,
     pub has_inspector_highlight: bool,
     pub inspector_highlight_paintable: crate::layout::node_data::NodeSlotId,
-    pub tooltip_color: u32,
-    pub tooltip_text_color: u32,
-    pub tooltip_border_color: u32,
+    pub tooltip_color: Color,
+    pub tooltip_text_color: Color,
+    pub tooltip_border_color: Color,
     pub grid_overlays: *const FfiGridOverlayInput,
     pub grid_overlay_count: usize,
     pub flex_overlays: *const FfiFlexOverlayInput,
     pub flex_overlay_count: usize,
-    pub has_caret_debug_rect: bool,
-    pub caret_debug_rect: crate::layout::FfiCssPixelRect,
+    pub caret_debug_rect: OptionalCssPixelRect,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiGridOverlayInput {
     pub paintable: crate::layout::node_data::NodeSlotId,
-    pub color: u32,
-    pub label_foreground_color: u32,
+    pub color: Color,
+    pub label_foreground_color: Color,
     pub label_css_pixel_size: f32,
     pub show_area_names: bool,
     pub show_line_numbers: bool,
@@ -58,7 +61,7 @@ pub struct FfiGridOverlayInput {
 #[repr(C)]
 pub struct FfiFlexOverlayInput {
     pub paintable: crate::layout::node_data::NodeSlotId,
-    pub color: u32,
+    pub color: Color,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -70,20 +73,18 @@ pub struct FfiOverlayLabelFacts {
     pub device_glyph_width: f32,
     pub device_ascent: f32,
     pub device_descent: f32,
-    pub blob_bounds: [f32; 4],
+    pub blob_bounds: FloatRect,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiImageIntrinsicFacts {
     pub is_paintable: bool,
-    pub has_natural_width: bool,
-    pub natural_width: i32,
-    pub has_natural_height: bool,
-    pub natural_height: i32,
+    pub natural_width: OptionalCssPixels,
+    pub natural_height: OptionalCssPixels,
     pub has_natural_aspect_ratio: bool,
-    pub natural_aspect_ratio_numerator: i32,
-    pub natural_aspect_ratio_denominator: i32,
+    pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
+    pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
     pub has_selected_image_value: bool,
     pub selected_image_value: *const c_void,
 }
@@ -92,13 +93,11 @@ impl Default for FfiImageIntrinsicFacts {
     fn default() -> Self {
         Self {
             is_paintable: false,
-            has_natural_width: false,
-            natural_width: 0,
-            has_natural_height: false,
-            natural_height: 0,
+            natural_width: Default::default(),
+            natural_height: Default::default(),
             has_natural_aspect_ratio: false,
-            natural_aspect_ratio_numerator: 0,
-            natural_aspect_ratio_denominator: 0,
+            natural_aspect_ratio_numerator: Default::default(),
+            natural_aspect_ratio_denominator: Default::default(),
             has_selected_image_value: false,
             selected_image_value: std::ptr::null(),
         }
@@ -118,14 +117,12 @@ pub enum FfiVideoRepresentation {
 #[repr(C)]
 pub struct FfiReplacedPaintFacts {
     pub has_decoded_image_data: bool,
-    pub has_natural_width: bool,
-    pub natural_width: crate::css::css_pixels::CssPixels,
-    pub has_natural_height: bool,
-    pub natural_height: crate::css::css_pixels::CssPixels,
+    pub natural_width: OptionalCssPixels,
+    pub natural_height: OptionalCssPixels,
     pub has_natural_aspect_ratio: bool,
     pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
     pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
-    pub selection_background_color: u32,
+    pub selection_background_color: Color,
     pub has_canvas_content: bool,
     pub canvas_content_width: i32,
     pub canvas_content_height: i32,
@@ -146,30 +143,27 @@ pub struct FfiReplacedPaintFacts {
     pub checked: bool,
     pub indeterminate: bool,
     pub being_activated: bool,
-    pub canvas_color: u32,
-    pub canvas_text_color: u32,
-    pub accent_color: u32,
+    pub canvas_color: Color,
+    pub canvas_text_color: Color,
+    pub accent_color: Color,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSvgHostFacts {
-    pub has_viewport: bool,
-    pub viewport: [f32; 4],
-    pub percentage_basis: i32,
+    pub viewport: OptionalFloatRect,
+    pub percentage_basis: crate::css::css_pixels::CssPixels,
     pub has_decoded_image_data: bool,
-    pub has_natural_size: bool,
-    pub natural_width: f32,
-    pub natural_height: f32,
+    pub natural_size: OptionalFloatSize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSvgPaintContext {
-    pub viewport: [f32; 4],
-    pub path_bounding_box: [f32; 4],
-    pub paint_transform: [f32; 6],
-    pub content_scale: [f32; 2],
+    pub viewport: FloatRect,
+    pub path_bounding_box: FloatRect,
+    pub paint_transform: AffineTransform,
+    pub content_scale: FloatSize,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -195,20 +189,18 @@ pub enum FfiSvgGradientSpreadMethod {
 #[repr(C)]
 pub struct FfiSvgPaintStyle {
     pub kind: FfiSvgPaintStyleKind,
-    pub has_gradient_transform: bool,
-    pub gradient_transform: [f32; 6],
+    pub gradient_transform: OptionalAffineTransform,
     pub spread_method: FfiSvgGradientSpreadMethod,
-    pub color_space: u8,
-    pub start: [f32; 2],
-    pub end: [f32; 2],
+    pub color_space: InterpolationColorSpace,
+    pub start: libgfx_rust::FloatPoint,
+    pub end: libgfx_rust::FloatPoint,
     pub start_radius: f32,
     pub end_radius: f32,
     pub pattern_paintable: crate::layout::node_data::NodeSlotId,
-    pub tile_content_transform: [f32; 16],
-    pub tile_rect: [f32; 4],
-    pub content_scale: [f32; 2],
-    pub has_pattern_transform: bool,
-    pub pattern_transform: [f32; 6],
+    pub tile_content_transform: FloatMatrix4x4,
+    pub tile_rect: FloatRect,
+    pub content_scale: FloatSize,
+    pub pattern_transform: OptionalAffineTransform,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -231,8 +223,8 @@ pub struct FfiViewportScrollbarFacts {
     pub expanded_thumb_rect: crate::layout::FfiCssPixelRect,
     pub scroll_size: f64,
     pub expanded_scroll_size: f64,
-    pub thumb_color: u32,
-    pub track_color: u32,
+    pub thumb_color: Color,
+    pub track_color: Color,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -262,11 +254,10 @@ pub struct FfiScrollbarPaintFacts {
 pub struct FfiOverlayFacts {
     pub paints_scrollbars: bool,
     pub scrollbars: [FfiScrollbarPaintFacts; 2],
-    pub thumb_color: u32,
-    pub track_color: u32,
-    pub has_resizer_rect: bool,
-    pub resizer_rect: crate::layout::FfiCssPixelRect,
-    pub resize_gripper_padding: i32,
+    pub thumb_color: Color,
+    pub track_color: Color,
+    pub resizer_rect: OptionalCssPixelRect,
+    pub resize_gripper_padding: crate::css::css_pixels::CssPixels,
     pub middle_button_scroll_active: bool,
     pub middle_button_scroll_origin: crate::layout::FfiCssPixelPoint,
 }
@@ -276,7 +267,7 @@ pub struct FfiOverlayFacts {
 pub struct FfiOutlineFacts {
     pub paints_focused_area_outline: bool,
     pub focused_area_path: *mut c_void,
-    pub focused_area_color: u32,
+    pub focused_area_color: Color,
     pub focused_area_width: crate::css::css_pixels::CssPixels,
 }
 
@@ -291,15 +282,14 @@ pub struct FfiTextControlSelection {
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSelectionStyleFacts {
-    pub background_color: u32,
-    pub has_text_color: bool,
-    pub text_color: u32,
+    pub background_color: Color,
+    pub text_color: OptionalColor,
     pub has_text_shadow: bool,
     pub has_text_decoration: bool,
     pub text_decoration_lines: [u8; 8],
     pub text_decoration_line_count: u32,
     pub text_decoration_style: u8,
-    pub text_decoration_color: u32,
+    pub text_decoration_color: Color,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -307,7 +297,7 @@ pub struct FfiSelectionStyleFacts {
 pub struct FfiCursorFacts {
     pub paints: bool,
     pub rect: crate::layout::FfiCssPixelRect,
-    pub color: u32,
+    pub color: Color,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -323,8 +313,7 @@ pub enum FfiLayerImageList {
 #[repr(C)]
 pub struct FfiLayerImagePrepareFacts {
     pub is_image_style_value: bool,
-    pub has_single_pixel_color: bool,
-    pub single_pixel_color: u32,
+    pub single_pixel_color: OptionalColor,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -401,25 +390,25 @@ pub struct FfiPaintHostCallbacks {
         *mut c_void,
         FfiLayerImageList,
         u32,
-        *const i32,
+        IntRect,
     ) -> FfiLayerImageNestedDisplayListFacts,
     pub layer_image_current_frame:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32, *const i32) -> FfiLayerImageFrameFacts,
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32, IntRect) -> FfiLayerImageFrameFacts,
     pub layer_image_paint: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
         FfiLayerImageList,
         u32,
-        *const f32,
-        *const i32,
+        FloatRect,
+        crate::layout::FfiCssPixelSize,
         u8,
-        *const f32,
+        FloatSize,
     ) -> FfiImagePaintFacts,
     pub replaced_paint_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiReplacedPaintFacts,
     pub replaced_image_paint:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *const f32, *const f32) -> FfiImagePaintFacts,
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
     pub backdrop_filter_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
-    pub nested_display_list_from_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, i32, i32) -> u64,
+    pub nested_display_list_from_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, IntPoint) -> u64,
     pub svg_host_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgHostFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
@@ -428,7 +417,7 @@ pub struct FfiPaintHostCallbacks {
         *const FfiSvgPaintContext,
         *mut c_void,
     ) -> FfiSvgPaintStyle,
-    pub accumulated_2d_scale: unsafe extern "C" fn(*mut c_void, *const c_void, usize, *mut f32),
+    pub accumulated_2d_scale: unsafe extern "C" fn(*mut c_void, *const c_void, usize) -> FloatSize,
     pub materialize_visual_context_tree: unsafe extern "C" fn(*mut c_void, *const c_void) -> *mut c_void,
     pub nested_display_list_from_tree:
         unsafe extern "C" fn(*mut c_void, *const u8, usize, *mut c_void, *const u64, usize) -> u64,
@@ -445,7 +434,7 @@ pub struct FfiPaintHostCallbacks {
 
 #[derive(Default)]
 pub struct ColorStopSink {
-    pub colors: Vec<u32>,
+    pub colors: Vec<Color>,
     pub positions: Vec<f32>,
 }
 
@@ -533,15 +522,15 @@ impl FfiPaintHostCallbacks {
         computed_index: u32,
         device_dest_rect: libgfx_rust::IntRect,
     ) -> FfiLayerImageNestedDisplayListFacts {
-        let dest = [
-            device_dest_rect.x,
-            device_dest_rect.y,
-            device_dest_rect.width,
-            device_dest_rect.height,
-        ];
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe {
-            (self.layer_image_nested_display_list)(self.context, layout_node_shell, list, computed_index, dest.as_ptr())
+            (self.layer_image_nested_display_list)(
+                self.context,
+                layout_node_shell,
+                list,
+                computed_index,
+                device_dest_rect,
+            )
         }
     }
     pub(crate) fn layer_image_current_frame(
@@ -551,15 +540,9 @@ impl FfiPaintHostCallbacks {
         computed_index: u32,
         device_dest_rect: libgfx_rust::IntRect,
     ) -> FfiLayerImageFrameFacts {
-        let dest = [
-            device_dest_rect.x,
-            device_dest_rect.y,
-            device_dest_rect.width,
-            device_dest_rect.height,
-        ];
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe {
-            (self.layer_image_current_frame)(self.context, layout_node_shell, list, computed_index, dest.as_ptr())
+            (self.layer_image_current_frame)(self.context, layout_node_shell, list, computed_index, device_dest_rect)
         }
     }
     #[allow(clippy::too_many_arguments)]
@@ -568,8 +551,8 @@ impl FfiPaintHostCallbacks {
         layout_node_shell: *mut c_void,
         list: FfiLayerImageList,
         computed_index: u32,
-        dest: [f32; 4],
-        css_tile_size: [i32; 2],
+        dest: FloatRect,
+        css_tile_size: crate::layout::FfiCssPixelSize,
         image_rendering: u8,
         accumulated_scale: libgfx_rust::FloatSize,
     ) -> FfiImagePaintFacts {
@@ -580,10 +563,10 @@ impl FfiPaintHostCallbacks {
                 layout_node_shell,
                 list,
                 computed_index,
-                dest.as_ptr(),
-                css_tile_size.as_ptr(),
+                dest,
+                css_tile_size,
                 image_rendering,
-                [accumulated_scale.width, accumulated_scale.height].as_ptr(),
+                accumulated_scale,
             )
         }
     }
@@ -607,18 +590,11 @@ impl FfiPaintHostCallbacks {
     pub(crate) fn replaced_image_paint(
         &self,
         layout_node_shell: *mut c_void,
-        dest: [f32; 4],
+        dest: FloatRect,
         accumulated_scale: libgfx_rust::FloatSize,
     ) -> FfiImagePaintFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe {
-            (self.replaced_image_paint)(
-                self.context,
-                layout_node_shell,
-                dest.as_ptr(),
-                [accumulated_scale.width, accumulated_scale.height].as_ptr(),
-            )
-        }
+        unsafe { (self.replaced_image_paint)(self.context, layout_node_shell, dest, accumulated_scale) }
     }
     pub(crate) fn backdrop_filter_bytes(&self, layout_node_shell: *mut c_void) -> Option<Vec<u8>> {
         let mut bytes: Vec<u8> = Vec::new();
@@ -633,15 +609,8 @@ impl FfiPaintHostCallbacks {
         content_offset: libgfx_rust::IntPoint,
     ) -> crate::painting::display_list::commands::DisplayListResourceId {
         // SAFETY: The C++ host copies the bytes synchronously.
-        let id = unsafe {
-            (self.nested_display_list_from_bytes)(
-                self.context,
-                bytes.as_ptr(),
-                bytes.len(),
-                content_offset.x,
-                content_offset.y,
-            )
-        };
+        let id =
+            unsafe { (self.nested_display_list_from_bytes)(self.context, bytes.as_ptr(), bytes.len(), content_offset) };
         crate::painting::display_list::commands::DisplayListResourceId(id)
     }
     pub(crate) fn svg_host_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgHostFacts {
@@ -672,14 +641,9 @@ impl FfiPaintHostCallbacks {
         visual_context_tree: Option<&crate::painting::visual_context::VisualContextTree>,
         visual_context_index: usize,
     ) -> libgfx_rust::FloatSize {
-        let mut out = [0f32; 2];
         let tree = visual_context_tree.map_or(std::ptr::null(), |tree| std::ptr::from_ref(tree).cast());
         // SAFETY: The C++ host answers synchronously and only borrows the optional tree.
-        unsafe { (self.accumulated_2d_scale)(self.context, tree, visual_context_index, out.as_mut_ptr()) };
-        libgfx_rust::FloatSize {
-            width: out[0],
-            height: out[1],
-        }
+        unsafe { (self.accumulated_2d_scale)(self.context, tree, visual_context_index) }
     }
     pub(crate) fn materialize_visual_context_tree(
         &self,

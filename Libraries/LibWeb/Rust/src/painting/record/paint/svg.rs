@@ -6,7 +6,7 @@
 
 use crate::css::css_enums::paint_order;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::display_list::commands::{DisplayListGradientSpreadMethod, OptionalAffineTransform};
+use crate::painting::display_list::commands::DisplayListGradientSpreadMethod;
 use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
@@ -14,10 +14,7 @@ use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvg
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::paint::background::paint_image;
 use crate::painting::record::{PaintPhase, PaintRecorder};
-use libgfx_rust::{
-    AffineTransform, CapStyle, Color, FloatRect, FloatSize, InterpolationColorSpace, JoinStyle, ShouldAntiAlias,
-    WindingRule,
-};
+use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
 #[derive(Clone, Copy, Default)]
 struct SvgPaintFacts {
@@ -61,12 +58,17 @@ fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (
         .paint_host
         .svg_host_facts(recorder.layout_node_shell(paintable));
     let mut facts = SvgPaintFacts {
-        has_viewport: host.has_viewport,
-        viewport: host.viewport,
+        has_viewport: host.viewport.has_value,
+        viewport: [
+            host.viewport.value.x,
+            host.viewport.value.y,
+            host.viewport.value.width,
+            host.viewport.value.height,
+        ],
         has_decoded_image_data: host.has_decoded_image_data,
-        has_natural_size: host.has_natural_size,
-        natural_width: host.natural_width,
-        natural_height: host.natural_height,
+        has_natural_size: host.natural_size.has_value,
+        natural_width: host.natural_size.value.width,
+        natural_height: host.natural_size.value.height,
         ..SvgPaintFacts::default()
     };
     let layout_arena = recorder.layout_arena;
@@ -113,7 +115,7 @@ fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (
         style.box_values().overflow_x == overflow::VISIBLE && style.box_values().overflow_y == overflow::VISIBLE;
     facts.image_rendering = style.image_rendering();
 
-    let basis = crate::css::css_pixels::CssPixels::from_raw(host.percentage_basis);
+    let basis = host.percentage_basis;
     let resolve = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle, default: f32| {
         handle
             .length_percentage()
@@ -161,54 +163,34 @@ fn paint_style_from_ffi(
     stops: &crate::painting::host::ColorStopSink,
 ) -> Option<PaintStyle> {
     let color_stops = ColorStops {
-        colors: stops.colors.iter().map(|color| Color(*color)).collect(),
+        colors: stops.colors.clone(),
         positions: stops.positions.clone(),
         repeating: false,
     };
-    let gradient_transform = if style.has_gradient_transform {
-        OptionalAffineTransform::from(Some(affine(style.gradient_transform)))
-    } else {
-        OptionalAffineTransform::none()
-    };
+    let gradient_transform = style.gradient_transform;
     let spread_method = match style.spread_method {
         FfiSvgGradientSpreadMethod::Pad => DisplayListGradientSpreadMethod::Pad,
         FfiSvgGradientSpreadMethod::Repeat => DisplayListGradientSpreadMethod::Repeat,
         FfiSvgGradientSpreadMethod::Reflect => DisplayListGradientSpreadMethod::Reflect,
     };
-    let color_space = if style.color_space == 0 {
-        InterpolationColorSpace::LinearRGB
-    } else {
-        InterpolationColorSpace::SRGB
-    };
+    let color_space = style.color_space;
     match style.kind {
         FfiSvgPaintStyleKind::LinearGradient => Some(PaintStyle::LinearGradient {
             gradient_transform,
             spread_method,
             color_space,
             color_stops,
-            start_point: libgfx_rust::FloatPoint {
-                x: style.start[0],
-                y: style.start[1],
-            },
-            end_point: libgfx_rust::FloatPoint {
-                x: style.end[0],
-                y: style.end[1],
-            },
+            start_point: style.start,
+            end_point: style.end,
         }),
         FfiSvgPaintStyleKind::RadialGradient => Some(PaintStyle::RadialGradient {
             gradient_transform,
             spread_method,
             color_space,
             color_stops,
-            start_center: libgfx_rust::FloatPoint {
-                x: style.start[0],
-                y: style.start[1],
-            },
+            start_center: style.start,
             start_radius: style.start_radius,
-            end_center: libgfx_rust::FloatPoint {
-                x: style.end[0],
-                y: style.end[1],
-            },
+            end_center: style.end,
             end_radius: style.end_radius,
         }),
         FfiSvgPaintStyleKind::Pattern => Some(
@@ -242,10 +224,14 @@ pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, pain
     let paint_transform = [device_scale, 0.0, 0.0, device_scale, 0.0, 0.0];
     let content_scale = recorder.own_accumulated_2d_scale(paintable);
     let paint_context = crate::painting::host::FfiSvgPaintContext {
-        viewport: if facts.has_viewport { facts.viewport } else { [0.0; 4] },
-        path_bounding_box: computed_path.bounding_box(),
-        paint_transform,
-        content_scale: [content_scale.width, content_scale.height],
+        viewport: if facts.has_viewport {
+            FloatRect::from_array(facts.viewport)
+        } else {
+            FloatRect::default()
+        },
+        path_bounding_box: FloatRect::from_array(computed_path.bounding_box()),
+        paint_transform: affine(paint_transform),
+        content_scale,
     };
     for is_stroke in [false, true] {
         let (style, _stops) =
@@ -271,12 +257,8 @@ pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, pain
 }
 
 fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPaintStyle) -> PaintStyle {
-    let mut elements = [[0.0f32; 4]; 4];
-    for (index, value) in style.tile_content_transform.into_iter().enumerate() {
-        elements[index / 4][index % 4] = value;
-    }
     let root_transform = crate::painting::visual_context::TransformData {
-        matrix: libgfx_rust::FloatMatrix4x4 { elements },
+        matrix: style.tile_content_transform,
         origin: libgfx_rust::FloatPoint::default(),
         sorting_context_root_index: None,
         flattens_inherited_transform: false,
@@ -289,16 +271,9 @@ fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPa
         recorder.record_nested_svg_display_list(style.pattern_paintable, root_transform, false, false);
     PaintStyle::Pattern {
         tile_display_list_id,
-        tile_rect: FloatRect::from_array(style.tile_rect),
-        content_scale: FloatSize {
-            width: style.content_scale[0],
-            height: style.content_scale[1],
-        },
-        pattern_transform: if style.has_pattern_transform {
-            OptionalAffineTransform::from(Some(affine(style.pattern_transform)))
-        } else {
-            OptionalAffineTransform::none()
-        },
+        tile_rect: style.tile_rect,
+        content_scale: style.content_scale,
+        pattern_transform: style.pattern_transform,
     }
 }
 
@@ -343,13 +318,14 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
     }
 
     let paint_context = crate::painting::host::FfiSvgPaintContext {
-        viewport: if facts.has_viewport { facts.viewport } else { [0.0; 4] },
-        path_bounding_box: computed_path.bounding_box(),
-        paint_transform,
-        content_scale: {
-            let scale = recorder.own_accumulated_2d_scale(paintable);
-            [scale.width, scale.height]
+        viewport: if facts.has_viewport {
+            FloatRect::from_array(facts.viewport)
+        } else {
+            FloatRect::default()
         },
+        path_bounding_box: FloatRect::from_array(computed_path.bounding_box()),
+        paint_transform: affine(paint_transform),
+        content_scale: recorder.own_accumulated_2d_scale(paintable),
     };
 
     for index in 0..facts.paint_order_count as usize {
@@ -498,11 +474,10 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: N
     }
 
     let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
-    let paint = recorder.paint_host.replaced_image_paint(
-        recorder.layout_node_shell(paintable),
-        [draw_rect.x, draw_rect.y, draw_rect.width, draw_rect.height],
-        accumulated_scale,
-    );
+    let paint =
+        recorder
+            .paint_host
+            .replaced_image_paint(recorder.layout_node_shell(paintable), draw_rect, accumulated_scale);
     if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
         paint_image(recorder, &paint, draw_rect, facts.image_rendering);
     }
