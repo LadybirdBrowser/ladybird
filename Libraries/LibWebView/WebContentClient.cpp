@@ -539,7 +539,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
             child_frame->device_pixel_ratio(),
             Web::ViewportIsFullscreen::No);
     }
-    remote_client->async_set_system_visibility_state(remote_page_id, Web::HTML::VisibilityState::Visible);
+    remote_client->async_set_system_visibility_state(remote_page_id, child_frame->top_level_traversable().system_visibility_state());
     remote_client->async_load_url_with_document_resource(remote_page_id, url, move(document_resource), history_handling, move(source_snapshot));
 
     SiteIsolationManager::the().transition_child_frame_to_remote(*this, page_id, frame_id, move(remote_client), remote_page_id);
