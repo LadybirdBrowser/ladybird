@@ -11,8 +11,7 @@
         observer.disconnect();
         observer = null;
 
-        requestIdleCallback(() => {
-            internals.gc();
+        internals.gcAsync().then(() => {
             println(`observer collected after disconnect: ${weak.deref() === undefined}`);
             done();
         });
