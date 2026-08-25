@@ -324,6 +324,7 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
             navigable.remote_host_client().async_set_system_visibility_state(navigable.remote_host_page_id(), visibility_state);
         return IterationDecision::Continue;
     });
+    Application::the().update_compositor_context_visibility(client().compositor_context_id_for_page(m_client_state.page_index), visibility_state);
 }
 
 void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
@@ -1865,6 +1866,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     client().async_set_system_visibility_state(m_client_state.page_index, m_top_level_traversable.system_visibility_state());
     auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
+    Application::the().update_compositor_context_visibility(compositor_context_id, m_top_level_traversable.system_visibility_state());
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
 
     client().async_set_page_mute_state(m_client_state.page_index, m_mute_state);

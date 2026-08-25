@@ -643,6 +643,21 @@ bool ContextState::set_display_metadata(Optional<u64> display_id, double refresh
     return m_pending_present_frame_scheduled;
 }
 
+bool ContextState::set_visibility(Web::Compositor::ContextVisibility visibility)
+{
+    if (m_visibility == visibility)
+        return false;
+    m_visibility = visibility;
+    return true;
+}
+
+Optional<Gfx::IntRect> ContextState::pending_present_frame_viewport_rect() const
+{
+    if (!m_pending_present_frame.has_value())
+        return {};
+    return m_pending_present_frame->viewport_rect;
+}
+
 void ContextState::queue_present_frame(PendingFrame pending_frame)
 {
     if (!m_pending_present_frame.has_value()) {

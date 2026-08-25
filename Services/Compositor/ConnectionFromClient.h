@@ -40,6 +40,7 @@ private:
     virtual void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
     virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress) override;
     virtual void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64>, double) override;
+    virtual void set_context_visibility(Web::Compositor::CompositorContextId, Web::Compositor::ContextVisibility) override;
     virtual Messages::CompositorControlServer::HandleMouseEventResponse handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent) override;
     virtual Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent) override;
     virtual Messages::CompositorControlServer::HandlePinchEventResponse handle_pinch_event(Web::Compositor::CompositorContextId, Web::PinchEvent) override;

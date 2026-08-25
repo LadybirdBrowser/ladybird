@@ -1079,6 +1079,18 @@ void Application::update_compositor_display_metadata(Web::Compositor::Compositor
     m_compositor_client->async_set_display_metadata(context_id, display_id, sanitized_display_refresh_rate(refresh_rate));
 }
 
+void Application::update_compositor_context_visibility(Web::Compositor::CompositorContextId context_id, Web::HTML::VisibilityState visibility_state)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    auto context_visibility = visibility_state == Web::HTML::VisibilityState::Visible
+        ? Web::Compositor::ContextVisibility::Visible
+        : Web::Compositor::ContextVisibility::Hidden;
+    m_compositor_client->async_set_context_visibility(context_id, context_visibility);
+}
+
 bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))

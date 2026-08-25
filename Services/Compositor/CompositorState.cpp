@@ -260,6 +260,8 @@ void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebCont
         auto& context = *context_entry.value;
         if (&context.web_content_client() != &client)
             continue;
+        if (!context_is_effectively_visible(context))
+            continue;
         for (auto const& resource_entry : context.video_sink_handles()) {
             if (resource_entry.value == handle) {
                 if (auto rect = context.video_present_rect(); rect.has_value())
@@ -344,6 +346,8 @@ void CompositorState::update_video_sinks_for_display(Optional<u64> display_id)
         auto& context = *context_entry.value;
         if (display_id_for_context(context) != display_id)
             continue;
+        if (!context_is_effectively_visible(context))
+            continue;
         for (auto const& resource_entry : context.video_sink_handles()) {
             auto* sink_state = video_sink_state(context.web_content_client(), resource_entry.value);
             if (sink_state != nullptr && sink_state->requires_updates) {
@@ -366,6 +370,25 @@ Optional<u64> CompositorState::display_id_for_context(ContextState const& contex
         current_context = context_if_present(*parent_context_id);
     }
     return {};
+}
+
+ContextState const* CompositorState::root_context_of(ContextState const& context) const
+{
+    auto const* current_context = &context;
+    while (true) {
+        auto parent_context_id = current_context->parent_context_id();
+        if (!parent_context_id.has_value())
+            return current_context;
+        auto const* parent_context = context_if_present(*parent_context_id);
+        if (!parent_context)
+            return current_context;
+        current_context = parent_context;
+    }
+}
+
+bool CompositorState::context_is_effectively_visible(ContextState const& context) const
+{
+    return root_context_of(context)->visibility() == Web::Compositor::ContextVisibility::Visible;
 }
 
 double CompositorState::display_refresh_rate_for_context(ContextState const& context) const
@@ -502,6 +525,37 @@ void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId 
     }
 }
 
+void CompositorState::set_context_visibility(Web::Compositor::CompositorContextId context_id, Web::Compositor::ContextVisibility visibility)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+    if (!context->set_visibility(visibility))
+        return;
+
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} became {}", context_id, visibility == Web::Compositor::ContextVisibility::Visible ? "visible" : "hidden");
+
+    if (visibility == Web::Compositor::ContextVisibility::Visible)
+        resume_presentation_after_becoming_visible(context_id, *context);
+}
+
+void CompositorState::resume_presentation_after_becoming_visible(Web::Compositor::CompositorContextId root_context_id, ContextState& root_context)
+{
+    for (auto& context_entry : m_contexts) {
+        auto& context = *context_entry.value;
+        if (root_context_of(context) != &root_context)
+            continue;
+        if (context.has_active_smooth_scroll_animations())
+            vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
+    }
+
+    auto frame_rect_to_present = root_context.pending_present_frame_viewport_rect();
+    if (!frame_rect_to_present.has_value())
+        frame_rect_to_present = root_context.current_frame_rect_to_present();
+    if (frame_rect_to_present.has_value())
+        schedule_present_frame(root_context_id, root_context, *frame_rect_to_present);
+}
+
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect)
 {
     auto* context = context_if_present(context_id);
@@ -563,7 +617,7 @@ void CompositorState::schedule_pending_present_frame(Web::Compositor::Compositor
         // may already be up to date (and therefore not schedule a new present),
         // so explicitly keep the effective display's scheduler ticking while
         // a nested smooth scroll is active.
-        if (context.has_active_smooth_scroll_animations())
+        if (context.has_active_smooth_scroll_animations() && context_is_effectively_visible(context))
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
         return;
     }
@@ -573,6 +627,8 @@ void CompositorState::schedule_pending_present_frame(Web::Compositor::Compositor
 
 void CompositorState::schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState& context)
 {
+    if (!context_is_effectively_visible(context))
+        return;
     context.mark_pending_present_frame_scheduled();
     vsync_scheduler_for_display(context.display_id()).schedule(context.display_refresh_rate());
 }
@@ -613,6 +669,10 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
     for (auto& context_entry : m_contexts) {
         auto context_id = context_entry.key;
         auto& context = *context_entry.value;
+        if (!context_is_effectively_visible(context)) {
+            context.unschedule_pending_present_frame();
+            continue;
+        }
         auto has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && display_id_for_context(context) == display_id;
         if (!context.has_pending_present_frame_scheduled_on(display_id) && !has_active_smooth_scroll_animation_on_display)
             continue;

@@ -53,7 +53,7 @@ target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSa
 target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibSync LibWeb ${ANGLE_TARGETS} skia)
 
 if (APPLE)
-    target_link_libraries(Compositor PRIVATE "-framework CoreGraphics" "-framework CoreVideo")
+    target_link_libraries(compositorservice PUBLIC "-framework CoreGraphics" "-framework CoreVideo")
 endif()
 
 if (WIN32)

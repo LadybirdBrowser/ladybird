@@ -103,6 +103,7 @@ public:
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
+    void set_context_visibility(Web::Compositor::CompositorContextId, Web::Compositor::ContextVisibility);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
@@ -130,6 +131,9 @@ private:
     ContextState* context_if_present(Web::Compositor::CompositorContextId);
     ContextState const* context_if_present(Web::Compositor::CompositorContextId) const;
     Optional<u64> display_id_for_context(ContextState const&) const;
+    ContextState const* root_context_of(ContextState const&) const;
+    bool context_is_effectively_visible(ContextState const&) const;
+    void resume_presentation_after_becoming_visible(Web::Compositor::CompositorContextId root_context_id, ContextState& root_context);
     double display_refresh_rate_for_context(ContextState const&) const;
     void clear_parent_context(ContextState&);
     CompositedContextResolver resolver_for(Web::Compositor::CompositorContextId parent_context_id);
