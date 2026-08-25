@@ -362,7 +362,10 @@ ValidityState element_validity_state(DOM::Element const& target)
 
     bool has_invalid_elements = false;
     target.for_each_in_subtree([&](auto& node) {
-        auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(&node);
+        auto const* element = as_if<DOM::Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+        auto const* form_associated_element = as_form_associated_element(*element);
         if (!form_associated_element)
             return TraversalDecision::Continue;
         if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
