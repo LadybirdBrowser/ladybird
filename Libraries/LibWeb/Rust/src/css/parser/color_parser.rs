@@ -14,7 +14,7 @@ use crate::css::css_enums::{
     keyword_to_channel_keyword, keyword_to_hue_interpolation_method, keyword_to_polar_color_space,
     keyword_to_rectangular_color_space, rectangular_color_space,
 };
-use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind};
+use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput};
 use crate::css::named_colors::named_color_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, CalcParserContext, parse_a_calc_function_node};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
@@ -140,6 +140,192 @@ fn parse_hex_color(value: &[u16]) -> Option<[u8; 4]> {
         [r0, r1, g0, g1, b0, b1, a0, a1] => Some([pair(*r0, *r1)?, pair(*g0, *g1)?, pair(*b0, *b1)?, pair(*a0, *a1)?]),
         _ => None,
     }
+}
+
+fn trim_css_whitespace(mut input: TokenizerInput<'_>) -> TokenizerInput<'_> {
+    let is_whitespace = |code_unit| matches!(code_unit, b' ' | b'\n' | b'\t' | b'\x0c' | b'\r');
+    let mut start = 0;
+    while start < input.len() && u8::try_from(input.code_unit_at(start)).is_ok_and(is_whitespace) {
+        start += 1;
+    }
+    let mut end = input.len();
+    while end > start && u8::try_from(input.code_unit_at(end - 1)).is_ok_and(is_whitespace) {
+        end -= 1;
+    }
+    input = input.slice(start..end);
+    input
+}
+
+fn input_equals_ascii_case_insensitive(input: TokenizerInput<'_>, expected: &[u8]) -> bool {
+    input.len() == expected.len()
+        && (0..input.len()).zip(expected).all(|(index, &right)| {
+            u8::try_from(input.code_unit_at(index)).is_ok_and(|left| left.eq_ignore_ascii_case(&right))
+        })
+}
+
+fn parse_fast_number(input: TokenizerInput<'_>) -> Option<f64> {
+    // NB: FastColorParsing.cpp used AK::parse_number<double>() after validating the
+    // CSS number syntax. Keep short numbers on the stack and let longer inputs use
+    // the full parser rather than allocating in this fast path.
+    const MAX_FAST_NUMBER_LENGTH: usize = 64;
+    if input.is_empty() || input.len() > MAX_FAST_NUMBER_LENGTH {
+        return None;
+    }
+    let is_ascii_digit = |code_unit| (u16::from(b'0')..=u16::from(b'9')).contains(&code_unit);
+
+    let mut offset = 0;
+    if matches!(input.code_unit_at(offset), code_unit if code_unit == u16::from(b'+') || code_unit == u16::from(b'-')) {
+        offset += 1;
+        if offset == input.len() {
+            return None;
+        }
+    }
+
+    let mut has_digits = false;
+    while offset < input.len() && is_ascii_digit(input.code_unit_at(offset)) {
+        has_digits = true;
+        offset += 1;
+    }
+
+    if offset < input.len() && input.code_unit_at(offset) == u16::from(b'.') {
+        offset += 1;
+        if offset == input.len() || !is_ascii_digit(input.code_unit_at(offset)) {
+            return None;
+        }
+        while offset < input.len() && is_ascii_digit(input.code_unit_at(offset)) {
+            offset += 1;
+        }
+    } else if !has_digits {
+        return None;
+    }
+
+    if offset < input.len()
+        && u8::try_from(input.code_unit_at(offset)).is_ok_and(|code_unit| code_unit.eq_ignore_ascii_case(&b'e'))
+    {
+        offset += 1;
+        if offset < input.len()
+            && matches!(input.code_unit_at(offset), code_unit if code_unit == u16::from(b'+') || code_unit == u16::from(b'-'))
+        {
+            offset += 1;
+        }
+        if offset == input.len() || !is_ascii_digit(input.code_unit_at(offset)) {
+            return None;
+        }
+        while offset < input.len() && is_ascii_digit(input.code_unit_at(offset)) {
+            offset += 1;
+        }
+    }
+    if offset != input.len() {
+        return None;
+    }
+
+    let mut bytes = [0; MAX_FAST_NUMBER_LENGTH];
+    for (index, byte) in bytes.iter_mut().enumerate().take(input.len()) {
+        *byte = u8::try_from(input.code_unit_at(index)).ok()?;
+    }
+    let number = std::str::from_utf8(&bytes[..input.len()]).ok()?.parse::<f64>().ok()?;
+    number.is_finite().then_some(number)
+}
+
+fn parse_fast_legacy_rgb_component(input: TokenizerInput<'_>) -> Option<(f64, bool)> {
+    let mut input = trim_css_whitespace(input);
+    if input.is_empty() {
+        return None;
+    }
+    let is_percentage = input.code_unit_at(input.len() - 1) == u16::from(b'%');
+    if is_percentage {
+        input = input.slice(0..input.len() - 1);
+    }
+    Some((parse_fast_number(input)?, is_percentage))
+}
+
+fn fast_color_byte(value: f64, is_percentage: bool) -> u8 {
+    let value = if is_percentage { value * 255.0 / 100.0 } else { value };
+    value.clamp(0.0, 255.0).round() as u8
+}
+
+fn parse_fast_legacy_rgb_color(input: TokenizerInput<'_>) -> Option<[u8; 4]> {
+    let function_name_length = if input.len() >= 4 && input_equals_ascii_case_insensitive(input.slice(0..4), b"rgb(") {
+        4
+    } else if input.len() >= 5 && input_equals_ascii_case_insensitive(input.slice(0..5), b"rgba(") {
+        5
+    } else {
+        return None;
+    };
+    if input.code_unit_at(input.len() - 1) != u16::from(b')') {
+        return None;
+    }
+
+    let mut component_ranges = [(0, 0); 4];
+    let mut component_count = 0;
+    let mut component_start = function_name_length;
+    for index in function_name_length..input.len() - 1 {
+        if input.code_unit_at(index) != u16::from(b',') {
+            continue;
+        }
+        if component_count == component_ranges.len() {
+            return None;
+        }
+        component_ranges[component_count] = (component_start, index);
+        component_count += 1;
+        component_start = index + 1;
+    }
+    if component_count == component_ranges.len() {
+        return None;
+    }
+    component_ranges[component_count] = (component_start, input.len() - 1);
+    component_count += 1;
+    if !matches!(component_count, 3 | 4) {
+        return None;
+    }
+
+    let mut components = [(0.0, false); 4];
+    for index in 0..component_count {
+        let (start, end) = component_ranges[index];
+        components[index] = parse_fast_legacy_rgb_component(input.slice(start..end))?;
+    }
+    if components[0].1 != components[1].1 || components[0].1 != components[2].1 {
+        return None;
+    }
+
+    let alpha = if component_count == 4 {
+        let (value, is_percentage) = components[3];
+        let value = if is_percentage { value / 100.0 } else { value };
+        (value * 255.0).clamp(0.0, 255.0).round() as u8
+    } else {
+        255
+    };
+    Some([
+        fast_color_byte(components[0].0, components[0].1),
+        fast_color_byte(components[1].0, components[1].1),
+        fast_color_byte(components[2].0, components[2].1),
+        alpha,
+    ])
+}
+
+pub(crate) fn parse_simple_color(input: TokenizerInput<'_>) -> Option<[u8; 4]> {
+    let input = trim_css_whitespace(input);
+    if input.is_empty() {
+        return None;
+    }
+    if input.code_unit_at(0) == u16::from(b'#') {
+        let digits = input.slice(1..input.len());
+        let mut utf16_digits = [0; 8];
+        if digits.len() > utf16_digits.len() {
+            return None;
+        }
+        for (index, digit) in utf16_digits.iter_mut().enumerate().take(digits.len()) {
+            *digit = digits.code_unit_at(index);
+        }
+        return parse_hex_color(&utf16_digits[..digits.len()]);
+    }
+    if input_equals_ascii_case_insensitive(input, b"transparent") {
+        return Some([0, 0, 0, 0]);
+    }
+    if let Some(color) = named_color_from_name(input) {
+        return Some(color);
+    }
+    parse_fast_legacy_rgb_color(input)
 }
 
 fn quirky_hex_digits(component: &ComponentValue) -> Option<Vec<u16>> {
@@ -858,7 +1044,7 @@ pub(crate) fn parse_color_value(
             stream.discard_a_token();
             return Some(color);
         }
-        if let Some(rgba) = named_color_from_name(identifier) {
+        if let Some(rgba) = named_color_from_name(identifier.into()) {
             let name = context.intern_utf16_fly_string.is_some().then_some(identifier);
             let color = make_legacy_color(context, rgba, name)?;
             stream.discard_a_token();
@@ -1005,6 +1191,61 @@ mod tests {
             "contrast-color(red, blue)",
         ] {
             assert!(parse(source).is_none(), "{source}");
+        }
+    }
+
+    fn assert_simple_color(source: &str, expected: Option<[u8; 4]>) {
+        assert_eq!(
+            parse_simple_color(source.as_bytes().into()),
+            expected,
+            "ASCII {source:?}"
+        );
+        let utf16 = source.encode_utf16().collect::<Vec<_>>();
+        assert_eq!(
+            parse_simple_color(utf16.as_slice().into()),
+            expected,
+            "UTF-16 {source:?}"
+        );
+    }
+
+    #[test]
+    fn parses_simple_canvas_colors() {
+        for (source, expected) in [
+            (" #aBcD ", [0xaa, 0xbb, 0xcc, 0xdd]),
+            ("transparent", [0, 0, 0, 0]),
+            ("ReD", [255, 0, 0, 255]),
+            ("rgb(1,2,3)", [1, 2, 3, 255]),
+            ("RGBA(1,2,3,.5)", [1, 2, 3, 128]),
+            ("rgb(1e2,+2.5,.5)", [100, 3, 1, 255]),
+            ("rgb(-1,300,127.5)", [0, 255, 128, 255]),
+            ("rgba(100%, 0%, 50%, 50%)", [255, 0, 128, 128]),
+            ("rgba(1,2,3)", [1, 2, 3, 255]),
+            ("rgb(1,2,3,150%)", [1, 2, 3, 255]),
+            ("\x0cred\r", [255, 0, 0, 255]),
+            ("rgb(1,\x0c2\r,3)", [1, 2, 3, 255]),
+        ] {
+            assert_simple_color(source, Some(expected));
+        }
+    }
+
+    #[test]
+    fn defers_non_simple_or_malformed_canvas_colors() {
+        for source in [
+            "",
+            "currentcolor",
+            "rgb(1 2 3)",
+            "rgb(1,2%,3)",
+            "rgb(1.,2,3)",
+            "rgb(1.e2,2,3)",
+            "rgba(1,2,3,1.)",
+            "rgba(1,2,3,1.e2)",
+            "rgb(1e999,2,3)",
+            "rgb(1,2,3) trailing",
+            "\x0bred",
+            "red\x0b",
+            "rgb(1,\x0b2,3)",
+        ] {
+            assert_simple_color(source, None);
         }
     }
 }

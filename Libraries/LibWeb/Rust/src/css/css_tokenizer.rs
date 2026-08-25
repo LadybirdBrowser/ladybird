@@ -181,6 +181,20 @@ impl TokenizerInput<'_> {
         self.len() == 0
     }
 
+    pub(crate) fn code_unit_at(self, index: usize) -> u16 {
+        match self {
+            Self::Ascii(units) => u16::from(units[index]),
+            Self::Utf16(units) => units[index],
+        }
+    }
+
+    pub(crate) fn slice(self, range: Range<usize>) -> Self {
+        match self {
+            Self::Ascii(units) => Self::Ascii(&units[range]),
+            Self::Utf16(units) => Self::Utf16(&units[range]),
+        }
+    }
+
     pub(crate) fn append_to(self, output: &mut Vec<u16>) {
         match self {
             Self::Ascii(units) => output.extend(units.iter().copied().map(u16::from)),

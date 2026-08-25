@@ -27,7 +27,7 @@ use crate::css::parser::arbitrary_substitution::{
     substitution_function_presence_bits,
 };
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
-use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
+use crate::css::parser::color_parser::{is_color_function_name, parse_color_value, parse_simple_color};
 use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, consume_a_list_of_component_values, consume_a_small_list_of_component_values,
 };
@@ -5864,6 +5864,39 @@ pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
             Arc::into_raw(Arc::new(parsed)).cast()
         } else {
             std::ptr::null()
+        }
+    })
+}
+
+#[derive(Clone, Copy, Default)]
+#[repr(C)]
+pub struct FfiSimpleColor {
+    pub success: bool,
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+    pub alpha: u8,
+}
+
+/// Parses the allocation-free subset used by the canvas color cache.
+///
+/// # Safety
+/// The source view must contain exactly one valid pointer when non-empty.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parse_simple_color(source: FfiUtf16View) -> FfiSimpleColor {
+    crate::abort_on_panic(|| {
+        let Some(source) = (unsafe { source.units() }) else {
+            return FfiSimpleColor::default();
+        };
+        let Some([red, green, blue, alpha]) = parse_simple_color(source) else {
+            return FfiSimpleColor::default();
+        };
+        FfiSimpleColor {
+            success: true,
+            red,
+            green,
+            blue,
+            alpha,
         }
     })
 }

@@ -11,7 +11,7 @@ mod tests {
     use super::*;
 
     fn lookup(name: &str) -> Option<[u8; 4]> {
-        named_color_from_name(&name.encode_utf16().collect::<Vec<_>>())
+        named_color_from_name(name.encode_utf16().collect::<Vec<_>>().as_slice().into())
     }
 
     #[test]
