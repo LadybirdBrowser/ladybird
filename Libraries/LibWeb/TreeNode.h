@@ -628,13 +628,10 @@ inline bool TreeNode<T>::is_inclusive_descendant_of(TreeNode<T> const& other) co
 template<typename T>
 inline bool TreeNode<T>::is_following(TreeNode const& other) const
 {
-    // An object A is following an object B if A and B are in the same tree and A comes after B in tree order.
-    for (auto* node = previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
-        if (node == &other)
-            return true;
-    }
-
-    return false;
+    // An object A is following an object B if A and B are in the same tree, and A comes after B in tree order. That's
+    // exactly the order is_before() decides. So, ask is_before() — rather than scan the preorder all the way back to
+    // the start of the tree: The ancestor chains is_before() walks are depth-bounded — while the scan's document-sized.
+    return other.is_before(*this);
 }
 
 template<typename T>
