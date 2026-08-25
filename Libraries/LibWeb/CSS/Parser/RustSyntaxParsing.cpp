@@ -178,7 +178,7 @@ struct ParseContextStorage {
     ValueParserFFI::ParseContext context {};
 };
 
-static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_presentation_attribute, ReadonlyBytes document_url, ReadonlyBytes document_base_url, DOM::Document const* document, size_t& random_function_index)
+static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_presentation_attribute, bool is_ua_style_sheet, ReadonlyBytes document_url, ReadonlyBytes document_base_url, DOM::Document const* document, size_t& random_function_index)
 {
     return {
         .context = {
@@ -186,6 +186,7 @@ static ParseContextStorage make_parse_context(bool in_quirks_mode, bool is_svg_p
             .is_svg_presentation_attribute = is_svg_presentation_attribute,
             .is_substituted_value = false,
             .contains_attr_tainted_values = false,
+            .is_ua_style_sheet = is_ua_style_sheet,
             .value_contexts = nullptr,
             .value_context_count = 0,
             .document_url = document_url.data(),
@@ -393,7 +394,7 @@ Vector<Rule> RustSyntaxParser::parse_stylesheet(Parser& parser)
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes, document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     auto* parse = rust_parse_css_stylesheet_syntax(ffi_utf16_view(parser.m_source), &context.context, resolve_property_id, RustQueryParser::resolve_query_feature);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
@@ -418,7 +419,7 @@ Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleCon
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes, document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     static_assert(sizeof(RuleContext) == sizeof(u8));
     auto* parse = rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context, resolve_property_id, RustQueryParser::resolve_query_feature);
     VERIFY(parse);
@@ -442,7 +443,7 @@ ParsedRulePrelude RustSyntaxParser::parse_keyframe_selectors(Parser& parser)
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes, document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     auto* parse = rust_parse_css_keyframe_selectors_syntax(ffi_utf16_view(parser.m_source), &context.context, resolve_property_id, RustQueryParser::resolve_query_feature);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
@@ -472,7 +473,7 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes, document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, resolve_property_id, RustQueryParser::resolve_query_feature, preserve_property_source_text == PreservePropertySourceText::Yes);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
@@ -504,7 +505,7 @@ RefPtr<StyleValue const> RustSyntaxParser::parse_descriptor(Parser& parser, AtRu
         document_url = parser.m_serialized_document_url->bytes();
         document_base_url = parser.m_serialized_document_base_url->bytes();
     }
-    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
+    auto context = make_parse_context(parser.in_quirks_mode(), parser.is_parsing_svg_presentation_attribute(), parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes, document_url, document_base_url, parser.m_document.ptr(), parser.m_random_function_index);
     auto* value = rust_parse_css_descriptor(&context.context, to_underlying(at_rule_id), ffi_utf16_view(descriptor.name()), ffi_utf16_view(parser.m_source));
     if (!value)
         return nullptr;

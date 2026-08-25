@@ -184,6 +184,7 @@ struct SubstitutionData {
             .is_svg_presentation_attribute = false,
             .is_substituted_value = true,
             .contains_attr_tainted_values = false,
+            .is_ua_style_sheet = false,
             .value_contexts = nullptr,
             .value_context_count = 0,
             .document_url = document_url.bytes().data(),
