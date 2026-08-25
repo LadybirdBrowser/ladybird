@@ -700,10 +700,57 @@ static RequiredInvalidationAfterStyleChange materialize_style_for_targeted_updat
     return {};
 }
 
+// A targeted style update has nothing to do when every source of style work in the document is settled: A full style
+// update has completed, no style engine transaction or recorded input is pending, no media rule evaluation is queued,
+// and no animated style refresh is due.
+static bool document_has_no_pending_style_work(DOM::Document const& document)
+{
+    // A rootless flush drains the journal but preserves element style inputs for the first transaction with a document
+    // root — so has_pending_transaction() alone would report a settled engine still owing an element its recomputation.
+    return document.has_completed_style_update()
+        && !document.style_computer().style_engine().has_pending_transaction()
+        && !document.style_computer().style_engine().has_deferred_element_style_inputs()
+        && !document.needs_media_rule_evaluation()
+        && !document.needs_animated_style_update();
+}
+
+// Whether every embedding document up the container chain needs no style or layout work — so, bringing the embedding
+// chain up to date couldn't invalidate anything in this document.
+static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Document const& document)
+{
+    auto const* embedded_document = &document;
+    while (auto navigable = embedded_document->navigable()) {
+        auto container = navigable->container();
+        if (!container || &container->document() == embedded_document)
+            return true;
+        auto& embedding_document = container->document();
+        if (!document_has_no_pending_style_work(embedding_document)
+            || !embedding_document.layout_is_up_to_date()
+            || !container->has_style())
+            return false;
+        embedded_document = &embedding_document;
+    }
+    return true;
+}
+
 static bool update_style_for_element(DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     if (!abstract_element.element().is_connected())
         return false;
+
+    // OPTIMIZATION: When nothing style-related is pending anywhere that could affect this document, the only question
+    // left is, if the element's inheritance chain already has style. If it does, the walk below would conclude there's
+    // nothing to recompute. So answer that directly — without constructing a style record view for every ancestor.
+    if (mode == StyleUpdateMode::OnlyIfNeeded
+        && !abstract_element.pseudo_element().has_value()
+        && document_has_no_pending_style_work(document)
+        && embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
+        bool inheritance_chain_has_style = abstract_element.element().has_style();
+        for (auto cursor = abstract_element.element_to_inherit_style_from(); inheritance_chain_has_style && cursor.has_value(); cursor = cursor->element_to_inherit_style_from())
+            inheritance_chain_has_style = cursor->element().has_style();
+        if (inheritance_chain_has_style)
+            return true;
+    }
 
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
     ScopeGuard leave_complete_style_update = finish_complete_style_update;
@@ -792,6 +839,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
         auto& ancestor = inheritance_chain[i - 1];
         if (!topmost_element_requiring_style.has_value()
             && (document.style_computer().style_engine().has_recorded_element_style_input_change(ancestor->style_node_id())
+                || document.style_computer().style_engine().has_deferred_element_style_input(ancestor->style_node_id())
                 || !ancestor->has_style())) {
             topmost_element_requiring_style = i - 1;
         }

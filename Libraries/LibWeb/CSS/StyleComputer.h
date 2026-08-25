@@ -129,6 +129,14 @@ public:
     [[nodiscard]] RefPtr<ComputedValues const> inherited_style_group_swap(DOM::Element&, ComputedValues const& old_values, ComputedValues const& new_parent_values) const;
 
     [[nodiscard]] ComputedStyleRecordView computed_style_record_view(StyleRecordID) const;
+
+    // Presence and display:none-subtree placement of a style record, read without materializing a full style record view.
+    struct StyleRecordStatus {
+        bool present { false };
+        bool in_display_none_subtree { false };
+    };
+    [[nodiscard]] StyleRecordStatus style_record_status(StyleRecordID) const;
+
     [[nodiscard]] void const* style_record_payloads(StyleRecordID) const;
     void pin_style_record(StyleRecordID) const;
     void unpin_style_record(StyleRecordID) const;

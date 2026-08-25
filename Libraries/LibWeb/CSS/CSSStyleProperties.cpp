@@ -746,11 +746,13 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     }
     // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
     // so the leaf and its inheritance ancestors may still be stale at this point.
-    auto current_style = abstract_element.computed_style();
+    // NB: Only the style record's presence and its display:none-subtree bit matter here — so, probe
+    //     those directly, instead of materializing a full style record view.
+    auto record_status = abstract_element.document().style_computer().style_record_status(abstract_element.style_record_identity());
     bool const style_is_in_display_none_subtree = !layout_node
-        && current_style
-        && current_style->in_display_none_subtree();
-    if (!current_style || style_is_in_display_none_subtree)
+        && record_status.present
+        && record_status.in_display_none_subtree;
+    if (!record_status.present || style_is_in_display_none_subtree)
         abstract_element.document().update_style_for_element(abstract_element);
     else
         abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
@@ -781,6 +783,38 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     }
 
     return layout_node;
+}
+
+Optional<RefPtr<StyleValue const>> CSSStyleProperties::resolved_value_read_from_computed_style(DOM::AbstractElement abstract_element, PropertyID property_id)
+{
+    // Only properties whose resolved value is the plain computed value qualify: no used-value substitution (see
+    // property_needs_layout_for_getcomputedstyle() and property_needs_layout_node_for_resolved_value()): No color or
+    // shadow resolution, no logical alias mapping, and no shorthand reconstruction. get_direct_property() and
+    // style_value_for_computed_property() enumerate the properties that need such treatment.
+    switch (property_id) {
+    case PropertyID::Display:
+    case PropertyID::FontFamily:
+    case PropertyID::FontSize:
+    case PropertyID::FontStyle:
+    case PropertyID::FontWeight:
+    case PropertyID::TextAlign:
+    case PropertyID::TextDecorationLine:
+    case PropertyID::WhiteSpaceCollapse:
+        break;
+    default:
+        return OptionalNone {};
+    }
+
+    auto prepared = prepare_computed_style_and_layout_for_property(abstract_element, property_id);
+    if (!prepared.has_value())
+        return RefPtr<StyleValue const> {};
+
+    if (auto style = abstract_element.computed_style())
+        return RefPtr<StyleValue const> { style->computed_style_value(property_id) };
+
+    // Only a synthetic pseudo-element with no matching rules lacks a style record after the preparation above; its
+    // transient style needs the full declaration path.
+    return OptionalNone {};
 }
 
 Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndID const& property_name_and_id) const

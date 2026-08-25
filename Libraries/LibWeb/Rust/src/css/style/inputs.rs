@@ -712,6 +712,23 @@ impl StyleEngine {
         !self.flushing_deferred_geometry_journal && !self.deferred_geometry_journal.is_empty()
     }
 
+    /// Whether any element style input is still deferred, waiting for the first transaction with a
+    /// document root. A rootless flush drains the journal but preserves these — so an engine that
+    /// reports no pending transaction can still owe an element its recomputation.
+    #[must_use]
+    pub fn has_deferred_element_style_inputs(&self) -> bool {
+        !self.deferred_element_style_inputs.is_empty()
+    }
+
+    /// Whether one element still owes a deferred style input, asked per node the way the recorded
+    /// batch is. The deferred inputs are kept sorted by key, so this is a binary search.
+    #[must_use]
+    pub fn has_deferred_element_style_input(&self, node: StyleNodeID) -> bool {
+        self.deferred_element_style_inputs
+            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
+            .is_ok()
+    }
+
     /// Whether settling the pending selector inputs can change geometry derived from the committed
     /// layout. This is deliberately a proof of independence rather than a list of properties which
     /// usually avoid layout: anything not explicitly known to preserve geometry remains observable.

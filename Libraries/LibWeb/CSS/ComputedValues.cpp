@@ -914,9 +914,9 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     m_values.m_property_inherited.copy_from({ view.property_inheritance, view.property_inheritance_count });
 
     m_values.m_pseudo_element_styles = view.pseudo_element_styles;
-    m_values.m_depends_on_viewport_metrics = view.dependency_flags & 1;
-    m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & 2;
-    m_values.m_in_display_none_subtree = view.dependency_flags & 4;
+    m_values.m_depends_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics);
+    m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
+    m_values.m_in_display_none_subtree = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
     m_values.m_borrowed_raw_cascaded_font_size = static_cast<StyleValueFFI::StyleValueData const*>(view.raw_cascaded_font_size);
     m_values.m_borrowed_inheritance_dependent_values = { view.inheritance_dependent_values, view.inheritance_dependent_value_count };
     VERIFY(view.longhand_value_count == 0 || view.longhand_value_count == number_of_longhand_properties);

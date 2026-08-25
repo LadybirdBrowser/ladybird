@@ -986,6 +986,13 @@ enum class StyleGroupIndex : size_t {
         Count,
 };
 
+// Bits of the dependency flags published alongside a style record's group payloads.
+enum class StyleRecordDependencyFlag : u8 {
+    DependsOnViewportMetrics = 1 << 0,
+    FontMetricsDependOnViewportMetrics = 1 << 1,
+    InDisplayNoneSubtree = 1 << 2,
+};
+
 // The box group payload stores display values in the Rust-defined explicit
 // form; these pins keep the tag discriminants aligned with Display::Type.
 inline ComputedValuesFFI::FfiDisplay to_ffi_display(Display const& display)
