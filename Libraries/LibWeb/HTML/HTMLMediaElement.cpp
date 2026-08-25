@@ -183,6 +183,12 @@ void HTMLMediaElement::initialize_element()
         add_current_video_sink();
     });
 
+    m_document_observer->set_document_visibility_state_observer([this](VisibilityState visibility_state) {
+        auto sink_predicate_may_query_layout_node = visibility_state == VisibilityState::Hidden || document().layout_is_up_to_date();
+        if (sink_predicate_may_query_layout_node)
+            sync_video_sink_ticking();
+    });
+
     document().page().register_media_element({}, unique_id());
 }
 
@@ -1790,6 +1796,8 @@ void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& trac
     m_active_video_sink = make<ActiveVideoSink>(handle, Painting::allocate_video_sink_resource_id());
     m_video_sink_is_ticking = true;
     add_current_video_sink(handle);
+    if (document().hidden())
+        sync_video_sink_ticking();
 }
 
 void HTMLMediaElement::add_current_video_sink(Media::VideoSinkHandle handle)

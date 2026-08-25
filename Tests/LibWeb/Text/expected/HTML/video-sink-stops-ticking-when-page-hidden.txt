@@ -1,0 +1,6 @@
+ticking while visible: true
+document.hidden: true
+ticking while hidden: false
+ticking for a sink created while hidden: false
+ticking after becoming visible: true
+ticking for the late sink after two frames: true
