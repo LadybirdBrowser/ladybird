@@ -73,14 +73,9 @@ void StyleEngine::allocate_style_nodes(Span<StyleNodeID> nodes)
     StyleEngineFFI::style_engine_allocate_style_nodes(m_impl, reinterpret_cast<u32*>(nodes.data()), nodes.size());
 }
 
-Vector<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
+HashTable<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
 {
-    Vector<StyleNodeID> nodes;
-    nodes.ensure_capacity(m_nodes_with_pending_initial_features.size());
-    for (auto node : m_nodes_with_pending_initial_features)
-        nodes.unchecked_append(node);
-    m_nodes_with_pending_initial_features.clear_with_capacity();
-    return nodes;
+    return move(m_nodes_with_pending_initial_features);
 }
 
 HashTable<StyleNodeID> StyleEngine::take_elements_awaiting_first_style_computation()
