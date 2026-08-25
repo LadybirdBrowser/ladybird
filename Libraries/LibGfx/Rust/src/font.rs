@@ -19,7 +19,6 @@ unsafe extern "C" {
     fn ladybird_gfx_font_cascade_list_font_for_code_point(
         list: *const c_void,
         code_point: u32,
-        trigger_pending_loads: bool,
         emoji_presentation: bool,
         forced_presentation: bool,
     ) -> *const c_void;
@@ -164,12 +163,7 @@ impl<'a> FontCascadeListRef<'a> {
         }
     }
 
-    pub fn font_for_code_point(
-        self,
-        code_point: u32,
-        trigger_pending_loads: bool,
-        presentation: EmojiPresentation,
-    ) -> FontRef<'a> {
+    pub fn font_for_code_point(self, code_point: u32, presentation: EmojiPresentation) -> FontRef<'a> {
         // SAFETY: The constructor requires the Gfx::FontCascadeList to remain
         // live for this reference's lifetime, and the fonts it resolves are
         // owned by it.
@@ -177,7 +171,6 @@ impl<'a> FontCascadeListRef<'a> {
             FontRef::from_raw(ladybird_gfx_font_cascade_list_font_for_code_point(
                 self.raw.as_ptr(),
                 code_point,
-                trigger_pending_loads,
                 presentation.is_emoji,
                 presentation.forced,
             ))

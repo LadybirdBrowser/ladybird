@@ -353,7 +353,7 @@ impl<'text> TextChunker<'text> {
             if !is_interword_space(code_point) && code_point != '\t' as u32 && code_point != '\n' as u32 {
                 let font =
                     self.font_cascade_list
-                        .font_for_code_point(code_point, true, self.emoji_presentation_at(i, code_point));
+                        .font_for_code_point(code_point, self.emoji_presentation_at(i, code_point));
                 if !font.is_emoji_font() && has_glyph(font) {
                     return font;
                 }
@@ -366,7 +366,6 @@ impl<'text> TextChunker<'text> {
         // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
         self.font_cascade_list.font_for_code_point(
             space_code_point,
-            true,
             EmojiPresentation {
                 is_emoji: false,
                 forced: false,
@@ -380,7 +379,6 @@ impl<'text> TextChunker<'text> {
         } else {
             self.font_cascade_list.font_for_code_point(
                 code_point,
-                true,
                 self.emoji_presentation_at(self.current_index, code_point),
             )
         }
