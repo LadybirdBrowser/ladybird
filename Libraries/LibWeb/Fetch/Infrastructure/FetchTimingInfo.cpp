@@ -24,21 +24,14 @@ GC::Ref<FetchTimingInfo> FetchTimingInfo::create()
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
 GC::Ref<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info)
 {
-    // To create an opaque timing info, given a fetch timing info timingInfo, return a new fetch timing info whose
-    // start time and post-redirect start time are timingInfo’s start time.
+    // To create an opaque timing info, given a fetch timing info timingInfo, return a new fetch timing info whose start
+    // time and post-redirect start time are timingInfo’s start time, end time is timingInfo’s end time, and
+    // render-blocking is timingInfo’s render-blocking.
     auto new_timing_info = FetchTimingInfo::create();
     new_timing_info->set_start_time(timing_info.start_time());
     new_timing_info->set_post_redirect_start_time(timing_info.start_time());
-
-    // FIXME: Spec issue: We invoke this factory due to a failed Timing-Allow-Origin check. In such cases, responseEnd
-    //        is not one the fields listed for protection:
-    //        https://w3c.github.io/resource-timing/#sec-cross-origin-resources
-    //
-    //        If we do not copy the end time here, startTime will be non-zero and responseEnd will be zero, resulting in
-    //        a negative duration. This is an observable difference from other engines.
-    //
-    //        https://github.com/whatwg/fetch/issues/1945
     new_timing_info->set_end_time(timing_info.end_time());
+    new_timing_info->set_render_blocking(timing_info.render_blocking());
 
     return new_timing_info;
 }
