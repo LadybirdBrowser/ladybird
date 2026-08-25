@@ -116,9 +116,19 @@ impl StyleEngine {
     }
 
     pub fn prepare_selector_query(&mut self) {
+        let has_staged_structure = !(self.tree_staging.is_empty() || self.tree_staging.is_applied());
         self.apply_staged_tree_deltas();
         self.discard_prepared_batch_matching_traversal();
         self.facts.prepare_selector_query(&mut self.memory);
+        // Every candidate of the coming query shares one tree — so its sibling positions are computed once, and reused.
+        // They stay valid until something changes: Every mutation reaches this engine either as a staged-tree delta or
+        // as a non-empty style transaction — and the second is what advances the transaction version. A run of queries
+        // with neither in between — the querySelector-in-a-loop shape — keeps one workspace for the whole run.
+        let settled_version = self.next_style_transaction_version;
+        if has_staged_structure || settled_version != self.query_settled_transaction_version {
+            self.selector_query_generation = self.selector_query_generation.wrapping_add(1);
+            self.query_settled_transaction_version = settled_version;
+        }
     }
 
     pub(crate) fn selector_query_matches(
@@ -129,7 +139,15 @@ impl StyleEngine {
         shadow_root: Option<StyleNodeID>,
         has_document_root: bool,
     ) -> Result<bool, Incomplete> {
+        let share_sibling_geometry = program.has_positional_test();
+        if share_sibling_geometry && self.query_workspace_generation != self.selector_query_generation {
+            self.query_match_workspace = MatchEvaluationWorkspace::for_selector_query();
+            self.query_workspace_generation = self.selector_query_generation;
+        }
         let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
+        if share_sibling_geometry {
+            evaluator = evaluator.with_match_workspace(&self.query_match_workspace, MatchEvaluationSide::Current);
+        }
         if !has_document_root {
             evaluator = evaluator.without_document_root();
         }

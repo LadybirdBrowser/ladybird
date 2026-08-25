@@ -774,6 +774,18 @@ pub struct StyleEngine {
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     match_workspace: MatchEvaluationWorkspace,
+    /// Sibling positions and relation answers shared by the candidates of one DOM selector query.
+    /// A query can't mutate the tree it walks — so this is reset per-query, rather than per-candidate.
+    query_match_workspace: MatchEvaluationWorkspace,
+    /// Advanced when a selector query settles over a changed document — so a run of queries over
+    /// an unchanged one shares a single workspace. A query that never asks a positional question
+    /// pays a comparison, rather than a workspace rebuild.
+    selector_query_generation: u64,
+    /// The transaction version the last selector query settled at; the change detector for the
+    /// generation above.
+    query_settled_transaction_version: StyleTransactionVersion,
+    /// Which query `query_match_workspace` holds answers for.
+    query_workspace_generation: u64,
     /// Scratch for the fact rows one exact candidate evaluation covers, reused across candidates.
     exact_covered_scratch: Vec<StyleNodeID>,
     /// Monotonic identity assigned to each non-empty normalized style transaction.

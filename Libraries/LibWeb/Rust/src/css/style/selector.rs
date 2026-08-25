@@ -688,6 +688,13 @@ pub struct SelectorProgram {
 }
 
 impl SelectorProgram {
+    /// Whether any operator here tests a sibling position. Only those queries can reuse sibling
+    /// geometry across candidates — and attaching a workspace to the rest would cache answers no
+    /// later candidate asks for.
+    pub(super) fn has_positional_test(&self) -> bool {
+        self.nodes.iter().any(|node| matches!(node, SelectorOp::NthPosition(_)))
+    }
+
     pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
         let mut visited = 0_u64;
         let mut insert = |atom: StyleAtomID| {
@@ -4718,6 +4725,11 @@ pub struct MatchEvaluationWorkspace {
     relations_by_evaluation_side: [MatchRelationCache; 3],
     sibling_geometry_by_tree_side: [RefCell<SiblingSequenceGeometry>; 2],
     type_positions_by_evaluation_side: [RefCell<SiblingPositionColumn>; 3],
+    /// Whether final an+b answers are memoized at all. Style recalc runs many programs over one
+    /// node — so the same test repeats, and the memo hits. A selector query is one program asking
+    /// each node once: no ask ever repeats, so the memo would only ever be written — and a map
+    /// insert per positional test is the single-most-expensive part of answering one.
+    positional_answer_memo_suppressed: bool,
     /// Canonical plain an+b answers shared across independently compiled selector programs.
     positional_answers_by_evaluation_side: [RefCell<PositionalAnswers>; 3],
 }
@@ -4933,7 +4945,19 @@ impl MatchEvaluationWorkspace {
             .1
     }
 
+    /// A workspace for the candidates of one selector query: sibling geometry is shared, final
+    /// answers are not memoized.
+    pub(super) fn for_selector_query() -> Self {
+        Self {
+            positional_answer_memo_suppressed: true,
+            ..Self::default()
+        }
+    }
+
     fn positional_answer(&self, position: NthPosition, node: StyleNodeID, side: MatchEvaluationSide) -> Option<bool> {
+        if self.positional_answer_memo_suppressed {
+            return None;
+        }
         self.positional_answers_by_evaluation_side[side as usize]
             .borrow()
             .get(position, node)
@@ -4946,6 +4970,9 @@ impl MatchEvaluationWorkspace {
         side: MatchEvaluationSide,
         answer: bool,
     ) {
+        if self.positional_answer_memo_suppressed {
+            return;
+        }
         self.positional_answers_by_evaluation_side[side as usize]
             .borrow_mut()
             .insert(position, node, answer);
