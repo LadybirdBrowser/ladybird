@@ -16,9 +16,8 @@
 use std::sync::Arc;
 
 use crate::css::calc::{
-    ANGLE_UNIT_CANONICAL_RATIOS, BASE_TYPE_COUNT, BASE_TYPE_PERCENT, FfiNumericType, ResolveAs,
-    resolve_calculated_angle_with_channels, resolve_calculated_number_with_channels,
-    resolve_calculated_percentage_with_channels,
+    ANGLE_UNIT_CANONICAL_RATIOS, ResolveAs, resolve_as_from_fields, resolve_calculated_angle_with_channels,
+    resolve_calculated_number_with_channels, resolve_calculated_percentage_with_channels,
 };
 use crate::css::color_conversion::{self, Components};
 use crate::css::color_interpolation::{FfiResolvedColor, rust_interpolate_color};
@@ -659,91 +658,9 @@ pub(crate) const EMPTY_INPUT: ColorResolutionInput<'static> = ColorResolutionInp
     channels: None,
 };
 
-// The C++ component resolvers gate their calc arms on CalculatedStyleValue::resolves_to_number()
-// and friends, which consult the calculation's parse-time resolved type. That type is stored on
-// the Calculated variant as the FFI mirror FfiNumericType, whose CalcNumericType matchers are not
-// reachable from here, so the matchers below transcribe CalcNumericType::{matches_number,
-// matches_dimension, matches_percentage, hint_matches, entry_with_value_1_while_all_others_are_0}
-// and resolve_as_from_fields() from calc.rs onto the mirror's fields.
-
 /// Angle's base type index in the numeric type order, as fixed by
 /// resolve_calculated_angle_with_channels()'s matches_dimension(1, ..) check.
 const BASE_TYPE_ANGLE: usize = 1;
-
-/// Transcription of resolve_as_from_fields() in calc.rs.
-fn calc_resolve_as(has_percentages_resolve_as: bool, is_number: bool, base: u8) -> Option<ResolveAs> {
-    if !has_percentages_resolve_as {
-        None
-    } else if is_number {
-        Some(ResolveAs::Number)
-    } else {
-        Some(ResolveAs::Base(base))
-    }
-}
-
-fn numeric_type_exponent(numeric_type: &FfiNumericType, index: usize) -> Option<i32> {
-    numeric_type.has_exponent[index].then_some(numeric_type.exponents[index])
-}
-
-fn numeric_type_percent_hint(numeric_type: &FfiNumericType) -> Option<u8> {
-    numeric_type.has_percent_hint.then_some(numeric_type.percent_hint)
-}
-
-/// The single base type whose entry is 1 while all other entries are 0.
-fn numeric_type_single_entry(numeric_type: &FfiNumericType) -> Option<usize> {
-    let mut found = None;
-    for index in 0..BASE_TYPE_COUNT {
-        match numeric_type_exponent(numeric_type, index) {
-            None | Some(0) => {}
-            Some(1) if found.is_none() => found = Some(index),
-            _ => return None,
-        }
-    }
-    found
-}
-
-fn numeric_type_hint_matches(numeric_type: &FfiNumericType, resolve_as: ResolveAs) -> bool {
-    match (numeric_type_percent_hint(numeric_type), resolve_as) {
-        (None, _) => true,
-        (Some(hint), ResolveAs::Base(base)) => hint == base,
-        (Some(..), ResolveAs::Number) => false,
-    }
-}
-
-/// The C++ resolves_to_angle() check (with base = the angle base type).
-fn numeric_type_matches_dimension(numeric_type: &FfiNumericType, base: usize, resolve_as: Option<ResolveAs>) -> bool {
-    if numeric_type_single_entry(numeric_type) != Some(base) {
-        return false;
-    }
-    match resolve_as {
-        Some(resolve_as) => numeric_type_hint_matches(numeric_type, resolve_as),
-        None => numeric_type_percent_hint(numeric_type).is_none(),
-    }
-}
-
-/// The C++ resolves_to_percentage() check.
-fn numeric_type_matches_percentage(numeric_type: &FfiNumericType) -> bool {
-    let hint = numeric_type_percent_hint(numeric_type);
-    if hint.is_some() && hint != Some(BASE_TYPE_PERCENT as u8) {
-        return false;
-    }
-    numeric_type_single_entry(numeric_type) == Some(BASE_TYPE_PERCENT)
-}
-
-/// The C++ resolves_to_number() check.
-fn numeric_type_matches_number(numeric_type: &FfiNumericType, resolve_as: Option<ResolveAs>) -> bool {
-    for index in 0..BASE_TYPE_COUNT {
-        if numeric_type_exponent(numeric_type, index).is_some_and(|exponent| exponent != 0) {
-            return false;
-        }
-    }
-    let hint = numeric_type_percent_hint(numeric_type);
-    match resolve_as {
-        Some(ResolveAs::Base(base)) => hint.is_none() || hint == Some(base),
-        Some(ResolveAs::Number) => hint.is_none() || hint == Some(BASE_TYPE_PERCENT as u8),
-        None => hint.is_none(),
-    }
-}
 
 /// The stored resolve-as target of a Calculated variant, or None for any other variant.
 fn calculated_resolve_as(value: &StyleValueData) -> Option<ResolveAs> {
@@ -756,7 +673,7 @@ fn calculated_resolve_as(value: &StyleValueData) -> Option<ResolveAs> {
     else {
         return None;
     };
-    calc_resolve_as(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base)
+    resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base)
 }
 
 /// Port of JS::modulo() over doubles: fmod with a negative result shifted into the divisor's sign.
@@ -802,11 +719,12 @@ pub(crate) fn resolve_hue(style_value: &StyleValueData, input: &ColorResolutionI
         }
         StyleValueData::Calculated { resolved_type, .. } => {
             let resolve_as = calculated_resolve_as(style_value);
-            if numeric_type_matches_number(resolved_type, resolve_as) {
+            let numeric_type = resolved_type.to_calc();
+            if numeric_type.matches_number(resolve_as) {
                 return resolve_calculated_number_with_channels(style_value, input.channels, input.length)
                     .map(normalized);
             }
-            if numeric_type_matches_dimension(resolved_type, BASE_TYPE_ANGLE, resolve_as) {
+            if numeric_type.matches_dimension(BASE_TYPE_ANGLE, resolve_as) {
                 return resolve_calculated_angle_with_channels(style_value, input.channels, input.length)
                     .map(normalized);
             }
@@ -837,10 +755,11 @@ pub(crate) fn resolve_with_reference_value(
         }
         StyleValueData::Calculated { resolved_type, .. } => {
             let resolve_as = calculated_resolve_as(style_value);
-            if numeric_type_matches_number(resolved_type, resolve_as) {
+            let numeric_type = resolved_type.to_calc();
+            if numeric_type.matches_number(resolve_as) {
                 return resolve_calculated_number_with_channels(style_value, input.channels, input.length);
             }
-            if numeric_type_matches_percentage(resolved_type) {
+            if numeric_type.matches_percentage() {
                 return resolve_calculated_percentage_with_channels(style_value, input.channels, input.length)
                     .map(normalize_percentage);
             }
@@ -874,11 +793,12 @@ pub(crate) fn resolve_alpha(style_value: &StyleValueData, input: &ColorResolutio
         }
         StyleValueData::Calculated { resolved_type, .. } => {
             let resolve_as = calculated_resolve_as(style_value);
-            if numeric_type_matches_number(resolved_type, resolve_as) {
+            let numeric_type = resolved_type.to_calc();
+            if numeric_type.matches_number(resolve_as) {
                 return resolve_calculated_number_with_channels(style_value, input.channels, input.length)
                     .map(normalized);
             }
-            if numeric_type_matches_percentage(resolved_type) {
+            if numeric_type.matches_percentage() {
                 return resolve_calculated_percentage_with_channels(style_value, input.channels, input.length)
                     .map(|percentage| normalized(percentage / 100.0));
             }

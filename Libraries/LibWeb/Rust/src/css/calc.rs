@@ -484,7 +484,7 @@ impl FfiNumericType {
         result
     }
 
-    fn to_calc(self) -> CalcNumericType {
+    pub(crate) fn to_calc(self) -> CalcNumericType {
         let mut result = CalcNumericType::default();
         for i in 0..BASE_TYPE_COUNT {
             if self.has_exponent[i] {
@@ -2780,7 +2780,7 @@ pub unsafe extern "C" fn rust_calc_external_resolutions_release(storage: *mut st
 }
 
 /// The resolve-as target from a calculated value's creation-time fields.
-fn resolve_as_from_fields(has_percentages_resolve_as: bool, is_number: bool, base: u8) -> Option<ResolveAs> {
+pub(crate) fn resolve_as_from_fields(has_percentages_resolve_as: bool, is_number: bool, base: u8) -> Option<ResolveAs> {
     if !has_percentages_resolve_as {
         None
     } else if is_number {
