@@ -498,29 +498,80 @@ impl FfiNumericType {
     }
 }
 
-/// FFI parity hooks for the C++ parity test: operation 0 adds, 1 multiplies,
-/// 2 inverts (always valid), 3 makes consistent.
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum FfiNumericTypeOperation {
+    Add,
+    Multiply,
+    Invert,
+    MakeConsistent,
+    ApplyPercentHint,
+}
+
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum FfiNumericTypeMatch {
+    Dimension,
+    Percentage,
+    DimensionPercentage,
+    Number,
+    DimensionCategory,
+}
+
+/// Applies one numeric type algebra operation for C++ callers.
 ///
 /// # Safety
-/// Both pointers must be valid.
+/// `first` must be valid. `second` must also be valid for binary operations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_numeric_type_operate(
-    operation: u8,
+    operation: FfiNumericTypeOperation,
     first: *const FfiNumericType,
     second: *const FfiNumericType,
+    parameter: u8,
 ) -> FfiNumericType {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
         let first = unsafe { &*first }.to_calc();
-        let second = unsafe { &*second }.to_calc();
         let result = match operation {
-            0 => first.added_to(&second),
-            1 => first.multiplied_by(&second),
-            2 => Some(first.inverted()),
-            3 => first.made_consistent_with(&second),
-            _ => unreachable!("invalid numeric type operation {operation}"),
+            FfiNumericTypeOperation::Add => first.added_to(&unsafe { &*second }.to_calc()),
+            FfiNumericTypeOperation::Multiply => first.multiplied_by(&unsafe { &*second }.to_calc()),
+            FfiNumericTypeOperation::Invert => Some(first.inverted()),
+            FfiNumericTypeOperation::MakeConsistent => first.made_consistent_with(&unsafe { &*second }.to_calc()),
+            FfiNumericTypeOperation::ApplyPercentHint => {
+                let mut result = first;
+                result.apply_percent_hint(parameter);
+                Some(result)
+            }
         };
         FfiNumericType::from_calc(result)
+    })
+}
+
+/// Tests a numeric type against one of the CSS numeric matching categories.
+///
+/// # Safety
+/// `numeric_type` must be valid.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_numeric_type_matches(
+    match_kind: FfiNumericTypeMatch,
+    numeric_type: *const FfiNumericType,
+    base_type: u8,
+    has_percentages_resolve_as: bool,
+    percentages_resolve_as: u8,
+) -> bool {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::abort_on_panic(|| {
+        let numeric_type = unsafe { &*numeric_type }.to_calc();
+        let resolve_as = resolve_as_for_value_type(has_percentages_resolve_as.then_some(percentages_resolve_as));
+        match match_kind {
+            FfiNumericTypeMatch::Dimension => numeric_type.matches_dimension(base_type as usize, resolve_as),
+            FfiNumericTypeMatch::Percentage => numeric_type.matches_percentage(),
+            FfiNumericTypeMatch::DimensionPercentage => {
+                numeric_type.matches_dimension_percentage(base_type as usize, resolve_as)
+            }
+            FfiNumericTypeMatch::Number => numeric_type.matches_number(resolve_as),
+            FfiNumericTypeMatch::DimensionCategory => numeric_type.matches_dimension_category(),
+        }
     })
 }
 
@@ -1902,6 +1953,10 @@ impl CalcNumericType {
             return false;
         }
         self.entry_with_value_1_while_all_others_are_0() == Some(BASE_TYPE_PERCENT)
+    }
+
+    pub(crate) fn matches_dimension_percentage(&self, base: usize, resolve_as: Option<ResolveAs>) -> bool {
+        self.matches_percentage() || self.matches_dimension(base, resolve_as)
     }
 
     /// A type matches <number> if it has no non-zero entries, with the hint
