@@ -5,7 +5,7 @@
  */
 
 #include <AK/Debug.h>
-#include <LibWeb/CSS/Parser/RustTokenizer.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWeb/RustFFI.h>
 
@@ -34,14 +34,14 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             false);
     };
 
-    auto filtered_input = CSS::Parser::RustTokenizer::normalize_input(text, "utf-8"sv);
-    auto filtered_input_view = filtered_input.utf16_view();
+    auto input = Utf16String::from_utf8(text);
+    auto input_view = input.utf16_view();
     Vector<CSS::Parser::FFI::CssSyntaxToken> tokens;
-    tokens.ensure_capacity((filtered_input_view.length_in_code_units() / 2) + 1);
+    tokens.ensure_capacity((input_view.length_in_code_units() / 2) + 1);
     CSS::Parser::FFI::rust_css_tokenize_for_syntax_highlighting(
-        filtered_input_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(filtered_input_view.ascii_span().data()) : nullptr,
-        filtered_input_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(filtered_input_view.utf16_span().data()),
-        filtered_input_view.length_in_code_units(),
+        input_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(input_view.ascii_span().data()) : nullptr,
+        input_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input_view.utf16_span().data()),
+        input_view.length_in_code_units(),
         &tokens,
         [](void* raw_tokens, CSS::Parser::FFI::CssSyntaxToken const* token) {
             static_cast<Vector<CSS::Parser::FFI::CssSyntaxToken>*>(raw_tokens)->append(*token);

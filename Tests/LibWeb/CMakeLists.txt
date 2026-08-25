@@ -6,7 +6,7 @@ set(TEST_SOURCES
     TestCSSIDSpeed.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
-    TestCSSTokenizer.cpp
+    TestCSSDecodeBytes.cpp
     TestDisplayListDamage.cpp
     TestDownloadReader.cpp
     TestDump.cpp

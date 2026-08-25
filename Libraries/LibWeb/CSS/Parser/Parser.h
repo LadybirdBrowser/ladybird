@@ -89,9 +89,9 @@ class Parser {
     AK_MAKE_NONMOVABLE(Parser);
 
 public:
-    static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
+    static Parser create(ParsingParams const&, StringView input);
     static Parser create(ParsingParams const&, Utf16View input);
-    static RefPtr<StyleValue const> parse_css_value_from_filtered_source(ParsingParams const&, Utf16View, PropertyID);
+    static RefPtr<StyleValue const> parse_css_value_from_source(ParsingParams const&, Utf16View, PropertyID);
 
     GC::RootVector<GC::Ref<CSSRule>> convert_rules(Vector<Rule> const& raw_rules);
     GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
@@ -249,7 +249,7 @@ CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool 
 RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, Utf16View);
 Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, Utf16View);
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
-ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
+WEB_API ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_custom_ident(Utf16View, ReadonlySpan<Utf16View> const& blacklist);
 
 }

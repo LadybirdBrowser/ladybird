@@ -537,7 +537,6 @@ namespace Web::CSS::Parser {
 
 class Parser;
 class RustSyntaxHandle;
-class RustTokenizer;
 
 struct AtRule;
 struct Declaration;
