@@ -674,6 +674,7 @@ pub struct ComputedGroupSets {
     pseudo_assignment_nested_memory: MemoryLease,
     style_records_interned_since_reclamation: usize,
     next_reclamation_after: usize,
+    style_record_view_epoch_depth: u32,
 }
 
 impl Default for ComputedGroupSets {
@@ -705,11 +706,27 @@ impl Default for ComputedGroupSets {
             pseudo_assignment_nested_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
             style_records_interned_since_reclamation: 0,
             next_reclamation_after: 1024,
+            style_record_view_epoch_depth: 0,
         }
     }
 }
 
 impl ComputedGroupSets {
+    pub(crate) fn begin_style_record_view_epoch(&mut self) {
+        self.style_record_view_epoch_depth = self
+            .style_record_view_epoch_depth
+            .checked_add(1)
+            .expect("style-record view epoch depth overflow");
+    }
+
+    pub(crate) fn end_style_record_view_epoch(&mut self) {
+        assert!(
+            self.style_record_view_epoch_depth > 0,
+            "style-record view epoch underflow"
+        );
+        self.style_record_view_epoch_depth -= 1;
+    }
+
     fn group_identity(&self, index: usize, payload: *const c_void) -> ComputedGroupID {
         let key = (index, payload as usize);
         self.groups
@@ -2448,6 +2465,9 @@ impl ComputedGroupSets {
     }
 
     pub(super) fn reclaim_unreachable_if_needed(&mut self) -> Option<ComputedGroupRetention> {
+        if self.style_record_view_epoch_depth != 0 {
+            return None;
+        }
         if self.style_records_interned_since_reclamation < self.next_reclamation_after {
             return None;
         }

@@ -178,6 +178,15 @@ impl StyleEngine {
         self.computed_group_sets.pin_style_record(style_record);
     }
 
+    pub(crate) fn begin_style_record_view_epoch(&mut self) {
+        self.computed_group_sets.begin_style_record_view_epoch();
+    }
+
+    pub(crate) fn end_style_record_view_epoch(&mut self) {
+        self.computed_group_sets.end_style_record_view_epoch();
+        self.reclaim_computed_memory_if_needed();
+    }
+
     pub(super) fn settle_computed_memory(&mut self) {
         self.computed_group_sets.settle_nested_memory(&mut self.memory);
         self.computed_group_set_memory.resize_required_to(
