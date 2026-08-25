@@ -95,25 +95,6 @@ Optional<SizeFeatureID> size_feature_id_from_string(Utf16View name)
     return {};
 }
 
-StringView string_from_size_feature_id(SizeFeatureID id)
-{
-    switch (id) {
-    case SizeFeatureID::AspectRatio:
-        return "aspect-ratio"sv;
-    case SizeFeatureID::BlockSize:
-        return "block-size"sv;
-    case SizeFeatureID::Height:
-        return "height"sv;
-    case SizeFeatureID::InlineSize:
-        return "inline-size"sv;
-    case SizeFeatureID::Orientation:
-        return "orientation"sv;
-    case SizeFeatureID::Width:
-        return "width"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 bool size_feature_type_is_range(SizeFeatureID id)
 {
     switch (id) {
