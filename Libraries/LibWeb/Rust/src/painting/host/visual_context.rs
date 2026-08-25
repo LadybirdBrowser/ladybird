@@ -123,6 +123,8 @@ pub struct FfiVisualContextNodeExport {
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter: *mut c_void,
+    pub filter_bytes: *const u8,
+    pub filter_bytes_length: usize,
     pub path: *mut c_void,
     pub winding_rule: WindingRule,
     pub mask_kind: MaskKind,

@@ -2679,7 +2679,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     layout_config
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
-    layout_config.export.include = vec!["FfiFormattingContextType".to_string()];
+    layout_config.export.include = vec![
+        "FfiFormattingContextType".to_string(),
+        "FilterOperationType".to_string(),
+    ];
     generate_ffi_header(
         layout_config,
         &[

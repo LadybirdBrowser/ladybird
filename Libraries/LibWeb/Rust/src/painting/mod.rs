@@ -11,6 +11,7 @@ mod devtools_layout;
 pub mod display_list;
 mod dump;
 pub mod ffi;
+pub(crate) mod filter_bytes;
 pub mod fragment_ownership;
 pub mod hit_test;
 pub mod host;

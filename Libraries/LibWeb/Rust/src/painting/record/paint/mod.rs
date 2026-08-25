@@ -200,10 +200,20 @@ pub(crate) fn paint_backdrop_filter(
         &border_radii,
         libgfx_rust::CornerClip::Outside,
     );
-    if let Some(filter_bytes) = recorder
-        .paint_host
-        .backdrop_filter_bytes(recorder.layout_node_shell(paintable))
-    {
+    let filter_bytes = recorder.layout_arena.node_style_if_live(paintable).and_then(|style| {
+        let backdrop_filter = &style.effects().backdrop_filter;
+        if crate::painting::filter_bytes::contains_url(backdrop_filter) {
+            recorder
+                .paint_host
+                .backdrop_filter_bytes(recorder.layout_node_shell(paintable))
+        } else {
+            crate::painting::filter_bytes::serialize_non_url_filter(
+                backdrop_filter,
+                recorder.inputs.device_pixels_per_css_pixel,
+            )
+        }
+    });
+    if let Some(filter_bytes) = filter_bytes {
         let corner_radii = border_radii.as_corners(&recorder.converter);
         recorder
             .recorder

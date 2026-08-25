@@ -35,6 +35,30 @@ pub enum ScrollDirection {
     Vertical,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FilterOperationType {
+    Arithmetic,
+    Compose,
+    Blend,
+    Flood,
+    DisplacementMap,
+    DropShadow,
+    Blur,
+    ColorFilter,
+    ColorMatrix,
+    ColorTable,
+    Saturate,
+    HueRotate,
+    Image,
+    Merge,
+    Offset,
+    Erode,
+    Dilate,
+    Turbulence,
+    ColorSpaceConversion,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiChromeMetrics {
