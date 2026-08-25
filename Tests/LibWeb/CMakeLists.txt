@@ -19,7 +19,6 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
-    TestNumericTypeParity.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSimpleRealm.cpp

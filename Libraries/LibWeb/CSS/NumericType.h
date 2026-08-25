@@ -69,9 +69,6 @@ public:
     Optional<NumericType> multiplied_by(NumericType const& other) const;
     NumericType inverted() const;
 
-    Optional<NumericType> consistent_type(NumericType const& other) const;
-    Optional<NumericType> made_consistent_with(NumericType const& other) const;
-
     bool matches_angle(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Angle, percentages_resolve_as); }
     bool matches_angle_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Angle, percentages_resolve_as); }
     bool matches_flex(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Flex, percentages_resolve_as); }
@@ -84,8 +81,6 @@ public:
     bool matches_resolution(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Resolution, percentages_resolve_as); }
     bool matches_time(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Time, percentages_resolve_as); }
     bool matches_time_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Time, percentages_resolve_as); }
-
-    bool matches_dimension() const;
 
     Optional<i32> const& exponent(BaseType type) const { return m_type_exponents[to_underlying(type)]; }
     void set_exponent(BaseType type, i32 exponent) { m_type_exponents[to_underlying(type)] = exponent; }
@@ -101,25 +96,12 @@ public:
         }
     }
 
-    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
-
     Optional<BaseType> const& percent_hint() const { return m_percent_hint; }
     void set_percent_hint(Optional<BaseType> hint) { m_percent_hint = hint; }
-    void apply_percent_hint(BaseType hint);
 
     bool operator==(NumericType const& other) const = default;
 
-    String dump() const;
-
 private:
-    bool contains_all_the_non_zero_entries_of_other_with_the_same_value(NumericType const& other) const;
-    bool contains_a_key_other_than_percent_with_a_non_zero_value() const;
-    enum class SkipIfAlreadyPresent {
-        No,
-        Yes,
-    };
-    void copy_all_entries_from(NumericType const& other, SkipIfAlreadyPresent);
-
     bool matches_dimension(BaseType, Optional<ValueType> percentages_resolve_as) const;
     bool matches_dimension_percentage(BaseType, Optional<ValueType> percentages_resolve_as) const;
 
