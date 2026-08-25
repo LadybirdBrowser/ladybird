@@ -686,6 +686,7 @@ struct CallbackFreeParseInput {
     in_quirks_mode: bool,
     is_svg_presentation_attribute: bool,
     contains_attr_tainted_values: bool,
+    is_ua_style_sheet: bool,
     document_url: Vec<u8>,
     document_base_url: Vec<u8>,
     property_id: u16,
@@ -729,6 +730,7 @@ fn parse_substituted_without_callbacks(
         in_quirks_mode: base_context.in_quirks_mode,
         is_svg_presentation_attribute: base_context.is_svg_presentation_attribute,
         contains_attr_tainted_values,
+        is_ua_style_sheet: base_context.is_ua_style_sheet,
         document_url: unsafe { crate::bytes_from_raw(base_context.document_url, base_context.document_url_length) }
             .unwrap_or_default()
             .to_vec(),
@@ -764,6 +766,7 @@ fn parse_substituted_without_callbacks(
         is_svg_presentation_attribute: input.is_svg_presentation_attribute,
         is_substituted_value: true,
         contains_attr_tainted_values: input.contains_attr_tainted_values,
+        is_ua_style_sheet: input.is_ua_style_sheet,
         value_contexts: &raw const value_context,
         value_context_count: 1,
         document_url: input.document_url.as_ptr(),

@@ -964,7 +964,20 @@ where
                 })
             }),
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"counter-style") => {
-            parse_single_name(&rule.prelude, |name| is_valid_custom_ident(name, &["none"]))
+            parse_single_name(&rule.prelude, |name| {
+                is_valid_custom_ident(name, &["none"])
+                    && (parse_context.is_some_and(|context| context.is_ua_style_sheet)
+                        || ![
+                            b"decimal".as_slice(),
+                            b"disc",
+                            b"square",
+                            b"circle",
+                            b"disclosure-open",
+                            b"disclosure-closed",
+                        ]
+                        .iter()
+                        .any(|reserved| equals_ascii_case_insensitive(name, reserved)))
+            })
         }
         Rule::At(rule)
             if equals_ascii_case_insensitive(rule.name.as_ref(), b"keyframes")
@@ -2807,6 +2820,7 @@ mod tests {
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
             contains_attr_tainted_values: false,
+            is_ua_style_sheet: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             document_url: std::ptr::null(),
@@ -3093,6 +3107,26 @@ mod tests {
                 has_start: true,
                 has_end: true,
             }
+        );
+    }
+
+    #[test]
+    fn rejects_non_overridable_counter_style_names_outside_ua_style_sheets() {
+        let rules = parse_stylesheet(b"@counter-style decimal {} @counter-style custom {}");
+        assert_eq!(
+            parse_test_rule_prelude_with_context(&rules[0]),
+            ParsedRulePrelude::Invalid
+        );
+        assert_eq!(
+            parse_test_rule_prelude_with_context(&rules[1]),
+            ParsedRulePrelude::Name(utf16("custom").into_boxed_slice().into())
+        );
+
+        let mut context = parse_context();
+        context.is_ua_style_sheet = true;
+        assert_eq!(
+            parse_rule_prelude(&rules[0], Some(&context), &|_, _| None),
+            ParsedRulePrelude::Name(utf16("decimal").into_boxed_slice().into())
         );
     }
 
