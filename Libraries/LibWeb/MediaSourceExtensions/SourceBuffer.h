@@ -15,8 +15,6 @@
 
 namespace Web::MediaSourceExtensions {
 
-using AppendMode = Bindings::AppendMode;
-
 class SourceBufferProcessor;
 struct InitializationSegmentData;
 
@@ -44,8 +42,8 @@ public:
     GC::Ptr<WebIDL::CallbackType> onabort();
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-    AppendMode mode() const;
-    WebIDL::ExceptionOr<void> set_mode(AppendMode);
+    Bindings::AppendMode mode() const;
+    WebIDL::ExceptionOr<void> set_mode(Bindings::AppendMode);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
     double timestamp_offset() const;
