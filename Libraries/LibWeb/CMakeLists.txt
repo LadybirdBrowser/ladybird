@@ -204,7 +204,6 @@ set(SOURCES
     CSS/NumericType.cpp
     CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
-    CSS/Parser/DescriptorParsing.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/FastColorParsing.cpp
     CSS/Parser/Helpers.cpp

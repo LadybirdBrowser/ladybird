@@ -12,6 +12,8 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/Descriptor.h>
+#include <LibWeb/CSS/DescriptorNameAndID.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
@@ -49,6 +51,7 @@ enum class ParsedRulePreludeKind : u8 {
     SupportsCondition,
     ContainerConditions,
     Property,
+    FontFeatureValuesRule,
 };
 
 struct ParsedRulePreludeItem {
@@ -73,6 +76,7 @@ struct AtRule {
     Utf16FlyString name;
     Utf16String prelude_text;
     ParsedRulePrelude parsed_prelude;
+    Vector<Descriptor> descriptors;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
 
@@ -101,7 +105,9 @@ struct Declaration {
     Optional<SourcePosition> source_position = {};
     Utf16String value_text;
     Optional<PropertyID> parsed_property_id;
+    Optional<DescriptorNameAndID> descriptor_name_and_id;
     RefPtr<StyleValue const> parsed_value;
+    Optional<Vector<u32>> font_feature_values;
 };
 
 enum class PreservePropertySourceText {

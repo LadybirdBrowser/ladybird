@@ -9,14 +9,15 @@
 
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
 use crate::css::css_tokenizer::{
-    ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
+    CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
+use crate::css::descriptor_metadata::{CUSTOM_DESCRIPTOR_ID, descriptor_longhands};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, consume_a_component_value,
     consume_a_list_of_component_values, trim_whitespace,
 };
-use crate::css::parser::descriptor_parser::parse_descriptor;
+use crate::css::parser::descriptor_parser::{ParsedDescriptor, parse_descriptor};
 use crate::css::parser::query_parser::{
     ContainerCondition, Expression, FfiQueryHandle, MediaQuery, QueryKind, ResolveQueryFeature,
     expression_query_handle, ffi_resolver, media_query_handle, parse_container_condition_list_from_component_values,
@@ -34,6 +35,7 @@ use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_compute::value_is_computationally_independent;
 use crate::css::style_value::{RetainedRequestUrlModifierList, RetainedString, StyleValueData};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt;
 use std::pin::Pin;
@@ -104,6 +106,18 @@ pub enum FfiFunctionParameterItemKind {
 pub enum FfiPropertyPreludeItemKind {
     InheritsFalse = 0,
     InheritsTrue = 1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiFontFeatureValuesRuleKind {
+    Annotation,
+    CharacterVariant,
+    HistoricalForms,
+    Ornaments,
+    Styleset,
+    Stylistic,
+    Swash,
 }
 
 const UNUSED_PRELUDE_ITEM_KIND: u8 = 0;
@@ -207,6 +221,7 @@ enum ParsedRulePrelude {
     MediaQueries(Vec<MediaQuery>),
     SupportsCondition(Expression),
     ContainerConditions(Vec<ContainerCondition>),
+    FontFeatureValuesRule(FfiFontFeatureValuesRuleKind),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1003,6 +1018,9 @@ where
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"font-feature-values") => {
             parse_font_family_names(&rule.prelude)
         }
+        Rule::At(rule) if let Some((kind, _)) = font_feature_values_rule(rule.name.as_ref()) => {
+            ParsedRulePrelude::FontFeatureValuesRule(kind)
+        }
         Rule::At(rule) if equals_ascii_case_insensitive(rule.name.as_ref(), b"scope") => {
             parse_scope_prelude(&rule.prelude)
         }
@@ -1087,17 +1105,28 @@ fn is_margin_rule_name(name: &[u16]) -> bool {
     .any(|expected| equals_ascii_case_insensitive(name, expected))
 }
 
+fn font_feature_values_rule(name: &[u16]) -> Option<(FfiFontFeatureValuesRuleKind, usize)> {
+    if equals_ascii_case_insensitive(name, b"annotation") {
+        Some((FfiFontFeatureValuesRuleKind::Annotation, 1))
+    } else if equals_ascii_case_insensitive(name, b"character-variant") {
+        Some((FfiFontFeatureValuesRuleKind::CharacterVariant, 2))
+    } else if equals_ascii_case_insensitive(name, b"historical-forms") {
+        Some((FfiFontFeatureValuesRuleKind::HistoricalForms, 1))
+    } else if equals_ascii_case_insensitive(name, b"ornaments") {
+        Some((FfiFontFeatureValuesRuleKind::Ornaments, 1))
+    } else if equals_ascii_case_insensitive(name, b"styleset") {
+        Some((FfiFontFeatureValuesRuleKind::Styleset, usize::MAX))
+    } else if equals_ascii_case_insensitive(name, b"stylistic") {
+        Some((FfiFontFeatureValuesRuleKind::Stylistic, 1))
+    } else if equals_ascii_case_insensitive(name, b"swash") {
+        Some((FfiFontFeatureValuesRuleKind::Swash, 1))
+    } else {
+        None
+    }
+}
+
 fn is_font_feature_value_rule_name(name: &[u16]) -> bool {
-    [
-        b"annotation".as_slice(),
-        b"character-variant",
-        b"ornaments",
-        b"styleset",
-        b"stylistic",
-        b"swash",
-    ]
-    .iter()
-    .any(|expected| equals_ascii_case_insensitive(name, expected))
+    font_feature_values_rule(name).is_some()
 }
 
 fn context_for_at_rule(name: &[u16]) -> RuleContext {
@@ -1720,8 +1749,20 @@ pub struct FfiSyntaxDeclaration {
     pub start_line: usize,
     pub start_column: usize,
     pub property_id: u16,
+    pub descriptor_id: u8,
     pub parse_status: FfiParseStatus,
     pub parsed_value: *const c_void,
+    pub font_feature_values_start: usize,
+    pub font_feature_value_count: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSyntaxDescriptor {
+    pub name_offset: usize,
+    pub name_length: usize,
+    pub descriptor_id: u8,
+    pub value: *const c_void,
 }
 
 #[derive(Clone, Copy)]
@@ -1751,6 +1792,8 @@ pub struct FfiSyntaxRule {
     pub parsed_prelude_item_count: usize,
     pub parsed_prelude_syntax: *const c_void,
     pub selector_list: *mut c_void,
+    pub descriptors_start: usize,
+    pub descriptor_count: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -1795,6 +1838,8 @@ pub struct FfiSyntaxParseData {
     pub component_index_count: usize,
     pub declarations: *const FfiSyntaxDeclaration,
     pub declaration_count: usize,
+    pub descriptors: *const FfiSyntaxDescriptor,
+    pub descriptor_count: usize,
     pub rules: *const FfiSyntaxRule,
     pub rule_count: usize,
     pub items: *const FfiSyntaxItem,
@@ -1805,6 +1850,8 @@ pub struct FfiSyntaxParseData {
     pub root_count: usize,
     pub prelude_items: *const FfiSyntaxPreludeItem,
     pub prelude_item_count: usize,
+    pub font_feature_values: *const u32,
+    pub font_feature_value_count: usize,
     pub diagnostics: *const FfiSyntaxDiagnostic,
     pub diagnostic_count: usize,
 }
@@ -1814,11 +1861,14 @@ pub struct FfiSyntaxParse {
     components: Vec<FfiSyntaxComponent>,
     component_indices: Vec<usize>,
     declarations: Vec<FfiSyntaxDeclaration>,
+    descriptors: Vec<FfiSyntaxDescriptor>,
+    descriptor_parse_cache: ParsedDescriptorCache,
     rules: Vec<FfiSyntaxRule>,
     items: Vec<FfiSyntaxItem>,
     item_indices: Vec<usize>,
     roots: Vec<usize>,
     prelude_items: Vec<FfiSyntaxPreludeItem>,
+    font_feature_values: Vec<u32>,
     selector_lists: Vec<Pin<Box<RustParsedSelectorList>>>,
     query_handles: Vec<Arc<FfiQueryHandle>>,
     diagnostics: Vec<FfiSyntaxDiagnostic>,
@@ -1840,6 +1890,119 @@ fn component_list_source(values: &[ComponentValue]) -> Cow<'_, [u16]> {
     )
 }
 
+struct CollectedDescriptor {
+    id: u8,
+    name: ParserString,
+    value: Arc<StyleValueData>,
+}
+
+fn descriptor_at_rule(rule_context: RuleContext) -> Option<u8> {
+    match rule_context {
+        RuleContext::AtFontFace => Some(0),
+        RuleContext::AtPage => Some(1),
+        RuleContext::AtProperty => Some(2),
+        RuleContext::AtCounterStyle => Some(3),
+        RuleContext::AtFunction => Some(4),
+        _ => None,
+    }
+}
+
+fn append_collected_descriptor(descriptors: &mut Vec<CollectedDescriptor>, descriptor: CollectedDescriptor) {
+    if let Some(index) = descriptors.iter().position(|existing| {
+        existing.id == descriptor.id
+            && (descriptor.id != CUSTOM_DESCRIPTOR_ID || existing.name.as_ref() == descriptor.name.as_ref())
+    }) {
+        descriptors.remove(index);
+    }
+    descriptors.push(descriptor);
+}
+
+/// Memoizes `parse_descriptor` outcomes by declaration address, so a rule whose
+/// descriptors feed both the declaration array and the descriptor array parses
+/// each value once.
+type ParsedDescriptorCache = HashMap<usize, Option<ParsedDescriptor>>;
+
+fn collect_descriptors<'a>(
+    declarations: impl IntoIterator<Item = &'a Declaration>,
+    context: &ParseContext,
+    parsed_cache: &mut ParsedDescriptorCache,
+) -> Vec<CollectedDescriptor> {
+    let mut descriptors = Vec::new();
+    for declaration in declarations {
+        let Some(at_rule) = descriptor_at_rule(declaration.rule_context) else {
+            continue;
+        };
+        let descriptor = parsed_cache
+            .entry(std::ptr::from_ref(declaration) as usize)
+            .or_insert_with(|| {
+                let source = component_list_source(&declaration.value);
+                parse_descriptor(
+                    context,
+                    at_rule,
+                    declaration.name.as_ref(),
+                    &declaration.value,
+                    source.as_ref(),
+                )
+            });
+        let Some(descriptor) = descriptor.clone() else {
+            continue;
+        };
+        let longhands = descriptor_longhands(at_rule, descriptor.id);
+        if !longhands.is_empty()
+            && let StyleValueData::Shorthand {
+                sub_properties, values, ..
+            } = descriptor.value.as_ref()
+        {
+            for longhand in longhands {
+                let Some(index) = sub_properties
+                    .as_slice()
+                    .iter()
+                    .position(|property| *property == longhand.property_id)
+                else {
+                    continue;
+                };
+                append_collected_descriptor(
+                    &mut descriptors,
+                    CollectedDescriptor {
+                        id: longhand.descriptor_id,
+                        name: declaration.name.clone(),
+                        value: values.as_slice()[index].clone().into_arc(),
+                    },
+                );
+            }
+            continue;
+        }
+        append_collected_descriptor(
+            &mut descriptors,
+            CollectedDescriptor {
+                id: descriptor.id,
+                name: declaration.name.clone(),
+                value: descriptor.value,
+            },
+        );
+    }
+    descriptors
+}
+
+fn parse_font_feature_values(declaration: &Declaration, maximum_value_count: usize) -> Option<Vec<u32>> {
+    if declaration.important {
+        return None;
+    }
+    let values = declaration
+        .value
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .map(|value| match value.kind {
+            ComponentKind::Token(ParserTokenKind::Number {
+                value,
+                number_type: CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign,
+            }) if value >= 0.0 && value <= f64::from(u32::MAX) => Some(value as u32),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (!values.is_empty() && values.len() <= maximum_value_count).then_some(values)
+}
+
 impl FfiSyntaxParse {
     pub(crate) fn new(
         parse_context: *const ParseContext,
@@ -1852,11 +2015,14 @@ impl FfiSyntaxParse {
             components: Vec::new(),
             component_indices: Vec::new(),
             declarations: Vec::new(),
+            descriptors: Vec::new(),
+            descriptor_parse_cache: HashMap::new(),
             rules: Vec::new(),
             items: Vec::new(),
             item_indices: Vec::new(),
             roots: Vec::new(),
             prelude_items: Vec::new(),
+            font_feature_values: Vec::new(),
             selector_lists: Vec::new(),
             query_handles: Vec::new(),
             diagnostics: Vec::new(),
@@ -1976,7 +2142,11 @@ impl FfiSyntaxParse {
         index
     }
 
-    fn append_declaration(&mut self, declaration: &Declaration) -> usize {
+    fn append_declaration(
+        &mut self,
+        declaration: &Declaration,
+        font_feature_maximum_value_count: Option<usize>,
+    ) -> usize {
         let (name_offset, name_length) = self.append_value(declaration.name.as_ref());
         let value_source = component_list_source(&declaration.value);
         let (values_start, value_count) = if declaration.is_property {
@@ -1988,8 +2158,18 @@ impl FfiSyntaxParse {
             self.append_optional_value(declaration.original_value_text.as_deref());
         let (original_full_text_offset, original_full_text_length) =
             self.append_optional_value(declaration.original_full_text.as_deref());
-        let (property_id, parse_status, parsed_value) =
+        let (property_id, descriptor_id, parse_status, parsed_value) =
             self.parse_declaration_value(declaration, value_source.as_ref());
+        let font_feature_values = font_feature_maximum_value_count
+            .and_then(|maximum_value_count| parse_font_feature_values(declaration, maximum_value_count));
+        let (font_feature_values_start, font_feature_value_count) = if let Some(values) = font_feature_values {
+            let start = self.font_feature_values.len();
+            let count = values.len();
+            self.font_feature_values.extend(values);
+            (start, count)
+        } else {
+            (usize::MAX, 0)
+        };
         let needs_value_text = self.preserve_property_source_text
             || parse_status != FfiParseStatus::Parsed
             || equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient");
@@ -2015,8 +2195,11 @@ impl FfiSyntaxParse {
             start_line: declaration.source_position.line,
             start_column: declaration.source_position.column,
             property_id,
+            descriptor_id,
             parse_status,
             parsed_value,
+            font_feature_values_start,
+            font_feature_value_count,
         });
         index
     }
@@ -2025,18 +2208,13 @@ impl FfiSyntaxParse {
         &self,
         declaration: &Declaration,
         source_utf16: &[u16],
-    ) -> (u16, FfiParseStatus, *const c_void) {
+    ) -> (u16, u8, FfiParseStatus, *const c_void) {
         if self.parse_context.is_null() {
-            return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         }
         if !declaration.is_property {
-            let at_rule = match declaration.rule_context {
-                RuleContext::AtFontFace => 0,
-                RuleContext::AtPage => 1,
-                RuleContext::AtProperty => 2,
-                RuleContext::AtCounterStyle => 3,
-                RuleContext::AtFunction => 4,
-                _ => return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
+            let Some(at_rule) = descriptor_at_rule(declaration.rule_context) else {
+                return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
             };
             let parse_context = unsafe { &*self.parse_context };
             return match parse_descriptor(
@@ -2048,19 +2226,20 @@ impl FfiSyntaxParse {
             ) {
                 Some(descriptor) => (
                     u16::MAX,
+                    descriptor.id,
                     FfiParseStatus::Parsed,
                     Arc::into_raw(descriptor.value).cast::<c_void>(),
                 ),
-                None => (u16::MAX, FfiParseStatus::Invalid, std::ptr::null()),
+                None => (u16::MAX, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
             };
         }
         let Some(resolve_property_id) = self.resolve_property_id else {
-            return (u16::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         };
         // SAFETY: The declaration name remains live for this callback and the caller owns the callback.
         let property_id = unsafe { resolve_property_id(declaration.name.as_ptr(), declaration.name.len()) };
         if property_id == u16::MAX {
-            return (property_id, FfiParseStatus::NotHandled, std::ptr::null());
+            return (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         }
 
         let parse_context = unsafe { &*self.parse_context };
@@ -2088,34 +2267,83 @@ impl FfiSyntaxParse {
         match outcome {
             ParseOutcome::Parsed(value) => (
                 property_id,
+                u8::MAX,
                 FfiParseStatus::Parsed,
                 Arc::into_raw(value).cast::<c_void>(),
             ),
-            ParseOutcome::Invalid => (property_id, FfiParseStatus::Invalid, std::ptr::null()),
-            ParseOutcome::NotHandled => (property_id, FfiParseStatus::NotHandled, std::ptr::null()),
+            ParseOutcome::Invalid => (property_id, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
+            ParseOutcome::NotHandled => (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
         }
     }
 
-    fn append_declarations(&mut self, declarations: &[Declaration]) -> (usize, usize) {
+    fn append_collected_declaration(&mut self, descriptor: CollectedDescriptor) {
+        let (name_offset, name_length) = self.append_value(descriptor.name.as_ref());
+        self.declarations.push(FfiSyntaxDeclaration {
+            name_offset,
+            name_length,
+            values_start: 0,
+            value_count: 0,
+            value_source_offset: 0,
+            value_source_length: 0,
+            is_property: false,
+            important: false,
+            original_value_offset: usize::MAX,
+            original_value_length: 0,
+            original_full_text_offset: usize::MAX,
+            original_full_text_length: 0,
+            start_line: 0,
+            start_column: 0,
+            property_id: u16::MAX,
+            descriptor_id: descriptor.id,
+            parse_status: FfiParseStatus::Parsed,
+            parsed_value: Arc::into_raw(descriptor.value).cast(),
+            font_feature_values_start: usize::MAX,
+            font_feature_value_count: 0,
+        });
+    }
+
+    fn append_declarations(
+        &mut self,
+        declarations: &[Declaration],
+        font_feature_maximum_value_count: Option<usize>,
+    ) -> (usize, usize) {
         let start = self.declarations.len();
+        if !self.parse_context.is_null()
+            && declarations
+                .first()
+                .is_some_and(|declaration| descriptor_at_rule(declaration.rule_context).is_some())
+        {
+            let context = unsafe { &*self.parse_context };
+            for descriptor in collect_descriptors(declarations, context, &mut self.descriptor_parse_cache) {
+                self.append_collected_declaration(descriptor);
+            }
+            return (start, self.declarations.len() - start);
+        }
         for declaration in declarations {
-            self.append_declaration(declaration);
+            self.append_declaration(declaration, font_feature_maximum_value_count);
         }
         (start, declarations.len())
     }
 
-    fn append_items(&mut self, items: &[RuleOrDeclarations]) -> (usize, usize) {
-        let indices = items.iter().map(|item| self.append_item(item)).collect::<Vec<_>>();
+    fn append_items(
+        &mut self,
+        items: &[RuleOrDeclarations],
+        font_feature_maximum_value_count: Option<usize>,
+    ) -> (usize, usize) {
+        let indices = items
+            .iter()
+            .map(|item| self.append_item(item, font_feature_maximum_value_count))
+            .collect::<Vec<_>>();
         let start = self.item_indices.len();
         self.item_indices.extend(indices);
         (start, items.len())
     }
 
-    fn append_item(&mut self, item: &RuleOrDeclarations) -> usize {
+    fn append_item(&mut self, item: &RuleOrDeclarations, font_feature_maximum_value_count: Option<usize>) -> usize {
         let (item_type, start, count) = match item {
             RuleOrDeclarations::Rule(rule) => (0, self.append_rule(rule), 1),
             RuleOrDeclarations::Declarations(declarations) => {
-                let (start, count) = self.append_declarations(declarations);
+                let (start, count) = self.append_declarations(declarations, font_feature_maximum_value_count);
                 (1, start, count)
             }
         };
@@ -2144,6 +2372,31 @@ impl FfiSyntaxParse {
         let pointer = Arc::as_ptr(&handle).cast::<c_void>();
         self.query_handles.push(handle);
         pointer
+    }
+
+    fn append_rule_descriptors(&mut self, rule: &Rule) -> (usize, usize) {
+        let start = self.descriptors.len();
+        let Some(context) = (unsafe { self.parse_context.as_ref() }) else {
+            return (start, 0);
+        };
+        let Rule::At(rule) = rule else {
+            return (start, 0);
+        };
+        let declarations = rule.children.iter().flat_map(|child| match child {
+            RuleOrDeclarations::Declarations(declarations) => declarations.as_slice(),
+            RuleOrDeclarations::Rule(_) => &[],
+        });
+        let collected = collect_descriptors(declarations, context, &mut self.descriptor_parse_cache);
+        for descriptor in collected {
+            let (name_offset, name_length) = self.append_value(descriptor.name.as_ref());
+            self.descriptors.push(FfiSyntaxDescriptor {
+                name_offset,
+                name_length,
+                descriptor_id: descriptor.id,
+                value: Arc::into_raw(descriptor.value).cast(),
+            });
+        }
+        (start, self.descriptors.len() - start)
     }
 
     fn append_rule(&mut self, rule: &Rule) -> usize {
@@ -2178,8 +2431,13 @@ impl FfiSyntaxParse {
         } else {
             self.append_component_list(prelude)
         };
-        let (declarations_start, declaration_count) = self.append_declarations(declarations);
-        let (children_start, child_count) = self.append_items(children);
+        let font_feature_maximum_value_count = match rule {
+            Rule::At(rule) => font_feature_values_rule(rule.name.as_ref()).map(|(_, maximum)| maximum),
+            Rule::Qualified(_) => None,
+        };
+        let (declarations_start, declaration_count) = self.append_declarations(declarations, None);
+        let (children_start, child_count) = self.append_items(children, font_feature_maximum_value_count);
+        let (descriptors_start, descriptor_count) = self.append_rule_descriptors(rule);
         let selector_list = match rule {
             Rule::Qualified(rule) if rule.prelude_is_selector => self
                 .append_selector_list(
@@ -2517,6 +2775,18 @@ impl FfiSyntaxParse {
                 }
                 14
             }
+            ParsedRulePrelude::FontFeatureValuesRule(kind) => {
+                parsed_items.push((
+                    None,
+                    0.0,
+                    kind as u8,
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                ));
+                16
+            }
         };
         let (parsed_prelude_name_offset, parsed_prelude_name_length) =
             self.append_optional_value(parsed_prelude_name.as_deref());
@@ -2563,6 +2833,8 @@ impl FfiSyntaxParse {
             parsed_prelude_item_count,
             parsed_prelude_syntax,
             selector_list,
+            descriptors_start,
+            descriptor_count,
         });
         index
     }
@@ -2572,7 +2844,7 @@ impl FfiSyntaxParse {
     }
 
     fn append_root_items(&mut self, items: &[RuleOrDeclarations]) {
-        self.roots = items.iter().map(|item| self.append_item(item)).collect();
+        self.roots = items.iter().map(|item| self.append_item(item, None)).collect();
     }
 
     pub(crate) fn data(&self) -> FfiSyntaxParseData {
@@ -2585,6 +2857,8 @@ impl FfiSyntaxParse {
             component_index_count: self.component_indices.len(),
             declarations: self.declarations.as_ptr(),
             declaration_count: self.declarations.len(),
+            descriptors: self.descriptors.as_ptr(),
+            descriptor_count: self.descriptors.len(),
             rules: self.rules.as_ptr(),
             rule_count: self.rules.len(),
             items: self.items.as_ptr(),
@@ -2595,6 +2869,8 @@ impl FfiSyntaxParse {
             root_count: self.roots.len(),
             prelude_items: self.prelude_items.as_ptr(),
             prelude_item_count: self.prelude_items.len(),
+            font_feature_values: self.font_feature_values.as_ptr(),
+            font_feature_value_count: self.font_feature_values.len(),
             diagnostics: self.diagnostics.as_ptr(),
             diagnostic_count: self.diagnostics.len(),
         }
@@ -2795,10 +3071,10 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 #[cfg(test)]
 mod tests {
     use super::{
-        Declaration, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiSyntaxParse, ParsedRulePrelude, Rule,
-        RuleContext, RuleOrDeclarations, SyntaxNode, consume_a_list_of_component_values, parse_block_contents,
-        parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet, token_diagnostics,
-        tokenize_for_parser,
+        Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiSyntaxParse,
+        ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, collect_descriptors,
+        consume_a_list_of_component_values, parse_block_contents, parse_font_feature_values, parse_keyframe_selectors,
+        parse_rule, parse_rule_prelude, parse_stylesheet, token_diagnostics, tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -3128,6 +3404,88 @@ mod tests {
             parse_rule_prelude(&rules[0], Some(&context), &|_, _| None),
             ParsedRulePrelude::Name(utf16("decimal").into_boxed_slice().into())
         );
+    }
+
+    #[test]
+    fn expands_and_deduplicates_descriptors_in_last_valid_order() {
+        use crate::css::descriptor_metadata::descriptor_metadata;
+
+        let rules = parse_stylesheet(b"@page { margin: 1px 2px 3px 4px; margin-right: 5px; size: a4; size: invalid; }");
+        let Rule::At(page) = &rules[0] else {
+            panic!("expected @page");
+        };
+        let declarations = page.children.iter().flat_map(|child| match child {
+            RuleOrDeclarations::Declarations(declarations) => declarations.as_slice(),
+            RuleOrDeclarations::Rule(_) => &[],
+        });
+        let descriptors = collect_descriptors(declarations, &parse_context(), &mut std::collections::HashMap::new());
+        let id = |name: &str| descriptor_metadata(1, &utf16(name)).unwrap().id;
+        assert_eq!(
+            descriptors.iter().map(|descriptor| descriptor.id).collect::<Vec<_>>(),
+            [
+                id("margin-top"),
+                id("margin-bottom"),
+                id("margin-left"),
+                id("margin-right"),
+                id("size"),
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_custom_descriptor_names_distinct_when_deduplicating() {
+        let items = parse_block_contents(b"--first: 1; --second: 2; --first: 3", vec![RuleContext::AtFunction]);
+        let RuleOrDeclarations::Declarations(declarations) = &items[0] else {
+            panic!("expected declarations");
+        };
+        let descriptors = collect_descriptors(declarations, &parse_context(), &mut std::collections::HashMap::new());
+        assert_eq!(descriptors.len(), 2);
+        assert_eq!(descriptors[0].name.as_ref(), utf16("--second"));
+        assert_eq!(descriptors[1].name.as_ref(), utf16("--first"));
+    }
+
+    #[test]
+    fn parses_font_feature_value_rules_and_integer_lists() {
+        let rules = parse_stylesheet(
+            b"@font-feature-values Test { @styleset { nice: 1 +2 0; bad: 1.5; } @historical-forms { old: 3; } @character-variant { pair: 1 2; too-many: 1 2 3; } }",
+        );
+        let Rule::At(outer) = &rules[0] else {
+            panic!("expected @font-feature-values");
+        };
+        let subrules = outer
+            .children
+            .iter()
+            .filter_map(|child| match child {
+                RuleOrDeclarations::Rule(rule) => Some(rule),
+                RuleOrDeclarations::Declarations(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            parse_test_rule_prelude(&subrules[1]),
+            ParsedRulePrelude::FontFeatureValuesRule(FfiFontFeatureValuesRuleKind::HistoricalForms)
+        );
+        let Rule::At(styleset) = subrules[0] else {
+            panic!("expected @styleset");
+        };
+        let RuleOrDeclarations::Declarations(styleset_declarations) = &styleset.children[0] else {
+            panic!("expected declarations");
+        };
+        assert_eq!(
+            parse_font_feature_values(&styleset_declarations[0], usize::MAX),
+            Some(vec![1, 2, 0])
+        );
+        assert_eq!(parse_font_feature_values(&styleset_declarations[1], usize::MAX), None);
+        let Rule::At(character_variant) = subrules[2] else {
+            panic!("expected @character-variant");
+        };
+        let RuleOrDeclarations::Declarations(character_variant_declarations) = &character_variant.children[0] else {
+            panic!("expected declarations");
+        };
+        assert_eq!(
+            parse_font_feature_values(&character_variant_declarations[0], 2),
+            Some(vec![1, 2])
+        );
+        assert_eq!(parse_font_feature_values(&character_variant_declarations[1], 2), None);
     }
 
     #[test]

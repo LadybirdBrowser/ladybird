@@ -332,8 +332,8 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
             //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
             //    parsed declaration be null.
             // 2. If parsed declaration is not null, append it to parsed declarations.
-            if (auto parsed_declaration = convert_to_descriptor(at_rule_id, declaration); parsed_declaration.has_value())
-                parsed_declarations.append(parsed_declaration.release_value());
+            if (declaration.descriptor_name_and_id.has_value() && declaration.parsed_value)
+                parsed_declarations.append({ declaration.descriptor_name_and_id.value(), NonnullRefPtr { *declaration.parsed_value } });
         }
     }
 

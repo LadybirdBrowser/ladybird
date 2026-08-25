@@ -51,48 +51,14 @@ static bool selector_list_contains_pseudo_element(SelectorList const& selectors)
     return any_of(selectors, [](auto const& selector) { return selector->target_pseudo_element().has_value(); });
 }
 
-// A helper that ensures only the last instance of each descriptor is included, while also handling shorthands.
-class DescriptorList {
-public:
-    DescriptorList(AtRuleID at_rule)
-        : m_at_rule(at_rule)
-    {
-    }
-
-    void append(Descriptor&& descriptor)
-    {
-        if (is_shorthand(m_at_rule, descriptor.descriptor_name_and_id)) {
-            for_each_expanded_longhand(m_at_rule, descriptor.descriptor_name_and_id, descriptor.value, [this](auto longhand_id, auto longhand_value) {
-                append_internal(Descriptor { longhand_id, longhand_value.release_nonnull() });
-            });
-            return;
-        }
-
-        append_internal(move(descriptor));
-    }
-
-    Vector<Descriptor> release_descriptors()
-    {
-        return move(m_descriptors);
-    }
-
-private:
-    void append_internal(Descriptor&& descriptor)
-    {
-        if (m_seen_descriptor_ids.contains(descriptor.descriptor_name_and_id)) {
-            m_descriptors.remove_first_matching([&descriptor](Descriptor const& existing) {
-                return existing.descriptor_name_and_id == descriptor.descriptor_name_and_id;
-            });
-        } else {
-            m_seen_descriptor_ids.set(descriptor.descriptor_name_and_id);
-        }
-        m_descriptors.append(move(descriptor));
-    }
-
-    AtRuleID m_at_rule;
-    Vector<Descriptor> m_descriptors;
-    HashTable<DescriptorNameAndID> m_seen_descriptor_ids;
-};
+static Vector<Descriptor> copy_descriptors(ReadonlySpan<Descriptor> descriptors)
+{
+    Vector<Descriptor> copy;
+    copy.ensure_capacity(descriptors.size());
+    for (auto const& descriptor : descriptors)
+        copy.unchecked_append({ descriptor.descriptor_name_and_id, descriptor.value });
+    return copy;
+}
 
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
@@ -697,59 +663,16 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     }
     auto name = rule.parsed_prelude.name.value();
 
-    RefPtr<StyleValue const> system;
-    RefPtr<StyleValue const> negative;
-    RefPtr<StyleValue const> prefix;
-    RefPtr<StyleValue const> suffix;
-    RefPtr<StyleValue const> range;
-    RefPtr<StyleValue const> pad;
-    RefPtr<StyleValue const> fallback;
-    RefPtr<StyleValue const> symbols;
-    RefPtr<StyleValue const> additive_symbols;
-    RefPtr<StyleValue const> speak_as;
-
-    rule.for_each_as_declaration_list([&](auto& declaration) {
-        auto const& descriptor = convert_to_descriptor(AtRuleID::CounterStyle, declaration);
+    auto descriptor_value = [&rule](DescriptorID id) -> RefPtr<StyleValue const> {
+        auto descriptor = rule.descriptors.first_matching([id](auto const& descriptor) {
+            return descriptor.descriptor_name_and_id.id() == id;
+        });
         if (!descriptor.has_value())
-            return;
+            return nullptr;
+        return descriptor->value;
+    };
 
-        switch (descriptor->descriptor_name_and_id.id()) {
-        case DescriptorID::System:
-            system = descriptor->value;
-            break;
-        case DescriptorID::Negative:
-            negative = descriptor->value;
-            break;
-        case DescriptorID::Prefix:
-            prefix = descriptor->value;
-            break;
-        case DescriptorID::Suffix:
-            suffix = descriptor->value;
-            break;
-        case DescriptorID::Range:
-            range = descriptor->value;
-            break;
-        case DescriptorID::Pad:
-            pad = descriptor->value;
-            break;
-        case DescriptorID::Fallback:
-            fallback = descriptor->value;
-            break;
-        case DescriptorID::Symbols:
-            symbols = descriptor->value;
-            break;
-        case DescriptorID::AdditiveSymbols:
-            additive_symbols = descriptor->value;
-            break;
-        case DescriptorID::SpeakAs:
-            speak_as = descriptor->value;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    });
-
-    return CSSCounterStyleRule::create(move(name), move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
+    return CSSCounterStyleRule::create(move(name), descriptor_value(DescriptorID::System), descriptor_value(DescriptorID::Negative), descriptor_value(DescriptorID::Prefix), descriptor_value(DescriptorID::Suffix), descriptor_value(DescriptorID::Range), descriptor_value(DescriptorID::Pad), descriptor_value(DescriptorID::Fallback), descriptor_value(DescriptorID::Symbols), descriptor_value(DescriptorID::AdditiveSymbols), descriptor_value(DescriptorID::SpeakAs));
 }
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
@@ -779,14 +702,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
         return {};
     }
 
-    DescriptorList descriptors { AtRuleID::FontFace };
-    rule.for_each_as_declaration_list([&](auto& declaration) {
-        if (auto descriptor = convert_to_descriptor(AtRuleID::FontFace, declaration); descriptor.has_value()) {
-            descriptors.append(descriptor.release_value());
-        }
-    });
-
-    auto font_face_descriptors = CSSFontFaceDescriptors::create(descriptors.release_descriptors());
+    auto font_face_descriptors = CSSFontFaceDescriptors::create(copy_descriptors(rule.descriptors));
     return CSSFontFaceRule::create(font_face_descriptors);
 }
 
@@ -825,35 +741,32 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
             // @ornaments = @ornaments { <declaration-list> }
             // @annotation = @annotation { <declaration-list> }
 
-            GC::Ptr<CSSFontFeatureValuesMap> feature_values_map;
-            size_t max_value_count = 1;
-
-            if (at_rule.name.equals_ignoring_ascii_case("stylistic"sv)) {
-                feature_values_map = font_feature_values_rule->stylistic();
-            } else if (at_rule.name.equals_ignoring_ascii_case("historical-forms"sv)) {
-                feature_values_map = font_feature_values_rule->historical_forms();
-            } else if (at_rule.name.equals_ignoring_ascii_case("styleset"sv)) {
-                feature_values_map = font_feature_values_rule->styleset();
-                max_value_count = NumericLimits<size_t>::max();
-            } else if (at_rule.name.equals_ignoring_ascii_case("character-variant"sv)) {
-                feature_values_map = font_feature_values_rule->character_variant();
-                max_value_count = 2;
-            } else if (at_rule.name.equals_ignoring_ascii_case("swash"sv)) {
-                feature_values_map = font_feature_values_rule->swash();
-            } else if (at_rule.name.equals_ignoring_ascii_case("ornaments"sv)) {
-                feature_values_map = font_feature_values_rule->ornaments();
-            } else if (at_rule.name.equals_ignoring_ascii_case("annotation"sv)) {
-                feature_values_map = font_feature_values_rule->annotation();
-            } else {
-                // NB: Other at-rules are disallowed in this context and should have already been dropped
+            if (at_rule.parsed_prelude.kind != ParsedRulePreludeKind::FontFeatureValuesRule || at_rule.parsed_prelude.items.size() != 1)
+                return;
+            GC::Ref<CSSFontFeatureValuesMap> feature_values_map = [&] {
+                switch (static_cast<ValueParserFFI::FfiFontFeatureValuesRuleKind>(at_rule.parsed_prelude.items.first().kind)) {
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::Annotation:
+                    return font_feature_values_rule->annotation();
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::CharacterVariant:
+                    return font_feature_values_rule->character_variant();
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::HistoricalForms:
+                    return font_feature_values_rule->historical_forms();
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::Ornaments:
+                    return font_feature_values_rule->ornaments();
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::Styleset:
+                    return font_feature_values_rule->styleset();
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::Stylistic:
+                    return font_feature_values_rule->stylistic();
+                case ValueParserFFI::FfiFontFeatureValuesRuleKind::Swash:
+                    return font_feature_values_rule->swash();
+                }
                 VERIFY_NOT_REACHED();
-            }
+            }();
 
             at_rule.for_each_as_declaration_list([&](Declaration const& declaration) {
-                auto values = parse_font_feature_values(declaration, max_value_count);
-                if (!values.has_value())
+                if (!declaration.font_feature_values.has_value())
                     return;
-                MUST(feature_values_map->set(declaration.name.to_utf16_string(), values.release_value()));
+                MUST(feature_values_map->set(declaration.name.to_utf16_string(), declaration.font_feature_values.value()));
             });
         },
         [&](Declaration const&) {
@@ -937,7 +850,6 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
     auto page_selectors = page_selector_list_from_parsed_prelude(page_rule.parsed_prelude);
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
-    DescriptorList descriptors { AtRuleID::Page };
     page_rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {
             if (auto converted_rule = convert_to_rule<CSSNestedDeclarations>(at_rule, Nested::No)) {
@@ -951,14 +863,10 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
                 }
             }
         },
-        [&](auto& declaration) {
-            if (auto descriptor = convert_to_descriptor(AtRuleID::Page, declaration); descriptor.has_value()) {
-                descriptors.append(descriptor.release_value());
-            }
-        });
+        [](auto&) {});
 
     auto rule_list = CSSRuleList::create(child_rules);
-    return CSSPageRule::create(move(page_selectors), CSSPageDescriptors::create(descriptors.release_descriptors()), rule_list);
+    return CSSPageRule::create(move(page_selectors), CSSPageDescriptors::create(copy_descriptors(page_rule.descriptors)), rule_list);
 }
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
@@ -1003,16 +911,16 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
 }
 
 template<typename Descriptors>
-GC::Ref<Descriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations)
+GC::Ref<Descriptors> Parser::convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations)
 {
-    DescriptorList descriptor_list { at_rule_id };
-
+    Vector<Descriptor> descriptors;
+    descriptors.ensure_capacity(declarations.size());
     for (auto const& declaration : declarations) {
-        if (auto descriptor = convert_to_descriptor(at_rule_id, declaration); descriptor.has_value())
-            descriptor_list.append(descriptor.release_value());
+        if (!declaration.descriptor_name_and_id.has_value() || !declaration.parsed_value)
+            continue;
+        descriptors.unchecked_append({ declaration.descriptor_name_and_id.value(), NonnullRefPtr { *declaration.parsed_value } });
     }
-
-    return Descriptors::create(descriptor_list.release_descriptors());
+    return Descriptors::create(move(descriptors));
 }
 
 template GC::Ref<CSSFunctionDescriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations);
@@ -1031,25 +939,5 @@ template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(A
 
 template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSNestedDeclarations>(AtRule const&, Nested);
 template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
-
-Optional<Vector<u32>> Parser::parse_font_feature_values(Declaration const& declaration, size_t max_value_count)
-{
-    if (declaration.important == Important::Yes)
-        return {};
-    auto source = declaration.value_text.utf16_view();
-    ValueParserFFI::FfiUtf16View ffi_source {
-        .ascii = source.has_ascii_storage() ? reinterpret_cast<u8 const*>(source.ascii_span().data()) : nullptr,
-        .utf16 = source.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(source.utf16_span().data()),
-        .length = source.length_in_code_units(),
-    };
-    auto count = ValueParserFFI::rust_parse_font_feature_values(ffi_source, max_value_count, nullptr, 0);
-    if (count == NumericLimits<size_t>::max())
-        return {};
-    Vector<u32> values;
-    values.resize(count);
-    if (ValueParserFFI::rust_parse_font_feature_values(ffi_source, max_value_count, values.data(), values.size()) != count)
-        return {};
-    return values;
-}
 
 }
