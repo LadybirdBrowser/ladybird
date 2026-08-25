@@ -241,6 +241,15 @@ pub struct FfiMemoryPressureSnapshot {
     pub category_bytes: [u64; MEMORY_CATEGORY_COUNT],
 }
 
+/// Small by-value state probes for one final style record.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiStyleRecordState {
+    pub present: bool,
+    pub display_none: bool,
+    pub in_display_none_subtree: bool,
+}
+
 /// A synchronous borrowed view of one final style record.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -2311,6 +2320,29 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_voi
             }
         });
         result
+    })
+}
+
+/// Returns the small state probes used while applying and reusing style records.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_style_record_state(
+    engine: *const c_void,
+    style_record: u64,
+) -> FfiStyleRecordState {
+    abort_on_panic(|| {
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let Some(view) = engine.style_record_view(style_record) else {
+            return FfiStyleRecordState::default();
+        };
+        let box_values = unsafe { &*view.payloads[22].cast::<crate::css::computed_values::BoxValues>() };
+        FfiStyleRecordState {
+            present: true,
+            display_none: box_values.display == crate::css::display::FfiDisplay::none(),
+            in_display_none_subtree: view.dependency_flags & 4 != 0,
+        }
     })
 }
 

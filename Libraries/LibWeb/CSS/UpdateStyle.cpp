@@ -242,13 +242,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             VERIFY(reaction.damage == StyleEngineFFI::FfiStyleDeltaDamage::Full);
         }
 
-        bool was_unstyled = false;
-        bool was_display_none = false;
-        {
-            auto previous_style = element->computed_style();
-            was_unstyled = !previous_style;
-            was_display_none = previous_style && previous_style->display().is_none();
-        }
+        auto previous_style_state = document.style_computer().style_engine().style_record_state(element->style_record_identity());
+        bool const was_unstyled = !previous_style_state.present;
+        bool const was_display_none = previous_style_state.display_none;
         bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
         bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;
         bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
@@ -327,9 +323,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         apply_element_style_invalidation_after_style_change(*element, invalidation);
         transaction_invalidation |= invalidation;
 
-        auto current_style = element->computed_style();
-        VERIFY(current_style);
-        if (current_style->display().is_none()) {
+        auto current_style_state = document.style_computer().style_engine().style_record_state(element->style_record_identity());
+        VERIFY(current_style_state.present);
+        if (current_style_state.display_none) {
             if (was_unstyled) {
                 record_direct_child_style_engine_reactions(*element, reaction_batch, StyleEngine::RecomputeStyle);
                 if (auto shadow_root = element->shadow_root())
@@ -357,7 +353,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         if ((reaction.reaction & StyleEngine::RecomputeDescendantStyles) || invalidation.recompute_descendant_styles)
             common_child_reaction |= StyleEngine::RecomputeDescendantStyles;
         if (ancestor_became_visible
-            || (was_display_none && !current_style->in_display_none_subtree()))
+            || (was_display_none && !current_style_state.in_display_none_subtree))
             common_child_reaction |= StyleEngine::AncestorBecameVisible;
 
         auto light_tree_child_reaction = common_child_reaction;

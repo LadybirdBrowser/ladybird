@@ -203,6 +203,11 @@ void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
     return StyleEngineFFI::style_engine_style_record_payloads(m_impl, style_record.value());
 }
 
+StyleEngine::StyleRecordState StyleEngine::style_record_state(StyleRecordID style_record) const
+{
+    return StyleEngineFFI::style_engine_style_record_state(m_impl, style_record.value());
+}
+
 StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_record) const
 {
     return StyleEngineFFI::style_engine_style_record_view(m_impl, style_record.value());
