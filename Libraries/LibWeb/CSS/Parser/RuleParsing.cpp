@@ -847,10 +847,19 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
         return nullptr;
     }
 
-    auto prelude = parse_function_prelude(function_rule);
-
-    if (!prelude.has_value())
+    if (function_rule.parsed_prelude.kind != ParsedRulePreludeKind::Function)
         return nullptr;
+    VERIFY(function_rule.parsed_prelude.name.has_value());
+    VERIFY(function_rule.parsed_prelude.syntax.has_value());
+
+    Vector<FunctionParameterInternal> parameters;
+    parameters.ensure_capacity(function_rule.parsed_prelude.items.size());
+    for (auto const& item : function_rule.parsed_prelude.items) {
+        VERIFY(static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(item.kind) == ValueParserFFI::FfiFunctionParameterItemKind::Parameter);
+        VERIFY(item.value.has_value());
+        VERIFY(item.syntax.has_value());
+        parameters.append({ *item.value, item.syntax.value(), item.style_value });
+    }
 
     Vector<GC::Ref<CSSRule>> child_rules {};
 
@@ -866,7 +875,7 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
             });
     }
 
-    return CSSFunctionRule::create(CSSRuleList::create(child_rules), move(prelude->name), move(prelude->parameters), move(prelude->return_type));
+    return CSSFunctionRule::create(CSSRuleList::create(child_rules), *function_rule.parsed_prelude.name, move(parameters), function_rule.parsed_prelude.syntax.value());
 }
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
@@ -1085,56 +1094,6 @@ Optional<Vector<u32>> Parser::parse_font_feature_values(Declaration const& decla
     if (ValueParserFFI::rust_parse_font_feature_values(ffi_source, max_value_count, values.data(), values.size()) != count)
         return {};
     return values;
-}
-
-Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& rule)
-{
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Function || !rule.parsed_prelude.name.has_value())
-        return {};
-    Vector<FunctionParameterInternal> parameters;
-    size_t position = 0;
-    while (position < rule.parsed_prelude.items.size()) {
-        auto const& name_item = rule.parsed_prelude.items[position++];
-        if (static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(name_item.kind) != ValueParserFFI::FfiFunctionParameterItemKind::Name || !name_item.value.has_value())
-            return {};
-        auto type = RustSyntaxHandle::universal();
-        if (position < rule.parsed_prelude.items.size() && static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(rule.parsed_prelude.items[position].kind) == ValueParserFFI::FfiFunctionParameterItemKind::Type) {
-            auto const& type_item = rule.parsed_prelude.items[position++];
-            if (!type_item.value.has_value())
-                return {};
-            auto parsed_type = parse_as_syntax(*type_item.value);
-            if (!parsed_type.has_value())
-                return {};
-            type = parsed_type.release_value();
-        }
-        RefPtr<StyleValue const> default_value;
-        if (position < rule.parsed_prelude.items.size() && static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(rule.parsed_prelude.items[position].kind) == ValueParserFFI::FfiFunctionParameterItemKind::Default) {
-            auto const& default_item = rule.parsed_prelude.items[position++];
-            if (!default_item.value.has_value())
-                return {};
-            auto parsed_default = parse_css_value_from_source(PropertyID::Custom, *default_item.value);
-            if (parsed_default.is_error())
-                return {};
-            auto unparsed_default = parsed_default.release_value();
-            if (unparsed_default->is_css_wide_keyword() || unparsed_default->as_unresolved().contains_arbitrary_substitution_function()) {
-                default_value = move(unparsed_default);
-            } else {
-                auto parsed = parse_with_a_syntax(unparsed_default->as_unresolved().token_source(), type);
-                if (parsed->is_guaranteed_invalid())
-                    return {};
-                default_value = move(parsed);
-            }
-        }
-        parameters.append({ *name_item.value, move(type), move(default_value) });
-    }
-    auto return_type = RustSyntaxHandle::universal();
-    if (rule.parsed_prelude.secondary.has_value()) {
-        auto parsed = parse_as_syntax(*rule.parsed_prelude.secondary);
-        if (!parsed.has_value())
-            return {};
-        return_type = parsed.release_value();
-    }
-    return FunctionPrelude { *rule.parsed_prelude.name, move(parameters), move(return_type) };
 }
 
 }
