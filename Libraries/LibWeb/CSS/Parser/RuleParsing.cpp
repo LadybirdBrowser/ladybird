@@ -632,7 +632,7 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
     Optional<SelectorList> end;
     for (auto const& item : rule.parsed_prelude.items) {
         VERIFY(item.value.has_value());
-        bool is_end = item.flags == 1;
+        bool is_end = static_cast<ValueParserFFI::FfiScopePreludeItemKind>(item.kind) == ValueParserFFI::FfiScopePreludeItemKind::End;
         auto selectors = parse_selector_list_in_rust(*item.value, m_declared_namespaces,
             is_end || nested == Nested::Yes, false);
         if (!selectors.has_value() || selectors->is_empty() || selector_list_contains_pseudo_element(*selectors))
@@ -986,9 +986,10 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
     Optional<Utf16FlyString> page_name;
     Vector<PagePseudoClass> pseudo_classes;
     for (auto const& item : page_rule.parsed_prelude.items) {
-        if (item.flags != 0x80) {
-            VERIFY(item.flags <= to_underlying(PagePseudoClass::Blank));
-            pseudo_classes.append(static_cast<PagePseudoClass>(item.flags));
+        auto item_kind = static_cast<ValueParserFFI::FfiPageSelectorItemKind>(item.kind);
+        if (item_kind != ValueParserFFI::FfiPageSelectorItemKind::Name) {
+            VERIFY(item_kind <= ValueParserFFI::FfiPageSelectorItemKind::Blank);
+            pseudo_classes.append(static_cast<PagePseudoClass>(item.kind));
             continue;
         }
         if (page_name.has_value() || !pseudo_classes.is_empty())
@@ -1104,7 +1105,7 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
     if (!url_item.value.has_value())
         return {};
     Optional<URL> url;
-    if (url_item.flags == 7) {
+    if (static_cast<ValueParserFFI::FfiImportPreludeItemKind>(url_item.kind) == ValueParserFFI::FfiImportPreludeItemKind::UrlValue) {
         url = URL { MUST(url_item.value->view().to_utf8()) };
     } else {
         auto value = parse_primitive_value_from_source(ValueType::Url, *url_item.value);
@@ -1128,30 +1129,30 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
         return selectors;
     };
     for (auto const& item : rule.parsed_prelude.items.span().slice(1)) {
-        switch (item.flags) {
-        case 1:
+        switch (static_cast<ValueParserFFI::FfiImportPreludeItemKind>(item.kind)) {
+        case ValueParserFFI::FfiImportPreludeItemKind::Layer:
             if (!item.value.has_value())
                 return {};
             layer = *item.value;
             break;
-        case 2:
+        case ValueParserFFI::FfiImportPreludeItemKind::Scope:
             has_scope = true;
             break;
-        case 3:
+        case ValueParserFFI::FfiImportPreludeItemKind::ScopeStart:
             if (!item.value.has_value())
                 return {};
             scope_start = parse_scope_selector_list(*item.value, SelectorType::Standalone);
             if (!scope_start.has_value())
                 return {};
             break;
-        case 4:
+        case ValueParserFFI::FfiImportPreludeItemKind::ScopeEnd:
             if (!item.value.has_value())
                 return {};
             scope_end = parse_scope_selector_list(*item.value, SelectorType::Relative);
             if (!scope_end.has_value())
                 return {};
             break;
-        case 5: {
+        case ValueParserFFI::FfiImportPreludeItemKind::Supports: {
             if (!item.value.has_value())
                 return {};
             supports = RustQueryParser::parse_supports_condition(*this, *item.value);
@@ -1161,7 +1162,7 @@ Optional<Parser::ImportPrelude> Parser::parse_import_prelude(AtRule const& rule)
                 return {};
             break;
         }
-        case 6:
+        case ValueParserFFI::FfiImportPreludeItemKind::Media:
             if (!item.value.has_value())
                 return {};
             media_queries = RustQueryParser::parse_media_query_list(*this, *item.value);
@@ -1201,10 +1202,10 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
     size_t position = 0;
     while (position < rule.parsed_prelude.items.size()) {
         auto const& name_item = rule.parsed_prelude.items[position++];
-        if (name_item.flags != 0 || !name_item.value.has_value())
+        if (static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(name_item.kind) != ValueParserFFI::FfiFunctionParameterItemKind::Name || !name_item.value.has_value())
             return {};
         NonnullRefPtr<SyntaxNode> type = UniversalSyntaxNode::create();
-        if (position < rule.parsed_prelude.items.size() && rule.parsed_prelude.items[position].flags == 1) {
+        if (position < rule.parsed_prelude.items.size() && static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(rule.parsed_prelude.items[position].kind) == ValueParserFFI::FfiFunctionParameterItemKind::Type) {
             auto const& type_item = rule.parsed_prelude.items[position++];
             if (!type_item.value.has_value())
                 return {};
@@ -1214,7 +1215,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(AtRule const& r
             type = parsed_type.release_nonnull();
         }
         RefPtr<StyleValue const> default_value;
-        if (position < rule.parsed_prelude.items.size() && rule.parsed_prelude.items[position].flags == 2) {
+        if (position < rule.parsed_prelude.items.size() && static_cast<ValueParserFFI::FfiFunctionParameterItemKind>(rule.parsed_prelude.items[position].kind) == ValueParserFFI::FfiFunctionParameterItemKind::Default) {
             auto const& default_item = rule.parsed_prelude.items[position++];
             if (!default_item.value.has_value())
                 return {};

@@ -45,6 +45,46 @@ pub(crate) enum RuleContext {
     Margin,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiPageSelectorItemKind {
+    Left = 0,
+    Right = 1,
+    First = 2,
+    Blank = 3,
+    Name = 0x80,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiImportPreludeItemKind {
+    UrlFunction = 0,
+    Layer = 1,
+    Scope = 2,
+    ScopeStart = 3,
+    ScopeEnd = 4,
+    Supports = 5,
+    Media = 6,
+    UrlValue = 7,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiScopePreludeItemKind {
+    Start = 0,
+    End = 1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiFunctionParameterItemKind {
+    Name = 0,
+    Type = 1,
+    Default = 2,
+}
+
+const UNUSED_PRELUDE_ITEM_KIND: u8 = 0;
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Rule {
     At(AtRule),
@@ -116,7 +156,7 @@ enum ParsedRulePrelude {
         start: Option<ParserString>,
         end: Option<ParserString>,
     },
-    Import(Vec<(Option<ParserString>, u8)>),
+    Import(Vec<(Option<ParserString>, FfiImportPreludeItemKind)>),
     Function {
         name: ParserString,
         parameters: Vec<(ParserString, Option<ParserString>, Option<ParserString>)>,
@@ -127,7 +167,7 @@ enum ParsedRulePrelude {
 #[derive(Clone, Debug, PartialEq)]
 struct ParsedPageSelector {
     name: Option<ParserString>,
-    pseudo_classes: Vec<u8>,
+    pseudo_classes: Vec<FfiPageSelectorItemKind>,
 }
 
 fn non_whitespace(values: &[ComponentValue]) -> Vec<&ComponentValue> {
@@ -290,13 +330,13 @@ fn parse_page_selectors(values: &[ComponentValue]) -> ParsedRulePrelude {
                 return ParsedRulePrelude::Invalid;
             };
             let pseudo_class = if equals_ascii_case_insensitive(pseudo_class, b"left") {
-                0
+                FfiPageSelectorItemKind::Left
             } else if equals_ascii_case_insensitive(pseudo_class, b"right") {
-                1
+                FfiPageSelectorItemKind::Right
             } else if equals_ascii_case_insensitive(pseudo_class, b"first") {
-                2
+                FfiPageSelectorItemKind::First
             } else if equals_ascii_case_insensitive(pseudo_class, b"blank") {
-                3
+                FfiPageSelectorItemKind::Blank
             } else {
                 return ParsedRulePrelude::Invalid;
             };
@@ -453,10 +493,13 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
         return ParsedRulePrelude::Invalid;
     };
     let url_item = match &url.kind {
-        ComponentKind::Token(ParserTokenKind::Url(url) | ParserTokenKind::String(url)) => (Some(url.clone()), 7),
-        ComponentKind::Function { name, .. } if equals_ascii_case_insensitive(name, b"url") => {
-            (Some(component_slice_source(std::slice::from_ref(url))), 0)
+        ComponentKind::Token(ParserTokenKind::Url(url) | ParserTokenKind::String(url)) => {
+            (Some(url.clone()), FfiImportPreludeItemKind::UrlValue)
         }
+        ComponentKind::Function { name, .. } if equals_ascii_case_insensitive(name, b"url") => (
+            Some(component_slice_source(std::slice::from_ref(url))),
+            FfiImportPreludeItemKind::UrlFunction,
+        ),
         _ => return ParsedRulePrelude::Invalid,
     };
     let mut items = vec![url_item];
@@ -474,7 +517,10 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
                 .ident()
                 .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"layer"))
         {
-            items.push((Some(Vec::new().into_boxed_slice().into()), 1));
+            items.push((
+                Some(Vec::new().into_boxed_slice().into()),
+                FfiImportPreludeItemKind::Layer,
+            ));
             has_layer = true;
             position += 1;
             continue;
@@ -484,7 +530,7 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
             && equals_ascii_case_insensitive(name, b"layer")
             && let Some(layer) = parse_layer_name(contents, false)
         {
-            items.push((Some(layer), 1));
+            items.push((Some(layer), FfiImportPreludeItemKind::Layer));
             has_layer = true;
             position += 1;
             continue;
@@ -494,7 +540,7 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
                 .ident()
                 .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"scope"))
         {
-            items.push((None, 2));
+            items.push((None, FfiImportPreludeItemKind::Scope));
             has_scope = true;
             position += 1;
             continue;
@@ -504,12 +550,12 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
             && equals_ascii_case_insensitive(name, b"scope")
             && let Some((start, end)) = parse_import_scope(contents)
         {
-            items.push((None, 2));
+            items.push((None, FfiImportPreludeItemKind::Scope));
             if let Some(start) = start {
-                items.push((Some(start), 3));
+                items.push((Some(start), FfiImportPreludeItemKind::ScopeStart));
             }
             if let Some(end) = end {
-                items.push((Some(end), 4));
+                items.push((Some(end), FfiImportPreludeItemKind::ScopeEnd));
             }
             has_scope = true;
             position += 1;
@@ -519,7 +565,10 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
             && let Some((name, contents)) = value.function()
             && equals_ascii_case_insensitive(name, b"supports")
         {
-            items.push((Some(component_slice_source(contents)), 5));
+            items.push((
+                Some(component_slice_source(contents)),
+                FfiImportPreludeItemKind::Supports,
+            ));
             has_supports = true;
             position += 1;
             continue;
@@ -527,7 +576,10 @@ fn parse_import_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
         break;
     }
     if position < values.len() {
-        items.push((Some(component_slice_source(&values[position..])), 6));
+        items.push((
+            Some(component_slice_source(&values[position..])),
+            FfiImportPreludeItemKind::Media,
+        ));
     }
     ParsedRulePrelude::Import(items)
 }
@@ -1395,7 +1447,7 @@ pub struct FfiSyntaxPreludeItem {
     pub value_offset: usize,
     pub value_length: usize,
     pub number_value: f64,
-    pub flags: u8,
+    pub kind: u8,
 }
 
 #[derive(Clone, Copy)]
@@ -1800,11 +1852,19 @@ impl FfiSyntaxParse {
                 3
             }
             ParsedRulePrelude::Names(names) => {
-                parsed_items.extend(names.into_iter().map(|name| (Some(name), 0.0, 0)));
+                parsed_items.extend(
+                    names
+                        .into_iter()
+                        .map(|name| (Some(name), 0.0, UNUSED_PRELUDE_ITEM_KIND)),
+                );
                 4
             }
             ParsedRulePrelude::KeyframeSelectors(selectors) => {
-                parsed_items.extend(selectors.into_iter().map(|value| (None, value, 0)));
+                parsed_items.extend(
+                    selectors
+                        .into_iter()
+                        .map(|value| (None, value, UNUSED_PRELUDE_ITEM_KIND)),
+                );
                 5
             }
             ParsedRulePrelude::Namespace { prefix, uri } => {
@@ -1814,31 +1874,35 @@ impl FfiSyntaxParse {
             }
             ParsedRulePrelude::PageSelectors(selectors) => {
                 for selector in selectors {
-                    parsed_items.push((selector.name, 0.0, 0x80));
+                    parsed_items.push((selector.name, 0.0, FfiPageSelectorItemKind::Name as u8));
                     parsed_items.extend(
                         selector
                             .pseudo_classes
                             .into_iter()
-                            .map(|pseudo_class| (None, 0.0, pseudo_class)),
+                            .map(|pseudo_class| (None, 0.0, pseudo_class as u8)),
                     );
                 }
                 7
             }
             ParsedRulePrelude::FontFamilyNames(names) => {
-                parsed_items.extend(names.into_iter().map(|name| (Some(name), 0.0, 0)));
+                parsed_items.extend(
+                    names
+                        .into_iter()
+                        .map(|name| (Some(name), 0.0, UNUSED_PRELUDE_ITEM_KIND)),
+                );
                 8
             }
             ParsedRulePrelude::Scope { start, end } => {
                 if let Some(start) = start {
-                    parsed_items.push((Some(start), 0.0, 0));
+                    parsed_items.push((Some(start), 0.0, FfiScopePreludeItemKind::Start as u8));
                 }
                 if let Some(end) = end {
-                    parsed_items.push((Some(end), 0.0, 1));
+                    parsed_items.push((Some(end), 0.0, FfiScopePreludeItemKind::End as u8));
                 }
                 9
             }
             ParsedRulePrelude::Import(items) => {
-                parsed_items.extend(items.into_iter().map(|(value, flags)| (value, 0.0, flags)));
+                parsed_items.extend(items.into_iter().map(|(value, kind)| (value, 0.0, kind as u8)));
                 10
             }
             ParsedRulePrelude::Function {
@@ -1849,12 +1913,12 @@ impl FfiSyntaxParse {
                 parsed_prelude_name = Some(name);
                 parsed_prelude_secondary = return_type;
                 for (name, type_source, default_source) in parameters {
-                    parsed_items.push((Some(name), 0.0, 0));
+                    parsed_items.push((Some(name), 0.0, FfiFunctionParameterItemKind::Name as u8));
                     if let Some(type_source) = type_source {
-                        parsed_items.push((Some(type_source), 0.0, 1));
+                        parsed_items.push((Some(type_source), 0.0, FfiFunctionParameterItemKind::Type as u8));
                     }
                     if let Some(default_source) = default_source {
-                        parsed_items.push((Some(default_source), 0.0, 2));
+                        parsed_items.push((Some(default_source), 0.0, FfiFunctionParameterItemKind::Default as u8));
                     }
                 }
                 11
@@ -1865,13 +1929,13 @@ impl FfiSyntaxParse {
         let (parsed_prelude_secondary_offset, parsed_prelude_secondary_length) =
             self.append_optional_value(parsed_prelude_secondary.as_deref());
         let parsed_prelude_items_start = self.prelude_items.len();
-        for (value, number_value, flags) in parsed_items {
+        for (value, number_value, kind) in parsed_items {
             let (value_offset, value_length) = self.append_optional_value(value.as_deref());
             self.prelude_items.push(FfiSyntaxPreludeItem {
                 value_offset,
                 value_length,
                 number_value,
-                flags,
+                kind,
             });
         }
         let parsed_prelude_item_count = self.prelude_items.len() - parsed_prelude_items_start;
@@ -2121,9 +2185,10 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 #[cfg(test)]
 mod tests {
     use super::{
-        Declaration, FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations,
-        consume_a_list_of_component_values, parse_block_contents, parse_keyframe_selectors, parse_rule,
-        parse_rule_prelude, parse_stylesheet, token_diagnostics, tokenize_for_parser,
+        Declaration, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiSyntaxParse, ParsedRulePrelude, Rule,
+        RuleContext, RuleOrDeclarations, consume_a_list_of_component_values, parse_block_contents,
+        parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet, token_diagnostics,
+        tokenize_for_parser,
     };
 
     fn utf16(value: &str) -> Vec<u16> {
@@ -2302,9 +2367,12 @@ mod tests {
         };
         assert_eq!(selectors.len(), 2);
         assert_eq!(selectors[0].name.as_deref(), Some(utf16("invoice").as_slice()));
-        assert_eq!(selectors[0].pseudo_classes, vec![0, 2]);
+        assert_eq!(
+            selectors[0].pseudo_classes,
+            vec![FfiPageSelectorItemKind::Left, FfiPageSelectorItemKind::First]
+        );
         assert_eq!(selectors[1].name, None);
-        assert_eq!(selectors[1].pseudo_classes, vec![3]);
+        assert_eq!(selectors[1].pseudo_classes, vec![FfiPageSelectorItemKind::Blank]);
         assert_eq!(
             parse_rule_prelude(&rules[5]),
             ParsedRulePrelude::Scope {
@@ -2333,8 +2401,16 @@ mod tests {
             panic!("expected import prelude");
         };
         assert_eq!(
-            items.iter().map(|(_, flags)| *flags).collect::<Vec<_>>(),
-            vec![0, 1, 2, 3, 4, 5, 6]
+            items.iter().map(|(_, kind)| *kind).collect::<Vec<_>>(),
+            vec![
+                FfiImportPreludeItemKind::UrlFunction,
+                FfiImportPreludeItemKind::Layer,
+                FfiImportPreludeItemKind::Scope,
+                FfiImportPreludeItemKind::ScopeStart,
+                FfiImportPreludeItemKind::ScopeEnd,
+                FfiImportPreludeItemKind::Supports,
+                FfiImportPreludeItemKind::Media,
+            ]
         );
         let ParsedRulePrelude::Function {
             name,
