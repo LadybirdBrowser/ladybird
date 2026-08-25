@@ -154,7 +154,7 @@ struct SubstitutionData {
     };
     struct FunctionParameter {
         Utf16String name;
-        Utf16String syntax;
+        void const* syntax { nullptr };
         void const* default_data { nullptr };
     };
     struct FunctionDeclaration {
@@ -166,7 +166,7 @@ struct SubstitutionData {
         StyleScope const* scope { nullptr };
         Utf16String name;
         Vector<FunctionParameter> parameters;
-        Utf16String return_syntax;
+        void const* return_syntax { nullptr };
         Vector<FunctionDeclaration> declarations;
         Vector<ComputedValuesFFI::FfiSubstitutionFunctionParameter> ffi_parameters;
         Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
@@ -223,7 +223,7 @@ struct SubstitutionData {
                     .scope = &definition.scope,
                     .name = definition.function->name(),
                     .parameters = {},
-                    .return_syntax = definition.function->return_type_internal().serialize(),
+                    .return_syntax = definition.function->return_type_internal().data(),
                     .declarations = {},
                     .ffi_parameters = {},
                     .ffi_declarations = {},
@@ -232,7 +232,7 @@ struct SubstitutionData {
                 for (auto const& parameter : definition.function->parameters_internal()) {
                     snapshot.parameters.unchecked_append({
                         .name = parameter.name.to_utf16_string(),
-                        .syntax = parameter.type.serialize(),
+                        .syntax = parameter.type.data(),
                         .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
                     });
                 }
@@ -251,7 +251,7 @@ struct SubstitutionData {
             for (auto const& parameter : definition.parameters) {
                 definition.ffi_parameters.unchecked_append({
                     .name = ffi_utf16_view(parameter.name),
-                    .syntax = ffi_utf16_view(parameter.syntax),
+                    .syntax = parameter.syntax,
                     .default_data = parameter.default_data,
                 });
             }
@@ -268,7 +268,7 @@ struct SubstitutionData {
                 .name = ffi_utf16_view(definition.name),
                 .parameters = definition.ffi_parameters.data(),
                 .parameter_count = definition.ffi_parameters.size(),
-                .return_syntax = ffi_utf16_view(definition.return_syntax),
+                .return_syntax = definition.return_syntax,
                 .declarations = definition.ffi_declarations.data(),
                 .declaration_count = definition.ffi_declarations.size(),
             });
