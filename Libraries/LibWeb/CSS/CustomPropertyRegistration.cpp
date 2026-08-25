@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/Syntax.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -24,7 +23,7 @@ NonnullRefPtr<StyleValue const> compute_registered_custom_property_value(CustomP
     // If the registration’s syntax is the universal syntax definition, the computed value is the same as for
     // unregistered custom properties (either the specified value with variables substituted, or the guaranteed-invalid
     // value).
-    if (registration.syntax->type() == Parser::SyntaxNode::NodeType::Universal)
+    if (registration.syntax.is_universal())
         return value;
 
     // Otherwise...

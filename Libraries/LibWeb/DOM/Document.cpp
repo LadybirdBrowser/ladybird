@@ -9841,7 +9841,7 @@ void Document::sync_custom_property_registrations_to_rust()
     registrations.ensure_capacity(effective_registrations.size());
     for (auto const& [name, registration] : effective_registrations) {
         names.unchecked_append(name.to_utf16_string());
-        syntaxes.unchecked_append(registration->syntax->to_string());
+        syntaxes.unchecked_append(registration->syntax.serialize());
         initial_values.unchecked_append(registration->initial_value
                 ? Optional<Utf16String> { registration->initial_value->to_utf16_string(CSS::SerializationMode::ResolvedValueForReparse) }
                 : Optional<Utf16String> {});

@@ -6,7 +6,6 @@ set(TEST_SOURCES
     TestCSSIDSpeed.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
-    TestCSSSyntaxParser.cpp
     TestCSSTokenizer.cpp
     TestDisplayListDamage.cpp
     TestDownloadReader.cpp
@@ -43,6 +42,8 @@ set(TEST_SOURCES
 
 if (NOT WIN32)
     list(APPEND TEST_SOURCES
+        # These call Rust FFI symbols directly, which the lagom-web DLL does not export.
+        TestCSSSyntaxParser.cpp
         TestStyleValueEquality.cpp
     )
 endif()

@@ -68,110 +68,6 @@ pub(crate) enum SyntaxNode {
     Alternatives(Box<[SyntaxNode]>),
 }
 
-struct ParsedSyntax {
-    syntax: SyntaxNode,
-    nodes: Vec<ParsedSyntaxNode>,
-    children: Vec<usize>,
-    values: Vec<u16>,
-    root: usize,
-}
-
-struct ParsedSyntaxNode {
-    node_type: u8,
-    case_sensitive: bool,
-    value_start: usize,
-    value_length: usize,
-    children_start: usize,
-    child_count: usize,
-}
-
-fn flatten_syntax_node(
-    syntax: &SyntaxNode,
-    nodes: &mut Vec<ParsedSyntaxNode>,
-    children: &mut Vec<usize>,
-    values: &mut Vec<u16>,
-) -> usize {
-    let (node_type, case_sensitive, value, child_nodes): (u8, bool, &[u16], Vec<&SyntaxNode>) = match syntax {
-        SyntaxNode::Universal => (0, false, &[], vec![]),
-        SyntaxNode::Ident { value, case_sensitive } => (1, *case_sensitive, value, vec![]),
-        SyntaxNode::Type(syntax_type) => {
-            let value = match syntax_type {
-                SyntaxType::Angle => b"angle".as_slice(),
-                SyntaxType::Color => b"color",
-                SyntaxType::CustomIdent => b"custom-ident",
-                SyntaxType::Image => b"image",
-                SyntaxType::Integer => b"integer",
-                SyntaxType::Length => b"length",
-                SyntaxType::LengthPercentage => b"length-percentage",
-                SyntaxType::Number => b"number",
-                SyntaxType::Percentage => b"percentage",
-                SyntaxType::Resolution => b"resolution",
-                SyntaxType::String => b"string",
-                SyntaxType::Time => b"time",
-                SyntaxType::TransformFunction => b"transform-function",
-                SyntaxType::TransformList => b"transform-list",
-                SyntaxType::Url => b"url",
-            };
-            let value_start = values.len();
-            values.extend(value.iter().map(|&byte| u16::from(byte)));
-            let node_index = nodes.len();
-            nodes.push(ParsedSyntaxNode {
-                node_type: 2,
-                case_sensitive: false,
-                value_start,
-                value_length: value.len(),
-                children_start: 0,
-                child_count: 0,
-            });
-            return node_index;
-        }
-        SyntaxNode::Multiplier { child, multiplier } => (
-            if *multiplier == SyntaxMultiplier::SpaceSeparated {
-                3
-            } else {
-                4
-            },
-            false,
-            &[],
-            vec![child],
-        ),
-        SyntaxNode::Alternatives(alternatives) => (5, false, &[], alternatives.iter().collect()),
-    };
-
-    let child_indices: Vec<_> = child_nodes
-        .into_iter()
-        .map(|child| flatten_syntax_node(child, nodes, children, values))
-        .collect();
-    let children_start = children.len();
-    children.extend(child_indices);
-    let value_start = values.len();
-    values.extend_from_slice(value);
-    let node_index = nodes.len();
-    nodes.push(ParsedSyntaxNode {
-        node_type,
-        case_sensitive,
-        value_start,
-        value_length: value.len(),
-        children_start,
-        child_count: children.len() - children_start,
-    });
-    node_index
-}
-
-fn parsed_syntax(syntax: SyntaxNode) -> ParsedSyntax {
-    let mut nodes = Vec::new();
-    let mut children = Vec::new();
-    let mut values = Vec::new();
-    let root = flatten_syntax_node(&syntax, &mut nodes, &mut children, &mut values);
-    ParsedSyntax {
-        syntax,
-        nodes,
-        children,
-        values,
-        root,
-    }
-}
-
 fn serialize_syntax(syntax: &SyntaxNode, sink: &mut TextSink) {
     match syntax {
         SyntaxNode::Universal => sink.push_ascii("*"),
@@ -538,22 +434,22 @@ pub(crate) fn parse_with_syntax(context: &ParseContext, source: &[u16], syntax: 
 /// # Safety
 /// `source` must remain readable for `source_length` UTF-16 code units during this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_custom_ident: bool) -> *mut c_void {
+pub unsafe extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_custom_ident: bool) -> *const c_void {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.to_utf16() }) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
         let Some(syntax) = parse_syntax(&source, limit_ident_to_custom_ident) else {
-            return std::ptr::null_mut();
+            return std::ptr::null();
         };
-        Arc::into_raw(Arc::new(parsed_syntax(syntax))).cast_mut().cast()
+        Arc::into_raw(Arc::new(syntax)).cast()
     })
 }
 
 /// Returns an owned universal-syntax handle.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_syntax_create_universal() -> *const c_void {
-    crate::abort_on_panic(|| Arc::into_raw(Arc::new(parsed_syntax(SyntaxNode::Universal))).cast())
+    crate::abort_on_panic(|| Arc::into_raw(Arc::new(SyntaxNode::Universal)).cast())
 }
 
 /// # Safety
@@ -561,7 +457,7 @@ pub extern "C" fn rust_syntax_create_universal() -> *const c_void {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_syntax_retain(syntax: *const c_void) -> *const c_void {
     crate::abort_on_panic(|| {
-        unsafe { Arc::increment_strong_count(syntax.cast::<ParsedSyntax>()) };
+        unsafe { Arc::increment_strong_count(syntax.cast::<SyntaxNode>()) };
         syntax
     })
 }
@@ -570,21 +466,32 @@ pub unsafe extern "C" fn rust_syntax_retain(syntax: *const c_void) -> *const c_v
 /// `syntax` must be a live parsed-syntax handle whose strong count is released exactly once.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_syntax_release(syntax: *const c_void) {
-    crate::abort_on_panic(|| unsafe { Arc::decrement_strong_count(syntax.cast::<ParsedSyntax>()) });
+    crate::abort_on_panic(|| unsafe { Arc::decrement_strong_count(syntax.cast::<SyntaxNode>()) });
 }
 
 /// # Safety
 /// `syntax` must be a live parsed-syntax handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_syntax_is_universal(syntax: *const c_void) -> bool {
-    crate::abort_on_panic(|| matches!(unsafe { &*syntax.cast::<ParsedSyntax>() }.syntax, SyntaxNode::Universal))
+    crate::abort_on_panic(|| matches!(unsafe { &*syntax.cast::<SyntaxNode>() }, SyntaxNode::Universal))
 }
 
 /// # Safety
 /// `syntax` must be a live parsed-syntax handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_syntax_is_single_component(syntax: *const c_void) -> bool {
-    crate::abort_on_panic(|| is_single_syntax_component(&unsafe { &*syntax.cast::<ParsedSyntax>() }.syntax))
+    crate::abort_on_panic(|| is_single_syntax_component(unsafe { &*syntax.cast::<SyntaxNode>() }))
+}
+
+/// # Safety
+/// `left` and `right` must be live parsed-syntax handles.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_syntax_equals(left: *const c_void, right: *const c_void) -> bool {
+    crate::abort_on_panic(|| {
+        let left = unsafe { &*left.cast::<SyntaxNode>() };
+        let right = unsafe { &*right.cast::<SyntaxNode>() };
+        left == right
+    })
 }
 
 /// Serializes a syntax handle into an owned native `AK::Utf16String`.
@@ -595,75 +502,9 @@ pub unsafe extern "C" fn rust_syntax_is_single_component(syntax: *const c_void) 
 pub unsafe extern "C" fn rust_syntax_serialize(syntax: *const c_void) -> usize {
     crate::abort_on_panic(|| {
         let mut sink = TextSink::new();
-        serialize_syntax(&unsafe { &*syntax.cast::<ParsedSyntax>() }.syntax, &mut sink);
+        serialize_syntax(unsafe { &*syntax.cast::<SyntaxNode>() }, &mut sink);
         crate::css::serialize::sink_into_ffi(sink).raw
     })
-}
-
-/// # Safety
-/// `syntax` must be a live handle returned by `rust_parse_syntax`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_root(syntax: *const c_void) -> usize {
-    crate::abort_on_panic(|| unsafe { &*syntax.cast::<ParsedSyntax>() }.root)
-}
-
-/// # Safety
-/// `syntax` must be a live parsed-syntax handle and `node` must identify one of its nodes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_node_type(syntax: *const c_void, node: usize) -> u8 {
-    crate::abort_on_panic(|| unsafe { &*syntax.cast::<ParsedSyntax>() }.nodes[node].node_type)
-}
-
-/// # Safety
-/// `syntax` and `node` must be valid as for `rust_syntax_node_type`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_node_is_case_sensitive(syntax: *const c_void, node: usize) -> bool {
-    crate::abort_on_panic(|| unsafe { &*syntax.cast::<ParsedSyntax>() }.nodes[node].case_sensitive)
-}
-
-/// # Safety
-/// `syntax` and `node` must be valid as for `rust_syntax_node_type`. `out_length` must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_node_value(
-    syntax: *const c_void,
-    node: usize,
-    out_length: *mut usize,
-) -> *const u16 {
-    crate::abort_on_panic(|| {
-        let syntax = unsafe { &*syntax.cast::<ParsedSyntax>() };
-        let node = &syntax.nodes[node];
-        unsafe { *out_length = node.value_length };
-        syntax.values[node.value_start..].as_ptr()
-    })
-}
-
-/// # Safety
-/// `syntax` and `node` must be valid as for `rust_syntax_node_type`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_node_child_count(syntax: *const c_void, node: usize) -> usize {
-    crate::abort_on_panic(|| unsafe { &*syntax.cast::<ParsedSyntax>() }.nodes[node].child_count)
-}
-
-/// # Safety
-/// `syntax` and `node` must be valid as for `rust_syntax_node_type`, and `child` must be in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_node_child(syntax: *const c_void, node: usize, child: usize) -> usize {
-    crate::abort_on_panic(|| {
-        let syntax = unsafe { &*syntax.cast::<ParsedSyntax>() };
-        let node = &syntax.nodes[node];
-        syntax.children[node.children_start + child]
-    })
-}
-
-/// # Safety
-/// `syntax` must be null or a live parsed-syntax handle, and must only be freed once.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_free(syntax: *mut c_void) {
-    crate::abort_on_panic(|| {
-        if !syntax.is_null() {
-            unsafe { Arc::decrement_strong_count(syntax.cast::<ParsedSyntax>()) };
-        }
-    });
 }
 
 /// Parses a CSS value against a registered syntax and returns one strong style-value handle.
@@ -674,27 +515,19 @@ pub unsafe extern "C" fn rust_syntax_free(syntax: *mut c_void) {
 pub unsafe extern "C" fn rust_parse_with_syntax(
     context: *const ParseContext,
     source: FfiUtf16View,
-    syntax: FfiUtf16View,
-    limit_ident_to_custom_ident: bool,
+    syntax: *const c_void,
     out_status: *mut FfiParseStatus,
 ) -> *const c_void {
     crate::abort_on_panic(|| {
-        if context.is_null() || out_status.is_null() {
+        if context.is_null() || syntax.is_null() || out_status.is_null() {
             return std::ptr::null();
         }
         let Some(source) = (unsafe { source.to_utf16() }) else {
             unsafe { *out_status = FfiParseStatus::Invalid };
             return std::ptr::null();
         };
-        let Some(syntax) = (unsafe { syntax.to_utf16() }) else {
-            unsafe { *out_status = FfiParseStatus::Invalid };
-            return std::ptr::null();
-        };
-        let Some(syntax) = parse_syntax(&syntax, limit_ident_to_custom_ident) else {
-            unsafe { *out_status = FfiParseStatus::Invalid };
-            return std::ptr::null();
-        };
-        let Some(parsed) = parse_with_syntax(unsafe { &*context }, &source, &syntax) else {
+        let Some(parsed) = parse_with_syntax(unsafe { &*context }, &source, unsafe { &*syntax.cast::<SyntaxNode>() })
+        else {
             unsafe { *out_status = FfiParseStatus::Invalid };
             return std::ptr::null();
         };
