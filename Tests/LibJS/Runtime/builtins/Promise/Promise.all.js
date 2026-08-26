@@ -55,6 +55,74 @@ describe("normal behavior", () => {
         expect(rejectionReason).toBe("foo");
         expect(wasResolved).toBeFalse();
     });
+
+    test("invokes an overridden then method", () => {
+        const promise = Promise.resolve(42);
+        const originalThen = promise.then;
+        let callCount = 0;
+        let resolvedValues = null;
+
+        promise.then = function (...args) {
+            ++callCount;
+            return originalThen.apply(this, args);
+        };
+
+        Promise.all([promise]).then(values => {
+            resolvedValues = values;
+        });
+
+        runQueuedPromiseJobs();
+        expect(callCount).toBe(1);
+        expect(resolvedValues).toEqual([42]);
+    });
+
+    test("observes Symbol.species when invoking then", () => {
+        const originalSpecies = Object.getOwnPropertyDescriptor(Promise, Symbol.species);
+        let speciesCallCount = 0;
+
+        Object.defineProperty(Promise, Symbol.species, {
+            configurable: true,
+            get() {
+                ++speciesCallCount;
+                return Promise;
+            },
+        });
+
+        try {
+            Promise.all([Promise.resolve(42)]);
+            expect(speciesCallCount).toBe(1);
+            runQueuedPromiseJobs();
+            expect(speciesCallCount).toBe(1);
+        } finally {
+            Object.defineProperty(Promise, Symbol.species, originalSpecies);
+        }
+    });
+
+    test("constructs a custom Symbol.species promise when invoking then", () => {
+        const originalSpecies = Object.getOwnPropertyDescriptor(Promise, Symbol.species);
+        let constructionCount = 0;
+
+        class SpeciesPromise extends Promise {
+            constructor(executor) {
+                super(executor);
+                ++constructionCount;
+            }
+        }
+
+        Object.defineProperty(Promise, Symbol.species, {
+            configurable: true,
+            value: SpeciesPromise,
+        });
+
+        try {
+            Promise.all([Promise.resolve(42)]);
+            expect(constructionCount).toBe(1);
+            runQueuedPromiseJobs();
+            expect(constructionCount).toBe(1);
+        } finally {
+            Object.defineProperty(Promise, Symbol.species, originalSpecies);
+        }
+    });
 });
 
 describe("exceptional behavior", () => {

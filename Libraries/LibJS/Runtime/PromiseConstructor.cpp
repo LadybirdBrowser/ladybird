@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
+#include <LibJS/Runtime/PromisePrototype.h>
 #include <LibJS/Runtime/PromiseResolvingElementFunctions.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
@@ -40,6 +41,30 @@ static ThrowCompletionOr<Value> get_promise_resolve(VM& vm, Value constructor)
 
 using EndOfElementsCallback = Function<ThrowCompletionOr<Value>(PromiseValueList&)>;
 using InvokeElementFunctionCallback = Function<ThrowCompletionOr<Value>(PromiseValueList&, RemainingElements&, Value, size_t)>;
+
+enum class ResultVisibility {
+    Observable,
+    Unobservable,
+};
+
+static ThrowCompletionOr<Value> invoke_then(VM& vm, Realm& realm, Value promise_value, Value on_fulfilled, Value on_rejected, ResultVisibility result_visibility)
+{
+    auto then = TRY(promise_value.get(vm, vm.names.then));
+
+    // OPTIMIZATION: Promise combinators do not use the result of invoking the intrinsic Promise.prototype.then. If its
+    //               species is also the intrinsic Promise, omit the otherwise unused promise and resolving functions.
+    auto promise = promise_value.as_if<Promise>();
+    if (result_visibility == ResultVisibility::Unobservable && promise && PromisePrototype::is_original_then_function(then) && then.as_function().realm() == &realm) {
+        auto* constructor = TRY(species_constructor(vm, *promise, realm.intrinsics().promise_constructor()));
+        if (constructor == realm.intrinsics().promise_constructor().ptr())
+            return promise->perform_then(on_fulfilled, on_rejected, nullptr);
+
+        auto result_capability = TRY(new_promise_capability(vm, constructor));
+        return promise->perform_then(on_fulfilled, on_rejected, result_capability);
+    }
+
+    return call(vm, then, promise_value, on_fulfilled, on_rejected);
+}
 
 static ThrowCompletionOr<Value> perform_promise_common(VM& vm, IteratorRecord& iterator_record, Value constructor, PromiseCapability const& result_capability, Value promise_resolve, EndOfElementsCallback end_of_list, InvokeElementFunctionCallback invoke_element_function)
 {
@@ -96,6 +121,7 @@ static ThrowCompletionOr<Value> perform_promise_common(VM& vm, IteratorRecord& i
 static ThrowCompletionOr<Value> perform_promise_all(VM& vm, IteratorRecord& iterator_record, Value constructor, PromiseCapability const& result_capability, Value promise_resolve)
 {
     auto& realm = *vm.current_realm();
+    auto result_visibility = &constructor.as_function() == realm.intrinsics().promise_constructor().ptr() ? ResultVisibility::Unobservable : ResultVisibility::Observable;
 
     return perform_promise_common(
         vm, iterator_record, constructor, result_capability, promise_resolve,
@@ -119,10 +145,9 @@ static ThrowCompletionOr<Value> perform_promise_all(VM& vm, IteratorRecord& iter
             // p. Set onFulfilled.[[Capability]] to resultCapability.
             // q. Set onFulfilled.[[RemainingElements]] to remainingElementsCount.
             auto on_fulfilled = PromiseAllResolveElementFunction::create(realm, index, values, result_capability, remaining_elements_count);
-            on_fulfilled->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
             // s. Perform ? Invoke(nextPromise, "then", « onFulfilled, resultCapability.[[Reject]] »).
-            return next_promise.invoke(vm, vm.names.then, on_fulfilled, result_capability.reject());
+            return invoke_then(vm, realm, next_promise, on_fulfilled, result_capability.reject(), result_visibility);
         });
 }
 
@@ -130,6 +155,7 @@ static ThrowCompletionOr<Value> perform_promise_all(VM& vm, IteratorRecord& iter
 static ThrowCompletionOr<Value> perform_promise_all_settled(VM& vm, IteratorRecord& iterator_record, Value constructor, PromiseCapability const& result_capability, Value promise_resolve)
 {
     auto& realm = *vm.current_realm();
+    auto result_visibility = &constructor.as_function() == realm.intrinsics().promise_constructor().ptr() ? ResultVisibility::Unobservable : ResultVisibility::Observable;
 
     return perform_promise_common(
         vm, iterator_record, constructor, result_capability, promise_resolve,
@@ -151,7 +177,6 @@ static ThrowCompletionOr<Value> perform_promise_all_settled(VM& vm, IteratorReco
             // q. Set onFulfilled.[[Capability]] to resultCapability.
             // r. Set onFulfilled.[[RemainingElements]] to remainingElementsCount.
             auto on_fulfilled = PromiseAllSettledResolveElementFunction::create(realm, index, values, result_capability, remaining_elements_count);
-            on_fulfilled->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
             // s. Let stepsRejected be the algorithm steps defined in Promise.allSettled Reject Element Functions.
             // t. Let lengthRejected be the number of non-optional parameters of the function definition in Promise.allSettled Reject Element Functions.
@@ -162,10 +187,9 @@ static ThrowCompletionOr<Value> perform_promise_all_settled(VM& vm, IteratorReco
             // y. Set onRejected.[[Capability]] to resultCapability.
             // z. Set onRejected.[[RemainingElements]] to remainingElementsCount.
             auto on_rejected = PromiseAllSettledRejectElementFunction::create(realm, index, values, result_capability, remaining_elements_count);
-            on_rejected->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
             // ab. Perform ? Invoke(nextPromise, "then", « onFulfilled, onRejected »).
-            return next_promise.invoke(vm, vm.names.then, on_fulfilled, on_rejected);
+            return invoke_then(vm, realm, next_promise, on_fulfilled, on_rejected, result_visibility);
         });
 }
 
@@ -173,6 +197,7 @@ static ThrowCompletionOr<Value> perform_promise_all_settled(VM& vm, IteratorReco
 static ThrowCompletionOr<Value> perform_promise_any(VM& vm, IteratorRecord& iterator_record, Value constructor, PromiseCapability& result_capability, Value promise_resolve)
 {
     auto& realm = *vm.current_realm();
+    auto result_visibility = &constructor.as_function() == realm.intrinsics().promise_constructor().ptr() ? ResultVisibility::Unobservable : ResultVisibility::Observable;
 
     return perform_promise_common(
         vm, iterator_record, constructor, result_capability, promise_resolve,
@@ -198,16 +223,18 @@ static ThrowCompletionOr<Value> perform_promise_any(VM& vm, IteratorRecord& iter
             // p. Set onRejected.[[Capability]] to resultCapability.
             // q. Set onRejected.[[RemainingElements]] to remainingElementsCount.
             auto on_rejected = PromiseAnyRejectElementFunction::create(realm, index, errors, result_capability, remaining_elements_count);
-            on_rejected->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
             // s. Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], onRejected »).
-            return next_promise.invoke(vm, vm.names.then, result_capability.resolve(), on_rejected);
+            return invoke_then(vm, realm, next_promise, result_capability.resolve(), on_rejected, result_visibility);
         });
 }
 
 // 27.2.4.5.1 PerformPromiseRace ( iteratorRecord, constructor, resultCapability, promiseResolve ), https://tc39.es/ecma262/#sec-performpromiserace
 static ThrowCompletionOr<Value> perform_promise_race(VM& vm, IteratorRecord& iterator_record, Value constructor, PromiseCapability const& result_capability, Value promise_resolve)
 {
+    auto& realm = *vm.current_realm();
+    auto result_visibility = &constructor.as_function() == realm.intrinsics().promise_constructor().ptr() ? ResultVisibility::Unobservable : ResultVisibility::Observable;
+
     return perform_promise_common(
         vm, iterator_record, constructor, result_capability, promise_resolve,
         [&](PromiseValueList&) -> ThrowCompletionOr<Value> {
@@ -216,7 +243,7 @@ static ThrowCompletionOr<Value> perform_promise_race(VM& vm, IteratorRecord& ite
         },
         [&](PromiseValueList&, RemainingElements&, Value next_promise, size_t) {
             // i. Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], resultCapability.[[Reject]] »).
-            return next_promise.invoke(vm, vm.names.then, result_capability.resolve(), result_capability.reject());
+            return invoke_then(vm, realm, next_promise, result_capability.resolve(), result_capability.reject(), result_visibility);
         });
 }
 

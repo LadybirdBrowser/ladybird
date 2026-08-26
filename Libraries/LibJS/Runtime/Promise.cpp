@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/PromiseJobs.h>
 #include <LibJS/Runtime/PromiseReaction.h>
 #include <LibJS/Runtime/PromiseResolvingFunction.h>
@@ -25,6 +26,8 @@ GC_DEFINE_ALLOCATOR(Promise);
 // 27.2.4.7.1 PromiseResolve ( C, x ), https://tc39.es/ecma262/#sec-promise-resolve
 ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value value)
 {
+    auto& realm = *vm.current_realm();
+
     // 1. If IsPromise(x) is true, then
     if (auto promise = value.as_if<Promise>()) {
         // a. Let xConstructor be ? Get(x, "constructor").
@@ -33,6 +36,14 @@ ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value va
         // b. If SameValue(xConstructor, C) is true, return x.
         if (same_value(value_constructor, &constructor))
             return promise.ptr();
+    }
+
+    // OPTIMIZATION: Resolving an intrinsic Promise with a primitive cannot invoke user code, and the capability's resolving
+    //               functions do not escape. Create and fulfill the Promise directly instead of allocating those functions.
+    if (&constructor == realm.intrinsics().promise_constructor().ptr() && !value.is_object()) {
+        auto promise = Promise::create(realm);
+        promise->fulfill(value);
+        return promise.ptr();
     }
 
     // 2. Let promiseCapability be ? NewPromiseCapability(C).
@@ -76,7 +87,6 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
 
     // 27.2.1.3.2 Promise Resolve Functions, https://tc39.es/ecma262/#sec-promise-resolve-functions
     auto resolve_function = PromiseResolvingFunction::create_resolve(realm, *this);
-    resolve_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
     // 7. Let stepsReject be the algorithm steps defined in Promise Reject Functions.
     // 8. Let lengthReject be the number of non-optional parameters of the function definition in Promise Reject Functions.
@@ -86,7 +96,6 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
 
     // 27.2.1.3.1 Promise Reject Functions, https://tc39.es/ecma262/#sec-promise-reject-functions
     auto reject_function = PromiseResolvingFunction::create_reject(realm, *this, resolve_function);
-    reject_function->define_direct_property(vm.names.name, PrimitiveString::create(vm, Utf16String {}), Attribute::Configurable);
 
     // 12. Return the Record { [[Resolve]]: resolve, [[Reject]]: reject }.
     return { *resolve_function, *reject_function };
@@ -306,33 +315,39 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<Promi
     // 2. If resultCapability is not present, then
     //     a. Set resultCapability to undefined.
 
-    // 3. If IsCallable(onFulfilled) is false, then
-    //     a. Let onFulfilledJobCallback be empty.
-    GC::Ptr<JobCallback> on_fulfilled_job_callback;
+    // OPTIMIZATION: A settled promise only uses one of these reactions. Create both reactions for a pending promise, but
+    //               defer their creation until the promise state determines which ones are needed.
+    auto create_fulfill_reaction = [&] {
+        // 3. If IsCallable(onFulfilled) is false, then
+        //     a. Let onFulfilledJobCallback be empty.
+        GC::Ptr<JobCallback> on_fulfilled_job_callback;
 
-    // 4. Else,
-    if (on_fulfilled.is_function()) {
-        // a. Let onFulfilledJobCallback be HostMakeJobCallback(onFulfilled).
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: Creating JobCallback for on_fulfilled function @ {}", this, &on_fulfilled.as_function());
-        on_fulfilled_job_callback = vm.host_make_job_callback(on_fulfilled.as_function());
-    }
+        // 4. Else,
+        if (on_fulfilled.is_function()) {
+            // a. Let onFulfilledJobCallback be HostMakeJobCallback(onFulfilled).
+            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: Creating JobCallback for on_fulfilled function @ {}", this, &on_fulfilled.as_function());
+            on_fulfilled_job_callback = vm.host_make_job_callback(on_fulfilled.as_function());
+        }
 
-    // 5. If IsCallable(onRejected) is false, then
-    //     a. Let onRejectedJobCallback be empty.
-    GC::Ptr<JobCallback> on_rejected_job_callback;
+        // 7. Let fulfillReaction be the PromiseReaction Record { [[Capability]]: resultCapability, [[Type]]: fulfill, [[Handler]]: onFulfilledJobCallback }.
+        return PromiseReaction::create(vm, PromiseReaction::Type::Fulfill, result_capability, move(on_fulfilled_job_callback));
+    };
 
-    // 6. Else,
-    if (on_rejected.is_function()) {
-        // a. Let onRejectedJobCallback be HostMakeJobCallback(onRejected).
-        dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: Creating JobCallback for on_rejected function @ {}", this, &on_rejected.as_function());
-        on_rejected_job_callback = vm.host_make_job_callback(on_rejected.as_function());
-    }
+    auto create_reject_reaction = [&] {
+        // 5. If IsCallable(onRejected) is false, then
+        //     a. Let onRejectedJobCallback be empty.
+        GC::Ptr<JobCallback> on_rejected_job_callback;
 
-    // 7. Let fulfillReaction be the PromiseReaction { [[Capability]]: resultCapability, [[Type]]: Fulfill, [[Handler]]: onFulfilledJobCallback }.
-    auto fulfill_reaction = PromiseReaction::create(vm, PromiseReaction::Type::Fulfill, result_capability, move(on_fulfilled_job_callback));
+        // 6. Else,
+        if (on_rejected.is_function()) {
+            // a. Let onRejectedJobCallback be HostMakeJobCallback(onRejected).
+            dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: Creating JobCallback for on_rejected function @ {}", this, &on_rejected.as_function());
+            on_rejected_job_callback = vm.host_make_job_callback(on_rejected.as_function());
+        }
 
-    // 8. Let rejectReaction be the PromiseReaction { [[Capability]]: resultCapability, [[Type]]: Reject, [[Handler]]: onRejectedJobCallback }.
-    auto reject_reaction = PromiseReaction::create(vm, PromiseReaction::Type::Reject, result_capability, move(on_rejected_job_callback));
+        // 8. Let rejectReaction be the PromiseReaction Record { [[Capability]]: resultCapability, [[Type]]: reject, [[Handler]]: onRejectedJobCallback }.
+        return PromiseReaction::create(vm, PromiseReaction::Type::Reject, result_capability, move(on_rejected_job_callback));
+    };
 
     switch (m_state) {
     // 9. If promise.[[PromiseState]] is pending, then
@@ -340,10 +355,10 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<Promi
         dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: state is State::Pending, adding fulfill/reject reactions", this);
 
         // a. Append fulfillReaction as the last element of the List that is promise.[[PromiseFulfillReactions]].
-        m_fulfill_reactions.append(fulfill_reaction);
+        m_fulfill_reactions.append(create_fulfill_reaction());
 
         // b. Append rejectReaction as the last element of the List that is promise.[[PromiseRejectReactions]].
-        m_reject_reactions.append(reject_reaction);
+        m_reject_reactions.append(create_reject_reaction());
         break;
     // 10. Else if promise.[[PromiseState]] is fulfilled, then
     case Promise::State::Fulfilled: {
@@ -351,6 +366,7 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<Promi
         auto value = m_result;
 
         // b. Let fulfillJob be NewPromiseReactionJob(fulfillReaction, value).
+        auto fulfill_reaction = create_fulfill_reaction();
         dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: State is State::Fulfilled, creating PromiseJob for PromiseReaction @ {} with argument {}", this, fulfill_reaction.ptr(), value);
         auto [fulfill_job, realm] = create_promise_reaction_job(vm, fulfill_reaction, value);
 
@@ -371,6 +387,7 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<Promi
             vm.host_promise_rejection_tracker(*this, RejectionOperation::Handle);
 
         // d. Let rejectJob be NewPromiseReactionJob(rejectReaction, reason).
+        auto reject_reaction = create_reject_reaction();
         dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: State is State::Rejected, creating PromiseJob for PromiseReaction @ {} with argument {}", this, reject_reaction.ptr(), reason);
         auto [reject_job, realm] = create_promise_reaction_job(vm, *reject_reaction, reason);
 
