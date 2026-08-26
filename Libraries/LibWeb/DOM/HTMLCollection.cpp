@@ -94,6 +94,23 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
     m_cached_document->register_valid_html_collection_cache(AttributeInvalidationType::IdOrName);
 }
 
+void HTMLCollection::collect_elements_into(Vector<GC::RawPtr<Element>>& elements) const
+{
+    if (m_scope == Scope::Descendants) {
+        m_root->for_each_in_subtree_of_type<Element>([&](auto& element) {
+            if (m_filter(element))
+                elements.append(element);
+            return TraversalDecision::Continue;
+        });
+    } else {
+        m_root->for_each_child_of_type<Element>([&](auto& element) {
+            if (m_filter(element))
+                elements.append(element);
+            return IterationDecision::Continue;
+        });
+    }
+}
+
 void HTMLCollection::update_cache_if_needed() const
 {
     auto& document = root()->document();
@@ -109,19 +126,7 @@ void HTMLCollection::update_cache_if_needed() const
 
     m_cached_elements.clear();
     m_cached_name_to_element_mappings = nullptr;
-    if (m_scope == Scope::Descendants) {
-        m_root->for_each_in_subtree_of_type<Element>([&](auto& element) {
-            if (m_filter(element))
-                m_cached_elements.append(element);
-            return TraversalDecision::Continue;
-        });
-    } else {
-        m_root->for_each_child_of_type<Element>([&](auto& element) {
-            if (m_filter(element))
-                m_cached_elements.append(element);
-            return IterationDecision::Continue;
-        });
-    }
+    collect_elements_into(m_cached_elements);
 
     if (m_sort) {
         insertion_sort(m_cached_elements, [this](auto const& a, auto const& b) {

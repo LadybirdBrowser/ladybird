@@ -116,6 +116,8 @@ public:
 
     void reposition_moved_associated_elements(Badge<FormAssociatedElement>, Vector<GC::Ref<HTMLElement>> const& moved_elements);
 
+    ReadonlySpan<GC::Ref<HTMLElement>> associated_elements_in_tree_order(Badge<HTMLFormControlsCollection>) const { return m_associated_elements_in_tree_order; }
+
     void associated_element_submit_button_state_changed(Badge<FormAssociatedElement>, HTMLElement&);
 
 private:

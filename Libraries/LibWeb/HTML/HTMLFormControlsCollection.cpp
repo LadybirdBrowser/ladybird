@@ -40,6 +40,16 @@ HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Sc
 
 HTMLFormControlsCollection::~HTMLFormControlsCollection() = default;
 
+void HTMLFormControlsCollection::collect_elements_into(Vector<GC::RawPtr<DOM::Element>>& elements) const
+{
+    // OPTIMIZATION: A form keeps its associated elements in tree order, so the collection is filtered from those
+    //               rather than from a walk of the whole tree the form is in.
+    for (auto const& element : m_form->associated_elements_in_tree_order({})) {
+        if (element_matches_filter(*element))
+            elements.append(*element);
+    }
+}
+
 void HTMLFormControlsCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
