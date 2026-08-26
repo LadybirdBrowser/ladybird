@@ -244,6 +244,7 @@ public:
     virtual bool is_html_textarea_element() const { return false; }
     virtual bool is_html_frameset_element() const { return false; }
     virtual bool is_html_fieldset_element() const { return false; }
+    virtual bool is_html_data_list_element() const { return false; }
     virtual bool is_html_meter_element() const { return false; }
     virtual bool is_html_li_element() const { return false; }
     virtual bool is_html_menu_element() const { return false; }

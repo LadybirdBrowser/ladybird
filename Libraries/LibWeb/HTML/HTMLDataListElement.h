@@ -28,7 +28,16 @@ private:
     HTMLDataListElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual bool is_html_data_list_element() const override { return true; }
+
     GC::Ptr<DOM::HTMLCollection> m_options;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLDataListElement>() const { return is_html_data_list_element(); }
 
 }
