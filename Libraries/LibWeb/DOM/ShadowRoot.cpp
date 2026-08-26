@@ -120,18 +120,17 @@ WebIDL::ExceptionOr<Utf16String> ShadowRoot::inner_html() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
-WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView html)
+WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(Utf16View html)
 {
     // 2. Let context be this's host.
     auto context = this->host();
     VERIFY(context);
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
-    auto markup = Utf16String::from_utf8(html);
     // Keep the shadow root as the fragment parsing target so custom element
     // creation uses this shadow tree's registry. The host is still used as
     // the parser context by the fragment parsing algorithm.
-    auto fragment = TRY(Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *this }, markup.utf16_view()));
+    auto fragment = TRY(Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *this }, html));
 
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);
@@ -362,7 +361,7 @@ WebIDL::ExceptionOr<void> set_inner_html(DOM::ShadowRoot& shadow_root, TrustedTy
         TrustedTypes::InjectionSink::ShadowRoot_innerHTML,
         "script"_utf16));
 
-    return shadow_root.set_inner_html(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+    return shadow_root.set_inner_html(compliant_string);
 }
 
 WebIDL::ExceptionOr<void> set_html_unsafe(DOM::ShadowRoot& shadow_root, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html)

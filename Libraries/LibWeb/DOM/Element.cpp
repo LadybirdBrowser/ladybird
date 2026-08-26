@@ -2559,14 +2559,13 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16View selectors) c
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-innerhtml
-WebIDL::ExceptionOr<void> Element::set_inner_html(StringView html)
+WebIDL::ExceptionOr<void> Element::set_inner_html(Utf16View html)
 {
-    auto markup = Utf16String::from_utf8(html);
     Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target = GC::Ref { *this };
     auto* template_element = as_if<HTML::HTMLTemplateElement>(*this);
     if (template_element)
         target = template_element->content();
-    auto fragment = TRY(parse_fragment(target, markup.utf16_view()));
+    auto fragment = TRY(parse_fragment(target, html));
 
     // 5. Replace all with fragment within target.
     target.visit([&](auto node) {
@@ -6661,7 +6660,7 @@ WebIDL::ExceptionOr<void> set_inner_html(DOM::Element& element, TrustedTypes::Tr
         TrustedTypes::InjectionSink::Element_innerHTML,
         "script"sv));
 
-    return element.set_inner_html(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+    return element.set_inner_html(compliant_string);
 }
 
 WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html(DOM::Element& element)

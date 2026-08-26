@@ -65,7 +65,7 @@ public:
     virtual EventTarget* get_parent(Event const&) override;
 
     WebIDL::ExceptionOr<Utf16String> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(StringView);
+    WebIDL::ExceptionOr<void> set_inner_html(Utf16View);
 
     WebIDL::ExceptionOr<void> set_html_unsafe(StringView);
 
