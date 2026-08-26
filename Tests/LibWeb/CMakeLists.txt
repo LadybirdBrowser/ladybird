@@ -11,6 +11,7 @@ set(TEST_SOURCES
     TestDump.cpp
     TestEventLoop.cpp
     TestFaviconDecoding.cpp
+    TestFetchByteChannel.cpp
     TestFetchEngineMessages.cpp
     TestFetchExecutor.cpp
     TestFetchResponse.cpp
@@ -72,6 +73,7 @@ if (NOT WIN32)
 endif()
 target_link_libraries(TestDownloadReader PRIVATE LibGC LibJS LibURL)
 target_link_libraries(TestFaviconDecoding PRIVATE LibCore LibGC LibGfx LibJS)
+target_link_libraries(TestFetchByteChannel PRIVATE LibThreading)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
