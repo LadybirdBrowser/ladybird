@@ -41,6 +41,7 @@ public:
     }
 
     bool is_empty() const { return m_fonts.is_empty() && m_pending_faces.is_empty() && !m_last_resort_font; }
+    bool has_pending_faces() const { return !m_pending_faces.is_empty(); }
     Font const& first() const { return !m_fonts.is_empty() ? *m_fonts.first().font : *m_last_resort_font; }
 
     template<typename Callback>

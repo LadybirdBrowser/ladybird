@@ -222,12 +222,12 @@ void FontLoader::start_loading_next_url()
 
 void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
 {
-    if (typeface) {
+    if (typeface)
         m_typeface = typeface.release_nonnull();
-        m_font_computer->clear_computed_font_cache(m_family_name);
-    }
     m_has_completed = true;
     m_document_load_event_delayer.clear();
+    // Each subscriber publishes its now-loaded FontFace to FontComputer. The face's complete
+    // descriptors are needed to compare the old and new selections, so invalidation happens there.
     for (auto& callback : m_subscribers)
         callback->function()(m_typeface);
     m_subscribers.clear();
@@ -853,6 +853,55 @@ void FontComputer::did_load_font(Utf16FlyString const& family_name)
     clear_computed_font_cache(family_name);
 }
 
+void FontComputer::did_load_font(FontFaceKey const& changed_face)
+{
+    if (m_font_face_change_batch_depth > 0) {
+        did_load_font(changed_face.family_name);
+        return;
+    }
+
+    m_document->bump_style_environment_version();
+    // A family can contain many faces, but one face becoming available changes only the cached
+    // selections which now resolve to it. Compare those selections before discarding their cache
+    // entries, then find the elements holding the discarded cascade identities.
+    HashTable<Gfx::FontCascadeList const*> invalidated_font_lists;
+    m_computed_font_cache.remove_all_matching([&](auto const& key, auto const& font_list) {
+        if (!any_of(key.font_families, [&](ComputedFontFamily const& family) {
+                return family.has<ComputedFontFamilyName>()
+                    && family.get<ComputedFontFamilyName>().name.equals_ignoring_ascii_case(changed_face.family_name);
+            }))
+            return false;
+        auto updated_font_list = compute_font_for_style_values_impl(key.font_families, key.font_size, key.font_slope, key.font_weight, key.font_width, key.font_optical_sizing, key.font_variation_settings, key.font_feature_data);
+        if (!font_list->has_pending_faces() && font_list->equals(*updated_font_list))
+            return false;
+        invalidated_font_lists.set(font_list.ptr());
+        return true;
+    });
+    if (invalidated_font_lists.is_empty())
+        return;
+
+    document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
+        auto* element = as_if<DOM::Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+        auto uses_invalidated_font_list = [&](Optional<CSS::PseudoElement> pseudo_element = {}) {
+            auto const* values = element->style_group<ComputedValues::FontValues>(pseudo_element);
+            return values && invalidated_font_lists.contains(&values->font_list_value());
+        };
+        bool should_recompute = uses_invalidated_font_list();
+        element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, DOM::SyntheticPseudoElement const&) {
+            if (uses_invalidated_font_list(pseudo_element)) {
+                should_recompute = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+        if (should_recompute)
+            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+        return TraversalDecision::Continue;
+    });
+}
+
 void FontComputer::begin_font_face_change_batch()
 {
     ++m_font_face_change_batch_depth;
@@ -886,7 +935,7 @@ void FontComputer::register_font_face(GC::Ref<FontFace> face)
     auto& faces = m_font_faces.ensure(key);
     if (!faces.contains_slow(face))
         faces.append(face);
-    did_load_font(key.family_name);
+    did_load_font(key);
 }
 
 void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
@@ -904,7 +953,7 @@ void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
         if (it->value.is_empty())
             m_font_faces.remove(it);
     }
-    did_load_font(key.family_name);
+    did_load_font(key);
 }
 
 void FontComputer::synchronize_font_face_order(Vector<GC::Ref<FontFace>> const& font_source_order)

@@ -1,0 +1,3 @@
+affected weight recomputed: true
+unaffected weights skipped: true
+regular face loaded: loaded
