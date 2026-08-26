@@ -440,7 +440,7 @@ public:
     [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
 
     WebIDL::ExceptionOr<Utf16String> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(StringView html);
+    WebIDL::ExceptionOr<void> set_inner_html(Utf16View html);
 
     WebIDL::ExceptionOr<void> set_html_unsafe(StringView html);
 

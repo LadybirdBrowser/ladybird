@@ -1709,7 +1709,7 @@ Web::WebDriver::Response WebDriverConnection::element_clear_impl(StringView elem
         Web::HTML::run_focusing_steps(&element);
 
         // 3. Set element's innerHTML IDL attribute to an empty string.
-        (void)element.set_inner_html(""sv);
+        (void)element.set_inner_html(""_utf16);
 
         // 4. Run the unfocusing steps for the element.
         Web::HTML::run_unfocusing_steps(&element);
