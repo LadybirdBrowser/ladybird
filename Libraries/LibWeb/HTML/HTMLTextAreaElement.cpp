@@ -145,11 +145,6 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subt
     return {};
 }
 
-void HTMLTextAreaElement::form_associated_element_was_inserted()
-{
-    create_shadow_tree_if_needed();
-}
-
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-defaultvalue
 Utf16String HTMLTextAreaElement::default_value() const
 {
