@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum SizeConstraint {
@@ -237,9 +239,7 @@ impl<T> LazyRefCell<T> {
     }
 
     pub(crate) fn get_or_init(&self, initialize: impl FnOnce() -> T) -> &RefCell<T> {
-        self.value
-            .get_or_init(|| Box::new(RefCell::new(initialize())))
-            .as_ref()
+        self.value.get_or_init(|| Box::new(RefCell::new(initialize()))).as_ref()
     }
 }
 
@@ -289,22 +289,22 @@ impl<T: Copy> SealableCell<T> {
 
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LineData {
-    pub(crate) line_boxes: Vec<LineBoxData>,
-    pub(crate) inline_box_pieces: Vec<InlineBoxPieceData>,
+    pub(crate) line_boxes: Vec<line_box::LineBoxData>,
+    pub(crate) inline_box_pieces: Vec<inline_formatting_context::InlineBoxPieceData>,
 }
 
 #[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
-    pub(crate) svg_viewport_transform: Option<crate::layout::FfiAffineTransform>,
-    pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
-    pub(crate) svg_view_box: Option<crate::layout::FfiSvgViewBox>,
+    pub(crate) svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
+    pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
     pub(crate) svg_viewport_percentage_basis: CssPixels,
-    pub(crate) grid_layout_data: Option<std::rc::Rc<GridLayoutData>>,
-    pub(crate) flex_layout_data: Option<std::rc::Rc<FlexLayoutData>>,
-    pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
-    pub(crate) collapsed_table_borders: Option<std::rc::Rc<OwnedCollapsedTableBorders>>,
-    pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
+    pub(crate) grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
+    pub(crate) flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
+    pub(crate) used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
+    pub(crate) collapsed_table_borders: Option<std::rc::Rc<table_formatting_context::OwnedCollapsedTableBorders>>,
+    pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
 }
 
 impl UsedValuesRareData {
@@ -466,15 +466,17 @@ impl UsedValues {
     }
 
     pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineData>> {
-        self.line_data.get().map(|cell| Ref::map(cell.borrow(), |shared| &**shared))
+        self.line_data
+            .get()
+            .map(|cell| Ref::map(cell.borrow(), |shared| &**shared))
     }
 
     pub(crate) fn line_data_cell(&self) -> &RefCell<std::rc::Rc<LineData>> {
         self.line_data.get_or_init(std::rc::Rc::default)
     }
 
-    pub(crate) fn content_baselines_from_cells(&self) -> crate::layout::DerivedBaselines {
-        crate::layout::DerivedBaselines {
+    pub(crate) fn content_baselines_from_cells(&self) -> DerivedBaselines {
+        DerivedBaselines {
             first: self.has_first_baseline.get().then(|| self.first_baseline.get()),
             last: self.has_last_baseline.get().then(|| self.last_baseline.get()),
         }
@@ -733,11 +735,8 @@ impl UsedValues {
             + self.margin_box_bottom(collapsed)
     }
 
-    pub(crate) fn available_inner_space_or_constraints_from(
-        &self,
-        outer: crate::layout::AvailableSpace,
-    ) -> crate::layout::AvailableSpace {
-        use crate::layout::AvailableSize;
+    pub(crate) fn available_inner_space_or_constraints_from(&self, outer: AvailableSpace) -> AvailableSpace {
+        use AvailableSize;
 
         let mut inline_size = match self.inline_size_constraint.get() {
             SizeConstraint::MinContent => AvailableSize::MinContent,
@@ -756,22 +755,16 @@ impl UsedValues {
             SizeConstraint::None => AvailableSize::Indefinite,
         };
         if inline_size == AvailableSize::Indefinite
-            && matches!(
-                outer.inline_size,
-                AvailableSize::MinContent | AvailableSize::MaxContent
-            )
+            && matches!(outer.inline_size, AvailableSize::MinContent | AvailableSize::MaxContent)
         {
             inline_size = outer.inline_size;
         }
         if block_size == AvailableSize::Indefinite
-            && matches!(
-                outer.block_size,
-                AvailableSize::MinContent | AvailableSize::MaxContent
-            )
+            && matches!(outer.block_size, AvailableSize::MinContent | AvailableSize::MaxContent)
         {
             block_size = outer.block_size;
         }
-        crate::layout::AvailableSpace {
+        AvailableSpace {
             inline_size,
             block_size,
         }

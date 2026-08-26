@@ -10,6 +10,7 @@ use crate::css::css_enums::{
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::path::PathBuilder;
@@ -127,10 +128,7 @@ pub(crate) fn decoration_sets_for_span(
     let arena = recorder.layout_arena;
     let fragment = &recorder.layout_arena.paintable_side_data(block).fragments[span.fragment_index as usize];
     let text_node = fragment.layout_node;
-    if !arena
-        .node_kind_if_live(text_node)
-        .is_some_and(crate::layout::kind_is_text)
-    {
+    if !arena.node_kind_if_live(text_node).is_some_and(node_facts::kind_is_text) {
         return sets;
     }
     let Some(text_parent) = arena.node_parent_if_live(text_node) else {

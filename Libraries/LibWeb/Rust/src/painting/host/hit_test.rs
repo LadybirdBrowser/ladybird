@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::OptionalCssPixelRect;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::used_values;
+use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::display_list::commands::OptionalU32;
 use std::ffi::c_void;
 
@@ -30,7 +31,7 @@ pub struct FfiHitTestTextNodeFacts {
 #[repr(C)]
 pub struct FfiLineBreakCaretTarget {
     pub caret_offset: usize,
-    pub rect: crate::layout::FfiCssPixelRect,
+    pub rect: used_values::FfiCssPixelRect,
 }
 
 #[derive(Clone, Copy)]
@@ -70,20 +71,20 @@ pub struct FfiHitTestQueryCallbacks {
     pub local_point_for_visual_context: unsafe extern "C" fn(
         *mut c_void,
         usize,
-        crate::layout::FfiCssPixelPoint,
+        used_values::FfiCssPixelPoint,
         bool,
         *mut libgfx_rust::FloatPoint,
     ) -> bool,
     pub line_in_scope: unsafe extern "C" fn(*mut c_void, usize) -> bool,
     pub sorting_context_group: unsafe extern "C" fn(*mut c_void, usize, *mut usize) -> bool,
-    pub plane_depth_key: unsafe extern "C" fn(*mut c_void, usize, crate::layout::FfiCssPixelPoint, *mut i64) -> bool,
+    pub plane_depth_key: unsafe extern "C" fn(*mut c_void, usize, used_values::FfiCssPixelPoint, *mut i64) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
     pub(crate) fn local_point_for_visual_context(
         &self,
         index: usize,
-        point: crate::layout::FfiCssPixelPoint,
+        point: used_values::FfiCssPixelPoint,
         respect_clip: bool,
     ) -> Option<(f32, f32)> {
         let mut local = libgfx_rust::FloatPoint::default();
@@ -122,7 +123,7 @@ impl FfiHitTestQueryCallbacks {
 pub struct FfiTopmostItem {
     pub has_item: bool,
     pub index: usize,
-    pub local: crate::layout::FfiCssPixelPoint,
+    pub local: used_values::FfiCssPixelPoint,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -173,15 +174,15 @@ pub struct FfiHitTestItemExport {
     pub text_fragment_index: OptionalU32,
     pub caret_node_shell: *mut c_void,
     pub caret_offset: usize,
-    pub rect: crate::layout::FfiCssPixelRect,
-    pub caret_rect: crate::layout::FfiCssPixelRect,
+    pub rect: used_values::FfiCssPixelRect,
+    pub caret_rect: used_values::FfiCssPixelRect,
     pub visual_context_index: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiCaretLineExport {
-    pub rect: crate::layout::FfiCssPixelRect,
+    pub rect: used_values::FfiCssPixelRect,
     pub visual_context_index: usize,
     pub first_caret_item_index: usize,
     pub last_caret_item_index: usize,

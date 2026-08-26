@@ -4,28 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::{
-    FlexLayoutClampState, FlexLayoutData, FlexLayoutGrowthState, GridLayoutArea, GridLayoutData, GridLayoutDimension,
-    GridLayoutFragment, GridLayoutLine, GridLayoutTrack, GridTrackState, GridTrackType,
-};
+use crate::layout::{formatting_context, grid_formatting_context};
+
 use serde_json::{Value, json};
 
-fn grid_track_type_name(type_: GridTrackType) -> &'static str {
+fn grid_track_type_name(type_: grid_formatting_context::GridTrackType) -> &'static str {
     match type_ {
-        GridTrackType::Explicit => "explicit",
-        GridTrackType::Implicit => "implicit",
+        grid_formatting_context::GridTrackType::Explicit => "explicit",
+        grid_formatting_context::GridTrackType::Implicit => "implicit",
     }
 }
 
-fn grid_track_state_name(state: GridTrackState) -> &'static str {
+fn grid_track_state_name(state: grid_formatting_context::GridTrackState) -> &'static str {
     match state {
-        GridTrackState::Static => "static",
-        GridTrackState::Repeat => "repeat",
-        GridTrackState::Removed => "removed",
+        grid_formatting_context::GridTrackState::Static => "static",
+        grid_formatting_context::GridTrackState::Repeat => "repeat",
+        grid_formatting_context::GridTrackState::Removed => "removed",
     }
 }
 
-fn serialize_grid_line(line: &GridLayoutLine) -> Value {
+fn serialize_grid_line(line: &grid_formatting_context::GridLayoutLine) -> Value {
     json!({
         "breadth": line.breadth.to_double(),
         "names": line.names,
@@ -36,7 +34,7 @@ fn serialize_grid_line(line: &GridLayoutLine) -> Value {
     })
 }
 
-fn serialize_grid_track(track: &GridLayoutTrack) -> Value {
+fn serialize_grid_track(track: &grid_formatting_context::GridLayoutTrack) -> Value {
     json!({
         "breadth": track.breadth.to_double(),
         "start": track.start.to_double(),
@@ -45,7 +43,7 @@ fn serialize_grid_track(track: &GridLayoutTrack) -> Value {
     })
 }
 
-fn serialize_grid_area(area: &GridLayoutArea) -> Value {
+fn serialize_grid_area(area: &grid_formatting_context::GridLayoutArea) -> Value {
     json!({
         "columnEnd": area.column_end,
         "columnStart": area.column_start,
@@ -56,14 +54,14 @@ fn serialize_grid_area(area: &GridLayoutArea) -> Value {
     })
 }
 
-fn serialize_grid_dimension(dimension: &GridLayoutDimension) -> Value {
+fn serialize_grid_dimension(dimension: &grid_formatting_context::GridLayoutDimension) -> Value {
     json!({
         "lines": dimension.lines.iter().map(serialize_grid_line).collect::<Vec<_>>(),
         "tracks": dimension.tracks.iter().map(serialize_grid_track).collect::<Vec<_>>(),
     })
 }
 
-fn serialize_grid_fragment(fragment: &GridLayoutFragment) -> Value {
+fn serialize_grid_fragment(fragment: &grid_formatting_context::GridLayoutFragment) -> Value {
     json!({
         "areas": fragment.areas.iter().map(serialize_grid_area).collect::<Vec<_>>(),
         "cols": serialize_grid_dimension(&fragment.columns),
@@ -71,7 +69,7 @@ fn serialize_grid_fragment(fragment: &GridLayoutFragment) -> Value {
     })
 }
 
-pub(crate) fn serialize_grid_layout(data: &GridLayoutData, container_node_id: i64) -> Vec<u8> {
+pub(crate) fn serialize_grid_layout(data: &grid_formatting_context::GridLayoutData, container_node_id: i64) -> Vec<u8> {
     serde_json::to_vec(&json!({
         "containerNodeId": container_node_id,
         "direction": crate::css::css_enums::direction::NAMES[data.direction as usize],
@@ -82,18 +80,18 @@ pub(crate) fn serialize_grid_layout(data: &GridLayoutData, container_node_id: i6
     .expect("grid layout data serializes to JSON")
 }
 
-fn flex_layout_growth_state_name(state: FlexLayoutGrowthState) -> &'static str {
+fn flex_layout_growth_state_name(state: formatting_context::FlexLayoutGrowthState) -> &'static str {
     match state {
-        FlexLayoutGrowthState::Growing => "growing",
-        FlexLayoutGrowthState::Shrinking => "shrinking",
+        formatting_context::FlexLayoutGrowthState::Growing => "growing",
+        formatting_context::FlexLayoutGrowthState::Shrinking => "shrinking",
     }
 }
 
-fn flex_layout_clamp_state_name(state: FlexLayoutClampState) -> &'static str {
+fn flex_layout_clamp_state_name(state: formatting_context::FlexLayoutClampState) -> &'static str {
     match state {
-        FlexLayoutClampState::Unclamped => "unclamped",
-        FlexLayoutClampState::ClampedToMin => "clamped_to_min",
-        FlexLayoutClampState::ClampedToMax => "clamped_to_max",
+        formatting_context::FlexLayoutClampState::Unclamped => "unclamped",
+        formatting_context::FlexLayoutClampState::ClampedToMin => "clamped_to_min",
+        formatting_context::FlexLayoutClampState::ClampedToMax => "clamped_to_max",
     }
 }
 
@@ -107,7 +105,7 @@ fn axis_direction_name(direction: u8) -> &'static str {
     }
 }
 
-pub(crate) fn serialize_flex_layout(data: &FlexLayoutData, container_node_id: i64) -> Vec<u8> {
+pub(crate) fn serialize_flex_layout(data: &formatting_context::FlexLayoutData, container_node_id: i64) -> Vec<u8> {
     let main_axis_direction = axis_direction_name(data.main_axis_direction);
     let cross_axis_direction = axis_direction_name(data.cross_axis_direction);
     let main_size_property_name = if data.main_axis_direction <= 1 {

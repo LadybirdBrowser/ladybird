@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_NONE, SELECTION_STATE_START_AND_END};
@@ -87,7 +88,7 @@ fn compute_render_spans(
         }
         if !arena
             .node_kind_if_live(fragment.layout_node)
-            .is_some_and(crate::layout::kind_is_text)
+            .is_some_and(node_facts::kind_is_text)
         {
             continue;
         }

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct FfiFloatPoint {
@@ -354,8 +356,8 @@ pub(crate) fn scale_and_align_viewbox_content(
     result
 }
 
-struct SvgFormattingContext {
-    purpose: LayoutPurpose,
+pub(super) struct SvgFormattingContext {
+    purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     box_: Node,
     layout_mode: LayoutMode,
@@ -365,13 +367,13 @@ struct SvgFormattingContext {
     viewport_width: CssPixels,
     viewport_height: CssPixels,
     current_text_position: FfiFloatPoint,
-    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
 impl SvgFormattingContext {
-    fn new(run: &FormattingContextRun) -> Self {
+    pub(super) fn new(run: &FormattingContextRun) -> Self {
         Self::new_nested(run, run.box_)
     }
 
@@ -389,7 +391,8 @@ impl SvgFormattingContext {
             viewport_height: CssPixels::default(),
             current_text_position: FfiFloatPoint::default(),
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
         }
     }
 
@@ -401,7 +404,8 @@ impl SvgFormattingContext {
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
             previous_line_data: None,
         }
@@ -456,7 +460,7 @@ impl SvgFormattingContext {
         // SVG layout resolves percentages against the SVG viewport, not a CSS containing
         // block, so boxes inside the SVG subtree carry no percentage basis.
         self.records
-            .create_used_values(&self.callbacks, node, crate::layout::ContainingBlockConstraints::default())
+            .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default())
     }
 
     fn set_svg_viewport_transform(&self, node: Node, transform: FfiAffineTransform) {
@@ -475,7 +479,7 @@ impl SvgFormattingContext {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
+        formatting_context::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
     }
 
     fn for_each_child(&self, node: Node, mut callback: impl FnMut(Node)) {
@@ -497,7 +501,7 @@ impl SvgFormattingContext {
         result
     }
 
-    fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
+    pub(super) fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
         // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
         //       obvious way to drive SVG layout in our engine at the moment.
         let kind = self.node_kind(self.box_);
@@ -661,9 +665,9 @@ impl SvgFormattingContext {
                 sizing: RootSizingDirectives::default(),
                 participation: ParticipationInParentFormattingContext::Item,
             };
-            match crate::layout::layout_inside_child(run, None, None, child, self.layout_mode, child_input, true) {
-                crate::layout::ChildLayoutOutcome::Created(_) => {}
-                crate::layout::ChildLayoutOutcome::Skipped | crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+            match formatting_context::layout_inside_child(run, None, None, child, self.layout_mode, child_input, true) {
+                ChildLayoutOutcome::Created(_) => {}
+                ChildLayoutOutcome::Skipped | ChildLayoutOutcome::ReenterCurrent => {
                     panic!("SVG foreign object did not create an independent formatting context")
                 }
             };
@@ -895,9 +899,7 @@ impl SvgFormattingContext {
         while !child.is_invalid() {
             let next = self.next_sibling(child);
             // Masks/clips/patterns do not change the bounding box of their parents.
-            if NodeFacts::new(&self.callbacks, child).is_box()
-                && !kind_is_svg_resource_box(self.node_kind(child))
-            {
+            if NodeFacts::new(&self.callbacks, child).is_box() && !kind_is_svg_resource_box(self.node_kind(child)) {
                 self.layout_svg_element(run, child, input);
                 let child_used_pointer = self.used_values(child);
                 let child_used = child_used_pointer;

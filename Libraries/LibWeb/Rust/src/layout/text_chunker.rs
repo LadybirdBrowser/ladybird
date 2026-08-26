@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 use libgfx_rust::font::{EmojiPresentation, FontCascadeListRef, FontRef, emoji_presentation_for_code_point};
 
 unsafe extern "C" {
@@ -237,7 +239,7 @@ impl<'text> TextChunker<'text> {
 
     fn current_text_type(&self) -> u8 {
         if self.unidirectional_ltr {
-            return GLYPH_TEXT_TYPE_LTR;
+            return line_box_fragment::GLYPH_TEXT_TYPE_LTR;
         }
         // SAFETY: Pure Unicode table lookup.
         unsafe { ladybird_layout_text_type_for_code_point(self.current_code_point()) }
@@ -351,16 +353,19 @@ impl<'text> TextChunker<'text> {
         while i < self.text.len() {
             let code_point = code_point_at(self.text, i);
             if !is_interword_space(code_point) && code_point != '\t' as u32 && code_point != '\n' as u32 {
-                let font =
-                    self.font_cascade_list
-                        .font_for_code_point(code_point, self.emoji_presentation_at(i, code_point));
+                let font = self
+                    .font_cascade_list
+                    .font_for_code_point(code_point, self.emoji_presentation_at(i, code_point));
                 if !font.is_emoji_font() && has_glyph(font) {
                     return font;
                 }
                 // Text is coming from an emoji face; we'll fall back to (3).
                 break;
             }
-            i = self.grapheme_segmenter.next_boundary(i, false).unwrap_or(self.text.len());
+            i = self
+                .grapheme_segmenter
+                .next_boundary(i, false)
+                .unwrap_or(self.text.len());
         }
 
         // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
@@ -377,10 +382,8 @@ impl<'text> TextChunker<'text> {
         if is_interword_space(code_point) {
             self.font_for_space(self.current_index, code_point)
         } else {
-            self.font_cascade_list.font_for_code_point(
-                code_point,
-                self.emoji_presentation_at(self.current_index, code_point),
-            )
+            self.font_cascade_list
+                .font_for_code_point(code_point, self.emoji_presentation_at(self.current_index, code_point))
         }
     }
 
@@ -530,8 +533,7 @@ impl<'text> TextChunker<'text> {
                         continue;
                     }
 
-                    if can_break_at_current_position
-                        && let Some(chunk) = self.try_commit_chunk_at_cursor(pending, true)
+                    if can_break_at_current_position && let Some(chunk) = self.try_commit_chunk_at_cursor(pending, true)
                     {
                         return Some(chunk);
                     }

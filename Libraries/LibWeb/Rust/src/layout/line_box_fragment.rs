@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 pub(crate) const GLYPH_TEXT_TYPE_COMMON: u8 = 0;
 pub(crate) const GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT: u8 = 1;
 pub(crate) const GLYPH_TEXT_TYPE_END_PADDING: u8 = 2;
@@ -16,7 +18,7 @@ pub(crate) fn is_ascii_space(code_unit: u16) -> bool {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct GlyphData {
-    pub(crate) glyphs: Vec<FfiDrawGlyph>,
+    pub(crate) glyphs: Vec<inline_level_iterator::FfiDrawGlyph>,
     pub(crate) font: *const c_void,
     pub(crate) text_type: u8,
     // GlyphRun::width is not updated by the C++ fragment merge machine.
@@ -122,19 +124,19 @@ impl LineBoxFragmentData {
     }
 
     pub(crate) fn offset(&self) -> (CssPixels, CssPixels) {
-        to_physical(self.writing_mode, self.inline_offset, self.block_offset)
+        geometry::to_physical(self.writing_mode, self.inline_offset, self.block_offset)
     }
 
     pub(crate) fn size(&self) -> (CssPixels, CssPixels) {
-        to_physical(self.writing_mode, self.inline_length, self.block_length)
+        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length)
     }
 
     pub(crate) fn physical_horizontal_extent(&self) -> CssPixels {
-        to_physical(self.writing_mode, self.inline_length, self.block_length).0
+        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).0
     }
 
     pub(crate) fn physical_vertical_extent(&self) -> CssPixels {
-        to_physical(self.writing_mode, self.inline_length, self.block_length).1
+        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).1
     }
 
     pub(crate) fn text(&self) -> &[u16] {

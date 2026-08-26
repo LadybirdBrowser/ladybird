@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ItemType {
     Text,
@@ -18,7 +20,7 @@ pub(crate) enum ItemType {
 pub(crate) struct Item {
     pub(crate) type_: ItemType,
     pub(crate) node: Node,
-    pub(crate) glyphs: Option<GlyphData>,
+    pub(crate) glyphs: Option<line_box_fragment::GlyphData>,
     pub(crate) offset_in_node: usize,
     pub(crate) length_in_node: usize,
     pub(crate) inline_size: CssPixels,
@@ -33,7 +35,7 @@ pub(crate) struct Item {
     pub(crate) can_break_before: bool,
     pub(crate) preceded_by_unattached_inline_start_edges: bool,
     pub(crate) content_baselines: DerivedBaselines,
-    pub(crate) trailing_whitespace: TrailingWhitespace,
+    pub(crate) trailing_whitespace: line_box_fragment::TrailingWhitespace,
 }
 
 impl Item {
@@ -56,7 +58,7 @@ impl Item {
             can_break_before: false,
             preceded_by_unattached_inline_start_edges: false,
             content_baselines: DerivedBaselines::default(),
-            trailing_whitespace: TrailingWhitespace::default(),
+            trailing_whitespace: line_box_fragment::TrailingWhitespace::default(),
         }
     }
 
@@ -73,7 +75,7 @@ impl Item {
             || self.margin_end != CssPixels::default()
     }
 
-    pub(crate) fn is_ascii_whitespace(&self, context: &InlineFormattingContext<'_>) -> bool {
+    pub(crate) fn is_ascii_whitespace(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
         text[self.offset_in_node..self.offset_in_node + self.length_in_node]
@@ -81,7 +83,7 @@ impl Item {
             .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
     }
 
-    pub(crate) fn contains_tab(&self, context: &InlineFormattingContext<'_>) -> bool {
+    pub(crate) fn contains_tab(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
         text[self.offset_in_node..self.offset_in_node + self.length_in_node].contains(&(b'\t' as u16))
@@ -97,7 +99,7 @@ struct ExtraBoxMetrics {
 
 #[derive(Clone, Copy)]
 struct TextNodeContext {
-    chunks: &'static [TextChunk],
+    chunks: &'static [text_chunker::TextChunk],
     text: &'static [u16],
     next_chunk_index: usize,
     should_collapse_whitespace: bool,
@@ -106,7 +108,7 @@ struct TextNodeContext {
 }
 
 struct InlineLevelIteratorGenerator<'iterator, 'context> {
-    context: &'iterator mut InlineFormattingContext<'context>,
+    context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
     current_node: Node,
     next_node: Node,
     text_node_context: Option<TextNodeContext>,
@@ -122,7 +124,9 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
 }
 
 impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
-    fn generate(context: &'iterator mut InlineFormattingContext<'context>) -> InlineLevelIterator {
+    fn generate(
+        context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
+    ) -> InlineLevelIterator {
         let containing_block = context.containing_block;
         let next_node = context.first_child(containing_block);
         let mut iterator = Self {
@@ -150,11 +154,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
     }
 
-    fn context(&self) -> &InlineFormattingContext<'context> {
+    fn context(&self) -> &inline_formatting_context::InlineFormattingContext<'context> {
         self.context
     }
 
-    fn context_mut(&mut self) -> &mut InlineFormattingContext<'context> {
+    fn context_mut(&mut self) -> &mut inline_formatting_context::InlineFormattingContext<'context> {
         self.context
     }
 
@@ -235,7 +239,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         leading.padding += used.padding_left.get();
         self.context().compute_inset(node);
         if self.context().run.fragments.is_some() {
-            crate::layout::place_child(self.context().run, node, FfiCssPixelPoint::default(), None);
+            formatting_context::place_child(self.context().run, node, FfiCssPixelPoint::default(), None);
         }
         self.box_model_node_stack.push(node);
     }
@@ -337,7 +341,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
         );
         let callbacks = self.context().callbacks;
-        let chunks = text_chunks(
+        let chunks = text_chunker::text_chunks(
             &callbacks,
             text_node,
             should_wrap_lines,
@@ -356,24 +360,26 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
     fn resolve_text_direction_from_context(&self) -> u8 {
         let context = self.text_node_context.unwrap();
-        let next_known_direction = context.chunks[context.next_chunk_index..]
-            .iter()
-            .find_map(|chunk| {
-                matches!(chunk.text_type, GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_RTL).then_some(chunk.text_type)
-            });
+        let next_known_direction = context.chunks[context.next_chunk_index..].iter().find_map(|chunk| {
+            matches!(
+                chunk.text_type,
+                line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
+            )
+            .then_some(chunk.text_type)
+        });
         if let (Some(last), Some(next)) = (context.last_known_direction, next_known_direction)
             && last != next
         {
             return match self.context().style(self.context().containing_block).direction() {
-                direction::LTR => GLYPH_TEXT_TYPE_LTR,
-                direction::RTL => GLYPH_TEXT_TYPE_RTL,
+                direction::LTR => line_box_fragment::GLYPH_TEXT_TYPE_LTR,
+                direction::RTL => line_box_fragment::GLYPH_TEXT_TYPE_RTL,
                 _ => unreachable!(),
             };
         }
         context
             .last_known_direction
             .or(next_known_direction)
-            .unwrap_or(GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
+            .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
     }
 
     fn shape_text(
@@ -384,15 +390,15 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         baseline_start_x: f32,
         letter_spacing: f32,
         word_spacing: f32,
-    ) -> (GlyphData, TrailingWhitespace) {
-        let shaped = shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
-        let glyph_data = GlyphData {
+    ) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
+        let shaped = font::shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
+        let glyph_data = line_box_fragment::GlyphData {
             glyphs: shaped.glyphs,
             font,
             text_type,
             width: shaped.width,
         };
-        let trailing_whitespace = TrailingWhitespace {
+        let trailing_whitespace = line_box_fragment::TrailingWhitespace {
             length_in_code_units: shaped.trailing_whitespace_length_in_code_units,
             inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance),
         };
@@ -439,7 +445,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         } else if synthesize_zero_length_chunk {
             text_context.next_chunk_index = 1;
             let parent_style = self.context().style(self.context().parent_node(text_node));
-            TextChunk {
+            text_chunker::TextChunk {
                 start: 0,
                 length: 0,
                 font: parent_style.first_available_font(),
@@ -447,7 +453,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 has_breaking_tab: false,
                 is_all_whitespace: true,
                 can_break_after: false,
-                text_type: GLYPH_TEXT_TYPE_COMMON,
+                text_type: line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
             }
         } else {
             self.text_node_context = None;
@@ -457,17 +463,20 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         };
 
         let mut text_type = chunk.text_type;
-        if matches!(text_type, GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_RTL) {
+        if matches!(
+            text_type,
+            line_box_fragment::GLYPH_TEXT_TYPE_LTR | line_box_fragment::GLYPH_TEXT_TYPE_RTL
+        ) {
             text_context.last_known_direction = Some(text_type);
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
             is_last_chunk = true;
             if chunk.is_all_whitespace {
-                text_type = GLYPH_TEXT_TYPE_END_PADDING;
+                text_type = line_box_fragment::GLYPH_TEXT_TYPE_END_PADDING;
             }
         }
         self.text_node_context = Some(text_context);
-        if text_type == GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
+        if text_type == line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT {
             text_type = self.resolve_text_direction_from_context();
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
@@ -482,7 +491,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         let word_spacing = style.word_spacing();
         if chunk.has_breaking_tab {
             let tab_inline_size = if style.tab_size_is_number() {
-                let space = font_glyph_width(chunk.font, b' ' as u32);
+                let space = font::font_glyph_width(chunk.font, b' ' as u32);
                 CssPixels::nearest_value_for(
                     style.tab_size_number()
                         * (space + word_spacing.to_double() as f32 + style.letter_spacing().to_double() as f32) as f64,
@@ -496,7 +505,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             } else {
                 tab_inline_size
             };
-            let zero_width = font_glyph_width(chunk.font, b'0' as u32);
+            let zero_width = font::font_glyph_width(chunk.font, b'0' as u32);
             if tab_stop_distance.to_double() < f64::from(zero_width) * 0.5 {
                 tab_stop_distance += tab_inline_size;
             }
@@ -527,7 +536,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         item.length_in_node = chunk.length;
         item.inline_size = chunk_inline_size;
         item.trailing_whitespace = if chunk.is_all_whitespace {
-            TrailingWhitespace {
+            line_box_fragment::TrailingWhitespace {
                 length_in_code_units: chunk.length,
                 inline_size: chunk_inline_size,
             }
@@ -624,7 +633,7 @@ pub(crate) struct InlineLevelIterator {
 }
 
 impl InlineLevelIterator {
-    pub(crate) fn new(context: &mut InlineFormattingContext<'_>) -> Self {
+    pub(crate) fn new(context: &mut inline_formatting_context::InlineFormattingContext<'_>) -> Self {
         InlineLevelIteratorGenerator::generate(context)
     }
 
@@ -651,7 +660,7 @@ impl InlineLevelIterator {
 
     pub(crate) fn next_non_whitespace_sequence_inline_size(
         &self,
-        context: &InlineFormattingContext<'_>,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> CssPixels {
         let mut size = CssPixels::default();
         for item in &self.items[self.next_item_index..] {

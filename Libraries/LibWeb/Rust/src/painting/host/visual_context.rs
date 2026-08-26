@@ -5,7 +5,9 @@
  */
 
 use super::*;
-use crate::layout::OptionalCssPixelRect;
+
+use crate::layout::used_values;
+use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::visual_context::{MaskLayerOrigin, TransformDataRole};
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, IntRect, MaskKind, WindingRule,
@@ -42,7 +44,7 @@ pub struct FfiResolvedEffectsFilter {
 pub struct FfiVisualContextHostCallbacks {
     pub context: *mut c_void,
     pub tree_inputs: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
-    pub scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiCssPixelPoint,
+    pub scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
     pub svg_additional_element_transform:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut libgfx_rust::AffineTransform) -> bool,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
@@ -57,7 +59,7 @@ impl FfiVisualContextHostCallbacks {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.tree_inputs)(self.context) }
     }
-    pub(crate) fn scroll_offset(&self, layout_node_shell: *mut c_void) -> crate::layout::FfiCssPixelPoint {
+    pub(crate) fn scroll_offset(&self, layout_node_shell: *mut c_void) -> used_values::FfiCssPixelPoint {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.scroll_offset)(self.context, layout_node_shell) }
     }

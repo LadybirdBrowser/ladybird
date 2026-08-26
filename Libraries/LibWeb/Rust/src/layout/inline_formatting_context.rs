@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 const ELLIPSIS_CODE_POINT: u32 = 0x2026;
 
 pub(crate) trait EllipsisFontProvider {
@@ -11,7 +13,7 @@ pub(crate) trait EllipsisFontProvider {
     fn font_glyph_id(&self, font: *const c_void, code_point: u32) -> u32;
 }
 
-pub(crate) fn apply(line_boxes: &mut [LineBoxData], provider: &impl EllipsisFontProvider) {
+pub(crate) fn apply(line_boxes: &mut [line_box::LineBoxData], provider: &impl EllipsisFontProvider) {
     for line in line_boxes {
         if !matches!(line.original_available_inline_size, AvailableSize::Definite(_)) {
             continue;
@@ -53,7 +55,7 @@ pub(crate) fn apply(line_boxes: &mut [LineBoxData], provider: &impl EllipsisFont
 
             let glyph_data = line.fragments[index].glyphs.as_mut().unwrap();
             glyph_data.glyphs.truncate(keep_count);
-            glyph_data.glyphs.push(FfiDrawGlyph {
+            glyph_data.glyphs.push(inline_level_iterator::FfiDrawGlyph {
                 x: last_kept_end,
                 y: glyph_block_offset,
                 length_in_code_units: 1,
@@ -73,7 +75,7 @@ pub(crate) fn apply(line_boxes: &mut [LineBoxData], provider: &impl EllipsisFont
     }
 }
 
-pub(crate) fn apply_to_fragments(text_justify: u8, line: &mut LineBoxData, is_last_line: bool) {
+pub(crate) fn apply_to_fragments(text_justify: u8, line: &mut line_box::LineBoxData, is_last_line: bool) {
     if text_justify == text_justify::NONE || is_last_line || line.has_forced_break {
         return;
     }
@@ -241,7 +243,7 @@ fn edge_bits(horizontal: bool, low: bool, high: bool) -> u8 {
 
 pub(crate) struct InlineContainingBlockRectCandidate {
     pub(crate) inline_containing_block: Node,
-    pub(crate) rect: PhysicalRect,
+    pub(crate) rect: formatting_context::PhysicalRect,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -266,9 +268,9 @@ pub(crate) fn compute(
         .run
         .fragments
         .as_deref()
-        .is_some_and(RunFragmentBuilder::any_pending_abspos_has_inline_containing_block);
-    let container_inline_axis_is_reverse = collect_inline_containing_block_rects
-        && context.facts(context.containing_block).inline_axis_is_reverse();
+        .is_some_and(fragment_tree::RunFragmentBuilder::any_pending_abspos_has_inline_containing_block);
+    let container_inline_axis_is_reverse =
+        collect_inline_containing_block_rects && context.facts(context.containing_block).inline_axis_is_reverse();
     let mut inline_containing_block_rect_candidates = Vec::<InlineContainingBlockRectCandidate>::new();
     let mut per_nodes = Vec::<PerNode>::new();
     let mut node_to_index = HashMap::<Node, usize>::new();
@@ -613,7 +615,7 @@ pub(crate) fn compute(
         {
             inline_containing_block_rect_candidates.push(InlineContainingBlockRectCandidate {
                 inline_containing_block: node,
-                rect: PhysicalRect {
+                rect: formatting_context::PhysicalRect {
                     x: placeholder_rect.x,
                     y: placeholder_rect.y,
                     width: placeholder_rect.width,
@@ -649,7 +651,7 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
     horizontal: bool,
     inline_axis_is_reverse: bool,
     container_inline_axis_is_reverse: bool,
-) -> Option<PhysicalRect> {
+) -> Option<formatting_context::PhysicalRect> {
     let first = corners.first?;
     let last = corners.last?;
 
@@ -688,14 +690,14 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
         (start - size, size)
     };
     Some(if horizontal {
-        PhysicalRect {
+        formatting_context::PhysicalRect {
             x: inline_low,
             y: block_start,
             width: inline_size,
             height: block_size,
         }
     } else {
-        PhysicalRect {
+        formatting_context::PhysicalRect {
             x: block_start,
             y: inline_low,
             width: block_size,
@@ -751,7 +753,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) layout_mode: LayoutMode,
     pub(crate) input: LayoutInput,
     pub(crate) callbacks: FfiLayoutFcCallbacks,
-    parent: &'context BlockFormattingContext,
+    parent: &'context block_formatting_context::BlockFormattingContext,
     pub(crate) containing_used_values: std::rc::Rc<UsedValues>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) automatic_content_inline_size: CssPixels,
@@ -767,7 +769,7 @@ impl<'context> InlineFormattingContext<'context> {
         layout_mode: LayoutMode,
         input: LayoutInput,
         callbacks: FfiLayoutFcCallbacks,
-        parent: &'context BlockFormattingContext,
+        parent: &'context block_formatting_context::BlockFormattingContext,
     ) -> Self {
         let containing_used_values = run.records.used_values(containing_block);
         containing_used_values.line_data_cell();
@@ -811,12 +813,17 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
-    pub(crate) fn line_data(&self) -> Ref<'_, LineData> {
-        Ref::map(self.containing_used_values.line_data_cell().borrow(), |shared| &**shared)
+    pub(crate) fn line_data(&self) -> Ref<'_, used_values::LineData> {
+        Ref::map(self.containing_used_values.line_data_cell().borrow(), |shared| {
+            &**shared
+        })
     }
 
-    pub(crate) fn line_data_mut(&self) -> RefMut<'_, LineData> {
-        RefMut::map(self.containing_used_values.line_data_cell().borrow_mut(), std::rc::Rc::make_mut)
+    pub(crate) fn line_data_mut(&self) -> RefMut<'_, used_values::LineData> {
+        RefMut::map(
+            self.containing_used_values.line_data_cell().borrow_mut(),
+            std::rc::Rc::make_mut,
+        )
     }
 
     pub(crate) fn containing_used(&self) -> std::rc::Rc<UsedValues> {
@@ -876,7 +883,12 @@ impl<'context> InlineFormattingContext<'context> {
 
     pub(crate) fn compute_inset(&self, node: Node) {
         let used = self.containing_used();
-        crate::layout::compute_inset_native(self.run, node, used.content_inline_size.get(), used.content_block_size.get());
+        abspos_engine::compute_inset_native(
+            self.run,
+            node,
+            used.content_inline_size.get(),
+            used.content_block_size.get(),
+        );
     }
 
     pub(crate) fn parent_commit_pending_margin_before_inline_content(&self) -> CssPixels {
@@ -913,12 +925,12 @@ impl<'context> InlineFormattingContext<'context> {
         &self,
         block_offset: CssPixels,
         line_block_size: CssPixels,
-    ) -> crate::layout::AvailableSize {
+    ) -> AvailableSize {
         if !matches!(self.input.available_space.inline_size, AvailableSize::Definite(_)) {
             return self.input.available_space.inline_size;
         }
         let intrusions = self.intrusion_by_floats_into_containing_block(block_offset, block_offset + line_block_size);
-        crate::layout::AvailableSize::definite(
+        AvailableSize::definite(
             self.input.available_space.inline_size.to_px_or_zero() - intrusions.left - intrusions.right,
         )
     }
@@ -958,14 +970,21 @@ impl<'context> InlineFormattingContext<'context> {
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
-        match crate::layout::layout_inside_child(self.run, Some(self.parent), None, node, self.layout_mode, input, false)
-        {
-            crate::layout::ChildLayoutOutcome::Created(result) => result.baselines,
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+        match formatting_context::layout_inside_child(
+            self.run,
+            Some(self.parent),
+            None,
+            node,
+            self.layout_mode,
+            input,
+            false,
+        ) {
+            ChildLayoutOutcome::Created(result) => result.baselines,
+            ChildLayoutOutcome::ReenterCurrent => {
                 self.parent.run(self.run, input);
                 self.used(node).content_baselines_from_cells()
             }
-            crate::layout::ChildLayoutOutcome::Skipped => self.used(node).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped => self.used(node).content_baselines_from_cells(),
         }
     }
 
@@ -1030,16 +1049,19 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn reusable_atomic_line_prefix(
         &self,
-        previous: &LineData,
-        iterator: &InlineLevelIterator,
-    ) -> (Vec<LineBoxData>, usize) {
+        previous: &used_values::LineData,
+        iterator: &inline_level_iterator::InlineLevelIterator,
+    ) -> (Vec<line_box::LineBoxData>, usize) {
         if self.containing_block != self.run.box_
             || !previous.inline_box_pieces.is_empty()
             || previous
                 .line_boxes
                 .iter()
                 .any(|line| line.writing_mode != writing_mode::HORIZONTAL_TB)
-            || iterator.items().iter().any(|item| item.type_ != ItemType::Element)
+            || iterator
+                .items()
+                .iter()
+                .any(|item| item.type_ != inline_level_iterator::ItemType::Element)
         {
             return (Vec::new(), 0);
         }
@@ -1102,7 +1124,10 @@ impl<'context> InlineFormattingContext<'context> {
         (reused_lines, item_index)
     }
 
-    fn min_content_inline_size_from_max_content_items(&self, items: &[Item]) -> Option<CssPixels> {
+    fn min_content_inline_size_from_max_content_items(
+        &self,
+        items: &[inline_level_iterator::Item],
+    ) -> Option<CssPixels> {
         if self.input.available_space.inline_size != AvailableSize::MaxContent {
             return None;
         }
@@ -1123,15 +1148,14 @@ impl<'context> InlineFormattingContext<'context> {
         let mut maximum = CssPixels::default();
         let mut current = CssPixels::default();
         let mut line_has_content = false;
-        let finish_line =
-            |maximum: &mut CssPixels, current: &mut CssPixels, line_has_content: &mut bool| {
-                *maximum = (*maximum).max(*current);
-                *current = CssPixels::default();
-                *line_has_content = false;
-            };
+        let finish_line = |maximum: &mut CssPixels, current: &mut CssPixels, line_has_content: &mut bool| {
+            *maximum = (*maximum).max(*current);
+            *current = CssPixels::default();
+            *line_has_content = false;
+        };
         for item in items {
             match item.type_ {
-                ItemType::Element => {
+                inline_level_iterator::ItemType::Element => {
                     if item.has_box_model_metrics() {
                         return None;
                     }
@@ -1141,7 +1165,7 @@ impl<'context> InlineFormattingContext<'context> {
                     current += item.min_content_inline_size?;
                     line_has_content = true;
                 }
-                ItemType::Text => {
+                inline_level_iterator::ItemType::Text => {
                     if item.has_box_model_metrics() || item.contains_tab(self) {
                         return None;
                     }
@@ -1172,10 +1196,12 @@ impl<'context> InlineFormattingContext<'context> {
                     current += item.inline_size;
                     line_has_content = true;
                 }
-                ItemType::ForcedBreak => {
+                inline_level_iterator::ItemType::ForcedBreak => {
                     finish_line(&mut maximum, &mut current, &mut line_has_content);
                 }
-                ItemType::BlockLevelBox | ItemType::AbsolutelyPositionedElement | ItemType::FloatingElement => {
+                inline_level_iterator::ItemType::BlockLevelBox
+                | inline_level_iterator::ItemType::AbsolutelyPositionedElement
+                | inline_level_iterator::ItemType::FloatingElement => {
                     return None;
                 }
             }
@@ -1185,7 +1211,7 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     pub(crate) fn generate_line_boxes(&mut self) {
-        let mut iterator = InlineLevelIterator::new(self);
+        let mut iterator = inline_level_iterator::InlineLevelIterator::new(self);
         self.min_content_inline_size_from_max_content_layout =
             self.min_content_inline_size_from_max_content_items(iterator.items());
         self.fragmented_inlines_in_pre_order = iterator.take_visited_fragmented_inlines();
@@ -1203,9 +1229,9 @@ impl<'context> InlineFormattingContext<'context> {
         iterator.skip_items(reused_item_count);
         let reused_line_count = self.line_data().line_boxes.len();
         let mut line_builder = if reused_line_count == 0 {
-            LineBuilder::new(self)
+            line_builder::LineBuilder::new(self)
         } else {
-            LineBuilder::new_after_reused_lines(self)
+            line_builder::LineBuilder::new_after_reused_lines(self)
         };
 
         let mut leading_margin = CssPixels::default();
@@ -1241,14 +1267,14 @@ impl<'context> InlineFormattingContext<'context> {
             leading_padding = CssPixels::default();
 
             match item.type_ {
-                ItemType::ForcedBreak => {
-                    line_builder.break_line(ForcedBreak::Yes, None);
+                inline_level_iterator::ItemType::ForcedBreak => {
+                    line_builder.break_line(line_builder::ForcedBreak::Yes, None);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
                         self.reset_parent_margin_state();
                     }
                 }
-                ItemType::Element => {
+                inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
                     self.compute_inset(item.node);
                     if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
@@ -1270,7 +1296,7 @@ impl<'context> InlineFormattingContext<'context> {
                         item.content_baselines,
                     );
                 }
-                ItemType::BlockLevelBox => {
+                inline_level_iterator::ItemType::BlockLevelBox => {
                     leading_margin += item.margin_start;
                     leading_border += item.border_start;
                     leading_padding += item.padding_start;
@@ -1283,7 +1309,7 @@ impl<'context> InlineFormattingContext<'context> {
                         &mut line_builder,
                     );
                 }
-                ItemType::AbsolutelyPositionedElement => {
+                inline_level_iterator::ItemType::AbsolutelyPositionedElement => {
                     if !self.facts(item.node).is_box() {
                         continue;
                     }
@@ -1294,7 +1320,7 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.append_static_position_marker(item.node, preceded);
                     absolute_boxes.push(item.node);
                 }
-                ItemType::FloatingElement => {
+                inline_level_iterator::ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
                     self.create_used_values(item.node, self.input.containing_block_constraints);
                     self.clear_floating_boxes(item.node);
@@ -1309,7 +1335,7 @@ impl<'context> InlineFormattingContext<'context> {
                         Some(&mut line_builder),
                     );
                 }
-                ItemType::Text => {
+                inline_level_iterator::ItemType::Text => {
                     line_builder.prepare_to_append_inline_content();
                     if self.style(self.parent_node(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
                         let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(self);
@@ -1325,7 +1351,11 @@ impl<'context> InlineFormattingContext<'context> {
                             line_builder.set_trailing_whitespace_on_previous_line();
                             continue;
                         }
-                        let line_is_empty = self.line_data().line_boxes.last().is_some_and(LineBoxData::is_empty);
+                        let line_is_empty = self
+                            .line_data()
+                            .line_boxes
+                            .last()
+                            .is_some_and(line_box::LineBoxData::is_empty);
                         if !is_whitespace && (item.can_break_before || line_is_empty) {
                             line_builder.break_if_needed(item.border_box_inline_size());
                         }
@@ -1379,11 +1409,11 @@ impl<'context> InlineFormattingContext<'context> {
                     continue;
                 }
                 let (x, y) = fragment.offset();
-                crate::layout::place_child(
+                formatting_context::place_child(
                     self.run,
                     fragment.layout_node,
                     FfiCssPixelPoint { x, y },
-                    Some(LineBoxFragmentCoordinate {
+                    Some(used_values::LineBoxFragmentCoordinate {
                         line_box_index: line_index,
                         fragment_index,
                     }),
@@ -1393,7 +1423,7 @@ impl<'context> InlineFormattingContext<'context> {
 
         if self.layout_mode == LayoutMode::Normal {
             for box_ in absolute_boxes {
-                let mut static_position = StaticPositionRect {
+                let mut static_position = abspos_inputs::StaticPositionRect {
                     rect: Default::default(),
                     inline_alignment: StaticPositionAlignment::Start,
                     block_alignment: StaticPositionAlignment::Start,
@@ -1404,7 +1434,10 @@ impl<'context> InlineFormattingContext<'context> {
                         if marker.box_ != box_ {
                             continue;
                         }
-                        if self.facts(box_).display_before_box_type_transformation_is_block_outside() {
+                        if self
+                            .facts(box_)
+                            .display_before_box_type_transformation_is_block_outside()
+                        {
                             let block_position = if marker.preceded_by_in_flow_content {
                                 line.physical_vertical_end()
                             } else {
@@ -1425,7 +1458,7 @@ impl<'context> InlineFormattingContext<'context> {
                         break 'lines;
                     }
                 }
-                crate::layout::register_contained_abspos_child(
+                formatting_context::register_contained_abspos_child(
                     &self.callbacks,
                     self.run.fragments.as_deref(),
                     self.containing_block,
@@ -1451,7 +1484,7 @@ impl<'context> InlineFormattingContext<'context> {
             if lines.iter().any(|line| line.has_block_level_box) {
                 lines
                     .last()
-                    .map_or(CssPixels::default(), LineBoxData::physical_vertical_end)
+                    .map_or(CssPixels::default(), line_box::LineBoxData::physical_vertical_end)
             } else {
                 lines
                     .iter()
@@ -1461,14 +1494,12 @@ impl<'context> InlineFormattingContext<'context> {
         self.automatic_content_inline_size = self
             .parent
             .greatest_child_inline_size_including_floats(self.containing_block);
-        let baselines = crate::layout::derive_baselines(&self.run.records, &self.callbacks, self.containing_block, false);
+        let baselines =
+            formatting_context::derive_baselines(&self.run.records, &self.callbacks, self.containing_block, false);
         if self.containing_block == self.parent.root_box() {
             self.parent.record_derived_baselines_of_root_box(baselines);
         } else {
-            crate::layout::store_derived_baselines(
-                &self.used(self.containing_block),
-                baselines,
-            );
+            formatting_context::store_derived_baselines(&self.used(self.containing_block), baselines);
         }
     }
 
@@ -1486,7 +1517,11 @@ impl<'context> InlineFormattingContext<'context> {
             rect.x += relative_inset_chain.offset_x;
             rect.y += relative_inset_chain.offset_y;
             if let Some(fragments) = self.run.fragments.as_deref() {
-                fragments.register_inline_containing_block_rect(candidate.inline_containing_block, rect, self.containing_block);
+                fragments.register_inline_containing_block_rect(
+                    candidate.inline_containing_block,
+                    rect,
+                    self.containing_block,
+                );
             }
         }
     }
@@ -1533,11 +1568,11 @@ impl<'context> InlineFormattingContext<'context> {
 
 impl EllipsisFontProvider for InlineFormattingContext<'_> {
     fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32 {
-        font_glyph_width(font, code_point)
+        font::font_glyph_width(font, code_point)
     }
 
     fn font_glyph_id(&self, font: *const c_void, code_point: u32) -> u32 {
-        font_glyph_id(font, code_point)
+        font::font_glyph_id(font, code_point)
     }
 }
 
@@ -1547,7 +1582,7 @@ pub(crate) struct SpaceUsedByFloats {
     pub right: CssPixels,
 }
 
-pub(crate) fn line_physical_horizontal_extent(line: &LineBoxData) -> CssPixels {
+pub(crate) fn line_physical_horizontal_extent(line: &line_box::LineBoxData) -> CssPixels {
     if line.has_block_level_box || line.writing_mode == writing_mode::HORIZONTAL_TB {
         return line.inline_length;
     }
@@ -1564,7 +1599,7 @@ pub(crate) fn line_physical_horizontal_extent(line: &LineBoxData) -> CssPixels {
     right - left
 }
 
-pub(crate) fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelRect {
+pub(crate) fn line_rect(line: &line_box::LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelRect {
     let Some(first) = line.fragments.first() else {
         return FfiCssPixelRect {
             x: CssPixels::default(),

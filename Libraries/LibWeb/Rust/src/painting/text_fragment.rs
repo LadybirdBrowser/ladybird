@@ -7,6 +7,7 @@
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::{inline_level_iterator, node_facts};
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -228,7 +229,7 @@ pub(crate) fn selection_offsets_for_dom_range(
 }
 
 fn for_each_cluster_in_glyph_run(
-    glyphs: &[crate::layout::FfiDrawGlyph],
+    glyphs: &[inline_level_iterator::FfiDrawGlyph],
     fragment_length_in_code_units: usize,
     mut callback: impl FnMut(usize, usize, f32) -> bool,
 ) {
@@ -430,7 +431,7 @@ pub(crate) fn index_in_node_for_point(
 ) -> usize {
     if !layout_arena
         .node_kind_if_live(fragment.layout_node)
-        .is_some_and(crate::layout::kind_is_text)
+        .is_some_and(node_facts::kind_is_text)
     {
         return 0;
     }

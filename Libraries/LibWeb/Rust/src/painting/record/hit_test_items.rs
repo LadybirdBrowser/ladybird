@@ -8,6 +8,7 @@ use super::{PaintPhase, PaintRecorder};
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_facts;
 use crate::painting::fragment_ownership;
 use crate::painting::hit_test::*;
 use crate::painting::host::FfiHitTestTextNodeFacts;
@@ -363,7 +364,7 @@ impl<'a> PaintRecorder<'a> {
         let Some(kind) = self.layout_arena.node_kind_if_live(node) else {
             return false;
         };
-        if !crate::layout::kind_is_text(kind) {
+        if !node_facts::kind_is_text(kind) {
             return false;
         }
         let Some(parent) = self.layout_arena.node_parent_if_live(node) else {

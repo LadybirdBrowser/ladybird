@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// The layout engine sources compose into one flat namespace: the files below
-// are include!d rather than declared as submodules, and the re-exports here
-// make the css-module types they use resolve without per-file imports.
 pub(crate) use crate::abort_on_panic;
 pub(crate) use crate::css::computed_value_types::*;
 pub(crate) use crate::css::computed_value_views::*;
@@ -14,38 +11,35 @@ pub(crate) use crate::css::css_enums::*;
 pub(crate) use crate::css::css_pixels::*;
 pub(crate) use crate::css::display::*;
 
-include!("node_facts.rs");
-include!("fragment_tree.rs");
-
-include!("formatting_context.rs");
-include!("commit.rs");
-include!("sizing_context.rs");
-include!("abspos_inputs.rs");
-include!("abspos_engine.rs");
-include!("block_formatting_context.rs");
-include!("flex_formatting_context.rs");
-include!("grid_formatting_context.rs");
-include!("svg_formatting_context.rs");
-include!("inline_level_iterator.rs");
-include!("line_box.rs");
-include!("line_box_fragment.rs");
-include!("line_builder.rs");
-include!("inline_formatting_context.rs");
-include!("font.rs");
-include!("text_chunker.rs");
-include!("replaced_with_children_formatting_context.rs");
-include!("table_formatting_context.rs");
-include!("geometry.rs");
-include!("fc_run_cache.rs");
+pub(crate) mod abspos_engine;
+pub(crate) mod abspos_inputs;
+pub(crate) mod block_formatting_context;
+pub mod commit;
+pub(crate) mod fc_run_cache;
+pub(crate) mod flex_formatting_context;
+pub(crate) mod font;
+pub mod formatting_context;
+pub(crate) mod fragment_tree;
+pub mod geometry;
+pub mod grid_formatting_context;
+pub(crate) mod inline_formatting_context;
+pub mod inline_level_iterator;
 mod layout_node_arena;
+pub(crate) mod line_box;
+pub(crate) mod line_box_fragment;
+pub(crate) mod line_builder;
 pub mod node_data;
-mod tree_mutation;
-include!("run_records.rs");
-include!("style_values.rs");
-
+pub(crate) mod node_facts;
+mod replaced_with_children_formatting_context;
+pub(crate) mod run_records;
+pub(crate) mod sizing_context;
+pub(crate) mod style_values;
+pub mod svg_formatting_context;
+pub mod table_formatting_context;
+pub(crate) mod text_chunker;
 mod tree_builder;
-
-include!("used_values.rs");
+mod tree_mutation;
+pub mod used_values;
 
 use crate::layout::layout_node_arena::IntrinsicBlockSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
@@ -60,6 +54,18 @@ use crate::layout::node_data::NodeFlag;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 pub use crate::layout::node_data::STYLE_GROUP_COUNT;
+pub(crate) use abspos_inputs::{AbsposAlignment, StaticPositionAlignment};
+pub(crate) use formatting_context::{
+    ChildLayoutOutcome, DerivedBaselines, FfiLayoutFcCallbacks, FormattingContextRun, LayoutMode, Node, SizingAxis,
+    SizingProperty,
+};
+pub(crate) use fragment_tree::FragmentLink;
+pub(crate) use geometry::{
+    AvailableSize, AvailableSpace, ContainingBlockConstraints, LayoutInput, ParticipationInParentFormattingContext,
+    RootSizingDirectives,
+};
+pub(crate) use node_facts::NodeFacts;
+pub(crate) use run_records::RunRecords;
 use std::cell::Cell;
 use std::cell::OnceCell;
 use std::cell::Ref;
@@ -68,3 +74,5 @@ use std::cell::RefMut;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::c_void;
+pub(crate) use style_values::StyleValues;
+pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};

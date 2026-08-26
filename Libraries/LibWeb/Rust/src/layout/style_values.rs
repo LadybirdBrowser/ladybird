@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 /// The four inset properties.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InsetField {
@@ -93,7 +95,7 @@ impl InsetValue<'_> {
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
     style: ComputedValuesView<'a>,
-    resolved_anchor_insets: Option<&'a ResolvedAnchorInsets>,
+    resolved_anchor_insets: Option<&'a formatting_context::ResolvedAnchorInsets>,
     vertical_align_override: u16,
 }
 
@@ -120,7 +122,10 @@ impl<'a> StyleValues<'a> {
         StyleValues::new(callbacks.style_payloads(node))
     }
 
-    pub(crate) fn with_resolved_insets(mut self, resolved: Option<&'a ResolvedAnchorInsets>) -> Self {
+    pub(crate) fn with_resolved_insets(
+        mut self,
+        resolved: Option<&'a formatting_context::ResolvedAnchorInsets>,
+    ) -> Self {
         self.resolved_anchor_insets = resolved;
         self
     }
@@ -135,11 +140,19 @@ impl<'a> StyleValues<'a> {
         };
         // SAFETY: The node's style group payload retains the wrapper for the
         // view's lifetime.
-        unsafe { handle.pointer.cast::<crate::css::style_value::StyleValueData>().as_ref() }
+        unsafe {
+            handle
+                .pointer
+                .cast::<crate::css::style_value::StyleValueData>()
+                .as_ref()
+        }
     }
 
     fn inset_value(self, field: InsetField) -> InsetValue<'a> {
-        if let Some(resolved) = self.resolved_anchor_insets.and_then(|insets| insets.override_for(field)) {
+        if let Some(resolved) = self
+            .resolved_anchor_insets
+            .and_then(|insets| insets.override_for(field))
+        {
             return InsetValue::Resolved(resolved);
         }
         if let Some(wrapper) = self.bare_anchor_wrapper(field) {

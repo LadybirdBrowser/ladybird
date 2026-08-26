@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: LayoutInput) -> ChildLayoutResult {
+use super::*;
+
+pub(super) fn layout_replaced_with_children(
+    run: &formatting_context::FormattingContextRun,
+    layout_input: geometry::LayoutInput,
+) -> formatting_context::ChildLayoutResult {
     // The parent FC has already resolved this replaced box's used size (natural size, explicit size, or the default
     // object size), so both dimensions are definite for its children — shadow content sized to fill
     // (e.g. width/height: 100%) resolves against them.
@@ -18,22 +23,22 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
         )
     };
 
-    let child_available_space = AvailableSpace {
-        inline_size: AvailableSize::definite(content_inline_size),
-        block_size: AvailableSize::definite(root_content_block_size),
+    let child_available_space = geometry::AvailableSpace {
+        inline_size: geometry::AvailableSize::definite(content_inline_size),
+        block_size: geometry::AvailableSize::definite(root_content_block_size),
     };
 
     // The TreeBuilder wraps shadow DOM children in an anonymous BlockContainer.
     // Delegate layout to a BFC for that wrapper.
     let mut wrapper = run.callbacks.first_child(run.box_);
     while !wrapper.is_invalid() {
-        if NodeFacts::new(&run.callbacks, wrapper).is_block_container() {
+        if node_facts::NodeFacts::new(&run.callbacks, wrapper).is_block_container() {
             break;
         }
         wrapper = run.callbacks.next_sibling(wrapper);
     }
     if wrapper.is_invalid() {
-        return ChildLayoutResult::default();
+        return formatting_context::ChildLayoutResult::default();
     }
 
     let wrapper_constraints = run
@@ -44,40 +49,40 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
         .create_used_values(&run.callbacks, wrapper, wrapper_constraints);
     wrapper_state.set_content_inline_size(content_inline_size);
 
-    let wrapper_result = crate::layout::run_formatting_context(
+    let wrapper_result = formatting_context::run_formatting_context(
         run.purpose,
         run.fragments.as_deref(),
         &wrapper_state,
         wrapper,
         None,
-        FfiFormattingContextType::Block,
+        formatting_context::FfiFormattingContextType::Block,
         run.layout_mode,
         run.should_collect_devtools_layout_data,
         run.callbacks,
-        LayoutInput {
+        geometry::LayoutInput {
             available_space: child_available_space,
             containing_block_constraints: wrapper_constraints,
             content_box_position_in_bfc_root: None,
-            sizing: RootSizingDirectives {
+            sizing: geometry::RootSizingDirectives {
                 adopt_automatic_content_block_size: true,
-                ..RootSizingDirectives::default()
+                ..geometry::RootSizingDirectives::default()
             },
-            participation: ParticipationInParentFormattingContext::Item,
+            participation: geometry::ParticipationInParentFormattingContext::Item,
         },
         None,
     );
-    crate::layout::propagate_percentage_block_size_dependency_to_containing_block(
+    formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         &run.records,
         &run.callbacks,
         wrapper,
         wrapper_result.depends_on_percentage_block_size,
     );
-    crate::layout::place_child(run, wrapper, FfiCssPixelPoint::default(), None);
+    formatting_context::place_child(run, wrapper, used_values::FfiCssPixelPoint::default(), None);
 
-    ChildLayoutResult {
+    formatting_context::ChildLayoutResult {
         automatic_content_inline_size: content_inline_size,
         automatic_content_block_size: wrapper_result.automatic_content_block_size,
-        baselines: DerivedBaselines::default(),
-        ..ChildLayoutResult::default()
+        baselines: formatting_context::DerivedBaselines::default(),
+        ..formatting_context::ChildLayoutResult::default()
     }
 }

@@ -14,6 +14,7 @@ pub mod traversal;
 use crate::css::css_enums;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::used_values;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -85,12 +86,12 @@ pub struct PaintRecorder<'a> {
     list: HitTestList,
     base_paint_facts_cache: Vec<Option<(NodeSlotId, BasePaintFacts)>>,
     paintable_facts_cache: Vec<Option<(NodeSlotId, hit_test_items::HitTestFacts)>>,
-    pub(crate) absolute_position_cache: Vec<std::cell::Cell<Option<(NodeSlotId, crate::layout::FfiCssPixelPoint)>>>,
+    pub(crate) absolute_position_cache: Vec<std::cell::Cell<Option<(NodeSlotId, used_values::FfiCssPixelPoint)>>>,
     // Validity checks must compare against this recording-start snapshot, not the live per-row
     // cell: the first phase that re-records a moved row updates the cell, and later phases
     // would then wrongly accept their stale captures.
     pub(crate) previously_captured_position_cache:
-        Vec<std::cell::Cell<Option<(NodeSlotId, crate::layout::FfiCssPixelPoint)>>>,
+        Vec<std::cell::Cell<Option<(NodeSlotId, used_values::FfiCssPixelPoint)>>>,
     pub(crate) completed_record_gen: u64,
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) all_descendant_subtree_caches_dirty: bool,

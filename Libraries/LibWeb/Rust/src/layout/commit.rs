@@ -4,16 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiCommitSink {
     pub context: *mut c_void,
-    pub content_size_changed: unsafe extern "C" fn(
-        *mut c_void,
-        *mut c_void,
-        crate::layout::FfiCssPixelSize,
-        crate::layout::FfiCssPixelSize,
-    ),
+    pub content_size_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCssPixelSize, FfiCssPixelSize),
     pub finish_commit: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
 }
 
@@ -22,8 +19,8 @@ fn commit_subtree(
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
     paintables: &mut crate::painting::paintable_build::PaintableCommit<'_>,
-    links_by_slot: &std::collections::HashMap<u32, &crate::layout::FragmentLink>,
-    pass_fragments: &crate::layout::CompletedPassFragments,
+    links_by_slot: &std::collections::HashMap<u32, &FragmentLink>,
+    pass_fragments: &fragment_tree::CompletedPassFragments,
     enclosing_line_root_content_changed: bool,
 ) {
     let slot_index = callbacks.slot_index(node);
@@ -111,7 +108,7 @@ pub(crate) fn commit_replacing(
     root: Node,
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
-    pass_fragments: &crate::layout::CompletedPassFragments,
+    pass_fragments: &fragment_tree::CompletedPassFragments,
 ) {
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);

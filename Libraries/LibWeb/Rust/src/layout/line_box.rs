@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct StaticPositionMarker {
     pub(crate) box_: Node,
@@ -15,7 +17,7 @@ pub(crate) struct StaticPositionMarker {
 
 impl StaticPositionMarker {
     pub(crate) fn offset(self) -> (CssPixels, CssPixels) {
-        to_physical(self.writing_mode, self.inline_offset, self.block_offset)
+        geometry::to_physical(self.writing_mode, self.inline_offset, self.block_offset)
     }
 }
 
@@ -28,7 +30,7 @@ pub(crate) struct InlineBoxBaseline {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct LineBoxData {
-    pub(crate) fragments: Vec<LineBoxFragmentData>,
+    pub(crate) fragments: Vec<line_box_fragment::LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,
     pub(crate) inline_box_baselines: Vec<InlineBoxBaseline>,
     pub(crate) inline_length: CssPixels,
@@ -67,15 +69,15 @@ impl LineBoxData {
     }
 
     pub(crate) fn physical_horizontal_extent(&self) -> CssPixels {
-        to_physical(self.writing_mode, self.inline_length, self.block_length).0
+        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).0
     }
 
     pub(crate) fn physical_vertical_extent(&self) -> CssPixels {
-        to_physical(self.writing_mode, self.inline_length, self.block_length).1
+        geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).1
     }
 
     pub(crate) fn physical_vertical_end(&self) -> CssPixels {
-        to_physical(self.writing_mode, self.inline_length, self.block_end).1
+        geometry::to_physical(self.writing_mode, self.inline_length, self.block_end).1
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -92,10 +94,10 @@ impl LineBoxData {
         content_block_size: CssPixels,
         border_box_block_start: CssPixels,
         border_box_block_end: CssPixels,
-        glyphs: Option<GlyphData>,
-        facts: FragmentBuildFacts,
+        glyphs: Option<line_box_fragment::GlyphData>,
+        facts: line_box_fragment::FragmentBuildFacts,
         text_align_is_justify: bool,
-        trailing_whitespace: TrailingWhitespace,
+        trailing_whitespace: line_box_fragment::TrailingWhitespace,
     ) {
         let can_merge = glyphs.as_ref().is_some_and(|glyphs| {
             !text_align_is_justify
@@ -120,7 +122,7 @@ impl LineBoxData {
             }
         } else {
             let inline_offset = leading_margin + leading_size + self.inline_length;
-            let mut fragment = LineBoxFragmentData::new(
+            let mut fragment = line_box_fragment::LineBoxFragmentData::new(
                 layout_node,
                 start,
                 length,
@@ -153,7 +155,12 @@ impl LineBoxData {
         });
     }
 
-    pub(crate) fn set_inline_box_baseline(&mut self, box_: Node, baseline: CssPixels, accumulated_vertical_shift: CssPixels) -> bool {
+    pub(crate) fn set_inline_box_baseline(
+        &mut self,
+        box_: Node,
+        baseline: CssPixels,
+        accumulated_vertical_shift: CssPixels,
+    ) -> bool {
         if self.inline_box_baselines.iter().any(|entry| entry.box_ == box_) {
             return false;
         }
@@ -166,7 +173,10 @@ impl LineBoxData {
     }
 
     pub(crate) fn inline_box_baseline(&self, box_: Node) -> Option<InlineBoxBaseline> {
-        self.inline_box_baselines.iter().find(|entry| entry.box_ == box_).copied()
+        self.inline_box_baselines
+            .iter()
+            .find(|entry| entry.box_ == box_)
+            .copied()
     }
 
     pub(crate) fn clamp_static_position_markers_to_inline_length(&mut self) {
@@ -223,7 +233,7 @@ impl LineBoxData {
             let fragment = &mut self.fragments[last_fragment_index];
             fragment.length_in_code_units -= fragment_trailing_whitespace.length_in_code_units;
             fragment.inline_length -= fragment_trailing_whitespace.inline_size;
-            fragment.trailing_whitespace = TrailingWhitespace::default();
+            fragment.trailing_whitespace = line_box_fragment::TrailingWhitespace::default();
             self.inline_length -= fragment_trailing_whitespace.inline_size;
             self.clamp_static_position_markers_to_inline_length();
         }
@@ -249,7 +259,7 @@ impl LineBoxData {
     pub(crate) fn is_empty_or_ends_in_whitespace(&self) -> bool {
         self.fragments
             .last()
-            .is_none_or(LineBoxFragmentData::ends_in_whitespace)
+            .is_none_or(line_box_fragment::LineBoxFragmentData::ends_in_whitespace)
     }
 
     pub(crate) fn is_empty(&self) -> bool {

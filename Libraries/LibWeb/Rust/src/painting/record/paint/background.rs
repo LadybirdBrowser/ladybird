@@ -8,6 +8,7 @@ use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::commands::{
     DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform, VisualContextIndex,
@@ -777,7 +778,7 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotI
         let is_text = recorder
             .layout_arena
             .node_kind_if_live(fragment.layout_node)
-            .is_some_and(crate::layout::kind_is_text);
+            .is_some_and(node_facts::kind_is_text);
         if !is_text {
             return;
         }

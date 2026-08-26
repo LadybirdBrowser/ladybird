@@ -12,6 +12,7 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
@@ -458,7 +459,7 @@ fn overflow_clip_edge_rect(
         top_side.visual_box
     } else {
         let node_kind = layout_arena.node_kind_if_live(slot);
-        if node_kind.is_some_and(crate::layout::kind_is_replaced_box) {
+        if node_kind.is_some_and(node_facts::kind_is_replaced_box) {
             CONTENT_BOX
         } else {
             crate::css::css_enums::background_box::PADDING_BOX
@@ -662,7 +663,7 @@ pub(crate) fn mask_layer_presence(
             && style_queries::mask_layers_have_image(style.mask())
             && layout_arena
                 .node_kind_if_live(node)
-                .is_some_and(crate::layout::kind_is_box)
+                .is_some_and(node_facts::kind_is_box)
             && style_queries::establishes_stacking_context(layout_arena, node)
         {
             layers.push(MaskLayerPresenceEntry {
