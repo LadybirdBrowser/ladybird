@@ -18,9 +18,6 @@
 
 namespace Web::Painting {
 
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, ScrollStateSlot);
-static constexpr ScrollStateSlot NO_SCROLL_STATE_SLOT { NumericLimits<size_t>::max() };
-
 struct StickyInsets {
     Optional<CSSPixels> top;
     Optional<CSSPixels> right;
@@ -28,9 +25,11 @@ struct StickyInsets {
     Optional<CSSPixels> left;
 };
 
-// Device-pixel scroll offsets keyed by the scroll node's SpatialNodeIndex. Stored dense in
-// process so display list replay and hit testing index it directly; indices that are not scroll
-// nodes read as zero offsets. The IPC representation is sparse (index, offset) pairs.
+// Device-pixel offsets keyed by SpatialNodeIndex: the scroll containers' offsets as produced by
+// the document, plus the sticky nodes' offsets that resolve_sticky_offsets() derives from them
+// and the tree. Stored dense in process so display list replay and hit testing index it directly;
+// indices that are not scroll-like nodes read as zero offsets. The IPC representation is sparse
+// (index, offset) pairs.
 class ScrollStateSnapshot {
 public:
     ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }

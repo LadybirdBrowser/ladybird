@@ -24,29 +24,28 @@
 </div>
 <div id="spacer"></div>
 <script>
-    function printOutputAndDisplayList(output) {
-        const displayList = internals.dumpDisplayList();
-        for (const line of output)
-            println(line);
-        println("display list:");
-        println(displayList);
-    }
-
     test(() => {
         const state = internals.asyncScrollingState();
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
-        const outerArea = state.stickyAreas.find(area => area.parentScrollNodeIndex === viewportNode.scrollNodeIndex);
-        const innerArea = state.stickyAreas.find(area => area.parentScrollNodeIndex === outerArea.scrollNodeIndex);
+        const displayList = internals.dumpDisplayList();
+        const stickyNodes = [...displayList.matchAll(/\[s(\d+)\] sticky scroller=s(\d+)(?: parent_sticky=s(\d+))?.*? insets=\[([^\]]*)\]/g)]
+            .map(match => ({
+                index: Number(match[1]),
+                scroller: Number(match[2]),
+                parentSticky: match[3] === undefined ? null : Number(match[3]),
+                insets: match[4],
+            }));
+        const outer = stickyNodes.find(node => node.parentSticky === null);
+        const inner = stickyNodes.find(node => node.parentSticky === outer.index);
 
-        printOutputAndDisplayList([
-            `scroll nodes: ${state.scrollNodeCount}`,
-            `sticky areas: ${state.stickyAreaCount}`,
-            `outer parent is viewport: ${outerArea.parentScrollNodeIndex === viewportNode.scrollNodeIndex}`,
-            `inner parent is outer: ${innerArea.parentScrollNodeIndex === outerArea.scrollNodeIndex}`,
-            `outer ancestor is viewport: ${outerArea.nearestScrollingAncestorIndex === viewportNode.scrollNodeIndex}`,
-            `inner ancestor is viewport: ${innerArea.nearestScrollingAncestorIndex === viewportNode.scrollNodeIndex}`,
-            `outer has top inset only: ${outerArea.hasTopInset && !outerArea.hasRightInset && !outerArea.hasBottomInset && !outerArea.hasLeftInset}`,
-            `inner has top inset only: ${innerArea.hasTopInset && !innerArea.hasRightInset && !innerArea.hasBottomInset && !innerArea.hasLeftInset}`,
-        ]);
+        println(`scroll nodes: ${state.scrollNodeCount}`);
+        println(`sticky nodes: ${stickyNodes.length}`);
+        println(`inner parent sticky is outer: ${inner.parentSticky === outer.index}`);
+        println(`outer scroller is viewport: ${outer.scroller === viewportNode.scrollNodeIndex}`);
+        println(`inner scroller is viewport: ${inner.scroller === viewportNode.scrollNodeIndex}`);
+        println(`outer insets: ${outer.insets}`);
+        println(`inner insets: ${inner.insets}`);
+        println("display list:");
+        println(displayList);
     });
 </script>

@@ -198,6 +198,9 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
     }
     m_visual_context_tree = move(visual_context_tree);
     m_visual_context_tree_for_compositing.clear();
+    // A constraints refresh changes sticky payloads without a new snapshot, and the snapshot that
+    // pairs with this tree arrives in a separate message.
+    Web::Painting::resolve_sticky_offsets(*m_visual_context_tree, m_scroll_state_snapshot);
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(visual_viewport_transform(*m_visual_context_tree), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
 
@@ -399,7 +402,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         operation_id = ++m_next_async_scroll_operation_id;
 
     auto async_scroll_viewport_rect = viewport_rect;
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(*scroll_target.node_id, delta, m_scroll_state_snapshot);
+    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(*scroll_target.node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot);
     if (scroll_offsets.is_empty()) {
         if (operation_id.has_value())
             m_completed_async_scroll_operation_ids.append(*operation_id);
@@ -499,7 +502,7 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
         }
 
         auto sample = active_animation.animation.sample(now - active_animation.started_at);
-        auto new_offset = m_async_scroll_tree.set_scroll_offset(*node_id, sample.offset, m_scroll_state_snapshot);
+        auto new_offset = m_async_scroll_tree.set_scroll_offset(*node_id, sample.offset, current_visual_context_tree(), m_scroll_state_snapshot);
         VERIFY(new_offset.has_value());
         auto scroll_delta = *new_offset - *old_offset;
         if (!scroll_delta.is_zero()) {
@@ -579,7 +582,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     cancel_smooth_scroll_taken_over_by_user_input(*scroll_target.node_id);
 
     auto async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(*scroll_target.node_id, async_scroll_delta, m_scroll_state_snapshot);
+    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(*scroll_target.node_id, async_scroll_delta, current_visual_context_tree(), m_scroll_state_snapshot);
     if (scroll_offsets.is_empty())
         return {
             .accepted = true,
@@ -968,6 +971,7 @@ Optional<Gfx::FloatPoint> ContextState::reapply_pending_async_scroll_offsets(Vec
         auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(
             *node_id,
             pending_scroll_offset.compositor_scroll_offset,
+            current_visual_context_tree(),
             m_scroll_state_snapshot);
         if (reconciled_scroll_offset.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
             viewport_scroll_offset = *reconciled_scroll_offset;
@@ -1010,7 +1014,7 @@ Optional<Gfx::IntRect> ContextState::apply_viewport_scrollbar_drag(ViewportScrol
         return {};
 
     cancel_smooth_scroll_taken_over_by_user_input(scroll_delta->scroll_node_id);
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scroll_delta->scroll_node_id, scroll_delta->delta, m_scroll_state_snapshot);
+    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scroll_delta->scroll_node_id, scroll_delta->delta, current_visual_context_tree(), m_scroll_state_snapshot);
     if (scroll_offsets.is_empty())
         return {};
     rebuild_wheel_hit_test_targets();

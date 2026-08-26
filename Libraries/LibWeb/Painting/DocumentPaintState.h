@@ -35,7 +35,6 @@ public:
 
     void refresh_scroll_state(DOM::Document&);
     void refresh_sticky_constraints(DOM::Document&);
-    CSSPixelPoint cumulative_scroll_offset_for_node(DOM::Document const&, SpatialNodeIndex) const;
 
     void assign_accumulated_visual_contexts(DOM::Document&);
     bool update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::NodeSlotId);

@@ -29,13 +29,26 @@ namespace Web::Painting {
 
 class ScrollStateSnapshot;
 
-// The node's own SpatialNodeIndex keys the scroll offset snapshot; the paintable that owns the
-// node and its sticky constraints live in the ScrollState entry addressed by state_slot, stamped
-// at registration. The slot is process-local bookkeeping: it stays off the wire and takes no part
-// in tree compatibility or damage comparisons.
-struct ScrollData {
-    bool is_sticky { false };
-    ScrollStateSlot state_slot { NO_SCROLL_STATE_SLOT };
+// The node's own SpatialNodeIndex keys its entry in the scroll offset snapshot.
+struct ScrollData { };
+
+// A sticky box's shift, derived by resolve_sticky_offsets() from the scroller's snapshot entry and
+// the parent sticky chain. Both references follow the containing block chain, which continues
+// through fixed-position ancestors, so they need not be spatial ancestors of the node.
+struct StickyData {
+    SpatialNodeIndex scroller;
+    Optional<SpatialNodeIndex> parent_sticky;
+    Gfx::FloatPoint position_relative_to_scroller;
+    Gfx::FloatSize border_box_size;
+    Gfx::FloatSize scrollport_size;
+    Gfx::FloatRect containing_block_region;
+    bool needs_parent_offset_adjustment { false };
+    Optional<float> inset_top;
+    Optional<float> inset_right;
+    Optional<float> inset_bottom;
+    Optional<float> inset_left;
+
+    bool operator==(StickyData const&) const = default;
 };
 
 struct ClipData {
@@ -117,7 +130,7 @@ struct AnchorScrollShift {
     Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
 };
 
-using SpatialData = Variant<ScrollData, TransformData, PerspectiveData, BackfaceVisibilityData, AnchorScrollShift>;
+using SpatialData = Variant<ScrollData, StickyData, TransformData, PerspectiveData, BackfaceVisibilityData, AnchorScrollShift>;
 using FrameData = Variant<ClipData, ClipPathData, EffectsData, MaskData>;
 
 CSSPixelRect apply_css_transform_to_rect(Layout::Node const&, CSSPixelRect const&);
@@ -207,6 +220,8 @@ public:
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;
     Gfx::FloatRect transform_rect_to_viewport(SpatialNodeIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;
+    // Sum of the snapshot entries along the scroll-parent chain from the given scroll-like node.
+    Gfx::FloatPoint cumulative_scroll_chain_offset(SpatialNodeIndex, ScrollStateSnapshot const&) const;
     Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
     Gfx::FloatSize accumulated_2d_scale(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
     void dump_spatial_node(SpatialNodeIndex, StringBuilder&) const;
@@ -232,6 +247,9 @@ private:
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
 
+// Fills the snapshot entries of the tree's sticky nodes from the scroll containers' entries.
+WEB_API void resolve_sticky_offsets(AccumulatedVisualContextTree const&, ScrollStateSnapshot&);
+
 }
 
 namespace IPC {
@@ -240,6 +258,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollData const&);
 template<>
 WEB_API ErrorOr<Web::Painting::ScrollData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::StickyData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::StickyData> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ClipData const&);

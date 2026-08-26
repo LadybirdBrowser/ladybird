@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestAsyncScrollTree.cpp
     TestContextState.cpp
     TestViewportScrollbarController.cpp
 )

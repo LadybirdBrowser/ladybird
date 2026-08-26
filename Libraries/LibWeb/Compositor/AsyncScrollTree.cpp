@@ -223,7 +223,7 @@ static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offset
     });
 }
 
-Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot& scroll_state_snapshot)
+Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const& visual_context_tree, Painting::ScrollStateSnapshot& scroll_state_snapshot)
 {
     // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
     // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
@@ -252,7 +252,7 @@ Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID 
     }
 
     if (!scroll_offsets.is_empty())
-        update_sticky_offsets(scroll_state_snapshot);
+        Painting::resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
     else
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll tree did not scroll any node for delta {},{}",
             delta.x(), delta.y());
@@ -411,7 +411,7 @@ bool AsyncScrollTree::scroll_node_is_viewport(AsyncScrollNodeID node_id) const
     return node && node->is_viewport;
 }
 
-Optional<Gfx::FloatPoint> AsyncScrollTree::set_scroll_offset(AsyncScrollNodeID node_id, Gfx::FloatPoint scroll_offset, Painting::ScrollStateSnapshot& scroll_state_snapshot)
+Optional<Gfx::FloatPoint> AsyncScrollTree::set_scroll_offset(AsyncScrollNodeID node_id, Gfx::FloatPoint scroll_offset, Painting::AccumulatedVisualContextTree const& visual_context_tree, Painting::ScrollStateSnapshot& scroll_state_snapshot)
 {
     auto const* node = scroll_node_for_id(node_id);
     if (!node)
@@ -419,7 +419,7 @@ Optional<Gfx::FloatPoint> AsyncScrollTree::set_scroll_offset(AsyncScrollNodeID n
 
     auto new_scroll_offset = clamp_scroll_offset_to_node(*node, scroll_offset);
     scroll_state_snapshot.set_device_offset_for_index(node->node_id.scroll_node_index, { -new_scroll_offset.x(), -new_scroll_offset.y() });
-    update_sticky_offsets(scroll_state_snapshot);
+    Painting::resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
     return new_scroll_offset;
 }
 

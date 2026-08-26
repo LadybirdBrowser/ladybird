@@ -86,6 +86,10 @@ void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
 {
     m_needs_to_refresh_scroll_state = true;
     mirror_rust_refresh_sticky_constraints(document);
+    if (!m_visual_context_tree.has_value())
+        return;
+    if (patch_rust_sticky_visual_context_nodes(document, *m_visual_context_tree))
+        m_visual_context_tree_needs_compositor_update = true;
 }
 
 void DocumentPaintState::set_needs_to_refresh_scroll_state(DOM::Document& document, bool value)
@@ -99,11 +103,6 @@ void DocumentPaintState::clear_scroll_state(DOM::Document& document)
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
     mirror_rust_clear_scroll_state(document);
-}
-
-CSSPixelPoint DocumentPaintState::cumulative_scroll_offset_for_node(DOM::Document const& document, SpatialNodeIndex scroll_node_index) const
-{
-    return rust_cumulative_scroll_offset_for_node(document, scroll_node_index);
 }
 
 void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& document)
@@ -169,6 +168,8 @@ void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
     // https://drafts.csswg.org/css-position/#sticky-pos
     rust_refresh_scroll_state(document);
     m_scroll_state_snapshot = rust_scroll_state_snapshot(document);
+    if (m_visual_context_tree.has_value())
+        resolve_sticky_offsets(*m_visual_context_tree, m_scroll_state_snapshot);
 }
 
 void DocumentPaintState::reset_selection_states(DOM::Document& document)

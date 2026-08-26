@@ -195,6 +195,10 @@ static LocalSpatialMatrix local_spatial_matrix(SpatialNode const& node, SpatialN
             auto offset = scroll_state.device_offset_for_index(node_index);
             return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
         },
+        [&](StickyData const&) {
+            auto offset = scroll_state.device_offset_for_index(node_index);
+            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
+        },
         [&](AnchorScrollShift const& shift) {
             auto offset = shift.masked_offset(scroll_state);
             return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
@@ -327,6 +331,10 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 return !should_cull_back_face(walk.accumulated_matrices.last(), walk.accumulated_matrices[plane_root_position]);
             },
             [&](ScrollData const&) {
+                walk.point.translate_by(-scroll_state.device_offset_for_index(node_index));
+                return true;
+            },
+            [&](StickyData const&) {
                 walk.point.translate_by(-scroll_state.device_offset_for_index(node_index));
                 return true;
             },
@@ -576,6 +584,9 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialN
                 [&](ScrollData const&) {
                     rect.translate_by(scroll_state.device_offset_for_index(i));
                 },
+                [&](StickyData const&) {
+                    rect.translate_by(scroll_state.device_offset_for_index(i));
+                },
                 [&](AnchorScrollShift const& shift) {
                     rect.translate_by(shift.masked_offset(scroll_state));
                 },
@@ -613,6 +624,81 @@ Gfx::FloatPoint AnchorScrollShift::masked_offset(ScrollStateSnapshot const& scro
     return negate ? -offset : offset;
 }
 
+Gfx::FloatPoint AccumulatedVisualContextTree::cumulative_scroll_chain_offset(SpatialNodeIndex index, ScrollStateSnapshot const& scroll_state) const
+{
+    auto nearest_scroll_like_ancestor = [&](SpatialNodeIndex from) -> Optional<SpatialNodeIndex> {
+        for (auto i = from; i != VISUAL_VIEWPORT_NODE_INDEX;) {
+            i = m_spatial_nodes[i.value()].parent;
+            if (i == VISUAL_VIEWPORT_NODE_INDEX)
+                return {};
+            auto const& data = m_spatial_nodes[i.value()].data;
+            if (data.has<ScrollData>() || data.has<StickyData>())
+                return i;
+        }
+        return {};
+    };
+
+    Gfx::FloatPoint offset;
+    for (Optional<SpatialNodeIndex> current = index; current.has_value() && *current != VISUAL_VIEWPORT_NODE_INDEX;) {
+        offset.translate_by(scroll_state.device_offset_for_index(*current));
+        if (auto const* sticky = m_spatial_nodes[current->value()].data.get_pointer<StickyData>())
+            current = sticky->parent_sticky.has_value() ? sticky->parent_sticky : Optional<SpatialNodeIndex> { sticky->scroller };
+        else
+            current = nearest_scroll_like_ancestor(*current);
+    }
+    return offset;
+}
+
+void resolve_sticky_offsets(AccumulatedVisualContextTree const& tree, ScrollStateSnapshot& scroll_state)
+{
+    auto spatial_nodes = tree.spatial_nodes();
+    for (size_t i = 0; i < spatial_nodes.size(); ++i) {
+        auto const* sticky = spatial_nodes[i].data.get_pointer<StickyData>();
+        if (!sticky)
+            continue;
+        auto node_index = SpatialNodeIndex { static_cast<u32>(i) };
+        if (sticky->scroller == VISUAL_VIEWPORT_NODE_INDEX) {
+            scroll_state.set_device_offset_for_index(node_index, {});
+            continue;
+        }
+        VERIFY(sticky->scroller.value() < i);
+
+        // Sticky ancestors along the containing block chain precede this node, so their entries are
+        // already resolved in this pass.
+        Gfx::FloatPoint parent_sticky_offset;
+        for (auto ancestor = sticky->parent_sticky; ancestor.has_value(); ancestor = spatial_nodes[ancestor->value()].data.get<StickyData>().parent_sticky) {
+            VERIFY(ancestor->value() < i);
+            parent_sticky_offset.translate_by(scroll_state.device_offset_for_index(*ancestor));
+        }
+
+        auto position_in_scroller = sticky->position_relative_to_scroller.translated(parent_sticky_offset);
+        auto containing_block_region = sticky->containing_block_region;
+        if (sticky->needs_parent_offset_adjustment)
+            containing_block_region.translate_by(parent_sticky_offset);
+        auto min_offset_within_containing_block = containing_block_region.top_left();
+        Gfx::FloatPoint max_offset_within_containing_block {
+            containing_block_region.right() - sticky->border_box_size.width(),
+            containing_block_region.bottom() - sticky->border_box_size.height()
+        };
+
+        // A scroll container's entry is its negated scroll offset.
+        auto scroller_entry = scroll_state.device_offset_for_index(sticky->scroller);
+        Gfx::FloatRect scrollport_rect { { -scroller_entry.x(), -scroller_entry.y() }, sticky->scrollport_size };
+
+        Gfx::FloatPoint sticky_offset;
+        if (sticky->inset_top.has_value() && scrollport_rect.top() > position_in_scroller.y() - *sticky->inset_top)
+            sticky_offset.set_y(min(scrollport_rect.top() + *sticky->inset_top, max_offset_within_containing_block.y()) - position_in_scroller.y());
+        if (sticky->inset_left.has_value() && scrollport_rect.left() > position_in_scroller.x() - *sticky->inset_left)
+            sticky_offset.set_x(min(scrollport_rect.left() + *sticky->inset_left, max_offset_within_containing_block.x()) - position_in_scroller.x());
+        if (sticky->inset_bottom.has_value() && scrollport_rect.bottom() < position_in_scroller.y() + sticky->border_box_size.height() + *sticky->inset_bottom)
+            sticky_offset.set_y(max(scrollport_rect.bottom() - sticky->border_box_size.height() - *sticky->inset_bottom, min_offset_within_containing_block.y()) - position_in_scroller.y());
+        if (sticky->inset_right.has_value() && scrollport_rect.right() < position_in_scroller.x() + sticky->border_box_size.width() + *sticky->inset_right)
+            sticky_offset.set_x(max(scrollport_rect.right() - sticky->border_box_size.width() - *sticky->inset_right, min_offset_within_containing_block.x()) - position_in_scroller.x());
+
+        scroll_state.set_device_offset_for_index(node_index, sticky_offset);
+    }
+}
+
 void AccumulatedVisualContextTree::dump_spatial_node(SpatialNodeIndex index, StringBuilder& builder) const
 {
     m_spatial_nodes[index.value()].data.visit(
@@ -622,10 +708,29 @@ void AccumulatedVisualContextTree::dump_spatial_node(SpatialNodeIndex index, Str
         [&](BackfaceVisibilityData const& backface) {
             builder.appendff("backface-hidden plane_root={}", backface.plane_root_index);
         },
-        [&](ScrollData const& scroll) {
+        [&](ScrollData const&) {
             builder.append("scroll"sv);
-            if (scroll.is_sticky)
-                builder.append(" (sticky)"sv);
+        },
+        [&](StickyData const& sticky) {
+            builder.appendff("sticky scroller={}", sticky.scroller);
+            if (sticky.parent_sticky.has_value())
+                builder.appendff(" parent_sticky={}", *sticky.parent_sticky);
+            builder.appendff(" position_relative_to_scroller={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={} insets=[",
+                sticky.position_relative_to_scroller, sticky.border_box_size, sticky.scrollport_size, sticky.containing_block_region, sticky.needs_parent_offset_adjustment);
+            bool is_first_inset = true;
+            auto append_inset = [&](StringView side, Optional<float> inset) {
+                if (!inset.has_value())
+                    return;
+                if (!is_first_inset)
+                    builder.append(", "sv);
+                builder.appendff("{}={}", side, *inset);
+                is_first_inset = false;
+            };
+            append_inset("top"sv, sticky.inset_top);
+            append_inset("right"sv, sticky.inset_right);
+            append_inset("bottom"sv, sticky.inset_bottom);
+            append_inset("left"sv, sticky.inset_left);
+            builder.append(']');
         },
         [&](TransformData const& transform) {
             auto const& matrix = transform.matrix.elements();
@@ -702,17 +807,64 @@ void AccumulatedVisualContextTree::dump_frame_node(FrameNodeIndex index, StringB
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::ScrollData const& data)
+ErrorOr<void> encode(Encoder&, Web::Painting::ScrollData const&)
 {
-    TRY(encoder.encode(data.is_sticky));
     return {};
 }
 
 template<>
-ErrorOr<Web::Painting::ScrollData> decode(Decoder& decoder)
+ErrorOr<Web::Painting::ScrollData> decode(Decoder&)
 {
-    return Web::Painting::ScrollData {
-        .is_sticky = TRY(decoder.decode<bool>()),
+    return Web::Painting::ScrollData {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::StickyData const& data)
+{
+    TRY(encoder.encode(data.scroller));
+    TRY(encoder.encode(data.parent_sticky));
+    TRY(encoder.encode(data.position_relative_to_scroller));
+    TRY(encoder.encode(data.border_box_size.width()));
+    TRY(encoder.encode(data.border_box_size.height()));
+    TRY(encoder.encode(data.scrollport_size.width()));
+    TRY(encoder.encode(data.scrollport_size.height()));
+    TRY(encoder.encode(data.containing_block_region));
+    TRY(encoder.encode(data.needs_parent_offset_adjustment));
+    TRY(encoder.encode(data.inset_top));
+    TRY(encoder.encode(data.inset_right));
+    TRY(encoder.encode(data.inset_bottom));
+    TRY(encoder.encode(data.inset_left));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::StickyData> decode(Decoder& decoder)
+{
+    auto scroller = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>());
+    auto parent_sticky = TRY(decoder.decode<Optional<Web::Painting::SpatialNodeIndex>>());
+    auto position_relative_to_scroller = TRY(decoder.decode<Gfx::FloatPoint>());
+    auto border_box_width = TRY(decoder.decode<float>());
+    auto border_box_height = TRY(decoder.decode<float>());
+    auto scrollport_width = TRY(decoder.decode<float>());
+    auto scrollport_height = TRY(decoder.decode<float>());
+    auto containing_block_region = TRY(decoder.decode<Gfx::FloatRect>());
+    auto needs_parent_offset_adjustment = TRY(decoder.decode<bool>());
+    auto inset_top = TRY(decoder.decode<Optional<float>>());
+    auto inset_right = TRY(decoder.decode<Optional<float>>());
+    auto inset_bottom = TRY(decoder.decode<Optional<float>>());
+    auto inset_left = TRY(decoder.decode<Optional<float>>());
+    return Web::Painting::StickyData {
+        .scroller = scroller,
+        .parent_sticky = parent_sticky,
+        .position_relative_to_scroller = position_relative_to_scroller,
+        .border_box_size = { border_box_width, border_box_height },
+        .scrollport_size = { scrollport_width, scrollport_height },
+        .containing_block_region = containing_block_region,
+        .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
+        .inset_top = inset_top,
+        .inset_right = inset_right,
+        .inset_bottom = inset_bottom,
+        .inset_left = inset_left,
     };
 }
 
@@ -954,6 +1106,15 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
         auto referenced_spatial_precedes_node = spatial_nodes[i].data.visit(
             [&](TransformData const& transform) { return !transform.sorting_context_root_index.has_value() || transform.sorting_context_root_index->value() < i; },
             [&](BackfaceVisibilityData const& backface) { return backface.plane_root_index.value() < i; },
+            [&](StickyData const& sticky) {
+                // resolve_sticky_offsets() reads the referenced nodes by kind, so a hostile tree must not
+                // get past this point with references of the wrong kind or order.
+                bool scroller_is_valid = sticky.scroller.value() < i
+                    && (sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX || spatial_nodes[sticky.scroller.value()].data.has<ScrollData>());
+                bool parent_sticky_is_valid = !sticky.parent_sticky.has_value()
+                    || (sticky.parent_sticky->value() < i && spatial_nodes[sticky.parent_sticky->value()].data.has<StickyData>());
+                return scroller_is_valid && parent_sticky_is_valid;
+            },
             [&](AnchorScrollShift const& shift) { return shift.scroll_node_index.value() < i; },
             [&](auto const&) { return true; });
         if (!referenced_spatial_precedes_node)

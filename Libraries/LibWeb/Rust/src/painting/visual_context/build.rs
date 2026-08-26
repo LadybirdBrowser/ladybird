@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::refresh::precompute_sticky_constraints;
+use super::refresh::compute_sticky_data;
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
@@ -347,10 +347,12 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         let slot = self
             .scroll_state
             .register_sticky_node(node_index, paintable, parent_slot);
-        if let SpatialData::Scroll(scroll) = &mut self.tree.spatial_nodes[node_index.0 as usize].data {
-            scroll.state_slot = slot;
-        }
-        precompute_sticky_constraints(self.layout_arena, &mut self.scroll_state, slot, paintable);
+        self.tree.spatial_nodes[node_index.0 as usize].data = SpatialData::Sticky(compute_sticky_data(
+            self.layout_arena,
+            &self.scroll_state,
+            slot,
+            self.pixel_ratio,
+        ));
     }
 
     fn build_paintable_box(
@@ -515,10 +517,11 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         if creates_sticky_scroll_node {
             own_state = self.tree.append_spatial_under(
                 own_state,
-                SpatialData::Scroll(ScrollData {
-                    is_sticky: true,
-                    state_slot: NO_SCROLL_STATE_SLOT,
-                }),
+                SpatialData::Sticky(StickyData::unconstrained(
+                    nearest_ancestor_scroll_node_index,
+                    None,
+                    NO_SCROLL_STATE_SLOT,
+                )),
             );
             sticky_scroll_node_index = own_state.spatial;
             self.register_sticky_node(sticky_scroll_node_index, slot, nearest_ancestor_scroll_node_index);
@@ -727,7 +730,6 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             state_for_descendants = self.tree.append_spatial_under(
                 state_for_descendants,
                 SpatialData::Scroll(ScrollData {
-                    is_sticky: false,
                     state_slot: NO_SCROLL_STATE_SLOT,
                 }),
             );
@@ -832,7 +834,6 @@ pub(crate) fn build_visual_context_tree(
     builder.assignment_mut(viewport).enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     let viewport_scroll_node = builder.tree.append_spatial(
         SpatialData::Scroll(ScrollData {
-            is_sticky: false,
             state_slot: NO_SCROLL_STATE_SLOT,
         }),
         VISUAL_VIEWPORT_NODE_INDEX,

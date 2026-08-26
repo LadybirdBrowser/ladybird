@@ -1068,7 +1068,12 @@ CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)
     auto index = enclosing_scroll_node_index(node);
     if (index == VISUAL_VIEWPORT_NODE_INDEX)
         return {};
-    return node.document().paint_state().cumulative_scroll_offset_for_node(node.document(), index);
+    auto const& document = node.document();
+    if (!document.layout_node() || !has_committed_box(*document.layout_node()))
+        return {};
+    auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
+    auto device_offset = document.visual_context_tree().cumulative_scroll_chain_offset(index, document.scroll_state_snapshot());
+    return { CSSPixels::nearest_value_for(device_offset.x() / pixel_ratio), CSSPixels::nearest_value_for(device_offset.y() / pixel_ratio) };
 }
 
 }
