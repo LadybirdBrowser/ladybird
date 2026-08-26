@@ -5,9 +5,37 @@
  */
 
 use super::batch_matcher::{append_selector_truth_matches, insert_scope_rule};
+use super::selector::{AttributeCase, AttributeOperator};
 use super::*;
 
 const MIN_SHARED_CASCADE_COMPLETION_SAVINGS: usize = 8;
+
+#[derive(Default)]
+pub(crate) struct SelectorQueryCache {
+    attribute_value_catalog_version: u64,
+    attribute_values: Vec<Option<Vec<StyleAtomID>>>,
+}
+
+pub(crate) struct SelectorQueryContext {
+    pub(crate) root: StyleNodeID,
+    pub(crate) include_root: bool,
+    pub(crate) scope_root: Option<StyleNodeID>,
+    pub(crate) shadow_root: Option<StyleNodeID>,
+    pub(crate) has_document_root: bool,
+}
+
+impl SelectorQueryCache {
+    #[must_use]
+    pub(crate) fn capacity_bytes(&self) -> u64 {
+        (self.attribute_values.capacity() * size_of::<Option<Vec<StyleAtomID>>>()
+            + self
+                .attribute_values
+                .iter()
+                .flatten()
+                .map(|values| values.capacity() * size_of::<StyleAtomID>())
+                .sum::<usize>()) as u64
+    }
+}
 
 fn verify_match_answer_against_cold(
     engine: &mut StyleEngine,
@@ -117,6 +145,130 @@ impl StyleEngine {
             }
         }
         Ok(false)
+    }
+
+    pub(crate) fn selector_query_all(
+        &mut self,
+        program: &SelectorProgram,
+        cache: &mut SelectorQueryCache,
+        context: SelectorQueryContext,
+    ) -> Result<Vec<StyleNodeID>, Incomplete> {
+        let attribute_value_catalog_version = self.facts.attribute_value_catalog_version();
+        if cache.attribute_value_catalog_version != attribute_value_catalog_version
+            || cache.attribute_values.len() != program.entries().len()
+        {
+            cache.attribute_values.clear();
+            cache.attribute_values.reserve(program.entries().len());
+            for entry_index in 0..program.entries().len() {
+                let values = program
+                    .subject_attribute_value_test(entry_index)
+                    .filter(|test| test.operator != AttributeOperator::Presence)
+                    .map(|test| {
+                        if test.operator != AttributeOperator::Exact || test.case != AttributeCase::Sensitive {
+                            self.counters.bump(Counter::SelectorQueryAttributeValueCatalogScans);
+                        }
+                        self.facts
+                            .matching_attribute_values(test, program.literal(test.value_offset, test.value_length))
+                    });
+                cache.attribute_values.push(values);
+            }
+            cache.attribute_value_catalog_version = attribute_value_catalog_version;
+        } else {
+            self.counters.add(
+                Counter::SelectorQueryAttributeValuePlanHits,
+                u64::try_from(cache.attribute_values.iter().flatten().count()).unwrap_or(u64::MAX),
+            );
+        }
+
+        let mut matches = HashSet::default();
+        let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
+        if !context.has_document_root {
+            evaluator = evaluator.without_document_root();
+        }
+        if let Some(scope_root) = context.scope_root {
+            evaluator = evaluator.with_scope_root(scope_root);
+        }
+        if let Some(shadow_root) = context.shadow_root {
+            evaluator = evaluator.in_shadow_tree(shadow_root);
+        }
+
+        for (entry_index, entry) in program.entries().iter().enumerate() {
+            if entry.pseudo_element.is_some() {
+                continue;
+            }
+
+            let dispatch_keys = program.subject_dispatch_keys(entry_index);
+            let mut candidates = Vec::new();
+            let mut used_attribute_value_posting = false;
+            if let Some(values) = &cache.attribute_values[entry_index]
+                && let Some(value_candidates) = self.facts.attribute_value_candidates(values)
+            {
+                candidates.extend(value_candidates);
+                used_attribute_value_posting = true;
+            }
+            let mut use_all_nodes = !used_attribute_value_posting && dispatch_keys.is_empty();
+            if !used_attribute_value_posting && !use_all_nodes {
+                for &key in dispatch_keys {
+                    if !key.has_selector_posting() {
+                        use_all_nodes = true;
+                        break;
+                    }
+                    match self.facts.postings().lookup(key) {
+                        Lookup::Known(posting) => {
+                            candidates.extend(posting.candidates());
+                        }
+                        Lookup::KnownAbsent => {}
+                        Lookup::Missing(_) => {
+                            use_all_nodes = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if use_all_nodes {
+                candidates.clear();
+                candidates.extend(
+                    self.tree
+                        .preorder(context.root)
+                        .filter(|&node| context.include_root || node != context.root),
+                );
+            }
+            candidates.retain(|&node| {
+                (context.include_root || node != context.root) && self.tree.is_in_subtree_of(node, context.root)
+            });
+            candidates.sort_unstable();
+            candidates.dedup();
+            self.counters.add(
+                Counter::SelectorQueryCandidateRows,
+                u64::try_from(candidates.len()).unwrap_or(u64::MAX),
+            );
+
+            for node in candidates {
+                if matches.contains(&node) {
+                    continue;
+                }
+                self.counters.bump(Counter::SelectorQueryEvaluations);
+                if evaluator.matches_entry(program, entry, node, &mut self.counters)? {
+                    matches.insert(node);
+                }
+            }
+        }
+        if matches.len() <= 1 {
+            return Ok(matches.into_iter().collect());
+        }
+
+        let match_count = matches.len();
+        let mut ordered_matches = Vec::with_capacity(match_count);
+        for node in self.tree.preorder(context.root) {
+            if matches.contains(&node) {
+                ordered_matches.push(node);
+                if ordered_matches.len() == match_count {
+                    break;
+                }
+            }
+        }
+        debug_assert_eq!(ordered_matches.len(), match_count);
+        Ok(ordered_matches)
     }
 
     pub(super) fn materialize_cold_matching_batch(

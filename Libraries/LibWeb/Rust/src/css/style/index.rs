@@ -46,6 +46,9 @@ use super::program::DeclaredProperty;
 use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
+use super::selector::AttributeCase;
+use super::selector::AttributeOperator;
+use super::selector::AttributeTest;
 use super::transaction::ElementDeclarationKind;
 use super::transaction::StateFact;
 use super::tree::StyleNodeID;
@@ -63,6 +66,53 @@ impl StyleAtomID {
     #[must_use]
     pub fn is_none(self) -> bool {
         self == Self::NONE
+    }
+}
+
+fn attribute_value_equals(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
+    value.len() == literal.len()
+        && value.iter().zip(literal).all(|(&left, &right)| {
+            left == right
+                || (insensitive
+                    && match (u8::try_from(left), u8::try_from(right)) {
+                        (Ok(left), Ok(right)) => left.eq_ignore_ascii_case(&right),
+                        _ => false,
+                    })
+        })
+}
+
+fn attribute_value_starts_with(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
+    value.len() >= literal.len() && attribute_value_equals(&value[..literal.len()], literal, insensitive)
+}
+
+fn attribute_value_may_match(value: &[u16], literal: &[u16], operator: AttributeOperator, insensitive: bool) -> bool {
+    match operator {
+        AttributeOperator::Presence => true,
+        AttributeOperator::Exact => attribute_value_equals(value, literal, insensitive),
+        AttributeOperator::Includes => {
+            !literal.is_empty()
+                && value
+                    .split(|unit| matches!(unit, 0x20 | 0x09 | 0x0A | 0x0C | 0x0D))
+                    .any(|token| attribute_value_equals(token, literal, insensitive))
+        }
+        AttributeOperator::DashMatch => {
+            attribute_value_equals(value, literal, insensitive)
+                || (value.len() > literal.len()
+                    && attribute_value_starts_with(value, literal, insensitive)
+                    && value[literal.len()] == u16::from(b'-'))
+        }
+        AttributeOperator::Prefix => !literal.is_empty() && attribute_value_starts_with(value, literal, insensitive),
+        AttributeOperator::Suffix => {
+            !literal.is_empty()
+                && value.len() >= literal.len()
+                && attribute_value_equals(&value[value.len() - literal.len()..], literal, insensitive)
+        }
+        AttributeOperator::Substring => {
+            !literal.is_empty()
+                && value.len() >= literal.len()
+                && (0..=value.len() - literal.len())
+                    .any(|start| attribute_value_equals(&value[start..start + literal.len()], literal, insensitive))
+        }
     }
 }
 
@@ -292,6 +342,10 @@ impl<T: Clone + Default> PagedOwnedColumn<T> {
 
     fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.values.iter_mut()
+    }
+
+    fn indexed_iter(&self) -> impl Iterator<Item = (usize, &T)> {
+        self.indices.iter().copied().zip(self.values.iter())
     }
 
     fn indexed_iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
@@ -1493,6 +1547,9 @@ pub enum FeatureKey {
     Id(StyleAtomID),
     Class(StyleAtomID),
     AttributeName(StyleAtomID),
+    /// The complete interned value of an attribute. This is query acceleration rather than a CSS
+    /// dispatch key: attribute value queries use it to reach only values that can match.
+    AttributeValue(StyleAtomID),
     Directionality(StyleAtomID),
     Root,
     State(StateFact),
@@ -1538,6 +1595,7 @@ impl FeatureKey {
                 | Self::Id(_)
                 | Self::Class(_)
                 | Self::AttributeName(_)
+                | Self::AttributeValue(_)
                 | Self::Directionality(_)
         )
     }
@@ -1550,6 +1608,7 @@ impl FeatureKey {
             | Self::Id(atom)
             | Self::Class(atom)
             | Self::AttributeName(atom)
+            | Self::AttributeValue(atom)
             | Self::Directionality(atom)
             | Self::AnimationName(atom) => Some(atom),
             Self::Root
@@ -3278,6 +3337,8 @@ pub struct ElementFactStore {
     language_live_counts: PagedCopyColumn<u32>,
     attribute_name_live_counts: PagedCopyColumn<u32>,
     attribute_value_live_counts: PagedCopyColumn<u32>,
+    /// Changes whenever a newly published value can change an attribute-value query plan.
+    attribute_value_catalog_version: u64,
     custom_property_set_live_counts: Vec<u64>,
     /// Attribute-name forms and value text shared by the primary and each bounded fact batch.
     ///
@@ -3659,6 +3720,7 @@ impl Default for ElementFactStore {
             language_live_counts: PagedCopyColumn::default(),
             attribute_name_live_counts: PagedCopyColumn::default(),
             attribute_value_live_counts: PagedCopyColumn::default(),
+            attribute_value_catalog_version: 1,
             custom_property_set_live_counts: vec![0],
             element_declared_properties: ElementDeclarationRows::default(),
         };
@@ -3898,6 +3960,12 @@ impl ElementFactStore {
             for attribute in self.rows.attributes_of(row) {
                 for name in self.attribute_name_keys(attribute.name) {
                     let key = SelectorPostingKey::AttributeName(name);
+                    if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                        return None;
+                    }
+                }
+                if !attribute.value.is_none() {
+                    let key = SelectorPostingKey::AttributeValue(attribute.value);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                         return None;
                     }
@@ -4158,6 +4226,12 @@ impl ElementFactStore {
                         || forms.folded_name == name
                         || forms.folded_local == name
                 })
+            }),
+            DispatchKey::AttributeValue(value) => row.is_some_and(|row| {
+                self.rows
+                    .attributes_of(row)
+                    .iter()
+                    .any(|attribute| attribute.value == value)
             }),
             DispatchKey::TagName(tag) => {
                 row.is_some_and(|row| self.rows.tag_of(row) == tag || self.rows.folded_tag_of(row) == tag)
@@ -4505,6 +4579,21 @@ impl ElementFactStore {
         // names are postings rather than facts, so they say only that at least one attribute of the
         // element answers to them.
         let keys = self.attribute_name_keys(name);
+        let old_value = self
+            .staging
+            .get(node)
+            .and_then(|facts| {
+                facts
+                    .attributes
+                    .binary_search_by_key(&name, |entry| entry.0)
+                    .ok()
+                    .map(|index| facts.attributes[index].1)
+            })
+            .or_else(|| {
+                let attributes = self.rows.attributes_of(self.rows.row_of(node)?);
+                let index = attributes.binary_search_by_key(&name, |entry| entry.name).ok()?;
+                Some(attributes[index].value)
+            });
         let changed = self.edit_staged_row(node, |facts| {
             let found = facts.attributes.binary_search_by_key(&name, |entry| entry.0);
             match (present, found) {
@@ -4537,6 +4626,62 @@ impl ElementFactStore {
                 }
             }
         }
+        if old_value != Some(value) {
+            if let Some(old_value) = old_value {
+                let old_value_is_still_present = self
+                    .staging
+                    .get(node)
+                    .is_some_and(|facts| facts.attributes.iter().any(|&(_, candidate)| candidate == old_value));
+                if !old_value.is_none() && !old_value_is_still_present {
+                    self.postings
+                        .remove(SelectorPostingKey::AttributeValue(old_value), node);
+                }
+            }
+            if present && !value.is_none() {
+                self.postings
+                    .insert(SelectorPostingKey::AttributeValue(value), node, memory);
+            }
+        }
+    }
+
+    pub(super) fn matching_attribute_values(&self, test: AttributeTest, literal: &[u16]) -> Vec<StyleAtomID> {
+        if test.operator == AttributeOperator::Exact
+            && test.case == AttributeCase::Sensitive
+            && !test.value_atom.is_none()
+        {
+            return vec![test.value_atom];
+        }
+
+        let insensitive = test.case != AttributeCase::Sensitive;
+        let mut values = Vec::new();
+        for (index, text) in self.attribute_catalogs.value_texts.indexed_iter() {
+            let Some(text) = text else {
+                continue;
+            };
+            if !attribute_value_may_match(text, literal, test.operator, insensitive) {
+                continue;
+            }
+            let value = StyleAtomID(u32::try_from(index).expect("attribute-value atom index exceeds u32"));
+            values.push(value);
+        }
+        values
+    }
+
+    pub(super) fn attribute_value_candidates(&self, values: &[StyleAtomID]) -> Option<Vec<StyleNodeID>> {
+        let mut candidates = Vec::new();
+        for &value in values {
+            match self.postings.lookup(SelectorPostingKey::AttributeValue(value)) {
+                Lookup::Known(posting) => candidates.extend(posting.candidates()),
+                Lookup::KnownAbsent => {}
+                Lookup::Missing(_) => return None,
+            }
+        }
+        Some(candidates)
+    }
+
+    #[must_use]
+    pub(super) fn attribute_value_catalog_version(&self) -> u64 {
+        self.attribute_value_catalog_version
     }
 
     /// Whether any attribute the node still carries is indexed under `key`.
@@ -4618,6 +4763,10 @@ impl ElementFactStore {
         self.attribute_catalogs_mut()
             .value_texts
             .insert(index, Some(text.to_vec()));
+        self.attribute_value_catalog_version = self
+            .attribute_value_catalog_version
+            .checked_add(1)
+            .expect("attribute-value catalog version overflow");
     }
 
     #[must_use]
@@ -4710,9 +4859,12 @@ impl ElementFactStore {
         for state in facts.custom_states {
             self.postings.remove(SelectorPostingKey::CustomState(state), node);
         }
-        for (name, _) in facts.attributes {
+        for (name, value) in facts.attributes {
             for key in self.attribute_name_keys(name) {
                 self.postings.remove(SelectorPostingKey::AttributeName(key), node);
+            }
+            if !value.is_none() {
+                self.postings.remove(SelectorPostingKey::AttributeValue(value), node);
             }
         }
         if let Some(metadata) = node

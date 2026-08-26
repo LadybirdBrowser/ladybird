@@ -720,6 +720,34 @@ Optional<bool> StyleEngine::selector_query_matches_without_document_root(void co
     return result != 0;
 }
 
+bool StyleEngine::selector_query_all(void* query, StyleNodeID root, bool include_root, StyleNodeID scope_root, StyleNodeID shadow_root, bool has_document_root, Vector<StyleNodeID>& matches)
+{
+    matches.resize(16);
+    auto read = [&] {
+        return StyleEngineFFI::style_engine_selector_query_all(
+            m_impl,
+            query,
+            root.value(),
+            include_root,
+            scope_root.value(),
+            shadow_root.value(),
+            has_document_root,
+            reinterpret_cast<u32*>(matches.data()),
+            matches.size());
+    };
+    auto count = read();
+    if (count == NumericLimits<size_t>::max())
+        return false;
+    if (count > matches.size()) {
+        matches.resize(count);
+        count = read();
+        if (count == NumericLimits<size_t>::max() || count > matches.size())
+            return false;
+    }
+    matches.shrink(count);
+    return true;
+}
+
 bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) const
 {
     size_t name_length = 0;
