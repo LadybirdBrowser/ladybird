@@ -1749,10 +1749,12 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
     update_radio_button_group_registration();
-    if (auto* form = this->form(); form && (is_submit_button(old_state) || is_submit_button(new_state)))
+    if (auto* form = this->form(); form && (is_submit_button(old_state) || is_submit_button(new_state))) {
+        submit_button_state_changed();
         form->default_button_state_maybe_changed(*this, was_default);
-    else
+    } else {
         CSS::Invalidation::invalidate_style_after_default_state_change(*this, was_default);
+    }
     CSS::Invalidation::invalidate_style_after_read_write_state_change(*this, was_read_write);
     clear_element_reference_pseudo_elements();
     auto should_materialize_shadow_tree = shadow_root() || has_style();

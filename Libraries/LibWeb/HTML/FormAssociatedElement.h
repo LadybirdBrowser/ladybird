@@ -170,6 +170,7 @@ protected:
     void form_node_was_removed();
     void form_node_was_moved();
     void form_node_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&);
+    void submit_button_state_changed();
 
     struct FACERareData {
         ValidityStateFlags validity_flags {};

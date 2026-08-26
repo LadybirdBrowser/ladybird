@@ -307,6 +307,16 @@ void FormAssociatedElement::reposition_associated_elements_after_move(Badge<DOM:
         form->reposition_moved_associated_elements({}, moved_elements);
 }
 
+void FormAssociatedElement::submit_button_state_changed()
+{
+    auto const* rare_data = form_associated_rare_data();
+    if (!rare_data || !rare_data->in_associated_elements_list)
+        return;
+
+    if (auto* form = this->form())
+        form->associated_element_submit_button_state_changed({}, form_associated_element_to_html_element());
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:category-listed-3
 void FormAssociatedElement::form_node_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& value)
 {

@@ -429,10 +429,38 @@ size_t HTMLFormElement::tree_order_insertion_index(HTMLElement const& element) c
     });
 }
 
+void HTMLFormElement::recompute_default_button(size_t start_index)
+{
+    m_default_button = nullptr;
+    for (size_t i = start_index; i < m_associated_elements_in_tree_order.size(); ++i) {
+        if (m_associated_elements_in_tree_order[i]->is_submit_button()) {
+            m_default_button = m_associated_elements_in_tree_order[i];
+            break;
+        }
+    }
+}
+
 void HTMLFormElement::add_associated_element(Badge<FormAssociatedElement>, HTMLElement& element)
 {
     VERIFY(&element.root() == &root());
-    m_associated_elements_in_tree_order.insert(tree_order_insertion_index(element), element);
+    auto index = tree_order_insertion_index(element);
+    auto was_appended = index == m_associated_elements_in_tree_order.size();
+    m_associated_elements_in_tree_order.insert(index, element);
+
+    // OPTIMIZATION: An element that follows every other one cannot precede the default button, so the common case of
+    //               building a form front to back never compares tree positions here.
+    if (element.is_submit_button() && (!m_default_button || (!was_appended && element.is_before(*m_default_button))))
+        m_default_button = element;
+}
+
+void HTMLFormElement::associated_element_submit_button_state_changed(Badge<FormAssociatedElement>, HTMLElement& element)
+{
+    if (element.is_submit_button()) {
+        if (!m_default_button || element.is_before(*m_default_button))
+            m_default_button = element;
+    } else if (m_default_button.ptr().ptr() == &element) {
+        recompute_default_button();
+    }
 }
 
 void HTMLFormElement::reposition_moved_associated_elements(Badge<FormAssociatedElement>, Vector<GC::Ref<HTMLElement>> const& moved_elements)
@@ -449,12 +477,18 @@ void HTMLFormElement::reposition_moved_associated_elements(Badge<FormAssociatedE
     auto index = tree_order_insertion_index(*moved_elements.first());
     for (size_t i = 0; i < moved_elements.size(); ++i)
         m_associated_elements_in_tree_order.insert(index + i, moved_elements[i]);
+
+    recompute_default_button();
 }
 
 void HTMLFormElement::remove_associated_element(Badge<FormAssociatedElement>, HTMLElement& element)
 {
-    if (auto index = m_associated_elements_in_tree_order.find_first_index_if([&](auto const& entry) { return entry.ptr() == &element; }); index.has_value())
+    if (auto index = m_associated_elements_in_tree_order.find_first_index_if([&](auto const& entry) { return entry.ptr() == &element; }); index.has_value()) {
         m_associated_elements_in_tree_order.remove(*index);
+
+        if (m_default_button.ptr().ptr() == &element)
+            recompute_default_button(*index);
+    }
 
     // If an element listed in a form element's past names map changes form owner, then its entries must be removed from that map.
     m_past_names_map.remove_all_matching([&](auto&, auto const& entry) { return entry.node.ptr() == &element; });
@@ -1244,12 +1278,7 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
 FormAssociatedElement* HTMLFormElement::default_button() const
 {
     // A form element's default button is the first submit button in tree order whose form owner is that form element.
-    for (auto const& element : m_associated_elements_in_tree_order) {
-        if (element->is_submit_button())
-            return element.ptr();
-    }
-
-    return nullptr;
+    return m_default_button.ptr().ptr();
 }
 
 bool HTMLFormElement::has_invalid_associated_element() const
