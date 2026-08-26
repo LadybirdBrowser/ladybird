@@ -29,6 +29,7 @@ pub(crate) enum AbsposAxisMode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AbsposAlignment {
+    AnchorCenter,
     Baseline,
     Center,
     End,

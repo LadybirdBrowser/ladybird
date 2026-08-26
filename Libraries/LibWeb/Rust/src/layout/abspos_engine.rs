@@ -695,6 +695,139 @@ impl AbsposEngine {
 
         Some(resolved)
     }
+
+    fn span_all_position_area_layout_inputs(
+        &self,
+        positioned_box: Node,
+        containing_block_geometry: &ContainingBlockGeometry,
+        entry_coordinate_space_box: Node,
+        mut containing_block_info: abspos_inputs::AbsposContainingBlockInfo,
+    ) -> Option<(
+        abspos_inputs::StaticPositionRect,
+        abspos_inputs::AbsposContainingBlockInfo,
+        ContainingBlockGeometry,
+        Node,
+    )> {
+        let style = self.style(positioned_box);
+        let position_area = style.anchor().position_area.as_slice();
+
+        // https://drafts.csswg.org/css-anchor-position/#valdef-position-area-span-all
+        // A lone span-all applies to both axes and selects all three tracks in each axis.
+        if position_area != [position_area::SPAN_ALL]
+            && position_area != [position_area::SPAN_ALL, position_area::SPAN_ALL]
+        {
+            return None;
+        }
+        if !style.has_position_anchor() {
+            return None;
+        }
+
+        let anchor_box = self.anchor_lookup(positioned_box, style.position_anchor_name())?;
+        let containing_block = self.callbacks.containing_block(positioned_box);
+        let anchor_rect = self.anchor_rect(
+            anchor_box,
+            containing_block,
+            Some(containing_block_geometry),
+            entry_coordinate_space_box,
+        );
+
+        // anchor_rect() is padding-box-relative, while containing_block_info.rect is content-box-relative. Normalize
+        // them before comparing their edges.
+        let anchor_inline_offset = anchor_rect.left() - containing_block_geometry.padding_left;
+        let anchor_block_offset = anchor_rect.top() - containing_block_geometry.padding_top;
+        let anchor_inline_end = anchor_rect.right() - containing_block_geometry.padding_left;
+        let anchor_block_end = anchor_rect.bottom() - containing_block_geometry.padding_top;
+        let containing_block_end = geometry::LogicalOffset {
+            inline_offset: containing_block_info.rect.offset.inline_offset
+                + containing_block_info.rect.size.inline_size,
+            block_offset: containing_block_info.rect.offset.block_offset + containing_block_info.rect.size.block_size,
+        };
+
+        // https://drafts.csswg.org/css-anchor-position/#position-area-grid-resolution
+        // The outer grid lines use the more outward edge of the pre-modification containing block and default anchor.
+        let inline_offset = containing_block_info
+            .rect
+            .offset
+            .inline_offset
+            .min(anchor_inline_offset);
+        let block_offset = containing_block_info.rect.offset.block_offset.min(anchor_block_offset);
+        let inline_end = containing_block_end.inline_offset.max(anchor_inline_end);
+        let block_end = containing_block_end.block_offset.max(anchor_block_end);
+        let inline_size = inline_end - inline_offset;
+        let block_size = block_end - block_offset;
+
+        // https://drafts.csswg.org/css-anchor-position/#position-area
+        // The selected position area becomes the box's containing block, so insets and percentage sizes resolve
+        // against this rectangle.
+        containing_block_info.rect = geometry::LogicalRect {
+            offset: geometry::LogicalOffset {
+                inline_offset,
+                block_offset,
+            },
+            size: geometry::LogicalSize {
+                inline_size,
+                block_size,
+            },
+        };
+        containing_block_info.inline_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
+        containing_block_info.block_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
+
+        // https://drafts.csswg.org/css-anchor-position/#position-area-alignment
+        // Selecting all three tracks changes normal self-alignment to anchor-center. Explicit alignment is unchanged.
+        if matches!(
+            containing_block_info.inline_alignment,
+            None | Some(AbsposAlignment::Normal)
+        ) {
+            containing_block_info.inline_alignment = Some(AbsposAlignment::AnchorCenter);
+        }
+        if matches!(
+            containing_block_info.block_alignment,
+            None | Some(AbsposAlignment::Normal)
+        ) {
+            containing_block_info.block_alignment = Some(AbsposAlignment::AnchorCenter);
+        }
+
+        containing_block_info.derives_from_own_computed_values = true;
+
+        let position_area_geometry = ContainingBlockGeometry {
+            content_origin_in_entry_space: formatting_context::point_add(
+                containing_block_geometry.content_origin_in_entry_space,
+                FfiCssPixelPoint {
+                    x: inline_offset,
+                    y: block_offset,
+                },
+            ),
+            padding_left: CssPixels::default(),
+            padding_right: CssPixels::default(),
+            padding_top: CssPixels::default(),
+            padding_bottom: CssPixels::default(),
+            content_inline_size: inline_size,
+            content_block_size: block_size,
+        };
+
+        Some((
+            // https://drafts.csswg.org/css-anchor-position/#anchor-center
+            // Express the anchor in the new containing block's coordinate space so anchor-center can center over it.
+            abspos_inputs::StaticPositionRect {
+                rect: geometry::LogicalRect {
+                    offset: geometry::LogicalOffset {
+                        inline_offset: anchor_inline_offset - inline_offset,
+                        block_offset: anchor_block_offset - block_offset,
+                    },
+                    size: geometry::LogicalSize {
+                        inline_size: anchor_rect.width,
+                        block_size: anchor_rect.height,
+                    },
+                },
+                inline_alignment: StaticPositionAlignment::Center,
+                block_alignment: StaticPositionAlignment::Center,
+                alignment_derives_from_own_computed_values: true,
+            },
+            containing_block_info,
+            position_area_geometry,
+            anchor_box,
+        ))
+    }
 }
 
 unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shell: *const c_void) -> *const c_void {
@@ -1679,15 +1812,22 @@ impl AbsposEngine {
             {
                 let available = containing_block_size.inline_size - used.margin_box_inline_size(collapsed);
                 match inline_alignment {
+                    AbsposAlignment::AnchorCenter => {
+                        let inset = self.static_offset(node, inputs.static_position_rect).inline_offset;
+                        used.inset_left.set(inset);
+                        used.inset_right.set(available - inset);
+                    }
                     AbsposAlignment::Center => {
                         used.inset_left.set(available / 2);
                         used.inset_right.set(available / 2);
                     }
                     AbsposAlignment::Start => {
+                        used.inset_left.set(CssPixels::default());
                         used.inset_right.set(available);
                     }
                     AbsposAlignment::End => {
                         used.inset_left.set(available);
+                        used.inset_right.set(CssPixels::default());
                     }
                     _ => {}
                 }
@@ -1698,15 +1838,22 @@ impl AbsposEngine {
             {
                 let available = containing_block_size.block_size - used.margin_box_block_size(collapsed);
                 match block_alignment {
+                    AbsposAlignment::AnchorCenter => {
+                        let inset = self.static_offset(node, inputs.static_position_rect).block_offset;
+                        used.inset_top.set(inset);
+                        used.inset_bottom.set(available - inset);
+                    }
                     AbsposAlignment::Center => {
                         used.inset_top.set(available / 2);
                         used.inset_bottom.set(available / 2);
                     }
                     AbsposAlignment::Start | AbsposAlignment::SelfStart => {
+                        used.inset_top.set(CssPixels::default());
                         used.inset_bottom.set(available);
                     }
                     AbsposAlignment::End | AbsposAlignment::SelfEnd => {
                         used.inset_top.set(available);
+                        used.inset_bottom.set(CssPixels::default());
                     }
                     _ => {}
                 }
@@ -1783,8 +1930,6 @@ impl AbsposEngine {
         self.records
             .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
-        let resolved =
-            self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
         let inline_containing_block_rect =
             self.inline_containing_block_rect_for_pending_child(&child, &containing_block_geometry);
         let translation_into_containing_block_space = formatting_context::point_sub(
@@ -1795,23 +1940,64 @@ impl AbsposEngine {
             child.static_position_rect,
             translation_into_containing_block_space,
         );
+        let containing_block_info_override = child.containing_block_info_override.or_else(|| {
+            self.fragments
+                .as_deref()
+                .and_then(|fragments| fragments.find_abspos_containing_block_info(child_box))
+        });
+        let unresolved_containing_block_info = containing_block_info_override.unwrap_or_else(|| {
+            self.base_containing_block_info(
+                child_box,
+                inline_containing_block_rect,
+                &containing_block_geometry,
+                None,
+            )
+        });
+        let position_area_inputs = self.span_all_position_area_layout_inputs(
+            child_box,
+            &containing_block_geometry,
+            child.coordinate_space_box,
+            unresolved_containing_block_info,
+        );
+        let (containing_block_info, resolved) = if let Some((
+            static_position_rect,
+            position_area_containing_block_info,
+            position_area_geometry,
+            anchor_box,
+        )) = position_area_inputs
+        {
+            child.static_position_rect = static_position_rect;
+            let resolved =
+                self.resolve_anchor_insets(child_box, Some(&position_area_geometry), child.coordinate_space_box);
+            // https://drafts.csswg.org/css-anchor-position/#scroll
+            // A non-none position-area makes the box compensate for its default anchor's scroll in both axes.
+            // SAFETY: Both boxes remain live throughout this synchronous layout pass.
+            unsafe {
+                (self.callbacks.set_default_scroll_shift)(
+                    self.callbacks.context,
+                    self.callbacks.shell(child_box),
+                    self.callbacks.shell(anchor_box),
+                    true,
+                    true,
+                );
+            }
+            (position_area_containing_block_info, resolved)
+        } else {
+            let resolved =
+                self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
+            let containing_block_info = containing_block_info_override.unwrap_or_else(|| {
+                self.base_containing_block_info(
+                    child_box,
+                    inline_containing_block_rect,
+                    &containing_block_geometry,
+                    resolved.as_ref(),
+                )
+            });
+            (containing_block_info, resolved)
+        };
         let inputs = abspos_inputs::AbsposLayoutInputs {
             static_position_rect: child.static_position_rect,
-            containing_block_info: child
-                .containing_block_info_override
-                .or_else(|| {
-                    self.fragments
-                        .as_deref()
-                        .and_then(|fragments| fragments.find_abspos_containing_block_info(child_box))
-                })
-                .unwrap_or_else(|| {
-                    self.base_containing_block_info(
-                        child_box,
-                        inline_containing_block_rect,
-                        &containing_block_geometry,
-                        resolved.as_ref(),
-                    )
-                }),
+            containing_block_info,
             resolved_anchor_insets: resolved,
         };
         self.layout_element(run, child_box, inputs);

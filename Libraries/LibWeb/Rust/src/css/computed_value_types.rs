@@ -916,6 +916,7 @@ pub const STYLE_GROUP_INDEX_INHERITED_BOX: usize = 5;
 pub const STYLE_GROUP_INDEX_FONT: usize = 6;
 pub const STYLE_GROUP_INDEX_SVG_RESET: usize = 8;
 pub const STYLE_GROUP_INDEX_GRID: usize = 9;
+pub const STYLE_GROUP_INDEX_ANCHOR: usize = 10;
 pub const STYLE_GROUP_INDEX_EFFECTS: usize = 11;
 pub const STYLE_GROUP_INDEX_MASK: usize = 12;
 pub const STYLE_GROUP_INDEX_TEXT_RESET: usize = 13;

@@ -1,0 +1,50 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <div#fixed-anchor> at [300,100] positioned [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BlockContainer <div#fixed-target> at [250,160] positioned [0+0+0 200 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+      BlockContainer <div#padded-containing-block> at [90,290] positioned [0+0+40 300 40+0+0] [0+0+40 160 40+0+0] [BFC] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div#padded-anchor> at [150,290] positioned [0+0+0 80 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+        BlockContainer <div#padded-target> at [110,295] positioned [0+0+0 160 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      BlockContainer <div#overhanging-containing-block> at [500,300] positioned [0+0+0 200 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
+        TextNode <#text> (not painted)
+        BlockContainer <div#overhanging-anchor> at [400,240] positioned [0+0+0 40 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+        BlockContainer <div#overhanging-target> at [410,270] positioned [0+0+0 150 0+0+0] [0+0+0 105 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      Box <div#grid> at [50,480] positioned [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div#grid-anchor> at [100,500] positioned [0+0+0 40 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div#grid-target> at [190,480] positioned [0+0+0 60 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x0]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x0]
+      PaintableWithLines (BlockContainer<DIV>#fixed-anchor) [300,100 100x50]
+      PaintableWithLines (BlockContainer<DIV>#fixed-target) [250,160 200x40]
+      PaintableWithLines (BlockContainer<DIV>#padded-containing-block) [50,250 380x240]
+        PaintableWithLines (BlockContainer<DIV>#padded-anchor) [150,290 80x40]
+        PaintableWithLines (BlockContainer<DIV>#padded-target) [110,295 160x30]
+      PaintableWithLines (BlockContainer<DIV>#overhanging-containing-block) [500,300 200x150]
+        PaintableWithLines (BlockContainer<DIV>#overhanging-anchor) [400,240 40x20]
+        PaintableWithLines (BlockContainer<DIV>#overhanging-target) [410,270 150x105]
+      Paintable (Box<DIV>#grid) [50,480 300x100]
+        PaintableWithLines (BlockContainer<DIV>#grid-anchor) [100,500 40x20]
+        PaintableWithLines (BlockContainer<DIV>#grid-target) [190,480 60x20]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x0] (z-index: auto)
+  SC for BlockContainer<DIV>#fixed-target [250,160 200x40] (z-index: auto)
