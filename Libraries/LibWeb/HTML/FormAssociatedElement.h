@@ -282,6 +282,8 @@ public:
 
     virtual void did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data, Utf16View previous_value) = 0;
 
+    virtual void ensure_user_agent_shadow_tree(Badge<Internals::Internals>) = 0;
+
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() = 0;
     virtual GC::Ptr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
 

@@ -3376,12 +3376,14 @@ GC::Ptr<JS::Object> Internals::take_context_menu_request()
 }
 
 // The text node a spellchecking test names: the node itself, or the inner text node of a text control.
-static GC::Ptr<DOM::Text> spelling_test_text_node(DOM::Node& node)
+GC::Ptr<DOM::Text> Internals::spelling_test_text_node(DOM::Node& node)
 {
     if (auto* text = as_if<DOM::Text>(node))
         return text;
-    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(node))
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(node)) {
+        text_control->ensure_user_agent_shadow_tree({});
         return text_control->form_associated_element_to_text_node();
+    }
     return nullptr;
 }
 

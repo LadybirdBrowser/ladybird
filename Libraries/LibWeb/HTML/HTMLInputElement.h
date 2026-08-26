@@ -109,7 +109,7 @@ public:
     void commit_pending_changes();
     bool has_uncommitted_changes() { return m_has_uncommitted_changes; }
 
-    void ensure_user_agent_shadow_tree(Badge<Internals::Internals>) { create_shadow_tree_if_needed(); }
+    virtual void ensure_user_agent_shadow_tree(Badge<Internals::Internals>) override { create_shadow_tree_if_needed(); }
 
     Utf16String placeholder() const;
     Optional<Utf16String> placeholder_value() const;

@@ -365,6 +365,7 @@ public:
     GC::Ref<Streams::ReadableStream> create_stream_pulling_from_bytes(String const& bytes, WebIDL::UnsignedLong pull_size);
 
 private:
+    static GC::Ptr<DOM::Text> spelling_test_text_node(DOM::Node&);
     GC::Ref<JS::Object> first_wheel_step_route_to_object(Compositing::FirstWheelStepRouteForTesting const&);
     Web::MouseEvent mouse_event_through_ui_process_at(Web::MouseEvent::Type, double x, double y);
     void send_mouse_events_through_ui_process(Vector<Web::MouseEvent>, GC::Ref<WebIDL::Promise>);
