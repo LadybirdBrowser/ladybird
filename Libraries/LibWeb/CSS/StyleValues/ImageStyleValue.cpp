@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AnyOf.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -61,7 +60,7 @@ ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceReq
 
 ImageStyleValueResource::~ImageStyleValueResource()
 {
-    VERIFY(m_image_style_values.is_empty());
+    VERIFY(m_registration_counts_by_image_style_value.is_empty());
     unregister_with_decoded_image_data_if_needed();
 }
 
@@ -72,15 +71,23 @@ void ImageStyleValueResource::visit_edges(JS::Cell::Visitor& visitor)
 
 void ImageStyleValueResource::register_image_style_value(ImageStyleValue const& image_style_value)
 {
-    m_image_style_values.set(&image_style_value);
+    ++m_registration_counts_by_image_style_value.ensure(&image_style_value);
     register_with_decoded_image_data_if_needed();
 }
 
 void ImageStyleValueResource::unregister_image_style_value(ImageStyleValue const& image_style_value)
 {
-    m_image_style_values.remove(&image_style_value);
-    if (m_image_style_values.is_empty())
+    auto it = m_registration_counts_by_image_style_value.find(&image_style_value);
+    VERIFY(it != m_registration_counts_by_image_style_value.end());
+    if (--it->value == 0)
+        m_registration_counts_by_image_style_value.remove(it);
+    if (m_registration_counts_by_image_style_value.is_empty())
         unregister_with_decoded_image_data_if_needed();
+}
+
+::URL::URL const& ImageStyleValueResource::url() const
+{
+    return m_resource_request->url();
 }
 
 GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() const
@@ -91,14 +98,14 @@ GC::Ptr<HTML::DecodedImageData> ImageStyleValueResource::decoded_image_data() co
 void ImageStyleValueResource::on_decoded_image_data_loaded()
 {
     notify_image_style_values_did_update();
-    if (!m_image_style_values.is_empty())
+    if (!m_registration_counts_by_image_style_value.is_empty())
         register_with_decoded_image_data_if_needed();
 }
 
 void ImageStyleValueResource::notify_image_style_values_did_update()
 {
-    for (auto const* image_style_value : m_image_style_values)
-        image_style_value->notify_clients_did_update();
+    for (auto const& registration : m_registration_counts_by_image_style_value)
+        registration.key->notify_clients_did_update();
 }
 
 ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(URL const& url)
@@ -319,49 +326,38 @@ void ImageStyleValue::register_client(Client& client) const
     if (!resolved_url.has_value())
         return;
 
-    // NB: Store the resolved URL so that we can unregister from the resource later even if the document's base URL
-    //     changes in the interim.
-    client.m_registered_url = *resolved_url;
-
-    GC::Ptr<CSS::ImageStyleValueResource> resource;
-
-    if (auto* existing_resource = document->css_image_resource(*resolved_url)) {
-        resource = existing_resource;
-    } else {
+    ImageStyleValueResource* resource = document->css_image_resource(*resolved_url);
+    if (!resource) {
         auto resource_request = fetch_image(*document);
 
         // NB: This can only fail if the URL is invalid or ResourceLoader is not initialized, neither of which should be
         //     the case here.
         VERIFY(resource_request);
 
-        resource = document->create_css_image_resource(*resource_request);
+        resource = &document->create_css_image_resource(*resource_request);
     }
 
     resource->register_image_style_value(*this);
+    client.m_resource = resource;
 }
 
 void ImageStyleValue::unregister_client(Client& client) const
 {
-    auto document = client.document();
-    auto registered_url = move(client.m_registered_url);
-    client.m_registered_url.clear();
-
     auto did_remove = m_clients.remove(&client);
     VERIFY(did_remove);
 
-    if (!document || !registered_url.has_value())
+    auto* resource = exchange(client.m_resource, nullptr);
+    if (!resource)
         return;
 
-    if (any_of(m_clients, [&](auto const* remaining_client) {
-            return remaining_client->document() == document
-                && remaining_client->m_registered_url.has_value()
-                && *remaining_client->m_registered_url == *registered_url;
-        }))
+    // The document owns the resource, so a collected document has already destroyed it.
+    auto document = client.document();
+    if (!document)
         return;
 
-    if (auto* resource = document->css_image_resource(*registered_url))
-        resource->unregister_image_style_value(*this);
-    document->remove_css_image_resource_if_unused(*registered_url);
+    auto url = resource->url();
+    resource->unregister_image_style_value(*this);
+    document->remove_css_image_resource_if_unused(url);
 }
 
 void ImageStyleValue::notify_clients_did_update() const
@@ -400,6 +396,13 @@ ImageStyleValue::Client::~Client()
 void ImageStyleValue::Client::image_style_value_finalize()
 {
     m_image_style_value.unregister_client(*this);
+}
+
+GC::Ptr<HTML::DecodedImageData> ImageStyleValue::Client::decoded_image_data() const
+{
+    if (!m_resource)
+        return nullptr;
+    return m_resource->decoded_image_data();
 }
 
 }

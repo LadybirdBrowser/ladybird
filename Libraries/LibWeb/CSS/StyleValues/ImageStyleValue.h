@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <LibGC/Weak.h>
@@ -34,7 +35,9 @@ public:
 
     void register_image_style_value(ImageStyleValue const&);
     void unregister_image_style_value(ImageStyleValue const&);
-    bool can_be_removed() const { return m_image_style_values.is_empty(); }
+    bool can_be_removed() const { return m_registration_counts_by_image_style_value.is_empty(); }
+
+    ::URL::URL const& url() const;
 
     [[nodiscard]] virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 
@@ -45,7 +48,7 @@ private:
     void notify_image_style_values_did_update();
 
     GC::Ref<HTML::SharedResourceRequest> m_resource_request;
-    HashTable<ImageStyleValue const*> m_image_style_values;
+    HashMap<ImageStyleValue const*, size_t> m_registration_counts_by_image_style_value;
 };
 
 class ImageStyleValue final
@@ -63,13 +66,15 @@ public:
         virtual ~Client();
         virtual void image_style_value_did_update(ImageStyleValue&) = 0;
 
+        GC::Ptr<HTML::DecodedImageData> decoded_image_data() const;
+
     protected:
         void image_style_value_finalize();
         GC::Ptr<DOM::Document> document() const { return m_document.ptr(); }
 
         ImageStyleValue const& m_image_style_value;
         GC::Weak<DOM::Document> m_document;
-        Optional<::URL::URL> m_registered_url;
+        ImageStyleValueResource* m_resource { nullptr };
     };
 
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(URL const&);
