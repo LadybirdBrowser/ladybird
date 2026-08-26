@@ -116,7 +116,7 @@ static NavigationFetchTimingInfoDescriptor create_navigation_fetch_timing_info_d
     };
 }
 
-static GC::Ref<Fetch::Infrastructure::FetchTimingInfo> create_navigation_fetch_timing_info_from_descriptor(NavigationFetchTimingInfoDescriptor const& descriptor)
+static NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> create_navigation_fetch_timing_info_from_descriptor(NavigationFetchTimingInfoDescriptor const& descriptor)
 {
     auto timing_info = Fetch::Infrastructure::FetchTimingInfo::create();
     timing_info->set_start_time(descriptor.start_time);
@@ -239,7 +239,7 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
     return request;
 }
 
-static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, NavigationResponseBodyHandle handle, Fetch::Infrastructure::Response& response, GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
+static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, NavigationResponseBodyHandle handle, Fetch::Infrastructure::Response& response, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
 {
     if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
         return {};
@@ -282,7 +282,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
         [receiver_root](Core::ImmutableBytes data) {
             receiver_root->set_cached_response_body(move(data));
         },
-        [receiver_root, stream = GC::make_root(stream), body = GC::make_root(body), timing_info = GC::make_root(timing_info), cross_origin_isolated_capability, &realm](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
+        [receiver_root, stream = GC::make_root(stream), body = GC::make_root(body), timing_info, cross_origin_isolated_capability, &realm](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
             TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
             if (!network_error.has_value()) {
                 // AD-HOC: Nothing reports timing for a navigation fetch, so record the network phases and end time here
@@ -308,7 +308,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     return body;
 }
 
-static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_response_from_descriptor(JS::Realm& realm, NavigationResponseDescriptor descriptor, GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
+static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_response_from_descriptor(JS::Realm& realm, NavigationResponseDescriptor descriptor, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
 {
     auto response = descriptor.network_error_message.has_value()
         ? Fetch::Infrastructure::Response::network_error(realm.vm(), move(*descriptor.network_error_message))
@@ -354,7 +354,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
     auto params = descriptor.get<NavigationParamsDescriptor>();
     VERIFY(params.navigable_id == navigable.id());
     auto request = create_navigation_request_from_descriptor(realm, navigable, params.request);
-    GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info;
+    RefPtr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info;
     if (params.fetch_timing_info.has_value())
         fetch_timing_info = create_navigation_fetch_timing_info_from_descriptor(*params.fetch_timing_info);
     auto response = TRY(create_navigation_response_from_descriptor(realm, move(params.response), fetch_timing_info));

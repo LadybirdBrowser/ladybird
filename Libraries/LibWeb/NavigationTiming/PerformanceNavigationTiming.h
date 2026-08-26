@@ -19,7 +19,7 @@ class PerformanceNavigationTiming final : public ResourceTiming::PerformanceReso
 public:
     virtual ~PerformanceNavigationTiming() override;
 
-    static void create_navigation_timing_entry(DOM::Document&, GC::Ref<Fetch::Infrastructure::FetchTimingInfo>, u16 redirect_count, Bindings::NavigationTimingType, Optional<Fetch::Infrastructure::Response::CacheState> const&, Fetch::Infrastructure::Response::BodyInfo, Fetch::Infrastructure::Status);
+    static void create_navigation_timing_entry(DOM::Document&, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo>, u16 redirect_count, Bindings::NavigationTimingType, Optional<Fetch::Infrastructure::Response::CacheState> const&, Fetch::Infrastructure::Response::BodyInfo, Fetch::Infrastructure::Status);
 
     static PerformanceTimeline::AvailableFromTimeline available_from_timeline() { return PerformanceTimeline::AvailableFromTimeline::Yes; }
     static Optional<u64> max_buffer_size() { return OptionalNone {}; }
@@ -43,7 +43,7 @@ public:
     HighResolutionTime::DOMHighResTimeStamp critical_ch_restart() const { return 0; }
 
 private:
-    PerformanceNavigationTiming(DOM::Document&, Utf16String const& name, GC::Ref<Fetch::Infrastructure::FetchTimingInfo>, HighResolutionTime::DOMHighResTimeStamp time_origin, u16 redirect_count, Bindings::NavigationTimingType);
+    PerformanceNavigationTiming(DOM::Document&, Utf16String const& name, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo>, HighResolutionTime::DOMHighResTimeStamp time_origin, u16 redirect_count, Bindings::NavigationTimingType);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

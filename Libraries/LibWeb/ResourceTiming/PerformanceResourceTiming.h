@@ -25,10 +25,10 @@ class WEB_API PerformanceResourceTiming : public PerformanceTimeline::Performanc
 public:
     virtual ~PerformanceResourceTiming() override;
 
-    static GC::Ref<PerformanceResourceTiming> create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
-    static GC::Ref<PerformanceResourceTiming> create(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
+    static GC::Ref<PerformanceResourceTiming> create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
+    static GC::Ref<PerformanceResourceTiming> create(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
 
-    static void mark_resource_timing(GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
+    static void mark_resource_timing(NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
 
     // NOTE: These three functions are answered by the registry for the given entry type.
     // https://w3c.github.io/timing-entrytypes-registry/#registry
@@ -75,17 +75,15 @@ public:
     Utf16String const& content_type() const;
 
 protected:
-    PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
-    PerformanceResourceTiming(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
+    PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
+    PerformanceResourceTiming(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
 
-    void setup_the_resource_timing_entry(Utf16FlyString const& initiator_type, Utf16String const& requested_url, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
+    void setup_the_resource_timing_entry(Utf16FlyString const& initiator_type, Utf16String const& requested_url, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
 
 private:
     Utf16FlyString m_initiator_type;
     Utf16String m_requested_url;
-    GC::Ref<Fetch::Infrastructure::FetchTimingInfo> m_timing_info;
+    NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> m_timing_info;
     HighResolutionTime::DOMHighResTimeStamp m_time_origin { 0.0 };
     Fetch::Infrastructure::Response::BodyInfo m_response_body_info;
     Optional<Fetch::Infrastructure::Response::CacheState> m_cache_mode;

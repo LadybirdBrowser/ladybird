@@ -15,8 +15,8 @@ namespace Web::NavigationTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceNavigationTiming);
 
-PerformanceNavigationTiming::PerformanceNavigationTiming(DOM::Document& document, Utf16String const& name, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin, u16 redirect_count, Bindings::NavigationTimingType navigation_type)
-    : PerformanceResourceTiming(name, 0, 0, timing_info, time_origin)
+PerformanceNavigationTiming::PerformanceNavigationTiming(DOM::Document& document, Utf16String const& name, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin, u16 redirect_count, Bindings::NavigationTimingType navigation_type)
+    : PerformanceResourceTiming(name, 0, 0, move(timing_info), time_origin)
     , m_document(document)
     , m_redirect_count(redirect_count)
     , m_navigation_type(navigation_type)
@@ -32,7 +32,7 @@ void PerformanceNavigationTiming::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/navigation-timing/#dfn-create-the-navigation-timing-entry
-void PerformanceNavigationTiming::create_navigation_timing_entry(DOM::Document& document, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, u16 redirect_count, Bindings::NavigationTimingType navigation_type, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status)
+void PerformanceNavigationTiming::create_navigation_timing_entry(DOM::Document& document, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, u16 redirect_count, Bindings::NavigationTimingType navigation_type, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status)
 {
     // 1. Let global be document's relevant global object.
     auto& global = HTML::relevant_global_object(document);
@@ -43,7 +43,7 @@ void PerformanceNavigationTiming::create_navigation_timing_entry(DOM::Document& 
 
     // 3. Setup the resource timing entry for navigationTimingEntry given "navigation", document's URL, fetchTiming,
     //    cacheMode, and bodyInfo.
-    entry->setup_the_resource_timing_entry(PerformanceTimeline::EntryTypes::navigation, utf16_string_from_url_ascii(document.url().serialize()), timing_info, cache_mode, move(body_info), response_status);
+    entry->setup_the_resource_timing_entry(PerformanceTimeline::EntryTypes::navigation, utf16_string_from_url_ascii(document.url().serialize()), move(timing_info), cache_mode, move(body_info), response_status);
 
     // 4-8. The document load timing, previous document unload timing, redirect count, and navigation type are stored by
     //      the entry. Service worker timing is not yet implemented.

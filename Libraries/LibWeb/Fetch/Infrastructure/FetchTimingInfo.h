@@ -6,12 +6,10 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibGC/CellAllocator.h>
-#include <LibGC/Ptr.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/Cell.h>
 #include <LibRequests/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
@@ -21,12 +19,9 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-timing-info
-class WEB_API FetchTimingInfo : public JS::Cell {
-    GC_CELL(FetchTimingInfo, JS::Cell);
-    GC_DECLARE_ALLOCATOR(FetchTimingInfo);
-
+class WEB_API FetchTimingInfo : public RefCounted<FetchTimingInfo> {
 public:
-    [[nodiscard]] static GC::Ref<FetchTimingInfo> create();
+    [[nodiscard]] static NonnullRefPtr<FetchTimingInfo> create();
 
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp start_time() const { return m_start_time; }
     void set_start_time(HighResolutionTime::DOMHighResTimeStamp start_time) { m_start_time = start_time; }
@@ -131,6 +126,6 @@ private:
     bool m_render_blocking { false };
 };
 
-WEB_API GC::Ref<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info);
+WEB_API NonnullRefPtr<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info);
 
 }

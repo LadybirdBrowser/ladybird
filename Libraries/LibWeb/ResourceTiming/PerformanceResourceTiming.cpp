@@ -15,30 +15,30 @@ namespace Web::ResourceTiming {
 
 GC_DEFINE_ALLOCATOR(PerformanceResourceTiming);
 
-PerformanceResourceTiming::PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
+PerformanceResourceTiming::PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
     : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
-    , m_timing_info(timing_info)
+    , m_timing_info(move(timing_info))
     , m_time_origin(time_origin)
 {
 }
 
-PerformanceResourceTiming::PerformanceResourceTiming(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
+PerformanceResourceTiming::PerformanceResourceTiming(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
     : PerformanceTimeline::PerformanceEntry(name, start_time, duration)
-    , m_timing_info(timing_info)
+    , m_timing_info(move(timing_info))
     , m_time_origin(time_origin)
 {
 }
 
 PerformanceResourceTiming::~PerformanceResourceTiming() = default;
 
-GC::Ref<PerformanceResourceTiming> PerformanceResourceTiming::create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
+GC::Ref<PerformanceResourceTiming> PerformanceResourceTiming::create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
 {
-    return GC::Heap::the().allocate<PerformanceResourceTiming>(name, start_time, duration, timing_info, time_origin);
+    return GC::Heap::the().allocate<PerformanceResourceTiming>(name, start_time, duration, move(timing_info), time_origin);
 }
 
-GC::Ref<PerformanceResourceTiming> PerformanceResourceTiming::create(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
+GC::Ref<PerformanceResourceTiming> PerformanceResourceTiming::create(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin)
 {
-    return GC::Heap::the().allocate<PerformanceResourceTiming>(name, start_time, duration, timing_info, time_origin);
+    return GC::Heap::the().allocate<PerformanceResourceTiming>(name, start_time, duration, move(timing_info), time_origin);
 }
 
 // https://w3c.github.io/resource-timing/#dfn-entrytype
@@ -47,12 +47,6 @@ Utf16FlyString const& PerformanceResourceTiming::entry_type() const
     // entryType
     //  The entryType getter steps are to return the DOMString "resource".
     return PerformanceTimeline::EntryTypes::resource;
-}
-
-void PerformanceResourceTiming::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_timing_info);
 }
 
 // https://w3c.github.io/resource-timing/#dfn-convert-fetch-timestamp
@@ -67,7 +61,7 @@ HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTi
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type)
+void PerformanceResourceTiming::mark_resource_timing(NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type)
 {
     // 1. Create a PerformanceResourceTiming object entry.
     auto* window_or_worker = HTML::window_or_worker_global_scope_from_global_object(global);
@@ -90,7 +84,7 @@ void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructu
     auto entry = PerformanceResourceTiming::create(requested_url, converted_start_time, converted_end_time - converted_start_time, timing_info, time_origin);
 
     // Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo, responseStatus, and deliveryType.
-    entry->setup_the_resource_timing_entry(initiator_type, requested_url, timing_info, cache_mode, move(body_info), response_status, delivery_type);
+    entry->setup_the_resource_timing_entry(initiator_type, requested_url, move(timing_info), cache_mode, move(body_info), response_status, delivery_type);
 
     // 3. Queue entry.
     window_or_worker->queue_performance_entry(entry);
@@ -100,7 +94,7 @@ void PerformanceResourceTiming::mark_resource_timing(GC::Ref<Fetch::Infrastructu
 }
 
 // https://www.w3.org/TR/resource-timing/#dfn-setup-the-resource-timing-entry
-void PerformanceResourceTiming::setup_the_resource_timing_entry(Utf16FlyString const& initiator_type, Utf16String const& requested_url, GC::Ref<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type)
+void PerformanceResourceTiming::setup_the_resource_timing_entry(Utf16FlyString const& initiator_type, Utf16String const& requested_url, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type)
 {
     // 2. Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo, responseStatus, and deliveryType.
     // https://w3c.github.io/resource-timing/#dfn-setup-the-resource-timing-entry
@@ -114,7 +108,7 @@ void PerformanceResourceTiming::setup_the_resource_timing_entry(Utf16FlyString c
     m_requested_url = requested_url;
 
     // 4. Set entry's timing info to timingInfo.
-    m_timing_info = timing_info;
+    m_timing_info = move(timing_info);
 
     // 5. Set entry's response body info to bodyInfo.
     m_response_body_info = move(body_info);

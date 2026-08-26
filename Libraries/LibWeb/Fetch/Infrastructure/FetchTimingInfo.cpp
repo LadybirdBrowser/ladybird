@@ -4,25 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/VM.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::Fetch::Infrastructure {
 
-GC_DEFINE_ALLOCATOR(FetchTimingInfo);
-
 FetchTimingInfo::FetchTimingInfo() = default;
 
-GC::Ref<FetchTimingInfo> FetchTimingInfo::create()
+NonnullRefPtr<FetchTimingInfo> FetchTimingInfo::create()
 {
-    return GC::Heap::the().allocate<FetchTimingInfo>();
+    return adopt_ref(*new FetchTimingInfo);
 }
 
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
-GC::Ref<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info)
+NonnullRefPtr<FetchTimingInfo> create_opaque_timing_info(FetchTimingInfo const& timing_info)
 {
     // To create an opaque timing info, given a fetch timing info timingInfo, return a new fetch timing info whose start
     // time and post-redirect start time are timingInfo’s start time, end time is timingInfo’s end time, and
