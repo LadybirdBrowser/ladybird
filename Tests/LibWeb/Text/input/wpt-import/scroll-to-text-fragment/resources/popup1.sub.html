@@ -1,0 +1,26 @@
+<!doctype html>
+<title>Popup 1</title>
+<script src="/common/utils.js"></script>
+<script src="../stash.js"></script>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const key = urlParams.get("key");
+
+window.onload = () => {
+  // Navigate this window to B.com (cross-origin) with a text fragment directive
+  const crossOriginURL = new URL("http://{{hosts[alt][www]}}:{{ports[http][0]}}/scroll-to-text-fragment/resources/target.html");
+  crossOriginURL.searchParams.set("key", key);
+  crossOriginURL.hash = "#:~:text=target";
+
+  // Simultaneously open popup2 on A.com (same-origin) to keep the browsing context group alive
+  try {
+    window.open(`popup2.html?key=${key}`, "_blank");
+  } catch (e) {}
+
+  // Navigate popup1 to B.com
+  requestAnimationFrame(() => {
+    window.location.href = crossOriginURL.href;
+  });
+};
+</script>

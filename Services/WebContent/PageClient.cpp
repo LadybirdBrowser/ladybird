@@ -469,6 +469,10 @@ void PageClient::page_did_update_editing_history_state(bool can_undo, bool can_r
     client().async_did_update_editing_history_state(m_id, can_undo, can_redo);
 }
 
+void PageClient::page_did_set_text_fragment_indication_visibility(bool visible)
+{
+    client().async_did_set_text_fragment_indication_visibility(m_id, visible);
+}
 void PageClient::page_did_request_refresh()
 {
     client().async_did_request_refresh(m_id);

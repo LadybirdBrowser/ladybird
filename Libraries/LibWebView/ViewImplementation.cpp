@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
+#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Application.h>
@@ -144,18 +145,47 @@ u64 ViewImplementation::page_id() const
 
 void ViewImplementation::set_url(URL::URL url)
 {
-    if (m_url == url)
+    auto stripped_url = url;
+    if (Web::HTML::remove_the_fragment_directive(stripped_url).has_value())
+        m_text_fragment_indication_is_visible = true;
+
+    if (m_url != url) {
+        auto previous_host = current_host();
+        m_url = move(url);
+        update_bookmark_action();
+
+        if (current_host() != previous_host)
+            apply_zoom_for_current_host();
+    }
+
+    update_displayed_url();
+}
+
+void ViewImplementation::update_displayed_url()
+{
+    auto displayed_url = m_url;
+    auto displayed_url_without_fragment_directive = displayed_url;
+    (void)Web::HTML::remove_the_fragment_directive(displayed_url_without_fragment_directive);
+    if (!m_text_fragment_indication_is_visible)
+        displayed_url = displayed_url_without_fragment_directive;
+    if (auto const* entry = m_top_level_traversable.session_history().current_entry(); entry && entry->url == displayed_url_without_fragment_directive)
+        displayed_url = display_url_for_session_history_entry(*entry, m_text_fragment_indication_is_visible);
+
+    if (m_displayed_url == displayed_url)
         return;
 
-    auto previous_host = current_host();
-    m_url = move(url);
-    update_bookmark_action();
-
-    if (current_host() != previous_host)
-        apply_zoom_for_current_host();
+    m_displayed_url = move(displayed_url);
 
     if (on_url_change)
-        on_url_change(m_url);
+        on_url_change(m_displayed_url);
+}
+
+void ViewImplementation::set_text_fragment_indication_visibility(Badge<WebContentClient>, bool visible)
+{
+    if (m_text_fragment_indication_is_visible == visible)
+        return;
+    m_text_fragment_indication_is_visible = visible;
+    update_displayed_url();
 }
 
 void ViewImplementation::set_title(Badge<WebContentClient>, Utf16String title)
@@ -1734,7 +1764,6 @@ void ViewImplementation::did_create_top_level_traversable(Badge<WebContentClient
     update_navigation_action_state();
     dump_session_history("created-top-level-traversable"sv);
 }
-
 void ViewImplementation::did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check)
 {
     m_needs_beforeunload_check = needs_beforeunload_check;

@@ -1214,6 +1214,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         return Geometry::DOMRectList::create({});
 
     start_container()->document().update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
+    start_container()->document().update_paint_and_hit_testing_properties_if_needed();
     Vector<GC::Root<Geometry::DOMRect>> rects;
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
@@ -1304,7 +1305,10 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             Layout::RustFFI::layout_arena_text_range_rects(
                 mapping.primary()->arena_handle(), text_slots.data(), text_slots.size(),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
-                &rects, [](void* context, CSSPixelRect rect) {
+                &rects, [](void* context, void* layout_node_shell, CSSPixelRect absolute_rect) {
+                    auto* layout_node = static_cast<Layout::Node*>(layout_node_shell);
+                    VERIFY(layout_node);
+                    auto rect = Painting::transform_rect_to_viewport(*layout_node, absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
                     static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));
                 });
         }

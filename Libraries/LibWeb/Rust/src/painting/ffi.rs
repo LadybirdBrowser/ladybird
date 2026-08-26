@@ -1173,6 +1173,24 @@ pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paint_push_text_fragment_indication_range(
+    sink: *mut c_void,
+    start: usize,
+    end: usize,
+) {
+    abort_on_panic(|| {
+        // SAFETY: `sink` is the Vec pointer handed out by
+        // FfiPaintHostCallbacks::text_fragment_indication_facts.
+        let ranges =
+            unsafe { &mut *sink.cast::<Vec<crate::painting::record::paint::text::TextFragmentIndicationRange>>() };
+        ranges.push(crate::painting::record::paint::text::TextFragmentIndicationRange { start, end });
+    });
+}
+
+/// # Safety
+///
+/// `sink` must be the pointer handed to the callback, used synchronously.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
     sink: *mut c_void,
     color: libgfx_rust::Color,
@@ -2049,30 +2067,34 @@ pub unsafe extern "C" fn layout_arena_text_range_rects(
     filter_dom_start: usize,
     filter_dom_end: usize,
     context: *mut c_void,
-    push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
+    push_rect: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCssPixelRect),
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintable_rows = arena.paintable_rows();
         // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
         let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
-        crate::painting::text_fragment::for_each_fragment_of_nodes(&paintable_rows, node_slots, |_, _, fragment| {
-            let fragment_dom_start = fragment.dom_start_offset_in_node;
-            let fragment_dom_end = fragment.dom_end_offset_in_node;
-            if fragment_dom_end <= filter_dom_start || fragment_dom_start >= filter_dom_end {
-                return true;
-            }
-            let rect = crate::painting::text_fragment::range_rect(
-                &paintable_rows,
-                fragment,
-                selection_state,
-                range_start_offset,
-                range_end_offset,
-            );
-            // SAFETY: The consumer copies the plain-data rect synchronously.
-            unsafe { push_rect(context, rect.into()) };
-            true
-        });
+        crate::painting::text_fragment::for_each_fragment_of_nodes(
+            &paintable_rows,
+            node_slots,
+            |owner, _, fragment| {
+                let fragment_dom_start = fragment.dom_start_offset_in_node;
+                let fragment_dom_end = fragment.dom_end_offset_in_node;
+                if fragment_dom_end <= filter_dom_start || fragment_dom_start >= filter_dom_end {
+                    return true;
+                }
+                let rect = crate::painting::text_fragment::range_rect(
+                    &paintable_rows,
+                    fragment,
+                    selection_state,
+                    range_start_offset,
+                    range_end_offset,
+                );
+                // SAFETY: The consumer copies the plain-data rect synchronously.
+                unsafe { push_rect(context, arena.shell_if_live(owner), rect.into()) };
+                true
+            },
+        );
     });
 }
 

@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+    body { margin: 0; }
+    .spacer { height: 120vh; }
+    #scroller { height: 100px; overflow: auto; }
+    #inner-spacer { height: 400px; }
+</style>
+<script>
+    const mode = new URL(location.href).searchParams.get("mode");
+    if (mode === "hidden-shadow") {
+        document.write(`
+            <div id="scroller">
+                <div id="inner-spacer"></div>
+                <details id="details">
+                    <summary>Summary</summary>
+                    <div hidden="until-found" id="hidden"><span id="host"></span></div>
+                </details>
+            </div>
+        `);
+        const shadow = document.querySelector("#host").attachShadow({ mode: "open" });
+        shadow.innerHTML = "<span>hidden inline</span> <span>passage</span>";
+    } else if (mode === "bare-shadow") {
+        document.write(`
+            <div class="spacer"></div>
+            <div id="host"></div>
+        `);
+        const shadow = document.querySelector("#host").attachShadow({ mode: "open" });
+        shadow.append("bare shadow passage");
+    } else {
+        document.write(`
+            <div hidden="until-found" id="hidden" style="visibility: hidden">invisible passage</div>
+            <div class="spacer"></div>
+            <div id="fallback">element fallback</div>
+        `);
+    }
+
+    window.addEventListener("load", () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (mode === "hidden-shadow") {
+                    internals.signalTestIsDone(
+                        `Hidden ancestor revealed: ${!document.querySelector("#hidden").hasAttribute("hidden")}\n`
+                        + `Details ancestor opened: ${document.querySelector("#details").open}\n`
+                        + `Outer shadow ancestor scrolled: ${document.querySelector("#scroller").scrollTop > 0}\n`);
+                } else if (mode === "bare-shadow") {
+                    internals.signalTestIsDone(`Bare shadow text scrolled: ${scrollY > 0}\n`);
+                } else {
+                    const fallbackRect = document.querySelector("#fallback").getBoundingClientRect();
+                    internals.signalTestIsDone(
+                        `Visibility-hidden content remained hidden: ${document.querySelector("#hidden").getAttribute("hidden") === "until-found"}\n`
+                        + `Element fragment fallback used: ${fallbackRect.top >= 0 && fallbackRect.top < innerHeight}\n`);
+                }
+            });
+        });
+    });
+</script>

@@ -115,7 +115,7 @@ public:
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
-    void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
+    void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&, bool suppress_scrolling);
     void schedule_persisted_state_restoration_retry(SessionHistoryEntry const&);
     void restore_pending_persisted_state_for_completed_document(GC::Ref<DOM::Document>);
     void restore_scroll_position_data(SessionHistoryEntry const&);
@@ -377,7 +377,7 @@ private:
     void begin_navigation(NavigateParams);
     void queue_pending_navigation(NavigateParams, PendingNavigationBehavior);
     void process_pending_navigations();
-    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id);
+    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, URL::Origin const& initiator_origin);
     void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
     void reset_cursor_blink_cycle();
@@ -579,6 +579,7 @@ public:
     bool download_handled = false;
 
     Optional<URL::URL> redirected_url;
+    bool redirect_replaced_fragment { false };
     Optional<StorageSerializationRecord> classic_history_api_state;
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;

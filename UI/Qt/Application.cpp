@@ -1084,7 +1084,7 @@ NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark
     Optional<String> current_favicon_hash;
 
     if (auto view = active_web_view(); view.has_value()) {
-        current_url = view->url();
+        current_url = view->displayed_url();
         current_title = view->title().to_utf8();
         current_favicon_hash = view->favicon_hash();
     }

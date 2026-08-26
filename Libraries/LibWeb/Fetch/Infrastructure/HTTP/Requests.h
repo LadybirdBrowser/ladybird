@@ -261,6 +261,12 @@ public:
     [[nodiscard]] bool user_activation() const { return m_user_activation; }
     void set_user_activation(bool user_activation) { m_user_activation = user_activation; }
 
+    [[nodiscard]] bool text_directive_user_activation() const { return m_text_directive_user_activation; }
+    void set_text_directive_user_activation(bool text_directive_user_activation) { m_text_directive_user_activation = text_directive_user_activation; }
+
+    [[nodiscard]] bool browsing_context_group_has_multiple_contexts() const { return m_browsing_context_group_has_multiple_contexts; }
+    void set_browsing_context_group_has_multiple_contexts(bool value) { m_browsing_context_group_has_multiple_contexts = value; }
+
     [[nodiscard]] bool render_blocking() const { return m_render_blocking; }
     void set_render_blocking(bool render_blocking) { m_render_blocking = render_blocking; }
 
@@ -486,6 +492,14 @@ private:
     // https://fetch.spec.whatwg.org/#request-user-activation
     // A request has an associated boolean user-activation. Unless stated otherwise, it is false.
     bool m_user_activation { false };
+
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+    // A request has an associated boolean text directive user activation, initially false.
+    bool m_text_directive_user_activation { false };
+
+    // AD-HOC: A process-swapped navigation cannot derive the complete browsing context group from
+    //         the receiving process's local context set. Preserve whether a remote context also exists.
+    bool m_browsing_context_group_has_multiple_contexts { false };
 
     // https://fetch.spec.whatwg.org/#request-render-blocking
     // A request has an associated boolean render-blocking. Unless stated otherwise, it is false.

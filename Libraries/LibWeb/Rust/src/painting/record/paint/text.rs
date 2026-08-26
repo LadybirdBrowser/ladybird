@@ -44,6 +44,11 @@ pub(crate) struct SelectionStyleAnswer {
     pub shadows: Vec<ShadowLayer>,
 }
 
+pub(crate) struct TextFragmentIndicationRange {
+    pub start: usize,
+    pub end: usize,
+}
+
 fn selection_offsets_for_fragment(
     recorder: &mut PaintRecorder<'_>,
     fragment: &FragmentRecord,
@@ -118,7 +123,95 @@ fn compute_render_spans(
                 .collect()
         };
 
-        let Some(selection_offsets) = selection_offsets_for_fragment(recorder, fragment) else {
+        let (indication_facts, indication_ranges) = recorder.paint_host.text_fragment_indication_facts(
+            arena.shell_if_live(fragment.layout_node),
+            fragment.dom_start_offset_in_node,
+            fragment.dom_end_offset_with_trailing_whitespace,
+        );
+        let indication_offsets: Vec<SelectionOffsets> = indication_ranges
+            .into_iter()
+            .filter_map(|range| text_fragment::selection_offsets_for_dom_range(arena, fragment, range.start, range.end))
+            .filter(|offsets| offsets.start != offsets.end)
+            .collect();
+
+        let selection_offsets = selection_offsets_for_fragment(recorder, fragment);
+        if !indication_offsets.is_empty() {
+            let selection_answer = selection_offsets.map(|_| recorder.selection_style(fragment.layout_node));
+            let mut boundaries = Vec::with_capacity(2 + indication_offsets.len() * 2 + 2);
+            boundaries.push(0);
+            boundaries.push(fragment.length_in_code_units);
+            if let Some(selection) = selection_offsets {
+                boundaries.push(selection.start);
+                boundaries.push(selection.end);
+            }
+            for indication in &indication_offsets {
+                boundaries.push(indication.start);
+                boundaries.push(indication.end);
+            }
+            boundaries.sort_unstable();
+            boundaries.dedup();
+
+            for boundary_pair in boundaries.windows(2) {
+                let start = boundary_pair[0];
+                let end = boundary_pair[1];
+                if start == end {
+                    continue;
+                }
+
+                let is_selected =
+                    selection_offsets.is_some_and(|selection| start >= selection.start && end <= selection.end);
+                let is_indicated = indication_offsets
+                    .iter()
+                    .any(|indication| start >= indication.start && end <= indication.end);
+
+                let (span_text_color, background_color, shadow_layers, selection_text_decoration) = if is_selected {
+                    let answer = selection_answer.as_ref().unwrap();
+                    let facts = &answer.facts;
+                    (
+                        if facts.text_color.has_value {
+                            facts.text_color.value.0
+                        } else {
+                            text_color
+                        },
+                        facts.background_color.0,
+                        if facts.has_text_shadow {
+                            answer.shadows.clone()
+                        } else {
+                            base_shadows()
+                        },
+                        facts.has_text_decoration.then_some(SpanTextDecoration {
+                            lines: facts.text_decoration_lines,
+                            line_count: facts.text_decoration_line_count,
+                            style: facts.text_decoration_style,
+                            color: facts.text_decoration_color.0,
+                        }),
+                    )
+                } else if is_indicated {
+                    (
+                        indication_facts.mark_text_color.0,
+                        indication_facts.mark_color.0,
+                        Vec::new(),
+                        None,
+                    )
+                } else {
+                    (text_color, 0, base_shadows(), None)
+                };
+
+                spans.push(RenderSpan {
+                    fragment_index,
+                    start_code_unit: start,
+                    end_code_unit: end,
+                    text_color: span_text_color,
+                    background_color,
+                    shadow_layers,
+                    selection_offsets: (is_selected || is_indicated).then_some(SelectionOffsets { start, end }),
+                    selection_text_decoration,
+                });
+            }
+            continue;
+        }
+
+        let Some(selection_offsets) = selection_offsets else {
             spans.push(RenderSpan {
                 fragment_index,
                 start_code_unit: 0,

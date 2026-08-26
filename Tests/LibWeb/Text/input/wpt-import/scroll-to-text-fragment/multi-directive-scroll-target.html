@@ -1,0 +1,36 @@
+<!doctype html>
+<title>Multi-directive scroll target</title>
+<script src="stash.js"></script>
+<script>
+function checkScroll() {
+  const first = document.getElementById("first");
+  const second = document.getElementById("second");
+  const firstRect = first.getBoundingClientRect();
+  const secondRect = second.getBoundingClientRect();
+
+  let results = {
+    scrollY: window.scrollY,
+    firstInView: firstRect.top >= 0 && firstRect.top < window.innerHeight,
+    secondInView: secondRect.top >= 0 && secondRect.top < window.innerHeight,
+  };
+
+  let key = (new URL(document.location)).searchParams.get("key");
+  stashResultsThenClose(key, results);
+}
+
+window.onload = function() {
+  requestAnimationFrame(function() {
+    requestAnimationFrame(checkScroll);
+  });
+}
+</script>
+<style>
+  .spacer { height: 200vh; }
+</style>
+<body>
+  <div class="spacer"></div>
+  <p id="first">The quick brown fox jumped over the lazy dog.</p>
+  <div class="spacer"></div>
+  <p id="second">She sold sea shells by the seashore.</p>
+  <div class="spacer"></div>
+</body>

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	Text directive allowed in text/html
+Pass	Text directive blocked in text/css
+Pass	Text directive blocked in text/javascript
+Fail	Text directive allowed in text/plain
+Pass	Text directive blocked in application/xml

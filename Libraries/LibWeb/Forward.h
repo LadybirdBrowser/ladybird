@@ -576,6 +576,7 @@ class ElementByIdMap;
 class Event;
 class EventHandler;
 class EventTarget;
+class FragmentDirective;
 class HTMLCollection;
 class IDLEventListener;
 class LiveNodeList;

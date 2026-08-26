@@ -485,6 +485,7 @@ static ErrorOr<void> validate_entry_within_column_caps(Web::HTML::SessionHistory
     TRY(validate_text_column_within_cap(entry.url.serialize(), totals));
     TRY(validate_text_column_within_cap(entry.navigation_api_key, totals));
     TRY(validate_text_column_within_cap(entry.navigation_api_id, totals));
+    TRY(validate_text_column_within_cap(entry.directive_state_value, totals));
     TRY(validate_text_column_within_cap(document_state.navigable_target_name, totals));
     if (document_state.about_base_url.has_value())
         TRY(validate_text_column_within_cap(document_state.about_base_url->serialize(), totals));
@@ -529,6 +530,7 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 history_id, entry_ordinal, step, url, document_state_namespace_id, document_state_local_id,
                 classic_state, navigation_state,
                 navigation_api_key, navigation_api_id, scroll_restoration_mode,
+                directive_state_namespace_id, directive_state_local_id, directive_state_value,
                 scroll_x_raw, scroll_y_raw,
                 origin_kind, origin_nonce, origin_scheme, origin_host, origin_port, origin_domain,
                 initiator_origin_kind, initiator_origin_nonce, initiator_origin_scheme,
@@ -539,6 +541,7 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 :history_id, :entry_ordinal, :step, :url, :document_state_namespace_id, :document_state_local_id,
                 :classic_state, :navigation_state,
                 :navigation_api_key, :navigation_api_id, :scroll_restoration_mode,
+                :directive_state_namespace_id, :directive_state_local_id, :directive_state_value,
                 :scroll_x_raw, :scroll_y_raw,
                 :origin_kind, :origin_nonce, :origin_scheme, :origin_host, :origin_port, :origin_domain,
                 :initiator_origin_kind, :initiator_origin_nonce, :initiator_origin_scheme,
@@ -552,11 +555,11 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
             INSERT INTO SessionPolicyContainers (
                 history_id, entry_ordinal, referrer_policy, embedder_policy_value,
                 embedder_policy_report_only_value, embedder_policy_reporting_endpoint,
-                embedder_policy_report_only_reporting_endpoint)
+                embedder_policy_report_only_reporting_endpoint, force_load_at_top)
             VALUES (
                 :history_id, :entry_ordinal, :referrer_policy, :embedder_policy_value,
                 :embedder_policy_report_only_value, :embedder_policy_reporting_endpoint,
-                :embedder_policy_report_only_reporting_endpoint)
+                :embedder_policy_report_only_reporting_endpoint, :force_load_at_top)
             RETURNING id;
         )#"sv)),
         .insert_csp_policy = TRY(database.prepare_statement(R"#(
@@ -588,6 +591,7 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
             SELECT history_id, entry_ordinal, step, url, document_state_namespace_id, document_state_local_id,
                 classic_state, navigation_state,
                 navigation_api_key, navigation_api_id, scroll_restoration_mode,
+                directive_state_namespace_id, directive_state_local_id, directive_state_value,
                 scroll_x_raw, scroll_y_raw,
                 origin_kind, origin_nonce, origin_scheme, origin_host, origin_port, origin_domain,
                 initiator_origin_kind, initiator_origin_nonce, initiator_origin_scheme,
@@ -603,7 +607,8 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
         .select_policy_containers = TRY(database.prepare_statement(R"#(
             SELECT SessionPolicyContainers.id AS id, history_id, entry_ordinal, referrer_policy,
                 embedder_policy_value, embedder_policy_report_only_value,
-                embedder_policy_reporting_endpoint, embedder_policy_report_only_reporting_endpoint
+                embedder_policy_reporting_endpoint, embedder_policy_report_only_reporting_endpoint,
+                force_load_at_top
             FROM SessionPolicyContainers
             INNER JOIN SessionHistories ON SessionPolicyContainers.history_id = SessionHistories.id
             WHERE SessionHistories.tab_id = :tab_id;
@@ -669,6 +674,7 @@ static ErrorOr<void> store_policy_container(Database::Database& database, Sessio
         TRY(bind("embedder_policy_report_only_value"sv, encode_embedder_policy_value(container.embedder_policy.report_only_value)));
         TRY(bind("embedder_policy_reporting_endpoint"sv, container.embedder_policy.reporting_endpoint));
         TRY(bind("embedder_policy_report_only_reporting_endpoint"sv, container.embedder_policy.report_only_reporting_endpoint));
+        TRY(bind("force_load_at_top"sv, container.force_load_at_top));
         return {};
     }));
 
@@ -786,6 +792,9 @@ static ErrorOr<void> store_history_entries(Database::Database& database, Session
             TRY(bind("navigation_api_key"sv, entry.navigation_api_key));
             TRY(bind("navigation_api_id"sv, entry.navigation_api_id));
             TRY(bind("scroll_restoration_mode"sv, encode_scroll_restoration_mode(entry.scroll_restoration_mode)));
+            TRY(bind("directive_state_namespace_id"sv, encode_cross_process_id_component(entry.directive_state_id.namespace_id)));
+            TRY(bind("directive_state_local_id"sv, encode_cross_process_id_component(entry.directive_state_id.local_id)));
+            TRY(bind("directive_state_value"sv, entry.directive_state_value));
             TRY(bind("scroll_x_raw"sv, scroll.map([](auto const& point) { return point.x().raw_value(); })));
             TRY(bind("scroll_y_raw"sv, scroll.map([](auto const& point) { return point.y().raw_value(); })));
             TRY(bind("origin_kind"sv, origin.kind));
@@ -880,6 +889,9 @@ struct EntryRow {
     Utf16String navigation_api_key;
     Utf16String navigation_api_id;
     i64 scroll_restoration_mode { 0 };
+    i64 directive_state_namespace_id { 0 };
+    i64 directive_state_local_id { 0 };
+    Optional<String> directive_state_value;
     Optional<i32> scroll_x_raw;
     Optional<i32> scroll_y_raw;
     PersistedOrigin origin;
@@ -902,6 +914,7 @@ struct PolicyContainerRow {
     i64 embedder_policy_report_only_value { 0 };
     Utf16String embedder_policy_reporting_endpoint;
     Utf16String embedder_policy_report_only_reporting_endpoint;
+    bool force_load_at_top { false };
 };
 
 struct CspPolicyRow {
@@ -1026,6 +1039,7 @@ static ErrorOr<Web::HTML::SerializedPolicyContainer> build_policy_container(Poli
             .report_only_reporting_endpoint = row.embedder_policy_report_only_reporting_endpoint,
         },
         .referrer_policy = TRY(decode_referrer_policy(row.referrer_policy)),
+        .force_load_at_top = row.force_load_at_top,
     };
 }
 
@@ -1045,6 +1059,7 @@ static ErrorOr<HashMap<i64, HashMap<i64, Web::HTML::SerializedPolicyContainer>>>
             row.embedder_policy_report_only_value = TRY(result_row.read_integer<i64>("embedder_policy_report_only_value"sv));
             row.embedder_policy_reporting_endpoint = TRY(read_snapshot_utf16_text(result_row, "embedder_policy_reporting_endpoint"sv, totals));
             row.embedder_policy_report_only_reporting_endpoint = TRY(read_snapshot_utf16_text(result_row, "embedder_policy_report_only_reporting_endpoint"sv, totals));
+            row.force_load_at_top = TRY(result_row.read_bool("force_load_at_top"sv));
             return row;
         }));
 
@@ -1181,6 +1196,8 @@ static ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> build_entry(EntryRow&& 
     entry.navigation_api_key = row.navigation_api_key;
     entry.navigation_api_id = row.navigation_api_id;
     entry.scroll_restoration_mode = scroll_restoration_mode;
+    entry.directive_state_id = Web::HTML::CrossProcessId { .namespace_id = decode_cross_process_id_component(row.directive_state_namespace_id), .local_id = decode_cross_process_id_component(row.directive_state_local_id) };
+    entry.directive_state_value = move(row.directive_state_value);
     if (row.scroll_x_raw.has_value())
         entry.scroll_position_data.viewport_scroll_position = Web::CSSPixelPoint { Web::CSSPixels::from_raw(*row.scroll_x_raw), Web::CSSPixels::from_raw(*row.scroll_y_raw) };
     return entry;
@@ -1282,6 +1299,9 @@ ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database
             row.navigation_api_key = TRY(read_snapshot_utf16_text(result_row, "navigation_api_key"sv, totals));
             row.navigation_api_id = TRY(read_snapshot_utf16_text(result_row, "navigation_api_id"sv, totals));
             row.scroll_restoration_mode = TRY(result_row.read_integer<i64>("scroll_restoration_mode"sv));
+            row.directive_state_namespace_id = TRY(result_row.read_integer<i64>("directive_state_namespace_id"sv));
+            row.directive_state_local_id = TRY(result_row.read_integer<i64>("directive_state_local_id"sv));
+            row.directive_state_value = TRY(read_optional_snapshot_text(result_row, "directive_state_value"sv, totals));
             row.scroll_x_raw = TRY(result_row.read_optional_integer<i32>("scroll_x_raw"sv));
             row.scroll_y_raw = TRY(result_row.read_optional_integer<i32>("scroll_y_raw"sv));
             row.origin = {

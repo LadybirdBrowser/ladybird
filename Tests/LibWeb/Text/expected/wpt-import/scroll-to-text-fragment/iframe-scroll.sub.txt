@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	CROSS-ORIGIN: Text directive in iframe doesn't bubble to outer frame.
+Fail	SAME-ORIGIN: Text directive in iframe bubbles to outer frame.

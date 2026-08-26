@@ -84,6 +84,8 @@ static Web::HTML::SessionHistoryEntryDescriptor create_test_entry(i32 step, URL:
         .navigation_api_id = {},
         .scroll_restoration_mode = Web::HTML::ScrollRestorationMode::Auto,
         .scroll_position_data = {},
+        .directive_state_id = test_document_state_id(2000 + static_cast<u64>(step)),
+        .directive_state_value = {},
     };
 }
 
@@ -103,6 +105,8 @@ static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(Web::HTML::
         .navigation_api_id = move(entry.navigation_api_id),
         .scroll_restoration_mode = entry.scroll_restoration_mode,
         .scroll_position_data = move(entry.scroll_position_data),
+        .directive_state_id = entry.directive_state_id,
+        .directive_state_value = move(entry.directive_state_value),
     };
 }
 
@@ -176,6 +180,8 @@ static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(StringView 
         .navigation_api_id = move(descriptor.navigation_api_id),
         .scroll_restoration_mode = descriptor.scroll_restoration_mode,
         .scroll_position_data = move(descriptor.scroll_position_data),
+        .directive_state_id = descriptor.directive_state_id,
+        .directive_state_value = move(descriptor.directive_state_value),
     };
 }
 
@@ -190,7 +196,68 @@ static Web::HTML::SameDocumentNavigationEntry same_document_entry(Web::HTML::Ses
         .navigation_api_id = move(entry.navigation_api_id),
         .scroll_restoration_mode = entry.scroll_restoration_mode,
         .scroll_position_data = move(entry.scroll_position_data),
+        .directive_state_id = entry.directive_state_id,
+        .directive_state_value = move(entry.directive_state_value),
     };
+}
+
+TEST_CASE(display_url_includes_fragment_directive_state)
+{
+    auto entry = create_test_entry(0, parse_url("https://example.test/#feature-detectability"sv));
+    entry.directive_state_value = "text=For-,feature%20detectability"_string;
+
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry),
+        parse_url("https://example.test/#feature-detectability:~:text=For-,feature%20detectability"sv));
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry, false),
+        parse_url("https://example.test/#feature-detectability"sv));
+
+    entry.directive_state_value.clear();
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry),
+        parse_url("https://example.test/#feature-detectability"sv));
+}
+
+TEST_CASE(replace_navigation_updates_every_shared_directive_state_descriptor)
+{
+    WebView::TraversableSessionHistory history;
+    auto shared_directive_state_id = test_document_state_id(3000);
+
+    auto first_entry = entry(0, "https://example.test/first"sv);
+    first_entry.navigation_api_key = "first-key"_utf16;
+    first_entry.directive_state_id = shared_directive_state_id;
+    first_entry.directive_state_value = "text=old"_string;
+
+    auto second_entry = entry(1, "https://example.test/second"sv);
+    second_entry.navigation_api_key = "second-key"_utf16;
+    second_entry.directive_state_id = shared_directive_state_id;
+    second_entry.directive_state_value = "text=old"_string;
+
+    EXPECT(history.initialize_for_testing({ first_entry, second_entry }, { 0, 1 }, 1));
+
+    auto replacement_entry = Web::HTML::SameDocumentNavigationEntry {
+        .url = second_entry.url,
+        .document_state_id = second_entry.document_state.id,
+        .classic_history_api_state = second_entry.classic_history_api_state,
+        .navigation_api_state = second_entry.navigation_api_state,
+        .navigation_api_key = second_entry.navigation_api_key,
+        .navigation_api_id = second_entry.navigation_api_id,
+        .scroll_restoration_mode = second_entry.scroll_restoration_mode,
+        .scroll_position_data = second_entry.scroll_position_data,
+        .directive_state_id = second_entry.directive_state_id,
+        .directive_state_value = "text=new"_string,
+    };
+    WebView::CanonicalTraversable target_navigable;
+    auto entry_to_replace = Web::HTML::SessionHistoryEntryIdentity {
+        .document_state_id = second_entry.document_state.id,
+        .navigation_api_id = second_entry.navigation_api_id,
+    };
+    auto finalization = history.finalize_same_document_navigation(target_navigable, move(replacement_entry), entry_to_replace);
+    EXPECT(finalization.has_value());
+
+    EXPECT_EQ(history.entry_at(0)->directive_state_value, "text=new"sv);
+    EXPECT_EQ(history.entry_at(1)->directive_state_value, "text=new"sv);
 }
 
 static void expect_entry(WebView::TraversableSessionHistory const& history, size_t index, i32 expected_step, StringView expected_url)

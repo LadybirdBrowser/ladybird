@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>
+  Ensuring a text directive is scrolled to the center of the view port instead of the top.
+</title>
+<script src="stash.js"></script>
+<script>
+function checkScroll() {
+  const results = {hasScrolled: window.scrollY != 0};
+  let key = (new URL(document.location)).searchParams.get("key");
+  stashResultsThenClose(key, results);
+};
+window.onload = () => {
+  window.requestAnimationFrame(function() {
+    window.requestAnimationFrame(checkScroll);
+  })
+}
+</script>
+<body>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // trigger a layout flush
+  _ = document.body.getBoundingClientRect();
+});
+</script>
+<div style="margin-top: 20vh; margin-bottom: 100vh">Scroll to me</div>
+</body>

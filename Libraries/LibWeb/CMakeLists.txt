@@ -340,6 +340,7 @@ set(SOURCES
     DOM/Event.cpp
     DOM/EventDispatcher.cpp
     DOM/EventTarget.cpp
+    DOM/FragmentDirective.cpp
     DOM/HTMLCollection.cpp
     DOM/IDLEventListener.cpp
     DOM/LiveNodeList.cpp
@@ -722,6 +723,7 @@ set(SOURCES
     HTML/SupportedImageTypes.cpp
     HTML/SyntaxHighlighter/SyntaxHighlighter.cpp
     HTML/TagNames.cpp
+    HTML/TextDirective.cpp
     HTML/TextMetrics.cpp
     HTML/TextTrack.cpp
     HTML/TextTrackCue.cpp
@@ -790,6 +792,7 @@ set(SOURCES
     Layout/LayoutRustBridge.cpp
     Layout/Node.cpp
     Layout/NodeArena.cpp
+    Layout/SearchableText.cpp
     Layout/TextNode.cpp
     Layout/TextOffsetMapping.cpp
     Layout/TreeBuilder.cpp

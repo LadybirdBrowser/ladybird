@@ -1,0 +1,66 @@
+<!doctype html>
+<title>Navigating to a same-document text fragment directive</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script>
+function isInView(element) {
+  let rect = element.getBoundingClientRect();
+  return rect.top >= 0 && rect.top <= window.innerHeight;
+}
+
+function checkScroll(resolve) {
+  let position = 'unknown';
+  requestAnimationFrame(() => {
+    if (window.scrollY == 0)
+      position = 'top';
+    else if (isInView(document.getElementById('text')))
+      position = 'text';
+    resolve(position);
+  });
+}
+
+function reset() {
+  window.location.hash = "";
+  window.scrollTo(0, 0);
+}
+
+function runTest() {
+  promise_test(t => new Promise(resolve => {
+    reset();
+    window.location.href = "#:~:text=test";
+    requestAnimationFrame(function() {
+      checkScroll(resolve);
+    });
+  }).then(position => {
+    assert_equals(position, 'text');
+    assert_equals(window.location.href.indexOf(':~:'), -1, 'Expected fragment directive to be stripped from the URL.');
+  }), 'Activated for same-document window.location setter');
+
+  promise_test(t => new Promise(resolve => {
+    reset();
+    window.location.replace("#:~:text=test");
+    requestAnimationFrame(function() {
+      checkScroll(resolve);
+    });
+  }).then(position => {
+    assert_equals(position, 'text');
+    assert_equals(window.location.href.indexOf(':~:'), -1, 'Expected fragment directive to be stripped from the URL.');
+  }), 'Activated for same-document window.location.replace');
+}
+</script>
+<style>
+  body {
+    height: 3200px;
+  }
+  #text {
+    position: absolute;
+    top: 3000px;
+  }
+</style>
+<body onload="runTest()">
+  <p id="text">This is a test page</p>
+</body>

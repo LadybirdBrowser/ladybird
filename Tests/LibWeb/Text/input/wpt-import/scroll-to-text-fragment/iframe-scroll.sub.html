@@ -1,0 +1,65 @@
+<!doctype html>
+<title>Text directive in cross-origin iframe doesn't cause scrolling in main document</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+<style>
+  iframe {
+    width: 300px;
+    height: 300px;
+    /* Make sure iframe is mostly offscreen but intersects viewport slightly so
+     * it isn't throttled in any way */
+    margin-top: 95vh;
+  }
+</style>
+
+<iframe></iframe>
+
+<script>
+  let iframe_did_scroll = false;
+
+  window.addEventListener('message', (e) => {
+    if (e.data != 'did_scroll')
+      throw new Error("Got unexpected message: " + e.data);
+    if (iframe_did_scroll)
+      throw new Error("Got multiple messages from single iframe");
+
+    iframe_did_scroll = true;
+  });
+
+  async function wait_for_iframe_scroll(t) {
+    await t.step_wait(() => iframe_did_scroll == true, "iframe scrolled to text directive", 10000);
+    iframe_did_scroll = false;
+  }
+
+  async function rAF() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(resolve);
+    });
+  }
+
+  onload = () => {
+    promise_test(async function (t) {
+      window.scrollTo(0, 0);
+
+      frames[0].location = "http://www.wpt.live:80/scroll-to-text-fragment/resources/self-text-directive-iframe.html";
+      await wait_for_iframe_scroll(t);
+      await rAF();
+      assert_equals(document.scrollingElement.scrollTop, 0);
+    }, "CROSS-ORIGIN: Text directive in iframe doesn't bubble to outer frame.");
+
+    promise_test(async function (t) {
+      window.scrollTo(0, 0);
+
+      frames[0].location = "resources/self-text-directive-iframe.html";
+      await wait_for_iframe_scroll(t);
+      await rAF();
+      assert_greater_than(document.scrollingElement.scrollTop, 0);
+    }, "SAME-ORIGIN: Text directive in iframe bubbles to outer frame.");
+  }
+</script>

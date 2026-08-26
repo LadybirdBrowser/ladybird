@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
 #include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/SearchableText.h>
 
 namespace Web::Layout {
 
@@ -16,26 +16,15 @@ public:
     explicit Viewport(DOM::Document&, CSS::LayoutStyle);
     virtual ~Viewport() override;
 
-    struct TextPosition {
-        GC::Weak<DOM::Text> dom_node;
-        size_t start_offset { 0 };
-        size_t dom_offset_within_node { 0 };
-    };
-    struct TextBlock {
-        Utf16String text;
-        Vector<TextPosition> positions;
-    };
-    Vector<TextBlock> const& text_blocks();
-    void invalidate_text_blocks_cache() { m_text_blocks.clear(); }
+    SearchableText const& searchable_text() { return m_searchable_text_cache.get(); }
+    void invalidate_searchable_text_cache() { m_searchable_text_cache.invalidate(); }
 
     DOM::Document const& dom_node() const;
 
 private:
-    void update_text_blocks();
-
     virtual bool is_viewport() const override { return true; }
 
-    Optional<Vector<TextBlock>> m_text_blocks;
+    SearchableTextCache m_searchable_text_cache;
 };
 
 template<>

@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -244,6 +245,9 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
     }
 
     m_tokenizer.parser_did_run({});
+
+    if (m_document->parser().ptr() == this)
+        m_document->schedule_text_fragment_search_after_parser_progress({});
 }
 
 void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
@@ -772,9 +776,16 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
     // But a script that ran in step 5 above may have scrolled the page already,
     // so only do this if there is an actual fragment to avoid resetting the scroll position unexpectedly.
     // Spec bug: https://github.com/whatwg/html/issues/10914
-    auto indicated_part = m_document->determine_the_indicated_part();
-    if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() != nullptr) {
-        m_document->scroll_to_the_fragment();
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-scroll-on-load
+    // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+    if (!m_document->policy_container()->force_load_at_top) {
+        if (m_document->pending_text_directives().has_value() && !m_document->pending_text_directives()->is_empty()) {
+            m_document->scroll_to_the_fragment(m_document->pending_text_directive_scroll_allowed());
+        } else {
+            auto indicated_part = m_document->determine_the_indicated_part();
+            if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() != nullptr)
+                m_document->scroll_to_the_fragment();
+        }
     }
 
     m_phase = Phase::WaitingForDOMContentLoaded;
@@ -792,6 +803,18 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
             HighResolutionTime::current_high_resolution_time(relevant_global_object(*document)));
         content_loaded_event->set_bubbles(true);
         document->dispatch_event(content_loaded_event);
+
+        // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+        // If the document has no parser, or its parser has stopped parsing, then:
+        if (document->pending_text_directives().has_value() && !document->pending_text_directives()->is_empty()) {
+            auto const scrolling_blocked_in_new_document = document->policy_container()->force_load_at_top;
+            if (!scrolling_blocked_in_new_document)
+                document->scroll_to_the_fragment(document->pending_text_directive_scroll_allowed());
+
+            // AD-HOC: Retain unmatched directives through the rest of the loading lifecycle. A
+            //         load handler or load-delaying resource can make additional searchable content
+            //         available, and the load-completion pass below performs the final search.
+        }
 
         // 3. Set the Document's load timing info's DOM content loaded event end time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_end_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
@@ -824,9 +847,27 @@ void HTMLParserEndState::complete()
         // parser mark the replacement document ready for post-load tasks.
         if (parser_was_replaced(document, parser, parser_generation))
             return;
+        // NB: Step 8 can stop spinning and queue this task before an already-queued task reopens a descendant document.
+        //     Recheck its condition here and resume waiting using the same parser end state.
+        // INTEROP: Blink and WebKit recheck descendant completeness at their final load-completion gate. Gecko's
+        //          document loader likewise remains busy while a child loader is waiting to complete.
+        if (document->is_fully_active() && document->anything_is_delaying_the_load_event()) {
+            state->m_phase = Phase::WaitingForLoadEventDelay;
+            state->schedule_progress_check();
+            return;
+        }
 
         state->m_timeout->stop();
         document->set_html_parser_end_state(nullptr);
+
+        // 11. The Document is now ready for post-load tasks.
+        // NB: The spec sets this synchronously after queueing this task, and relies on "spin the event loop"
+        //     continuations being queued tasks to keep an ancestor document's load event behind this document's own
+        //     load event and its container's load event. Our parser end state machine checks its progress from
+        //     deferred invocations, which run ahead of queued tasks, so flip readiness inside this task instead;
+        //     an ancestor then cannot complete until this task (and everything it queues) is already in the queue.
+        //     WebKit and Blink time their equivalent flag the same way.
+        document->set_ready_for_post_load_tasks(true);
 
         // 1. Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
@@ -867,6 +908,32 @@ void HTMLParserEndState::complete()
         if (document->parser_generation() != parser_generation)
             return;
 
+        // AD-HOC: Perform the final lifecycle-driven text-fragment search after all
+        //         load-event-delaying resources have settled and the load event has run. This also
+        //         observes content added by a load handler and corrects layout shifts in the absence of
+        //         CSS scroll anchoring.
+        // https://drafts.csswg.org/css-scroll-anchoring/
+        if (document->pending_text_directives().has_value() && !document->pending_text_directives()->is_empty()) {
+            auto const scrolling_blocked_in_new_document = document->policy_container()->force_load_at_top;
+            if (!scrolling_blocked_in_new_document)
+                document->scroll_to_the_fragment(document->pending_text_directive_scroll_allowed());
+
+            auto const text_fragment_was_found = !document->text_fragment_ranges().is_empty();
+
+            // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+            // 1. If pending text directives is not null, then:
+            // 1. Set pending text directives to null.
+            document->clear_pending_text_directives();
+
+            if (!scrolling_blocked_in_new_document
+                && (!text_fragment_was_found || !document->pending_text_directive_scroll_allowed())) {
+                // https://wicg.github.io/scroll-to-text-fragment/#scroll-on-navigation
+                // If a UA chooses not to scroll automatically, it must scroll a fallback element-id
+                // into view, if provided, regardless of whether a text fragment was matched.
+                document->scroll_to_the_fragment();
+            }
+        }
+
         // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "complete", and url is the Document object's URL.
 
         // FIXME: 7. Set the Document object's navigation id to null.
@@ -887,9 +954,6 @@ void HTMLParserEndState::complete()
         //          do not let this completion continue into the replacement document contents.
         if (document->parser_generation() != parser_generation)
             return;
-
-        // 11. The Document is now ready for post-load tasks.
-        document->set_ready_for_post_load_tasks(true);
 
         // 12. Completely finish loading the Document.
         document->completely_finish_loading();

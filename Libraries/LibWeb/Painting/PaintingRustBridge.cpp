@@ -22,7 +22,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
@@ -928,6 +930,34 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.text_decoration_style = to_underlying(style.text_decoration->style);
                 facts.text_decoration_color = style.text_decoration->color;
             }
+            return facts;
+        },
+        .text_fragment_indication_facts = [](void*, void* layout_node_shell, size_t dom_start, size_t dom_end, void* range_sink) -> Layout::RustFFI::FfiTextFragmentIndicationFacts {
+            Layout::RustFFI::FfiTextFragmentIndicationFacts facts {};
+            auto const* text_node = as_if<Layout::TextNode>(static_cast<Layout::Node const*>(layout_node_shell));
+            if (!text_node)
+                return facts;
+            auto const* dom_text = text_node->dom_text();
+            if (!dom_text)
+                return facts;
+
+            auto& mutable_dom_text = const_cast<DOM::Text&>(*dom_text);
+            for (auto const& range : text_node->document().text_fragment_ranges()) {
+                if (!range->intersects_node(mutable_dom_text))
+                    continue;
+
+                auto start = dom_start;
+                auto end = dom_end;
+                if (range->start_container().ptr() == dom_text)
+                    start = max(start, static_cast<size_t>(range->start_offset()));
+                if (range->end_container().ptr() == dom_text)
+                    end = min(end, static_cast<size_t>(range->end_offset()));
+                if (start < end)
+                    Layout::RustFFI::layout_arena_paint_push_text_fragment_indication_range(range_sink, start, end);
+            }
+
+            facts.mark_color = CSS::SystemColor::mark(text_node->document().page().preferred_color_scheme());
+            facts.mark_text_color = CSS::SystemColor::mark_text(text_node->document().page().preferred_color_scheme());
             return facts;
         },
         .register_font = [](void* context_pointer, void const* font) -> u64 {

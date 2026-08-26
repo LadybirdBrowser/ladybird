@@ -43,6 +43,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Fullscreen/FullscreenRequestType.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
@@ -54,6 +55,7 @@
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -635,6 +637,10 @@ public:
     };
     void set_focused_area(GC::Ptr<Node>, InvalidateFocusPseudoClasses = InvalidateFocusPseudoClasses::Yes);
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-starting-point
+    GC::Ptr<Node> sequential_focus_navigation_starting_point() { return m_sequential_focus_navigation_starting_point; }
+    void move_sequential_focus_navigation_starting_point_to(GC::Ptr<Node> node) { m_sequential_focus_navigation_starting_point = node; }
+
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
 
@@ -648,8 +654,9 @@ public:
     bool autofocus_processed_flag() const { return m_autofocus_processed_flag; }
     void flush_autofocus_candidates();
 
-    void try_to_scroll_to_the_fragment();
-    void scroll_to_the_fragment();
+    void try_to_scroll_to_the_fragment(bool allow_text_directive_scroll = false);
+    void schedule_text_fragment_search_after_parser_progress(Badge<HTML::HTMLParser>);
+    void scroll_to_the_fragment(bool allow_text_directive_scroll = false);
     void scroll_to_the_beginning_of_the_document();
 
     bool created_for_appropriate_template_contents() const { return m_created_for_appropriate_template_contents; }
@@ -700,6 +707,9 @@ public:
     bool completely_loaded_deferred() const { return m_completely_loaded_deferred; }
 
     DOMImplementation* implementation();
+
+    // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
+    GC::Ref<FragmentDirective> fragment_directive();
 
     GC::Ptr<HTML::HTMLScriptElement> current_script() const { return m_current_script.ptr(); }
     void set_current_script(Badge<HTML::HTMLScriptElement>, GC::Ptr<HTML::HTMLScriptElement> script) { m_current_script = move(script); }
@@ -978,12 +988,26 @@ public:
     void shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::HTMLMetaElement const> meta_element = nullptr);
 
     struct TopOfTheDocument { };
-    using IndicatedPart = Variant<Element*, TopOfTheDocument>;
-    IndicatedPart determine_the_indicated_part() const;
+    using IndicatedPart = Variant<Element*, GC::Ptr<Range>, TopOfTheDocument>;
+    IndicatedPart determine_the_indicated_part();
+
+    // https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
+    Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
+    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>>);
+    void clear_pending_text_directives();
+    ReadonlySpan<GC::Ref<Range>> text_fragment_ranges() const { return m_text_fragment_ranges; }
+    void dismiss_text_fragment_indication();
+    bool pending_text_directive_scroll_allowed() const { return m_pending_text_directive_scroll_allowed; }
+    bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const& initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement);
+
+    bool text_directive_user_activation() const { return m_text_directive_user_activation; }
+    void set_text_directive_user_activation(bool text_directive_user_activation) { m_text_directive_user_activation = text_directive_user_activation; }
+    bool browsing_context_group_has_multiple_contexts() const;
+    void set_browsing_context_group_has_remote_contexts(bool value) { m_browsing_context_group_has_remote_contexts = value; }
 
     u32 unload_counter() const { return m_unload_counter; }
 
-    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
+    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true, bool allow_text_directive_scroll = false);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
@@ -1442,6 +1466,7 @@ private:
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void update_text_fragment_indication_visibility(bool);
 
     // ^JS::Object
     virtual bool is_dom_document() const final { return true; }
@@ -1598,6 +1623,9 @@ private:
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> m_focused_area;
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-starting-point
+    GC::Ptr<Node> m_sequential_focus_navigation_starting_point;
+
     HTML::FocusTrigger m_last_focus_trigger { HTML::FocusTrigger::Other };
 
     GC::Ptr<Element> m_active_element;
@@ -1628,7 +1656,20 @@ private:
     bool m_ready_for_post_load_tasks { false };
 
     GC::Ptr<DOMImplementation> m_implementation;
+    GC::Ptr<FragmentDirective> m_fragment_directive;
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
+
+    // Each document has an associated pending text directives which is either null or a list of
+    // text directives. It is initially null.
+    Optional<Vector<HTML::TextDirective>> m_pending_text_directives;
+    Vector<GC::Ref<Range>> m_text_fragment_ranges;
+    bool m_pending_text_directive_scroll_allowed { false };
+    bool m_text_fragment_parser_progress_search_pending { false };
+
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+    // Each Document has a text directive user activation, which is a boolean, initially false.
+    bool m_text_directive_user_activation { false };
+    bool m_browsing_context_group_has_remote_contexts { false };
 
     u32 m_ignore_destructive_writes_counter { 0 };
 

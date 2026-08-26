@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 #include <LibWebView/AutocompleteMuxer.h>
+#include <LibWebView/OmniboxEngagement.h>
 
 namespace {
 
@@ -300,6 +301,32 @@ TEST_CASE(http_and_https_destinations_are_not_deduplicated)
         8);
 
     EXPECT_EQ(results.size(), 2u);
+}
+
+TEST_CASE(fragment_literal_is_not_replaced_by_fragmentless_history)
+{
+    auto const fragment_url = "https://example.com/page#target"sv;
+    auto literal = suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, fragment_url, 900, true, true);
+    auto adaptive = suggestion(WebView::AutocompleteSuggestionSource::Adaptive, "https://example.com/page"sv, 1050, true);
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        fragment_url,
+        move(literal),
+        { move(adaptive) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::LiteralURL);
+    EXPECT_EQ(results[0].text, fragment_url);
+    EXPECT(results[0].is_verbatim);
+}
+
+TEST_CASE(fragment_omnibox_destinations_are_preserved)
+{
+    EXPECT_EQ(
+        WebView::normalize_omnibox_destination("https://example.com/page#section"sv, WebView::OmniboxDestinationKind::URL),
+        "https://example.com/page#section"sv);
 }
 
 TEST_CASE(history_and_bookmark_evidence_is_combined)

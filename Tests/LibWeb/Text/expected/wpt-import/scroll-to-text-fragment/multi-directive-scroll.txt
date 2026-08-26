@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Multi-directive URL scrolls to the first matched directive, not the last.
+Pass	Multi-directive URL with reversed DOM order scrolls to the first directive in URL order.

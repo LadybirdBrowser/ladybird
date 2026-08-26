@@ -1227,6 +1227,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
         // 9. Alternative processing: Otherwise, there was nothing watching for a close request. The user agent may
         //    instead interpret this interaction as some other action, instead of interpreting it as a close request.
+        // https://wicg.github.io/scroll-to-text-fragment/#indicating-the-text-match
+        // The UA should provide to the user some method of dismissing the match, such that the
+        // matched text no longer appears visually indicated.
+        if (!document->text_fragment_ranges().is_empty()) {
+            document->dismiss_text_fragment_indication();
+            document->set_needs_repaint(Badge<EventHandler> {});
+            return EventResult::Handled;
+        }
     }
 
     // https://w3c.github.io/clipboard-apis/#clipboard-actions
@@ -2113,7 +2121,9 @@ EventResult EventHandler::focus_next_element()
         return EventResult::Dropped;
     };
 
-    auto node = m_navigable->active_document()->focused_area();
+    auto node = m_navigable->active_document()->sequential_focus_navigation_starting_point();
+    if (!node)
+        node = m_navigable->active_document()->focused_area();
     if (!node)
         return set_focus_to_first_focusable_element();
 
@@ -2148,7 +2158,9 @@ EventResult EventHandler::focus_previous_element()
         return EventResult::Dropped;
     };
 
-    auto node = m_navigable->active_document()->focused_area();
+    auto node = m_navigable->active_document()->sequential_focus_navigation_starting_point();
+    if (!node)
+        node = m_navigable->active_document()->focused_area();
     if (!node)
         return set_focus_to_last_focusable_element();
 

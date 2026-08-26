@@ -262,6 +262,13 @@ pub struct FfiSelectionStyleFacts {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
+pub struct FfiTextFragmentIndicationFacts {
+    pub mark_color: Color,
+    pub mark_text_color: Color,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
 pub struct FfiCursorFacts {
     pub paints: bool,
     pub rect: crate::layout::FfiCssPixelRect,
@@ -347,6 +354,8 @@ pub struct FfiPaintHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
     pub text_control_selection: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTextControlSelection,
     pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
+    pub text_fragment_indication_facts:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, usize, usize, *mut c_void) -> FfiTextFragmentIndicationFacts,
     pub register_font: unsafe extern "C" fn(*mut c_void, *const c_void) -> u64,
     pub cursor_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiCursorFacts,
     pub layer_image_prepare:
@@ -454,6 +463,29 @@ impl FfiPaintHostCallbacks {
         // the sink through the exported function.
         let facts = unsafe { (self.selection_style_facts)(self.context, layout_node_shell, (&raw mut shadows).cast()) };
         (facts, shadows)
+    }
+    pub(crate) fn text_fragment_indication_facts(
+        &self,
+        layout_node_shell: *mut c_void,
+        dom_start: usize,
+        dom_end: usize,
+    ) -> (
+        FfiTextFragmentIndicationFacts,
+        Vec<crate::painting::record::paint::text::TextFragmentIndicationRange>,
+    ) {
+        let mut ranges: Vec<crate::painting::record::paint::text::TextFragmentIndicationRange> = Vec::new();
+        // SAFETY: The C++ host answers synchronously, pushing DOM ranges into
+        // the sink through the exported function.
+        let facts = unsafe {
+            (self.text_fragment_indication_facts)(
+                self.context,
+                layout_node_shell,
+                dom_start,
+                dom_end,
+                (&raw mut ranges).cast(),
+            )
+        };
+        (facts, ranges)
     }
     pub(crate) fn register_font(&self, font: *const c_void) -> u64 {
         // SAFETY: The C++ host registers the live font in the recording's

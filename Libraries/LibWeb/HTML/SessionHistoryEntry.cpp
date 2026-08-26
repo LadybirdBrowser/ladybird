@@ -21,9 +21,9 @@ static Utf16String generate_random_uuid_utf16()
     return Utf16String::from_ascii_without_validation(uuid.bytes());
 }
 
-NonnullRefPtr<SessionHistoryEntry> SessionHistoryEntry::create()
+NonnullRefPtr<SessionHistoryEntry> SessionHistoryEntry::create(NonnullRefPtr<DirectiveState> directive_state)
 {
-    return adopt_ref(*new SessionHistoryEntry());
+    return adopt_ref(*new SessionHistoryEntry(move(directive_state)));
 }
 
 SessionHistoryEntry::~SessionHistoryEntry() = default;
@@ -31,11 +31,12 @@ SessionHistoryEntry::~SessionHistoryEntry() = default;
 RefPtr<DocumentState> SessionHistoryEntry::document_state() const { return m_document_state; }
 void SessionHistoryEntry::set_document_state(RefPtr<DocumentState> document_state) { m_document_state = move(document_state); }
 
-SessionHistoryEntry::SessionHistoryEntry()
+SessionHistoryEntry::SessionHistoryEntry(NonnullRefPtr<DirectiveState> directive_state)
     : m_classic_history_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_null())))
     , m_navigation_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_undefined())))
     , m_navigation_api_key(generate_random_uuid_utf16())
     , m_navigation_api_id(generate_random_uuid_utf16())
+    , m_directive_state(move(directive_state))
 {
 }
 
@@ -75,6 +76,8 @@ SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHis
         .navigation_api_id = entry.navigation_api_id(),
         .scroll_restoration_mode = entry.scroll_restoration_mode(),
         .scroll_position_data = entry.scroll_position_data(),
+        .directive_state_id = entry.directive_state()->cross_process_id(),
+        .directive_state_value = entry.directive_state()->value(),
     };
 }
 
@@ -125,6 +128,8 @@ PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descri
         .navigation_api_id = entry.navigation_api_id(),
         .scroll_restoration_mode = entry.scroll_restoration_mode(),
         .scroll_position_data = entry.scroll_position_data(),
+        .directive_state_id = entry.directive_state()->cross_process_id(),
+        .directive_state_value = entry.directive_state()->value(),
     };
 }
 
@@ -140,6 +145,8 @@ SessionHistoryEntryDescriptor create_session_history_entry_descriptor(PendingSes
         .navigation_api_id = move(entry.navigation_api_id),
         .scroll_restoration_mode = entry.scroll_restoration_mode,
         .scroll_position_data = move(entry.scroll_position_data),
+        .directive_state_id = entry.directive_state_id,
+        .directive_state_value = move(entry.directive_state_value),
     };
 }
 
@@ -156,6 +163,8 @@ SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistory
         .navigation_api_id = entry.navigation_api_id(),
         .scroll_restoration_mode = entry.scroll_restoration_mode(),
         .scroll_position_data = entry.scroll_position_data(),
+        .directive_state_id = entry.directive_state()->cross_process_id(),
+        .directive_state_value = entry.directive_state()->value(),
     };
 }
 
@@ -190,6 +199,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryEntryDescri
     TRY(encoder.encode(entry.navigation_api_id));
     TRY(encoder.encode(entry.scroll_restoration_mode));
     TRY(encoder.encode(entry.scroll_position_data));
+    TRY(encoder.encode(entry.directive_state_id));
+    TRY(encoder.encode(entry.directive_state_value));
     return {};
 }
 
@@ -205,6 +216,8 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
     auto navigation_api_id = TRY(decoder.decode<Utf16String>());
     auto scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>());
     auto scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>());
+    auto directive_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
+    auto directive_state_value = TRY(decoder.decode<Optional<String>>());
 
     return Web::HTML::SessionHistoryEntryDescriptor {
         .step = step,
@@ -216,6 +229,8 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
         .navigation_api_id = move(navigation_api_id),
         .scroll_restoration_mode = scroll_restoration_mode,
         .scroll_position_data = move(scroll_position_data),
+        .directive_state_id = directive_state_id,
+        .directive_state_value = move(directive_state_value),
     };
 }
 
@@ -230,6 +245,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::PendingSessionHistoryEntr
     TRY(encoder.encode(entry.navigation_api_id));
     TRY(encoder.encode(entry.scroll_restoration_mode));
     TRY(encoder.encode(entry.scroll_position_data));
+    TRY(encoder.encode(entry.directive_state_id));
+    TRY(encoder.encode(entry.directive_state_value));
     return {};
 }
 
@@ -245,6 +262,8 @@ ErrorOr<Web::HTML::PendingSessionHistoryEntryDescriptor> IPC::decode(Decoder& de
         .navigation_api_id = TRY(decoder.decode<Utf16String>()),
         .scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>()),
         .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
+        .directive_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .directive_state_value = TRY(decoder.decode<Optional<String>>()),
     };
 }
 
@@ -259,6 +278,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SameDocumentNavigationEnt
     TRY(encoder.encode(entry.navigation_api_id));
     TRY(encoder.encode(entry.scroll_restoration_mode));
     TRY(encoder.encode(entry.scroll_position_data));
+    TRY(encoder.encode(entry.directive_state_id));
+    TRY(encoder.encode(entry.directive_state_value));
     return {};
 }
 
@@ -274,6 +295,8 @@ ErrorOr<Web::HTML::SameDocumentNavigationEntry> IPC::decode(Decoder& decoder)
         .navigation_api_id = TRY(decoder.decode<Utf16String>()),
         .scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>()),
         .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
+        .directive_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .directive_state_value = TRY(decoder.decode<Optional<String>>()),
     };
 }
 
