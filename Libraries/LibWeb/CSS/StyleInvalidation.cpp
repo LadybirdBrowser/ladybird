@@ -355,6 +355,18 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (AK::first_is_one_of(property_id, CSS::PropertyID::Content, CSS::PropertyID::ContentVisibility, CSS::PropertyID::TextTransform))
         return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
 
+    // A box that appears or disappears leaves every sibling box intact, so the parent can treat the
+    // change like a child-list mutation instead of rebuilding its whole subtree.
+    if (property_id == CSS::PropertyID::Display) {
+        auto old_display = old_computed_values.display();
+        auto new_display = new_computed_values.display();
+        if (old_display.is_none() != new_display.is_none()) {
+            auto const& box_display = old_display.is_none() ? new_display : old_display;
+            if (box_display.is_outside_and_inside())
+                return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::BoxPresenceChange);
+        }
+    }
+
     // NB: Other display, float, or position changes have to rebuild from the parent.
     if (AK::first_is_one_of(property_id, CSS::PropertyID::Display, CSS::PropertyID::Float, CSS::PropertyID::Position)) {
         return RequiredInvalidationAfterStyleChange::full();

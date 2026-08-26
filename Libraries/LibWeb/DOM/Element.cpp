@@ -34,8 +34,10 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/GeneratedContent.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -141,6 +143,7 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGAElement.h>
+#include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -1547,17 +1550,19 @@ static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterSty
 {
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
     //     @counter-style rule was modified, or a new rule with the same name took precedence over the old one).
+    // Generated content and the marker live inside the element's own layout subtree, so, like a
+    // 'content' change, they rebuild from the element rather than its parent.
     auto compare = [&](Optional<Vector<ValueComparingRefPtr<CSS::CounterStyle const>>> const& old_content_dependencies, Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
         if (old_content_dependencies.has_value()
             && *old_content_dependencies != new_computed_values.resolved_content(abstract_element, 0).content_data.counter_style_dependencies)
-            invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
+            invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(CSS::LayoutTreeRebuildRoot::Self);
 
         if (old_list_counter_style.has_value()) {
             auto new_list_style_type = new_computed_values.list_style_type(abstract_element.style_scope());
             if (new_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
                 ValueComparingRefPtr<CSS::CounterStyle const> new_counter_style = new_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
                 if (*old_list_counter_style != new_counter_style)
-                    invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
+                    invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(CSS::LayoutTreeRebuildRoot::Self);
             }
         }
     };
@@ -1701,6 +1706,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             return !pseudo_display.is_none() && !pseudo_display.is_contents() && !pseudo_display.is_inline_outside();
         };
 
+        // A marker box is always attached inside the originating box, as is a ::before or ::after
+        // box that cannot escape it, so replacing that box in place creates, removes, or rebuilds
+        // the pseudo-element box along with it.
+        auto pseudo_box_stays_inside_originating_box = [&](CSS::ComputedValues const* new_style) {
+            return pseudo_element == CSS::PseudoElement::Marker
+                || (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
+                    && !pseudo_style_can_escape_originating_element(pseudo_element_values)
+                    && !pseudo_style_can_escape_originating_element(new_style));
+        };
+
         if (pseudo_element_values && new_pseudo_element_style) {
             DOM::AbstractElement abstract_element { *this, pseudo_element };
             auto result = compute_required_invalidation_with_cache(style_computer, *pseudo_element_values, *new_pseudo_element_style, old_state, abstract_element, style_record_delta);
@@ -1716,20 +1731,18 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
             }
             if (result.invalidation.needs_layout_tree_rebuild()
-                && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent
-                && (!first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
-                    || pseudo_style_can_escape_originating_element(pseudo_element_values)
-                    || pseudo_style_can_escape_originating_element(new_pseudo_element_style.ptr()))) {
-                result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
+                && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent) {
+                if (!pseudo_box_stays_inside_originating_box(new_pseudo_element_style.ptr()))
+                    result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
+                else if (result.invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
+                    result.invalidation.set_layout_tree_rebuild_root(CSS::LayoutTreeRebuildRoot::Self);
             }
             if (result.any_computed_value_changed)
                 document().style_invalidation_counters().element_computed_style_changes++;
             invalidation |= result.invalidation;
         } else if (pseudo_element_values || new_pseudo_element_style) {
             document().style_invalidation_counters().element_computed_style_changes++;
-            auto rebuild_root = first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
-                    && !pseudo_style_can_escape_originating_element(pseudo_element_values)
-                    && !pseudo_style_can_escape_originating_element(new_pseudo_element_style.ptr())
+            auto rebuild_root = pseudo_box_stays_inside_originating_box(new_pseudo_element_style.ptr())
                 ? CSS::LayoutTreeRebuildRoot::Self
                 : CSS::LayoutTreeRebuildRoot::Parent;
             invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(rebuild_root);
@@ -1798,6 +1811,8 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
     // the insertion-specific invalidation on its parent instead of widening it to StyleChange.
     if (!layout_node && may_reuse_layout_node_for_child_list_insertion())
         return;
+    if (rebuild_root == CSS::LayoutTreeRebuildRoot::BoxPresenceChange && apply_box_presence_change_in_place(reason))
+        return;
     bool can_rebuild_from_self = rebuild_root == CSS::LayoutTreeRebuildRoot::Self
         || (rebuild_root == CSS::LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody
             && !is_html_html_element() && !is_html_body_element());
@@ -1809,6 +1824,189 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
         parent->set_needs_layout_tree_update(true, reason);
     else
         set_needs_layout_tree_update(true, reason);
+}
+
+static bool content_displays_a_counter(CSS::ComputedContentData const& content)
+{
+    return any_of(content.items, [](CSS::ComputedContentItem const& item) {
+        return item.has<CSS::ComputedContentCounter>();
+    });
+}
+
+// A marker whose text is the same for every counter value (disc, circle, square, ...) does not
+// reveal renumbering.
+static bool counter_style_representation_depends_on_value(CSS::CounterStyle const& counter_style)
+{
+    auto first = counter_style.generate_an_initial_representation_for_the_counter_value(1);
+    auto second = counter_style.generate_an_initial_representation_for_the_counter_value(2);
+    auto third = counter_style.generate_an_initial_representation_for_the_counter_value(3);
+    return first != second || second != third;
+}
+
+static bool pseudo_element_content_displays_a_counter(Element const& element, CSS::PseudoElement pseudo_element)
+{
+    if (!element.has_style(pseudo_element))
+        return false;
+    auto const* content = element.style_group<CSS::ComputedValues::ContentValues>(pseudo_element);
+    return content && content_displays_a_counter(content->computed_content_value());
+}
+
+// NB: Reads style groups directly; this runs over every element after the list item, and
+//     materializing a ComputedValues per element would cost more than the relayout it saves.
+static bool element_displays_a_list_item_counter_value(Element const& element)
+{
+    if (!element.has_style())
+        return false;
+    for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After, CSS::PseudoElement::Marker }) {
+        if (pseudo_element_content_displays_a_counter(element, pseudo_element))
+            return true;
+    }
+    if (!CSS::display_from_ffi_display(element.style_group<CSS::ComputedValues::BoxValues>()->display).is_list_item())
+        return false;
+    auto list_style_type = element.style_group<CSS::ComputedValues::InheritedListValues>()->list_style_type_value(element.style_scope());
+    return list_style_type.visit(
+        [](Empty const&) {
+            return false;
+        },
+        [](RefPtr<CSS::CounterStyle const> const& counter_style) {
+            return !counter_style || counter_style_representation_depends_on_value(*counter_style);
+        },
+        [](Utf16String const&) {
+            return false;
+        },
+        [](Utf16FlyString const&) {
+            return true;
+        },
+        [](CSS::ListStyleSymbols const& symbols) {
+            return counter_style_representation_depends_on_value(*symbols.counter_style);
+        });
+}
+
+// A list item box that appears or disappears renumbers the list-item counter for everything after
+// it in the list. That only matters when some later content would display the counter value.
+static bool list_item_box_change_is_observable(Element const& list_item, Element const& list_owner)
+{
+    if (!Node::list_item_box_change_renumbers_list(list_item))
+        return false;
+    if (pseudo_element_content_displays_a_counter(list_owner, CSS::PseudoElement::After))
+        return true;
+    for (auto const* sibling = list_item.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
+        bool observable = false;
+        sibling->for_each_in_inclusive_subtree([&](Node const& descendant) {
+            auto const* element = as_if<Element>(descendant);
+            if (element && element_displays_a_list_item_counter_value(*element)) {
+                observable = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        if (observable)
+            return true;
+    }
+    return false;
+}
+
+static bool dom_subtree_generates_list_item_boxes(Element const& element)
+{
+    bool generates_list_item_boxes = false;
+    element.for_each_in_inclusive_subtree([&](Node const& descendant) {
+        auto const* descendant_element = as_if<Element>(descendant);
+        if (!descendant_element)
+            return TraversalDecision::Continue;
+        if (descendant_element->is_html_li_element()
+            || (descendant_element->has_style() && CSS::display_from_ffi_display(descendant_element->style_group<CSS::ComputedValues::BoxValues>()->display).is_list_item())) {
+            generates_list_item_boxes = true;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return generates_list_item_boxes;
+}
+
+// NB: Reads box kinds rather than styles: the element whose box is going away already carries
+//     its display: none style.
+static bool layout_subtree_contains_list_item_boxes(Layout::Node const& layout_node)
+{
+    bool contains_list_item_boxes = false;
+    layout_node.for_each_in_inclusive_subtree([&](Layout::Node const& descendant) {
+        if (descendant.kind() == Layout::RustFFI::NodeKind::ListItemBox) {
+            contains_list_item_boxes = true;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return contains_list_item_boxes;
+}
+
+// The element's box stopped or started existing (display: none <-> a box display). Instead of
+// rebuilding the parent's whole layout subtree, schedule the element alone for a rebuild that
+// drops its box, or a DOM-order insertion of its new box into the parent's existing box, when the
+// surrounding structure is unaffected. Returns false when the parent has to be rebuilt after all.
+// NB: Only schedules; the layout tree update removes the box. Style updates must not free layout
+//     nodes, as callers keep layout node pointers across them (e.g. getComputedStyle()).
+bool Element::apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason reason)
+{
+    if (is_html_html_element() || is_html_body_element() || rendered_in_top_layer() || is<SVG::SVGElement>(*this))
+        return false;
+    GC::Ptr<Element> parent = parent_element();
+    if (!parent || parent->shadow_root() || assigned_slot() || is<HTML::HTMLSlotElement>(*parent))
+        return false;
+    auto* parent_layout_node = parent->unsafe_layout_node();
+    if (!parent_layout_node)
+        return false;
+    if (first_letter_owner_for_layout_subtree_from(*parent))
+        return false;
+    if (CSS::subtree_affects_generated_content_state(*this))
+        return false;
+
+    auto style = computed_style();
+    VERIFY(style);
+    auto display = style->display();
+
+    if (display.is_none()) {
+        auto* layout_node = unsafe_layout_node();
+        if (!layout_node)
+            return false;
+        // The box's own style already says display: none, so its level comes from where it sits: a
+        // block container with block-level children holds block-level boxes directly, one with
+        // inline-level children holds inline-level boxes. Only atomic inlines detach from an inline
+        // run; an inline box may have been split around block-level descendants.
+        bool box_is_block_level = !parent_layout_node->children_are_inline();
+        if (!box_is_block_level && layout_node->kind() == Layout::RustFFI::NodeKind::InlineNode)
+            return false;
+        if (!Node::can_detach_layout_subtree_in_place(*this, *parent, box_is_block_level))
+            return false;
+        if (layout_subtree_contains_list_item_boxes(*layout_node) && list_item_box_change_is_observable(*this, *parent))
+            return false;
+
+        // Rebuilding the element in place with display: none clears its stale box out of the
+        // retained parent.
+        set_needs_layout_tree_update(true, reason);
+        return true;
+    }
+
+    if (unsafe_layout_node())
+        return false;
+    if (style->position() == CSS::Positioning::Absolute || style->position() == CSS::Positioning::Fixed || style->float_() != CSS::Float::None)
+        return false;
+
+    auto parent_display = parent_layout_node->display();
+    bool parent_is_block_container = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside()) && !parent_display.is_inline_outside();
+    bool can_insert_in_place = false;
+    if (parent_display.is_flex_inside() || parent_display.is_grid_inside())
+        can_insert_in_place = true;
+    else if (parent_is_block_container && display.is_block_outside())
+        can_insert_in_place = !parent_layout_node->children_are_inline() || !parent_layout_node->has_children();
+    else if (parent_is_block_container && display.is_inline_outside())
+        can_insert_in_place = parent_layout_node->children_are_inline() && parent_layout_node->has_children();
+    if (!can_insert_in_place)
+        return false;
+    if (dom_subtree_generates_list_item_boxes(*this) && list_item_box_change_is_observable(*this, *parent))
+        return false;
+
+    parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
+    set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
+    return true;
 }
 
 void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)

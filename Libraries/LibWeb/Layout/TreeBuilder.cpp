@@ -877,8 +877,14 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
     if (layout_node)
         layout_node->clear_committed_box();
     LayoutTreeBuilderAccess::detach_layout_node(node);
-    if (layout_node && layout_node->parent())
+    if (layout_node && layout_node->parent()) {
+        // The parent may keep its subtree (a child lost its box in place); an emptied container
+        // reads as having block-level children, like a freshly built one.
+        auto* parent = layout_node->parent();
         layout_node->remove();
+        if (!parent->has_children())
+            parent->set_children_are_inline(false);
+    }
 
     if (is<DOM::Element>(node))
         LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(static_cast<DOM::Element&>(node));
