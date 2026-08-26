@@ -26,6 +26,8 @@ public:
 private:
     HTMLFormControlsCollection(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
 
+    virtual void collect_elements_into(Vector<GC::RawPtr<DOM::Element>>&) const override;
+
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<HTMLFormElement> m_form;

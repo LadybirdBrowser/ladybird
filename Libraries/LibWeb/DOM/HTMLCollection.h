@@ -73,6 +73,8 @@ protected:
     GC::Ref<ParentNode const> root() const { return *m_root; }
     bool element_matches_filter(Element const& element) const { return m_filter(element); }
 
+    virtual void collect_elements_into(Vector<GC::RawPtr<Element>>&) const;
+
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
