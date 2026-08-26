@@ -844,7 +844,7 @@ bool WebContentClient::continue_navigation_population_in_selected_process(u64 pa
             navigable->device_pixel_ratio(),
             Web::ViewportIsFullscreen::No);
     }
-    remote_client->async_set_system_visibility_state(remote_page_id, navigable->top_level_traversable().system_visibility_state());
+    remote_client->async_update_visibility_state(remote_page_id, navigable->id(), navigable->top_level_traversable().system_visibility_state());
     remote_client->async_populate_navigation(remote_page_id, ongoing_navigation->loader->request(), ongoing_navigation->loader->take_result());
 
     SiteIsolationManager::the().transition_child_frame_to_remote(navigable->reporting_client(), navigable->reporting_page_id(), navigable_id, move(remote_client), remote_page_id);
@@ -1901,7 +1901,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
 
     auto view = view_for_page_id(new_page_id);
     if (!view.has_value())
-        return { {}, {}, move(handle) };
+        return { {}, {}, Web::HTML::VisibilityState::Hidden, move(handle) };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
@@ -1911,7 +1911,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     view->traversable().set_id(root_navigable_id);
 
-    return { new_page_id, root_navigable_id, move(handle) };
+    return { new_page_id, root_navigable_id, view->traversable().system_visibility_state(), move(handle) };
 }
 
 void WebContentClient::did_request_activate_tab(u64 page_id)
@@ -2213,6 +2213,12 @@ void WebContentClient::did_set_session_history_entry_document_state_reload_pendi
     if (!navigable.has_value())
         return;
     navigable->top_level_traversable().set_session_history_entry_document_state_reload_pending(*navigable, navigation_api_key, reload_pending);
+}
+
+void WebContentClient::did_request_set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->set_system_visibility_state(visibility_state);
 }
 
 Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)

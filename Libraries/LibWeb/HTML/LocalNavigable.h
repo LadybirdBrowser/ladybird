@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/TargetSnapshotParams.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -67,7 +68,7 @@ public:
     using NullOrError = NavigationParamsNullOrError;
     using NavigationParamsVariant = HTML::NavigationParamsVariant;
 
-    void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document);
+    void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state);
     void set_id_for_session_history_reconstruction(CrossProcessId id) { set_id(id); }
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
@@ -101,7 +102,7 @@ public:
     Optional<CrossProcessId> child_navigable_history_reconstruction_id(size_t index) const;
     void consume_child_navigable_history_reconstruction_id(size_t index);
 
-    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
+    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
     void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;

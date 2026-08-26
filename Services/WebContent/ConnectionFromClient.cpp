@@ -128,9 +128,9 @@ Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_tra
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id)
+void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id, Web::HTML::VisibilityState system_visibility_state)
 {
-    m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_document_state_id);
+    m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_document_state_id, system_visibility_state);
 }
 
 void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
@@ -413,7 +413,7 @@ void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, Web::
         }));
 }
 
-void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api)
+void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -421,7 +421,7 @@ void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, We
         return;
     }
 
-    page->page().top_level_traversable()->apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api),
+    page->page().top_level_traversable()->apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
             async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
         }));
@@ -2463,10 +2463,26 @@ void ConnectionFromClient::request_file(u64 page_id, Web::FileRequest file_reque
     async_did_request_file(page_id, path, id);
 }
 
-void ConnectionFromClient::set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state)
+void ConnectionFromClient::update_visibility_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().top_level_traversable()->set_system_visibility_state(visibility_state);
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
+    if (!navigable || &navigable->page() != &page->page())
+        return;
+
+    // 1. Let document be navigable's active document.
+    auto document = navigable->active_document();
+    if (!document)
+        return;
+
+    // 2. Queue a global task on the user interaction task source given document's relevant global object
+    //    to update the visibility state of document with newState.
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::UserInteraction, Web::HTML::relevant_global_object(*document), GC::create_function(GC::Heap::the(), [visibility_state, document] {
+        document->update_the_visibility_state(visibility_state);
+    }));
 }
 
 void ConnectionFromClient::reset_zoom(u64 page_id)

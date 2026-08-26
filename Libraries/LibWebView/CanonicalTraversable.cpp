@@ -35,6 +35,31 @@ void CanonicalTraversable::clone_session_storage_from(CanonicalTraversable const
     m_session_storage->clone_from(*other.m_session_storage);
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#system-visibility-state
+void CanonicalTraversable::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
+{
+    if (m_system_visibility_state == visibility_state)
+        return;
+    m_system_visibility_state = visibility_state;
+
+    // When a user agent determines that the system visibility state for
+    // traversable navigable traversable has changed to newState, it must run the following steps:
+
+    // 1. Let navigables be the inclusive descendant navigables of traversable's active document.
+    // 2. For each navigable of navigables:
+    for_each_in_inclusive_subtree([&](CanonicalNavigable& navigable) {
+        // 1. Let document be navigable's active document.
+        auto endpoint = history_job_endpoint_for(navigable);
+        if (!endpoint.client)
+            return IterationDecision::Continue;
+
+        // 2. Queue a global task on the user interaction task source given document's relevant global object
+        //    to update the visibility state of document with newState.
+        endpoint.client->async_update_visibility_state(endpoint.page_id, navigable.id(), visibility_state);
+        return IterationDecision::Continue;
+    });
+}
+
 CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, CanonicalNavigable& fallback_parent)
 {
     Optional<Web::HTML::SessionHistoryEntryIdentity> current_session_history_entry;
@@ -913,8 +938,8 @@ CanonicalTraversable::HistoryJobEndpoint CanonicalTraversable::history_job_endpo
     // NB: The traversable is the view's root navigable; the process hosting its documents is the view's client
     //     rather than a reporting client recorded in the tree.
     if (&navigable == this) {
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
-            return { &view->client(), view->page_id() };
+        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.client)
+            return { view->m_client_state.client, view->m_client_state.page_index };
     }
     return {};
 }
@@ -1052,7 +1077,8 @@ void CanonicalTraversable::dispatch_changing_navigable_history_step_continuation
         endpoint->page_id, operation.operation_id, navigable_id,
         continuation.history_object_length_and_index.script_history_length,
         continuation.history_object_length_and_index.script_history_index,
-        move(continuation.entries_for_navigation_api));
+        move(continuation.entries_for_navigation_api),
+        system_visibility_state());
 }
 
 void CanonicalTraversable::dispatch_crash_recovery_changing_job(HistoryOperation& operation, HistoryJobEndpoint endpoint, Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index, Function<void()> on_complete)

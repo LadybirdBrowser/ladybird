@@ -36,6 +36,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
@@ -165,7 +166,7 @@ endpoint WebContentClient
     did_post_broadcast_channel_message(u64 page_id, Web::HTML::BroadcastChannelMessage message) =|
 
     did_update_resource_count(u64 page_id, i32 count_waiting) =|
-    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, bool clone_session_storage) => (Optional<u64> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, String handle)
+    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, bool clone_session_storage) => (Optional<u64> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Web::HTML::VisibilityState system_visibility_state, String handle)
     did_request_activate_tab(u64 page_id) =|
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
@@ -201,6 +202,7 @@ endpoint WebContentClient
     did_update_session_history_entry_scroll_restoration_mode(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) =|
     did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) =|
     did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) =|
+    did_request_set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state) =|
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
     request_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters) =|

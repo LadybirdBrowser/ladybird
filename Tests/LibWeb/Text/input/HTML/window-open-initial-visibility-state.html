@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const popup = window.open();
+
+        println(`opener visibility state: ${document.visibilityState}`);
+        println(`popup visibility state: ${popup.document.visibilityState}`);
+
+        popup.close();
+    });
+</script>

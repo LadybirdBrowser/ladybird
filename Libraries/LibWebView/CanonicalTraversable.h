@@ -96,7 +96,7 @@ public:
     Function<void()> on_session_history_changed;
 
     Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
-    void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { m_system_visibility_state = visibility_state; }
+    void set_system_visibility_state(Web::HTML::VisibilityState);
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;
@@ -195,6 +195,8 @@ private:
     u64 m_next_pending_browser_history_traversal_generation { 1 };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<HistoryOperation>> m_history_operations;
     Optional<PendingBrowserHistoryTraversal> m_pending_browser_history_traversal;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
 };
 

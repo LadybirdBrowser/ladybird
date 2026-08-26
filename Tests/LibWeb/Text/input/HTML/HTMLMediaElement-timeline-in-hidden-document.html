@@ -9,11 +9,7 @@
         const video = document.getElementById("video");
         video.src = "../../../Assets/test-webm.webm";
 
-        const becameHidden = new Promise(resolve => {
-            document.addEventListener("visibilitychange", resolve, { once: true });
-        });
-        internals.setSystemVisibilityState("hidden");
-        await becameHidden;
+        await setSystemVisibilityState("hidden");
         println(`document.hidden: ${document.hidden}`);
 
         await video.play();

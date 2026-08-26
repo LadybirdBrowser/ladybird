@@ -101,7 +101,7 @@ void NavigableContainer::create_new_child_navigable()
     GC::Ref<LocalNavigable> navigable = *GC::Heap::the().allocate<LocalNavigable>(page, false);
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    navigable->initialize_navigable(document_state, parent_navigable, *document);
+    navigable->initialize_navigable(document_state, parent_navigable, *document, parent_navigable->active_document()->visibility_state_value());
 
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;

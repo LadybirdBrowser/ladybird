@@ -52,6 +52,20 @@ function timeout(ms) {
     return promise;
 }
 
+async function setSystemVisibilityState(state) {
+    // Tests assume that the document reflects the UI process's system visibility state and that
+    // no previous visibility state change is still pending.
+    if (document.visibilityState === state) {
+        return;
+    }
+
+    const visibilityChanged = new Promise(resolve =>
+        document.addEventListener("visibilitychange", resolve, { once: true })
+    );
+    internals.setSystemVisibilityState(state);
+    await visibilityChanged;
+}
+
 function withCollectedWrapper(makeAndMark, reacquire, verify) {
     let wasPreserved = false;
     (() => {

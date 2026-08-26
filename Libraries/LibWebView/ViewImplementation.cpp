@@ -358,12 +358,6 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
         return;
 
     m_top_level_traversable.set_system_visibility_state(visibility_state);
-    client().async_set_system_visibility_state(m_client_state.page_index, visibility_state);
-    m_top_level_traversable.for_each_in_subtree([&](CanonicalNavigable& navigable) {
-        if (navigable.has_remote_host())
-            navigable.remote_host_client().async_set_system_visibility_state(navigable.remote_host_page_id(), visibility_state);
-        return IterationDecision::Continue;
-    });
     Application::the().update_compositor_context_visibility(client().compositor_context_id_for_page(m_client_state.page_index), visibility_state);
 }
 
@@ -2171,7 +2165,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
     client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
-    client().async_set_system_visibility_state(m_client_state.page_index, m_top_level_traversable.system_visibility_state());
+    client().async_update_visibility_state(m_client_state.page_index, m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
     auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
     Application::the().update_compositor_context_visibility(compositor_context_id, m_top_level_traversable.system_visibility_state());

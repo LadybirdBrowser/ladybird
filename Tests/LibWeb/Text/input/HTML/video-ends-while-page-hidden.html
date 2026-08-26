@@ -12,8 +12,9 @@
         await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
 
         await video.play();
-        internals.setSystemVisibilityState("hidden");
-        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+        const ended = new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+        await setSystemVisibilityState("hidden");
+        await ended;
 
         println(`ended while hidden, currentTime === duration: ${video.currentTime === video.duration}`);
     });

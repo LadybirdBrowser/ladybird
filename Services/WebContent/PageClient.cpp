@@ -1175,7 +1175,7 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     VERIFY(response->root_navigable_id().has_value());
 
     auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
-    return { &new_client.page(), response->take_handle() };
+    return { &new_client.page(), response->system_visibility_state(), response->take_handle() };
 }
 
 void PageClient::page_did_request_activate_tab()
@@ -1228,6 +1228,11 @@ void PageClient::page_did_update_session_history_entry_document_state_navigable_
 void PageClient::page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending)
 {
     client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
+}
+
+void PageClient::page_did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
+{
+    client().async_did_request_set_system_visibility_state(m_id, visibility_state);
 }
 
 void PageClient::page_did_request_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
