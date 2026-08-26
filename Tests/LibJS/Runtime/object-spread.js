@@ -85,6 +85,34 @@ test("spread object with symbol keys", () => {
     expect(obj[s]).toBe("qux");
 });
 
+test("spread creates independent property storage", () => {
+    const source = { a: 1, b: 2, c: 3, d: 4 };
+    const result = { ...source };
+
+    source.a = 10;
+    result.b = 20;
+    result.e = 5;
+
+    expect(source).toEqual({ a: 10, b: 2, c: 3, d: 4 });
+    expect(result).toEqual({ a: 1, b: 20, c: 3, d: 4, e: 5 });
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+});
+
+test("spread normalizes property attributes", () => {
+    const source = Object.freeze({ a: 1, b: 2, c: 3 });
+    const result = { ...source };
+
+    expect(Object.getOwnPropertyDescriptor(result, "a")).toEqual({
+        value: 1,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+    });
+
+    result.a = 10;
+    expect(result.a).toBe(10);
+});
+
 test("spreading non-spreadable values", () => {
     let empty = {
         ...undefined,
