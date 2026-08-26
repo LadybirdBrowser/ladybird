@@ -1186,6 +1186,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             // Disconnect child crash handlers so old child crashes don't affect the next test
             view->disconnect_child_crash_handlers();
+            view->close_child_web_views();
 
             // Don't try to reset state if WebContent crashed - it's gone
             if (test_result != TestResult::Crashed) {

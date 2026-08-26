@@ -23,13 +23,23 @@ public:
 
     void reset_viewport_size(Web::DevicePixelSize);
 
+    void close_child_web_views()
+    {
+        for (auto& child : m_child_web_views) {
+            child->close_child_web_views();
+            // Children sharing a crashed WebContent process are discarded by their pending crash callbacks.
+            if (!child->handle().is_empty() && child->client().is_open())
+                child->request_close();
+        }
+    }
+
     void disconnect_child_crash_handlers()
     {
         // Disconnect crash handlers so child crashes don't propagate to parent.
         // We don't destroy the children because there may be pending deferred_invokes
         // that would cause use-after-free.
         for (auto& child : m_child_web_views) {
-            child->on_web_content_crashed = nullptr;
+            child->m_propagate_crashes_to_parent = false;
             child->disconnect_child_crash_handlers();
         }
     }
