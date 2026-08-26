@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/list-renumbers-when-markers-appear-after-mutation-ref.html">
+<style>
+    ol.plain {
+        list-style-type: none;
+    }
+</style>
+<ol id="list" class="plain"><li>a</li><li>b</li><li>c</li><li>d</li></ol>
+<script>
+    const list = document.getElementById("list");
+    document.body.offsetHeight;
+    list.children[0].remove();
+    document.body.offsetHeight;
+    list.classList.remove("plain");
+    document.body.offsetHeight;
+</script>

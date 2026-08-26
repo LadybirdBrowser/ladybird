@@ -804,6 +804,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     for (auto& pending_scroll_event : m_pending_scroll_events)
         visitor.visit(pending_scroll_event.event_target);
     visitor.visit(m_query_containers_needing_container_query_evaluation_after_layout);
+    visitor.visit(m_list_owners_pending_item_renumber);
+    visitor.visit(m_list_owners_with_stale_item_counters);
 
     visitor.visit(m_shared_resource_requests);
     for (auto& resource : m_css_image_resources)
@@ -2136,6 +2138,77 @@ void Document::flush_deferred_style_change_event()
     update_style();
 }
 
+void Document::schedule_list_item_renumber(Element& list_owner)
+{
+    m_list_owners_pending_item_renumber.set(list_owner);
+}
+
+void Document::process_pending_list_item_renumbers()
+{
+    if (m_list_owners_pending_item_renumber.is_empty())
+        return;
+    auto pending = move(m_list_owners_pending_item_renumber);
+    for (auto const& list_owner : pending) {
+        if (!list_owner->is_connected()) {
+            m_list_owners_with_stale_item_counters.remove(list_owner);
+            continue;
+        }
+        if (list_owner->list_item_renumber_affects_rendered_content()) {
+            list_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ListItemCounters);
+            m_list_owners_with_stale_item_counters.remove(list_owner);
+        } else {
+            m_list_owners_with_stale_item_counters.set(list_owner);
+        }
+    }
+}
+
+void Document::did_render_list_item_counter_value(Element& element)
+{
+    if (m_stale_list_item_counter_rendered || m_list_owners_with_stale_item_counters.is_empty())
+        return;
+    for (GC::Ptr<Element> ancestor = element; ancestor; ancestor = ancestor->parent_element()) {
+        if (m_list_owners_with_stale_item_counters.contains(*ancestor)) {
+            m_stale_list_item_counter_rendered = true;
+            return;
+        }
+    }
+}
+
+bool Document::reconcile_stale_list_item_counters_after_tree_build(Vector<Layout::Node*> const& rebuilt_subtree_roots)
+{
+    if (m_list_owners_with_stale_item_counters.is_empty()) {
+        m_stale_list_item_counter_rendered = false;
+        return false;
+    }
+
+    // A rebuilt subtree has re-resolved the counters sets of any stale owner inside it, and an owner that has left
+    // the document renders nothing.
+    HashTable<Node const*> rebuilt_dom_roots;
+    for (auto const* rebuilt_root : rebuilt_subtree_roots) {
+        if (auto const* dom_node = rebuilt_root->dom_node())
+            rebuilt_dom_roots.set(dom_node);
+    }
+    m_list_owners_with_stale_item_counters.remove_all_matching([&](GC::Ref<Element> const& list_owner) {
+        if (!list_owner->is_connected())
+            return true;
+        for (Node const* node = list_owner.ptr(); node; node = node->parent()) {
+            if (rebuilt_dom_roots.contains(node))
+                return true;
+        }
+        return false;
+    });
+
+    if (!m_stale_list_item_counter_rendered)
+        return false;
+    m_stale_list_item_counter_rendered = false;
+    if (m_list_owners_with_stale_item_counters.is_empty())
+        return false;
+    for (auto const& list_owner : m_list_owners_with_stale_item_counters)
+        list_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ListItemCounters);
+    m_list_owners_with_stale_item_counters.clear();
+    return true;
+}
+
 bool Document::needs_style_update_after_layout()
 {
     return !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
@@ -2168,6 +2241,8 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
         set_layout_root(as<Layout::Viewport>(*tree_build_result.root));
         record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
         needs_layout_tree_rebuild = false;
+        if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots))
+            return PartialRelayoutResult::NeedsAnotherLayoutPass;
         layout_tree_was_built_in_partial_branch = true;
         pending_updates_escaped_during_partial_build = m_partial_relayout_invalidation.escapes()
             || tree_build_result.layout_tree_update_escaped_rebuild_roots;
@@ -2302,6 +2377,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     // freshly parsed document after update_layout() has already started.
     for (u64 layout_pass = 0; layout_pass < ordinary_stabilization_round_limit + static_cast<u64>(style_computer().style_engine().connected_element_count()) + 1; ++layout_pass) {
         update_style();
+        process_pending_list_item_renumbers();
         process_pending_top_layer_layout_changes();
 
         auto const should_collect_devtools_layout_data = page().client().has_active_devtools_client();
@@ -2349,6 +2425,9 @@ void Document::update_layout(UpdateLayoutReason reason)
             if constexpr (UPDATE_LAYOUT_DEBUG) {
                 dbgln("TREEBUILD {} µs", timer.elapsed_time().to_microseconds());
             }
+
+            if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots))
+                continue;
         }
 
         if (document_element && document_element->unsafe_layout_node()) {

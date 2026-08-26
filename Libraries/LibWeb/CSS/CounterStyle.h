@@ -39,6 +39,7 @@ public:
 
     Optional<Utf16String> generate_an_initial_representation_for_the_counter_value(i64 value) const;
     bool uses_a_negative_sign() const;
+    bool representation_is_constant() const;
     bool equals(CounterStyle const&) const;
 
     virtual ~CounterStyle() = default;

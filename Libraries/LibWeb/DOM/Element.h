@@ -751,7 +751,9 @@ public:
     bool matches_local_link_pseudo_class() const;
     bool matches_focus_within_pseudo_class() const;
 
-    void invalidate_list_item_counters_for_list_owner();
+    void schedule_list_item_renumber_for_list_owner();
+    bool list_item_renumber_affects_rendered_content() const;
+    bool after_pseudo_element_style_depends_on_list_item_counter() const;
 
     bool captured_in_a_view_transition() const;
     void set_captured_in_a_view_transition(bool);

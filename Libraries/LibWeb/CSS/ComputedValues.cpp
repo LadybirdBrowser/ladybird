@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -1196,6 +1197,28 @@ bool ComputedValues::InheritedListValues::list_style_type_uses_non_overridable_c
             value->as_counter_style().value().get<Utf16FlyString>());
 }
 
+bool marker_text_depends_on_list_item_counter_value(ListStyleType const& list_style_type)
+{
+    return list_style_type.visit(
+        [](Empty const&) {
+            return false;
+        },
+        [](RefPtr<CounterStyle const> const& counter_style) {
+            return !counter_style || !counter_style->representation_is_constant();
+        },
+        [](Utf16String const&) {
+            // A string literal marker is the same for every item, regardless of the counter value.
+            return false;
+        },
+        [](UnresolvedCounterStyleName const&) {
+            // The name of a counter style that could not be resolved renders the counter value as `decimal`.
+            return true;
+        },
+        [](ListStyleSymbols const& symbols) {
+            return !symbols.counter_style->representation_is_constant();
+        });
+}
+
 RefPtr<AbstractImageStyleValue const> ComputedValues::InheritedListValues::list_style_image_value() const
 {
     auto value = animation_style_value(list_style_image);
@@ -1268,6 +1291,26 @@ ComputedContentData ComputedValues::ContentValues::computed_content_value() cons
             append_item(item, result.alt_text);
     }
     return result;
+}
+
+bool ComputedValues::ContentValues::content_is_normal() const
+{
+    auto value = animation_style_value(content);
+    return value->is_keyword() && value->to_keyword() == Keyword::Normal;
+}
+
+bool ComputedValues::ContentValues::content_uses_list_item_counter() const
+{
+    auto value = animation_style_value(content);
+    if (!value->is_content())
+        return false;
+    auto item_uses_list_item_counter = [](auto const& item) {
+        return item->is_counter() && item->as_counter().counter_name() == list_item_counter_name();
+    };
+    auto const& content_value = value->as_content();
+    if (any_of(content_value.content().values(), item_uses_list_item_counter))
+        return true;
+    return content_value.alt_text() && any_of(content_value.alt_text()->values(), item_uses_list_item_counter);
 }
 
 static Vector<CounterData, 0> counter_data_from_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
@@ -2176,7 +2219,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(Pr
     return computed_style_value(property_id, with_animations_applied);
 }
 
-static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, QuotesData const& quotes_data, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level)
+static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, QuotesData const& quotes_data, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level, NotifyListItemCounterRendered notify_list_item_counter_rendered)
 {
     auto quote_nesting_level = initial_quote_nesting_level;
 
@@ -2248,6 +2291,8 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
                 }
             } else if (item->is_counter()) {
                 flush_pending_text();
+                if (notify_list_item_counter_rendered == NotifyListItemCounterRendered::Yes && item->as_counter().counter_name() == list_item_counter_name())
+                    element_reference.element().document().did_render_list_item_counter_value(element_reference.element());
                 content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                 content_data.data.append(item->as_counter().resolve(element_reference));
             } else if (item->is_image() || item->is_image_set()) {
@@ -2270,6 +2315,8 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value().view());
                 } else if (item->is_counter()) {
+                    if (notify_list_item_counter_rendered == NotifyListItemCounterRendered::Yes && item->as_counter().counter_name() == list_item_counter_name())
+                        element_reference.element().document().did_render_list_item_counter_value(element_reference.element());
                     content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                     alt_text_builder.append(item->as_counter().resolve(element_reference));
                 } else {
@@ -2312,7 +2359,7 @@ static NonnullRefPtr<StyleValue const> computed_content_item_style_value(Compute
         [](NonnullRefPtr<AbstractImageStyleValue const> const& image) -> NonnullRefPtr<StyleValue const> { return image; });
 }
 
-ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
+ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level, NotifyListItemCounterRendered notify_list_item_counter_rendered) const
 {
     // The content value resolve_content() consumes is rebuilt from the content group's data
     // rather than minted from the longhand table: the group holds the live image style values
@@ -2341,7 +2388,7 @@ ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractEl
         }
         VERIFY_NOT_REACHED();
     }();
-    return resolve_content(content_style_value, quotes(), element_reference, initial_quote_nesting_level);
+    return resolve_content(content_style_value, quotes(), element_reference, initial_quote_nesting_level, notify_list_item_counter_rendered);
 }
 
 }

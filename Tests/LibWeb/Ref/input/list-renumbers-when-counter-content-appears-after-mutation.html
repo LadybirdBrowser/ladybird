@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/list-renumbers-when-counter-content-appears-after-mutation-ref.html">
+<style>
+    ul {
+        list-style-type: none;
+    }
+    ul.numbered li::before {
+        content: counter(list-item) ") ";
+    }
+</style>
+<ul id="list"><li>a</li><li>b</li><li>c</li><li>d</li></ul>
+<script>
+    const list = document.getElementById("list");
+    document.body.offsetHeight;
+    list.children[0].remove();
+    document.body.offsetHeight;
+    list.classList.add("numbered");
+    document.body.offsetHeight;
+</script>

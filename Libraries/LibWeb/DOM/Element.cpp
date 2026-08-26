@@ -1554,7 +1554,7 @@ static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterSty
     // 'content' change, they rebuild from the element rather than its parent.
     auto compare = [&](Optional<Vector<ValueComparingRefPtr<CSS::CounterStyle const>>> const& old_content_dependencies, Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
         if (old_content_dependencies.has_value()
-            && *old_content_dependencies != new_computed_values.resolved_content(abstract_element, 0).content_data.counter_style_dependencies)
+            && *old_content_dependencies != new_computed_values.resolved_content(abstract_element, 0, CSS::NotifyListItemCounterRendered::No).content_data.counter_style_dependencies)
             invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(CSS::LayoutTreeRebuildRoot::Self);
 
         if (old_list_counter_style.has_value()) {
@@ -5512,15 +5512,72 @@ bool Element::skips_its_contents()
     return false;
 }
 
-void Element::invalidate_list_item_counters_for_list_owner()
+void Element::schedule_list_item_renumber_for_list_owner()
 {
-    for_each_ancestor([](GC::Ref<Node> node) {
+    for_each_ancestor([&](GC::Ref<Node> node) {
         if (node->is_html_ol_ul_menu_element()) {
-            static_cast<Element&>(*node).set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ListItemCounters);
+            document().schedule_list_item_renumber(static_cast<Element&>(*node));
             return IterationDecision::Break;
         }
         return IterationDecision::Continue;
     });
+}
+
+bool Element::after_pseudo_element_style_depends_on_list_item_counter() const
+{
+    auto style_depends_on_list_item_counter = [](CSS::ComputedValues const& style) {
+        auto definitions_contain_list_item_counter = [](auto const& definitions) {
+            return any_of(definitions, [](auto const& definition) {
+                return definition.name == CSS::list_item_counter_name();
+            });
+        };
+        return style.display().is_list_item()
+            || style.content_uses_list_item_counter()
+            || definitions_contain_list_item_counter(style.counter_increment())
+            || definitions_contain_list_item_counter(style.counter_reset())
+            || definitions_contain_list_item_counter(style.counter_set());
+    };
+
+    auto style = computed_style(CSS::PseudoElement::After);
+    return style && style_depends_on_list_item_counter(*style);
+}
+
+static bool subtree_renders_list_item_counters(Element const& ancestor, bool items_renumber_with_walked_owner)
+{
+    for (auto* child = ancestor.first_child(); child; child = child->next_sibling()) {
+        auto* element = as_if<Element>(*child);
+        if (!element)
+            continue;
+        auto style = element->computed_style();
+        if (!style || style->display().is_none())
+            continue;
+        if (style->content_uses_list_item_counter())
+            return true;
+        for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After }) {
+            auto pseudo_style = element->computed_style(pseudo_element);
+            if (pseudo_style && pseudo_style->content_uses_list_item_counter())
+                return true;
+        }
+        auto marker_style = element->computed_style(CSS::PseudoElement::Marker);
+        if (marker_style && marker_style->content_uses_list_item_counter())
+            return true;
+        if (items_renumber_with_walked_owner
+            && style->display().is_list_item()
+            && (!marker_style || marker_style->content_is_normal())
+            && !style->list_style_image()
+            && CSS::marker_text_depends_on_list_item_counter_value(style->list_style_type(element->style_scope())))
+            return true;
+        if (subtree_renders_list_item_counters(*element, items_renumber_with_walked_owner && !element->is_html_ol_ul_menu_element()))
+            return true;
+    }
+    return false;
+}
+
+bool Element::list_item_renumber_affects_rendered_content() const
+{
+    if (after_pseudo_element_style_depends_on_list_item_counter())
+        return true;
+    return subtree_renders_list_item_counters(*this, true);
 }
 
 bool Element::id_reference_exists(Utf16View id_reference) const

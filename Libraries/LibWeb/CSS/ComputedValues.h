@@ -423,6 +423,8 @@ struct UnresolvedCounterStyleName {
 
 using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, Utf16String, UnresolvedCounterStyleName, ListStyleSymbols>;
 
+bool marker_text_depends_on_list_item_counter_value(ListStyleType const&);
+
 struct ComputedFontStyle {
     FontStyleKeyword keyword { FontStyleKeyword::Normal };
     Optional<Variant<Angle, NonnullRefPtr<CalculatedStyleValue const>>> angle;
@@ -843,6 +845,11 @@ struct ContentData {
 struct ContentDataAndQuoteNestingLevel {
     ContentData content_data;
     u32 final_quote_nesting_level { 0 };
+};
+
+enum class NotifyListItemCounterRendered : u8 {
+    No,
+    Yes,
 };
 
 struct ComputedContentCounter {
@@ -1275,7 +1282,9 @@ public:
     ContentVisibility content_visibility() const { return static_cast<ContentVisibility>(m_inherited.box->content_visibility); }
     ReadonlySpan<ComputedValuesFFI::ComputedCursor> cursor() const { return m_inherited.ui->cursor_span(); }
     ComputedContentData computed_content() const { return m_noninherited.content_data->computed_content_value(); }
-    ContentDataAndQuoteNestingLevel resolved_content(DOM::AbstractElement&, u32 initial_quote_nesting_level) const;
+    bool content_is_normal() const { return m_noninherited.content_data->content_is_normal(); }
+    bool content_uses_list_item_counter() const { return m_noninherited.content_data->content_uses_list_item_counter(); }
+    ContentDataAndQuoteNestingLevel resolved_content(DOM::AbstractElement&, u32 initial_quote_nesting_level, NotifyListItemCounterRendered) const;
     Vector<CounterData, 0> counter_increment() const { return m_noninherited.content_data->counter_increment_value(); }
     Vector<CounterData, 0> counter_reset() const { return m_noninherited.content_data->counter_reset_value(); }
     Vector<CounterData, 0> counter_set() const { return m_noninherited.content_data->counter_set_value(); }
@@ -1382,6 +1391,7 @@ public:
     Color webkit_text_fill_color() const { return m_inherited.text->webkit_text_fill_color_value(); }
 
     ListStyleType list_style_type(StyleScope const& style_scope) const { return m_inherited.list->list_style_type_value(style_scope); }
+    RefPtr<AbstractImageStyleValue const> list_style_image() const { return m_inherited.list->list_style_image_value(); }
     bool list_style_type_depends_on_counter_style_environment() const { return m_inherited.list->list_style_type_depends_on_counter_style_environment(); }
     bool list_style_type_uses_non_overridable_counter_style() const { return m_inherited.list->list_style_type_uses_non_overridable_counter_style(); }
 
@@ -1847,6 +1857,8 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Content;
 
         ComputedContentData computed_content_value() const;
+        bool content_is_normal() const;
+        bool content_uses_list_item_counter() const;
         Vector<CounterData, 0> counter_increment_value() const;
         Vector<CounterData, 0> counter_reset_value() const;
         Vector<CounterData, 0> counter_set_value() const;

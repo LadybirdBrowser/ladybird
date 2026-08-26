@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/ol-renumbers-after-inserting-list-item-ref.html">
+<ol id="list"><li>a</li><li>c</li><li>d</li></ol>
+<script>
+    const list = document.getElementById("list");
+    document.body.offsetHeight;
+    const item = document.createElement("li");
+    item.textContent = "b";
+    list.insertBefore(item, list.children[1]);
+    document.body.offsetHeight;
+</script>

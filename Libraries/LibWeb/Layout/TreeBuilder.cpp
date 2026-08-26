@@ -498,6 +498,9 @@ static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& elem
         return content;
     }
 
+    if (CSS::marker_text_depends_on_list_item_counter_value(list_box.list_style_type()))
+        element_reference.element().document().did_render_list_item_counter_value(element_reference.element());
+
     auto counter_value = element_reference.ensure_counters_set().counter_value_for_use(CSS::list_item_counter_name(), element_reference);
 
     auto generate_from_counter_style = [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Utf16String {
@@ -775,7 +778,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                     .content_item_count = frame.resolved_content.data.size(),
                 };
             }
-            auto [content, final_quote_nesting_level] = computed_values->resolved_content(element_reference, initial_quote_nesting_level);
+            auto [content, final_quote_nesting_level] = computed_values->resolved_content(element_reference, initial_quote_nesting_level, CSS::NotifyListItemCounterRendered::Yes);
             frame.resolved_content = move(content);
             frame.layout_node->set_content(frame.resolved_content);
             return {

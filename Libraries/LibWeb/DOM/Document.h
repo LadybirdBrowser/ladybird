@@ -1156,6 +1156,9 @@ public:
     void set_snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&, Painting::SnappedAreas);
     void forget_snapped_areas_of_scroll_container(Layout::Node const&);
 
+    void schedule_list_item_renumber(Element& list_owner);
+    void did_render_list_item_counter_value(Element&);
+
     void schedule_scroll_container_resnap() { m_needs_scroll_container_resnap = true; }
     void cancel_scheduled_scroll_container_resnap() { m_needs_scroll_container_resnap = false; }
     [[nodiscard]] bool needs_scroll_container_resnap() const { return m_needs_scroll_container_resnap; }
@@ -1465,6 +1468,9 @@ private:
     bool needs_style_update_after_layout();
     bool any_anchor_names_are_registered() const;
     PartialRelayoutResult try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
+
+    void process_pending_list_item_renumbers();
+    bool reconcile_stale_list_item_counters_after_tree_build(Vector<Layout::Node*> const& rebuilt_subtree_roots);
     enum class LayoutTreeChanged : u8 {
         No,
         Yes,
@@ -1861,6 +1867,10 @@ private:
     Vector<WeakPtr<Layout::Node const>> m_scroll_snap_containers;
     bool m_needs_scroll_container_resnap { false };
     bool m_may_have_scroll_snap_areas { false };
+
+    HashTable<GC::Ref<Element>> m_list_owners_pending_item_renumber;
+    HashTable<GC::Ref<Element>> m_list_owners_with_stale_item_counters;
+    bool m_stale_list_item_counter_rendered { false };
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     // The previous recording's list, retained so cached per-paintable item ranges can be spliced into
