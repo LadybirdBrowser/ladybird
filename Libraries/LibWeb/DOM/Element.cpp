@@ -3333,8 +3333,7 @@ void Element::clear_synthetic_pseudo_element_layout_nodes()
                 return TraversalDecision::Continue;
             });
             layout_node->prepare_subtree_for_detach_from_layout_tree();
-            if (layout_node->parent())
-                layout_node->remove();
+            Layout::detach_layout_node_for_destruction(*layout_node);
         }
         pseudo_element.set_layout_node(nullptr);
     });

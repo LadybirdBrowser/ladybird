@@ -877,7 +877,7 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
         // The parent may keep its subtree (a child lost its box in place); an emptied container
         // reads as having block-level children, like a freshly built one.
         auto* parent = layout_node->parent();
-        layout_node->remove();
+        detach_layout_node_for_destruction(*layout_node);
         if (!parent->has_children())
             parent->set_children_are_inline(false);
     }
@@ -898,9 +898,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
         .prepare_subtree_for_detach = [](void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Layout::Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
-        .remove_layout_node = [](void* layout_node_pointer) {
-            VERIFY(layout_node_pointer);
-            static_cast<Layout::Node*>(layout_node_pointer)->remove(); },
         .clear_stale_subtree = [](void* root_pointer) {
             VERIFY(root_pointer);
             auto& root = *static_cast<DOM::Node*>(root_pointer);
@@ -1172,14 +1169,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(element_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
-            bool removed_old_backdrop_layout_node = false;
             if (should_create_layout_node) {
-                // ::backdrop is a sibling of the element, not a child, so unlike other pseudo-elements, it is not
-                // automatically discarded when the element's layout is recomputed.
-                if (auto old_backdrop_node = element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Backdrop)) {
-                    removed_old_backdrop_layout_node = true;
-                    old_backdrop_node->remove();
-                }
                 LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(element);
                 update_style_if_needed_for_layout_tree_bypass_path(element);
             }
@@ -1191,7 +1181,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(computed_values);
             return {
                 .display = ffi_principal_display_facts(computed_values->display()),
-                .removed_old_backdrop_layout_node = removed_old_backdrop_layout_node,
             }; },
         .principal_element_layout_facts = [](void* frame_pointer, void* element_pointer) -> RustFFI::FfiElementLayoutFacts {
             VERIFY(frame_pointer);
@@ -1290,13 +1279,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             builder.m_layout_root = frame.layout_node; },
-        .clear_stale_inclusive_subtree = [](void* builder_pointer, void* node_pointer) {
-            VERIFY(builder_pointer);
-            VERIFY(node_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            static_cast<DOM::Node*>(node_pointer)->for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return builder.clear_stale_layout_node(node);
-            }); },
         .document_layout_node = [](void* document_pointer) -> RustFFI::NodeSlotId {
             VERIFY(document_pointer);
             // NB: Called during layout tree construction.
