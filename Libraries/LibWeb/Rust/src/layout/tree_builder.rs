@@ -7,6 +7,7 @@
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::tree_mutation::OwnedLayoutNode;
 use crate::layout::{
     ComputedValuesView, FfiDisplay, kind_is_replaced_box, kind_is_svg_box, kind_is_svg_graphics_box,
     node_can_have_children,
@@ -2062,22 +2063,25 @@ pub enum FfiInsertionMode {
 }
 
 #[repr(C)]
+pub struct FfiButtonContentWrappers {
+    pub flex_wrapper: NodeSlotId,
+    pub content_box: NodeSlotId,
+}
+
+#[repr(C)]
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
-    pub remove_nodes: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
-    pub wrap_in_anonymous:
-        unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, *mut c_void, FfiAnonymousTableBoxKind),
-    pub wrap_table_root: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-    pub append_missing_table_cell: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub create_and_append_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub wrap_children_in_anonymous: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
+    pub create_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub create_anonymous_table_box:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiAnonymousTableBoxKind) -> NodeSlotId,
+    pub create_table_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub create_missing_table_cell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub insert_child: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
     pub text_is_ascii_whitespace: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub prepare_first_letter_text:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
-    pub create_button_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub create_button_content_wrappers: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiButtonContentWrappers,
     pub create_fieldset_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub move_nodes_to_parent: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2289,12 +2293,26 @@ impl TreeBuilderHost<'_> {
     }
 
     fn set_children_are_inline(&self, node: LayoutNode, children_are_inline: bool) {
-        // SAFETY: Entry points guarantee that the arena remains live.
-        unsafe { (*self.arena).set_node_flag(node, NodeFlag::ChildrenAreInline, children_are_inline) };
+        self.arena()
+            .set_node_flag(node, NodeFlag::ChildrenAreInline, children_are_inline);
     }
 
-    fn shells(&self, nodes: &[LayoutNode]) -> Vec<*mut c_void> {
-        nodes.iter().map(|&node| self.shell(node)).collect()
+    fn arena(&self) -> &LayoutNodeArena {
+        // SAFETY: Entry points guarantee that the arena remains live.
+        unsafe { &*self.arena }
+    }
+
+    fn created(&self, slot: NodeSlotId) -> OwnedLayoutNode {
+        // SAFETY: Create callbacks return a live node carrying one reference for the caller.
+        unsafe { OwnedLayoutNode::adopt_created(slot) }
+    }
+
+    fn attach_child(&self, parent: LayoutNode, child: OwnedLayoutNode, before: LayoutNode) {
+        self.arena().attach_child(parent, child, before);
+    }
+
+    fn move_child(&self, child: LayoutNode, new_parent: LayoutNode, before: LayoutNode) {
+        self.arena().move_child(child, new_parent, before);
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {
@@ -2358,24 +2376,32 @@ impl TreeBuilderHost<'_> {
     }
 
     fn remove_nodes(&self, nodes: &[LayoutNode]) {
-        let shells = self.shells(nodes);
-        // SAFETY: All nodes remain tree-owned until the callback first retains the complete slice.
-        unsafe { (self.callbacks.remove_nodes)(self.callbacks.context, shells.as_ptr(), shells.len()) };
+        let mut detached_shells = Vec::with_capacity(nodes.len());
+        for &node in nodes {
+            let parent = self.parent(node);
+            assert!(!parent.is_invalid());
+            detached_shells.push(self.arena().detach_child(parent, node));
+        }
+        for detached_shell in detached_shells {
+            detached_shell.release();
+        }
     }
 
     fn wrap_in_anonymous(&self, nodes: &[LayoutNode], nearest_sibling: LayoutNode, kind: FfiAnonymousTableBoxKind) {
         assert!(!nodes.is_empty());
-        let shells = self.shells(nodes);
-        // SAFETY: The nodes are live siblings and `nearest_sibling` is either null or their live next sibling.
-        unsafe {
-            (self.callbacks.wrap_in_anonymous)(
-                self.callbacks.context,
-                shells.as_ptr(),
-                shells.len(),
-                self.shell_or_null(nearest_sibling),
-                kind,
-            );
-        };
+        let parent = self.parent(nodes[0]);
+        assert!(!parent.is_invalid());
+        // SAFETY: `parent` is a live NodeWithStyle.
+        let wrapper = self.created(unsafe {
+            (self.callbacks.create_anonymous_table_box)(self.callbacks.context, self.shell(parent), kind)
+        });
+        let wrapper_slot = wrapper.slot();
+        for &node in nodes {
+            self.move_child(node, wrapper_slot, NodeSlotId::INVALID);
+        }
+        let parent_children_are_inline = node_has_flag(self.data(parent), NodeFlag::ChildrenAreInline);
+        self.set_children_are_inline(wrapper_slot, parent_children_are_inline);
+        self.attach_child(parent, wrapper, nearest_sibling);
     }
 }
 
@@ -2459,11 +2485,12 @@ fn is_out_of_flow_table_internal_child_of_table_root(
 }
 
 fn create_anonymous_wrapper(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
-    // SAFETY: `parent` is a live NodeWithStyle. The callback appends and returns a live anonymous wrapper.
+    // SAFETY: `parent` is a live NodeWithStyle.
     let wrapper =
-        unsafe { (host.callbacks.create_and_append_anonymous_wrapper)(host.callbacks.context, host.shell(parent)) };
-    assert!(!wrapper.is_invalid());
-    wrapper
+        host.created(unsafe { (host.callbacks.create_anonymous_wrapper)(host.callbacks.context, host.shell(parent)) });
+    let wrapper_slot = wrapper.slot();
+    host.attach_child(parent, wrapper, NodeSlotId::INVALID);
+    wrapper_slot
 }
 
 fn last_child_creating_anonymous_wrapper_if_needed(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
@@ -2586,23 +2613,24 @@ fn insertion_parent_for_block_node(
 
     // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
     note_layout_tree_restructuring_at(host, state, new_parent);
-    let mut child_shells = Vec::new();
+    let mut children_to_wrap = Vec::new();
     let mut child = host.first_child(new_parent);
     while !child.is_invalid() {
         if !is_out_of_flow_table_internal_child_of_table_root(host, new_parent, child) {
-            child_shells.push(host.shell(child));
+            children_to_wrap.push(child);
         }
         child = host.next_sibling(child);
     }
-    // SAFETY: The callback retains the children before moving them and leaves `new_parent` live.
-    unsafe {
-        (host.callbacks.wrap_children_in_anonymous)(
-            host.callbacks.context,
-            host.shell(new_parent),
-            child_shells.as_ptr(),
-            child_shells.len(),
-        );
-    };
+    // SAFETY: `new_parent` is a live NodeWithStyle.
+    let wrapper = host
+        .created(unsafe { (host.callbacks.create_anonymous_wrapper)(host.callbacks.context, host.shell(new_parent)) });
+    let wrapper_slot = wrapper.slot();
+    host.set_children_are_inline(wrapper_slot, true);
+    for child in children_to_wrap {
+        host.move_child(child, wrapper_slot, NodeSlotId::INVALID);
+    }
+    host.set_children_are_inline(new_parent, false);
+    host.attach_child(new_parent, wrapper, NodeSlotId::INVALID);
 
     // Then it's safe to insert this block into parent.
     new_parent
@@ -2877,26 +2905,25 @@ fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Layou
     let display = host.style(layout_node).map(|style| style.display());
     if !display.is_some_and(|display| display.is_grid_inside() || display.is_flex_inside()) {
         let children_are_inline = node_has_flag(host.data(layout_node), NodeFlag::ChildrenAreInline);
-        let mut child_shells = Vec::new();
+        let mut children = Vec::new();
         let mut child = host.first_child(layout_node);
         while !child.is_invalid() {
-            child_shells.push(host.shell(child));
+            children.push(child);
             child = host.next_sibling(child);
         }
 
-        // SAFETY: `layout_node` remains live and owns the returned content wrapper through its flex wrapper.
-        let content_wrapper =
-            unsafe { (host.callbacks.create_button_content_wrapper)(host.callbacks.context, host.shell(layout_node)) };
-        assert!(!content_wrapper.is_invalid());
-        host.set_children_are_inline(content_wrapper, children_are_inline);
-        // SAFETY: The parent and content wrapper remain live, and the callback retains all nodes while moving them.
-        unsafe {
-            (host.callbacks.move_nodes_to_parent)(
-                host.callbacks.context,
-                host.shell(content_wrapper),
-                child_shells.as_ptr(),
-                child_shells.len(),
-            );
+        // SAFETY: `layout_node` is a live NodeWithStyle.
+        let wrappers =
+            unsafe { (host.callbacks.create_button_content_wrappers)(host.callbacks.context, host.shell(layout_node)) };
+        let flex_wrapper = host.created(wrappers.flex_wrapper);
+        let content_box = host.created(wrappers.content_box);
+        let flex_wrapper_slot = flex_wrapper.slot();
+        let content_box_slot = content_box.slot();
+        host.attach_child(flex_wrapper_slot, content_box, NodeSlotId::INVALID);
+        host.attach_child(layout_node, flex_wrapper, NodeSlotId::INVALID);
+        host.set_children_are_inline(content_box_slot, children_are_inline);
+        for child in children {
+            host.move_child(child, content_box_slot, NodeSlotId::INVALID);
         }
         host.set_children_are_inline(layout_node, false);
     }
@@ -2929,28 +2956,23 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
             return;
         }
 
-        let mut child_shells = Vec::new();
+        let mut children = Vec::new();
         let mut child = host.first_child(layout_node);
         while !child.is_invalid() {
             if child != legend {
-                child_shells.push(host.shell(child));
+                children.push(child);
             }
             child = host.next_sibling(child);
         }
 
-        // SAFETY: The fieldset remains live and owns the returned wrapper.
-        let wrapper = unsafe {
+        // SAFETY: `layout_node` is a live fieldset box.
+        let wrapper = host.created(unsafe {
             (host.callbacks.create_fieldset_content_wrapper)(host.callbacks.context, host.shell(layout_node))
-        };
-        assert!(!wrapper.is_invalid());
-        // SAFETY: The wrapper remains attached and the callback retains all nodes while moving them.
-        unsafe {
-            (host.callbacks.move_nodes_to_parent)(
-                host.callbacks.context,
-                host.shell(wrapper),
-                child_shells.as_ptr(),
-                child_shells.len(),
-            );
+        });
+        let wrapper_slot = wrapper.slot();
+        host.attach_child(layout_node, wrapper, NodeSlotId::INVALID);
+        for child in children {
+            host.move_child(child, wrapper_slot, NodeSlotId::INVALID);
         }
     }
 }
@@ -3296,14 +3318,15 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         let parent = host.parent(table_root);
         assert!(!parent.is_invalid());
         if host.data(parent).kind != NodeKind::TableWrapper {
-            // SAFETY: `table_root` is attached and `nearest_sibling` is either null or its live next sibling.
-            unsafe {
-                (host.callbacks.wrap_table_root)(
-                    host.callbacks.context,
-                    host.shell(table_root),
-                    host.shell_or_null(nearest_sibling),
-                );
-            };
+            // SAFETY: `table_root` is a live table box.
+            let wrapper = host.created(unsafe {
+                (host.callbacks.create_table_wrapper)(host.callbacks.context, host.shell(table_root))
+            });
+            let wrapper_slot = wrapper.slot();
+            host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
+            host.attach_child(parent, wrapper, nearest_sibling);
+            host.arena()
+                .set_node_flag(table_root, NodeFlag::HasBeenWrappedInTableWrapper, true);
         }
     }
     table_roots_to_wrap
@@ -3315,7 +3338,9 @@ fn fixup_row(host: &TreeBuilderHost<'_>, row: LayoutNode, table_grid: &crate::la
             continue;
         }
         // SAFETY: `row` is a live table-row box.
-        unsafe { (host.callbacks.append_missing_table_cell)(host.callbacks.context, host.shell(row)) };
+        let cell = host
+            .created(unsafe { (host.callbacks.create_missing_table_cell)(host.callbacks.context, host.shell(row)) });
+        host.attach_child(row, cell, NodeSlotId::INVALID);
     }
 }
 

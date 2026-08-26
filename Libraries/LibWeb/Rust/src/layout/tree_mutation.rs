@@ -93,6 +93,10 @@ impl OwnedLayoutNode {
         Self(slot)
     }
 
+    pub(crate) fn slot(&self) -> NodeSlotId {
+        self.0
+    }
+
     fn into_slot(self) -> NodeSlotId {
         let slot = self.0;
         std::mem::forget(self);
@@ -136,6 +140,14 @@ impl LayoutNodeArena {
     pub(crate) fn detach_from_parent(&self, node: NodeSlotId) -> Option<DetachedShell> {
         let parent = parent_of(self, node);
         (!parent.is_invalid()).then(|| self.detach_child(parent, node))
+    }
+
+    pub(crate) fn move_child(&self, child: NodeSlotId, new_parent: NodeSlotId, before: NodeSlotId) {
+        self.assert_owner_thread();
+        let old_parent = parent_of(self, child);
+        assert!(!old_parent.is_invalid(), "moved layout node has no parent");
+        self.remove_child(old_parent, child);
+        self.insert_child(new_parent, child, before);
     }
 
     pub(crate) fn replace_child(
@@ -260,6 +272,33 @@ mod tests {
         free(&mut arena, b);
         free(&mut arena, parent);
         for orphan in [a, d, c] {
+            free(&mut arena, orphan);
+        }
+    }
+
+    #[test]
+    fn moving_a_child_relinks_it_under_the_new_parent() {
+        let mut arena = LayoutNodeArena::new();
+        let first_parent = arena.allocate();
+        let second_parent = arena.allocate();
+        let a = arena.allocate();
+        let b = arena.allocate();
+        let c = arena.allocate();
+        arena.attach_child(first_parent.slot, owned(a.slot), NodeSlotId::INVALID);
+        arena.attach_child(first_parent.slot, owned(b.slot), NodeSlotId::INVALID);
+        arena.attach_child(second_parent.slot, owned(c.slot), NodeSlotId::INVALID);
+
+        arena.move_child(b.slot, second_parent.slot, c.slot);
+
+        assert_eq!(links(&arena, first_parent.slot).first_child, a.slot);
+        assert_eq!(links(&arena, first_parent.slot).last_child, a.slot);
+        assert_eq!(links(&arena, second_parent.slot).first_child, b.slot);
+        assert_eq!(links(&arena, b.slot).next_sibling, c.slot);
+        assert_eq!(links(&arena, b.slot).parent, second_parent.slot);
+
+        free(&mut arena, first_parent);
+        free(&mut arena, second_parent);
+        for orphan in [a, b, c] {
             free(&mut arena, orphan);
         }
     }
