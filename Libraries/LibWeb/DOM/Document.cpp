@@ -405,7 +405,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // AD-HOC: The fetch controller is only available in the process that ran the navigation fetch. Navigation params
     //         rebuilt from a descriptor carry the fetch's timing info directly.
-    GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> navigation_fetch_timing_info = navigation_params.fetch_timing_info;
+    RefPtr<Fetch::Infrastructure::FetchTimingInfo> navigation_fetch_timing_info = navigation_params.fetch_timing_info;
     if (navigation_params.fetch_controller)
         navigation_fetch_timing_info = navigation_params.fetch_controller->timing_info();
 

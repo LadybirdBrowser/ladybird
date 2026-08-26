@@ -44,16 +44,16 @@ public:
 
     [[nodiscard]] static GC::Ref<FetchController> create();
 
-    void set_full_timing_info(GC::Ref<FetchTimingInfo> full_timing_info) { m_full_timing_info = full_timing_info; }
+    void set_full_timing_info(NonnullRefPtr<FetchTimingInfo> full_timing_info) { m_full_timing_info = move(full_timing_info); }
     void set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps);
     void set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps);
 
     [[nodiscard]] State state() const { return m_state; }
-    [[nodiscard]] GC::Ptr<FetchTimingInfo> timing_info() const;
+    [[nodiscard]] RefPtr<FetchTimingInfo> timing_info() const;
 
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
-    [[nodiscard]] GC::Ref<FetchTimingInfo> extract_full_timing_info() const;
+    [[nodiscard]] NonnullRefPtr<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
     Optional<HTML::IPCSerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }
     void terminate();
@@ -87,7 +87,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-controller-full-timing-info
     // full timing info (default null)
     //    Null or a fetch timing info.
-    GC::Ptr<FetchTimingInfo> m_full_timing_info;
+    RefPtr<FetchTimingInfo> m_full_timing_info;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // report timing steps (default null)

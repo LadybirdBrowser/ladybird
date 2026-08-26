@@ -30,7 +30,6 @@ GC::Ref<FetchController> FetchController::create()
 void FetchController::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_full_timing_info);
     visitor.visit(m_report_timing_steps);
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_fetch_params);
@@ -79,7 +78,7 @@ void FetchController::process_next_manual_redirect() const
 }
 
 // https://fetch.spec.whatwg.org/#extract-full-timing-info
-GC::Ref<FetchTimingInfo> FetchController::extract_full_timing_info() const
+NonnullRefPtr<FetchTimingInfo> FetchController::extract_full_timing_info() const
 {
     // 1. Assert: this’s full timing info is not null.
     VERIFY(m_full_timing_info);
@@ -88,7 +87,7 @@ GC::Ref<FetchTimingInfo> FetchController::extract_full_timing_info() const
     return *m_full_timing_info;
 }
 
-GC::Ptr<FetchTimingInfo> FetchController::timing_info() const
+RefPtr<FetchTimingInfo> FetchController::timing_info() const
 {
     if (!m_fetch_params)
         return nullptr;

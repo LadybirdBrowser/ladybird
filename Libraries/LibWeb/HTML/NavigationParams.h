@@ -12,6 +12,7 @@
 #include <LibGC/Ptr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/PerformanceNavigationTiming.h>
+#include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Forward.h>
@@ -47,7 +48,7 @@ struct NavigationParams : GC::Cell {
     // AD-HOC: The fetch controller stays in the process that ran the navigation fetch. Navigation params rebuilt from
     //         a descriptor carry the fetch's timing info here instead, so the new Document's navigation timing entry
     //         still sees it.
-    GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info { nullptr };
+    RefPtr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info { nullptr };
 
     // null or an algorithm accepting a Document, once it has been created
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints { nullptr };
