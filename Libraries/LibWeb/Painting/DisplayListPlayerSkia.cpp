@@ -1131,10 +1131,6 @@ void DisplayListPlayerSkia::play_command(CompositorScrollNode const&)
 {
 }
 
-void DisplayListPlayerSkia::play_command(CompositorStickyArea const&)
-{
-}
-
 void DisplayListPlayerSkia::play_command(CompositorWheelHitTestTarget const&)
 {
 }

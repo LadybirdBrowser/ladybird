@@ -893,10 +893,6 @@ impl DisplayListRecorder {
         self.append_command(&node, &[]);
     }
 
-    pub fn compositor_sticky_area(&mut self, area: CompositorStickyArea) {
-        self.append_command(&area, &[]);
-    }
-
     pub fn compositor_wheel_hit_test_target(&mut self, target: CompositorWheelHitTestTarget) {
         self.append_command(&target, &[]);
     }

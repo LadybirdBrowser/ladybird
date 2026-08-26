@@ -42,7 +42,6 @@ pub enum DisplayListCommandType {
     AddRoundedRectClip,
     PaintNestedDisplayList,
     CompositorScrollNode,
-    CompositorStickyArea,
     CompositorWheelHitTestTarget,
     CompositorWheelHitTestTargetWithCornerRadii,
     CompositorMainThreadWheelEventRegion,
@@ -69,7 +68,6 @@ impl DisplayListCommandType {
         matches!(
             self,
             Self::CompositorScrollNode
-                | Self::CompositorStickyArea
                 | Self::CompositorWheelHitTestTarget
                 | Self::CompositorWheelHitTestTargetWithCornerRadii
                 | Self::CompositorMainThreadWheelEventRegion
@@ -118,7 +116,6 @@ impl DisplayListCommandType {
             Self::AddRoundedRectClip => "AddRoundedRectClip",
             Self::PaintNestedDisplayList => "PaintNestedDisplayList",
             Self::CompositorScrollNode => "CompositorScrollNode",
-            Self::CompositorStickyArea => "CompositorStickyArea",
             Self::CompositorWheelHitTestTarget => "CompositorWheelHitTestTarget",
             Self::CompositorWheelHitTestTargetWithCornerRadii => "CompositorWheelHitTestTargetWithCornerRadii",
             Self::CompositorMainThreadWheelEventRegion => "CompositorMainThreadWheelEventRegion",
@@ -1318,43 +1315,6 @@ ffi_bytes_fields!(CompositorScrollNode {
 
 impl DisplayListCommand for CompositorScrollNode {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorScrollNode;
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct CompositorStickyArea {
-    pub document_id: UniqueNodeId,
-    pub scroll_node_index: SpatialNodeIndex,
-    pub parent_scroll_node_index: SpatialNodeIndex,
-    pub nearest_scrolling_ancestor_index: SpatialNodeIndex,
-    pub position_relative_to_scroll_ancestor: FloatPoint,
-    pub border_box_size: FloatSize,
-    pub scrollport_size: FloatSize,
-    pub containing_block_region: FloatRect,
-    pub needs_parent_offset_adjustment: bool,
-    pub inset_top: OptionalF32,
-    pub inset_right: OptionalF32,
-    pub inset_bottom: OptionalF32,
-    pub inset_left: OptionalF32,
-}
-ffi_bytes_fields!(CompositorStickyArea {
-    document_id,
-    scroll_node_index,
-    parent_scroll_node_index,
-    nearest_scrolling_ancestor_index,
-    position_relative_to_scroll_ancestor,
-    border_box_size,
-    scrollport_size,
-    containing_block_region,
-    needs_parent_offset_adjustment,
-    inset_top,
-    inset_right,
-    inset_bottom,
-    inset_left
-});
-
-impl DisplayListCommand for CompositorStickyArea {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorStickyArea;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

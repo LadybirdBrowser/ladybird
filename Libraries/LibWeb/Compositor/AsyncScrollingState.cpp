@@ -83,25 +83,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             });
             break;
         }
-        case Painting::DisplayListCommandType::CompositorStickyArea: {
-            auto command = Painting::read_display_list_command_payload<Painting::CompositorStickyArea>(payload);
-            async_scrolling_state.sticky_areas.append({
-                .document_id = command.document_id,
-                .scroll_node_index = command.scroll_node_index,
-                .parent_scroll_node_index = command.parent_scroll_node_index,
-                .nearest_scrolling_ancestor_index = command.nearest_scrolling_ancestor_index,
-                .position_relative_to_scroll_ancestor = command.position_relative_to_scroll_ancestor,
-                .border_box_size = command.border_box_size,
-                .scrollport_size = command.scrollport_size,
-                .containing_block_region = command.containing_block_region,
-                .needs_parent_offset_adjustment = command.needs_parent_offset_adjustment,
-                .inset_top = command.inset_top,
-                .inset_right = command.inset_right,
-                .inset_bottom = command.inset_bottom,
-                .inset_left = command.inset_left,
-            });
-            break;
-        }
         case Painting::DisplayListCommandType::CompositorScrollNode: {
             auto command = Painting::read_display_list_command_payload<Painting::CompositorScrollNode>(payload);
             async_scrolling_state.scroll_nodes.append({
