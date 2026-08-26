@@ -46,6 +46,38 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_cached_property_value(VM& vm, Value v
     return TRY(call(vm, *getter, this_value));
 }
 
+// Non-standard
+ALWAYS_INLINE Value get_own_property_without_side_effects(Object& object, PropertyKey const& property_key, StaticPropertyLookupCache& cache)
+{
+    auto& shape = object.shape();
+
+    if (auto const* cache_entry = cache.first_entry(); cache_entry
+        && (cache_entry->type == PropertyLookupCache::Entry::Type::GetOwnProperty
+            || cache_entry->type == PropertyLookupCache::Entry::Type::GetMissingProperty)
+        && &shape == cache_entry->shape.ptr()
+        && (!shape.is_dictionary() || shape.dictionary_generation() == cache_entry->shape_dictionary_generation)) {
+        if (cache_entry->type == PropertyLookupCache::Entry::Type::GetMissingProperty)
+            return {};
+        return object.get_direct(cache_entry->property_offset);
+    }
+
+    auto metadata = shape.lookup(property_key);
+    auto cache_type = metadata.has_value()
+        ? PropertyLookupCache::Entry::Type::GetOwnProperty
+        : PropertyLookupCache::Entry::Type::GetMissingProperty;
+    cache.update(cache_type, [&](auto& entry) {
+        entry.shape = shape;
+        if (metadata.has_value())
+            entry.property_offset = metadata->offset;
+        if (shape.is_dictionary())
+            entry.shape_dictionary_generation = shape.dictionary_generation();
+    });
+
+    if (!metadata.has_value())
+        return {};
+    return object.get_direct(metadata->offset);
+}
+
 ALWAYS_INLINE GC::Ptr<Object> base_object_for_get_impl(VM& vm, Value base_value)
 {
     if (base_value.is_object()) [[likely]]
