@@ -62,8 +62,9 @@ void IncrementalDocumentParser::start()
     // FIXME: The spec allows starting the parse after 500 ms or 1024 bytes, whichever comes first.
     // We only honor the byte threshold.
     auto parser = GC::Ref { *this };
-    m_body->wait_for_sniff_bytes(GC::create_function(GC::Heap::the(), [parser](ReadonlyBytes sniff_bytes) {
-        parser->initialize_parser(sniff_bytes);
+    m_body->wait_for_sniff_bytes(GC::create_function(GC::Heap::the(), [parser](Web::Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
+        // A failed response initializes the parser too.
+        parser->initialize_parser(sniff_bytes.bytes);
     }));
 }
 

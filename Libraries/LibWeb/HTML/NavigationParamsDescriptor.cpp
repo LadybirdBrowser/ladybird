@@ -304,7 +304,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
                 return;
             }
 
-            body->set_sniff_bytes_complete();
+            body->set_sniff_bytes_failed();
             if (stream->is_readable())
                 stream->error(JS::TypeError::create(realm, "Transferred navigation response failed"_utf16));
         });

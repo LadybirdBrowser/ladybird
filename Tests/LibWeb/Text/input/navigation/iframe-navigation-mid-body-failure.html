@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation response that dies mid-body must not satisfy the MIME-sniff wait with its
+    // partial bytes: no document may be created from the truncated body, and the navigation
+    // settles without one.
+
+    // Runs on a hostname of its own, in a process apart from the test page.
+    async function checkFailedNavigationSettles(urls) {
+        const output = [];
+        const println = line => output.push(line);
+
+        const countBodyReceivers = () =>
+            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === "FetchedDataReceiver")
+                .length;
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        // A stale pointer on the stack can keep a cell alive through one conservative collection.
+        const waitForRelease = async initial => {
+            const deadline = performance.now() + 10000;
+            for (;;) {
+                await internals.gcAsync();
+                if (countBodyReceivers() === initial || performance.now() > deadline)
+                    return;
+                await sleep(10);
+            }
+        };
+
+        await internals.gcAsync();
+        const initial = countBodyReceivers();
+
+        const frame = document.createElement("iframe");
+        let loaded = false;
+        frame.addEventListener("load", () => (loaded = true));
+        frame.src = urls.failing;
+        document.body.append(frame);
+
+        // The body is held after its first chunk, and ends short once it is let go.
+        const arrivalDeadline = performance.now() + 10000;
+        while (countBodyReceivers() === initial) {
+            if (performance.now() > arrivalDeadline) {
+                println("body of the failed navigation never arrived");
+                return output;
+            }
+            await sleep(10);
+        }
+        await fetch(urls.unblock);
+
+        // The navigation has settled once its body is released.
+        await waitForRelease(initial);
+        println(`iframe produced a document from the partial body: ${loaded}`);
+        const stayed = frame.contentDocument !== null && frame.contentDocument.querySelector("#partial") === null;
+        println(`iframe stayed on its initial document: ${stayed}`);
+        return output;
+    }
+
+    promiseTest(async () => {
+        const hostname = uniqueLocalhostHostname("mid-body-navigation-failure");
+        const server = httpTestServer();
+
+        const token = `mid-body-failure-${crypto.randomUUID()}`;
+        const failing = new URL(await server.createEcho("GET", `/mid-body-navigation-failure-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Cache-Control": "no-store",
+                "Content-Length": "100000",
+                "Content-Type": "text/html",
+            },
+            body: "<!DOCTYPE html><span id='partial'>partial</span>" + "x".repeat(967),
+        }));
+        failing.hostname = hostname;
+        failing.search = `?chunks=512,503&chunk_unblock_tokens=${token}`;
+        const unblock = new URL(`/unblock/${token}`, failing);
+
+        const urls = { failing: failing.href, unblock: unblock.href };
+        const checker = new URL(await server.createEcho("GET", `/mid-body-failure-checker-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><script>
+                (${checkFailedNavigationSettles.toString()})(${JSON.stringify(urls)}).then(
+                    output => parent.postMessage({ output }, "*"),
+                    error => parent.postMessage({ error: String(error) }, "*"));
+            <\/script>`,
+        }));
+        checker.hostname = hostname;
+
+        const frame = document.createElement("iframe");
+        const result = new Promise(resolve => {
+            window.addEventListener("message", function receive(event) {
+                if (event.source !== frame.contentWindow)
+                    return;
+                window.removeEventListener("message", receive);
+                resolve(event.data);
+            });
+        });
+        frame.src = checker;
+        document.body.append(frame);
+        try {
+            const { output, error } = await result;
+            if (error)
+                throw new Error(error);
+            for (const line of output)
+                println(line);
+        } finally {
+            frame.remove();
+        }
+    });
+</script>
