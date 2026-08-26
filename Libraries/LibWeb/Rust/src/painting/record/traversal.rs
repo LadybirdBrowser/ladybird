@@ -10,7 +10,7 @@ use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{node_facts, used_values};
 use crate::painting::display_list::builder::CommandRange;
-use crate::painting::display_list::commands::VisualContextIndex;
+use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::fragment_ownership;
@@ -77,7 +77,7 @@ pub(crate) fn record_display_list(
         .visual_context
         .tree
         .as_ref()
-        .map(|tree| tree.nodes.iter().map(|node| node.has_empty_effective_clip).collect())
+        .map(|tree| tree.empty_effective_clips_by_frame())
         .unwrap_or_default();
     let visual_context_tree_version = paint_state.visual_context.tree_version();
     // NB: Some commands embed visual context indices in their payloads. Those indices can change
@@ -205,8 +205,8 @@ impl PaintRecorder<'_> {
         {
             return;
         }
-        let effective_context_index = VisualContextIndex(self.own_context_index(paintable));
-        self.recorder.set_accumulated_visual_context(effective_context_index);
+        let effective_context = self.own_context(paintable);
+        self.recorder.set_accumulated_visual_context(effective_context);
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
@@ -612,8 +612,8 @@ impl PaintRecorder<'_> {
     }
 
     fn paint_svg_box(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
-        let context_index = VisualContextIndex(self.own_context_index(svg_box));
-        self.recorder.set_accumulated_visual_context(context_index);
+        let context = self.own_context(svg_box);
+        self.recorder.set_accumulated_visual_context(context);
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
@@ -657,31 +657,31 @@ impl PaintRecorder<'_> {
         }
     }
 
-    fn for_descendants_context_index(&self, paintable: NodeSlotId) -> usize {
+    fn for_descendants_context(&self, paintable: NodeSlotId) -> ContextRef {
         if let Some(nested) = &self.nested
-            && let Some((_, for_descendants)) = nested.assignments.paintable_indices.get(&paintable.index)
+            && let Some((_, for_descendants)) = nested.assignments.paintable_contexts.get(&paintable.index)
         {
             return *for_descendants;
         }
-        self.data(paintable).accumulated_visual_context_for_descendants_index
+        self.data(paintable).accumulated_visual_context_for_descendants
     }
 
-    fn context_index_for_phase(&self, paintable: NodeSlotId, phase: PaintPhase) -> VisualContextIndex {
+    fn context_for_phase(&self, paintable: NodeSlotId, phase: PaintPhase) -> ContextRef {
         let data = self.data(paintable);
         // Text fragments are content of the block container (or of a self-painting inline box).
         // They need the descendants' visual context, not the element's own visual context.
         let foreground_paints_descendant_content = data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable;
         if foreground_paints_descendant_content && phase == PaintPhase::Foreground {
-            VisualContextIndex(self.for_descendants_context_index(paintable))
+            self.for_descendants_context(paintable)
         } else {
-            VisualContextIndex(self.own_context_index(paintable))
+            self.own_context(paintable)
         }
     }
 
     fn paint_node(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         let saved_nesting_level = std::mem::replace(&mut self.recorder.save_nesting_level, 0);
-        let context_index = self.context_index_for_phase(paintable, phase);
-        self.recorder.set_accumulated_visual_context(context_index);
+        let context = self.context_for_phase(paintable, phase);
+        self.recorder.set_accumulated_visual_context(context);
 
         // Hit-test items are only ever recorded in the Background, Foreground, and Overlay phases.
         let phase_can_record_hit_test_items = matches!(
@@ -701,12 +701,12 @@ impl PaintRecorder<'_> {
         let cache_writes_enabled = self.inputs.paint_command_cache_read_write && !is_nested;
 
         if phase_can_record_hit_test_items && !is_nested {
-            let own_index = self.own_context_index(paintable);
-            let for_descendants_index = self.for_descendants_context_index(paintable);
+            let own_context = self.own_context(paintable);
+            let for_descendants_context = self.for_descendants_context(paintable);
             let cached_items = if skip_cache {
                 None
             } else {
-                self.valid_cached_hit_test_items(paintable, phase, own_index, for_descendants_index)
+                self.valid_cached_hit_test_items(paintable, phase, own_context, for_descendants_context)
             };
             if let Some((source, start, count)) = cached_items {
                 // Copies a validated range of items recorded by one (paintable, phase) from the retained previous
@@ -723,8 +723,8 @@ impl PaintRecorder<'_> {
                         phase,
                         destination_start,
                         count,
-                        own_index,
-                        for_descendants_index,
+                        own_context,
+                        for_descendants_context,
                     );
                 }
             } else {
@@ -737,16 +737,16 @@ impl PaintRecorder<'_> {
                         phase,
                         items_before,
                         items_after - items_before,
-                        own_index,
-                        for_descendants_index,
+                        own_context,
+                        for_descendants_context,
                     );
                 }
             }
         }
 
         // SVG subtrees are recorded outside per-paintable captures, so path-bearing items are never spliced.
-        let phase_context_index = self.recorder.accumulated_visual_context();
-        let phase_has_empty_effective_clip = self.recorder.has_empty_effective_clip(phase_context_index);
+        let phase_context = self.recorder.accumulated_visual_context();
+        let phase_has_empty_effective_clip = self.recorder.has_empty_effective_clip(phase_context.frame);
         let cached_commands = if skip_cache || is_nested {
             None
         } else {
@@ -756,14 +756,14 @@ impl PaintRecorder<'_> {
             let destination_range = self.recorder.append_cached_command_range(
                 &source.display_list_bytes,
                 cached.range,
-                VisualContextIndex(cached.recorded_context_index),
+                cached.recorded_context,
             );
             if cache_writes_enabled {
                 self.set_cached_commands(
                     paintable,
                     phase,
                     destination_range,
-                    phase_context_index.0,
+                    phase_context,
                     phase_has_empty_effective_clip,
                 );
             }
@@ -784,13 +784,13 @@ impl PaintRecorder<'_> {
                     paintable,
                     phase,
                     command_range,
-                    phase_context_index.0,
+                    phase_context,
                     phase_has_empty_effective_clip,
                 );
             }
         }
 
-        self.recorder.set_accumulated_visual_context(VisualContextIndex(0));
+        self.recorder.set_accumulated_visual_context(ContextRef::default());
         assert_eq!(
             self.recorder.save_nesting_level, 0,
             "unbalanced save/restore in a paint capture"
@@ -828,8 +828,8 @@ impl PaintRecorder<'_> {
         &self,
         paintable: NodeSlotId,
         phase: PaintPhase,
-        own_index: usize,
-        for_descendants_index: usize,
+        own_context: ContextRef,
+        for_descendants_context: ContextRef,
     ) -> Option<(Rc<Vec<HitTestItem>>, usize, usize)> {
         let source = self.item_cache_source.as_ref()?;
         let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
@@ -838,8 +838,8 @@ impl PaintRecorder<'_> {
         }
         let entry = cache.hit_test_items(phase)?;
         if entry.source_hit_test_display_list_id != source.id
-            || entry.recorded_context_index != own_index
-            || entry.recorded_context_for_descendants_index != for_descendants_index
+            || entry.recorded_context != own_context
+            || entry.recorded_context_for_descendants != for_descendants_context
         {
             return None;
         }
@@ -855,7 +855,7 @@ impl PaintRecorder<'_> {
         paintable: NodeSlotId,
         phase: PaintPhase,
         range: CommandRange,
-        recorded_context_index: usize,
+        recorded_context: ContextRef,
         captured_under_empty_effective_clip: bool,
     ) {
         let cache = self.layout_arena.paintable_paint_cache(paintable);
@@ -865,7 +865,7 @@ impl PaintRecorder<'_> {
             crate::painting::record::cache::CachedCommands {
                 source_display_list_id: self.display_list_id,
                 range,
-                recorded_context_index,
+                recorded_context,
                 captured_under_empty_effective_clip,
             },
         );
@@ -877,8 +877,8 @@ impl PaintRecorder<'_> {
         phase: PaintPhase,
         start: usize,
         count: usize,
-        recorded_context_index: usize,
-        recorded_context_for_descendants_index: usize,
+        recorded_context: ContextRef,
+        recorded_context_for_descendants: ContextRef,
     ) {
         let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.register_capture_position(self.current_absolute_position(paintable));
@@ -888,8 +888,8 @@ impl PaintRecorder<'_> {
                 source_hit_test_display_list_id: self.hit_test_list_generation,
                 start: start as u32,
                 count: count as u32,
-                recorded_context_index,
-                recorded_context_for_descendants_index,
+                recorded_context,
+                recorded_context_for_descendants,
             },
         );
     }

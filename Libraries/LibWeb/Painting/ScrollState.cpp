@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <AK/Vector.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -11,7 +12,7 @@
 
 namespace IPC {
 
-// The dense in-process vector spans the whole visual context index space, but only scroll and
+// The dense in-process vector spans the whole spatial node index space, but only scroll and
 // sticky node indices can hold non-zero offsets, so the wire format is sparse (index, offset)
 // pairs; holes decode back to zero offsets.
 template<>
@@ -41,7 +42,9 @@ ErrorOr<Web::Painting::ScrollStateSnapshot> decode(Decoder& decoder)
     for (u64 i = 0; i < pair_count; ++i) {
         auto index = TRY(decoder.decode<u64>());
         auto offset = TRY(decoder.decode<Gfx::FloatPoint>());
-        snapshot.set_device_offset_for_index(Web::Painting::VisualContextIndex { index }, offset);
+        if (index >= NumericLimits<u32>::max())
+            return Error::from_string_literal("IPC decode: ScrollStateSnapshot index out of range");
+        snapshot.set_device_offset_for_index(Web::Painting::SpatialNodeIndex { static_cast<u32>(index) }, offset);
     }
     return snapshot;
 }

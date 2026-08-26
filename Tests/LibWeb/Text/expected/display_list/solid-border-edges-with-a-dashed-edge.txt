@@ -1,18 +1,18 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillPath@1 path_bounding_rect=[8,8 120x80]
-  Save@1
-    AddClipPath@1 path_bounding_rect=[8,8 10x80]
-    StrokePath@1 path_bounding_rect=[8,3 10x90] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[8,88 120x10]
-    StrokePath@1 path_bounding_rect=[3,88 130x10] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
-  Restore@1
-  FillPath@1 path_bounding_rect=[8,88 120x80]
-Restore@0
-
+SaveLayer@s0
+  FillPath@s1 path_bounding_rect=[8,8 120x80]
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[8,8 10x80]
+    StrokePath@s1 path_bounding_rect=[8,3 10x90] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[8,88 120x10]
+    StrokePath@s1 path_bounding_rect=[3,88 130x10] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
+  Restore@s1
+  FillPath@s1 path_bounding_rect=[8,88 120x80]
+Restore@s0

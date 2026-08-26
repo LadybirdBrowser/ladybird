@@ -12,8 +12,8 @@
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Vector3.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/ContextRef.h>
 #include <LibWeb/Painting/DisplayListCommandRange.h>
-#include <LibWeb/Painting/VisualContextIndex.h>
 
 namespace Web::Painting {
 
@@ -23,6 +23,6 @@ struct PushPlaneClip {
 struct PopPlaneClip { };
 using DepthSortedReplayStep = Variant<DisplayListCommandRange, PushPlaneClip, PopPlaneClip>;
 
-Vector<DepthSortedReplayStep> build_depth_sorted_replay_plan(ReadonlyBytes commands, AccumulatedVisualContextTree const&, ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette, ReadonlySpan<VisualContextIndex> nearest_spatial_node, ReadonlySpan<bool> backface_culled);
+Vector<DepthSortedReplayStep> build_depth_sorted_replay_plan(ReadonlyBytes commands, AccumulatedVisualContextTree const&, ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette, ReadonlySpan<SpatialNodeIndex> draw_space, ReadonlySpan<bool> backface_culled);
 
 }

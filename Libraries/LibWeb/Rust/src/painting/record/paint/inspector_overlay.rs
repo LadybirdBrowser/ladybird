@@ -9,9 +9,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::grid_formatting_context;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::display_list::commands::{
-    DisplayListGlyph, FontResourceId, VISUAL_VIEWPORT_NODE_INDEX, VisualContextIndex,
-};
+use crate::painting::display_list::commands::{ContextRef, DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, FfiOverlayLabelFacts};
 use crate::painting::paintable_geometry;
@@ -20,9 +18,7 @@ use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, LineStyle, Orientation};
 
 pub(crate) fn record_inspector_overlays(recorder: &mut PaintRecorder<'_>) {
     let inputs = recorder.inputs;
-    recorder
-        .recorder
-        .set_accumulated_visual_context(VISUAL_VIEWPORT_NODE_INDEX);
+    recorder.recorder.set_accumulated_visual_context(ContextRef::default());
     if inputs.has_inspector_highlight {
         with_highlight_context(recorder, inputs.inspector_highlight_paintable, |recorder, paintable| {
             paint_box_model_highlight(recorder, paintable);
@@ -64,13 +60,11 @@ fn with_highlight_context(
         return;
     }
     let previous_context = recorder.recorder.accumulated_visual_context();
-    let context = VisualContextIndex(recorder.data(paintable).accumulated_visual_context_index);
     // Overlays follow the highlighted element's transforms and scroll offsets, but must not be clipped
-    // or faded by its ancestors, so their commands apply the element's context in geometry-only mode.
+    // or faded by its ancestors, so their commands apply the element's spatial node without its frame.
+    let context = ContextRef::spatial_only(recorder.data(paintable).accumulated_visual_context.spatial);
     recorder.recorder.set_accumulated_visual_context(context);
-    recorder.recorder.set_context_geometry_only(true);
     callback(recorder, paintable);
-    recorder.recorder.set_context_geometry_only(false);
     recorder.recorder.set_accumulated_visual_context(previous_context);
 }
 

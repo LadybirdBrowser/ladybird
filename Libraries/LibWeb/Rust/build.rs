@@ -2245,6 +2245,9 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "MaskLayerOrigin",
             "TransformDataRole",
             "FfiChromeMetrics",
+            "SpatialNodeIndex",
+            "FrameNodeIndex",
+            "ContextRef",
         ]
         .map(String::from),
     );
@@ -2281,6 +2284,9 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("MaskLayerOrigin", "Web::Painting::MaskLayerOrigin"),
         ("TransformDataRole", "Web::Painting::TransformDataRole"),
         ("FfiChromeMetrics", "Web::ChromeMetrics"),
+        ("SpatialNodeIndex", "Web::Painting::SpatialNodeIndex"),
+        ("FrameNodeIndex", "Web::Painting::FrameNodeIndex"),
+        ("ContextRef", "Web::Painting::ContextRef"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -2756,7 +2762,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             "OptionalU32",
             "OptionalF32",
             "OptionalAffineTransform",
-            "VisualContextIndex",
             "FontResourceId",
             "ImageFrameResourceId",
             "VideoSinkResourceId",
@@ -2778,7 +2783,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     display_list_commands_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string()]);
     let commands_source = manifest_dir.join("src/painting/display_list/commands.rs");
     let types_with_existing_cpp_definitions = [
-        "VisualContextIndex",
+        "SpatialNodeIndex",
+        "FrameNodeIndex",
+        "ContextRef",
         "FontResourceId",
         "ImageFrameResourceId",
         "VideoSinkResourceId",
@@ -2863,7 +2870,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "LibWeb/Compositor/Types.h",
         "LibWeb/Forward.h",
         "LibWeb/Painting/DisplayListResourceIds.h",
-        "LibWeb/Painting/VisualContextIndex.h",
+        "LibWeb/Painting/ContextRef.h",
     ]
     .into_iter()
     .map(String::from)

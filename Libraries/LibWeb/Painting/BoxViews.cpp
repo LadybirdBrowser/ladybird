@@ -453,36 +453,36 @@ bool has_accumulated_visual_context(Layout::Node const& node)
     return row && row->has_accumulated_visual_context;
 }
 
-VisualContextIndex accumulated_visual_context_index(Layout::Node const& node)
+ContextRef accumulated_visual_context(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    return row ? VisualContextIndex { row->accumulated_visual_context_index } : VisualContextIndex {};
+    return row ? row->accumulated_visual_context : ContextRef {};
 }
 
-VisualContextIndex accumulated_visual_context_for_descendants_index(Layout::Node const& node)
+ContextRef accumulated_visual_context_for_descendants(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    return row ? VisualContextIndex { row->accumulated_visual_context_for_descendants_index } : VisualContextIndex {};
+    return row ? row->accumulated_visual_context_for_descendants : ContextRef {};
 }
 
-Optional<VisualContextIndex> fixed_background_visual_context(Layout::Node const& node)
+Optional<ContextRef> fixed_background_visual_context(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
     if (!row || !row->has_fixed_background_visual_context)
         return {};
-    return VisualContextIndex { row->fixed_background_visual_context };
+    return row->fixed_background_visual_context;
 }
 
-VisualContextIndex enclosing_scroll_node_index(Layout::Node const& node)
+SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    return row ? VisualContextIndex { row->enclosing_scroll_node_index } : VisualContextIndex {};
+    return row ? row->enclosing_scroll_node_index : VISUAL_VIEWPORT_NODE_INDEX;
 }
 
-VisualContextIndex own_scroll_node_index(Layout::Node const& node)
+SpatialNodeIndex own_scroll_node_index(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    return row ? VisualContextIndex { row->own_scroll_node_index } : VisualContextIndex {};
+    return row ? row->own_scroll_node_index : VISUAL_VIEWPORT_NODE_INDEX;
 }
 
 Gfx::Path const* committed_svg_path(Layout::Node const& node)
@@ -822,7 +822,7 @@ CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect c
         return rect;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_rect_to_viewport(
-        VisualContextIndex { row->accumulated_visual_context_index }, rect.to_type<float>() * pixel_ratio,
+        row->accumulated_visual_context.spatial, rect.to_type<float>() * pixel_ratio,
         document.scroll_state_snapshot(), include_visual_viewport_transform);
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
@@ -837,7 +837,7 @@ Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPi
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_point_for_hit_test(
-        VisualContextIndex { row->accumulated_visual_context_index }, position.to_type<float>() * pixel_ratio,
+        row->accumulated_visual_context, position.to_type<float>() * pixel_ratio,
         document.scroll_state_snapshot());
     if (!result.has_value())
         return {};
@@ -853,7 +853,7 @@ CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint po
     if (!document.layout_node() || !has_committed_box(*document.layout_node()))
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
-    auto result = document.visual_context_tree().inverse_transform_point(VisualContextIndex { row->accumulated_visual_context_index }, position.to_type<float>() * pixel_ratio);
+    auto result = document.visual_context_tree().inverse_transform_point(row->accumulated_visual_context.spatial, position.to_type<float>() * pixel_ratio);
     return (result / pixel_ratio).to_type<CSSPixels>();
 }
 
@@ -1066,7 +1066,7 @@ void inline_piece_border_box_rects(Layout::Node const& node, Vector<CSSPixelRect
 CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)
 {
     auto index = enclosing_scroll_node_index(node);
-    if (!index.value())
+    if (index == VISUAL_VIEWPORT_NODE_INDEX)
         return {};
     return node.document().paint_state().cumulative_scroll_offset_for_node(node.document(), index);
 }

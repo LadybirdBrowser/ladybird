@@ -37,7 +37,6 @@ static Vector<DisplayListCommandReference> collect_display_list_command_referenc
 static bool display_list_commands_are_equal(DisplayListCommandReference const& a, DisplayListCommandReference const& b)
 {
     if (a.header.command_type != b.header.command_type
-        || a.header.context_geometry_only != b.header.context_geometry_only
         || a.header.has_bounding_rect != b.header.has_bounding_rect
         || a.header.is_clip != b.header.is_clip
         || a.header.bounding_rect != b.header.bounding_rect)
@@ -108,7 +107,7 @@ static bool matrices_are_equal(Gfx::FloatMatrix4x4 const& a, Gfx::FloatMatrix4x4
     return true;
 }
 
-static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualContextData const& a, ScrollStateSnapshot const& a_scroll_state, VisualContextIndex b_index, VisualContextData const& b, ScrollStateSnapshot const& b_scroll_state)
+static bool spatial_data_is_equal(SpatialNodeIndex a_index, SpatialData const& a, ScrollStateSnapshot const& a_scroll_state, SpatialNodeIndex b_index, SpatialData const& b, ScrollStateSnapshot const& b_scroll_state)
 {
     return a.visit(
         [&](ScrollData const& data) {
@@ -117,10 +116,6 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
             // own index, so that is what has to match.
             return other && data.is_sticky == other->is_sticky
                 && a_scroll_state.device_offset_for_index(a_index) == b_scroll_state.device_offset_for_index(b_index);
-        },
-        [&](ClipData const& data) {
-            auto const* other = b.get_pointer<ClipData>();
-            return other && data.rect == other->rect && corner_radii_are_equal(data.corner_radii, other->corner_radii);
         },
         [&](TransformData const& data) {
             auto const* other = b.get_pointer<TransformData>();
@@ -139,6 +134,28 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
             auto const* other = b.get_pointer<BackfaceVisibilityData>();
             return other && data.plane_root_index == other->plane_root_index
                 && data.flattens_inherited_transform == other->flattens_inherited_transform;
+        },
+        [&](ScrollCompensation const& data) {
+            auto const* other = b.get_pointer<ScrollCompensation>();
+            return other
+                && a_scroll_state.device_offset_for_index(data.scroll_node_index) == b_scroll_state.device_offset_for_index(other->scroll_node_index);
+        },
+        [&](AnchorScrollShift const& data) {
+            auto const* other = b.get_pointer<AnchorScrollShift>();
+            return other
+                && data.negate == other->negate
+                && data.compensate_horizontal_scroll == other->compensate_horizontal_scroll
+                && data.compensate_vertical_scroll == other->compensate_vertical_scroll
+                && data.masked_offset(a_scroll_state) == other->masked_offset(b_scroll_state);
+        });
+}
+
+static bool frame_data_is_equal(FrameData const& a, FrameData const& b)
+{
+    return a.visit(
+        [&](ClipData const& data) {
+            auto const* other = b.get_pointer<ClipData>();
+            return other && data.rect == other->rect && corner_radii_are_equal(data.corner_radii, other->corner_radii);
         },
         [&](ClipPathData const& data) {
             auto const* other = b.get_pointer<ClipPathData>();
@@ -165,57 +182,79 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
         [&](MaskData const&) {
             // Mask content is per-recording and invisible here, so mask chains always damage.
             return false;
-        },
-        [&](ScrollCompensation const& data) {
-            auto const* other = b.get_pointer<ScrollCompensation>();
-            return other
-                && a_scroll_state.device_offset_for_index(data.scroll_node_index) == b_scroll_state.device_offset_for_index(other->scroll_node_index);
-        },
-        [&](AnchorScrollShift const& data) {
-            auto const* other = b.get_pointer<AnchorScrollShift>();
-            return other
-                && data.negate == other->negate
-                && data.compensate_horizontal_scroll == other->compensate_horizontal_scroll
-                && data.compensate_vertical_scroll == other->compensate_vertical_scroll
-                && data.masked_offset(a_scroll_state) == other->masked_offset(b_scroll_state);
         });
 }
 
-static bool visual_context_chains_are_compatible(VisualContextIndex old_index, AccumulatedVisualContextTree const& old_tree, VisualContextIndex new_index, AccumulatedVisualContextTree const& new_tree)
+static Vector<u32> spatial_depths(AccumulatedVisualContextTree const& tree)
 {
-    for (;;) {
-        auto const& old_node = old_tree.node_at(old_index);
-        auto const& new_node = new_tree.node_at(new_index);
-        if (old_node.depth != new_node.depth)
-            return false;
-        if (!old_node.data.visit([&](auto const& data) {
-                using DataType = RemoveCVReference<decltype(data)>;
-                return new_node.data.has<DataType>();
-            }))
-            return false;
-        if (old_index == VISUAL_VIEWPORT_NODE_INDEX)
-            return new_index == VISUAL_VIEWPORT_NODE_INDEX;
-        if (new_index == VISUAL_VIEWPORT_NODE_INDEX)
-            return false;
-        old_index = old_node.parent_index;
-        new_index = new_node.parent_index;
-    }
+    auto nodes = tree.spatial_nodes();
+    Vector<u32> depths;
+    depths.ensure_capacity(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i)
+        depths.unchecked_append(i == 0 ? 0 : depths[nodes[i].parent.value()] + 1);
+    return depths;
 }
 
-static bool visual_context_chains_are_equal(VisualContextIndex old_index, AccumulatedVisualContextTree const& old_tree, ScrollStateSnapshot const& old_scroll_state, VisualContextIndex new_index, AccumulatedVisualContextTree const& new_tree, ScrollStateSnapshot const& new_scroll_state)
-{
-    for (;;) {
-        auto const& old_node = old_tree.node_at(old_index);
-        auto const& new_node = new_tree.node_at(new_index);
-        if (old_node.has_empty_effective_clip != new_node.has_empty_effective_clip
-            || !visual_context_data_is_equal(old_index, old_node.data, old_scroll_state, new_index, new_node.data, new_scroll_state))
+struct TreeChainComparison {
+    AccumulatedVisualContextTree const& old_tree;
+    ScrollStateSnapshot const& old_scroll_state;
+    Vector<u32> old_spatial_depths;
+    AccumulatedVisualContextTree const& new_tree;
+    ScrollStateSnapshot const& new_scroll_state;
+    Vector<u32> new_spatial_depths;
+
+    bool chains_are_compatible(ContextRef old_context, ContextRef new_context) const
+    {
+        if (old_spatial_depths[old_context.spatial.value()] != new_spatial_depths[new_context.spatial.value()])
             return false;
-        if (old_index == VISUAL_VIEWPORT_NODE_INDEX)
-            return true;
-        old_index = old_node.parent_index;
-        new_index = new_node.parent_index;
+        for (auto old_index = old_context.spatial, new_index = new_context.spatial;;) {
+            auto const& old_node = old_tree.spatial_node_at(old_index);
+            auto const& new_node = new_tree.spatial_node_at(new_index);
+            if (old_node.data.index() != new_node.data.index())
+                return false;
+            if (old_index == VISUAL_VIEWPORT_NODE_INDEX)
+                break;
+            old_index = old_node.parent;
+            new_index = new_node.parent;
+        }
+        for (auto old_index = old_context.frame, new_index = new_context.frame;;) {
+            if (old_index == NO_FRAME_NODE || new_index == NO_FRAME_NODE)
+                return old_index == new_index;
+            auto const& old_node = old_tree.frame_node_at(old_index);
+            auto const& new_node = new_tree.frame_node_at(new_index);
+            if (old_node.data.index() != new_node.data.index())
+                return false;
+            if (old_spatial_depths[old_node.spatial.value()] != new_spatial_depths[new_node.spatial.value()])
+                return false;
+            old_index = old_node.parent;
+            new_index = new_node.parent;
+        }
     }
-}
+
+    bool chains_are_equal(ContextRef old_context, ContextRef new_context) const
+    {
+        for (auto old_index = old_context.spatial, new_index = new_context.spatial;;) {
+            auto const& old_node = old_tree.spatial_node_at(old_index);
+            auto const& new_node = new_tree.spatial_node_at(new_index);
+            if (!spatial_data_is_equal(old_index, old_node.data, old_scroll_state, new_index, new_node.data, new_scroll_state))
+                return false;
+            if (old_index == VISUAL_VIEWPORT_NODE_INDEX)
+                break;
+            old_index = old_node.parent;
+            new_index = new_node.parent;
+        }
+        for (auto old_index = old_context.frame, new_index = new_context.frame; old_index != NO_FRAME_NODE;) {
+            auto const& old_node = old_tree.frame_node_at(old_index);
+            auto const& new_node = new_tree.frame_node_at(new_index);
+            if (old_node.has_empty_effective_clip != new_node.has_empty_effective_clip
+                || !frame_data_is_equal(old_node.data, new_node.data))
+                return false;
+            old_index = old_node.parent;
+            new_index = new_node.parent;
+        }
+        return true;
+    }
+};
 
 Optional<Gfx::IntRect> compute_display_list_damage(
     ReadonlyBytes old_display_list_commands,
@@ -228,10 +267,10 @@ Optional<Gfx::IntRect> compute_display_list_damage(
 {
     auto old_commands = collect_display_list_command_references(old_display_list_commands);
     auto new_commands = collect_display_list_command_references(new_display_list_commands);
-
+    TreeChainComparison chains { old_visual_context_tree, old_scroll_state, spatial_depths(old_visual_context_tree), new_visual_context_tree, new_scroll_state, spatial_depths(new_visual_context_tree) };
     auto commands_are_equal = [&](DisplayListCommandReference const& old_command, DisplayListCommandReference const& new_command) {
         return display_list_commands_are_equal(old_command, new_command)
-            && visual_context_chains_are_compatible(old_command.header.context_index, old_visual_context_tree, new_command.header.context_index, new_visual_context_tree);
+            && chains.chains_are_compatible(old_command.header.context, new_command.header.context);
     };
     size_t common_prefix_length = 0;
     auto common_length = min(old_commands.size(), new_commands.size());
@@ -254,7 +293,7 @@ Optional<Gfx::IntRect> compute_display_list_damage(
             changed_unbounded_command = true;
             return;
         }
-        auto transformed_rect = visual_context_tree.transform_rect_to_viewport(command.header.context_index, command.header.bounding_rect.to_type<float>(), scroll_state);
+        auto transformed_rect = visual_context_tree.transform_rect_to_viewport(command.header.context.spatial, command.header.bounding_rect.to_type<float>(), scroll_state);
         // Transform matrices with entries near float max can overflow the projection to non-finite values.
         // NaN survives both intersect() and is_empty(), so treat such rects as unbounded damage instead of
         // feeding them to enclosing_int_rect(), where the float-to-int conversion would be undefined.
@@ -276,7 +315,7 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     };
 
     auto add_visual_context_damage = [&](DisplayListCommandReference const& old_command, DisplayListCommandReference const& new_command) {
-        if (visual_context_chains_are_equal(old_command.header.context_index, old_visual_context_tree, old_scroll_state, new_command.header.context_index, new_visual_context_tree, new_scroll_state))
+        if (chains.chains_are_equal(old_command.header.context, new_command.header.context))
             return;
         if (!old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect) {
             if (old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar)

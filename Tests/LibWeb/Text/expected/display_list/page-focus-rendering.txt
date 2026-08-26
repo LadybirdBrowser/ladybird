@@ -1,153 +1,164 @@
 -- focused --
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[1,1 84x20] (PaintableWithLines(BlockContainer<DIV>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[0,0 86x22] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[0,0 86x22]
-  FillRect@2 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
-  Save@2
-    AddClipRect@2 rect=[3,3 9x16]
-    DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  Restore@2
-  Save@2
-    AddClipRect@2 rect=[12,3 19x16]
-    DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  Restore@2
-  FillPath@1 path_bounding_rect=[-2,-2 90x26]
-  DrawLine@1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  FillRect@1 rect=[0,25 23x16] color=rgba(101, 2, 0, 0.8)
-  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
-Restore@0
+SaveLayer@s0
+  FillRect@s1 rect=[0,0 86x22] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[0,0 86x22]
+  FillRect@s1/f0 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
+  Save@s1/f0
+    AddClipRect@s1/f0 rect=[3,3 9x16]
+    DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  Restore@s1/f0
+  Save@s1/f0
+    AddClipRect@s1/f0 rect=[12,3 19x16]
+    DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  Restore@s1/f0
+  FillPath@s1 path_bounding_rect=[-2,-2 90x26]
+  DrawLine@s1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  FillRect@s1 rect=[0,25 23x16] color=rgba(101, 2, 0, 0.8)
+  DrawGlyphRun@s1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
+Restore@s0
 
 -- unfocused --
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[1,1 84x20] (PaintableWithLines(BlockContainer<DIV>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[0,0 86x22] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[0,0 86x22]
-  FillRect@2 rect=[12,3 19x16] color=rgba(16, 16, 16, 0.667)
-  Save@2
-    AddClipRect@2 rect=[3,3 9x16]
-    DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  Restore@2
-  Save@2
-    AddClipRect@2 rect=[12,3 19x16]
-    DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  Restore@2
-  DrawLine@1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  FillRect@1 rect=[0,25 23x16] color=rgba(16, 16, 16, 0.667)
-  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
-Restore@0
+SaveLayer@s0
+  FillRect@s1 rect=[0,0 86x22] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[0,0 86x22]
+  FillRect@s1/f0 rect=[12,3 19x16] color=rgba(16, 16, 16, 0.667)
+  Save@s1/f0
+    AddClipRect@s1/f0 rect=[3,3 9x16]
+    DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  Restore@s1/f0
+  Save@s1/f0
+    AddClipRect@s1/f0 rect=[12,3 19x16]
+    DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  Restore@s1/f0
+  DrawLine@s1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  FillRect@s1 rect=[0,25 23x16] color=rgba(16, 16, 16, 0.667)
+  DrawGlyphRun@s1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
+Restore@s0
 
 -- focused again --
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[1,1 84x20] (PaintableWithLines(BlockContainer<DIV>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[0,0 86x22] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[0,0 86x22]
-  FillRect@2 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
-  Save@2
-    AddClipRect@2 rect=[3,3 9x16]
-    DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  Restore@2
-  Save@2
-    AddClipRect@2 rect=[12,3 19x16]
-    DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  Restore@2
-  FillPath@1 path_bounding_rect=[-2,-2 90x26]
-  DrawLine@1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  FillRect@1 rect=[0,25 23x16] color=rgba(101, 2, 0, 0.8)
-  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
-Restore@0
+SaveLayer@s0
+  FillRect@s1 rect=[0,0 86x22] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[0,0 86x22]
+  FillRect@s1/f0 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
+  Save@s1/f0
+    AddClipRect@s1/f0 rect=[3,3 9x16]
+    DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  Restore@s1/f0
+  Save@s1/f0
+    AddClipRect@s1/f0 rect=[12,3 19x16]
+    DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  Restore@s1/f0
+  FillPath@s1 path_bounding_rect=[-2,-2 90x26]
+  DrawLine@s1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  FillRect@s1 rect=[0,25 23x16] color=rgba(101, 2, 0, 0.8)
+  DrawGlyphRun@s1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
+Restore@s0
 
 -- caret, focused --
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[1,1 84x20] (PaintableWithLines(BlockContainer<DIV>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[0,0 86x22] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[0,0 86x22]
-  DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  FillRect@2 rect=[22,3 1x16] color=rgb(0, 0, 0)
-  FillPath@1 path_bounding_rect=[-2,-2 90x26]
-  DrawLine@1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
-Restore@0
+SaveLayer@s0
+  FillRect@s1 rect=[0,0 86x22] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[0,0 86x22]
+  DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  FillRect@s1/f0 rect=[22,3 1x16] color=rgb(0, 0, 0)
+  FillPath@s1 path_bounding_rect=[-2,-2 90x26]
+  DrawLine@s1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawGlyphRun@s1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
+Restore@s0
 
 -- caret, unfocused --
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[1,1 84x20] (PaintableWithLines(BlockContainer<DIV>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[0,0 86x22] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[0,0 86x22]
-  DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  DrawLine@1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
-Restore@0
+SaveLayer@s0
+  FillRect@s1 rect=[0,0 86x22] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[0,0 86x22]
+  DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  DrawLine@s1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawGlyphRun@s1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
+Restore@s0
 
 -- caret, focused again --
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[1,1 84x20] (PaintableWithLines(BlockContainer<DIV>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[0,0 86x22] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[0,0 86x22]
-  DrawGlyphRun@2 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
-  FillRect@2 rect=[22,3 1x16] color=rgb(0, 0, 0)
-  FillPath@1 path_bounding_rect=[-2,-2 90x26]
-  DrawLine@1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-  DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1 rect=[0,0 86x22] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[0,0 86x22]
+  DrawGlyphRun@s1/f0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
+  FillRect@s1/f0 rect=[22,3 1x16] color=rgb(0, 0, 0)
+  FillPath@s1 path_bounding_rect=[-2,-2 90x26]
+  DrawLine@s1 from=[81,19] to=[83,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[80,19] to=[83,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[78,19] to=[83,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@s1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawGlyphRun@s1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
+Restore@s0

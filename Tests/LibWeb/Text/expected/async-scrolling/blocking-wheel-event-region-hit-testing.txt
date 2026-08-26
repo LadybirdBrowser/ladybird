@@ -5,14 +5,16 @@ clipped visible inside: true
 clipped overflow outside clip: false
 display list:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] transform=[1,0,0,1,100,0] origin=(20,20) (PaintableWithLines(BlockContainer<DIV>#transformed))
-      [3] clip=[20,160 100x100]
-        [4] scroll (PaintableWithLines(BlockContainer(anonymous)))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] transform=[1,0,0,1,100,0] origin=(20,20) (PaintableWithLines(BlockContainer<DIV>#transformed))
+        [s3] scroll (PaintableWithLines(BlockContainer<DIV>#clip))
+  frames:
+    [f0 in s1] clip=[20,160 100x100] (PaintableWithLines(BlockContainer<DIV>#clip))
 
 DisplayList:
-SaveLayer@0
-  CompositorBlockingWheelEventRegion@2 rect=[20,20 100x100]
-  CompositorBlockingWheelEventRegion@4 rect=[20,160 200x100]
-Restore@0
+SaveLayer@s0
+  CompositorBlockingWheelEventRegion@s2 rect=[20,20 100x100]
+  CompositorBlockingWheelEventRegion@s3/f0 rect=[20,160 200x100]
+Restore@s0

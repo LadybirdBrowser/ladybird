@@ -101,7 +101,7 @@ void DocumentPaintState::clear_scroll_state(DOM::Document& document)
     mirror_rust_clear_scroll_state(document);
 }
 
-CSSPixelPoint DocumentPaintState::cumulative_scroll_offset_for_node(DOM::Document const& document, VisualContextIndex scroll_node_index) const
+CSSPixelPoint DocumentPaintState::cumulative_scroll_offset_for_node(DOM::Document const& document, SpatialNodeIndex scroll_node_index) const
 {
     return rust_cumulative_scroll_offset_for_node(document, scroll_node_index);
 }
@@ -134,7 +134,7 @@ bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document&
     auto const* row = Layout::RustFFI::layout_arena_paintable_row(m_layout_node_arena->handle(), paintable_slot);
     if (!row)
         return false;
-    patch_rust_visual_context_nodes(document, *m_visual_context_tree, row->visual_context_nodes_begin, row->visual_context_nodes_end);
+    patch_rust_visual_context_nodes(document, *m_visual_context_tree, row->spatial_nodes_begin, row->spatial_nodes_end, row->frame_nodes_begin, row->frame_nodes_end);
     m_visual_context_tree_needs_compositor_update = true;
     return true;
 }
@@ -146,7 +146,7 @@ void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::
         return;
     }
     rust_update_visual_viewport_transform(document);
-    patch_rust_visual_context_nodes(document, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1);
+    patch_rust_visual_context_nodes(document, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1, 0, 0);
     m_visual_context_tree_needs_compositor_update = true;
 }
 

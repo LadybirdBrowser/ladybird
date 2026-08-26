@@ -233,32 +233,30 @@ pub struct GlyphRunForRecording<'a> {
 
 pub struct DisplayListRecorder {
     builder: DisplayListBuilder,
-    empty_effective_clips: Vec<bool>,
-    context_index: VisualContextIndex,
-    context_geometry_only: bool,
+    empty_effective_clips_by_frame: Vec<bool>,
+    context: ContextRef,
     pub save_nesting_level: i32,
-    mask_display_lists: Vec<(usize, DisplayListResourceId)>,
+    mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
 }
 
 impl DisplayListRecorder {
-    pub fn new(empty_effective_clips: Vec<bool>) -> Self {
+    pub fn new(empty_effective_clips_by_frame: Vec<bool>) -> Self {
         Self {
             builder: DisplayListBuilder::new(),
-            empty_effective_clips,
-            context_index: VisualContextIndex(0),
-            context_geometry_only: false,
+            empty_effective_clips_by_frame,
+            context: ContextRef::default(),
             save_nesting_level: 0,
             mask_display_lists: Vec::new(),
         }
     }
 
-    pub fn register_mask_display_list(&mut self, context_indices: &[usize], display_list_id: DisplayListResourceId) {
-        for index in context_indices {
-            self.mask_display_lists.push((*index, display_list_id));
+    pub fn register_mask_display_list(&mut self, frames: &[FrameNodeIndex], display_list_id: DisplayListResourceId) {
+        for frame in frames {
+            self.mask_display_lists.push((*frame, display_list_id));
         }
     }
 
-    pub fn take_mask_display_lists(&mut self) -> Vec<(usize, DisplayListResourceId)> {
+    pub fn take_mask_display_lists(&mut self) -> Vec<(FrameNodeIndex, DisplayListResourceId)> {
         std::mem::take(&mut self.mask_display_lists)
     }
 
@@ -266,7 +264,7 @@ impl DisplayListRecorder {
         &self.builder
     }
 
-    pub fn mask_display_lists(&self) -> &[(usize, DisplayListResourceId)] {
+    pub fn mask_display_lists(&self) -> &[(FrameNodeIndex, DisplayListResourceId)] {
         &self.mask_display_lists
     }
 
@@ -278,27 +276,25 @@ impl DisplayListRecorder {
         self.builder.byte_size()
     }
 
-    pub fn accumulated_visual_context(&self) -> VisualContextIndex {
-        self.context_index
+    pub fn accumulated_visual_context(&self) -> ContextRef {
+        self.context
     }
 
-    pub fn set_accumulated_visual_context(&mut self, index: VisualContextIndex) {
-        self.context_index = index;
+    pub fn set_accumulated_visual_context(&mut self, context: ContextRef) {
+        self.context = context;
     }
 
-    pub fn set_context_geometry_only(&mut self, context_geometry_only: bool) {
-        self.context_geometry_only = context_geometry_only;
-    }
-
-    pub fn has_empty_effective_clip(&self, index: VisualContextIndex) -> bool {
-        self.empty_effective_clips.get(index.0).copied().unwrap_or(false)
+    pub fn has_empty_effective_clip(&self, frame: FrameNodeIndex) -> bool {
+        self.empty_effective_clips_by_frame
+            .get(frame.0 as usize)
+            .copied()
+            .unwrap_or(false)
     }
 
     fn append_context(&self) -> AppendContext {
         AppendContext {
-            context_index: self.context_index,
-            context_geometry_only: self.context_geometry_only,
-            has_empty_effective_clip: self.has_empty_effective_clip(self.context_index),
+            context: self.context,
+            has_empty_effective_clip: self.has_empty_effective_clip(self.context.frame),
         }
     }
 
@@ -312,11 +308,11 @@ impl DisplayListRecorder {
         &mut self,
         source: &[u8],
         range: CommandRange,
-        recorded_context_index: VisualContextIndex,
+        recorded_context: ContextRef,
     ) -> CommandRange {
         let offset = self
             .builder
-            .append_command_range(source, range, recorded_context_index, self.context_index);
+            .append_command_range(source, range, recorded_context, self.context);
         CommandRange {
             offset,
             size: range.size,
@@ -328,7 +324,7 @@ impl DisplayListRecorder {
     pub fn append_cached_command_range_verbatim(&mut self, source: &[u8], range: CommandRange) -> CommandRange {
         let offset = self
             .builder
-            .append_command_range(source, range, VisualContextIndex(0), VisualContextIndex(0));
+            .append_command_range(source, range, ContextRef::default(), ContextRef::default());
         CommandRange {
             offset,
             size: range.size,
@@ -842,7 +838,7 @@ impl DisplayListRecorder {
     #[allow(clippy::too_many_arguments)]
     pub fn paint_scrollbar(
         &mut self,
-        scroll_node_index: VisualContextIndex,
+        scroll_node_index: SpatialNodeIndex,
         gutter_rect: IntRect,
         thumb_rect: IntRect,
         track_rect: IntRect,

@@ -111,7 +111,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
             .caret_offset = exported.caret_offset,
             .rect = exported.rect,
             .caret_rect = exported.caret_rect,
-            .visual_context_index = VisualContextIndex { exported.visual_context_index },
+            .context = exported.context,
         });
     }
     return list;
@@ -154,34 +154,34 @@ void HitTestDisplayList::ensure_caret_lines() const
         auto exported = Layout::RustFFI::layout_arena_hit_test_caret_line(arena, index);
         m_caret_lines.unchecked_append(CaretLine {
             .rect = exported.rect,
-            .visual_context_index = VisualContextIndex { exported.visual_context_index },
+            .context = exported.context,
             .first_caret_item_index = exported.first_caret_item_index,
             .last_caret_item_index = exported.last_caret_item_index,
         });
     }
 }
 
-static Optional<Gfx::FloatPoint> local_float_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior)
+static Optional<Gfx::FloatPoint> local_float_point_for_visual_context(ContextRef context, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior)
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto const& visual_context_tree = document.visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(visual_context_index, point.to_type<float>() * pixel_ratio, document.scroll_state_snapshot(), clip_behavior);
+    auto result = visual_context_tree.transform_point_for_hit_test(context, point.to_type<float>() * pixel_ratio, document.scroll_state_snapshot(), clip_behavior);
     if (!result.has_value())
         return {};
     return *result / pixel_ratio;
 }
 
-Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel) const
+Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(ContextRef context, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel) const
 {
-    return local_float_point_for_visual_context(visual_context_index, point, document, device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior::Respect)
+    return local_float_point_for_visual_context(context, point, document, device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior::Respect)
         .map([](auto float_point) { return float_point.template to_type<CSSPixels>(); });
 }
 
-CSSPixelRect HitTestDisplayList::viewport_rect_for_context(VisualContextIndex visual_context_index, CSSPixelRect const& rect, DOM::Document const& document, double device_pixels_per_css_pixel) const
+CSSPixelRect HitTestDisplayList::viewport_rect_for_context(SpatialNodeIndex spatial, CSSPixelRect const& rect, DOM::Document const& document, double device_pixels_per_css_pixel) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto const& visual_context_tree = document.visual_context_tree();
-    auto result = visual_context_tree.transform_rect_to_viewport(visual_context_index, rect.to_type<float>() * pixel_ratio, document.scroll_state_snapshot());
+    auto result = visual_context_tree.transform_rect_to_viewport(spatial, rect.to_type<float>() * pixel_ratio, document.scroll_state_snapshot());
     return result.scaled(1.0f / pixel_ratio).to_type<CSSPixels>();
 }
 
@@ -199,7 +199,7 @@ struct HitTestDisplayList::QueryContext {
     double device_pixels_per_css_pixel { 1 };
     ChromeMetrics const* chrome_metrics { nullptr };
     GC::Ptr<DOM::Node const> scope { nullptr };
-    HashMap<size_t, Optional<i64>> depth_key_by_plane {};
+    HashMap<u32, Optional<i64>> depth_key_by_plane {};
 
     Layout::RustFFI::FfiHitTestQueryCallbacks callbacks()
     {
@@ -209,11 +209,11 @@ struct HitTestDisplayList::QueryContext {
             .chrome_metrics = {},
             .viewport_wheel_overflow_x = 0,
             .viewport_wheel_overflow_y = 0,
-            .local_point_for_visual_context = [](void* context_pointer, size_t index, CSSPixelPoint point, bool respect_clip, Gfx::FloatPoint* out) -> bool {
+            .local_point_for_visual_context = [](void* context_pointer, ContextRef visual_context, CSSPixelPoint point, bool respect_clip, Gfx::FloatPoint* out) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.document);
                 auto clip_behavior = respect_clip ? AccumulatedVisualContextTree::ClipBehavior::Respect : AccumulatedVisualContextTree::ClipBehavior::Ignore;
-                auto local_point = local_float_point_for_visual_context(VisualContextIndex { index }, point, *context.document, context.device_pixels_per_css_pixel, clip_behavior);
+                auto local_point = local_float_point_for_visual_context(visual_context, point, *context.document, context.device_pixels_per_css_pixel, clip_behavior);
                 if (!local_point.has_value())
                     return false;
                 *out = *local_point;
@@ -224,22 +224,24 @@ struct HitTestDisplayList::QueryContext {
                 VERIFY(context.scope);
                 return context.list.line_contains_descendant_of(context.list.m_caret_lines[line_index], *context.scope);
             },
-            .sorting_context_group = [](void* context_pointer, size_t index, size_t* out) -> bool {
-                auto& context = *static_cast<QueryContext*>(context_pointer);
-                VERIFY(context.document);
-                auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.document);
-                if (sorting_contexts.is_empty() || sorting_contexts.leaf_by_node[index] == NO_SORTING_CONTEXT)
-                    return false;
-                *out = sorting_contexts.outermost_context_of(sorting_contexts.context_by_node[index]).value();
-                return true;
-            },
-            .plane_depth_key = [](void* context_pointer, size_t index, CSSPixelPoint point, i64* out) -> bool {
+            .sorting_context_group = [](void* context_pointer, SpatialNodeIndex spatial, size_t* out) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.document);
                 auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.document);
                 if (sorting_contexts.is_empty())
                     return false;
-                auto leaf = sorting_contexts.leaf_by_node[index];
+                if (sorting_contexts.leaf_by_node[spatial.value()] == NO_SORTING_CONTEXT)
+                    return false;
+                *out = sorting_contexts.outermost_context_of(sorting_contexts.context_by_node[spatial.value()]).value();
+                return true;
+            },
+            .plane_depth_key = [](void* context_pointer, SpatialNodeIndex spatial, CSSPixelPoint point, i64* out) -> bool {
+                auto& context = *static_cast<QueryContext*>(context_pointer);
+                VERIFY(context.document);
+                auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.document);
+                if (sorting_contexts.is_empty())
+                    return false;
+                auto leaf = sorting_contexts.leaf_by_node[spatial.value()];
                 if (leaf == NO_SORTING_CONTEXT)
                     return false;
                 // The plane's depth is the same for every query against one point, so it is resolved once.
@@ -794,7 +796,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
         auto const& item = m_items[topmost_item->index];
         if (auto caret_position = caret_position_for_item(item, topmost_item->local_point); caret_position.has_value()) {
             if (caret_position->debug_rect.has_value())
-                caret_position->debug_rect = viewport_rect_for_context(item.visual_context_index, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
+                caret_position->debug_rect = viewport_rect_for_context(item.context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
             return caret_position;
         }
     }
@@ -830,7 +832,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             auto const& item = m_items[topmost_hit_item->index];
             auto caret_position = caret_position_for_hit_container(item);
             if (caret_position.has_value() && caret_position->debug_rect.has_value())
-                caret_position->debug_rect = viewport_rect_for_context(item.visual_context_index, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
+                caret_position->debug_rect = viewport_rect_for_context(item.context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
             return caret_position;
         }
         return {};
@@ -839,7 +841,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     if (!caret_position.has_value())
         return {};
     if (caret_position->debug_rect.has_value())
-        caret_position->debug_rect = viewport_rect_for_context(m_caret_lines[*closest_line.index].visual_context_index, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
+        caret_position->debug_rect = viewport_rect_for_context(m_caret_lines[*closest_line.index].context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
 
     if (!constraint_scope && topmost_hit_item.has_value()) {
         auto const& topmost_hit_item_value = m_items[topmost_hit_item->index];
@@ -847,7 +849,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             if (item_can_produce_caret_position(topmost_hit_item_value) && item_is_direct_caret_target(topmost_hit_item_value)) {
                 auto caret_position_for_topmost_hit_item = caret_position_for_item(topmost_hit_item_value, topmost_hit_item->local_point);
                 if (caret_position_for_topmost_hit_item.has_value() && caret_position_for_topmost_hit_item->debug_rect.has_value())
-                    caret_position_for_topmost_hit_item->debug_rect = viewport_rect_for_context(topmost_hit_item_value.visual_context_index, *caret_position_for_topmost_hit_item->debug_rect, document, device_pixels_per_css_pixel);
+                    caret_position_for_topmost_hit_item->debug_rect = viewport_rect_for_context(topmost_hit_item_value.context.spatial, *caret_position_for_topmost_hit_item->debug_rect, document, device_pixels_per_css_pixel);
                 return caret_position_for_topmost_hit_item;
             }
             if (item_is_inline_adjacent_to_line(topmost_hit_item->index, *closest_line.index))
@@ -877,7 +879,7 @@ TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, DOM::Doc
 
     for (auto item_index : hit_item_indices_topmost_first(point, document, device_pixels_per_css_pixel, chrome_metrics)) {
         auto const& item = m_items[item_index];
-        auto local_point = local_point_for_visual_context(item.visual_context_index, point, document, device_pixels_per_css_pixel);
+        auto local_point = local_point_for_visual_context(item.context, point, document, device_pixels_per_css_pixel);
         if (!local_point.has_value())
             continue;
         if (callback(hit_test_result_for_item(item, *local_point)) == TraversalDecision::Break)

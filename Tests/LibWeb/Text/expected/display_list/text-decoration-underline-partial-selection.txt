@@ -1,26 +1,26 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[69,-17 47x100] color=rgba(101, 2, 0, 0.8)
-  Save@1
-    AddClipRect@1 rect=[8,-17 61x100]
-    DrawGlyphRun@1 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0)
-  Restore@1
-  DrawLine@1 from=[8,70] to=[45,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-  DrawLine@1 from=[57,70] to=[67,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-  Save@1
-    AddClipRect@1 rect=[69,-17 47x100]
-    DrawGlyphRun@1 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0)
-  Restore@1
-  DrawLine@1 from=[109,70] to=[116,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-  Save@1
-    AddClipRect@1 rect=[116,-17 61x100]
-    DrawGlyphRun@1 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0)
-  Restore@1
-  DrawLine@1 from=[116,70] to=[153,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-  DrawLine@1 from=[165,70] to=[177,70] color=rgb(0, 0, 0) thickness=10 style=Solid
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1 rect=[69,-17 47x100] color=rgba(101, 2, 0, 0.8)
+  Save@s1
+    AddClipRect@s1 rect=[8,-17 61x100]
+    DrawGlyphRun@s1 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0)
+  Restore@s1
+  DrawLine@s1 from=[8,70] to=[45,70] color=rgb(0, 0, 0) thickness=10 style=Solid
+  DrawLine@s1 from=[57,70] to=[67,70] color=rgb(0, 0, 0) thickness=10 style=Solid
+  Save@s1
+    AddClipRect@s1 rect=[69,-17 47x100]
+    DrawGlyphRun@s1 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0)
+  Restore@s1
+  DrawLine@s1 from=[109,70] to=[116,70] color=rgb(0, 0, 0) thickness=10 style=Solid
+  Save@s1
+    AddClipRect@s1 rect=[116,-17 61x100]
+    DrawGlyphRun@s1 rect=[8,-17 169x100] translation=[8,62.984375] color=rgb(0, 0, 0)
+  Restore@s1
+  DrawLine@s1 from=[116,70] to=[153,70] color=rgb(0, 0, 0) thickness=10 style=Solid
+  DrawLine@s1 from=[165,70] to=[177,70] color=rgb(0, 0, 0) thickness=10 style=Solid
+Restore@s0

@@ -181,9 +181,7 @@ impl HitTestList {
         let mut best_item_index = self.caret_item_indices[line.first_caret_item_index];
         let mut best_coordinate = coordinate_for_item(&self.items[best_item_index]);
         let item_is_on_line = |item: &HitTestItem| -> bool {
-            if line.visual_context_index != item.visual_context_index
-                || first_item.containing_block != item.containing_block
-            {
+            if line.context != item.context || first_item.containing_block != item.containing_block {
                 return false;
             }
             if first_item.caret_line_index.is_some() && item.caret_line_index.is_some() {
@@ -311,7 +309,7 @@ impl HitTestList {
         debug_assert!(self.derived_structures_built);
         let item = &self.items[item_index];
         let line = &self.caret_lines[line_index];
-        if item.visual_context_index != line.visual_context_index || item.rect.is_empty() {
+        if item.context != line.context || item.rect.is_empty() {
             return false;
         }
         let writing_mode = self.first_item_of_line(line).writing_mode;
@@ -356,7 +354,7 @@ impl HitTestList {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
-            let Some(local) = local_float_point(callbacks, line.visual_context_index, point, respect_clip) else {
+            let Some(local) = local_float_point(callbacks, line.context, point, respect_clip) else {
                 continue;
             };
             let local_point = to_css_point(local);
@@ -503,7 +501,7 @@ impl HitTestList {
         for line_index in 0..self.caret_lines.len() {
             let line = &self.caret_lines[line_index];
             if line_index == current_line_index
-                || line.visual_context_index != current_line.visual_context_index
+                || line.context != current_line.context
                 || !callbacks.line_in_scope(line_index)
             {
                 continue;

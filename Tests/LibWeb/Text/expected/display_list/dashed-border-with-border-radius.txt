@@ -1,44 +1,44 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  StrokePath@1 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.63
-  Save@1
-    AddClipPath@1 path_bounding_rect=[112,96 16x64]
-    StrokePath@1 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[16,152 104x17]
-    StrokePath@1 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[7,96 17x64]
-    StrokePath@1 path_bounding_rect=[8,95.322334 17.322332x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.75
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[16,88 104x16]
-    StrokePath@1 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
-  Restore@1
-  StrokePath@1 path_bounding_rect=[8,168 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=30.92
-  StrokePath@1 path_bounding_rect=[8,248 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.88
-  Save@1
-    AddClipPath@1 path_bounding_rect=[112,336 16x64]
-    StrokePath@1 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[16,392 104x16]
-    StrokePath@1 path_bounding_rect=[15.322332,390.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[7,336 17x64]
-    StrokePath@1 path_bounding_rect=[8,335.32233 17.322332x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.84
-  Restore@1
-  Save@1
-    AddClipPath@1 path_bounding_rect=[16,328 104x16]
-    StrokePath@1 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
-  Restore@1
-  StrokePath@1 path_bounding_rect=[8,408 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.31
-Restore@0
-
+SaveLayer@s0
+  StrokePath@s1 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.63
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[112,96 16x64]
+    StrokePath@s1 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[16,152 104x17]
+    StrokePath@s1 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[7,96 17x64]
+    StrokePath@s1 path_bounding_rect=[8,95.322334 17.322332x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.75
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[16,88 104x16]
+    StrokePath@s1 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
+  Restore@s1
+  StrokePath@s1 path_bounding_rect=[8,168 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=30.92
+  StrokePath@s1 path_bounding_rect=[8,248 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.88
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[112,336 16x64]
+    StrokePath@s1 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[16,392 104x16]
+    StrokePath@s1 path_bounding_rect=[15.322332,390.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[7,336 17x64]
+    StrokePath@s1 path_bounding_rect=[8,335.32233 17.322332x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.84
+  Restore@s1
+  Save@s1
+    AddClipPath@s1 path_bounding_rect=[16,328 104x16]
+    StrokePath@s1 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
+  Restore@s1
+  StrokePath@s1 path_bounding_rect=[8,408 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.31
+Restore@s0

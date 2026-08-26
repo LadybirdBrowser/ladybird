@@ -1,20 +1,21 @@
 Before z-index change:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
-Restore@0
+SaveLayer@s0
+  FillRect@s1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+Restore@s0
 
 After z-index change:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+Restore@s0

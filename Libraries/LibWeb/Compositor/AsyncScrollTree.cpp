@@ -55,7 +55,7 @@ AsyncScrollNode const* AsyncScrollTree::scroll_node_for_stable_id(AsyncScrollNod
     return nullptr;
 }
 
-AsyncStickyArea const* AsyncScrollTree::sticky_area_for_scroll_node_index(Painting::VisualContextIndex scroll_node_index) const
+AsyncStickyArea const* AsyncScrollTree::sticky_area_for_scroll_node_index(Painting::SpatialNodeIndex scroll_node_index) const
 {
     for (auto const& sticky_area : m_sticky_areas) {
         if (sticky_area.scroll_node_index == scroll_node_index)
@@ -114,7 +114,7 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scrollable_ancestor_for_node(AsyncS
     return {};
 }
 
-Gfx::FloatPoint AsyncScrollTree::cumulative_device_sticky_offset_for_node(Painting::VisualContextIndex scroll_node_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
+Gfx::FloatPoint AsyncScrollTree::cumulative_device_sticky_offset_for_node(Painting::SpatialNodeIndex scroll_node_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     Gfx::FloatPoint offset;
     for (auto index = scroll_node_index; index.value();) {
@@ -277,27 +277,27 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     for (auto const& target : m_wheel_hit_test_regions) {
         m_cached_wheel_hit_test_targets.append({
             .target_node_id = target.target_node_id,
-            .visual_context_index = target.visual_context_index,
+            .context = target.context,
             .rect = target.rect,
             .corner_radii = target.corner_radii,
-            .viewport_rect = visual_context_tree->transform_rect_to_viewport(target.visual_context_index, target.rect, scroll_state_snapshot),
+            .viewport_rect = visual_context_tree->transform_rect_to_viewport(target.context.spatial, target.rect, scroll_state_snapshot),
         });
     }
 
     m_cached_main_thread_wheel_event_targets.ensure_capacity(m_main_thread_wheel_event_regions.size());
     for (auto const& region : m_main_thread_wheel_event_regions) {
         m_cached_main_thread_wheel_event_targets.append({
-            .visual_context_index = region.visual_context_index,
+            .context = region.context,
             .rect = region.rect,
-            .viewport_rect = visual_context_tree->transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
+            .viewport_rect = visual_context_tree->transform_rect_to_viewport(region.context.spatial, region.rect, scroll_state_snapshot),
         });
     }
 
     for (auto const& region : m_blocking_wheel_event_regions) {
         m_cached_blocking_wheel_event_targets.append({
-            .visual_context_index = region.visual_context_index,
+            .context = region.context,
             .rect = region.rect,
-            .viewport_rect = visual_context_tree->transform_rect_to_viewport(region.visual_context_index, region.rect, scroll_state_snapshot),
+            .viewport_rect = visual_context_tree->transform_rect_to_viewport(region.context.spatial, region.rect, scroll_state_snapshot),
         });
     }
 }
@@ -370,7 +370,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
         if (!target.viewport_rect.contains(position))
             continue;
 
-        auto position_in_context = m_visual_context_tree->transform_point_for_hit_test(target.visual_context_index, position, m_scroll_state_snapshot);
+        auto position_in_context = m_visual_context_tree->transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
         if (position_in_context.has_value() && target.rect.contains(*position_in_context))
             return { {}, true };
     }
@@ -379,7 +379,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
         if (!target.viewport_rect.contains(position))
             continue;
 
-        auto position_in_context = m_visual_context_tree->transform_point_for_hit_test(target.visual_context_index, position, m_scroll_state_snapshot);
+        auto position_in_context = m_visual_context_tree->transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
         if (position_in_context.has_value() && target.rect.contains(*position_in_context))
             return { {}, false, true };
     }
@@ -388,7 +388,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
         if (!target.viewport_rect.contains(position))
             continue;
 
-        auto position_in_context = m_visual_context_tree->transform_point_for_hit_test(target.visual_context_index, position, m_scroll_state_snapshot);
+        auto position_in_context = m_visual_context_tree->transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
         if (!position_in_context.has_value() || !wheel_hit_test_target_contains_point(target, *position_in_context))
             continue;
         if (!target.target_node_id.has_value())

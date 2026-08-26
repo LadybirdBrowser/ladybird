@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::display_list::commands::{SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::paintable_data::FfiStickyInsets;
 use libgfx_rust::FloatPoint;
 
@@ -34,7 +35,7 @@ pub struct StickyConstraints {
 pub struct ScrollNodeState {
     pub paintable: NodeSlotId,
     pub is_sticky: bool,
-    pub node_index: usize,
+    pub node_index: SpatialNodeIndex,
     pub parent_slot: ScrollStateSlot,
     pub own_offset: CssPixelPoint,
     pub sticky_constraints: Option<StickyConstraints>,
@@ -69,7 +70,7 @@ impl ScrollState {
 
     pub fn register_scroll_node(
         &mut self,
-        node_index: usize,
+        node_index: SpatialNodeIndex,
         paintable: NodeSlotId,
         parent_slot: ScrollStateSlot,
     ) -> ScrollStateSlot {
@@ -85,7 +86,7 @@ impl ScrollState {
 
     pub fn register_sticky_node(
         &mut self,
-        node_index: usize,
+        node_index: SpatialNodeIndex,
         paintable: NodeSlotId,
         parent_slot: ScrollStateSlot,
     ) -> ScrollStateSlot {
@@ -107,9 +108,9 @@ impl ScrollState {
         &mut self.states[slot]
     }
 
-    pub fn node_index_for_slot(&self, slot: ScrollStateSlot) -> usize {
+    pub fn node_index_for_slot(&self, slot: ScrollStateSlot) -> SpatialNodeIndex {
         if slot == NO_SCROLL_STATE_SLOT {
-            return 0;
+            return VISUAL_VIEWPORT_NODE_INDEX;
         }
         self.states[slot].node_index
     }
@@ -153,10 +154,11 @@ impl ScrollState {
         let scale = device_pixels_per_css_pixel as f32;
         let mut snapshot: Vec<FloatPoint> = Vec::new();
         for state in &self.states {
-            if snapshot.len() <= state.node_index {
-                snapshot.resize(state.node_index + 1, FloatPoint::default());
+            let node_index = state.node_index.0 as usize;
+            if snapshot.len() <= node_index {
+                snapshot.resize(node_index + 1, FloatPoint::default());
             }
-            snapshot[state.node_index] = FloatPoint {
+            snapshot[node_index] = FloatPoint {
                 x: state.own_offset.x.to_float() * scale,
                 y: state.own_offset.y.to_float() * scale,
             };

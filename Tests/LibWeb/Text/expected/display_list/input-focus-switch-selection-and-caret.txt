@@ -1,21 +1,22 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[9,9 204x18] (PaintableWithLines(BlockContainer<DIV>))
-        [3] clip=[11,10 200x16]
-      [4] clip=[223,9 204x18] (PaintableWithLines(BlockContainer<DIV>))
-        [5] clip=[225,10 200x16]
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[9,9 204x18] (PaintableWithLines(TextInputBox<INPUT>#foo))
+      [f1 in s1] clip=[11,10 200x16] (PaintableWithLines(BlockContainer<DIV>))
+    [f2 in s1] clip=[223,9 204x18] (PaintableWithLines(TextInputBox<INPUT>#bar))
+      [f3 in s1] clip=[225,10 200x16] (PaintableWithLines(BlockContainer<DIV>))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[8,8 206x20] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[8,8 206x20]
-  FillRect@1 rect=[222,8 206x20] color=rgb(255, 255, 255)
-  FillPath@1 path_bounding_rect=[222,8 206x20]
-  DrawGlyphRun@1 rect=[214,13 8x16] translation=[214,25.796875] color=rgb(0, 0, 0)
-  DrawGlyphRun@3 rect=[11,10 28x16] translation=[11,22.796875] color=rgb(0, 0, 0)
-  DrawGlyphRun@5 rect=[225,10 28x16] translation=[225,22.796875] color=rgb(0, 0, 0)
-  FillRect@5 rect=[225,10 1x16] color=rgb(0, 0, 0)
-  FillPath@1 path_bounding_rect=[220,6 210x24]
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1 rect=[8,8 206x20] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[8,8 206x20]
+  FillRect@s1 rect=[222,8 206x20] color=rgb(255, 255, 255)
+  FillPath@s1 path_bounding_rect=[222,8 206x20]
+  DrawGlyphRun@s1 rect=[214,13 8x16] translation=[214,25.796875] color=rgb(0, 0, 0)
+  DrawGlyphRun@s1/f1 rect=[11,10 28x16] translation=[11,22.796875] color=rgb(0, 0, 0)
+  DrawGlyphRun@s1/f3 rect=[225,10 28x16] translation=[225,22.796875] color=rgb(0, 0, 0)
+  FillRect@s1/f3 rect=[225,10 1x16] color=rgb(0, 0, 0)
+  FillPath@s1 path_bounding_rect=[220,6 210x24]
+Restore@s0

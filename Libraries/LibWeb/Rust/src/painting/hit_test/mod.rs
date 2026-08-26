@@ -10,6 +10,7 @@ pub mod query;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::display_list::commands::ContextRef;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -45,7 +46,7 @@ pub struct HitTestItem {
     pub caret_line_index: Option<usize>,
     pub caret_line_rect: Option<CssPixelRect>,
     pub block_container_margin_rect: Option<CssPixelRect>,
-    pub visual_context_index: usize,
+    pub context: ContextRef,
     pub border_radii: BorderRadii,
     pub path: Option<Rc<libgfx_rust::path::OwnedPath>>,
     pub winding_rule: i32,
@@ -69,7 +70,7 @@ pub struct SpatialIndex {
 pub struct CaretLine {
     pub rect: CssPixelRect,
     pub block_container_margin_rect: Option<CssPixelRect>,
-    pub visual_context_index: usize,
+    pub context: ContextRef,
     pub first_caret_item_index: usize,
     pub last_caret_item_index: usize,
 }
@@ -117,8 +118,8 @@ pub struct HitTestList {
     pub derived_structures_built: bool,
     pub caret_item_indices: Vec<usize>,
     pub caret_lines: Vec<CaretLine>,
-    pub spatial_indexes: Vec<Option<SpatialIndex>>,
-    pub used_visual_context_indices: Vec<usize>,
+    pub spatial_indexes_by_context: Vec<(ContextRef, SpatialIndex)>,
+    pub spatial_index_position_by_context: HashMap<ContextRef, usize>,
 }
 
 impl HitTestList {
@@ -159,23 +160,31 @@ impl HitTestList {
         }
     }
 
-    fn spatial_index_for(&mut self, visual_context_index: usize) -> &mut SpatialIndex {
-        if self.spatial_indexes.len() <= visual_context_index {
-            self.spatial_indexes.resize_with(visual_context_index + 1, || None);
-        }
-        if self.spatial_indexes[visual_context_index].is_none() {
-            self.spatial_indexes[visual_context_index] = Some(SpatialIndex::default());
-            self.used_visual_context_indices.push(visual_context_index);
-        }
-        self.spatial_indexes[visual_context_index].as_mut().unwrap()
+    fn spatial_index_for(&mut self, context: ContextRef) -> &mut SpatialIndex {
+        let items_arrive_in_runs_sharing_a_context = self
+            .spatial_indexes_by_context
+            .last()
+            .is_some_and(|(last_context, _)| *last_context == context);
+        let position = if items_arrive_in_runs_sharing_a_context {
+            self.spatial_indexes_by_context.len() - 1
+        } else {
+            *self
+                .spatial_index_position_by_context
+                .entry(context)
+                .or_insert_with(|| {
+                    self.spatial_indexes_by_context.push((context, SpatialIndex::default()));
+                    self.spatial_indexes_by_context.len() - 1
+                })
+        };
+        &mut self.spatial_indexes_by_context[position].1
     }
 
     fn add_item_to_spatial_index(&mut self, item_index: usize) {
-        let (kind, rect, visual_context_index) = {
+        let (kind, rect, context) = {
             let item = &self.items[item_index];
-            (item.kind, item.rect, item.visual_context_index)
+            (item.kind, item.rect, item.context)
         };
-        let spatial_index = self.spatial_index_for(visual_context_index);
+        let spatial_index = self.spatial_index_for(context);
         if kind == HitTestItemKind::ChromeWidget || rect.is_empty() {
             spatial_index.unbucketed_items.push(item_index);
             return;
@@ -227,7 +236,7 @@ impl HitTestList {
             let same_inferred_line = first_line_item.caret_line_index.is_none()
                 && item.caret_line_index.is_none()
                 && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
-            if line.visual_context_index == item.visual_context_index
+            if line.context == item.context
                 && first_line_item.containing_block == item.containing_block
                 && (same_recorded_line || same_inferred_line)
             {
@@ -243,7 +252,7 @@ impl HitTestList {
         self.caret_lines.push(CaretLine {
             rect: item_line_rect,
             block_container_margin_rect: item.block_container_margin_rect,
-            visual_context_index: item.visual_context_index,
+            context: item.context,
             first_caret_item_index: caret_item_index,
             last_caret_item_index: caret_item_index,
         });
@@ -284,14 +293,14 @@ pub fn inline_axis_coordinate(point: CssPixelPoint, writing_mode: u8) -> CssPixe
 
 pub(crate) fn local_float_point(
     callbacks: &FfiHitTestQueryCallbacks,
-    visual_context_index: usize,
+    context: ContextRef,
     point: CssPixelPoint,
     respect_clip: bool,
 ) -> Option<(f32, f32)> {
     // Returned in float local units: fixed-point CSSPixels quantization here would be magnified by the
     // accumulated transform for content in scaled-down local spaces, such as SVG user units under a
     // small viewBox.
-    callbacks.local_point_for_visual_context(visual_context_index, point.into(), respect_clip)
+    callbacks.local_point_for_visual_context(context, point.into(), respect_clip)
 }
 
 pub(crate) fn to_css_point(local: (f32, f32)) -> CssPixelPoint {

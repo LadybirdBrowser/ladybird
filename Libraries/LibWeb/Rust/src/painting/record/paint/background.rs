@@ -10,9 +10,7 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
-use crate::painting::display_list::commands::{
-    DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform, VisualContextIndex,
-};
+use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform};
 use crate::painting::display_list::recorder::{DisplayListRecorder, FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
 use crate::painting::paintable_data::PaintableKind;
@@ -359,7 +357,7 @@ fn paint_image_layer(
             if data.has_fixed_background_visual_context {
                 recorder
                     .recorder
-                    .set_accumulated_visual_context(VisualContextIndex(data.fixed_background_visual_context));
+                    .set_accumulated_visual_context(data.fixed_background_visual_context);
             }
         }
         css_enums::background_attachment::LOCAL
@@ -719,7 +717,8 @@ fn paint_image_layer(
                 record_gradient_fill(recorder, gradient, dest_rect);
                 continue;
             }
-            let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
+            let accumulated_scale =
+                recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
             let paint = recorder.paint_host.layer_image_paint(
                 shell,
                 image.list,

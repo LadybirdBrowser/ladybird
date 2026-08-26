@@ -269,7 +269,8 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
                 recorder.recorder.add_clip_rect_int(image_rect_device_pixels);
             }
             let dest_rect = draw_rect.to_float();
-            let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
+            let accumulated_scale =
+                recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
             let paint = recorder.paint_host.replaced_image_paint(
                 recorder.layout_node_shell(paintable),
                 dest_rect,

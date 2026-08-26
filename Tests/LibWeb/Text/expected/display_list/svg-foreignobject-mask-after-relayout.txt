@@ -1,16 +1,17 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[8,8 100x100]
-        [3] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0)
-          [4] transform=[1,0,0,1,1,0] origin=(0,0)
-            [5] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
-              [6] clip=[0,0 100x100] (PaintableWithLines(BlockContainer(anonymous)))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
+          [s3] transform=[1,0,0,1,1,0] origin=(0,0) (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+  frames:
+    [f0 in s1] clip=[8,8 100x100] (SVGSVGPaintable(SVGSVGBox<svg>))
+      [f1 in s3] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+        [f2 in s3] clip=[0,0 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
 
 DisplayList:
-SaveLayer@0
-  FillRect@6 rect=[0,0 100x100] color=rgb(0, 0, 0)
-Restore@0
-MaskDisplayList for context 5:
-  FillPath@0 path_bounding_rect=[0,0 100x100]
-
+SaveLayer@s0
+  FillRect@s3/f2 rect=[0,0 100x100] color=rgb(0, 0, 0)
+Restore@s0
+MaskDisplayList for frame f1:
+  FillPath@s0 path_bounding_rect=[0,0 100x100]

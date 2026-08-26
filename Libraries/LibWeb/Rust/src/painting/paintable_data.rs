@@ -7,6 +7,7 @@
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{inline_level_iterator, used_values};
+use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use std::cell::Cell;
 
 pub const NO_STACKING_CONTEXT: u32 = u32::MAX;
@@ -141,17 +142,19 @@ pub struct PaintableData {
 
     pub stacking_context: u32,
 
-    pub enclosing_scroll_node_index: usize,
-    pub own_scroll_node_index: usize,
+    pub enclosing_scroll_node_index: SpatialNodeIndex,
+    pub own_scroll_node_index: SpatialNodeIndex,
     pub has_accumulated_visual_context: bool,
-    pub accumulated_visual_context_index: usize,
-    pub accumulated_visual_context_for_descendants_index: usize,
-    pub fixed_background_visual_context: usize,
+    pub accumulated_visual_context: ContextRef,
+    pub accumulated_visual_context_for_descendants: ContextRef,
+    pub fixed_background_visual_context: ContextRef,
     pub has_fixed_background_visual_context: bool,
     pub has_scroll_offset_dependent_background: bool,
-    /// Range of visual context nodes this box appended during the last tree build.
-    pub visual_context_nodes_begin: usize,
-    pub visual_context_nodes_end: usize,
+    /// Ranges of spatial and frame nodes this box appended during the last tree build.
+    pub spatial_nodes_begin: u32,
+    pub spatial_nodes_end: u32,
+    pub frame_nodes_begin: u32,
+    pub frame_nodes_end: u32,
 }
 
 impl Default for PaintableData {
@@ -172,16 +175,18 @@ impl Default for PaintableData {
             sticky_insets: FfiStickyInsets::default(),
             has_sticky_insets: false,
             stacking_context: u32::MAX,
-            enclosing_scroll_node_index: 0,
-            own_scroll_node_index: 0,
+            enclosing_scroll_node_index: SpatialNodeIndex::default(),
+            own_scroll_node_index: SpatialNodeIndex::default(),
             has_accumulated_visual_context: false,
-            accumulated_visual_context_index: 0,
-            accumulated_visual_context_for_descendants_index: 0,
-            fixed_background_visual_context: 0,
+            accumulated_visual_context: ContextRef::default(),
+            accumulated_visual_context_for_descendants: ContextRef::default(),
+            fixed_background_visual_context: ContextRef::default(),
             has_fixed_background_visual_context: false,
             has_scroll_offset_dependent_background: false,
-            visual_context_nodes_begin: 0,
-            visual_context_nodes_end: 0,
+            spatial_nodes_begin: 0,
+            spatial_nodes_end: 0,
+            frame_nodes_begin: 0,
+            frame_nodes_end: 0,
         }
     }
 }

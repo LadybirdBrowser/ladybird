@@ -13,7 +13,7 @@ static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::O
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
     auto document_id = Web::UniqueNodeID { 1 };
-    auto scroll_node_index = Web::Painting::VisualContextIndex { 1 };
+    auto scroll_node_index = Web::Painting::SpatialNodeIndex { 1 };
     auto scroll_node_id = Web::Compositor::AsyncScrollNodeID {
         .document_id = document_id,
         .scroll_node_index = scroll_node_index,

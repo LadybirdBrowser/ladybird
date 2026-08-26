@@ -9,6 +9,7 @@ use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
+use crate::painting::display_list::commands::ContextRef;
 use crate::painting::fragment_ownership;
 use crate::painting::hit_test::*;
 use crate::painting::host::FfiHitTestTextNodeFacts;
@@ -150,12 +151,12 @@ impl<'a> PaintRecorder<'a> {
             }
             let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
             let radii = self.border_radii(paintable);
-            let context = self.data(paintable).accumulated_visual_context_index;
+            let context = self.data(paintable).accumulated_visual_context;
             self.append_box(paintable, paintable, rect, context, radii);
             return;
         }
         let facts = self.paintable_facts(paintable);
-        let context = self.data(paintable).accumulated_visual_context_index;
+        let context = self.data(paintable).accumulated_visual_context;
         if facts.has_resizer {
             self.append_chrome_widget(paintable, CHROME_WIDGET_RESIZE_HANDLE, context);
         }
@@ -180,7 +181,7 @@ impl<'a> PaintRecorder<'a> {
             }
             return;
         }
-        let context = self.data(paintable).accumulated_visual_context_for_descendants_index;
+        let context = self.data(paintable).accumulated_visual_context_for_descendants;
         // Fragments inside self-painting inline boxes are recorded during that box's paint.
         let filter = fragment_ownership::effective_filter(self.layout_arena, paintable);
         filter.for_each_owned_fragment_index(fragment_count, |index| {
@@ -192,7 +193,7 @@ impl<'a> PaintRecorder<'a> {
         self.record_empty_line_caret_items(paintable, context);
     }
 
-    fn record_empty_line_caret_items(&mut self, paintable: NodeSlotId, context: usize) {
+    fn record_empty_line_caret_items(&mut self, paintable: NodeSlotId, context: ContextRef) {
         let targets = crate::painting::visual_lines::empty_line_caret_targets(self.layout_arena, paintable);
         for target in targets {
             self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
@@ -229,7 +230,7 @@ impl<'a> PaintRecorder<'a> {
             let Some(root) = self.inline_root(paintable) else {
                 return;
             };
-            let context = self.data(paintable).accumulated_visual_context_for_descendants_index;
+            let context = self.data(paintable).accumulated_visual_context_for_descendants;
             let fragment_count = self.layout_arena.paintable_side_data(root).fragments.len();
             let filter = fragment_ownership::effective_filter(self.layout_arena, paintable);
             // Hit-test precedence follows paint order: this box's own text loses to the box itself
@@ -294,7 +295,7 @@ impl<'a> PaintRecorder<'a> {
         };
         let root_position = paintable_geometry::absolute_position(self.layout_arena, root);
         let layout_arena = self.layout_arena;
-        let context = self.data(paintable).accumulated_visual_context_index;
+        let context = self.data(paintable).accumulated_visual_context;
         for piece_index in &layout_arena.paintable_side_data(paintable).piece_indices {
             let piece = &layout_arena.paintable_side_data(root).inline_box_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
@@ -336,7 +337,7 @@ impl<'a> PaintRecorder<'a> {
         if bounding_box.is_empty() {
             return;
         }
-        let context = self.data(paintable).accumulated_visual_context_index;
+        let context = self.data(paintable).accumulated_visual_context;
         self.append_svg_path(paintable, path, facts.svg_path_winding_rule, bounding_box, context);
     }
 
@@ -345,7 +346,7 @@ impl<'a> PaintRecorder<'a> {
             return;
         }
         let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
-        let context = self.data(paintable).accumulated_visual_context_index;
+        let context = self.data(paintable).accumulated_visual_context;
         self.append_empty_editable(paintable, rect, context);
     }
 
@@ -474,7 +475,7 @@ impl<'a> PaintRecorder<'a> {
         paintable_box: NodeSlotId,
         target: NodeSlotId,
         rect: CssPixelRect,
-        context: usize,
+        context: ContextRef,
         border_radii: BorderRadii,
     ) {
         let (caret_line_index, caret_line_rect) =
@@ -504,7 +505,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn base_hit_test_item(&self, kind: HitTestItemKind, target: NodeSlotId, context: usize) -> HitTestItem {
+    fn base_hit_test_item(&self, kind: HitTestItemKind, target: NodeSlotId, context: ContextRef) -> HitTestItem {
         HitTestItem {
             kind,
             paintable: target,
@@ -517,7 +518,7 @@ impl<'a> PaintRecorder<'a> {
             caret_line_index: None,
             caret_line_rect: None,
             block_container_margin_rect: None,
-            visual_context_index: context,
+            context,
             border_radii: BorderRadii::default(),
             path: None,
             winding_rule: 0,
@@ -535,7 +536,7 @@ impl<'a> PaintRecorder<'a> {
         path: Rc<libgfx_rust::path::OwnedPath>,
         winding_rule: libgfx_rust::WindingRule,
         bounding_box: CssPixelRect,
-        context: usize,
+        context: ContextRef,
     ) {
         let item = HitTestItem {
             rect: bounding_box,
@@ -546,7 +547,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn append_text_fragment(&mut self, owner: NodeSlotId, fragment_index: u32, context: usize) {
+    fn append_text_fragment(&mut self, owner: NodeSlotId, fragment_index: u32, context: ContextRef) {
         let fragment = self.fragment(owner, fragment_index as usize);
         if !self.text_fragment_is_hit_testable(&fragment) {
             return;
@@ -576,7 +577,7 @@ impl<'a> PaintRecorder<'a> {
         caret_offset: usize,
         line_box_index: usize,
         line_rect: CssPixelRect,
-        context: usize,
+        context: ContextRef,
     ) {
         let fragment = self.fragment(owner, sibling_fragment_index as usize);
         if !self.text_fragment_is_hit_testable(&fragment) {
@@ -608,7 +609,7 @@ impl<'a> PaintRecorder<'a> {
         caret_node: NodeSlotId,
         caret_offset: usize,
         line_rect: CssPixelRect,
-        context: usize,
+        context: ContextRef,
     ) {
         let item = HitTestItem {
             caret_node,
@@ -622,7 +623,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn append_empty_editable(&mut self, paintable: NodeSlotId, rect: CssPixelRect, context: usize) {
+    fn append_empty_editable(&mut self, paintable: NodeSlotId, rect: CssPixelRect, context: ContextRef) {
         let item = HitTestItem {
             rect,
             caret_rect: rect,
@@ -633,7 +634,7 @@ impl<'a> PaintRecorder<'a> {
         self.list.append(item);
     }
 
-    fn append_chrome_widget(&mut self, paintable: NodeSlotId, chrome_widget_kind: u8, context: usize) {
+    fn append_chrome_widget(&mut self, paintable: NodeSlotId, chrome_widget_kind: u8, context: ContextRef) {
         let item = HitTestItem {
             chrome_widget_kind,
             ..self.base_hit_test_item(HitTestItemKind::ChromeWidget, paintable, context)

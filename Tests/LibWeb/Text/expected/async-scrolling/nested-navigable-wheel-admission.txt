@@ -3,15 +3,16 @@ over iframe: blocked-by-main-thread-region
 outside iframe: accepted
 display list:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  CompositorScrollNode@0 scroll_node_index=1 parent_scroll_node_index=0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
-  CompositorMainThreadWheelEventRegion@1 rect=[40,40 160x120]
-  Save@1
-    AddClipRect@1 rect=[40,40 160x120]
-    DrawCompositedContext@1 dst_rect=[40,40 160x120]
-  Restore@1
-Restore@0
+SaveLayer@s0
+  CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
+  CompositorMainThreadWheelEventRegion@s1 rect=[40,40 160x120]
+  Save@s1
+    AddClipRect@s1 rect=[40,40 160x120]
+    DrawCompositedContext@s1 dst_rect=[40,40 160x120]
+  Restore@s1
+Restore@s0

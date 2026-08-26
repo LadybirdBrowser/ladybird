@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillPath@1 path_bounding_rect=[0,3 8x14]
-  FillPath@1 path_bounding_rect=[0,63 8x14]
-  DrawGlyphRun@1 rect=[2,5 6x10] translation=[2,13] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[0,65 6x10] translation=[0,73] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[100,55 7x10] translation=[100,63] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillPath@s1 path_bounding_rect=[0,3 8x14]
+  FillPath@s1 path_bounding_rect=[0,63 8x14]
+  DrawGlyphRun@s1 rect=[2,5 6x10] translation=[2,13] color=rgb(0, 0, 0)
+  DrawGlyphRun@s1 rect=[0,65 6x10] translation=[0,73] color=rgb(0, 0, 0)
+  DrawGlyphRun@s1 rect=[100,55 7x10] translation=[100,63] color=rgb(0, 0, 0)
+Restore@s0

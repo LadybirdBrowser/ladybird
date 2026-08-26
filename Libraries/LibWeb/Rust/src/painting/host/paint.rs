@@ -7,6 +7,7 @@
 use super::*;
 
 use crate::layout::used_values;
+use crate::painting::display_list::commands::{DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use libgfx_rust::{
     AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
@@ -384,7 +385,7 @@ pub struct FfiPaintHostCallbacks {
         *const FfiSvgPaintContext,
         *mut c_void,
     ) -> FfiSvgPaintStyle,
-    pub accumulated_2d_scale: unsafe extern "C" fn(*mut c_void, *const c_void, usize) -> FloatSize,
+    pub accumulated_2d_scale: unsafe extern "C" fn(*mut c_void, *const c_void, SpatialNodeIndex) -> FloatSize,
     pub materialize_visual_context_tree: unsafe extern "C" fn(*mut c_void, *const c_void) -> *mut c_void,
     pub nested_display_list_from_tree:
         unsafe extern "C" fn(*mut c_void, *const u8, usize, *mut c_void, *const u64, usize) -> u64,
@@ -566,11 +567,11 @@ impl FfiPaintHostCallbacks {
         &self,
         bytes: &[u8],
         content_offset: libgfx_rust::IntPoint,
-    ) -> crate::painting::display_list::commands::DisplayListResourceId {
+    ) -> DisplayListResourceId {
         // SAFETY: The C++ host copies the bytes synchronously.
         let id =
             unsafe { (self.nested_display_list_from_bytes)(self.context, bytes.as_ptr(), bytes.len(), content_offset) };
-        crate::painting::display_list::commands::DisplayListResourceId(id)
+        DisplayListResourceId(id)
     }
     pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
@@ -598,11 +599,11 @@ impl FfiPaintHostCallbacks {
     pub(crate) fn accumulated_2d_scale(
         &self,
         visual_context_tree: Option<&crate::painting::visual_context::VisualContextTree>,
-        visual_context_index: usize,
+        spatial: SpatialNodeIndex,
     ) -> libgfx_rust::FloatSize {
         let tree = visual_context_tree.map_or(std::ptr::null(), |tree| std::ptr::from_ref(tree).cast());
         // SAFETY: The C++ host answers synchronously and only borrows the optional tree.
-        unsafe { (self.accumulated_2d_scale)(self.context, tree, visual_context_index) }
+        unsafe { (self.accumulated_2d_scale)(self.context, tree, spatial) }
     }
     pub(crate) fn materialize_visual_context_tree(
         &self,
@@ -615,11 +616,11 @@ impl FfiPaintHostCallbacks {
         &self,
         bytes: &[u8],
         tree_handle: *mut c_void,
-        mask_registrations: &[(usize, crate::painting::display_list::commands::DisplayListResourceId)],
-    ) -> crate::painting::display_list::commands::DisplayListResourceId {
+        mask_registrations: &[(FrameNodeIndex, DisplayListResourceId)],
+    ) -> DisplayListResourceId {
         let pairs: Vec<u64> = mask_registrations
             .iter()
-            .flat_map(|(index, id)| [*index as u64, id.0])
+            .flat_map(|(frame, id)| [u64::from(frame.0), id.0])
             .collect();
         // SAFETY: The C++ host copies the bytes and consumes the tree synchronously.
         let id = unsafe {
@@ -632,6 +633,6 @@ impl FfiPaintHostCallbacks {
                 mask_registrations.len(),
             )
         };
-        crate::painting::display_list::commands::DisplayListResourceId(id)
+        DisplayListResourceId(id)
     }
 }

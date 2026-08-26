@@ -1,13 +1,14 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (PaintableWithLines(BlockContainer<DIV>.fixed))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[8,8 200x100] (PaintableWithLines(BlockContainer(anonymous)))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[8,8 200x100] (PaintableWithLines(BlockContainer<DIV>.scroll-container))
 
 DisplayList:
-SaveLayer@0
-  FillRect@2 rect=[8,8 150x50] color=rgb(0, 128, 0)
-  DrawGlyphRun@2 rect=[8,8 56x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-  FillRect@0 rect=[10,10 80x40] color=rgb(255, 0, 0)
-  DrawGlyphRun@0 rect=[10,10 44x16] translation=[10,22.796875] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1/f0 rect=[8,8 150x50] color=rgb(0, 128, 0)
+  DrawGlyphRun@s1/f0 rect=[8,8 56x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+  FillRect@s0 rect=[10,10 80x40] color=rgb(255, 0, 0)
+  DrawGlyphRun@s0 rect=[10,10 44x16] translation=[10,22.796875] color=rgb(0, 0, 0)
+Restore@s0

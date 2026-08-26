@@ -13,7 +13,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/VisualContextIndex.h>
+#include <LibWeb/Painting/ContextRef.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
@@ -28,21 +28,21 @@ struct StickyInsets {
     Optional<CSSPixels> left;
 };
 
-// Device-pixel scroll offsets keyed by the scroll node's VisualContextIndex. Stored dense in
+// Device-pixel scroll offsets keyed by the scroll node's SpatialNodeIndex. Stored dense in
 // process so display list replay and hit testing index it directly; indices that are not scroll
 // nodes read as zero offsets. The IPC representation is sparse (index, offset) pairs.
 class ScrollStateSnapshot {
 public:
     ReadonlySpan<Gfx::FloatPoint> device_offsets() const { return m_device_offsets; }
 
-    Gfx::FloatPoint device_offset_for_index(VisualContextIndex index) const
+    Gfx::FloatPoint device_offset_for_index(SpatialNodeIndex index) const
     {
         if (index.value() >= m_device_offsets.size())
             return {};
         return m_device_offsets[index.value()];
     }
 
-    void set_device_offset_for_index(VisualContextIndex index, Gfx::FloatPoint offset)
+    void set_device_offset_for_index(SpatialNodeIndex index, Gfx::FloatPoint offset)
     {
         if (index.value() >= m_device_offsets.size())
             m_device_offsets.resize(index.value() + 1);

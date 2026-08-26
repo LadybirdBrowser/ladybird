@@ -37,8 +37,8 @@
         before.style.overflow = "visible";
         after.style.overflow = "hidden";
         const displayList = internals.dumpDisplayList();
-        const targetCommandContext = displayList.match(/FillRect@(\d+).*rgb\(0, 255, 0\)/)[1];
-        const afterCommandContext = displayList.match(/FillRect@(\d+).*rgb\(0, 0, 255\)/)[1];
+        const targetCommandContext = displayList.match(/FillRect@(s\d+(?:\/f\d+)?).*rgb\(0, 255, 0\)/)[1];
+        const afterCommandContext = displayList.match(/FillRect@(s\d+(?:\/f\d+)?).*rgb\(0, 0, 255\)/)[1];
         println(`target command uses target context: ${targetCommandContext !== afterCommandContext}`);
         println(`target hit test uses target context: ${document.elementFromPoint(10, 50) === targetContent}`);
     });

@@ -1,0 +1,12 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] transform=[1,0,0,1,5,5] origin=(160,160) (PaintableWithLines(BlockContainer<DIV>#containing-block))
+  frames:
+    [f1 in s2] effects=[opacity=0.5] (PaintableWithLines(BlockContainer<DIV>#clipped))
+
+DisplayList:
+SaveLayer@s0
+  FillRect@s2/f1 rect=[160,160 50x50] color=rgb(0, 128, 0)
+Restore@s0
