@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container > span {
+        font-family: "WeightSpecific", serif;
+    }
+
+    .regular {
+        font-weight: 400;
+    }
+
+    .bold {
+        font-weight: 700;
+    }
+</style>
+<div id="container"></div>
+<script>
+    promiseTest(async () => {
+        const boldFace = new FontFace("WeightSpecific", 'url("../../../Assets/HashSans.woff")', { weight: "700" });
+        document.fonts.add(boldFace);
+        await boldFace.load();
+
+        const container = document.getElementById("container");
+        container.appendChild(document.createElement("span")).className = "regular";
+        for (let index = 0; index < 100; ++index)
+            container.appendChild(document.createElement("span")).className = "bold";
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        const regularFace = new FontFace("WeightSpecific", 'url("../../../Assets/HashSansNoSpace.woff")', { weight: "400" });
+        document.fonts.add(regularFace);
+        await regularFace.load();
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`affected weight recomputed: ${counters.elementStyleRecomputations > 0}`);
+        println(`unaffected weights skipped: ${counters.elementStyleRecomputations < 10}`);
+        println(`regular face loaded: ${regularFace.status}`);
+    });
+</script>

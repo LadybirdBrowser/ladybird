@@ -134,6 +134,7 @@ public:
     void clear_computed_font_cache(Utf16FlyString const& family_name);
     void clear_font_feature_values_cache(Utf16FlyString const& family_name);
     void did_load_font(Utf16FlyString const& family_name);
+    void did_load_font(FontFaceKey const&);
 
     void register_font_face(GC::Ref<FontFace>);
     void unregister_font_face(GC::Ref<FontFace>);
