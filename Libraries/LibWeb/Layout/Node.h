@@ -209,14 +209,6 @@ public:
         return false;
     }
 
-    void append_child(NonnullRefPtr<Node>);
-    void prepend_child(NonnullRefPtr<Node>);
-    void insert_before(NonnullRefPtr<Node>, Node* before);
-    void insert_before(NonnullRefPtr<Node> node, Node& before) { insert_before(move(node), &before); }
-    void remove_child(Node&);
-    void replace_child(NonnullRefPtr<Node> new_child, Node& old_child);
-    void remove();
-
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
     bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
     DOM::Node const* dom_node() const;

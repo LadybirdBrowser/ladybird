@@ -202,39 +202,6 @@ void* Node::arena_handle() const
     return m_arena->handle();
 }
 
-void Node::insert_before(NonnullRefPtr<Node> node, Node* before)
-{
-    auto& adopted_node = node.leak_ref();
-    RustFFI::layout_arena_attach_child(m_arena->handle(), slot_id(this), slot_id(&adopted_node), slot_id(before));
-}
-
-void Node::append_child(NonnullRefPtr<Node> node)
-{
-    insert_before(move(node), nullptr);
-}
-
-void Node::prepend_child(NonnullRefPtr<Node> node)
-{
-    insert_before(move(node), first_child_ptr());
-}
-
-void Node::remove_child(Node& node)
-{
-    RustFFI::layout_arena_detach_child(m_arena->handle(), slot_id(this), slot_id(&node));
-}
-
-void Node::replace_child(NonnullRefPtr<Node> new_child, Node& old_child)
-{
-    VERIFY(&old_child != new_child.ptr());
-    auto& adopted_child = new_child.leak_ref();
-    RustFFI::layout_arena_replace_child(m_arena->handle(), slot_id(this), slot_id(&old_child), slot_id(&adopted_child));
-}
-
-void Node::remove()
-{
-    VERIFY(detach_layout_node_for_destruction(*this));
-}
-
 Box const* Node::containing_block() const
 {
     return static_cast<Box const*>(tree_node_from_slot_if_live(m_data->containing_block));
