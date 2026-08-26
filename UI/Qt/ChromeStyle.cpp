@@ -4,11 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/StringUtils.h>
 
-#include <AK/Platform.h>
+#include <QAbstractButton>
 #include <QGuiApplication>
+#include <QImage>
+#include <QPainter>
+#include <QPalette>
 #include <QStyleHints>
 
 namespace Ladybird::ChromeStyle {
@@ -319,7 +323,6 @@ QString toolbar_container_style_sheet(QPalette const& palette)
     auto background = style_sheet_color(chrome_background(palette));
     auto surface_hover = style_sheet_color(chrome_control_surface_hover(palette));
     auto surface_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
-    auto control_border = style_sheet_color(chrome_control_border(palette));
     auto separator = style_sheet_color(chrome_border(palette));
     auto window_controls_separator = style_sheet_color(mix(chrome_background(palette), chrome_border(palette), dark ? 0.36 : 0.46));
     auto text = style_sheet_color(chrome_button_text(palette));
@@ -337,7 +340,7 @@ QString toolbar_container_style_sheet(QPalette const& palette)
 QWidget#LadybirdToolbarContainer {{
     background: {0};
     border: 0;
-    border-bottom: 1px solid {4};
+    border-bottom: 1px solid {3};
 }}
 
 QWidget#LadybirdToolbarContainer[fullWidthToolbar="true"] {{
@@ -345,7 +348,7 @@ QWidget#LadybirdToolbarContainer[fullWidthToolbar="true"] {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton {{
-    color: {5};
+    color: {4};
     background: transparent;
     border: 1px solid transparent;
     border-radius: 17px;
@@ -355,18 +358,18 @@ QWidget#LadybirdNavigationToolbar QToolButton {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:hover {{
-    background: {1};
-    border-color: {3};
+    background: transparent;
+    border-color: transparent;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:pressed,
 QWidget#LadybirdNavigationToolbar QToolButton:checked {{
-    background: {2};
-    border-color: {3};
+    background: transparent;
+    border-color: transparent;
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton:disabled {{
-    color: {6};
+    color: {5};
     background: transparent;
     border-color: transparent;
 }}
@@ -376,29 +379,29 @@ QWidget#LadybirdNavigationToolbar QToolButton::menu-indicator {{
 }}
 
 QPushButton#LadybirdPrivateBadge {{
-    color: {5};
-    background: {10};
-    border: 1px solid {11};
+    color: {4};
+    background: {9};
+    border: 1px solid {10};
     border-radius: 10px;
     padding: 0 10px;
     font-weight: 600;
 }}
 
 QPushButton#LadybirdPrivateBadge:hover {{
-    background: {12};
+    background: {11};
 }}
 
 QPushButton#LadybirdPrivateBadge:pressed {{
-    background: {13};
+    background: {12};
 }}
 
 QWidget#LadybirdToolbarWindowControlsSeparator {{
-    background: {9};
+    background: {8};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton,
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton {{
-    color: {5};
+    color: {4};
     background: transparent;
     border: 0;
     border-radius: 0;
@@ -419,22 +422,23 @@ QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton:pressed {{
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton:hover {{
-    color: {8};
-    background: {7};
+    color: {7};
+    background: {6};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton:pressed {{
-    color: {8};
-    background: {7};
+    color: {7};
+    background: {6};
 }}
 
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdWindowButton[pressedOutside="true"],
 QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
-    color: {5};
+    color: {4};
     background: transparent;
 }}
 )",
-        background, surface_hover, surface_pressed, control_border, separator, text, disabled_text, close_hover, close_text, window_controls_separator, badge_surface, badge_border, badge_surface_hover, badge_surface_pressed);
+        background, surface_hover, surface_pressed, separator, text, disabled_text, close_hover, close_text,
+        window_controls_separator, badge_surface, badge_border, badge_surface_hover, badge_surface_pressed);
 }
 
 QString menu_bar_style_sheet(QPalette const& palette)
@@ -786,7 +790,6 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto close_text = style_sheet_color(chrome_destructive_text());
     auto sidebar_separator = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.44 : 0.58));
     auto sidebar_separator_hover = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.64 : 0.76));
-    auto vertical_tab_button_background_color = style_sheet_color(chrome_active_tab_surface_top(palette));
 
     return qformatted(R"(
 QWidget#LadybirdTabStrip {{
@@ -868,27 +871,37 @@ QPushButton#LadybirdTabButton[collapsedVerticalTabButton="true"] {{
     min-height: 16px;
     max-width: 16px;
     max-height: 16px;
-    background: {9};
-    border-color: {1};
+    background: transparent;
+    border-color: transparent;
     border-radius: 8px;
 }}
 
 QPushButton#LadybirdAudioState:hover,
-QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:hover,
-QPushButton#LadybirdTabButton:hover {{
+QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:hover {{
     color: {4};
     background: {1};
     border-color: {3};
 }}
 
+QPushButton#LadybirdTabButton:hover {{
+    color: {4};
+    background: transparent;
+    border-color: transparent;
+}}
+
 QPushButton#LadybirdAudioState:pressed,
 QPushButton#LadybirdAudioState:checked,
-QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:pressed,
-QPushButton#LadybirdTabButton:pressed,
-QPushButton#LadybirdTabButton:checked {{
+QToolButton#LadybirdNewTabButton[verticalTabsButton="false"]:pressed {{
     color: {4};
     background: {2};
     border-color: {3};
+}}
+
+QPushButton#LadybirdTabButton:pressed,
+QPushButton#LadybirdTabButton:checked {{
+    color: {4};
+    background: transparent;
+    border-color: transparent;
 }}
 
 QToolButton#LadybirdWindowButton,
@@ -926,8 +939,7 @@ QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
     background: transparent;
 }}
 )",
-        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator,
-        sidebar_separator_hover, vertical_tab_button_background_color);
+        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator, sidebar_separator_hover);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
@@ -1083,6 +1095,67 @@ QPushButton#LadybirdPrivateSessionRestartButton:pressed {{
 }}
 )",
         text, surface, border, muted_text, control_border, hover_surface, pressed_surface, accent_color, accent_hover, accent_pressed);
+}
+
+static void paint_circular_control_frame(QPainter& painter, QRect const& rect, qreal device_pixel_ratio, QColor const& background, QColor const& border)
+{
+    auto frame_rect = QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5);
+
+    if (device_pixel_ratio <= 1.0) {
+        // Qt's raster paint engine produces visible, jagged steps for a 1 px circular outline at DPR 1.
+        // Paint at a higher resolution and downsample to give the edge more coverage levels.
+        static constexpr int SUPERSAMPLING_SCALE = 4;
+
+        QImage frame(rect.size() * SUPERSAMPLING_SCALE, QImage::Format_ARGB32_Premultiplied);
+        frame.fill(Qt::transparent);
+
+        QPainter frame_painter(&frame);
+        frame_painter.setRenderHint(QPainter::Antialiasing, true);
+        frame_painter.scale(SUPERSAMPLING_SCALE, SUPERSAMPLING_SCALE);
+        frame_painter.setBrush(background);
+        frame_painter.setPen(QPen(border, 1));
+        frame_painter.drawEllipse(frame_rect);
+        frame_painter.end();
+
+        painter.drawImage(rect, frame.scaled(rect.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+    } else {
+        painter.save();
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setBrush(background);
+        painter.setPen(QPen(border, 1));
+        painter.drawEllipse(frame_rect);
+        painter.restore();
+    }
+}
+
+void paint_circular_control_frame(QPainter& painter, QAbstractButton const& button, CircularControlFrameStyle frame_style)
+{
+    if (!button.isEnabled())
+        return;
+
+    auto pressed = button.isDown() || button.isChecked();
+    auto hovered = button.underMouse();
+    if (!hovered && !pressed && frame_style == CircularControlFrameStyle::InteractionOnly)
+        return;
+
+    auto const& palette = button.window()->palette();
+    auto background = frame_style == CircularControlFrameStyle::ActiveTabOverlay
+        ? chrome_active_tab_surface_top(palette)
+        : chrome_control_surface_hover(palette);
+    auto border = frame_style == CircularControlFrameStyle::ActiveTabOverlay
+        ? chrome_control_surface_hover(palette)
+        : chrome_control_border(palette);
+
+    if (hovered) {
+        background = chrome_control_surface_hover(palette);
+        border = chrome_control_border(palette);
+    }
+    if (pressed) {
+        background = chrome_control_surface_pressed(palette);
+        border = chrome_control_border(palette);
+    }
+
+    paint_circular_control_frame(painter, button.rect(), button.devicePixelRatioF(), background, border);
 }
 
 }
