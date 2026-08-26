@@ -66,6 +66,80 @@ static ThrowCompletionOr<Value> invoke_then(VM& vm, Realm& realm, Value promise_
     return call(vm, then, promise_value, on_fulfilled, on_rejected);
 }
 
+static ThrowCompletionOr<Value> run_promise_all_resolve_element_job(VM& vm, PromiseValueList& values, JobCallback& resolve_values_array, RemainingElements& remaining_elements_count, size_t index, Value value)
+{
+    // 5. Set values[thisIndex] to value.
+    values.values()[index] = value;
+
+    // 6. Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
+    // 7. If remainingElementsCount.[[Value]] = 0, then
+    if (--remaining_elements_count.value == 0) {
+        // a. Let valuesArray be CreateArrayFromList(values).
+        auto values_array = Array::create_from(*vm.current_realm(), values.values());
+
+        // b. Return ? Call(resultCapability.[[Resolve]], undefined, « valuesArray »).
+        Value argument = values_array;
+        return vm.host_call_job_callback(resolve_values_array, js_undefined(), ReadonlySpan<Value> { &argument, 1 });
+    }
+
+    // 8. Return undefined.
+    return js_undefined();
+}
+
+static ThrowCompletionOr<Value> invoke_promise_all_then(VM& vm, Realm& realm, Value promise_value, PromiseValueList& values, PromiseCapability const& result_capability, RemainingElements& remaining_elements_count, size_t index, ResultVisibility result_visibility, GC::Ptr<JobCallback>& resolve_values_array)
+{
+    // OPTIMIZATION: Share the host callback used to resolve the final values array across all internal reaction jobs.
+    if (result_visibility == ResultVisibility::Unobservable && !resolve_values_array) {
+        auto resolve_values_array_function = NativeFunction::create(realm, [result_capability = GC::Ref { result_capability }](VM& vm) { return call(vm, *result_capability->resolve(), js_undefined(), vm.argument(0)); }, 1);
+        resolve_values_array = vm.host_make_job_callback(resolve_values_array_function);
+    }
+
+    auto then = TRY(promise_value.get(vm, vm.names.then));
+
+    auto create_on_fulfilled = [&] {
+        return PromiseAllResolveElementFunction::create(realm, index, values, result_capability, remaining_elements_count);
+    };
+
+    // OPTIMIZATION: Queue the intrinsic Promise.all reaction directly for an already-settled promise, avoiding the
+    //               otherwise unobservable per-element resolve function, JobCallback, and PromiseReaction allocations.
+    auto promise = promise_value.as_if<Promise>();
+    if (result_visibility == ResultVisibility::Unobservable && promise && PromisePrototype::is_original_then_function(then) && then.as_function().realm() == &realm) {
+        auto* constructor = TRY(species_constructor(vm, *promise, realm.intrinsics().promise_constructor()));
+        if (constructor == realm.intrinsics().promise_constructor().ptr()) {
+            if (promise->state() == Promise::State::Fulfilled) {
+                auto value = promise->result();
+                auto job = GC::create_function(vm.heap(), [&vm, values = GC::Ref { values }, resolve_values_array = GC::Ref { *resolve_values_array }, remaining_elements_count = GC::Ref { remaining_elements_count }, index, value] {
+                    return run_promise_all_resolve_element_job(vm, values, resolve_values_array, remaining_elements_count, index, value);
+                });
+                vm.host_enqueue_promise_job(job, &realm);
+                promise->set_is_handled();
+                return js_undefined();
+            }
+
+            if (promise->state() == Promise::State::Rejected) {
+                auto reason = promise->result();
+                if (!promise->is_handled())
+                    vm.host_promise_rejection_tracker(*promise, Promise::RejectionOperation::Handle);
+
+                auto reject = result_capability.reject();
+                auto job = GC::create_function(vm.heap(), [&vm, reject, reason] {
+                    return call(vm, *reject, js_undefined(), reason);
+                });
+                vm.host_enqueue_promise_job(job, &realm);
+                promise->set_is_handled();
+                return js_undefined();
+            }
+
+            return promise->perform_then(create_on_fulfilled(), result_capability.reject(), nullptr);
+        }
+
+        auto dependent_capability = TRY(new_promise_capability(vm, constructor));
+        return promise->perform_then(create_on_fulfilled(), result_capability.reject(), dependent_capability);
+    }
+
+    return call(vm, then, promise_value, create_on_fulfilled(), result_capability.reject());
+}
+
 static ThrowCompletionOr<Value> perform_promise_common(VM& vm, IteratorRecord& iterator_record, Value constructor, PromiseCapability const& result_capability, Value promise_resolve, EndOfElementsCallback end_of_list, InvokeElementFunctionCallback invoke_element_function)
 {
     VERIFY(constructor.is_constructor());
@@ -122,6 +196,7 @@ static ThrowCompletionOr<Value> perform_promise_all(VM& vm, IteratorRecord& iter
 {
     auto& realm = *vm.current_realm();
     auto result_visibility = &constructor.as_function() == realm.intrinsics().promise_constructor().ptr() ? ResultVisibility::Unobservable : ResultVisibility::Observable;
+    GC::Ptr<JobCallback> resolve_values_array;
 
     return perform_promise_common(
         vm, iterator_record, constructor, result_capability, promise_resolve,
@@ -136,18 +211,7 @@ static ThrowCompletionOr<Value> perform_promise_all(VM& vm, IteratorRecord& iter
             return result_capability.promise();
         },
         [&](PromiseValueList& values, RemainingElements& remaining_elements_count, Value next_promise, size_t index) {
-            // j. Let steps be the algorithm steps defined in Promise.all Resolve Element Functions.
-            // k. Let length be the number of non-optional parameters of the function definition in Promise.all Resolve Element Functions.
-            // l. Let onFulfilled be CreateBuiltinFunction(steps, length, "", « [[AlreadyCalled]], [[Index]], [[Values]], [[Capability]], [[RemainingElements]] »).
-            // m. Set onFulfilled.[[AlreadyCalled]] to false.
-            // n. Set onFulfilled.[[Index]] to index.
-            // o. Set onFulfilled.[[Values]] to values.
-            // p. Set onFulfilled.[[Capability]] to resultCapability.
-            // q. Set onFulfilled.[[RemainingElements]] to remainingElementsCount.
-            auto on_fulfilled = PromiseAllResolveElementFunction::create(realm, index, values, result_capability, remaining_elements_count);
-
-            // s. Perform ? Invoke(nextPromise, "then", « onFulfilled, resultCapability.[[Reject]] »).
-            return invoke_then(vm, realm, next_promise, on_fulfilled, result_capability.reject(), result_visibility);
+            return invoke_promise_all_then(vm, realm, next_promise, values, result_capability, remaining_elements_count, index, result_visibility, resolve_values_array);
         });
 }
 
