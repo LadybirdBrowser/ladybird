@@ -44,7 +44,10 @@ void HTMLDetailsElement::inserted()
 
     // 1. Ensure details exclusivity by closing the given element if needed given insertedNode.
     ensure_details_exclusivity_by_closing_the_given_element_if_needed();
+}
 
+void HTMLDetailsElement::prepare_for_style_computation()
+{
     create_shadow_tree_if_needed().release_value_but_fixme_should_propagate_errors();
     update_shadow_tree_slots();
 }

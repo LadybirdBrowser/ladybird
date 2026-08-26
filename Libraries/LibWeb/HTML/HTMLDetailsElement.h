@@ -35,6 +35,8 @@ private:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
+    virtual void prepare_for_style_computation() override;
+
     void queue_a_details_toggle_event_task(Utf16FlyString old_state, Utf16FlyString new_state);
     void ensure_details_exclusivity_by_closing_other_elements_if_needed();
     void ensure_details_exclusivity_by_closing_the_given_element_if_needed();
