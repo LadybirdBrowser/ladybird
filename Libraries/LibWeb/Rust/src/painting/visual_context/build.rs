@@ -526,9 +526,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             sticky_scroll_node_index = own_state.spatial;
             self.register_sticky_node(sticky_scroll_node_index, slot, nearest_ancestor_scroll_node_index);
             {
-                let assignment = self.assignment_mut(slot);
-                assignment.enclosing_scroll_node_index = sticky_scroll_node_index;
-                assignment.own_scroll_node_index = sticky_scroll_node_index;
+                self.assignment_mut(slot).enclosing_scroll_node_index = sticky_scroll_node_index;
             }
             nearest_scroll_nodes_for_descendants = NearestScrollNodeIndices {
                 stopping_at_fixed_position_ancestors: sticky_scroll_node_index,
