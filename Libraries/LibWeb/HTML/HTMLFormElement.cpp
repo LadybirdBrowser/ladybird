@@ -1221,58 +1221,76 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto filter = [this, name](auto& node) -> bool {
-        if (!is<DOM::Element>(node))
+    auto filter = [this, name](DOM::Node const& node) -> bool {
+        auto const* element = as_if<DOM::Element>(node);
+        if (!element)
             return false;
-        auto const& element = static_cast<DOM::Element const&>(node);
 
         // Form controls are defined as listed elements, with the exception of input elements in the Image Button state,
         // whose form owner is the form element.
-        if (!is_form_control(element, *this))
+        if (!is_form_control(*element, *this))
             return false;
 
-        return name == element.id() || name == element.name();
+        return name == element->id() || name == element->name();
     };
-    auto candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, move(filter), DOM::LiveNodeList::Kind::FormControls);
 
     // 2. If candidates is empty, let candidates be a live RadioNodeList object containing all the img elements,
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,
     //    in tree order.
-    if (candidates->length() == 0) {
-        candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
-            if (!is<HTMLImageElement>(node))
-                return false;
+    auto image_filter = [this, name](DOM::Node const& node) -> bool {
+        auto const* element = as_if<HTMLImageElement>(node);
+        if (!element)
+            return false;
 
-            auto const& element = static_cast<HTMLImageElement const&>(node);
-            if (element.form() != this)
-                return false;
+        if (element->form() != this)
+            return false;
 
-            return name == element.id() || name == element.name();
-        });
-    }
+        return name == element->id() || name == element->name();
+    };
 
-    auto length = candidates->length();
+    // OPTIMIZATION: The associated elements are in tree order, so the candidates are found by walking them instead of
+    //               by building a live list over the whole tree. Only step 4 hands a list to the caller, so that is
+    //               the only place one is built.
+    GC::Ptr<DOM::Node> first_candidate;
+    size_t candidate_count = 0;
+    auto count_candidates = [&](auto const& candidate_filter) {
+        first_candidate = nullptr;
+        candidate_count = 0;
+        for (auto const& element : m_associated_elements_in_tree_order) {
+            if (!candidate_filter(*element))
+                continue;
+            if (!first_candidate)
+                first_candidate = element;
+            ++candidate_count;
+        }
+    };
+
+    count_candidates(filter);
+    auto candidates_are_images = candidate_count == 0;
+    if (candidates_are_images)
+        count_candidates(image_filter);
 
     // 3. If candidates is empty, name is the name of one of the entries in the form element's past names map: return the object associated with name in that map.
-    if (length == 0) {
+    if (candidate_count == 0) {
         auto it = m_past_names_map.find(name);
         if (it != m_past_names_map.end())
             return GC::Ref { const_cast<DOM::Node&>(*it->value.node) };
+        return Empty {};
     }
 
     // 4. If candidates contains more than one node, return candidates.
-    if (length > 1)
-        return candidates;
+    if (candidate_count > 1) {
+        if (candidates_are_images)
+            return RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, move(image_filter));
+        return RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, move(filter), DOM::LiveNodeList::Kind::FormControls);
+    }
 
     // 5. Otherwise, candidates contains exactly one node. Add a mapping from name to the node in candidates in the form
     //    element's past names map, replacing the previous entry with the same name, if any.
-    auto* node = candidates->item(0);
-    if (!node)
-        return Empty {};
-    m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = node, .insertion_time = MonotonicTime::now() });
+    m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = first_candidate, .insertion_time = MonotonicTime::now() });
 
     // 6. Return the node in candidates.
-    return GC::Ref { const_cast<DOM::Node&>(*node) };
+    return GC::Ref { *first_candidate };
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button
