@@ -2,6 +2,7 @@
 members = [
     "AK/Rust",
     "Libraries/LibGfx/Rust",
+    "Libraries/LibImageDecoders/Rust",
     "Libraries/LibJS/Rust",
     "Libraries/LibRegex/Rust",
     "Libraries/LibTextCodec/Rust",

@@ -991,6 +991,17 @@ TEST_CASE(test_jxl_modular_simple_tree_upsample2_10bits)
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
 }
 
+TEST_CASE(test_jxl_truncated_frame_is_not_counted)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jxl/modular_simple_tree_upsample2_10bits_rct.jxl"sv)));
+    auto truncated_file = file->bytes().slice(0, file->bytes().size() - 1);
+    EXPECT(Gfx::JPEGXLImageDecoderPlugin::sniff(truncated_file));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGXLImageDecoderPlugin::create(truncated_file));
+
+    EXPECT_EQ(plugin_decoder->frame_count(), 0u);
+    EXPECT(plugin_decoder->frame(0).is_error());
+}
+
 TEST_CASE(test_avif_simple_lossy)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));

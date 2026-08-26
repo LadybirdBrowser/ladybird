@@ -1,4 +1,4 @@
-# import_rust_crate(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name)
+# import_rust_crate(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name [PANIC_UNWIND])
 #
 # Builds a Rust static library crate using cargo and creates an IMPORTED target.
 # MANIFEST_PATH is relative to CMAKE_CURRENT_SOURCE_DIR.
@@ -9,7 +9,7 @@
 set_property(GLOBAL PROPERTY JOB_POOLS "${JOB_POOLS};cargo=1")
 
 function(import_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES;FFI_HEADERS")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "PANIC_UNWIND" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES;FFI_HEADERS")
 
     if (NOT ARG_FFI_OUTPUT_DIR)
         set(ARG_FFI_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -28,6 +28,12 @@ function(import_rust_crate)
         CRATE_NAME ${ARG_CRATE_NAME}
         FFI_OUTPUT_DIR "${ARG_FFI_OUTPUT_DIR}"
     )
+
+    # Rust's release profile normally aborts on panic. Crates that parse untrusted input may opt
+    # into unwinding so they can contain dependency panics at their FFI boundary.
+    if (ARG_PANIC_UNWIND)
+        list(APPEND cargo_env "CARGO_PROFILE_RELEASE_PANIC=unwind")
+    endif()
 
     set(cargo_feature_flags "")
     if (ARG_FEATURES)
