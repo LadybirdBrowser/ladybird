@@ -125,24 +125,47 @@ fn position_to_ffi(pos: &Position) -> (u64, u64) {
     (pos.line, pos.column)
 }
 
-/// Create a new Rust HTML tokenizer from UTF-32 code points.
+/// Create a new Rust HTML tokenizer directly from a UTF-16 code unit buffer.
 ///
 /// # Safety
-/// `input` must point to `len` valid u32 values.
+/// `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_create(input: *const u32, len: usize) -> *mut RustFfiTokenizerHandle {
-    let code_points = if input.is_null() || len == 0 {
+pub unsafe extern "C" fn rust_html_tokenizer_create_from_utf16(
+    input: *const u16,
+    len: usize,
+) -> *mut RustFfiTokenizerHandle {
+    let code_units = if input.is_null() || len == 0 {
         Vec::new()
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }.to_vec()
     };
 
-    make_handle(HtmlTokenizer::new(code_points))
+    make_handle(HtmlTokenizer::new(code_units))
+}
+
+/// Create a new Rust HTML tokenizer directly from an ASCII byte buffer.
+///
+/// # Safety
+/// `input` must point to `len` ASCII bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_html_tokenizer_create_from_ascii(
+    input: *const u8,
+    len: usize,
+) -> *mut RustFfiTokenizerHandle {
+    let code_units = if input.is_null() || len == 0 {
+        Vec::new()
+    } else {
+        unsafe { std::slice::from_raw_parts(input, len) }
+            .iter()
+            .map(|byte| u16::from(*byte))
+            .collect()
+    };
+
+    make_handle(HtmlTokenizer::new(code_units))
 }
 
 /// Create a new Rust HTML tokenizer directly from a UTF-8 byte buffer.
-/// Rust decodes the bytes to code points internally, skipping the C++
-/// side's 4x-expanded Vec<u32> copy.
+/// Rust converts the bytes directly to the tokenizer's UTF-16 storage.
 ///
 /// # Safety
 /// `bytes` must point to `len` valid UTF-8 bytes.
@@ -151,52 +174,15 @@ pub unsafe extern "C" fn rust_html_tokenizer_create_from_utf8(
     bytes: *const u8,
     len: usize,
 ) -> *mut RustFfiTokenizerHandle {
-    let code_points = if bytes.is_null() || len == 0 {
+    let code_units = if bytes.is_null() || len == 0 {
         Vec::new()
     } else {
         let slice = unsafe { std::slice::from_raw_parts(bytes, len) };
-        decode_utf8_to_u32(slice)
+        // SAFETY: The caller guarantees valid UTF-8.
+        unsafe { std::str::from_utf8_unchecked(slice) }.encode_utf16().collect()
     };
 
-    make_handle(HtmlTokenizer::new(code_points))
-}
-
-/// Expand a UTF-8 byte slice into a `Vec<u32>` of code points. For the
-/// dominant ASCII case we use a tight loop with a single unchecked
-/// write per byte and only fall back to `str::chars()` decoding when
-/// we see a continuation byte. The caller is responsible for ensuring
-/// the input is valid UTF-8.
-fn decode_utf8_to_u32(bytes: &[u8]) -> Vec<u32> {
-    let mut out: Vec<u32> = Vec::with_capacity(bytes.len());
-    // SAFETY: we reserved `bytes.len()` slots and will only write up to
-    // that many u32s (one per input byte; multi-byte sequences produce
-    // fewer u32s than bytes, so we stay within bounds).
-    let out_ptr = out.as_mut_ptr();
-    let mut write_idx: usize = 0;
-    let mut i: usize = 0;
-    let n = bytes.len();
-    while i < n {
-        let b = bytes[i];
-        if b < 0x80 {
-            unsafe { std::ptr::write(out_ptr.add(write_idx), b as u32) };
-            write_idx += 1;
-            i += 1;
-        } else {
-            // Slow path: decode one code point via str::chars.
-            // SAFETY: the input is valid UTF-8 by precondition.
-            let tail = unsafe { std::str::from_utf8_unchecked(&bytes[i..]) };
-            if let Some(ch) = tail.chars().next() {
-                unsafe { std::ptr::write(out_ptr.add(write_idx), ch as u32) };
-                write_idx += 1;
-                i += ch.len_utf8();
-            } else {
-                break;
-            }
-        }
-    }
-    // SAFETY: we wrote exactly `write_idx` elements, all in-bounds.
-    unsafe { out.set_len(write_idx) };
-    out
+    make_handle(HtmlTokenizer::new(code_units))
 }
 
 fn make_handle(tokenizer: HtmlTokenizer) -> *mut RustFfiTokenizerHandle {
@@ -386,48 +372,92 @@ pub unsafe extern "C" fn rust_html_tokenizer_switch_state(handle: *mut RustFfiTo
     handle.tokenizer.switch_to(state);
 }
 
-/// Insert input (as UTF-32 code points) at the current insertion point.
+/// Insert UTF-16 input at the current insertion point.
 ///
 /// # Safety
-/// `handle` must be a valid pointer. `input` must point to `len` valid u32 values.
+/// `handle` must be valid. `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_insert_input(
+pub unsafe extern "C" fn rust_html_tokenizer_insert_utf16_input(
     handle: *mut RustFfiTokenizerHandle,
-    input: *const u32,
+    input: *const u16,
     len: usize,
 ) {
     if handle.is_null() {
         return;
     }
-    let handle = unsafe { &mut *handle };
-    let code_points = if input.is_null() || len == 0 {
+    let code_units = if input.is_null() || len == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }
     };
-    handle.tokenizer.insert_input_at_insertion_point(code_points);
+    unsafe { &mut *handle }
+        .tokenizer
+        .insert_input_at_insertion_point(code_units);
 }
 
-/// Append input (as UTF-32 code points) to the tokenizer input stream.
+/// Insert ASCII input at the current insertion point.
 ///
 /// # Safety
-/// `handle` must be a valid pointer. `input` must point to `len` valid u32 values.
+/// `handle` must be valid. `input` must point to `len` ASCII bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_append_input(
+pub unsafe extern "C" fn rust_html_tokenizer_insert_ascii_input(
     handle: *mut RustFfiTokenizerHandle,
-    input: *const u32,
+    input: *const u8,
     len: usize,
 ) {
     if handle.is_null() {
         return;
     }
-    let handle = unsafe { &mut *handle };
-    let code_points = if input.is_null() || len == 0 {
+    let input = if input.is_null() || len == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(input, len) }
     };
-    handle.tokenizer.append_input(code_points);
+    unsafe { &mut *handle }
+        .tokenizer
+        .insert_ascii_input_at_insertion_point(input);
+}
+
+/// Append UTF-16 input to the tokenizer input stream.
+///
+/// # Safety
+/// `handle` must be valid. `input` must point to `len` valid UTF-16 code units.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_html_tokenizer_append_utf16_input(
+    handle: *mut RustFfiTokenizerHandle,
+    input: *const u16,
+    len: usize,
+) {
+    if handle.is_null() {
+        return;
+    }
+    let code_units = if input.is_null() || len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(input, len) }
+    };
+    unsafe { &mut *handle }.tokenizer.append_input(code_units);
+}
+
+/// Append ASCII input to the tokenizer input stream.
+///
+/// # Safety
+/// `handle` must be valid. `input` must point to `len` ASCII bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_html_tokenizer_append_ascii_input(
+    handle: *mut RustFfiTokenizerHandle,
+    input: *const u8,
+    len: usize,
+) {
+    if handle.is_null() {
+        return;
+    }
+    let input = if input.is_null() || len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(input, len) }
+    };
+    unsafe { &mut *handle }.tokenizer.append_ascii_input(input);
 }
 
 /// Get the tokenizer input that has not been consumed yet.

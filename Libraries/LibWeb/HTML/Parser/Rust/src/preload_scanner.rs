@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::decode_utf8_to_u32;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::token::Attribute;
@@ -93,17 +92,17 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
 }
 
 pub(crate) fn scan(input: &[u8], mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
-    let code_points = decode_utf8_to_u32(input);
-    scan_code_points(code_points, &mut callback);
+    // SAFETY: The FFI entry point guarantees valid UTF-8.
+    let code_units = unsafe { std::str::from_utf8_unchecked(input) }.encode_utf16().collect();
+    scan_code_units(code_units, &mut callback);
 }
 
 pub(crate) fn scan_utf16(input: &[u16], mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
-    let code_points = decode_utf16_to_u32(input);
-    scan_code_points(code_points, &mut callback);
+    scan_code_units(input.to_vec(), &mut callback);
 }
 
-fn scan_code_points(code_points: Vec<u32>, callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
-    let mut tokenizer = HtmlTokenizer::new(code_points);
+fn scan_code_units(code_units: Vec<u16>, callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
+    let mut tokenizer = HtmlTokenizer::new(code_units);
     let mut template_depth: u64 = 0;
     let mut foreign_depth: u64 = 0;
 
@@ -121,12 +120,6 @@ fn scan_code_points(code_points: Vec<u32>, callback: &mut impl FnMut(&RustFfiPre
             break;
         }
     }
-}
-
-fn decode_utf16_to_u32(code_units: &[u16]) -> Vec<u32> {
-    std::char::decode_utf16(code_units.iter().copied())
-        .map(|result| result.map_or(std::char::REPLACEMENT_CHARACTER as u32, |code_point| code_point as u32))
-        .collect()
 }
 
 fn process_start_tag(
