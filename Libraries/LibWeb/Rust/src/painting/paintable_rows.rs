@@ -686,6 +686,28 @@ impl LayoutNodeArena {
         self.paintable_rows().invalidate_paint_cache(id);
     }
 
+    pub(crate) fn transfer_fragments_to_replacement_node(
+        &self,
+        containing_block: NodeSlotId,
+        old_node: NodeSlotId,
+        new_node: NodeSlotId,
+    ) {
+        if !self.paintable_row_is_populated(containing_block) {
+            return;
+        }
+        let mut side = self.paintable_side_data_mut(containing_block);
+        for fragment in &mut side.fragments {
+            if fragment.layout_node == old_node {
+                fragment.layout_node = new_node;
+            }
+        }
+        for piece in &mut side.inline_box_pieces {
+            if piece.node == old_node {
+                piece.node = new_node;
+            }
+        }
+    }
+
     pub(crate) fn mark_descendant_subtree_caches_dirty_from_layout_node(&self, node: NodeSlotId) {
         self.paintable_rows()
             .mark_descendant_subtree_caches_dirty_from_layout_node(node);

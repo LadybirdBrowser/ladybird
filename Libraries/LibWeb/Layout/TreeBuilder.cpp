@@ -426,6 +426,15 @@ static NonnullRefPtr<Box> create_content_image_box(DOM::Document& document, GC::
     return image_box;
 }
 
+template<typename T>
+static RustFFI::NodeSlotId retain_for_rust(RefPtr<T> const& node)
+{
+    if (!node)
+        return RustFFI::NodeSlotId_INVALID;
+    node->ref();
+    return Node::slot_id(node.ptr());
+}
+
 static CSS::AbstractImageStyleValue const* content_replacement_image(CSS::ComputedContentData const& content)
 {
     if (content.type != CSS::ComputedContentData::Type::List
@@ -709,7 +718,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 .marker_position_is_inside = frame.originating_list_box
                     && frame.originating_list_box->list_style_position() == CSS::ListStylePosition::Inside,
             }; },
-        .create_layout_node = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement, RustFFI::FfiPseudoElementDecision decision) {
+        .create_layout_node = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement, RustFFI::FfiPseudoElementDecision decision) -> RustFFI::NodeSlotId {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -731,18 +740,13 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 break;
             case RustFFI::FfiPseudoElementDecision::Box:
                 if (frame.originating_list_box) {
-                    auto marker = create_list_item_marker(*frame.originating_list_box, style);
-                    if (frame.originating_list_box->list_style_position() == CSS::ListStylePosition::Outside)
-                        frame.originating_list_box->prepend_child(*marker);
-                    frame.layout_node = move(marker);
+                    frame.layout_node = create_list_item_marker(*frame.originating_list_box, style);
                     break;
                 }
                 frame.layout_node = DOM::Element::create_layout_node_for_display_type(document, frame.display, style, nullptr);
                 break;
-            } },
-        .layout_node = [](void* frame_pointer) -> RustFFI::NodeSlotId {
-            VERIFY(frame_pointer);
-            return Node::slot_id(static_cast<PseudoElementFrame*>(frame_pointer)->layout_node.ptr()); },
+            }
+            return retain_for_rust(frame.layout_node); },
         .attach_style_resources = [](void* frame_pointer) {
             VERIFY(frame_pointer);
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
@@ -829,23 +833,13 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 frame.content_item = move(image_box);
             }
             frame.content_item->set_generated_for(css_pseudo_element(ffi_pseudo), element);
-            return Node::slot_id(frame.content_item.ptr()); },
+            return retain_for_rust(frame.content_item); },
     };
 }
 
 static bool is_svg_resource_box(Node const& layout_node)
 {
     return layout_node.is_svg_pattern_box() || layout_node.is_svg_mask_box() || layout_node.is_svg_clip_box();
-}
-
-// The replacement box represents the same element in the same tree position, so the flat
-// fragment and inline-box-piece lists held by the containing block of a node that participated
-// in inline layout carry over to it; a subtree relayout that skips the containing block never
-// rebuilds them.
-static void transfer_saved_layout_state_to_replacement_box(Layout::Node& old_layout_node, Layout::Node& new_layout_node)
-{
-    if (auto* containing_block = old_layout_node.containing_block())
-        Painting::transfer_fragments_to_replacement_node(*containing_block, old_layout_node, new_layout_node);
 }
 
 TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node, DOM::Node const* cleared_subtree_root)
@@ -1057,16 +1051,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .create_first_letter_wrapper = [](void*, void* element_pointer, RustFFI::FfiFirstLetterTarget target) {
             VERIFY(element_pointer);
             create_first_letter_wrapper(*static_cast<DOM::Element*>(element_pointer), target); },
-        .ensure_replaced_children_wrapper = [](void* builder_pointer, void* layout_node_pointer, void* parent_pointer) -> RustFFI::NodeSlotId {
-            VERIFY(builder_pointer);
-            VERIFY(layout_node_pointer);
-            VERIFY(parent_pointer);
-            auto& layout_node = *static_cast<Layout::Node*>(layout_node_pointer);
-            if (!layout_node.first_child() || !layout_node.first_child()->is_anonymous()) {
-                auto wrapper = as<NodeWithStyle>(layout_node).create_anonymous_wrapper();
-                static_cast<Layout::NodeWithStyle*>(parent_pointer)->append_child(wrapper);
-            }
-            return Node::slot_id(layout_node.first_child().ptr()); },
         .top_layer_element_count = [](void* document_pointer) {
             VERIFY(document_pointer);
             return static_cast<DOM::Document*>(document_pointer)->top_layer_elements().size(); },
@@ -1106,6 +1090,16 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(element_pointer);
             // NB: Called during layout tree construction.
             return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->unsafe_layout_node()); },
+        .dom_node_layout_node = [](void* node_pointer) -> RustFFI::NodeSlotId {
+            VERIFY(node_pointer);
+            return Node::slot_id(static_cast<DOM::Node*>(node_pointer)->unsafe_layout_node()); },
+        .layout_node_dom_element = [](void* layout_node_pointer) -> void* {
+            VERIFY(layout_node_pointer);
+            auto* dom_node = static_cast<Layout::Node*>(layout_node_pointer)->dom_node();
+            return dom_node ? as_if<DOM::Element>(*dom_node) : nullptr; },
+        .element_pseudo_layout_node = [](void* element_pointer, RustFFI::FfiPseudoElement pseudo_element) -> RustFFI::NodeSlotId {
+            VERIFY(element_pointer);
+            return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->pseudo_element_unsafe_layout_node(css_pseudo_element(pseudo_element))); },
         .principal_node_entry_facts = [](void*, void* node_pointer, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
             VERIFY(node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);
@@ -1209,7 +1203,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .is_svg_clip_path_element = is<SVG::SVGClipPathElement>(element),
                 .is_svg_pattern_element = is<SVG::SVGPatternElement>(element),
             }; },
-        .create_principal_element_layout = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiElementLayoutKind kind) {
+        .create_principal_element_layout = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiElementLayoutKind kind) -> RustFFI::NodeSlotId {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -1239,14 +1233,16 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             case RustFFI::FfiElementLayoutKind::Normal:
                 frame.layout_node = element.create_layout_node(style);
                 break;
-            } },
-        .create_principal_document_layout = [](void* frame_pointer, void* document_pointer) {
+            }
+            return retain_for_rust(frame.layout_node); },
+        .create_principal_document_layout = [](void* frame_pointer, void* document_pointer) -> RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             VERIFY(document_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             auto& document = *static_cast<DOM::Document*>(document_pointer);
             frame.anonymous_computed_values = document.style_computer().create_document_style();
-            frame.layout_node = make_ref_counted<Layout::Viewport>(document, frame.anonymous_computed_values.release_nonnull()); },
+            frame.layout_node = make_ref_counted<Layout::Viewport>(document, frame.anonymous_computed_values.release_nonnull());
+            return retain_for_rust(frame.layout_node); },
         .principal_text_layout_facts = [](void* text_pointer) -> RustFFI::FfiTextLayoutFacts {
             VERIFY(text_pointer);
             auto& text = *static_cast<DOM::Text*>(text_pointer);
@@ -1258,11 +1254,12 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .text_is_ascii_whitespace = text.data().is_ascii_whitespace(),
                 .parent_collapses_whitespace = style_parent_values && first_is_one_of(style_parent_values->white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse),
             }; },
-        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer, bool needs_style_wrapper) {
+        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer, bool needs_style_wrapper) -> RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             VERIFY(text_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            frame.layout_node = create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer), needs_style_wrapper); },
+            frame.layout_node = create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer), needs_style_wrapper);
+            return retain_for_rust(frame.layout_node); },
         .reuse_principal_layout = [](void* frame_pointer, void* node_pointer) {
             VERIFY(frame_pointer);
             VERIFY(node_pointer);
@@ -1286,40 +1283,13 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 as<NodeWithStyle>(*frame.layout_node).set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
             else
                 VERIFY_NOT_REACHED(); },
-        .insert_principal_backdrop_before_old = [](void* builder_pointer, void* frame_pointer, void* backdrop_pointer) {
-            VERIFY(builder_pointer);
-            VERIFY(frame_pointer);
-            VERIFY(backdrop_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            VERIFY(frame.old_layout_node);
-            VERIFY(frame.old_layout_node->parent());
-            auto& backdrop = *static_cast<Layout::Node*>(backdrop_pointer);
-            frame.old_layout_node->parent()->insert_before(backdrop, frame.old_layout_node); },
-        .place_principal_layout = [](void* builder_pointer, void* frame_pointer, void* parent_pointer, RustFFI::FfiPrincipalBoxPlacement placement) {
+        .set_layout_root = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
-            switch (placement) {
-            case RustFFI::FfiPrincipalBoxPlacement::None:
-                break;
-            case RustFFI::FfiPrincipalBoxPlacement::DocumentRoot:
-                builder.m_layout_root = frame.layout_node;
-                break;
-            case RustFFI::FfiPrincipalBoxPlacement::ReplaceExisting:
-                VERIFY(frame.old_layout_node);
-                transfer_saved_layout_state_to_replacement_box(*frame.old_layout_node, *frame.layout_node);
-                frame.old_layout_node->prepare_subtree_for_detach_from_layout_tree();
-                frame.old_layout_node->parent()->replace_child(*frame.layout_node, *frame.old_layout_node);
-                break;
-            case RustFFI::FfiPrincipalBoxPlacement::AppendSvg:
-                VERIFY(parent_pointer);
-                static_cast<Layout::NodeWithStyle*>(parent_pointer)->append_child(*frame.layout_node);
-                break;
-            case RustFFI::FfiPrincipalBoxPlacement::NormalInsertion:
-                VERIFY_NOT_REACHED();
-            } },
+            builder.m_layout_root = frame.layout_node; },
         .clear_stale_inclusive_subtree = [](void* builder_pointer, void* node_pointer) {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);
@@ -1521,72 +1491,6 @@ static RustFFI::NodeSlotId ffi_create_anonymous_wrapper(void*, void* parent_poin
     return release_to_rust(parent.create_anonymous_wrapper());
 }
 
-static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, RustFFI::FfiInsertionMode mode)
-{
-    VERIFY(parent_pointer);
-    VERIFY(child_pointer);
-    auto& parent = *static_cast<Node*>(parent_pointer);
-    NonnullRefPtr child = *static_cast<Node*>(child_pointer);
-    if (mode == RustFFI::FfiInsertionMode::Prepend) {
-        parent.prepend_child(*child);
-        return;
-    }
-    if (mode == RustFFI::FfiInsertionMode::Append) {
-        parent.append_child(*child);
-        return;
-    }
-
-    VERIFY(mode == RustFFI::FfiInsertionMode::InDomOrder);
-    auto* dom_node = child->dom_node();
-    VERIFY(dom_node);
-
-    // An inline child of a block container with block children is placed in a newly appended
-    // anonymous wrapper. Move that empty wrapper to the child's DOM position before filling it.
-    if (parent.is_anonymous() && !parent.has_children()) {
-        if (auto* wrapper_parent = parent.parent()) {
-            for (auto* sibling = dom_node->next_sibling(); sibling; sibling = sibling->next_sibling()) {
-                auto* sibling_layout_node = sibling->unsafe_layout_node();
-                while (sibling_layout_node && sibling_layout_node->parent() != wrapper_parent)
-                    sibling_layout_node = sibling_layout_node->parent();
-                if (!sibling_layout_node || sibling_layout_node == &parent)
-                    continue;
-                NonnullRefPtr wrapper = parent;
-                wrapper_parent->remove_child(parent);
-                wrapper_parent->insert_before(move(wrapper), sibling_layout_node);
-                break;
-            }
-        }
-    }
-
-    for (auto* sibling = dom_node->next_sibling(); sibling; sibling = sibling->next_sibling()) {
-        auto* sibling_layout_node = sibling->unsafe_layout_node();
-        if (sibling_layout_node && sibling_layout_node->parent() == &parent) {
-            parent.insert_before(*child, sibling_layout_node);
-            return;
-        }
-    }
-
-    if (auto const* parent_element = as_if<DOM::Element>(parent.dom_node())) {
-        if (auto* after_layout_node = parent_element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
-            auto* after_layout_child = after_layout_node;
-            while (after_layout_child->parent() && after_layout_child->parent() != &parent)
-                after_layout_child = after_layout_child->parent();
-            if (after_layout_child->parent() == &parent) {
-                parent.insert_before(*child, after_layout_child);
-                return;
-            }
-        }
-    }
-
-    for (auto layout_child = parent.first_child(); layout_child; layout_child = layout_child->next_sibling()) {
-        if (layout_child->is_generated_for_after_pseudo_element()) {
-            parent.insert_before(*child, layout_child);
-            return;
-        }
-    }
-    parent.append_child(*child);
-}
-
 static RustFFI::FfiButtonContentWrappers ffi_create_button_content_wrappers(void*, void* layout_node_pointer)
 {
     VERIFY(layout_node_pointer);
@@ -1629,7 +1533,9 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .create_anonymous_table_box = ffi_create_anonymous_table_box,
         .create_table_wrapper = ffi_create_table_wrapper,
         .create_missing_table_cell = ffi_create_missing_table_cell,
-        .insert_child = ffi_insert_child,
+        .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
+            VERIFY(layout_node_pointer);
+            static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
         .text_is_ascii_whitespace = [](void*, void* node_pointer) {
             VERIFY(node_pointer);
             return as<TextNode>(*static_cast<Node*>(node_pointer)).text_for_rendering().is_ascii_whitespace(); },

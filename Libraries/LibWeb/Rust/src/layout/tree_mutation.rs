@@ -102,6 +102,10 @@ impl OwnedLayoutNode {
         std::mem::forget(self);
         slot
     }
+
+    pub(crate) fn into_detached_shell(self, arena: &LayoutNodeArena) -> DetachedShell {
+        DetachedShell(arena.node_shell(self.into_slot()))
+    }
 }
 
 impl Drop for OwnedLayoutNode {

@@ -1054,14 +1054,6 @@ void set_sticky_insets(Layout::Node const& node, OwnPtr<StickyInsets> sticky_ins
     Layout::RustFFI::layout_arena_paintable_set_sticky_insets(node.arena_handle(), committed_row_slot(node), ffi_insets, !!sticky_insets);
 }
 
-void transfer_fragments_to_replacement_node(Layout::Node const& containing_block, Layout::Node const& old_node, Layout::Node const& new_node)
-{
-    if (!is_paintable_with_lines(containing_block))
-        return;
-    Layout::RustFFI::layout_arena_paintable_transfer_fragments_to_replacement_node(
-        containing_block.arena_handle(), committed_row_slot(containing_block), Layout::Node::slot_id(&old_node), Layout::Node::slot_id(&new_node));
-}
-
 void inline_piece_border_box_rects(Layout::Node const& node, Vector<CSSPixelRect>& rects)
 {
     Layout::RustFFI::layout_arena_inline_paintable_piece_border_box_rects(
