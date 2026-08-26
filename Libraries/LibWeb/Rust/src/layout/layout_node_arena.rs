@@ -15,6 +15,7 @@ use crate::layout::LayoutMode;
 use crate::layout::SizeConstraint;
 use crate::layout::UsedValues;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::tree_mutation::{DetachedShell, DetachedShells, OwnedLayoutNode};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -411,6 +412,18 @@ struct ChunkAddress {
     chunk_index: usize,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AncestorInvalidation {
+    StructuralChange,
+    ContentChange,
+}
+
+#[must_use]
+pub(crate) struct FreedSlot {
+    pub(crate) paintable_row_reset: Option<crate::painting::paintable_rows::PaintableRowReset>,
+    pub(crate) detached_children: DetachedShells,
+}
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
@@ -509,7 +522,7 @@ impl LayoutNodeArena {
         });
     }
 
-    fn assert_owner_thread(&self) {
+    pub(crate) fn assert_owner_thread(&self) {
         debug_assert_eq!(self.owner_thread, thread::current().id());
     }
 
@@ -568,11 +581,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn free(
-        &mut self,
-        id: NodeSlotId,
-        generation: u32,
-    ) -> Option<crate::painting::paintable_rows::PaintableRowReset> {
+    pub(crate) fn free(&mut self, id: NodeSlotId, generation: u32) -> FreedSlot {
         self.assert_owner_thread();
 
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
@@ -584,6 +593,7 @@ impl LayoutNodeArena {
             "layout node arena slot ID and allocation generation disagree"
         );
         self.mark_descendant_subtree_caches_dirty_from_layout_node(id);
+        let detached_children = self.unlink_children_for_free(id);
         let should_reuse = {
             let metadata = self.metadata_mut(index);
             assert!(metadata.occupied, "layout node arena freed an unused slot");
@@ -645,7 +655,38 @@ impl LayoutNodeArena {
         if should_reuse {
             self.free_list.push(index);
         }
-        paintable_row_reset
+        FreedSlot {
+            paintable_row_reset,
+            detached_children,
+        }
+    }
+
+    fn unlink_children_for_free(&self, id: NodeSlotId) -> DetachedShells {
+        let data = self.data(id);
+        // SAFETY: data() validated that id names a live slot, and the links are plain values.
+        let (parent, previous_sibling, next_sibling) = unsafe {
+            (
+                (&raw const (*data).parent).read(),
+                (&raw const (*data).previous_sibling).read(),
+                (&raw const (*data).next_sibling).read(),
+            )
+        };
+        assert!(
+            parent.is_invalid() && previous_sibling.is_invalid() && next_sibling.is_invalid(),
+            "layout node arena freed a slot that is still linked under a parent"
+        );
+        let mut detached_children = DetachedShells::default();
+        loop {
+            // SAFETY: As above; unlink_child only rewrites link fields of live slots.
+            let child = unsafe { (&raw const (*data).first_child).read() };
+            if child.is_invalid() {
+                break;
+            }
+            let shell = self.node_shell(child);
+            self.unlink_child(id, child);
+            detached_children.push(DetachedShell::from_tree_reference(shell));
+        }
+        detached_children
     }
 
     pub(crate) fn data(&self, id: NodeSlotId) -> *mut NodeData {
@@ -1539,14 +1580,42 @@ impl LayoutNodeArena {
     // OPTIMIZATION: The edit invalidates line data at its direct parent and every formatting
     // ancestor. Preserve the structural proof along the same unbounded path as the fragment
     // epoch bumps so each affected inline context can reuse its unchanged line prefix.
-    pub(crate) fn note_inline_layout_damage_at_and_above(&self, mut box_: NodeSlotId) {
-        while !box_.is_invalid() {
-            let data = self.data(box_);
-            self.fc_run_cache_store.note_inline_layout_damage(box_);
-            // SAFETY: data() validated that box_ names a live slot, and the layout tree is stable
-            // for the duration of this synchronous topology update.
-            box_ = unsafe { (&raw const (*data).parent).read() };
+    // NB: Bumps can legitimately run while another document's layout pass is on the stack (a
+    // parent pass sizing a child navigable's viewport invalidates the child document), so the
+    // helpers must not assert against the process-global pass flag. A bump landing between a
+    // run's probe and its store is handled by storing the probe-time validity, which turns it
+    // into a fail-safe miss.
+    fn invalidate_at_and_above(&self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
+        let epochs_enabled =
+            crate::layout::fc_run_cache_mode_from_environment() != crate::layout::FcRunCacheMode::Disabled;
+        let paintable_rows = self.paintable_rows();
+        while !node.is_invalid() {
+            let data = self.data(node);
+            if invalidation == AncestorInvalidation::StructuralChange {
+                self.fc_run_cache_store.note_inline_layout_damage(node);
+            }
+            // SAFETY: data() validated that node names a live slot, mutation is serialized on
+            // the owner thread, and no reference into the slot is held across this write.
+            let (kind, parent) = unsafe {
+                if epochs_enabled {
+                    let epoch = &raw mut (*data).fragment_cache_epoch;
+                    epoch.write(epoch.read().wrapping_add(1));
+                }
+                ((&raw const (*data).kind).read(), (&raw const (*data).parent).read())
+            };
+            if crate::layout::kind_is_box(kind) {
+                paintable_rows.clear_cached_overflow_data(node);
+            }
+            node = parent;
         }
+    }
+
+    pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
+        self.invalidate_at_and_above(node, AncestorInvalidation::StructuralChange);
+    }
+
+    pub(crate) fn bump_fragment_cache_epoch_of_self_and_ancestors(&self, node: NodeSlotId) {
+        self.invalidate_at_and_above(node, AncestorInvalidation::ContentChange);
     }
 
     pub(crate) fn insert_child(&self, parent: NodeSlotId, child: NodeSlotId, before: NodeSlotId) {
@@ -1630,10 +1699,15 @@ impl LayoutNodeArena {
             }
         }
 
-        self.note_inline_layout_damage_at_and_above(parent);
+        self.note_structural_change_at_and_above(parent);
     }
 
     pub(crate) fn remove_child(&self, parent: NodeSlotId, child: NodeSlotId) {
+        self.unlink_child(parent, child);
+        self.note_structural_change_at_and_above(parent);
+    }
+
+    fn unlink_child(&self, parent: NodeSlotId, child: NodeSlotId) {
         self.assert_owner_thread();
         let parent_data = self.data(parent);
         let child_data = self.data(child);
@@ -1679,8 +1753,6 @@ impl LayoutNodeArena {
             (&raw mut (*child_data).previous_sibling).write(NodeSlotId::INVALID);
             (&raw mut (*child_data).next_sibling).write(NodeSlotId::INVALID);
         }
-
-        self.note_inline_layout_damage_at_and_above(parent);
     }
 
     pub(crate) fn paint_state(&self) -> &RefCell<crate::painting::paint_state::PaintState> {
@@ -1786,6 +1858,11 @@ impl LayoutNodeArena {
         }
         // SAFETY: The metadata check established a live slot of this generation.
         unsafe { (*self.data(id)).shell }
+    }
+
+    pub(crate) fn node_shell(&self, id: NodeSlotId) -> *mut c_void {
+        // SAFETY: data() validated that id names a live slot.
+        unsafe { (&raw const (*self.data(id)).shell).read() }
     }
 
     pub(crate) fn dom_offset_for_rendered_text_offset(
@@ -1905,11 +1982,12 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        let paintable_row_reset = {
+        let freed = {
             let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
             arena.free(id, generation)
         };
-        if let Some(reset) = paintable_row_reset {
+        freed.detached_children.release_all();
+        if let Some(reset) = freed.paintable_row_reset {
             reset.invoke_callback();
         }
     });
@@ -2023,32 +2101,92 @@ pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id:
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `parent`,
-/// `child`, and a valid `before` must name live nodes in this arena.
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena. Every C++-side detach preparation that walks the tree must already have run.
+/// Unless the caller holds its own reference, the node may be destroyed before this returns.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_insert_child(
+pub unsafe extern "C" fn layout_arena_detach_node_for_destruction(arena: *mut c_void, node: NodeSlotId) -> bool {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call; the borrow
+        // ends before the release below re-enters the arena.
+        let detached = unsafe { LayoutNodeArena::from_handle(arena) }.detach_from_parent(node);
+        match detached {
+            Some(detached) => {
+                detached.release();
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `node` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_bump_fragment_cache_epoch_of_self_and_ancestors(
+    arena: *mut c_void,
+    node: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent`, `child`, and a
+/// valid `before` must name live nodes in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_attach_child(
     arena: *mut c_void,
     parent: NodeSlotId,
     child: NodeSlotId,
     before: NodeSlotId,
 ) {
     abort_on_panic(|| {
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { LayoutNodeArena::from_handle(arena) }.insert_child(parent, child, before);
+        // SAFETY: The C++ caller leaked one reference on the child before this call.
+        let child = unsafe { OwnedLayoutNode::adopt_created(child) };
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all
+        // access on the document thread.
+        unsafe { LayoutNodeArena::from_handle(arena) }.attach_child(parent, child, before);
     });
 }
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `parent` and
-/// `child` must name live nodes in this arena.
+/// The arena must remain valid for the duration of the call, and `parent` and `child` must
+/// name live nodes in this arena.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_remove_child(arena: *mut c_void, parent: NodeSlotId, child: NodeSlotId) {
+pub unsafe extern "C" fn layout_arena_detach_child(arena: *mut c_void, parent: NodeSlotId, child: NodeSlotId) {
     abort_on_panic(|| {
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and
-        // serializes all access on the document thread.
-        unsafe { LayoutNodeArena::from_handle(arena) }.remove_child(parent, child);
+        // SAFETY: The C++ wrapper keeps the arena alive for this call; the borrow ends before
+        // the release below re-enters the arena.
+        let detached = unsafe { LayoutNodeArena::from_handle(arena) }.detach_child(parent, child);
+        detached.release();
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent`, `old_child`, and
+/// `new_child` must name live nodes in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_replace_child(
+    arena: *mut c_void,
+    parent: NodeSlotId,
+    old_child: NodeSlotId,
+    new_child: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller leaked one reference on the new child before this call.
+        let new_child = unsafe { OwnedLayoutNode::adopt_created(new_child) };
+        // SAFETY: The C++ wrapper keeps the arena alive for this call; the borrow ends before
+        // the release below re-enters the arena.
+        let detached = unsafe { LayoutNodeArena::from_handle(arena) }.replace_child(parent, old_child, new_child);
+        detached.release();
     });
 }
 
@@ -2193,9 +2331,12 @@ mod tests {
             (*first_data).table_column_span = 42;
             assert_eq!((*arena.data(first.slot)).table_column_span, 42);
         }
-        arena.free(first.slot, first.generation);
+        arena.free(first.slot, first.generation).detached_children.release_all();
         for allocation in allocations {
-            arena.free(allocation.slot, allocation.generation);
+            arena
+                .free(allocation.slot, allocation.generation)
+                .detached_children
+                .release_all();
         }
     }
 
@@ -2205,20 +2346,26 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate();
         assert_eq!(allocation.data as usize % 64, 0);
-        arena.free(allocation.slot, allocation.generation);
+        arena
+            .free(allocation.slot, allocation.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
     fn freed_slots_are_reused_with_a_new_generation() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate();
-        arena.free(first.slot, first.generation);
+        arena.free(first.slot, first.generation).detached_children.release_all();
 
         let second = arena.allocate();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
         assert_ne!(second.generation, first.generation);
-        arena.free(second.slot, second.generation);
+        arena
+            .free(second.slot, second.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
@@ -2245,21 +2392,27 @@ mod tests {
             assert_eq!((*detached.data).flags & update_flags, update_flags);
         }
         arena.remove_child(root.slot, child.slot);
-        arena.free(root.slot, root.generation);
-        arena.free(child.slot, child.generation);
-        arena.free(detached.slot, detached.generation);
+        arena.free(root.slot, root.generation).detached_children.release_all();
+        arena.free(child.slot, child.generation).detached_children.release_all();
+        arena
+            .free(detached.slot, detached.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
     fn stale_slot_ids_do_not_resolve_to_a_new_occupant() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate();
-        arena.free(first.slot, first.generation);
+        arena.free(first.slot, first.generation).detached_children.release_all();
         let second = arena.allocate();
 
         let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
         assert!(stale_read.is_err());
-        arena.free(second.slot, second.generation);
+        arena
+            .free(second.slot, second.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
@@ -2279,7 +2432,10 @@ mod tests {
         }
 
         assert!(arena.committed_fragment_link(allocation.data).is_none());
-        arena.free(allocation.slot, allocation.generation);
+        arena
+            .free(allocation.slot, allocation.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
@@ -2302,8 +2458,8 @@ mod tests {
             .committed_fragment_link(new.data)
             .expect("new slot must receive the committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.free(old.slot, old.generation);
-        arena.free(new.slot, new.generation);
+        arena.free(old.slot, old.generation).detached_children.release_all();
+        arena.free(new.slot, new.generation).detached_children.release_all();
     }
 
     #[test]
@@ -2382,7 +2538,7 @@ mod tests {
             false
         }));
         assert_eq!(dependency_computations.get(), 2);
-        arena.free(first.slot, first.generation);
+        arena.free(first.slot, first.generation).detached_children.release_all();
 
         let second = arena.allocate();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
@@ -2401,7 +2557,10 @@ mod tests {
             ),
             None
         );
-        arena.free(second.slot, second.generation);
+        arena
+            .free(second.slot, second.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
@@ -2501,7 +2660,10 @@ mod tests {
             arena.intrinsic_block_size_cache_get(data, max_content, key_at_another_inline_size_with_inline_basis(400)),
             None
         );
-        arena.free(allocation.slot, allocation.generation);
+        arena
+            .free(allocation.slot, allocation.generation)
+            .detached_children
+            .release_all();
     }
 
     #[test]
@@ -2549,13 +2711,16 @@ mod tests {
 
         first_data.intrinsic_cache_epoch += 1;
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
-        arena.free(first.slot, first.generation);
+        arena.free(first.slot, first.generation).detached_children.release_all();
 
         let second = arena.allocate();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         // SAFETY: The second allocation is live and reuses the first allocation's slot.
         let second_data = unsafe { &*second.data };
         assert_eq!(arena.table_cell_measurement_cache_get(second_data, key), None);
-        arena.free(second.slot, second.generation);
+        arena
+            .free(second.slot, second.generation)
+            .detached_children
+            .release_all();
     }
 }
