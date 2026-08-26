@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 pub(crate) const LINE_STYLE_NONE: u8 = 0;
 pub(crate) const LINE_STYLE_HIDDEN: u8 = 1;
 pub(crate) const LINE_STYLE_DOTTED: u8 = 2;
@@ -42,7 +44,10 @@ pub(crate) fn child_participates_in_table_run(container_display: FfiDisplay, chi
     }
 }
 
-pub(crate) fn border_is_less_specific(incumbent: BorderData, candidate: BorderData) -> bool {
+pub(crate) fn border_is_less_specific(
+    incumbent: formatting_context::BorderData,
+    candidate: formatting_context::BorderData,
+) -> bool {
     // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
     // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
 
@@ -71,16 +76,16 @@ pub(crate) fn border_is_less_specific(incumbent: BorderData, candidate: BorderDa
     line_style_score(incumbent.line_style) < line_style_score(candidate.line_style)
 }
 
-fn candidate_wins(candidate: BorderData, incumbent: BorderData) -> bool {
+fn candidate_wins(candidate: formatting_context::BorderData, incumbent: formatting_context::BorderData) -> bool {
     candidate.line_style != LINE_STYLE_NONE && border_is_less_specific(incumbent, candidate)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ElementBorders {
-    pub(crate) top: BorderData,
-    pub(crate) right: BorderData,
-    pub(crate) bottom: BorderData,
-    pub(crate) left: BorderData,
+    pub(crate) top: formatting_context::BorderData,
+    pub(crate) right: formatting_context::BorderData,
+    pub(crate) bottom: formatting_context::BorderData,
+    pub(crate) left: formatting_context::BorderData,
 }
 
 // Each segment stores the border that currently wins at one slot boundary of the table grid,
@@ -112,7 +117,7 @@ pub(crate) struct BorderWidths {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CollapsedBorderEdge {
-    pub border_data: BorderData,
+    pub border_data: formatting_context::BorderData,
     pub source_order: u32,
 }
 
@@ -198,7 +203,7 @@ impl CollapsedBorderGrid {
         // Segments strictly inside a spanning cell are not borders of any element; mark them as hidden
         // so that borders of rows and columns crossing the span cannot win there.
         let hidden = CollapsedBorderEdge {
-            border_data: BorderData {
+            border_data: formatting_context::BorderData {
                 color: 0,
                 line_style: LINE_STYLE_HIDDEN,
                 width: CssPixels::default(),
@@ -225,14 +230,28 @@ impl CollapsedBorderGrid {
         column_end: usize,
     ) -> BorderWidths {
         BorderWidths {
-            top: Self::most_specific(&self.horizontal_lines[row_start], column_start, column_end).border_data.width,
-            right: Self::most_specific(&self.vertical_lines[column_end], row_start, row_end).border_data.width,
-            bottom: Self::most_specific(&self.horizontal_lines[row_end], column_start, column_end).border_data.width,
-            left: Self::most_specific(&self.vertical_lines[column_start], row_start, row_end).border_data.width,
+            top: Self::most_specific(&self.horizontal_lines[row_start], column_start, column_end)
+                .border_data
+                .width,
+            right: Self::most_specific(&self.vertical_lines[column_end], row_start, row_end)
+                .border_data
+                .width,
+            bottom: Self::most_specific(&self.horizontal_lines[row_end], column_start, column_end)
+                .border_data
+                .width,
+            left: Self::most_specific(&self.vertical_lines[column_start], row_start, row_end)
+                .border_data
+                .width,
         }
     }
 
-    fn apply_to_segments(line: &mut [CollapsedBorderEdge], start: usize, end: usize, data: BorderData, source_order: u32) {
+    fn apply_to_segments(
+        line: &mut [CollapsedBorderEdge],
+        start: usize,
+        end: usize,
+        data: formatting_context::BorderData,
+        source_order: u32,
+    ) {
         if data.line_style == LINE_STYLE_NONE {
             return;
         }
@@ -627,15 +646,11 @@ pub(crate) struct TableGrid {
     pub(crate) occupancy: HashSet<(usize, usize)>,
 }
 
-fn matching_children<T: TableTree>(
-    tree: &T,
-    parent: Node,
-    predicate: impl Fn(FfiDisplay) -> bool,
-) -> Vec<Node> {
+fn matching_children<T: TableTree>(tree: &T, parent: Node, predicate: impl Fn(FfiDisplay) -> bool) -> Vec<Node> {
     let mut result = Vec::new();
     let mut child = tree.first_child(parent);
     while !child.is_invalid() {
-        if kind_is_box(tree.node_data(child).kind) && predicate(tree.display(child)) {
+        if node_facts::kind_is_box(tree.node_data(child).kind) && predicate(tree.display(child)) {
             result.push(child);
         }
         child = tree.next_sibling(child);
@@ -654,7 +669,7 @@ fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
             child = tree.next_sibling(child);
         }
         for child in children.into_iter().rev() {
-            if kind_is_box(tree.node_data(child).kind) && tree.display(child).is_table_column() {
+            if node_facts::kind_is_box(tree.node_data(child).kind) && tree.display(child).is_table_column() {
                 count = count.saturating_add(tree.table_column_span(child));
             }
             stack.push(child);
@@ -730,7 +745,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
 
     let mut child = tree.first_child(table);
     while !child.is_invalid() {
-        let child_is_box = kind_is_box(tree.node_data(child).kind);
+        let child_is_box = node_facts::kind_is_box(tree.node_data(child).kind);
         let child_display = tree.display(child);
         if child_is_box
             && (child_display.is_table_row_group()
@@ -807,20 +822,20 @@ enum TrackAxis {
     Column,
 }
 
-struct TableFormattingContext {
-    purpose: LayoutPurpose,
+pub(super) struct TableFormattingContext {
+    purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     table_box: Node,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
-    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     table_constraints: ContainingBlockConstraints,
     participant_constraints: ContainingBlockConstraints,
     available_space: AvailableSpace,
     table_block_size: CssPixels,
-    automatic_content_block_size: CssPixels,
+    pub(super) automatic_content_block_size: CssPixels,
     table_box_content_block_offset_in_wrapper: CssPixels,
     min_border_box_block_size_from_flex_item: Option<CssPixels>,
     needs_fixed_mode_row_measurement: bool,
@@ -873,7 +888,7 @@ impl TableFormattingContext {
         self.callbacks.arena().raw_table_column_span(column) as usize
     }
 
-    fn new(run: &FormattingContextRun) -> Self {
+    pub(super) fn new(run: &FormattingContextRun) -> Self {
         Self {
             purpose: run.purpose,
             records: run.records.clone(),
@@ -882,7 +897,8 @@ impl TableFormattingContext {
             callbacks: run.callbacks,
             fragments: run.fragments.clone(),
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             table_constraints: ContainingBlockConstraints::default(),
             participant_constraints: ContainingBlockConstraints::default(),
             available_space: AvailableSpace::default(),
@@ -902,8 +918,8 @@ impl TableFormattingContext {
         }
     }
 
-    fn sizing(&self) -> SizingContext {
-        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext {
+        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
     fn formatting_context_run(&self) -> FormattingContextRun {
@@ -914,7 +930,8 @@ impl TableFormattingContext {
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
             previous_line_data: None,
         }
@@ -947,7 +964,7 @@ impl TableFormattingContext {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
+        formatting_context::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
     }
 
     fn border_spacing_inline(&mut self) -> CssPixels {
@@ -975,22 +992,22 @@ impl TableFormattingContext {
     fn element_borders(&mut self, node: Node) -> ElementBorders {
         let style = self.style(node);
         ElementBorders {
-            top: BorderData {
+            top: formatting_context::BorderData {
                 color: style.border_top_color(),
                 line_style: style.border_top_style(),
                 width: style.border_top_width(),
             },
-            right: BorderData {
+            right: formatting_context::BorderData {
                 color: style.border_right_color(),
                 line_style: style.border_right_style(),
                 width: style.border_right_width(),
             },
-            bottom: BorderData {
+            bottom: formatting_context::BorderData {
                 color: style.border_bottom_color(),
                 line_style: style.border_bottom_style(),
                 width: style.border_bottom_width(),
             },
-            left: BorderData {
+            left: formatting_context::BorderData {
                 color: style.border_left_color(),
                 line_style: style.border_left_style(),
                 width: style.border_left_width(),
@@ -1131,11 +1148,13 @@ impl TableFormattingContext {
             return;
         }
         let column_offsets = grid_line_offsets(self.columns.iter().map(|column| column.used_inline_size));
-        let row_offsets = grid_line_offsets(
-            self.rows
-                .iter()
-                .map(|row| if row.is_collapsed { CssPixels::default() } else { row.final_block_size }),
-        );
+        let row_offsets = grid_line_offsets(self.rows.iter().map(|row| {
+            if row.is_collapsed {
+                CssPixels::default()
+            } else {
+                row.final_block_size
+            }
+        }));
         let (horizontal_edges, vertical_edges) = grid.take_edges();
         self.used_values(self.table_box).rare_data_mut().collapsed_table_borders =
             Some(std::rc::Rc::new(OwnedCollapsedTableBorders {
@@ -1789,7 +1808,7 @@ impl TableFormattingContext {
             if width.is_length_percentage() && !width.contains_percentage() {
                 let mut preferred = width.to_px(basis);
                 if style.box_sizing() == box_sizing::BORDER_BOX {
-                    preferred = subtract_border_box_adjustment(
+                    preferred = formatting_context::subtract_border_box_adjustment(
                         preferred,
                         style.border_left_width(),
                         style.padding_left().to_px(basis),
@@ -1889,10 +1908,7 @@ impl TableFormattingContext {
                 AvailableSize::Definite(available) => grid_max.min(available).max(used_min),
                 AvailableSize::Indefinite => grid_max.max(used_min),
             };
-            if !matches!(
-                available_inline,
-                AvailableSize::MinContent | AvailableSize::MaxContent
-            ) {
+            if !matches!(available_inline, AvailableSize::MinContent | AvailableSize::MaxContent) {
                 // https://www.w3.org/TR/CSS22/tables.html#auto-table-layout
                 // A percentage value for a column inline size is relative to the table inline size. If the table has
                 // 'width: auto', a percentage represents a constraint on the column's inline size, which a UA should try to satisfy.
@@ -1960,7 +1976,7 @@ impl TableFormattingContext {
         true
     }
 
-    fn run_until_inline_size_calculation(&mut self, input: LayoutInput, skip_row_measurement: bool) {
+    pub(super) fn run_until_inline_size_calculation(&mut self, input: LayoutInput, skip_row_measurement: bool) {
         self.available_space = input.available_space;
         // Determine the number of rows/columns the table requires.
         let table_grid = calculate_table_grid(self, self.table_box);
@@ -2046,13 +2062,14 @@ impl TableFormattingContext {
             },
             participation: ParticipationInParentFormattingContext::Item,
         };
-        match crate::layout::layout_inside_child(run, None, None, cell.box_, self.layout_mode, layout_input, false) {
-            crate::layout::ChildLayoutOutcome::Created(result) => result.baselines,
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+        match formatting_context::layout_inside_child(run, None, None, cell.box_, self.layout_mode, layout_input, false)
+        {
+            ChildLayoutOutcome::Created(result) => result.baselines,
+            ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, layout_input);
                 self.used_values(cell.box_).content_baselines_from_cells()
             }
-            crate::layout::ChildLayoutOutcome::Skipped => self.used_values(cell.box_).content_baselines_from_cells(),
+            ChildLayoutOutcome::Skipped => self.used_values(cell.box_).content_baselines_from_cells(),
         }
     }
 
@@ -2060,21 +2077,21 @@ impl TableFormattingContext {
         let Some(content_baselines) = committing_run_baselines else {
             return self.box_baseline(cell_box);
         };
-        crate::layout::box_baseline_with_content_baselines(
+        formatting_context::box_baseline_with_content_baselines(
             &self.callbacks,
             cell_box,
             &self.used_values(cell_box),
-            crate::layout::BaselineSet::First,
+            formatting_context::BaselineSet::First,
             content_baselines,
         )
     }
 
     fn box_baseline(&self, node: Node) -> CssPixels {
-        crate::layout::box_baseline(
+        formatting_context::box_baseline(
             &self.callbacks,
             node,
             &self.used_values(node),
-            crate::layout::BaselineSet::First,
+            formatting_context::BaselineSet::First,
         )
     }
 
@@ -2132,7 +2149,7 @@ impl TableFormattingContext {
     ) -> TableCellMeasurement {
         // The table formatting context owns the cell's outer geometry. Seed the inputs
         // needed to lay out its contents without copying placement or layout outputs.
-        let measurement = MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let measured_root = measurement.create_used_values(cell.box_, ContainingBlockConstraints::default());
         used.mirror_box_metrics_and_size_constraints_into(&measured_root);
         measured_root
@@ -2379,9 +2396,7 @@ impl TableFormattingContext {
             return;
         }
         let auto_rows = (0..self.rows.len())
-            .filter(|index| {
-                !self.rows[*index].is_collapsed && self.style(self.rows[*index].box_).height().is_auto()
-            })
+            .filter(|index| !self.rows[*index].is_collapsed && self.style(self.rows[*index].box_).height().is_auto())
             .collect::<Vec<_>>();
         if self.table_block_size <= sum {
             // If the table block size is no larger than the sum of reference sizes, each final row block size is the
@@ -2428,8 +2443,7 @@ impl TableFormattingContext {
         let table_used = self.used_values(self.table_box);
         let block_spacing = self.border_spacing_block();
         let inline_spacing = self.border_spacing_inline();
-        let inline_offset =
-            table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
+        let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
         let mut row_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
         for row_index in 0..self.rows.len() {
             let row = &self.rows[row_index];
@@ -2499,7 +2513,13 @@ impl TableFormattingContext {
             // the same basis the measurement saw.
             used.set_content_block_size(self.cell_pre_layout_content_block_sizes[cell_index]);
             let inner = self.cell_inside_layout_inputs[cell_index];
-            self.layout_inside_cell(run, cell, inner, adopt_automatic_content_block_size, intrinsic_block_padding);
+            self.layout_inside_cell(
+                run,
+                cell,
+                inner,
+                adopt_automatic_content_block_size,
+                intrinsic_block_padding,
+            );
             if adopt_automatic_content_block_size {
                 debug_assert_eq!(
                     used.content_block_size.get(),
@@ -2550,7 +2570,10 @@ impl TableFormattingContext {
 
                 // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
                 let padding_top = self.rows[cell.row_index].baseline - cell.baseline;
-                Some((padding_top, row_size - (used.border_box_block_size(collapsed) + padding_top)))
+                Some((
+                    padding_top,
+                    row_size - (used.border_box_block_size(collapsed) + padding_top),
+                ))
             }
             _ => panic!("invalid vertical-align keyword"),
         }
@@ -2625,19 +2648,21 @@ impl TableFormattingContext {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = crate::layout::derive_baselines(&self.records, &self.callbacks, node, false);
+        let baselines = formatting_context::derive_baselines(&self.records, &self.callbacks, node, false);
         if node == self.table_box {
             self.derived_baselines_of_root_box.set(baselines);
         } else {
-            crate::layout::store_derived_baselines(&self.used_values(node), baselines);
+            formatting_context::store_derived_baselines(&self.used_values(node), baselines);
         }
     }
 
-    fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
+    pub(super) fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
         self.available_space = input.available_space;
         self.min_border_box_block_size_from_flex_item = input.sizing.forced_min_border_box_block_size;
-        self.table_box_content_block_offset_in_wrapper =
-            input.sizing.table_box_content_block_offset_in_wrapper.unwrap_or_default();
+        self.table_box_content_block_offset_in_wrapper = input
+            .sizing
+            .table_box_content_block_offset_in_wrapper
+            .unwrap_or_default();
         self.run_until_inline_size_calculation(input, false);
         if matches!(
             self.available_space.inline_size,
@@ -2683,11 +2708,11 @@ impl TableFormattingContext {
         self.automatic_content_block_size = self.table_block_size;
     }
 
-    fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+    pub(super) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
         self.derived_baselines_of_root_box.get()
     }
 
-    fn automatic_content_inline_size(&self) -> CssPixels {
+    pub(super) fn automatic_content_inline_size(&self) -> CssPixels {
         let used = self.used_values(self.table_box);
         used.content_inline_size.get()
     }

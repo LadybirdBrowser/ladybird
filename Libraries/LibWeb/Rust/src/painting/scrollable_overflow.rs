@@ -9,6 +9,7 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_facts;
 use crate::painting::host::{FfiScrollableOverflowHostCallbacks, FfiVisualContextHostCallbacks};
 use crate::painting::paintable_data::FfiOverflowData;
 use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
@@ -38,7 +39,7 @@ pub(crate) fn refill_contained_boxes_index(
             }
             let node_is_box_kind = layout_arena
                 .node_kind_if_live(node)
-                .is_some_and(crate::layout::kind_is_box);
+                .is_some_and(node_facts::kind_is_box);
             if !node_is_box_kind || !layout_arena.paintable_row_is_populated(node) {
                 continue;
             }

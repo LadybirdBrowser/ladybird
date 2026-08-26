@@ -5,6 +5,7 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::paintable_rows::PaintableRowsWrite;
 use crate::painting::style_queries::{self, effective_z_index};
 
@@ -103,7 +104,7 @@ fn visit(
             parent.non_positioned_floating_descendants.push(paintable);
         }
         let layout_kind = layout_arena.node_kind_if_live(paintable);
-        if !establishes_stacking_context && (inline || layout_kind.is_some_and(crate::layout::kind_is_replaced_box)) {
+        if !establishes_stacking_context && (inline || layout_kind.is_some_and(node_facts::kind_is_replaced_box)) {
             parent.contains_inline_or_replaced_descendants = true;
         }
     }

@@ -6,11 +6,12 @@
 
 use crate::abort_on_panic;
 use crate::css::css_pixels::CssPixels;
-use crate::layout::FfiCssPixelPoint;
-use crate::layout::FfiCssPixelRect;
-use crate::layout::FfiCssPixelSize;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::used_values::FfiCssPixelPoint;
+use crate::layout::used_values::FfiCssPixelRect;
+use crate::layout::used_values::FfiCssPixelSize;
+use crate::layout::{grid_formatting_context, svg_formatting_context, used_values};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use std::ffi::c_void;
@@ -557,7 +558,7 @@ pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_size(
 #[repr(C)]
 pub struct FfiOptionalAffineTransform {
     pub has_value: bool,
-    pub transform: crate::layout::FfiAffineTransform,
+    pub transform: svg_formatting_context::FfiAffineTransform,
 }
 
 /// # Safety
@@ -610,7 +611,7 @@ pub unsafe extern "C" fn layout_arena_paintable_transform_reference_box(
 pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_user_rect(
     arena: *mut c_void,
     slot: NodeSlotId,
-) -> crate::layout::OptionalCssPixelRect {
+) -> used_values::OptionalCssPixelRect {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         if !arena.paintable_row_is_populated(slot) {
@@ -618,7 +619,7 @@ pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_user_rect(
         }
         let paintable_rows = arena.paintable_rows();
         crate::painting::svg_viewport::nearest_svg_viewport_user_rect(&paintable_rows, slot)
-            .map(|rect| crate::layout::FfiCssPixelRect {
+            .map(|rect| used_values::FfiCssPixelRect {
                 x: crate::css::css_pixels::CssPixels::nearest_value_for(rect.x as f64),
                 y: crate::css::css_pixels::CssPixels::nearest_value_for(rect.y as f64),
                 width: crate::css::css_pixels::CssPixels::nearest_value_for(rect.width as f64),
@@ -1178,9 +1179,9 @@ pub struct FfiImagePaintRecordInputs {
     pub first_stop_position: f32,
     pub repeat_length: f32,
     pub interpolation_method: libgfx_rust::GradientInterpolationMethod,
-    pub center: crate::layout::FfiCssPixelPoint,
-    pub size: crate::layout::FfiCssPixelSize,
-    pub position: crate::layout::FfiCssPixelPoint,
+    pub center: used_values::FfiCssPixelPoint,
+    pub size: used_values::FfiCssPixelSize,
+    pub position: used_values::FfiCssPixelPoint,
     pub color_stop_colors: *const libgfx_rust::Color,
     pub color_stop_positions: *const f32,
     pub color_stop_count: usize,
@@ -2224,8 +2225,8 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
     context: *mut c_void,
     consume: unsafe extern "C" fn(
         *mut c_void,
-        *const crate::layout::FfiUsedGridTrackList,
-        *const crate::layout::FfiUsedGridTrackList,
+        *const grid_formatting_context::FfiUsedGridTrackList,
+        *const grid_formatting_context::FfiUsedGridTrackList,
     ),
 ) {
     abort_on_panic(|| {
@@ -2403,7 +2404,7 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
         // SAFETY: The caller provides writable storage for exactly `output_length` exports.
         let output = unsafe { std::slice::from_raw_parts_mut(output, output_length) };
         for (output, item) in output.iter_mut().zip(items.iter()) {
-            let rect = |rect: crate::css::css_pixels::CssPixelRect| crate::layout::FfiCssPixelRect::from(rect);
+            let rect = |rect: crate::css::css_pixels::CssPixelRect| used_values::FfiCssPixelRect::from(rect);
             assert!(
                 arena.paintable_row_is_populated(item.paintable),
                 "exporting a hit-test item for a non-live paintable"
@@ -2882,7 +2883,7 @@ pub struct FfiResolvedGradientPaint {
     pub color_stops_repeating: bool,
     pub interpolation_method: libgfx_rust::GradientInterpolationMethod,
     pub center: FfiCssPixelPoint,
-    pub size: crate::layout::FfiCssPixelSize,
+    pub size: used_values::FfiCssPixelSize,
 }
 
 /// # Safety
@@ -2940,7 +2941,7 @@ pub unsafe extern "C" fn layout_arena_resolve_gradient_paint_for_size(
                     x: center.x,
                     y: center.y,
                 };
-                out.size = crate::layout::FfiCssPixelSize {
+                out.size = used_values::FfiCssPixelSize {
                     width: size.width,
                     height: size.height,
                 };

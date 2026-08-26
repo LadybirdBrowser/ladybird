@@ -4,26 +4,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-fn axis_modes(style: StyleValues) -> (AbsposAxisMode, AbsposAxisMode) {
+use super::*;
+
+pub(super) fn axis_modes(style: StyleValues) -> (abspos_inputs::AbsposAxisMode, abspos_inputs::AbsposAxisMode) {
     (
         if style.inset_left().is_auto() && style.inset_right().is_auto() {
-            AbsposAxisMode::StaticPosition
+            abspos_inputs::AbsposAxisMode::StaticPosition
         } else {
-            AbsposAxisMode::InsetFromRect
+            abspos_inputs::AbsposAxisMode::InsetFromRect
         },
         if style.inset_top().is_auto() && style.inset_bottom().is_auto() {
-            AbsposAxisMode::StaticPosition
+            abspos_inputs::AbsposAxisMode::StaticPosition
         } else {
-            AbsposAxisMode::InsetFromRect
+            abspos_inputs::AbsposAxisMode::InsetFromRect
         },
     )
 }
 
 pub(crate) fn aligned_static_offset(
-    static_position_rect: StaticPositionRect,
+    static_position_rect: abspos_inputs::StaticPositionRect,
     margin_box_inline_size: CssPixels,
     margin_box_block_size: CssPixels,
-) -> LogicalOffset {
+) -> geometry::LogicalOffset {
     let mut offset = static_position_rect.rect.offset;
     match static_position_rect.inline_alignment {
         StaticPositionAlignment::Start => {}
@@ -46,8 +48,8 @@ pub(crate) fn aligned_static_offset(
     offset
 }
 
-fn out_of_flow_root_space(inputs: AbsposLayoutInputs) -> (AvailableSpace, ContainingBlockConstraints) {
-    let containing_block_size = LogicalSize {
+fn out_of_flow_root_space(inputs: abspos_inputs::AbsposLayoutInputs) -> (AvailableSpace, ContainingBlockConstraints) {
+    let containing_block_size = geometry::LogicalSize {
         inline_size: clamp_to_max_dimension_value(inputs.containing_block_info.rect.size.inline_size),
         block_size: clamp_to_max_dimension_value(inputs.containing_block_info.rect.size.block_size),
     };
@@ -98,14 +100,14 @@ impl ContainingBlockGeometry {
 }
 
 pub(crate) struct AbsposEngine {
-    purpose: LayoutPurpose,
+    purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
-    fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
+    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
 }
 
 impl AbsposEngine {
-    pub(crate) fn for_run(run: &crate::layout::FormattingContextRun) -> Self {
+    pub(crate) fn for_run(run: &FormattingContextRun) -> Self {
         Self {
             purpose: run.purpose,
             records: run.records.clone(),
@@ -114,7 +116,10 @@ impl AbsposEngine {
         }
     }
 
-    fn containing_block_geometry_for_pending_child(&self, entry: &PendingAbsposChild) -> ContainingBlockGeometry {
+    fn containing_block_geometry_for_pending_child(
+        &self,
+        entry: &abspos_inputs::PendingAbsposChild,
+    ) -> ContainingBlockGeometry {
         let containing_block = self.callbacks.containing_block(entry.child_box);
         let Some(containing_block_used) = self.records.used_values_if_owned(containing_block) else {
             panic!(
@@ -144,7 +149,7 @@ impl AbsposEngine {
             else {
                 break;
             };
-            origin = point_add(origin, used.content_offset.get());
+            origin = formatting_context::point_add(origin, used.content_offset.get());
             chain_box = self.callbacks.containing_block(chain_box);
             if chain_box.is_invalid() {
                 break;
@@ -153,8 +158,11 @@ impl AbsposEngine {
         let mut space_box = entry_space;
         let mut space_origin = FfiCssPixelPoint::default();
         loop {
-            if let Some((_, origin)) = origins_by_chain_box.iter().find(|(chain_box, _)| *chain_box == space_box) {
-                return point_sub(*origin, space_origin);
+            if let Some((_, origin)) = origins_by_chain_box
+                .iter()
+                .find(|(chain_box, _)| *chain_box == space_box)
+            {
+                return formatting_context::point_sub(*origin, space_origin);
             }
             let used = self
                 .records
@@ -166,7 +174,7 @@ impl AbsposEngine {
                         space_box.slot_index()
                     )
                 });
-            space_origin = point_add(space_origin, used.content_offset.get());
+            space_origin = formatting_context::point_add(space_origin, used.content_offset.get());
             space_box = self.callbacks.containing_block(space_box);
             assert!(
                 !space_box.is_invalid(),
@@ -194,20 +202,20 @@ impl AbsposEngine {
                         current.slot_index()
                     )
                 });
-                offset = point_add(offset, used.content_offset.get());
+                offset = formatting_context::point_add(offset, used.content_offset.get());
                 current = self.callbacks.containing_block(current);
                 assert!(!current.is_invalid());
             }
             offset
         };
-        point_sub(
+        formatting_context::point_sub(
             offset_relative_to_merge_point(from_space),
             offset_relative_to_merge_point(to_space),
         )
     }
 
-    fn sizing(&self) -> SizingContext {
-        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext {
+        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
     fn style(&self, node: Node) -> StyleValues<'static> {
@@ -226,22 +234,22 @@ impl AbsposEngine {
     fn base_containing_block_info(
         &self,
         node: Node,
-        inline_containing_block_rect: Option<PhysicalRect>,
+        inline_containing_block_rect: Option<formatting_context::PhysicalRect>,
         entry_containing_block_geometry: &ContainingBlockGeometry,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
-    ) -> AbsposContainingBlockInfo {
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+    ) -> abspos_inputs::AbsposContainingBlockInfo {
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let (inline_axis_mode, block_axis_mode) = axis_modes(style);
         let containing_block = self.callbacks.containing_block(node);
         assert!(!containing_block.is_invalid());
         if let Some(rect) = inline_containing_block_rect {
-            return AbsposContainingBlockInfo {
-                rect: LogicalRect {
-                    offset: LogicalOffset {
+            return abspos_inputs::AbsposContainingBlockInfo {
+                rect: geometry::LogicalRect {
+                    offset: geometry::LogicalOffset {
                         inline_offset: rect.x,
                         block_offset: rect.y,
                     },
-                    size: LogicalSize {
+                    size: geometry::LogicalSize {
                         inline_size: rect.width,
                         block_size: rect.height,
                     },
@@ -254,13 +262,13 @@ impl AbsposEngine {
             };
         }
 
-        AbsposContainingBlockInfo {
-            rect: LogicalRect {
-                offset: LogicalOffset {
+        abspos_inputs::AbsposContainingBlockInfo {
+            rect: geometry::LogicalRect {
+                offset: geometry::LogicalOffset {
                     inline_offset: -entry_containing_block_geometry.padding_left,
                     block_offset: -entry_containing_block_geometry.padding_top,
                 },
-                size: LogicalSize {
+                size: geometry::LogicalSize {
                     inline_size: entry_containing_block_geometry.padding_box_inline_size(),
                     block_size: entry_containing_block_geometry.padding_box_block_size(),
                 },
@@ -272,12 +280,11 @@ impl AbsposEngine {
             derives_from_own_computed_values: false,
         }
     }
-
 }
 
 fn calc_node_create_px_dimension(value: f64) -> *const c_void {
     crate::css::calc::rust_calc_node_create_numeric_dimension(
-        CALC_NUMERIC_KIND_LENGTH,
+        formatting_context::CALC_NUMERIC_KIND_LENGTH,
         value,
         crate::css::style_compute::px_length_unit(),
     )
@@ -388,7 +395,7 @@ impl AbsposEngine {
         containing_block: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
-    ) -> PhysicalRect {
+    ) -> formatting_context::PhysicalRect {
         let (rect, coordinate_space_box) = self
             .fragments
             .as_deref()
@@ -398,7 +405,7 @@ impl AbsposEngine {
             Some(geometry) => {
                 let fold_into_entry_space =
                     self.translation_between_payload_resting_spaces(coordinate_space_box, entry_coordinate_space_box);
-                PhysicalRect {
+                formatting_context::PhysicalRect {
                     x: rect.x + fold_into_entry_space.x - geometry.content_origin_in_entry_space.x
                         + geometry.padding_left,
                     y: rect.y + fold_into_entry_space.y - geometry.content_origin_in_entry_space.y
@@ -409,7 +416,7 @@ impl AbsposEngine {
             }
             None => {
                 let containing_block_used = self.used(containing_block);
-                PhysicalRect {
+                formatting_context::PhysicalRect {
                     x: rect.x + containing_block_used.padding_left.get(),
                     y: rect.y + containing_block_used.padding_top.get(),
                     width: rect.width,
@@ -422,7 +429,7 @@ impl AbsposEngine {
     fn anchor_side(
         &self,
         side: AnchorSide,
-        rect: PhysicalRect,
+        rect: formatting_context::PhysicalRect,
         positioned_box: Node,
         containing_block: Node,
         is_from_end: bool,
@@ -515,7 +522,7 @@ impl AbsposEngine {
     #[allow(clippy::too_many_arguments)]
     fn resolve_anchor_value(
         &self,
-        value: InsetValue,
+        value: style_values::InsetValue,
         positioned_box: Node,
         containing_block: Node,
         containing_block_geometry: Option<ContainingBlockGeometry>,
@@ -539,7 +546,7 @@ impl AbsposEngine {
         // SAFETY: The calculated handle is retained by the style cache and
         // all callback state remains live for this synchronous resolution.
         let result = unsafe {
-            resolve_calc_with_external_resolutions(
+            style_values::resolve_calc_with_external_resolutions(
                 calculated,
                 axis.containing_block_extent,
                 (&raw mut callback_context).cast(),
@@ -554,7 +561,7 @@ impl AbsposEngine {
         node: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
-    ) -> Option<ResolvedAnchorInsets> {
+    ) -> Option<formatting_context::ResolvedAnchorInsets> {
         // Clear a stale default scroll shift before any early return.
         // SAFETY: The node is live and a null anchor clears the weak target.
         unsafe {
@@ -597,7 +604,7 @@ impl AbsposEngine {
             compensates_for_horizontal_scroll: false,
             compensates_for_vertical_scroll: false,
         };
-        let mut resolved = ResolvedAnchorInsets::default();
+        let mut resolved = formatting_context::ResolvedAnchorInsets::default();
 
         if top_contains_anchor {
             let value = self.resolve_anchor_value(
@@ -767,7 +774,7 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
             // SAFETY: The anchor() shell retains the fallback calculation for
             // this synchronous resolution.
             let resolved = unsafe {
-                resolve_calc_with_external_resolutions(
+                style_values::resolve_calc_with_external_resolutions(
                     fallback_value.pointer().cast(),
                     context.containing_block_extent,
                     (&raw mut nested_context).cast(),
@@ -783,7 +790,9 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
             let mut nested_context = *context;
             // SAFETY: The outer anchor() shell retains the nested anchor()
             // for this synchronous resolution.
-            unsafe { resolve_anchor_non_math_function((&raw mut nested_context).cast(), fallback_value.pointer().cast()) }
+            unsafe {
+                resolve_anchor_non_math_function((&raw mut nested_context).cast(), fallback_value.pointer().cast())
+            }
         }
         Some(_) => unreachable!("anchor() fallback must be a length, percentage, calculation or nested anchor()"),
     }
@@ -791,7 +800,7 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
 
 type AutoPx = Option<CssPixels>;
 
-fn resolve_or_auto(value: InsetValue, basis: CssPixels) -> AutoPx {
+fn resolve_or_auto(value: style_values::InsetValue, basis: CssPixels) -> AutoPx {
     (!value.is_auto()).then(|| value.to_px(basis))
 }
 
@@ -927,7 +936,7 @@ pub(crate) fn solve_replaced_axis(
 }
 
 impl AbsposEngine {
-    fn static_offset(&self, node: Node, rect: StaticPositionRect) -> LogicalOffset {
+    fn static_offset(&self, node: Node, rect: abspos_inputs::StaticPositionRect) -> geometry::LogicalOffset {
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
         aligned_static_offset(
@@ -944,9 +953,9 @@ impl AbsposEngine {
         containing_block_inline_size: CssPixels,
         _available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
+        static_position_rect: abspos_inputs::StaticPositionRect,
         input_inline_size: AutoPx,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) -> (AutoPx, CssPixels, CssPixels, AutoPx, AutoPx) {
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let used = self.used(node);
@@ -1080,8 +1089,8 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        static_position_rect: abspos_inputs::StaticPositionRect,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let style = self.style(node);
@@ -1092,7 +1101,7 @@ impl AbsposEngine {
                 available_space,
                 constraints,
                 None,
-                crate::layout::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+                formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
             ))
         } else if style.width().is_auto() {
             None
@@ -1154,8 +1163,8 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        static_position_rect: abspos_inputs::StaticPositionRect,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         let sizing = self.sizing();
         let inline_size = sizing.compute_inline_size_for_replaced_element(node, available_space, constraints);
@@ -1194,8 +1203,8 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        static_position_rect: abspos_inputs::StaticPositionRect,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         if self
             .sizing()
@@ -1285,10 +1294,10 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
+        static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
         block_size: AutoPx,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) -> BlockAxisSolution {
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
@@ -1381,9 +1390,9 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
+        static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         let style = self.style(node);
         let mut intrinsic_available_space = available_space;
@@ -1478,9 +1487,9 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
+        static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         let block_size = self
             .sizing()
@@ -1528,9 +1537,9 @@ impl AbsposEngine {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-        static_position_rect: StaticPositionRect,
+        static_position_rect: abspos_inputs::StaticPositionRect,
         pass: BlockSizePass,
-        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         if self
             .sizing()
@@ -1561,7 +1570,7 @@ impl AbsposEngine {
     // Run-prelude sizing for an absolutely positioned root: box-model
     // metrics, the inset-aware inline solve, the pre-inside-layout block
     // pass, and the definiteness overrides insets and aspect ratios provide.
-    pub(crate) fn dimension_out_of_flow_root(&self, node: Node, inputs: AbsposLayoutInputs) {
+    pub(crate) fn dimension_out_of_flow_root(&self, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let resolved = inputs.resolved_anchor_insets.as_ref();
@@ -1590,7 +1599,13 @@ impl AbsposEngine {
                 .set(style.padding_bottom().to_px(containing_block_inline_size));
         }
 
-        self.compute_inline_size(node, available_space, constraints, inputs.static_position_rect, resolved);
+        self.compute_inline_size(
+            node,
+            available_space,
+            constraints,
+            inputs.static_position_rect,
+            resolved,
+        );
         self.compute_block_size(
             node,
             available_space,
@@ -1632,11 +1647,11 @@ impl AbsposEngine {
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(
         &self,
         node: Node,
-        inputs: AbsposLayoutInputs,
+        inputs: abspos_inputs::AbsposLayoutInputs,
         automatic_content_block_size_of_inside_layout: Option<CssPixels>,
     ) {
         let (available_space, constraints) = out_of_flow_root_space(inputs);
-        let containing_block_size = LogicalSize {
+        let containing_block_size = geometry::LogicalSize {
             inline_size: available_space.inline_size.to_px_or_zero(),
             block_size: available_space.block_size.to_px_or_zero(),
         };
@@ -1699,21 +1714,25 @@ impl AbsposEngine {
         }
     }
 
-    fn layout_element(&self, run: &crate::layout::FormattingContextRun, node: Node, inputs: AbsposLayoutInputs) {
+    fn layout_element(&self, run: &FormattingContextRun, node: Node, inputs: abspos_inputs::AbsposLayoutInputs) {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
-        match crate::layout::layout_inside_child(
+        match formatting_context::layout_inside_child(
             run,
             None,
             None,
             node,
             LayoutMode::Normal,
-            LayoutInput::new(available_space, constraints, ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs)),
+            LayoutInput::new(
+                available_space,
+                constraints,
+                ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
+            ),
             false,
         ) {
-            crate::layout::ChildLayoutOutcome::Created(_) | crate::layout::ChildLayoutOutcome::Skipped => {}
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
+            ChildLayoutOutcome::ReenterCurrent => {
                 unreachable!("abspos child with contents did not establish a formatting context")
             }
         }
@@ -1721,13 +1740,17 @@ impl AbsposEngine {
         let static_offset = self.static_offset(node, inputs.static_position_rect);
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
-        let mut used_offset = LogicalOffset {
-            inline_offset: if inputs.containing_block_info.inline_axis_mode == AbsposAxisMode::StaticPosition {
+        let mut used_offset = geometry::LogicalOffset {
+            inline_offset: if inputs.containing_block_info.inline_axis_mode
+                == abspos_inputs::AbsposAxisMode::StaticPosition
+            {
                 static_offset.inline_offset
             } else {
                 inputs.containing_block_info.rect.offset.inline_offset + used.inset_left.get()
             },
-            block_offset: if inputs.containing_block_info.block_axis_mode == AbsposAxisMode::StaticPosition {
+            block_offset: if inputs.containing_block_info.block_axis_mode
+                == abspos_inputs::AbsposAxisMode::StaticPosition
+            {
                 static_offset.block_offset
             } else {
                 inputs.containing_block_info.rect.offset.block_offset + used.inset_top.get()
@@ -1737,11 +1760,9 @@ impl AbsposEngine {
         used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
         let is_measurement = self.purpose.is_measurement();
         if !is_measurement {
-            self.used(node)
-                .rare_data_mut()
-                .abspos_layout_inputs = Some(inputs);
+            self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
         }
-        crate::layout::place_child(
+        formatting_context::place_child(
             run,
             node,
             FfiCssPixelPoint {
@@ -1752,7 +1773,11 @@ impl AbsposEngine {
         );
     }
 
-    pub(crate) fn layout_pending_child(&self, run: &crate::layout::FormattingContextRun, mut child: PendingAbsposChild) {
+    pub(crate) fn layout_pending_child(
+        &self,
+        run: &FormattingContextRun,
+        mut child: abspos_inputs::PendingAbsposChild,
+    ) {
         debug_assert!(!self.purpose.is_measurement());
         let child_box = child.child_box;
         self.records
@@ -1762,11 +1787,15 @@ impl AbsposEngine {
             self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
         let inline_containing_block_rect =
             self.inline_containing_block_rect_for_pending_child(&child, &containing_block_geometry);
-        let translation_into_containing_block_space =
-            point_sub(FfiCssPixelPoint::default(), containing_block_geometry.content_origin_in_entry_space);
-        child.static_position_rect =
-            crate::layout::translate_static_position_rect(child.static_position_rect, translation_into_containing_block_space);
-        let inputs = AbsposLayoutInputs {
+        let translation_into_containing_block_space = formatting_context::point_sub(
+            FfiCssPixelPoint::default(),
+            containing_block_geometry.content_origin_in_entry_space,
+        );
+        child.static_position_rect = formatting_context::translate_static_position_rect(
+            child.static_position_rect,
+            translation_into_containing_block_space,
+        );
+        let inputs = abspos_inputs::AbsposLayoutInputs {
             static_position_rect: child.static_position_rect,
             containing_block_info: child
                 .containing_block_info_override
@@ -1793,9 +1822,9 @@ impl AbsposEngine {
     /// block's content-box space (no padding term, unlike anchor rects).
     fn inline_containing_block_rect_for_pending_child(
         &self,
-        child: &PendingAbsposChild,
+        child: &abspos_inputs::PendingAbsposChild,
         containing_block_geometry: &ContainingBlockGeometry,
-    ) -> Option<PhysicalRect> {
+    ) -> Option<formatting_context::PhysicalRect> {
         if child.inline_containing_block.is_invalid() {
             return None;
         }
@@ -1803,7 +1832,7 @@ impl AbsposEngine {
         let (rect, payload_space) = fragments.find_inline_containing_block_rect(child.inline_containing_block)?;
         let fold_into_entry_space =
             self.translation_between_payload_resting_spaces(payload_space, child.coordinate_space_box);
-        Some(PhysicalRect {
+        Some(formatting_context::PhysicalRect {
             x: rect.x + fold_into_entry_space.x - containing_block_geometry.content_origin_in_entry_space.x,
             y: rect.y + fold_into_entry_space.y - containing_block_geometry.content_origin_in_entry_space.y,
             width: rect.width,
@@ -1811,14 +1840,16 @@ impl AbsposEngine {
         })
     }
 
-    fn replay(&self, run: &crate::layout::FormattingContextRun, node: Node) {
+    pub(super) fn replay(&self, run: &FormattingContextRun, node: Node) {
         let saved_inputs = self.callbacks.saved_abspos_layout_inputs(node);
         let found = saved_inputs.is_some();
         assert!(found);
         let mut inputs = saved_inputs.unwrap();
         if !inputs.containing_block_info.derives_from_own_computed_values {
-            let (inline, block) =
-                axis_modes(self.style(node).with_resolved_insets(inputs.resolved_anchor_insets.as_ref()));
+            let (inline, block) = axis_modes(
+                self.style(node)
+                    .with_resolved_insets(inputs.resolved_anchor_insets.as_ref()),
+            );
             inputs.containing_block_info.inline_axis_mode = inline;
             inputs.containing_block_info.block_axis_mode = block;
         }
@@ -1832,7 +1863,7 @@ impl AbsposEngine {
     fn compute_inset(
         &self,
         node: Node,
-        containing_block_size: LogicalSize,
+        containing_block_size: geometry::LogicalSize,
         formatting_context_root: Node,
         treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     ) {
@@ -1859,7 +1890,7 @@ impl AbsposEngine {
             return;
         }
 
-        let resolve_opposing = |first: InsetValue, second: InsetValue, basis: CssPixels| {
+        let resolve_opposing = |first: style_values::InsetValue, second: style_values::InsetValue, basis: CssPixels| {
             let resolved_first = first.to_px(basis);
             let resolved_second = second.to_px(basis);
             if first.is_auto() && second.is_auto() {
@@ -1878,16 +1909,19 @@ impl AbsposEngine {
 
         let treat_block_axis_percentage_insets_as_auto = (style.inset_top().contains_percentage()
             || style.inset_bottom().contains_percentage())
-            && !crate::layout::resolve_block_axis_percentage_inset_basis_is_definite(
+            && !formatting_context::resolve_block_axis_percentage_inset_basis_is_definite(
                 &self.records,
                 &self.callbacks,
                 self.callbacks.containing_block(node),
                 formatting_context_root,
                 treat_block_axis_percentage_insets_as_auto_beyond_root,
             );
-        fn block_axis_inset_value(value: InsetValue<'_>, treat_percentage_as_auto: bool) -> InsetValue<'_> {
+        fn block_axis_inset_value(
+            value: style_values::InsetValue<'_>,
+            treat_percentage_as_auto: bool,
+        ) -> style_values::InsetValue<'_> {
             if treat_percentage_as_auto && value.contains_percentage() {
-                InsetValue::auto_value()
+                style_values::InsetValue::auto_value()
             } else {
                 value
             }
@@ -1909,11 +1943,11 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
     records: &std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
-    entry_fragments: &std::rc::Rc<crate::layout::RunFragmentBuilder>,
+    entry_fragments: &std::rc::Rc<fragment_tree::RunFragmentBuilder>,
 ) {
     let accumulator_root = entry_fragments.root_node();
-    let run = crate::layout::FormattingContextRun {
-        purpose: LayoutPurpose::Commit,
+    let run = FormattingContextRun {
+        purpose: formatting_context::LayoutPurpose::Commit,
         records: records.clone(),
         box_: accumulator_root,
         layout_mode: LayoutMode::Normal,
@@ -1936,14 +1970,14 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
 }
 
 pub(crate) fn compute_inset_native(
-    run: &crate::layout::FormattingContextRun,
+    run: &FormattingContextRun,
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,
 ) {
     AbsposEngine::for_run(run).compute_inset(
         node,
-        LogicalSize {
+        geometry::LogicalSize {
             inline_size,
             block_size,
         },

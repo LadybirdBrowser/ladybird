@@ -7,7 +7,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use crate::layout::FfiCssPixelPoint;
+use crate::layout::used_values::FfiCssPixelPoint;
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::hit_test::HitTestItem;
 use crate::painting::record::PaintPhase;

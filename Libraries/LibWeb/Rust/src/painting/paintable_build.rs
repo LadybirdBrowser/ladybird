@@ -6,10 +6,10 @@
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
+use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::{
-    FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, FragmentLink, LayoutNodeArena, LineData,
-    Node, NodeFacts,
+    formatting_context, fragment_tree, inline_formatting_context, inline_level_iterator, node_facts, used_values,
 };
 use crate::painting::paintable_data::*;
 
@@ -20,11 +20,11 @@ pub(crate) struct PreparedPaintable {
 }
 
 pub(crate) struct ReplacedCommittedFragmentLink {
-    pub(crate) content_size_change: Option<(FfiCssPixelSize, FfiCssPixelSize)>,
+    pub(crate) content_size_change: Option<(used_values::FfiCssPixelSize, used_values::FfiCssPixelSize)>,
     pub(crate) committed_fragment_identity_changed: bool,
 }
 
-pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
+pub(crate) fn paintable_kind_for_node(facts: &node_facts::NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
     match kind {
         NodeKind::Viewport => PaintableKind::ViewportPaintable,
         NodeKind::BlockContainer
@@ -69,13 +69,13 @@ pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> 
 }
 
 pub(crate) struct PaintableCommit<'a> {
-    callbacks: &'a FfiLayoutFcCallbacks,
-    committed_offsets_before_recommit_reset: std::collections::HashMap<NodeSlotId, FfiCssPixelPoint>,
+    callbacks: &'a formatting_context::FfiLayoutFcCallbacks,
+    committed_offsets_before_recommit_reset: std::collections::HashMap<NodeSlotId, used_values::FfiCssPixelPoint>,
     committed_navigable_container_viewports: Vec<NodeSlotId>,
 }
 
 impl<'a> PaintableCommit<'a> {
-    pub(crate) fn new(callbacks: &'a FfiLayoutFcCallbacks) -> Self {
+    pub(crate) fn new(callbacks: &'a formatting_context::FfiLayoutFcCallbacks) -> Self {
         Self {
             callbacks,
             committed_offsets_before_recommit_reset: std::collections::HashMap::new(),
@@ -104,13 +104,13 @@ impl<'a> PaintableCommit<'a> {
 
     pub(crate) fn prepare_node(
         &mut self,
-        node: Node,
+        node: formatting_context::Node,
         has_used_values: bool,
         reuses_committed_subtree: bool,
         enclosing_line_root_content_changed: bool,
     ) -> PreparedPaintable {
         let (expected_kind, wants_paintable, node_kind) = {
-            let facts = NodeFacts::new(self.callbacks, node);
+            let facts = node_facts::NodeFacts::new(self.callbacks, node);
             let data = self.callbacks.node_data(node);
             let expected_kind = paintable_kind_for_node(&facts, data.kind);
             (
@@ -198,22 +198,22 @@ impl<'a> PaintableCommit<'a> {
 
     pub(crate) fn replace_committed_fragment_link(
         &mut self,
-        node: Node,
-        link: &FragmentLink,
+        node: formatting_context::Node,
+        link: &fragment_tree::FragmentLink,
         reuses_committed_subtree: bool,
         enclosing_line_root_content_changed: bool,
     ) -> ReplacedCommittedFragmentLink {
         let fragment = &link.fragment;
-        let new_content_size = FfiCssPixelSize {
+        let new_content_size = used_values::FfiCssPixelSize {
             width: fragment.content_inline_size,
             height: fragment.content_block_size,
         };
         let mut content_size_change = None;
         let (old_identity, old_content_size) = self.arena().with_committed_fragment_link(node, |old_link| {
-            old_link.map_or((0, FfiCssPixelSize::default()), |old_link| {
+            old_link.map_or((0, used_values::FfiCssPixelSize::default()), |old_link| {
                 (
                     old_link.fragment.identity,
-                    FfiCssPixelSize {
+                    used_values::FfiCssPixelSize {
                         width: old_link.fragment.content_inline_size,
                         height: old_link.fragment.content_block_size,
                     },
@@ -223,7 +223,7 @@ impl<'a> PaintableCommit<'a> {
         let previous_content_size_for_diff = if reuses_committed_subtree {
             old_content_size
         } else {
-            FfiCssPixelSize::default()
+            used_values::FfiCssPixelSize::default()
         };
         if previous_content_size_for_diff != new_content_size {
             assert!(
@@ -234,7 +234,7 @@ impl<'a> PaintableCommit<'a> {
         }
         let committed_fragment_identity_changed = old_identity != fragment.identity;
         let painted_geometry_lives_in_enclosing_line_root =
-            || NodeFacts::new(self.callbacks, node).is_fragmented_inline();
+            || node_facts::NodeFacts::new(self.callbacks, node).is_fragmented_inline();
         let painted_content_changed = committed_fragment_identity_changed
             || (enclosing_line_root_content_changed && painted_geometry_lives_in_enclosing_line_root());
         // A reused committed subtree's root counts as unchanged even though its run-root
@@ -265,7 +265,12 @@ impl<'a> PaintableCommit<'a> {
         }
     }
 
-    pub(crate) fn set_line_data(&self, slot: NodeSlotId, line_data: &LineData, content_inline_size: CssPixels) -> bool {
+    pub(crate) fn set_line_data(
+        &self,
+        slot: NodeSlotId,
+        line_data: &used_values::LineData,
+        content_inline_size: CssPixels,
+    ) -> bool {
         if !self.arena().paintable_rows().paintable_data(slot).kind.has_lines() {
             return false;
         }
@@ -286,7 +291,7 @@ impl<'a> PaintableCommit<'a> {
 
     fn build_line_records(
         &self,
-        data: &LineData,
+        data: &used_values::LineData,
         content_inline_size: CssPixels,
     ) -> (Vec<LineRecord>, Vec<FragmentRecord>, Vec<InlineBoxPieceRecord>) {
         let mut lines = Vec::with_capacity(data.line_boxes.len());
@@ -298,7 +303,7 @@ impl<'a> PaintableCommit<'a> {
                 .filter(|fragment| !fragment.is_fully_truncated)
                 .count() as u32;
             lines.push(LineRecord {
-                rect: crate::layout::line_rect(line, content_inline_size),
+                rect: inline_formatting_context::line_rect(line, content_inline_size),
                 baseline: line.block_start + line.baseline,
                 fragment_count: committed_fragment_count,
             });
@@ -314,11 +319,11 @@ impl<'a> PaintableCommit<'a> {
                     let text_type = libgfx_rust::text_layout::TextType::try_from(glyph_data.text_type)
                         .expect("committed glyph run carries a valid text type");
                     const _: () = assert!(
-                        std::mem::size_of::<crate::layout::FfiDrawGlyph>()
+                        std::mem::size_of::<inline_level_iterator::FfiDrawGlyph>()
                             == std::mem::size_of::<libgfx_rust::text_layout::DrawGlyph>()
                     );
                     const _: () = assert!(
-                        std::mem::align_of::<crate::layout::FfiDrawGlyph>()
+                        std::mem::align_of::<inline_level_iterator::FfiDrawGlyph>()
                             == std::mem::align_of::<libgfx_rust::text_layout::DrawGlyph>()
                     );
                     // SAFETY: FfiDrawGlyph mirrors libgfx's DrawGlyph layout (asserted above), and
@@ -357,8 +362,8 @@ impl<'a> PaintableCommit<'a> {
                 );
                 fragments.push(FragmentRecord {
                     layout_node: fragment.layout_node,
-                    offset: FfiCssPixelPoint { x, y },
-                    size: FfiCssPixelSize { width, height },
+                    offset: used_values::FfiCssPixelPoint { x, y },
+                    size: used_values::FfiCssPixelSize { width, height },
                     line_index,
                     start_offset: fragment.start,
                     length_in_code_units: fragment.length_in_code_units,
@@ -382,7 +387,7 @@ impl<'a> PaintableCommit<'a> {
                 first_fragment_index: piece.first_fragment_index,
                 fragment_count: piece.fragment_count,
                 line_index: piece.line_index,
-                border_box_rect: FfiCssPixelRect {
+                border_box_rect: used_values::FfiCssPixelRect {
                     x: piece.border_box_rect.x + piece.relpos_delta.x,
                     y: piece.border_box_rect.y + piece.relpos_delta.y,
                     width: piece.border_box_rect.width,
@@ -405,7 +410,7 @@ impl<'a> PaintableCommit<'a> {
         has_trailing_whitespace: bool,
     ) -> (usize, usize, usize, usize) {
         let data = self.callbacks.node_data(layout_node);
-        if !crate::layout::kind_is_text(data.kind) {
+        if !node_facts::kind_is_text(data.kind) {
             return (
                 start_offset,
                 start_offset + length_in_code_units,
@@ -456,7 +461,7 @@ impl<'a> PaintableCommit<'a> {
         )
     }
 
-    pub(crate) fn stamp_containing_block(&mut self, node: Node) {
+    pub(crate) fn stamp_containing_block(&mut self, node: formatting_context::Node) {
         let containing_block = self.callbacks.node_data(node).containing_block;
         let arena = self.arena_mut();
         let mut paintable_rows = arena.paintable_rows_mut();

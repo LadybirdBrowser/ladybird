@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 /// The per-run registry of UsedValues records, backed by the slot-indexed side
 /// table in the layout node arena. Registering a slot that a surrounding run
 /// owns displaces that run's entry, and dropping the RunRecords restores it.
@@ -63,7 +65,7 @@ impl RunRecords {
         node: Node,
         constraints: ContainingBlockConstraints,
     ) -> std::rc::Rc<UsedValues> {
-        let used = crate::layout::create_used_values(callbacks, node, constraints);
+        let used = used_values::create_used_values(callbacks, node, constraints);
         self.register(node, used.clone());
         used
     }

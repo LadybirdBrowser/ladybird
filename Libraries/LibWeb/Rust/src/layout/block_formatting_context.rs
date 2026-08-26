@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 struct FloatAvoidanceProbe {
     opportunity: Option<CssPixels>,
     content_inline_size: Option<CssPixels>,
@@ -181,13 +183,13 @@ struct FloatPlacement {
 
 // https://www.w3.org/TR/css-display/#block-formatting-context
 pub(crate) struct BlockFormattingContext {
-    purpose: LayoutPurpose,
+    purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     root: Node,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
-    pending_legend_flow_position: Cell<Option<LogicalOffset>>,
+    pending_legend_flow_position: Cell<Option<geometry::LogicalOffset>>,
     margin_state: RefCell<BlockMarginState>,
     floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<Vec<FloatBand>>,
@@ -198,10 +200,10 @@ pub(crate) struct BlockFormattingContext {
     trailing_collapsed_margin: Cell<Option<(Node, CssPixels)>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
     min_content_inline_size_from_max_content_layout: Cell<Option<CssPixels>>,
-    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    previous_line_data: Option<std::rc::Rc<LineData>>,
+    previous_line_data: Option<std::rc::Rc<used_values::LineData>>,
 }
 
 impl BlockFormattingContext {
@@ -226,7 +228,8 @@ impl BlockFormattingContext {
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
             min_content_inline_size_from_max_content_layout: Cell::new(None),
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             previous_line_data: run.previous_line_data.clone(),
         }
     }
@@ -239,7 +242,8 @@ impl BlockFormattingContext {
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
             previous_line_data: self.previous_line_data.clone(),
         }
@@ -298,8 +302,8 @@ impl BlockFormattingContext {
         ancestor == node || self.is_ancestor_of(ancestor, node)
     }
 
-    pub(crate) fn sizing(&self) -> SizingContext {
-        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    pub(crate) fn sizing(&self) -> sizing_context::SizingContext {
+        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
     fn place_child(&self, node: Node, offset: FfiCssPixelPoint) {
@@ -310,25 +314,30 @@ impl BlockFormattingContext {
         &self,
         node: Node,
         offset: FfiCssPixelPoint,
-        containing_line_box_fragment: Option<LineBoxFragmentCoordinate>,
+        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
     ) {
-        crate::layout::place_child(&self.formatting_context_run(), node, offset, containing_line_box_fragment);
+        formatting_context::place_child(
+            &self.formatting_context_run(),
+            node,
+            offset,
+            containing_line_box_fragment,
+        );
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
-        let static_position = StaticPositionRect {
-            rect: LogicalRect {
-                offset: LogicalOffset {
+        let static_position = abspos_inputs::StaticPositionRect {
+            rect: geometry::LogicalRect {
+                offset: geometry::LogicalOffset {
                     inline_offset: CssPixels::default(),
                     block_offset,
                 },
-                size: LogicalSize::default(),
+                size: geometry::LogicalSize::default(),
             },
             inline_alignment: StaticPositionAlignment::Start,
             block_alignment: StaticPositionAlignment::Start,
             alignment_derives_from_own_computed_values: false,
         };
-        crate::layout::register_contained_abspos_child(
+        formatting_context::register_contained_abspos_child(
             &self.callbacks,
             self.fragments.as_deref(),
             coordinate_space_box,
@@ -339,11 +348,11 @@ impl BlockFormattingContext {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = crate::layout::derive_baselines(&self.records, &self.callbacks, node, false);
+        let baselines = formatting_context::derive_baselines(&self.records, &self.callbacks, node, false);
         if node == self.root {
             self.record_derived_baselines_of_root_box(baselines);
         } else {
-            crate::layout::store_derived_baselines(&self.used(node), baselines);
+            formatting_context::store_derived_baselines(&self.used(node), baselines);
         }
     }
 
@@ -359,8 +368,13 @@ impl BlockFormattingContext {
         self.derived_baselines_of_root_box.get()
     }
 
-    fn compute_inset(&self, run: &FormattingContextRun, node: Node, containing_block_size: LogicalSize) {
-        crate::layout::compute_inset_native(run, node, containing_block_size.inline_size, containing_block_size.block_size);
+    fn compute_inset(&self, run: &FormattingContextRun, node: Node, containing_block_size: geometry::LogicalSize) {
+        abspos_engine::compute_inset_native(
+            run,
+            node,
+            containing_block_size.inline_size,
+            containing_block_size.block_size,
+        );
     }
 
     fn containing_block_rect(&self, node: Node, position: FfiCssPixelPoint) -> BlockCssPixelRect {
@@ -423,8 +437,12 @@ impl BlockFormattingContext {
         // instead of block layout: floats do not intrude into the grid container, and the grid container’s margins do
         // not collapse with the margins of its contents.
         matches!(
-            formatting_context_type_created_by_box(self.facts(node)),
-            Some(FfiFormattingContextType::Block | FfiFormattingContextType::Flex | FfiFormattingContextType::Grid)
+            formatting_context::formatting_context_type_created_by_box(self.facts(node)),
+            Some(
+                formatting_context::FfiFormattingContextType::Block
+                    | formatting_context::FfiFormattingContextType::Flex
+                    | formatting_context::FfiFormattingContextType::Grid
+            )
         )
     }
 
@@ -475,8 +493,12 @@ impl BlockFormattingContext {
     ) {
         let float_avoidance_inline_size =
             self.float_reduced_inline_opportunity(node, available_space, content_position_in_root);
-        let content_inline_size =
-            self.resolve_root_inline_metrics_and_content_size(node, available_space, constraints, float_avoidance_inline_size);
+        let content_inline_size = self.resolve_root_inline_metrics_and_content_size(
+            node,
+            available_space,
+            constraints,
+            float_avoidance_inline_size,
+        );
         if let Some(content_inline_size) = content_inline_size {
             self.used(node).set_content_inline_size(content_inline_size);
         }
@@ -512,7 +534,8 @@ impl BlockFormattingContext {
                 used.border_left.set(style.border_left_width());
                 used.border_right.set(style.border_right_width());
                 used.padding_left.set(style.padding_left().to_px(available_inline_size));
-                used.padding_right.set(style.padding_right().to_px(available_inline_size));
+                used.padding_right
+                    .set(style.padding_right().to_px(available_inline_size));
             }
             sizing.compute_inline_size_for_replaced_element(node, available_space, constraints)
         });
@@ -631,11 +654,11 @@ impl BlockFormattingContext {
                     if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
                         inline_size = Some(underflow.max(CssPixels::default()));
                     } else if available_space.inline_size == AvailableSize::MinContent {
-                        if formatting_context_type_created_by_box(facts).is_some() {
+                        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
                             inline_size = Some(sizing.calculate_min_content_inline_size(node, constraints));
                         }
                     } else if available_space.inline_size == AvailableSize::MaxContent {
-                        if formatting_context_type_created_by_box(facts).is_some() {
+                        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
                             inline_size = Some(sizing.calculate_max_content_inline_size(node, constraints));
                         }
                     } else {
@@ -674,12 +697,12 @@ impl BlockFormattingContext {
                 remaining_available_space,
                 constraints,
                 None,
-                crate::layout::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
+                formatting_context::TableWrapperInlineSizeMode::ClampToAvailableInlineSize,
             ))
         } else if facts.uses_button_layout() && style.width().is_auto() {
             // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
             // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
-            Some(sizing.calculate_fit_content_size(node, crate::layout::SizingAxis::Inline, available_space, constraints))
+            Some(sizing.calculate_fit_content_size(node, SizingAxis::Inline, available_space, constraints))
         } else if sizing.should_treat_inline_size_as_auto(node, available_space) {
             None
         } else {
@@ -735,7 +758,11 @@ impl BlockFormattingContext {
             used.margin_left.set(margin_left);
             used.margin_right.set(margin_right);
         }
-        if sized_as_replaced { replaced_inline_size } else { used_inline_size }
+        if sized_as_replaced {
+            replaced_inline_size
+        } else {
+            used_inline_size
+        }
     }
 
     fn compute_floating_root_inline_sizes(
@@ -893,10 +920,10 @@ impl BlockFormattingContext {
         &self,
         block_start_in_root: CssPixels,
         block_end_in_root: CssPixels,
-    ) -> SpaceUsedByFloats {
+    ) -> inline_formatting_context::SpaceUsedByFloats {
         let bands = self.bands.borrow();
         assert!(!bands.is_empty());
-        let mut intrusions = SpaceUsedByFloats::default();
+        let mut intrusions = inline_formatting_context::SpaceUsedByFloats::default();
         if block_end_in_root <= block_start_in_root {
             let band = bands[self.band_index_at(block_start_in_root)];
             intrusions.left = band.left_intrusion;
@@ -913,11 +940,15 @@ impl BlockFormattingContext {
         intrusions
     }
 
-    fn intrusions_for_band_into_rect(&self, band: FloatBand, rect_in_root: BlockCssPixelRect) -> SpaceUsedByFloats {
+    fn intrusions_for_band_into_rect(
+        &self,
+        band: FloatBand,
+        rect_in_root: BlockCssPixelRect,
+    ) -> inline_formatting_context::SpaceUsedByFloats {
         // Deliberately read the root inline size at query time. It can be stale while
         // intrinsic sizing of this context's own root is in progress.
         let root_content_inline_size = self.used(self.root).content_inline_size.get();
-        SpaceUsedByFloats {
+        inline_formatting_context::SpaceUsedByFloats {
             left: if band.left_intrusion == CssPixels::default() {
                 CssPixels::default()
             } else {
@@ -936,7 +967,7 @@ impl BlockFormattingContext {
         box_in_root_rect: FfiCssPixelRect,
         block_start_in_box: CssPixels,
         block_end_in_box: CssPixels,
-    ) -> SpaceUsedByFloats {
+    ) -> inline_formatting_context::SpaceUsedByFloats {
         let rect = BlockCssPixelRect {
             x: box_in_root_rect.x,
             y: box_in_root_rect.y,
@@ -946,7 +977,7 @@ impl BlockFormattingContext {
         let intrusions = self.available_inline_space(rect.y + block_start_in_box, rect.y + block_end_in_box);
         // Deliberately read the root inline size at query time.
         let root_content_inline_size = self.used(self.root).content_inline_size.get();
-        SpaceUsedByFloats {
+        inline_formatting_context::SpaceUsedByFloats {
             left: if intrusions.left == CssPixels::default() {
                 CssPixels::default()
             } else {
@@ -982,9 +1013,7 @@ impl BlockFormattingContext {
                 AvailableSize::MaxContent | AvailableSize::Indefinite
             ) || margin_box_inline_size <= available_inline_size
                 || !has_floats_present;
-            if !fits
-                && let Some(next) = self.next_float_band_block_start_after(candidate_block_start)
-            {
+            if !fits && let Some(next) = self.next_float_band_block_start_after(candidate_block_start) {
                 candidate_block_start = next;
                 continue;
             }
@@ -1145,7 +1174,7 @@ impl BlockFormattingContext {
         &self,
         node: Node,
         used: &UsedValues,
-        space_used_by_floats: SpaceUsedByFloats,
+        space_used_by_floats: inline_formatting_context::SpaceUsedByFloats,
     ) -> CssPixels {
         if self.style(node).margin_left().is_auto() {
             return space_used_by_floats.left + used.margin_left.get();
@@ -1168,7 +1197,9 @@ impl BlockFormattingContext {
         containing_block_rect_in_root: BlockCssPixelRect,
         probe: &mut FloatAvoidanceProbe,
     ) -> CssPixels {
-        if !matches!(available_space.inline_size, AvailableSize::Definite(_)) || !self.box_should_avoid_floats_because_it_establishes_fc(node) {
+        if !matches!(available_space.inline_size, AvailableSize::Definite(_))
+            || !self.box_should_avoid_floats_because_it_establishes_fc(node)
+        {
             return content_block_offset;
         }
         // https://drafts.csswg.org/css2/#floats
@@ -1272,7 +1303,7 @@ impl BlockFormattingContext {
         }
         // https://drafts.csswg.org/css-display-3/#independent-formatting-context
         // NOTE: [..] margins do not collapse across formatting context boundaries.
-        if formatting_context_type_created_by_box(facts).is_some() {
+        if formatting_context::formatting_context_type_created_by_box(facts).is_some() {
             return false;
         }
         // NB: This should take care of the height and min-height constraints.
@@ -1313,7 +1344,7 @@ impl BlockFormattingContext {
     pub(crate) fn clear_floating_boxes(
         &self,
         node: Node,
-        inline_context: Option<&InlineFormattingContext>,
+        inline_context: Option<&inline_formatting_context::InlineFormattingContext>,
         containing_block_position_in_root: FfiCssPixelPoint,
     ) -> bool {
         let style = self.style(node);
@@ -1421,7 +1452,7 @@ impl BlockFormattingContext {
         &self,
         run: &FormattingContextRun,
         list_item: Node,
-        inline_space_used_before_list_item_elements_formatted: SpaceUsedByFloats,
+        inline_space_used_before_list_item_elements_formatted: inline_formatting_context::SpaceUsedByFloats,
         list_item_first_baseline: Option<CssPixels>,
     ) {
         let marker = self.facts(list_item).list_item_marker();
@@ -1453,11 +1484,11 @@ impl BlockFormattingContext {
         let marker_used = self.used(marker);
         marker_used.set_content_inline_size(max_content_inline_size);
         marker_used.has_definite_inline_size.set(true);
-        let inner_available_space = crate::layout::AvailableSpace {
-            inline_size: crate::layout::AvailableSize::definite(max_content_inline_size),
-            block_size: crate::layout::AvailableSize::Indefinite,
+        let inner_available_space = AvailableSpace {
+            inline_size: AvailableSize::definite(max_content_inline_size),
+            block_size: AvailableSize::Indefinite,
         };
-        match crate::layout::layout_inside_child(
+        match formatting_context::layout_inside_child(
             run,
             None,
             None,
@@ -1475,8 +1506,8 @@ impl BlockFormattingContext {
             },
             true,
         ) {
-            crate::layout::ChildLayoutOutcome::Created(_) | crate::layout::ChildLayoutOutcome::Skipped => {}
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+            ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
+            ChildLayoutOutcome::ReenterCurrent => {
                 unreachable!("marker inside layout did not establish a formatting context")
             }
         }
@@ -1496,7 +1527,10 @@ impl BlockFormattingContext {
         {
             list_item_first_baseline - marker_used.first_baseline.get()
         } else {
-            round_css_pixels(Self::marker_centered_block_offset(marker_style.line_height(), marker_block_size))
+            round_css_pixels(Self::marker_centered_block_offset(
+                marker_style.line_height(),
+                marker_block_size,
+            ))
         };
 
         self.place_child(
@@ -1514,8 +1548,8 @@ impl BlockFormattingContext {
         node: Node,
         input: LayoutInput,
         force_independent_context_run: bool,
-    ) -> Option<ChildLayoutResult> {
-        match crate::layout::layout_inside_child(
+    ) -> Option<formatting_context::ChildLayoutResult> {
+        match formatting_context::layout_inside_child(
             run,
             Some(self),
             None,
@@ -1524,9 +1558,9 @@ impl BlockFormattingContext {
             input,
             force_independent_context_run,
         ) {
-            crate::layout::ChildLayoutOutcome::Skipped => None,
-            crate::layout::ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+            ChildLayoutOutcome::Skipped => None,
+            ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
+            ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, input);
                 None
             }
@@ -1557,7 +1591,7 @@ impl BlockFormattingContext {
         block_container: Node,
         bottom_of_lowest_margin_box: &mut CssPixels,
         input: LayoutInput,
-        containing_line_box_fragment: Option<LineBoxFragmentCoordinate>,
+        containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
     ) {
         let available_space = input.available_space;
         let facts = self.facts(node);
@@ -1647,14 +1681,14 @@ impl BlockFormattingContext {
             );
         }
 
-        let independent_type = formatting_context_type_created_by_box(facts);
+        let independent_type = formatting_context::formatting_context_type_created_by_box(facts);
         let has_independent_formatting_context = independent_type.is_some();
 
         if !has_independent_formatting_context && !facts.is_block_container() {
             // Keep the C++ behavior: diagnose and skip this unsupported box after its
             // vertical metrics have been resolved.
             eprintln!("FIXME: Block-level box is not BlockContainer but does not create formatting context");
-            crate::layout::propagate_percentage_block_size_dependency_to_containing_block(
+            formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                 &run.records,
                 &self.callbacks,
                 node,
@@ -1716,9 +1750,7 @@ impl BlockFormattingContext {
             &mut probe,
         );
         let float_avoidance_inline_size = probe.opportunity;
-        if !has_independent_formatting_context
-            && let Some(content_inline_size) = probe.content_inline_size
-        {
+        if !has_independent_formatting_context && let Some(content_inline_size) = probe.content_inline_size {
             self.used(node).set_content_inline_size(content_inline_size);
         }
         let content_inline_size_now = probe
@@ -1734,10 +1766,10 @@ impl BlockFormattingContext {
         let is_list_item_box = facts.is_list_item_box();
         let marker = facts.list_item_marker();
 
-        let is_table_formatting_context = independent_type == Some(FfiFormattingContextType::Table);
+        let is_table_formatting_context = independent_type == Some(formatting_context::FfiFormattingContextType::Table);
         let mut pending_position = None;
         if box_is_positioned_by_fieldset_layout {
-            self.pending_legend_flow_position.set(Some(LogicalOffset {
+            self.pending_legend_flow_position.set(Some(geometry::LogicalOffset {
                 inline_offset: content_inline_offset,
                 block_offset: content_block_offset,
             }));
@@ -1778,12 +1810,12 @@ impl BlockFormattingContext {
         // Before we insert the children of a list item we need to know the location of the marker.
         // If we do not do this then left-floating elements inside the list item will push the marker to the right,
         // in some cases even causing it to overlap with the non-floating content of the list.
-        let mut inline_space_used_before_children_formatted = SpaceUsedByFloats::default();
+        let mut inline_space_used_before_children_formatted = inline_formatting_context::SpaceUsedByFloats::default();
         if is_list_item_box && !marker.is_invalid() {
             let marker_facts = self.facts(marker);
             if !marker_facts.list_marker_is_inside() {
                 let marker_style = self.style(marker);
-                let estimated_block_size = normal_line_height(marker_style);
+                let estimated_block_size = line_builder::normal_line_height(marker_style);
                 let marker_block_offset =
                     Self::marker_centered_block_offset(marker_style.line_height(), estimated_block_size);
                 let list_item_used = self.used(node);
@@ -1830,8 +1862,9 @@ impl BlockFormattingContext {
             let child_layout = self.layout_inside(run, node, inside_layout_input, true);
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
                 let used = self.used(node);
-                self.table_box_in_wrapper_border_box_block_size
-                    .set(Some(used.border_box_block_size(used.uses_collapsing_borders_model.get())));
+                self.table_box_in_wrapper_border_box_block_size.set(Some(
+                    used.border_box_block_size(used.uses_collapsing_borders_model.get()),
+                ));
                 if used.uses_collapsing_borders_model.get()
                     && let Some(position) = pending_position.as_mut()
                     && let Some((pre_run_border_box_left, pre_run_border_box_top)) = pre_run_table_border_box
@@ -1879,7 +1912,7 @@ impl BlockFormattingContext {
                     block_offset + resolved_margin_top + self.used(node).border_box_top(false)
                 };
                 if box_is_positioned_by_fieldset_layout {
-                    self.pending_legend_flow_position.set(Some(LogicalOffset {
+                    self.pending_legend_flow_position.set(Some(geometry::LogicalOffset {
                         inline_offset: content_inline_offset,
                         block_offset: final_content_block_offset,
                     }));
@@ -1930,7 +1963,7 @@ impl BlockFormattingContext {
 
         let dependency_was_not_reported_by_a_child_run = !has_independent_formatting_context;
         if dependency_was_not_reported_by_a_child_run {
-            crate::layout::propagate_percentage_block_size_dependency_to_containing_block(
+            formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                 &run.records,
                 &self.callbacks,
                 node,
@@ -1942,7 +1975,7 @@ impl BlockFormattingContext {
         self.compute_inset(
             run,
             node,
-            LogicalSize {
+            geometry::LogicalSize {
                 inline_size: block_container_used.content_inline_size.get(),
                 block_size: block_container_used.content_block_size.get(),
             },
@@ -2046,7 +2079,12 @@ impl BlockFormattingContext {
             self.layout_block_level_box(run, child, wrapper, &mut bottom_of_lowest_margin_box, child_input, None);
         }
         self.block_offset_of_current_block_container.set(saved);
-        self.finish_block_level_children_layout(wrapper, input, available_space_for_children, bottom_of_lowest_margin_box);
+        self.finish_block_level_children_layout(
+            wrapper,
+            input,
+            available_space_for_children,
+            bottom_of_lowest_margin_box,
+        );
     }
 
     fn finish_block_level_children_layout(
@@ -2128,7 +2166,14 @@ impl BlockFormattingContext {
             let saved = self.block_offset_of_current_block_container.replace(Some(extra_top));
             for child in self.children(fieldset) {
                 if child != legend {
-                    self.layout_block_level_box(run, child, fieldset, &mut bottom_of_lowest_margin_box, child_input, None);
+                    self.layout_block_level_box(
+                        run,
+                        child,
+                        fieldset,
+                        &mut bottom_of_lowest_margin_box,
+                        child_input,
+                        None,
+                    );
                 }
             }
             self.block_offset_of_current_block_container.set(saved);
@@ -2306,7 +2351,7 @@ impl BlockFormattingContext {
         node: Node,
         containing_block: Node,
         input: LayoutInput,
-        line_builder: &mut LineBuilder<'_, '_>,
+        line_builder: &mut line_builder::LineBuilder<'_, '_>,
     ) {
         let line_index = line_builder.line_index_for_block_level_box();
         let current_block_offset = line_builder.current_block_offset();
@@ -2320,7 +2365,7 @@ impl BlockFormattingContext {
             containing_block,
             &mut dummy_bottom,
             input,
-            Some(LineBoxFragmentCoordinate {
+            Some(used_values::LineBoxFragmentCoordinate {
                 line_box_index: line_index,
                 fragment_index: 0,
             }),
@@ -2432,7 +2477,7 @@ impl BlockFormattingContext {
         node: Node,
         input: LayoutInput,
         block_offset: CssPixels,
-        mut line_builder: Option<&mut LineBuilder<'_, '_>>,
+        mut line_builder: Option<&mut line_builder::LineBuilder<'_, '_>>,
     ) {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
@@ -2541,7 +2586,7 @@ impl BlockFormattingContext {
         self.compute_inset(
             run,
             node,
-            LogicalSize {
+            geometry::LogicalSize {
                 inline_size: block_container_used.content_inline_size.get(),
                 block_size: block_container_used.content_block_size.get(),
             },
@@ -2576,7 +2621,7 @@ impl BlockFormattingContext {
     ) {
         assert!(self.facts(block_container).children_are_inline());
         let inline_input = self.child_layout_input(block_container, input, available_space_for_children);
-        let mut context = InlineFormattingContext::new_with_rust_parent(
+        let mut context = inline_formatting_context::InlineFormattingContext::new_with_rust_parent(
             run,
             block_container,
             self.layout_mode,
@@ -2624,8 +2669,10 @@ impl BlockFormattingContext {
                 let min_is_auto = style.min_width().is_auto()
                     || (style.min_width().is_fit_content()
                         && input.available_space.inline_size.is_intrinsic_sizing_constraint())
-                    || (style.min_width().is_max_content() && input.available_space.inline_size == AvailableSize::MaxContent)
-                    || (style.min_width().is_min_content() && input.available_space.inline_size == AvailableSize::MinContent);
+                    || (style.min_width().is_max_content()
+                        && input.available_space.inline_size == AvailableSize::MaxContent)
+                    || (style.min_width().is_min_content()
+                        && input.available_space.inline_size == AvailableSize::MinContent);
                 if !min_is_auto {
                     let minimum = sizing.calculate_inner_inline_size(
                         block_container,
@@ -2655,11 +2702,7 @@ impl BlockFormattingContext {
             constraints,
             automatic_content_block_size_of_completed_run,
         );
-        floor_list_item_automatic_block_size_by_marker_line_height(
-            self.callbacks,
-            node,
-            automatic_content_block_size,
-        )
+        floor_list_item_automatic_block_size_by_marker_line_height(self.callbacks, node, automatic_content_block_size)
     }
 
     fn automatic_block_size_for_block_level_element_disregarding_marker(
@@ -2676,7 +2719,7 @@ impl BlockFormattingContext {
             || style.display().is_grid_inside()
             || style.display().is_table_inside()
         {
-            return independent_root_automatic_block_size(
+            return formatting_context::independent_root_automatic_block_size(
                 self.purpose,
                 &self.records,
                 &self.callbacks,
@@ -2793,7 +2836,7 @@ impl BlockFormattingContext {
             .iter()
             .filter(|floating_box| self.containing_block(floating_box.box_) == node)
         {
-            let mut inline_space = SpaceUsedByFloats::default();
+            let mut inline_space = inline_formatting_context::SpaceUsedByFloats::default();
             for direct_float in floats
                 .iter()
                 .filter(|floating_box| self.containing_block(floating_box.box_) == node)
@@ -2814,7 +2857,7 @@ impl BlockFormattingContext {
         if facts.children_are_inline() {
             if let Some(data) = self.used(node).line_data_ref() {
                 for line in &data.line_boxes {
-                    let mut inline_size_here = crate::layout::line_physical_horizontal_extent(line);
+                    let mut inline_size_here = inline_formatting_context::line_physical_horizontal_extent(line);
                     let line_block_start = line.physical_vertical_end() - line.physical_vertical_extent();
                     let line_block_end = line.physical_vertical_end();
                     let mut extra_left = CssPixels::default();

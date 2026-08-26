@@ -16,6 +16,7 @@ use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::layout::node_facts;
 
 const SEPARATOR_COMMA: u8 = 1;
 
@@ -137,7 +138,7 @@ fn containment_applies_to_display(arena: &LayoutNodeArena, node: NodeSlotId, sty
     }
     let is_replaced_box = arena
         .node_kind_if_live(node)
-        .is_some_and(crate::layout::kind_is_replaced_box);
+        .is_some_and(node_facts::kind_is_replaced_box);
     if display.is_inline_outside() && display.is_flow_inside() && !is_replaced_box {
         return false;
     }
@@ -274,7 +275,7 @@ pub(crate) fn establishes_positioning_containing_blocks(arena: &LayoutNodeArena,
     let Some(kind) = arena.node_kind_if_live(node) else {
         return (false, false);
     };
-    if !crate::layout::kind_is_box(kind) {
+    if !node_facts::kind_is_box(kind) {
         return (false, false);
     }
 
@@ -336,9 +337,9 @@ pub(crate) fn is_transformable(arena: &LayoutNodeArena, node: NodeSlotId) -> boo
     }
 
     let is_dom_element =
-        !has_flag(arena, node, NodeFlag::Anonymous) && !crate::layout::kind_is_text(kind) && kind != NodeKind::Viewport;
+        !has_flag(arena, node, NodeFlag::Anonymous) && !node_facts::kind_is_text(kind) && kind != NodeKind::Viewport;
     let is_element_or_pseudo_element = is_dom_element || arena.node_is_generated_for_pseudo_element(node);
-    if is_element_or_pseudo_element && crate::layout::kind_is_box(kind) {
+    if is_element_or_pseudo_element && node_facts::kind_is_box(kind) {
         let Some(style) = arena.node_style_if_live(node) else {
             return false;
         };
@@ -516,11 +517,11 @@ pub(crate) fn effective_z_index(arena: &LayoutNodeArena, paintable: NodeSlotId) 
 pub(crate) fn is_positioned(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     arena
         .node_data_if_live(node)
-        .is_some_and(|data| crate::layout::node_is_positioned(data, arena.node_style_if_live(node)))
+        .is_some_and(|data| node_facts::node_is_positioned(data, arena.node_style_if_live(node)))
 }
 
 pub(crate) fn position(arena: &LayoutNodeArena, node: NodeSlotId) -> u8 {
-    crate::layout::node_position(arena.node_style_if_live(node))
+    node_facts::node_position(arena.node_style_if_live(node))
 }
 
 pub(crate) fn is_fixed_position(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
@@ -534,15 +535,15 @@ pub(crate) fn is_sticky_position(arena: &LayoutNodeArena, node: NodeSlotId) -> b
 pub(crate) fn is_floating(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     arena
         .node_data_if_live(node)
-        .is_some_and(|data| crate::layout::node_is_floating(data, arena.node_style_if_live(node)))
+        .is_some_and(|data| node_facts::node_is_floating(data, arena.node_style_if_live(node)))
 }
 
 pub(crate) fn is_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    crate::layout::node_is_inline_outside(arena.node_style_if_live(node))
+    node_facts::node_is_inline_outside(arena.node_style_if_live(node))
 }
 
 pub(crate) fn display(arena: &LayoutNodeArena, node: NodeSlotId) -> crate::css::display::FfiDisplay {
-    crate::layout::node_display(arena.node_style_if_live(node))
+    node_facts::node_display(arena.node_style_if_live(node))
 }
 
 pub(crate) fn is_flex_or_grid_item(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
@@ -560,7 +561,7 @@ pub(crate) fn is_replaced_element(arena: &LayoutNodeArena, node: NodeSlotId) -> 
 pub(crate) fn is_replaced_box(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     arena
         .node_kind_if_live(node)
-        .is_some_and(crate::layout::kind_is_replaced_box)
+        .is_some_and(node_facts::kind_is_replaced_box)
 }
 
 pub(crate) fn establishes_stacking_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {

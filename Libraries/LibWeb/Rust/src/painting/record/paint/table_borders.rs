@@ -5,10 +5,11 @@
  */
 
 use crate::css::css_enums::line_style;
-use crate::layout::CollapsedBorderEdge;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::table_formatting_context;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, IntPoint, IntRect, LineStyle};
+use table_formatting_context::CollapsedBorderEdge;
 
 #[derive(Clone, Copy, Default)]
 struct DeviceBorderData {

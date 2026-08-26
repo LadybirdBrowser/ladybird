@@ -6,7 +6,7 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph};
+use crate::layout::{inline_level_iterator, used_values};
 use std::cell::Cell;
 
 pub const NO_STACKING_CONTEXT: u32 = u32::MAX;
@@ -115,7 +115,7 @@ pub struct FfiStickyInsets {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiOverflowData {
-    pub rect: FfiCssPixelRect,
+    pub rect: used_values::FfiCssPixelRect,
     pub has_scrollable_overflow: bool,
 }
 
@@ -128,10 +128,10 @@ pub struct PaintableData {
     pub slot_generation: u8,
     pub flags: u32,
 
-    pub offset: FfiCssPixelPoint,
-    pub content_size: FfiCssPixelSize,
-    pub local_padding_box_union: FfiCssPixelRect,
-    pub local_border_box_union: FfiCssPixelRect,
+    pub offset: used_values::FfiCssPixelPoint,
+    pub content_size: used_values::FfiCssPixelSize,
+    pub local_padding_box_union: used_values::FfiCssPixelRect,
+    pub local_border_box_union: used_values::FfiCssPixelRect,
 
     pub overflow_relative_to_padding_box: FfiOverflowData,
     pub overflow_measured_this_commit: bool,
@@ -162,10 +162,10 @@ impl Default for PaintableData {
             selection_state: 0,
             slot_generation: 0,
             flags: 0,
-            offset: FfiCssPixelPoint::default(),
-            content_size: FfiCssPixelSize::default(),
-            local_padding_box_union: FfiCssPixelRect::default(),
-            local_border_box_union: FfiCssPixelRect::default(),
+            offset: used_values::FfiCssPixelPoint::default(),
+            content_size: used_values::FfiCssPixelSize::default(),
+            local_padding_box_union: used_values::FfiCssPixelRect::default(),
+            local_border_box_union: used_values::FfiCssPixelRect::default(),
             overflow_relative_to_padding_box: FfiOverflowData::default(),
             overflow_measured_this_commit: false,
             overflow_valid_across_recommits: false,
@@ -224,21 +224,21 @@ pub enum PaintableRowResetKind {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LineRecord {
-    pub rect: FfiCssPixelRect,
+    pub rect: used_values::FfiCssPixelRect,
     pub baseline: CssPixels,
     pub fragment_count: u32,
 }
 
 pub struct GlyphRunRecord {
-    pub glyphs: Vec<FfiDrawGlyph>,
+    pub glyphs: Vec<inline_level_iterator::FfiDrawGlyph>,
     pub font: libgfx_rust::font::RetainedFont,
     pub retained: libgfx_rust::text_layout::RetainedGlyphRun,
 }
 
 pub struct FragmentRecord {
     pub layout_node: NodeSlotId,
-    pub offset: FfiCssPixelPoint,
-    pub size: FfiCssPixelSize,
+    pub offset: used_values::FfiCssPixelPoint,
+    pub size: used_values::FfiCssPixelSize,
     pub line_index: u32,
     pub start_offset: usize,
     pub length_in_code_units: usize,
@@ -259,7 +259,7 @@ pub struct InlineBoxPieceRecord {
     pub first_fragment_index: u32,
     pub fragment_count: u32,
     pub line_index: u32,
-    pub border_box_rect: FfiCssPixelRect,
+    pub border_box_rect: used_values::FfiCssPixelRect,
     pub baseline: CssPixels,
     pub accumulated_vertical_shift: CssPixels,
     pub present_edges: u8,
@@ -294,7 +294,7 @@ pub struct PaintableSideData {
     pub(crate) fragments: Vec<FragmentRecord>,
     pub(crate) inline_box_pieces: Vec<InlineBoxPieceRecord>,
     pub(crate) piece_indices: Vec<u32>,
-    pub(crate) svg_filter_bounds: Cell<Option<FfiCssPixelRect>>,
+    pub(crate) svg_filter_bounds: Cell<Option<used_values::FfiCssPixelRect>>,
     // Only meaningful while is_self_painting(); assigned by the containing block's
     // assign_fragment_ownership().
     pub(crate) fragment_ownership: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,

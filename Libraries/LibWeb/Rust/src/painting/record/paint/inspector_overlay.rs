@@ -7,6 +7,7 @@
 use crate::css::css_enums::flex_direction;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::grid_formatting_context;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{
     DisplayListGlyph, FontResourceId, VISUAL_VIEWPORT_NODE_INDEX, VisualContextIndex,
@@ -307,10 +308,10 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
             paint_label(recorder, top_left, text, fly_string_raw);
         };
 
-    let line_start_for_number = |lines: &[crate::layout::GridLayoutLine], number: u32| -> Option<CssPixels> {
+    let line_start_for_number = |lines: &[grid_formatting_context::GridLayoutLine], number: u32| -> Option<CssPixels> {
         lines.iter().find(|line| line.number == number).map(|line| line.start)
     };
-    let line_number_label = |line: &crate::layout::GridLayoutLine| -> Vec<u16> {
+    let line_number_label = |line: &grid_formatting_context::GridLayoutLine| -> Vec<u16> {
         let text = if line.negative_number < 0 {
             format!("{} / {}", line.number, line.negative_number)
         } else {
@@ -318,7 +319,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
         };
         text.encode_utf16().collect()
     };
-    let track_size_label = |track: &crate::layout::GridLayoutTrack| -> Vec<u16> {
+    let track_size_label = |track: &grid_formatting_context::GridLayoutTrack| -> Vec<u16> {
         format!("{:.2}px", track.breadth.to_double().max(0.0))
             .encode_utf16()
             .collect()

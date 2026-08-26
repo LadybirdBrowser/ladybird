@@ -7,6 +7,7 @@
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_facts;
 use crate::painting::fragment_ownership;
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -111,7 +112,7 @@ fn dump_fragment(
     if fragment.length_in_code_units > 0 {
         push_indent(out, indent);
         out.extend_from_slice(b"      \"");
-        if crate::layout::kind_is_text(kind)
+        if node_facts::kind_is_text(kind)
             && let Some(content) = layout_arena.text_content(fragment.layout_node)
         {
             let end = fragment

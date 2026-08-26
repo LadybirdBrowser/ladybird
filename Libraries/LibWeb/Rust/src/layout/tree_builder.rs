@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::OwnedLayoutNode;
-use crate::layout::{
-    ComputedValuesView, FfiDisplay, kind_is_replaced_box, kind_is_svg_box, kind_is_svg_graphics_box,
-    node_can_have_children,
-};
+use crate::layout::{ComputedValuesView, FfiDisplay};
 use std::ffi::c_void;
 
 type LayoutNode = NodeSlotId;
@@ -1022,10 +1021,10 @@ unsafe fn update_principal_node_descendants(
         };
         let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
             let layout_node_data = layout_host.data(layout_node);
-            let can_have_children = node_can_have_children(layout_node_data);
+            let can_have_children = node_facts::node_can_have_children(layout_node_data);
             (
                 can_have_children,
-                kind_is_replaced_box(layout_node_data.kind) && can_have_children,
+                node_facts::kind_is_replaced_box(layout_node_data.kind) && can_have_children,
             )
         };
         let prior_quote_nesting_level = state.quote_nesting_level;
@@ -2348,29 +2347,29 @@ fn node_kind_is_svg_box(kind: NodeKind) -> bool {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_node_kind_is_replaced_box(kind: NodeKind) -> bool {
-    kind_is_replaced_box(kind)
+    node_facts::kind_is_replaced_box(kind)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_node_kind_is_svg_box(kind: NodeKind) -> bool {
-    kind_is_svg_box(kind)
+    node_facts::kind_is_svg_box(kind)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_node_kind_is_svg_graphics_box(kind: NodeKind) -> bool {
-    kind_is_svg_graphics_box(kind)
+    svg_formatting_context::kind_is_svg_graphics_box(kind)
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_node_data_can_have_children(data: *const NodeData) -> bool {
     // SAFETY: The C++ caller passes the node's live arena slot.
-    node_can_have_children(unsafe { &*data })
+    node_facts::node_can_have_children(unsafe { &*data })
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_node_data_may_have_replaced_content_facts(data: *const NodeData) -> bool {
     // SAFETY: The C++ caller passes the node's live arena slot.
-    crate::layout::node_may_have_replaced_content_facts_including_size_containment(unsafe { &*data })
+    node_facts::node_may_have_replaced_content_facts_including_size_containment(unsafe { &*data })
 }
 
 fn node_is_generated_for_pseudo_element(data: &NodeData) -> bool {
@@ -2385,7 +2384,7 @@ fn node_is_inline_outside(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool 
 }
 
 fn node_is_out_of_flow(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    crate::layout::node_is_out_of_flow(host.data(node), host.style(node))
+    node_facts::node_is_out_of_flow(host.data(node), host.style(node))
 }
 
 fn node_has_replaced_element_table_display_adjustment(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
@@ -2554,7 +2553,7 @@ impl TreeBuilderHost<'_> {
     }
 }
 
-impl crate::layout::TableTree for TreeBuilderHost<'_> {
+impl table_formatting_context::TableTree for TreeBuilderHost<'_> {
     fn first_child(&self, node: LayoutNode) -> LayoutNode {
         TreeBuilderHost::first_child(self, node)
     }
@@ -3580,7 +3579,12 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
     table_roots_to_wrap
 }
 
-fn fixup_row(host: &TreeBuilderHost<'_>, row: LayoutNode, table_grid: &crate::layout::TableGrid, row_index: usize) {
+fn fixup_row(
+    host: &TreeBuilderHost<'_>,
+    row: LayoutNode,
+    table_grid: &table_formatting_context::TableGrid,
+    row_index: usize,
+) {
     for column_index in 0..table_grid.column_count {
         if table_grid.occupancy.contains(&(column_index, row_index)) {
             continue;
@@ -3598,7 +3602,7 @@ fn missing_cells_fixup(host: &TreeBuilderHost<'_>, table_roots: &[LayoutNode]) {
     // cells to fill all the columns of the table, when taking spans into account. New table-cell anonymous boxes must
     // be appended to its rows content until this condition is met.
     for &table_root in table_roots {
-        let grid = crate::layout::calculate_table_grid(host, table_root);
+        let grid = table_formatting_context::calculate_table_grid(host, table_root);
         for (row_index, row) in grid.rows.iter().enumerate() {
             fixup_row(host, row.box_, &grid, row_index);
         }

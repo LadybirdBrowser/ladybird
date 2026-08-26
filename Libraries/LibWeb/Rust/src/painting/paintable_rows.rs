@@ -6,7 +6,7 @@
 
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
-use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize};
+use crate::layout::{fragment_tree, used_values};
 use crate::painting::paintable_data::*;
 use crate::painting::record::cache::PaintCache;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -57,7 +57,7 @@ impl PaintableRowReset {
 #[derive(Default)]
 struct CommittedFragmentLinkSlot {
     layout_slot_generation: u8,
-    link: Option<Box<crate::layout::FragmentLink>>,
+    link: Option<Box<fragment_tree::FragmentLink>>,
 }
 
 #[derive(Default)]
@@ -339,13 +339,13 @@ where
     pub(crate) fn begin_paintable_row_recommit(&mut self, id: NodeSlotId) {
         {
             let data = self.paintable_data_mut(id);
-            data.offset = FfiCssPixelPoint::default();
-            data.content_size = FfiCssPixelSize::default();
+            data.offset = used_values::FfiCssPixelPoint::default();
+            data.content_size = used_values::FfiCssPixelSize::default();
             data.overflow_measured_this_commit = false;
             data.sticky_insets = FfiStickyInsets::default();
             data.has_sticky_insets = false;
-            data.local_padding_box_union = FfiCssPixelRect::default();
-            data.local_border_box_union = FfiCssPixelRect::default();
+            data.local_padding_box_union = used_values::FfiCssPixelRect::default();
+            data.local_border_box_union = used_values::FfiCssPixelRect::default();
             data.stacking_context = crate::painting::stacking_context::NO_STACKING_CONTEXT;
         }
         // The paint cache is deliberately kept; the commit diff marks rows whose committed
@@ -381,7 +381,7 @@ impl PaintableRowStore {
         &self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
-    ) -> Option<crate::layout::FragmentLink> {
+    ) -> Option<fragment_tree::FragmentLink> {
         self.committed_fragment_links
             .borrow()
             .get(layout_slot_index as usize)
@@ -393,7 +393,7 @@ impl PaintableRowStore {
         &self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
-        read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
+        read: impl FnOnce(Option<&fragment_tree::FragmentLink>) -> R,
     ) -> R {
         let slots = self.committed_fragment_links.borrow();
         read(
@@ -408,7 +408,7 @@ impl PaintableRowStore {
         &self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
-        link: crate::layout::FragmentLink,
+        link: fragment_tree::FragmentLink,
     ) {
         let mut slots = self.committed_fragment_links.borrow_mut();
         if slots.len() <= layout_slot_index as usize {
@@ -431,7 +431,7 @@ impl PaintableRowStore {
         &self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
-    ) -> Option<crate::layout::FragmentLink> {
+    ) -> Option<fragment_tree::FragmentLink> {
         self.committed_fragment_links
             .borrow_mut()
             .get_mut(layout_slot_index as usize)
@@ -475,7 +475,7 @@ impl LayoutNodeArena {
     pub(crate) fn with_committed_fragment_link<R>(
         &self,
         node: NodeSlotId,
-        read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
+        read: impl FnOnce(Option<&fragment_tree::FragmentLink>) -> R,
     ) -> R {
         debug_assert!(self.paintable_row_is_populated(node));
         let slots = self.paintable_rows.committed_fragment_links.borrow();
@@ -489,7 +489,7 @@ impl LayoutNodeArena {
     pub(crate) fn with_committed_fragment_link_during_layout<R>(
         &self,
         node: NodeSlotId,
-        read: impl FnOnce(Option<&crate::layout::FragmentLink>) -> R,
+        read: impl FnOnce(Option<&fragment_tree::FragmentLink>) -> R,
     ) -> R {
         self.paintable_rows
             .with_committed_fragment_link(node.slot_index(), node.generation(), read)

@@ -8,6 +8,9 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::{
+    formatting_context, grid_formatting_context, svg_formatting_context, table_formatting_context, used_values,
+};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
@@ -23,27 +26,24 @@ pub(crate) fn is_svg_paintable(kind: PaintableKind) -> bool {
     )
 }
 
-pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> crate::layout::FfiCssPixelPoint {
+pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
     let data = arena.paintable_data(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return data.offset;
     }
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(crate::layout::FfiCssPixelPoint::default, |link| link.committed_offset)
+        link.map_or_else(used_values::FfiCssPixelPoint::default, |link| link.committed_offset)
     })
 }
 
-pub(crate) fn committed_content_size(
-    arena: &impl PaintableRowsRead,
-    slot: NodeSlotId,
-) -> crate::layout::FfiCssPixelSize {
+pub(crate) fn committed_content_size(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
     let data = arena.paintable_data(slot);
     if data.kind == PaintableKind::InlinePaintable {
         return data.content_size;
     }
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(crate::layout::FfiCssPixelSize::default, |link| {
-            crate::layout::FfiCssPixelSize {
+        link.map_or_else(used_values::FfiCssPixelSize::default, |link| {
+            used_values::FfiCssPixelSize {
                 width: link.fragment.content_inline_size,
                 height: link.fragment.content_block_size,
             }
@@ -104,7 +104,7 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &LayoutNodeArena, s
 pub(crate) fn committed_grid_layout_data(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<crate::layout::GridLayoutData>> {
+) -> Option<std::rc::Rc<grid_formatting_context::GridLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.grid_layout_data.clone())
     })
@@ -113,7 +113,7 @@ pub(crate) fn committed_grid_layout_data(
 pub(crate) fn committed_flex_layout_data(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<crate::layout::FlexLayoutData>> {
+) -> Option<std::rc::Rc<formatting_context::FlexLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.flex_layout_data.clone())
     })
@@ -122,7 +122,7 @@ pub(crate) fn committed_flex_layout_data(
 pub(crate) fn committed_used_grid_tracks(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<crate::layout::OwnedUsedGridTracks>> {
+) -> Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.used_grid_tracks.clone())
     })
@@ -131,7 +131,7 @@ pub(crate) fn committed_used_grid_tracks(
 pub(crate) fn committed_collapsed_table_borders(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<crate::layout::OwnedCollapsedTableBorders>> {
+) -> Option<std::rc::Rc<table_formatting_context::OwnedCollapsedTableBorders>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.collapsed_table_borders.clone())
     })
@@ -156,16 +156,16 @@ pub(crate) fn committed_containing_line_box_index(arena: &LayoutNodeArena, slot:
 pub(crate) fn committed_svg_viewport_transform(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<crate::layout::FfiAffineTransform> {
+) -> Option<svg_formatting_context::FfiAffineTransform> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_viewport_transform))
 }
 
 pub(crate) fn committed_svg_viewport_size(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-) -> crate::layout::FfiCssPixelSize {
+) -> used_values::FfiCssPixelSize {
     if arena.paintable_data(slot).kind != PaintableKind::SVGSVGPaintable {
-        return crate::layout::FfiCssPixelSize::default();
+        return used_values::FfiCssPixelSize::default();
     }
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.svg_viewport_size)
@@ -176,7 +176,7 @@ pub(crate) fn committed_svg_viewport_size(
 pub(crate) fn committed_svg_view_box(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-) -> Option<crate::layout::FfiSvgViewBox> {
+) -> Option<svg_formatting_context::FfiSvgViewBox> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_view_box))
 }
 

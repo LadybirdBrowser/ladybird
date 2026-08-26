@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Alignment {
@@ -213,7 +214,6 @@ pub(crate) fn align_item(
     result
 }
 
-
 /// The pass-facing view of one stored track sizing function; sized breadths
 /// borrow the computed size from the style group payload, which outlives the
 /// pass.
@@ -348,10 +348,7 @@ pub(crate) struct OwnedUsedGridTracks {
 }
 
 impl OwnedUsedGridTracks {
-    pub(crate) fn with_ffi_views(
-        &self,
-        callback: impl FnOnce(&FfiUsedGridTrackList, &FfiUsedGridTrackList),
-    ) {
+    pub(crate) fn with_ffi_views(&self, callback: impl FnOnce(&FfiUsedGridTrackList, &FfiUsedGridTrackList)) {
         let column_lines = self.columns.ffi_lines();
         let row_lines = self.rows.ffi_lines();
         let columns = FfiUsedGridTrackList {
@@ -932,7 +929,7 @@ impl GridItem {
 }
 
 pub(crate) struct GridFormattingContext {
-    purpose: LayoutPurpose,
+    purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     grid_container: Node,
     derived_baselines_of_root_box: DerivedBaselines,
@@ -941,7 +938,7 @@ pub(crate) struct GridFormattingContext {
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     available_space: Option<AvailableSpace>,
     layout_input: Option<LayoutInput>,
     column_lines: Vec<Vec<LineName>>,
@@ -1016,7 +1013,7 @@ impl ParentGridData {
 /// Conservative superset of is_subgridded() for callers outside a live grid run
 /// (the fc-run-cache probe): a declared subgrid axis counts regardless of the
 /// parent-grid placement check only a run in progress can make.
-fn grid_template_declares_a_subgrid_axis(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> bool {
+pub(super) fn grid_template_declares_a_subgrid_axis(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> bool {
     let grid_style = ComputedValuesView::new(&callbacks.style_payloads(box_).groups).grid_values();
     grid_style.template_columns.is_subgrid || grid_style.template_rows.is_subgrid
 }
@@ -1033,7 +1030,8 @@ impl GridFormattingContext {
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: run.fragments.clone(),
             available_space: None,
             layout_input: None,
@@ -1064,7 +1062,8 @@ impl GridFormattingContext {
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self
+                .treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
             previous_line_data: None,
         }
@@ -1113,8 +1112,8 @@ impl GridFormattingContext {
         ComputedValuesView::new(&self.callbacks.style_payloads(node).groups).grid_values()
     }
 
-    fn sizing(&self) -> SizingContext {
-        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> sizing_context::SizingContext {
+        sizing_context::SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData> {
@@ -1468,7 +1467,6 @@ impl GridFormattingContext {
         }
     }
 
-
     fn clamp_area_to_subgrid(start: &mut i32, span: &mut usize, track_count: usize) {
         if track_count == 0 {
             return;
@@ -1551,7 +1549,7 @@ impl GridFormattingContext {
         }
 
         let style = self.style(self.grid_container);
-        let mut result = crate::layout::place_items_with_grid(
+        let mut result = place_items_with_grid(
             &inputs,
             self.column_lines.len().saturating_sub(1),
             self.row_lines.len().saturating_sub(1),
@@ -1743,7 +1741,12 @@ impl GridFormattingContext {
         }
     }
 
-    fn initialize_tracks(&mut self, grid_style: &'static GridValues, columns: &ExpandedTrackList, rows: &ExpandedTrackList) {
+    fn initialize_tracks(
+        &mut self,
+        grid_style: &'static GridValues,
+        columns: &ExpandedTrackList,
+        rows: &ExpandedTrackList,
+    ) {
         self.columns = self.initialize_tracks_for_axis(
             Axis::Column,
             grid_style,
@@ -1830,8 +1833,10 @@ impl GridFormattingContext {
     }
 
     fn store_interleaved_tracks(&mut self, axis: Axis, interleaved: &[Track]) {
-        let (tracks, gaps) =
-            axis.select((&mut self.columns, &mut self.column_gaps), (&mut self.rows, &mut self.row_gaps));
+        let (tracks, gaps) = axis.select(
+            (&mut self.columns, &mut self.column_gaps),
+            (&mut self.rows, &mut self.row_gaps),
+        );
         for (index, track) in tracks.iter_mut().enumerate() {
             *track = interleaved[Self::interleaved_index_of_track(index)];
         }
@@ -2331,7 +2336,10 @@ impl GridFormattingContext {
             return false;
         }
         let grid_style = self.grid_style(item.box_);
-        axis.select(grid_style.template_columns.is_subgrid, grid_style.template_rows.is_subgrid)
+        axis.select(
+            grid_style.template_columns.is_subgrid,
+            grid_style.template_rows.is_subgrid,
+        )
     }
 
     fn apply_subgrid_edge_extra_margins(&self, item: &mut GridItem, axis: Axis) {
@@ -2378,14 +2386,18 @@ impl GridFormattingContext {
     }
 
     fn subgrid_item_contributions_to_track_sizing(&self, subgrid: GridItem, axis: Axis) -> Vec<ItemContribution> {
-        let scratch = MeasurementState::create(self.callbacks);
+        let scratch = formatting_context::MeasurementState::create(self.callbacks);
         let live = self.used(subgrid);
         let scratch_root = scratch.create_used_values(subgrid.box_, ContainingBlockConstraints::default());
         live.mirror_box_metrics_and_size_constraints_into(&scratch_root);
-        scratch_root.has_definite_inline_size.set(live.has_definite_inline_size.get());
-        scratch_root.has_definite_block_size.set(live.has_definite_block_size.get());
+        scratch_root
+            .has_definite_inline_size
+            .set(live.has_definite_inline_size.get());
+        scratch_root
+            .has_definite_block_size
+            .set(live.has_definite_block_size.get());
         let scratch_run = FormattingContextRun {
-            purpose: LayoutPurpose::Measurement,
+            purpose: formatting_context::LayoutPurpose::Measurement,
             records: std::rc::Rc::new(RunRecords::new(self.callbacks.arena, subgrid.box_, scratch_root)),
             box_: subgrid.box_,
             layout_mode: LayoutMode::IntrinsicSizing,
@@ -2400,7 +2412,11 @@ impl GridFormattingContext {
         if !axis.is_column() && live.has_definite_inline_size() {
             available.inline_size = AvailableSize::definite(live.content_inline_size.get());
         }
-        let input = LayoutInput::new(available, self.track_sizing_constraints(), ParticipationInParentFormattingContext::Item);
+        let input = LayoutInput::new(
+            available,
+            self.track_sizing_constraints(),
+            ParticipationInParentFormattingContext::Item,
+        );
         context.reset_for_run(input);
         let grid_style = context.grid_style(context.grid_container);
         context.cache_subgrid_axes(grid_style);
@@ -2422,7 +2438,8 @@ impl GridFormattingContext {
         context.items = items;
 
         let mut contributions = context.item_contributions_to_track_sizing(axis);
-        let interleaved_index_offset_in_parent = Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
+        let interleaved_index_offset_in_parent =
+            Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
         for contribution in &mut contributions {
             for index in &mut contribution.spanned_tracks {
                 *index += interleaved_index_offset_in_parent;
@@ -2468,7 +2485,10 @@ impl GridFormattingContext {
         let contributions = self.item_contributions_to_track_sizing(axis);
         let style = self.style(self.grid_container);
         let distribution_stretches = axis.select(
-            matches!(style.justify_content(), justify_content::NORMAL | justify_content::STRETCH),
+            matches!(
+                style.justify_content(),
+                justify_content::NORMAL | justify_content::STRETCH
+            ),
             matches!(style.align_content(), align_content::NORMAL | align_content::STRETCH),
         );
         run_track_sizing(
@@ -2610,7 +2630,7 @@ impl GridFormattingContext {
             available,
             constraints,
             Some(containing_for_wrapper),
-            crate::layout::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto,
+            formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto,
         );
         let wrapper_style = self.style(item.box_);
         let table_box = self.sizing().table_box_inside_wrapper(item.box_);
@@ -2803,12 +2823,8 @@ impl GridFormattingContext {
                 //     grid container's own definiteness.
                 containing - self.item_margin_box_start(item, axis) - self.item_margin_box_end(item, axis)
             } else if preferred.is_auto() || preferred.is_fit_content() {
-                self.sizing().calculate_fit_content_size(
-                    item.box_,
-                    axis.sizing_axis(),
-                    available,
-                    constraints,
-                )
+                self.sizing()
+                    .calculate_fit_content_size(item.box_, axis.sizing_axis(), available, constraints)
             } else {
                 self.sizing().calculate_inner_size_for_property(
                     item.box_,
@@ -2976,15 +2992,15 @@ impl GridFormattingContext {
         self.resolve_item_sizes(Axis::Row);
     }
 
-    fn grid_area(&self, item: GridItem) -> LogicalRect {
+    fn grid_area(&self, item: GridItem) -> geometry::LogicalRect {
         let (inline_offset, inline_size) = self.axis_grid_area(Axis::Column, Some((item.column, item.column_span)));
         let (block_offset, block_size) = self.axis_grid_area(Axis::Row, Some((item.row, item.row_span)));
-        LogicalRect {
-            offset: LogicalOffset {
+        geometry::LogicalRect {
+            offset: geometry::LogicalOffset {
                 inline_offset,
                 block_offset,
             },
-            size: LogicalSize {
+            size: geometry::LogicalSize {
                 inline_size,
                 block_size,
             },
@@ -3045,8 +3061,10 @@ impl GridFormattingContext {
             (!(is_auto_positioned(start) && is_auto_positioned(end))).then_some((resolved.start, resolved.span)),
         );
 
-        let start_is_augmented = is_auto_positioned(start) && end.kind == crate::layout::ComputedGridPlacementKind::Line as u8;
-        let end_is_augmented = is_auto_positioned(end) && start.kind == crate::layout::ComputedGridPlacementKind::Line as u8;
+        let start_is_augmented =
+            is_auto_positioned(start) && end.kind == crate::layout::ComputedGridPlacementKind::Line as u8;
+        let end_is_augmented =
+            is_auto_positioned(end) && start.kind == crate::layout::ComputedGridPlacementKind::Line as u8;
         if !start_is_augmented && !end_is_augmented {
             return rect;
         }
@@ -3133,7 +3151,7 @@ impl GridFormattingContext {
                 sizing: RootSizingDirectives::default(),
                 participation: ParticipationInParentFormattingContext::Item,
             };
-            match crate::layout::layout_inside_child(
+            match formatting_context::layout_inside_child(
                 run,
                 None,
                 Some(self),
@@ -3142,8 +3160,8 @@ impl GridFormattingContext {
                 input,
                 false,
             ) {
-                crate::layout::ChildLayoutOutcome::Created(_) | crate::layout::ChildLayoutOutcome::Skipped => {}
-                crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+                ChildLayoutOutcome::Created(_) | ChildLayoutOutcome::Skipped => {}
+                ChildLayoutOutcome::ReenterCurrent => {
                     self.run(run, input);
                 }
             };
@@ -3153,11 +3171,11 @@ impl GridFormattingContext {
             };
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
-            crate::layout::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
-            crate::layout::place_child(&self.formatting_context_run(), item.box_, offset, None);
+            abspos_engine::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
+            formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
         self.derived_baselines_of_root_box =
-            crate::layout::derive_baselines(&self.records, &self.callbacks, self.grid_container, false);
+            formatting_context::derive_baselines(&self.records, &self.callbacks, self.grid_container, false);
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {
@@ -3195,9 +3213,7 @@ impl GridFormattingContext {
             columns: self.used_track_list_data(Axis::Column, self.is_subgridded(Axis::Column, grid_style)),
             rows: self.used_track_list_data(Axis::Row, self.is_subgridded(Axis::Row, grid_style)),
         };
-        self.container_used()
-            .rare_data_mut()
-            .used_grid_tracks = Some(std::rc::Rc::new(tracks));
+        self.container_used().rare_data_mut().used_grid_tracks = Some(std::rc::Rc::new(tracks));
     }
 
     fn save_devtools_data(&self, grid_style: &GridValues) {
@@ -3294,11 +3310,7 @@ impl GridFormattingContext {
                 column_end: area.column_end as u32 + 1,
             })
             .collect::<Vec<_>>();
-        let fragment = GridLayoutFragment {
-            areas,
-            columns,
-            rows,
-        };
+        let fragment = GridLayoutFragment { areas, columns, rows };
         let style = self.style(self.grid_container);
         let data = GridLayoutData {
             direction: style.direction(),
@@ -3306,9 +3318,7 @@ impl GridFormattingContext {
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),
             fragments: vec![fragment],
         };
-        self.container_used()
-            .rare_data_mut()
-            .grid_layout_data = Some(std::rc::Rc::new(data));
+        self.container_used().rare_data_mut().grid_layout_data = Some(std::rc::Rc::new(data));
     }
 
     pub(crate) fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
@@ -3417,8 +3427,8 @@ impl GridFormattingContext {
         while !child.is_invalid() {
             let next = self.callbacks.next_sibling(child);
             if self.facts(child).is_absolutely_positioned() {
-                let rect = StaticPositionRect {
-                    rect: LogicalRect::default(),
+                let rect = abspos_inputs::StaticPositionRect {
+                    rect: geometry::LogicalRect::default(),
                     inline_alignment: StaticPositionAlignment::Start,
                     block_alignment: StaticPositionAlignment::Start,
                     alignment_derives_from_own_computed_values: false,
@@ -3427,7 +3437,7 @@ impl GridFormattingContext {
                 // static position for the grid's own abspos children.
                 let containing_block_info = (self.callbacks.containing_block(child) == self.grid_container)
                     .then(|| self.abspos_containing_block_info(child));
-                crate::layout::register_contained_abspos_child(
+                formatting_context::register_contained_abspos_child(
                     &self.callbacks,
                     self.fragments.as_deref(),
                     self.grid_container,
@@ -3450,7 +3460,7 @@ impl GridFormattingContext {
                 // Registration-time axis modes read raw style: anchor()
                 // insets resolve later in layout_pending_child, and an
                 // anchor-bearing inset is never auto either way.
-                let (inline_axis_mode, block_axis_mode) = axis_modes(self.style(child));
+                let (inline_axis_mode, block_axis_mode) = abspos_engine::axis_modes(self.style(child));
                 info.inline_axis_mode = inline_axis_mode;
                 info.block_axis_mode = block_axis_mode;
                 fragments.register_abspos_containing_block_info(child, info);
@@ -3459,26 +3469,26 @@ impl GridFormattingContext {
     }
 
     // https://www.w3.org/TR/css-grid-2/#abspos-items
-    pub(crate) fn abspos_containing_block_info(&self, node: Node) -> AbsposContainingBlockInfo {
+    pub(crate) fn abspos_containing_block_info(&self, node: Node) -> abspos_inputs::AbsposContainingBlockInfo {
         let grid_style = self.grid_style(node);
         let name_raws = grid_style.names.raws();
         let (block_offset, block_size) =
             self.absolute_axis_grid_area(Axis::Row, grid_style.row_start, grid_style.row_end, name_raws);
         let (inline_offset, inline_size) =
             self.absolute_axis_grid_area(Axis::Column, grid_style.column_start, grid_style.column_end, name_raws);
-        AbsposContainingBlockInfo {
-            rect: LogicalRect {
-                offset: LogicalOffset {
+        abspos_inputs::AbsposContainingBlockInfo {
+            rect: geometry::LogicalRect {
+                offset: geometry::LogicalOffset {
                     inline_offset,
                     block_offset,
                 },
-                size: LogicalSize {
+                size: geometry::LogicalSize {
                     inline_size,
                     block_size,
                 },
             },
-            inline_axis_mode: AbsposAxisMode::InsetFromRect,
-            block_axis_mode: AbsposAxisMode::InsetFromRect,
+            inline_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
+            block_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
             inline_alignment: Some(abspos_alignment(self.item_alignment_for_node(node, Axis::Column))),
             block_alignment: Some(abspos_alignment(self.item_alignment_for_node(node, Axis::Row))),
             derives_from_own_computed_values: true,
@@ -3503,7 +3513,6 @@ fn abspos_alignment(alignment: Alignment) -> AbsposAlignment {
         Alignment::Unsafe => AbsposAlignment::Unsafe,
     }
 }
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SpaceDistributionPhase {
@@ -3980,13 +3989,13 @@ pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track], items: &[I
     // First, find the grid’s used flex fraction:
     // Otherwise, if the free space is an indefinite length:
     // The used flex fraction is the maximum of:
-    let mut flex_fraction = PixelFraction::zero();
+    let mut flex_fraction = formatting_context::PixelFraction::zero();
     // For each flexible track, if the flexible track’s flex factor is greater than one, the result of dividing
     // the track’s base size by its flex factor; otherwise, the track’s base size.
     for track in tracks.iter() {
         if let Some(factor) = track.flex_factor {
             let divisor = CssPixels::nearest_value_for(factor.max(1.0));
-            flex_fraction = flex_fraction.max(PixelFraction::new(track.base_size, divisor));
+            flex_fraction = flex_fraction.max(formatting_context::PixelFraction::new(track.base_size, divisor));
         }
     }
     // For each grid item that crosses a flexible track, the result of finding the size of an fr using all the
@@ -4101,7 +4110,7 @@ pub(crate) fn run_track_sizing<MaximumSize>(
             // Otherwise, if the free space is a definite length:
             // The used flex fraction is the result of finding the size of an fr using all of the grid tracks and a space
             // to fill of the available grid space.
-            crate::layout::expand_flexible_tracks(tracks, available_size - gap_size);
+            expand_flexible_tracks(tracks, available_size - gap_size);
         // If the free space is zero or if sizing the grid container under a min-content constraint:
         // The used flex fraction is zero.
         } else if available != AvailableSize::MinContent {
@@ -4116,7 +4125,6 @@ pub(crate) fn run_track_sizing<MaximumSize>(
     // tracks have definite sizes, also apply align-content to find the final effective size of any gaps
     // spanned by such items; otherwise ignore the effects of track alignment in this estimation.
 }
-
 
 pub(crate) const REPEAT_AUTO_FIT: u8 = 0;
 const REPEAT_AUTO_FILL: u8 = 1;
@@ -4265,7 +4273,9 @@ fn expand_standalone_list(
         kind if kind == ComputedGridTrackEntryKind::LineNames as u8 => {
             pending_names.extend(source.names(entry));
         }
-        kind if kind == ComputedGridTrackEntryKind::TrackSize as u8 || kind == ComputedGridTrackEntryKind::MinMax as u8 => {
+        kind if kind == ComputedGridTrackEntryKind::TrackSize as u8
+            || kind == ComputedGridTrackEntryKind::MinMax as u8 =>
+        {
             lines.push(std::mem::take(pending_names));
             tracks.push(definition_for(entry, inherited_auto_fit, inherited_auto_repeat));
         }
@@ -4517,7 +4527,6 @@ pub(crate) fn nth_named_line(lines: &[Vec<LineName>], name_raw: usize, nth_line:
     None
 }
 
-
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum TrackSizingFunction {
     Auto,
@@ -4746,7 +4755,7 @@ pub(crate) fn initialize_track_sizes(tracks: &mut [Track], available: AvailableS
     has_flexible_tracks
 }
 
-pub(crate) fn find_fr_size(tracks: &[Track], space_to_fill: CssPixels) -> PixelFraction {
+pub(crate) fn find_fr_size(tracks: &[Track], space_to_fill: CssPixels) -> formatting_context::PixelFraction {
     // https://www.w3.org/TR/css-grid-2/#algo-find-fr-size
     let mut inflexible = vec![false; tracks.len()];
     loop {
@@ -4773,7 +4782,7 @@ pub(crate) fn find_fr_size(tracks: &[Track], space_to_fill: CssPixels) -> PixelF
             flex_factor_sum = CssPixels::from_integer(1);
         }
         // 3. Let the hypothetical fr size be the leftover space divided by the flex factor sum.
-        let hypothetical_fr_size = PixelFraction::new(leftover_space, flex_factor_sum);
+        let hypothetical_fr_size = formatting_context::PixelFraction::new(leftover_space, flex_factor_sum);
 
         // 4. If the product of the hypothetical fr size and a flexible track’s flex factor is less than the track’s
         //    base size, restart this algorithm treating all such tracks as inflexible.

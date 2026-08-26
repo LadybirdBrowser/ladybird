@@ -4,15 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::*;
+
 pub(crate) struct SizingContext {
-    purpose: LayoutPurpose,
+    purpose: formatting_context::LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
 }
 
 impl SizingContext {
     pub(crate) fn new(
-        purpose: LayoutPurpose,
+        purpose: formatting_context::LayoutPurpose,
         records: std::rc::Rc<RunRecords>,
         callbacks: FfiLayoutFcCallbacks,
     ) -> Self {
@@ -23,11 +25,11 @@ impl SizingContext {
         }
     }
 
-    fn facts(&self, node: Node) -> NodeFacts<'_> {
+    pub(super) fn facts(&self, node: Node) -> NodeFacts<'_> {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    fn style(&self, node: Node) -> StyleValues<'static> {
+    pub(super) fn style(&self, node: Node) -> StyleValues<'static> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -87,8 +89,8 @@ impl SizingContext {
                                     || style.min_height().contains_percentage()
                                     || style.max_height().contains_percentage()
                                     || (style.height().is_auto()
-                                        && (has_flag(facts.data(), NodeFlag::IsFlexItem)
-                                            || has_flag(facts.data(), NodeFlag::IsGridItem))))
+                                        && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
+                                            || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))))
                             {
                                 return true;
                             }
@@ -107,7 +109,7 @@ impl SizingContext {
     fn content_block_size_from_aspect_ratio(&self, node: Node, content_inline_size: CssPixels) -> CssPixels {
         let style = self.style(node);
         let used = self.used(node);
-        content_block_size_from_aspect_ratio_values(
+        formatting_context::content_block_size_from_aspect_ratio_values(
             content_inline_size,
             self.facts(node).preferred_aspect_ratio().unwrap(),
             style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
@@ -121,7 +123,7 @@ impl SizingContext {
     fn content_inline_size_from_aspect_ratio(&self, node: Node, content_block_size: CssPixels) -> CssPixels {
         let style = self.style(node);
         let used = self.used(node);
-        content_inline_size_from_aspect_ratio_values(
+        formatting_context::content_inline_size_from_aspect_ratio_values(
             content_block_size,
             self.facts(node).preferred_aspect_ratio().unwrap(),
             style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
@@ -132,19 +134,21 @@ impl SizingContext {
         )
     }
 
-    fn auto_content_size(&self, node: Node) -> ReplacedIntrinsicSize {
+    fn auto_content_size(&self, node: Node) -> formatting_context::ReplacedIntrinsicSize {
         let facts = self.facts(node);
-        ReplacedIntrinsicSize {
+        formatting_context::ReplacedIntrinsicSize {
             width: facts.has_auto_content_width().then_some(facts.auto_content_width()),
             height: facts.has_auto_content_height().then_some(facts.auto_content_height()),
-            aspect_ratio: facts.has_auto_content_aspect_ratio().then_some(PixelFraction {
-                numerator: facts.auto_content_aspect_ratio_numerator(),
-                denominator: facts.auto_content_aspect_ratio_denominator(),
-            }),
+            aspect_ratio: facts
+                .has_auto_content_aspect_ratio()
+                .then_some(formatting_context::PixelFraction {
+                    numerator: facts.auto_content_aspect_ratio_numerator(),
+                    denominator: facts.auto_content_aspect_ratio_denominator(),
+                }),
         }
     }
 
-    fn intrinsic_size_for_replaced_sizing(&self, node: Node) -> ReplacedIntrinsicSize {
+    fn intrinsic_size_for_replaced_sizing(&self, node: Node) -> formatting_context::ReplacedIntrinsicSize {
         let auto_size = self.auto_content_size(node);
         if auto_size.width.is_some() || auto_size.height.is_some() || auto_size.aspect_ratio.is_some() {
             return auto_size;
@@ -158,7 +162,7 @@ impl SizingContext {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget
         // An input element whose type attribute is in one of the above states is an element with default preferred size,
         // and user agents are expected to apply the 'field-sizing' CSS property to the element.
-        ReplacedIntrinsicSize {
+        formatting_context::ReplacedIntrinsicSize {
             width: facts
                 .has_default_preferred_width()
                 .then_some(facts.default_preferred_width()),
@@ -172,14 +176,14 @@ impl SizingContext {
     fn max_content_size_for_replaced_element_without_natural_size(
         &self,
         node: Node,
-        natural_size: ReplacedIntrinsicSize,
-        dimension: SizeDimension,
-        constraints: ReplacedMaxContentSizeConstraints,
+        natural_size: formatting_context::ReplacedIntrinsicSize,
+        dimension: formatting_context::SizeDimension,
+        constraints: formatting_context::ReplacedMaxContentSizeConstraints,
     ) -> Option<CssPixels> {
         // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes
         // the intrinsic sizes of replaced elements without natural sizes are defined below:
         let facts = self.facts(node);
-        let is_inline_axis = dimension == SizeDimension::Inline;
+        let is_inline_axis = dimension == formatting_context::SizeDimension::Inline;
         if !facts.is_replaced_box()
             || if is_inline_axis {
                 natural_size.width.is_some()
@@ -366,17 +370,17 @@ impl SizingContext {
             if !available_space.inline_size.is_intrinsic_sizing_constraint() {
                 return self.calculate_stretch_fit_inline_size(node, available_space.inline_size);
             }
-            match cyclic_percentage_intrinsic_contribution(
+            match formatting_context::cyclic_percentage_intrinsic_contribution(
                 self.facts(node).is_replaced_box(),
                 style.width().contains_percentage(),
                 available_space.inline_size,
-                CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
             ) {
-                CyclicPercentageIntrinsicContribution::ResolveAsZero => {
+                formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
                     return CssPixels::default();
                 }
-                CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {}
-                CyclicPercentageIntrinsicContribution::NotCyclic => {
+                formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {}
+                formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {
                     return self.calculate_stretch_fit_inline_size(node, available_space.inline_size);
                 }
             }
@@ -861,7 +865,8 @@ impl SizingContext {
             || self.own_style_depends_on_percentage_block_size(node)
             || (used.has_descendant_that_depends_on_percentage_block_size.get()
                 && self.passes_percentage_block_size_through_to_children(node));
-        used.depends_on_percentage_block_size.set(depends_on_percentage_block_size);
+        used.depends_on_percentage_block_size
+            .set(depends_on_percentage_block_size);
         depends_on_percentage_block_size
     }
 
@@ -904,7 +909,12 @@ impl SizingContext {
         if let Some(record) = self.records.used_values_if_owned(node) {
             record.depends_on_percentage_block_size.set(true);
         }
-        propagate_percentage_block_size_dependency_to_containing_block(&self.records, &self.callbacks, node, true);
+        formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
+            &self.records,
+            &self.callbacks,
+            node,
+            true,
+        );
     }
 
     pub(crate) fn should_treat_inline_size_as_auto(&self, node: Node, available_space: AvailableSpace) -> bool {
@@ -915,15 +925,19 @@ impl SizingContext {
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         if size.contains_percentage() {
-            match cyclic_percentage_intrinsic_contribution(
+            match formatting_context::cyclic_percentage_intrinsic_contribution(
                 self.facts(node).is_replaced_box(),
                 true,
                 available_space.inline_size,
-                CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
             ) {
-                CyclicPercentageIntrinsicContribution::ResolveAsZero => return false,
-                CyclicPercentageIntrinsicContribution::TreatAsInitialValue => return true,
-                CyclicPercentageIntrinsicContribution::NotCyclic => {}
+                formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
+                    return false;
+                }
+                formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {
+                    return true;
+                }
+                formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {}
             }
             if available_space.inline_size == AvailableSize::Indefinite {
                 return true;
@@ -961,15 +975,19 @@ impl SizingContext {
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         if size.contains_percentage() {
-            match cyclic_percentage_intrinsic_contribution(
+            match formatting_context::cyclic_percentage_intrinsic_contribution(
                 facts.is_replaced_box(),
                 true,
                 available_space.block_size,
-                CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
             ) {
-                CyclicPercentageIntrinsicContribution::ResolveAsZero => return false,
-                CyclicPercentageIntrinsicContribution::TreatAsInitialValue => return true,
-                CyclicPercentageIntrinsicContribution::NotCyclic => {}
+                formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
+                    return false;
+                }
+                formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {
+                    return true;
+                }
+                formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {}
             }
             // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
             // If the height of the containing block is not specified explicitly (i.e., it depends on
@@ -1025,15 +1043,19 @@ impl SizingContext {
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         if size.contains_percentage() {
-            match cyclic_percentage_intrinsic_contribution(
+            match formatting_context::cyclic_percentage_intrinsic_contribution(
                 self.facts(node).is_replaced_box(),
                 true,
                 available,
-                CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
             ) {
-                CyclicPercentageIntrinsicContribution::ResolveAsZero => return false,
-                CyclicPercentageIntrinsicContribution::TreatAsInitialValue => return true,
-                CyclicPercentageIntrinsicContribution::NotCyclic => {}
+                formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
+                    return false;
+                }
+                formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {
+                    return true;
+                }
+                formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {}
             }
             if constraints.percentage_basis_inline_size.is_none() {
                 return true;
@@ -1252,7 +1274,9 @@ impl SizingContext {
             self.used(node).set_content_block_size(block_size);
             let block_size_is_automatic =
                 style.height().is_auto() || self.should_treat_block_size_as_auto(node, available_space, constraints);
-            if self.used(node).has_definite_inline_size() && facts.has_preferred_aspect_ratio() && block_size_is_automatic
+            if self.used(node).has_definite_inline_size()
+                && facts.has_preferred_aspect_ratio()
+                && block_size_is_automatic
             {
                 self.used(node).has_definite_block_size.set(true);
             }
@@ -1303,7 +1327,9 @@ impl SizingContext {
                 intrinsic_content_inline_size
                     .unwrap_or_else(|| self.calculate_max_content_inline_size(node, constraints))
             }
-        } else if style.width().contains_percentage() && !matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+        } else if style.width().contains_percentage()
+            && !matches!(available_space.inline_size, AvailableSize::Definite(_))
+        {
             CssPixels::default()
         } else {
             self.calculate_inner_inline_size(node, available_space.inline_size, style.width(), constraints)
@@ -1344,7 +1370,7 @@ impl SizingContext {
             self.intrinsic_inline_measurement_cache_get(
                 node,
                 IntrinsicSizeCacheKind::MaxContentInline,
-                cache_key(None, None, constraints),
+                formatting_context::cache_key(None, None, constraints),
             )?
             .min_content_inline_size_from_max_content_layout?
         } else {
@@ -1401,10 +1427,10 @@ impl SizingContext {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicBlockSizeMeasurement> {
-        let measurement = self
-            .callbacks
-            .arena()
-            .intrinsic_block_size_cache_get(self.callbacks.node_data(node), kind, key)?;
+        let measurement =
+            self.callbacks
+                .arena()
+                .intrinsic_block_size_cache_get(self.callbacks.node_data(node), kind, key)?;
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             measurement.depends_on_percentage_block_size,
@@ -1464,7 +1490,7 @@ impl SizingContext {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
         measurement_root_used: &UsedValues,
-        result: ChildLayoutResult,
+        result: formatting_context::ChildLayoutResult,
         available_block_size: AvailableSize,
     ) {
         let used = measurement_root_used;
@@ -1474,8 +1500,7 @@ impl SizingContext {
             key,
             IntrinsicInlineSizeMeasurement {
                 automatic_content_inline_size: result.automatic_content_inline_size,
-                min_content_inline_size_from_max_content_layout: result
-                    .min_content_inline_size_from_max_content_layout,
+                min_content_inline_size_from_max_content_layout: result.min_content_inline_size_from_max_content_layout,
                 available_block_size,
                 content_inline_size: used.content_inline_size.get(),
                 content_block_size: used.content_block_size.get(),
@@ -1513,7 +1538,7 @@ impl SizingContext {
         let measurement = self.intrinsic_inline_measurement_cache_get(
             node,
             kind,
-            cache_key(None, None, constraints),
+            formatting_context::cache_key(None, None, constraints),
         )?;
         if measurement.available_block_size != available_block_size {
             return None;
@@ -1530,7 +1555,7 @@ impl SizingContext {
             first: measurement.has_first_baseline.then_some(measurement.first_baseline),
             last: measurement.has_last_baseline.then_some(measurement.last_baseline),
         };
-        crate::layout::store_derived_baselines(&used, baselines);
+        formatting_context::store_derived_baselines(&used, baselines);
         Some((measurement.automatic_content_block_size, baselines))
     }
 
@@ -1629,8 +1654,8 @@ impl SizingContext {
             && let Some(fallback) = self.max_content_size_for_replaced_element_without_natural_size(
                 node,
                 auto_size,
-                SizeDimension::Inline,
-                ReplacedMaxContentSizeConstraints::default(),
+                formatting_context::SizeDimension::Inline,
+                formatting_context::ReplacedMaxContentSizeConstraints::default(),
             )
         {
             return fallback;
@@ -1642,7 +1667,7 @@ impl SizingContext {
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MinContentInline,
-            cache_key(
+            formatting_context::cache_key(
                 None,
                 self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
                 constraints,
@@ -1665,7 +1690,7 @@ impl SizingContext {
         self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MaxContentInline,
-            cache_key(
+            formatting_context::cache_key(
                 None,
                 self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
                 constraints,
@@ -1714,7 +1739,7 @@ impl SizingContext {
             // size to max-content sizing. Do not use this for min-content sizing: CSS Sizing's "Compressible Replaced
             // Elements" section considers non-button-like <input> controls replaced for the percentage-sized replaced
             // element rule, so their cyclic-percentage min-content contribution can still compress toward zero.
-            auto_size = ReplacedIntrinsicSize {
+            auto_size = formatting_context::ReplacedIntrinsicSize {
                 width: facts
                     .has_default_preferred_width()
                     .then_some(facts.default_preferred_width()),
@@ -1739,23 +1764,23 @@ impl SizingContext {
             block_size: AvailableSize::Indefinite,
         };
         let resolve_destination_inline_size =
-            |size: &ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
+            |size: &ComputedSize, property: formatting_context::CyclicPercentageSizeProperty| -> Option<CssPixels> {
                 if !size.is_length_percentage() {
                     return None;
                 }
-                match cyclic_percentage_intrinsic_contribution(
+                match formatting_context::cyclic_percentage_intrinsic_contribution(
                     facts.is_replaced_box(),
                     size.contains_percentage(),
                     max_content_available,
                     property,
                 ) {
-                    CyclicPercentageIntrinsicContribution::TreatAsInitialValue => None,
-                    CyclicPercentageIntrinsicContribution::ResolveAsZero => {
+                    formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => None,
+                    formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
                         let mut zero_constraints = constraints;
                         zero_constraints.percentage_basis_inline_size = Some(CssPixels::default());
                         Some(self.calculate_inner_inline_size(node, max_content_available, size, zero_constraints))
                     }
-                    CyclicPercentageIntrinsicContribution::NotCyclic => {
+                    formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {
                         if size.contains_percentage() && constraints.percentage_basis_inline_size.is_none() {
                             None
                         } else {
@@ -1764,33 +1789,39 @@ impl SizingContext {
                     }
                 }
             };
-        let resolve_block_size = |size: &ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
-            if !size.is_length_percentage() {
-                return None;
-            }
-            if !size.contains_percentage() || constraints.percentage_basis_block_size.is_some() {
-                return Some(self.calculate_inner_block_size(node, intrinsic_available_space, size, constraints));
-            }
-            match cyclic_percentage_intrinsic_contribution(
-                facts.is_replaced_box(),
-                size.contains_percentage(),
-                max_content_available,
-                property,
-            ) {
-                CyclicPercentageIntrinsicContribution::TreatAsInitialValue => None,
-                CyclicPercentageIntrinsicContribution::ResolveAsZero => {
-                    let mut zero_constraints = constraints;
-                    zero_constraints.percentage_basis_block_size = Some(CssPixels::default());
-                    Some(self.calculate_inner_block_size(node, intrinsic_available_space, size, zero_constraints))
+        let resolve_block_size =
+            |size: &ComputedSize, property: formatting_context::CyclicPercentageSizeProperty| -> Option<CssPixels> {
+                if !size.is_length_percentage() {
+                    return None;
                 }
-                CyclicPercentageIntrinsicContribution::NotCyclic => None,
-            }
-        };
+                if !size.contains_percentage() || constraints.percentage_basis_block_size.is_some() {
+                    return Some(self.calculate_inner_block_size(node, intrinsic_available_space, size, constraints));
+                }
+                match formatting_context::cyclic_percentage_intrinsic_contribution(
+                    facts.is_replaced_box(),
+                    size.contains_percentage(),
+                    max_content_available,
+                    property,
+                ) {
+                    formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => None,
+                    formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
+                        let mut zero_constraints = constraints;
+                        zero_constraints.percentage_basis_block_size = Some(CssPixels::default());
+                        Some(self.calculate_inner_block_size(node, intrinsic_available_space, size, zero_constraints))
+                    }
+                    formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => None,
+                }
+            };
 
-        let definite_minimum_inline_size =
-            resolve_destination_inline_size(style.min_width(), CyclicPercentageSizeProperty::MinSize);
-        let definite_minimum_block_size = resolve_block_size(style.min_height(), CyclicPercentageSizeProperty::MinSize);
-        let replaced_constraints = ReplacedMaxContentSizeConstraints {
+        let definite_minimum_inline_size = resolve_destination_inline_size(
+            style.min_width(),
+            formatting_context::CyclicPercentageSizeProperty::MinSize,
+        );
+        let definite_minimum_block_size = resolve_block_size(
+            style.min_height(),
+            formatting_context::CyclicPercentageSizeProperty::MinSize,
+        );
+        let replaced_constraints = formatting_context::ReplacedMaxContentSizeConstraints {
             definite_size_in_ratio_determining_axis: definite_block_size,
             minimum_inline_size: definite_minimum_inline_size,
             minimum_block_size: definite_minimum_block_size,
@@ -1798,13 +1829,15 @@ impl SizingContext {
         if let Some(max_content_inline_size) = self.max_content_size_for_replaced_element_without_natural_size(
             node,
             auto_size,
-            SizeDimension::Inline,
+            formatting_context::SizeDimension::Inline,
             replaced_constraints,
         ) {
             if definite_block_size.is_none()
                 && facts.has_preferred_aspect_ratio()
-                && let Some(definite_maximum_block_size) =
-                    resolve_block_size(style.max_height(), CyclicPercentageSizeProperty::PreferredOrMaxSize)
+                && let Some(definite_maximum_block_size) = resolve_block_size(
+                    style.max_height(),
+                    formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                )
             {
                 // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
                 // First, any definite minimum size is converted and transferred from the origin to destination axis.
@@ -1814,13 +1847,13 @@ impl SizingContext {
                 if let Some(value) = transferred_minimum {
                     transferred_minimum = resolve_destination_inline_size(
                         style.width(),
-                        CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                        formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
                     )
                     .map_or(Some(value), |resolved| Some(value.min(resolved)));
                     let value = transferred_minimum.unwrap();
                     transferred_minimum = resolve_destination_inline_size(
                         style.max_width(),
-                        CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                        formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
                     )
                     .map_or(Some(value), |resolved| Some(value.min(resolved)));
                 }
@@ -1830,14 +1863,16 @@ impl SizingContext {
                 // as well as by the transferred minimum, if any.
                 let mut transferred_maximum =
                     self.content_inline_size_from_aspect_ratio(node, definite_maximum_block_size);
-                if let Some(resolved) =
-                    resolve_destination_inline_size(style.width(), CyclicPercentageSizeProperty::PreferredOrMaxSize)
-                {
+                if let Some(resolved) = resolve_destination_inline_size(
+                    style.width(),
+                    formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                ) {
                     transferred_maximum = transferred_maximum.max(resolved);
                 }
-                if let Some(resolved) =
-                    resolve_destination_inline_size(style.min_width(), CyclicPercentageSizeProperty::MinSize)
-                {
+                if let Some(resolved) = resolve_destination_inline_size(
+                    style.min_width(),
+                    formatting_context::CyclicPercentageSizeProperty::MinSize,
+                ) {
                     transferred_maximum = transferred_maximum.max(resolved);
                 }
                 if let Some(transferred_minimum) = transferred_minimum {
@@ -1867,7 +1902,7 @@ impl SizingContext {
             IntrinsicSizeCacheKind::MaxContentInline => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
             _ => unreachable!("inline measurement cache kind must use the inline axis"),
         };
-        let key = cache_key(
+        let key = formatting_context::cache_key(
             None,
             self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
             constraints,
@@ -1877,7 +1912,7 @@ impl SizingContext {
         }
 
         self.callbacks.arena().note_intrinsic_measurement();
-        let measurement = MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         // NB: A parent layout can assign a definite block size that is not present in computed style,
         //     such as the stretched cross size of a flex item. Preserve it so descendant percentages
@@ -1931,13 +1966,13 @@ impl SizingContext {
             IntrinsicSizeCacheKind::MaxContentBlock => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
             _ => unreachable!("block size cache kind must use the block axis"),
         };
-        let key = cache_key(Some(inline_size), None, constraints);
+        let key = formatting_context::cache_key(Some(inline_size), None, constraints);
         if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
             return cached.size;
         }
 
         self.callbacks.arena().note_intrinsic_measurement();
-        let measurement = MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
         root.block_size_constraint.set(size_constraint);
         root.has_definite_block_size.set(false);
@@ -2011,8 +2046,8 @@ impl SizingContext {
         if let Some(fallback) = self.max_content_size_for_replaced_element_without_natural_size(
             node,
             auto_size,
-            SizeDimension::Block,
-            ReplacedMaxContentSizeConstraints::default(),
+            formatting_context::SizeDimension::Block,
+            formatting_context::ReplacedMaxContentSizeConstraints::default(),
         ) {
             return fallback;
         }
@@ -2030,14 +2065,18 @@ impl SizingContext {
         inner_available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
-        let measurement = MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let node_used = measurement.create_used_values(node, constraints);
         measurement
             .run_with_layout_mode(
                 node,
                 &node_used,
                 layout_mode,
-                LayoutInput::new(inner_available_space, constraints, ParticipationInParentFormattingContext::Root),
+                LayoutInput::new(
+                    inner_available_space,
+                    constraints,
+                    ParticipationInParentFormattingContext::Root,
+                ),
             )
             .automatic_content_block_size
     }
@@ -2138,7 +2177,7 @@ impl SizingContext {
         available_space: AvailableSpace,
         table_wrapper_constraints: ContainingBlockConstraints,
         table_wrapper_containing_block_inline_size: Option<CssPixels>,
-        table_wrapper_inline_size_mode: TableWrapperInlineSizeMode,
+        table_wrapper_inline_size_mode: formatting_context::TableWrapperInlineSizeMode,
     ) -> CssPixels {
         // CSS 2 says the table wrapper inline size is the border-edge inline size of the table grid box inside it.
 
@@ -2154,7 +2193,7 @@ impl SizingContext {
         let available_inline_size = containing_block_inline_size - margin_left - margin_right;
         let table_box = self.table_box_inside_wrapper(wrapper);
 
-        let measurement = MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
 
         // The table wrapper is invisible to percentage resolution, so the table box gets the
         // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
@@ -2171,9 +2210,13 @@ impl SizingContext {
             .padding_right
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
-        let table_run = crate::layout::FormattingContextRun {
-            purpose: LayoutPurpose::Measurement,
-            records: std::rc::Rc::new(RunRecords::new(measurement.callbacks().arena, table_box, table_used.clone())),
+        let table_run = FormattingContextRun {
+            purpose: formatting_context::LayoutPurpose::Measurement,
+            records: std::rc::Rc::new(RunRecords::new(
+                measurement.callbacks().arena,
+                table_box,
+                table_used.clone(),
+            )),
             box_: table_box,
             layout_mode: LayoutMode::IntrinsicSizing,
             callbacks: *measurement.callbacks(),
@@ -2182,15 +2225,20 @@ impl SizingContext {
             fragments: None,
             previous_line_data: None,
         };
-        let mut table = TableFormattingContext::new(&table_run);
+        let mut table = table_formatting_context::TableFormattingContext::new(&table_run);
         let table_available = table_used.available_inner_space_or_constraints_from(available_space);
         table.run_until_inline_size_calculation(
-            LayoutInput::new(table_available, table_constraints, ParticipationInParentFormattingContext::Root),
+            LayoutInput::new(
+                table_available,
+                table_constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
             true,
         );
 
         let table_used_inline_size = table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
-        if table_wrapper_inline_size_mode == TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
+        if table_wrapper_inline_size_mode
+            == formatting_context::TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
             && !table_style.width().is_auto()
         {
             return table_used_inline_size;
@@ -2223,7 +2271,7 @@ impl SizingContext {
         // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
         let available_block_size = containing_block_block_size - margin_top - margin_bottom;
 
-        let measurement = MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let wrapper_used = measurement.create_used_values(wrapper, table_wrapper_constraints);
         let wrapper_outputs = measurement.run_with_layout_mode(
             wrapper,
@@ -2341,7 +2389,7 @@ impl SizingContext {
         let style = self.style(node);
         if style.box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used(node);
-            return subtract_border_box_adjustment(
+            return formatting_context::subtract_border_box_adjustment(
                 value,
                 style.border_left_width(),
                 used.padding_left.get(),
@@ -2414,7 +2462,7 @@ impl SizingContext {
         let style = self.style(node);
         if style.box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used(node);
-            return subtract_border_box_adjustment(
+            return formatting_context::subtract_border_box_adjustment(
                 value,
                 style.border_top_width(),
                 used.padding_top.get(),

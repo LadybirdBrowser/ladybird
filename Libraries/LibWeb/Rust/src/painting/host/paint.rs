@@ -5,7 +5,8 @@
  */
 
 use super::*;
-use crate::layout::{OptionalCssPixelRect, OptionalCssPixels, OptionalFloatSize, OptionalIntRect};
+
+use crate::layout::used_values;
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use libgfx_rust::{
     AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
@@ -17,7 +18,7 @@ use std::ffi::c_void;
 pub struct FfiRecordingInputs {
     pub device_pixels_per_css_pixel: f64,
     pub device_viewport_rect: IntRect,
-    pub css_viewport_rect: crate::layout::FfiCssPixelRect,
+    pub css_viewport_rect: used_values::FfiCssPixelRect,
     pub should_show_line_box_borders: bool,
     pub should_paint_overlay: bool,
     pub is_recording_async_scrolling_metadata: bool,
@@ -29,9 +30,9 @@ pub struct FfiRecordingInputs {
     pub paint_viewport_scrollbars: bool,
     pub async_scrolling_enabled: bool,
     pub middle_button_scroll_active: bool,
-    pub middle_button_scroll_origin: crate::layout::FfiCssPixelPoint,
+    pub middle_button_scroll_origin: used_values::FfiCssPixelPoint,
     pub root_background_source: FfiRootBackgroundSource,
-    pub canvas_fill_rect: OptionalIntRect,
+    pub canvas_fill_rect: used_values::OptionalIntRect,
     pub canvas_color: Color,
     pub opaque_canvas: bool,
     pub bitmap_rect: IntRect,
@@ -49,7 +50,7 @@ pub struct FfiRecordingInputs {
     pub grid_overlay_count: usize,
     pub flex_overlays: *const FfiFlexOverlayInput,
     pub flex_overlay_count: usize,
-    pub caret_debug_rect: OptionalCssPixelRect,
+    pub caret_debug_rect: used_values::OptionalCssPixelRect,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -88,8 +89,8 @@ pub struct FfiOverlayLabelFacts {
 #[repr(C)]
 pub struct FfiImageIntrinsicFacts {
     pub is_paintable: bool,
-    pub natural_width: OptionalCssPixels,
-    pub natural_height: OptionalCssPixels,
+    pub natural_width: used_values::OptionalCssPixels,
+    pub natural_height: used_values::OptionalCssPixels,
     pub has_natural_aspect_ratio: bool,
     pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
     pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
@@ -125,8 +126,8 @@ pub enum FfiVideoRepresentation {
 #[repr(C)]
 pub struct FfiReplacedPaintFacts {
     pub has_decoded_image_data: bool,
-    pub natural_width: OptionalCssPixels,
-    pub natural_height: OptionalCssPixels,
+    pub natural_width: used_values::OptionalCssPixels,
+    pub natural_height: used_values::OptionalCssPixels,
     pub has_natural_aspect_ratio: bool,
     pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
     pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
@@ -160,7 +161,7 @@ pub struct FfiReplacedPaintFacts {
 #[repr(C)]
 pub struct FfiSvgImageFacts {
     pub has_decoded_image_data: bool,
-    pub natural_size: OptionalFloatSize,
+    pub natural_size: used_values::OptionalFloatSize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -264,7 +265,7 @@ pub struct FfiSelectionStyleFacts {
 #[repr(C)]
 pub struct FfiCursorFacts {
     pub paints: bool,
-    pub rect: crate::layout::FfiCssPixelRect,
+    pub rect: used_values::FfiCssPixelRect,
     pub color: Color,
 }
 
@@ -366,7 +367,7 @@ pub struct FfiPaintHostCallbacks {
         FfiLayerImageList,
         u32,
         FloatRect,
-        crate::layout::FfiCssPixelSize,
+        used_values::FfiCssPixelSize,
         u8,
         FloatSize,
     ) -> FfiImagePaintFacts,
@@ -514,7 +515,7 @@ impl FfiPaintHostCallbacks {
         list: FfiLayerImageList,
         computed_index: u32,
         dest: FloatRect,
-        css_tile_size: crate::layout::FfiCssPixelSize,
+        css_tile_size: used_values::FfiCssPixelSize,
         image_rendering: u8,
         accumulated_scale: libgfx_rust::FloatSize,
     ) -> FfiImagePaintFacts {

@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::abspos_inputs::AbsposLayoutInputs;
+use super::formatting_context::DerivedBaselines;
+use super::formatting_context::LayoutMode;
+use super::geometry::AvailableSize;
+use super::geometry::AvailableSpace;
+use super::used_values::SizeConstraint;
+use super::used_values::UsedValues;
 use crate::abort_on_panic;
-use crate::layout::AbsposLayoutInputs;
-use crate::layout::AvailableSize;
-use crate::layout::AvailableSpace;
 use crate::layout::CssPixels;
-use crate::layout::DerivedBaselines;
 use crate::layout::FfiReplacedContentFacts;
-use crate::layout::LayoutMode;
-use crate::layout::SizeConstraint;
-use crate::layout::UsedValues;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{DetachedShell, DetachedShells};
 use std::cell::Cell;
@@ -329,13 +329,13 @@ pub(crate) struct TextContent {
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
     pub(crate) may_require_bidi_processing: bool,
     pub(crate) dom_start_offset: usize,
-    grapheme_segmenter: std::cell::OnceCell<crate::layout::GraphemeSegmenter>,
+    grapheme_segmenter: std::cell::OnceCell<super::text_chunker::GraphemeSegmenter>,
 }
 
 impl TextContent {
-    pub(crate) fn grapheme_segmenter(&self) -> &crate::layout::GraphemeSegmenter {
+    pub(crate) fn grapheme_segmenter(&self) -> &super::text_chunker::GraphemeSegmenter {
         self.grapheme_segmenter
-            .get_or_init(|| crate::layout::GraphemeSegmenter::new(&self.text))
+            .get_or_init(|| super::text_chunker::GraphemeSegmenter::new(&self.text))
     }
 }
 
@@ -365,7 +365,7 @@ pub(crate) struct TextChunkCacheKey {
 struct TextChunkCacheEntry {
     key: TextChunkCacheKey,
     _retained_font_cascade_list: libgfx_rust::font::RetainedFontCascadeList,
-    chunks: Vec<crate::layout::TextChunk>,
+    chunks: Vec<super::text_chunker::TextChunk>,
 }
 
 #[derive(Default)]
@@ -441,7 +441,7 @@ pub(crate) struct LayoutNodeArena {
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
-    fc_run_cache_store: crate::layout::FcRunCacheArenaStore,
+    fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
@@ -467,7 +467,7 @@ impl LayoutNodeArena {
             raw_table_column_spans: HashMap::new(),
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
-            fc_run_cache_store: crate::layout::FcRunCacheArenaStore::default(),
+            fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
@@ -500,7 +500,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn fc_run_cache_store(&self) -> &crate::layout::FcRunCacheArenaStore {
+    pub(crate) fn fc_run_cache_store(&self) -> &super::fc_run_cache::FcRunCacheArenaStore {
         &self.fc_run_cache_store
     }
 
@@ -776,7 +776,7 @@ impl LayoutNodeArena {
     fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
         // SAFETY: data() validated that id names a live slot.
         let data = unsafe { &*self.data(id) };
-        if crate::layout::kind_is_block_container(data.kind)
+        if super::node_facts::kind_is_block_container(data.kind)
             && !crate::painting::fragment_ownership::node_is_fragmented_inline(self, id)
         {
             return true;
@@ -787,7 +787,7 @@ impl LayoutNodeArena {
                 return true;
             }
         }
-        crate::layout::kind_is_replaced_box(data.kind) && crate::layout::node_can_have_children(data)
+        super::node_facts::kind_is_replaced_box(data.kind) && super::node_facts::node_can_have_children(data)
     }
 
     fn nearest_ancestor_capable_of_forming_a_containing_block(&self, node: NodeSlotId) -> NodeSlotId {
@@ -820,7 +820,7 @@ impl LayoutNodeArena {
 
         // SAFETY: As above.
         let kind = unsafe { (&raw const (*data).kind).read() };
-        if crate::layout::kind_is_text(kind) {
+        if super::node_facts::kind_is_text(kind) {
             let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
             // SAFETY: As above.
             unsafe { (&raw mut (*data).containing_block).write(containing_block) };
@@ -890,7 +890,7 @@ impl LayoutNodeArena {
         let data = self.data(node);
         // SAFETY: data() validated that node names a live slot.
         let kind = unsafe { (&raw const (*data).kind).read() };
-        if !crate::layout::kind_is_box(kind) {
+        if !super::node_facts::kind_is_box(kind) {
             return;
         }
         self.set_node_flag(node, NodeFlag::AbsposDescendantEscapes, false);
@@ -906,7 +906,7 @@ impl LayoutNodeArena {
         while !ancestor.is_invalid() && ancestor != containing_block {
             // SAFETY: As above.
             let ancestor_kind = unsafe { (&raw const (*self.data(ancestor)).kind).read() };
-            if crate::layout::kind_is_box(ancestor_kind) {
+            if super::node_facts::kind_is_box(ancestor_kind) {
                 self.set_node_flag(ancestor, NodeFlag::AbsposDescendantEscapes, true);
             }
             // SAFETY: As above.
@@ -1313,7 +1313,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<crate::layout::FragmentLink> {
+    pub(crate) fn committed_fragment_link(&self, data: *const NodeData) -> Option<super::fragment_tree::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
             .paintable_rows
@@ -1330,7 +1330,7 @@ impl LayoutNodeArena {
         link
     }
 
-    pub(crate) fn set_committed_fragment_link(&self, data: *mut NodeData, link: crate::layout::FragmentLink) {
+    pub(crate) fn set_committed_fragment_link(&self, data: *mut NodeData, link: super::fragment_tree::FragmentLink) {
         let (index, metadata) = self.slot_for_data(data);
         self.paintable_rows
             .set_committed_fragment_link(index, metadata.generation, link);
@@ -1344,7 +1344,10 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn take_committed_fragment_link(&self, data: *mut NodeData) -> Option<crate::layout::FragmentLink> {
+    pub(crate) fn take_committed_fragment_link(
+        &self,
+        data: *mut NodeData,
+    ) -> Option<super::fragment_tree::FragmentLink> {
         let (index, metadata) = self.slot_for_data(data);
         let link = self
             .paintable_rows
@@ -1480,8 +1483,8 @@ impl LayoutNodeArena {
         &self,
         id: NodeSlotId,
         key: TextChunkCacheKey,
-        compute: impl FnOnce() -> Vec<crate::layout::TextChunk>,
-    ) -> &'static [crate::layout::TextChunk] {
+        compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
+    ) -> &'static [super::text_chunker::TextChunk] {
         // data() validates that id names a live slot with a matching generation.
         self.data(id);
         let index = id.slot_index() as usize;
@@ -1587,7 +1590,7 @@ impl LayoutNodeArena {
     // into a fail-safe miss.
     fn invalidate_at_and_above(&self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
         let epochs_enabled =
-            crate::layout::fc_run_cache_mode_from_environment() != crate::layout::FcRunCacheMode::Disabled;
+            super::fc_run_cache::fc_run_cache_mode_from_environment() != super::fc_run_cache::FcRunCacheMode::Disabled;
         let paintable_rows = self.paintable_rows();
         while !node.is_invalid() {
             let data = self.data(node);
@@ -1603,7 +1606,7 @@ impl LayoutNodeArena {
                 }
                 ((&raw const (*data).kind).read(), (&raw const (*data).parent).read())
             };
-            if crate::layout::kind_is_box(kind) {
+            if super::node_facts::kind_is_box(kind) {
                 paintable_rows.clear_cached_overflow_data(node);
             }
             node = parent;
@@ -1820,7 +1823,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
         self.node_data_if_live(id)
-            .is_some_and(|data| crate::layout::node_is_out_of_flow(data, self.node_style_if_live(id)))
+            .is_some_and(|data| super::node_facts::node_is_out_of_flow(data, self.node_style_if_live(id)))
     }
 
     pub(crate) fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
@@ -1872,7 +1875,7 @@ impl LayoutNodeArena {
         boundary: RenderedTextBoundary,
     ) -> usize {
         let shell = self.shell_if_live(id);
-        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(crate::layout::kind_is_text) {
+        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
             return offset;
         }
         // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
@@ -1892,7 +1895,7 @@ impl LayoutNodeArena {
         boundary: RenderedTextBoundary,
     ) -> usize {
         let shell = self.shell_if_live(id);
-        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(crate::layout::kind_is_text) {
+        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
             return offset;
         }
         // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
@@ -1995,7 +1998,7 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
 
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_fc_run_cache_epochs_enabled() -> bool {
-    crate::layout::fc_run_cache_mode_from_environment() != crate::layout::FcRunCacheMode::Disabled
+    super::fc_run_cache::fc_run_cache_mode_from_environment() != super::fc_run_cache::FcRunCacheMode::Disabled
 }
 
 #[unsafe(no_mangle)]
@@ -2212,13 +2215,11 @@ mod tests {
         IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK, TableCellMeasurement, TableCellMeasurementKey,
     };
     use crate::layout::node_data::{NodeFlag, NodeSlotId};
-    use crate::layout::{
-        AvailableSize, AvailableSpace, CssPixels, DerivedBaselines, Fragment, FragmentLink, LayoutMode, SizeConstraint,
-    };
+    use crate::layout::{CssPixels, fragment_tree, used_values};
 
-    fn test_fragment_link(node: NodeSlotId) -> FragmentLink {
-        FragmentLink {
-            fragment: std::rc::Rc::new(Fragment {
+    fn test_fragment_link(node: NodeSlotId) -> fragment_tree::FragmentLink {
+        fragment_tree::FragmentLink {
+            fragment: std::rc::Rc::new(fragment_tree::Fragment {
                 identity: 1,
                 node,
                 content_inline_size: CssPixels::default(),
@@ -2423,7 +2424,7 @@ mod tests {
         let inline_measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(192),
             min_content_inline_size_from_max_content_layout: Some(CssPixels::from_raw(96)),
-            available_block_size: AvailableSize::MaxContent,
+            available_block_size: crate::layout::layout_node_arena::AvailableSize::MaxContent,
             content_inline_size: CssPixels::from_raw(192),
             content_block_size: CssPixels::from_raw(256),
             automatic_content_block_size: CssPixels::from_raw(320),
@@ -2616,23 +2617,23 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate();
         let key = TableCellMeasurementKey {
-            layout_mode: LayoutMode::Normal,
-            available_space: AvailableSpace {
-                inline_size: AvailableSize::definite(CssPixels::from_raw(640)),
-                block_size: AvailableSize::Indefinite,
+            layout_mode: crate::layout::layout_node_arena::LayoutMode::Normal,
+            available_space: crate::layout::layout_node_arena::AvailableSpace {
+                inline_size: crate::layout::layout_node_arena::AvailableSize::definite(CssPixels::from_raw(640)),
+                block_size: crate::layout::layout_node_arena::AvailableSize::Indefinite,
             },
             content_inline_size: CssPixels::from_raw(640),
             content_block_size: CssPixels::default(),
             has_definite_inline_size: true,
             has_definite_block_size: false,
-            inline_size_constraint: SizeConstraint::None,
-            block_size_constraint: SizeConstraint::None,
+            inline_size_constraint: used_values::SizeConstraint::None,
+            block_size_constraint: used_values::SizeConstraint::None,
             uses_collapsing_borders_model: true,
             adopt_automatic_content_block_size: true,
         };
         let value = TableCellMeasurement {
             automatic_content_block_size: CssPixels::from_raw(320),
-            baselines: DerivedBaselines {
+            baselines: crate::layout::layout_node_arena::DerivedBaselines {
                 first: Some(CssPixels::from_raw(64)),
                 last: None,
             },

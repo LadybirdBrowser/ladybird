@@ -8,6 +8,7 @@ use super::{PaintPhase, PaintRecorder};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::{node_facts, used_values};
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::VisualContextIndex;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
@@ -554,7 +555,7 @@ impl PaintRecorder<'_> {
         );
     }
 
-    fn previously_captured_position(&self, paintable: NodeSlotId) -> crate::layout::FfiCssPixelPoint {
+    fn previously_captured_position(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
         let index = paintable.slot_index() as usize;
         if let Some(cell) = self.previously_captured_position_cache.get(index)
             && let Some((memoized_id, position)) = cell.get()
@@ -572,7 +573,7 @@ impl PaintRecorder<'_> {
         position
     }
 
-    fn current_absolute_position(&self, paintable: NodeSlotId) -> crate::layout::FfiCssPixelPoint {
+    fn current_absolute_position(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
         let index = paintable.slot_index() as usize;
         if let Some(cell) = self.absolute_position_cache.get(index)
             && let Some((memoized_id, position)) = cell.get()
@@ -580,7 +581,7 @@ impl PaintRecorder<'_> {
         {
             return position;
         }
-        let position: crate::layout::FfiCssPixelPoint =
+        let position: used_values::FfiCssPixelPoint =
             crate::painting::paintable_geometry::absolute_position(self.layout_arena, paintable).into();
         if let Some(cell) = self.absolute_position_cache.get(index) {
             cell.set(Some((paintable, position)));
@@ -633,9 +634,7 @@ impl PaintRecorder<'_> {
         let kind = self.data(svg_box).kind;
         if kind != PaintableKind::SVGSVGPaintable
             && !crate::painting::paintable_geometry::is_svg_paintable(kind)
-            && self
-                .layout_kind(svg_box)
-                .is_some_and(crate::layout::kind_is_replaced_box)
+            && self.layout_kind(svg_box).is_some_and(node_facts::kind_is_replaced_box)
         {
             crate::painting::record::paint::paint(self, svg_box, PaintPhase::Background);
         }
