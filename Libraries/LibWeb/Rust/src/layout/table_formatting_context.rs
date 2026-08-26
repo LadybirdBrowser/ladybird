@@ -681,7 +681,7 @@ fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
 pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> TableGrid {
     let mut cells = Vec::new();
     let mut rows = Vec::new();
-    let mut occupancy = HashSet::new();
+    let mut occupancy = HashSet::default();
     let mut column_count = 0usize;
     let mut row_count = 0usize;
     let mut current_row = 0usize;

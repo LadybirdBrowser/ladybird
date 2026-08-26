@@ -582,7 +582,7 @@ pub(crate) struct OccupationGrid {
 impl OccupationGrid {
     pub(crate) fn new(column_count: usize, row_count: usize) -> Self {
         Self {
-            occupied: HashSet::new(),
+            occupied: HashSet::default(),
             min_column_index: 0,
             max_column_index: column_count.saturating_sub(1) as i32,
             min_row_index: 0,

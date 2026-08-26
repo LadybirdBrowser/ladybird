@@ -165,7 +165,7 @@ impl FcRunCacheEntry {
                 // Commit stops at the reused root, so descendant fragments and nested reuse markers never
                 // enter its scopes. Only payloads that escape the run still have to reach the parent.
                 scoped_descendants: Vec::new(),
-                reused_subtree_roots: std::collections::HashSet::new(),
+                reused_subtree_roots: HashSet::default(),
                 propagated_pending_abspos: root.propagated_pending_abspos.clone(),
                 propagated_anchor_candidates: root.propagated_anchor_candidates.clone(),
                 propagated_inline_containing_block_rects: root.propagated_inline_containing_block_rects.clone(),

@@ -771,7 +771,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // calculations that could change that.
         // This is particularly important since we take references to the items stored in flex_items
         // later, whose addresses won't be stable if we added or removed any items.
-        let mut buckets: HashMap<i32, Vec<FlexItem>> = HashMap::new();
+        let mut buckets: HashMap<i32, Vec<FlexItem>> = HashMap::default();
         let mut child = self.callbacks.first_child(self.flex_container);
         while !child.is_invalid() {
             let next = self.callbacks.next_sibling(child);

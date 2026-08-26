@@ -349,7 +349,7 @@ fn link_fragment(fragment: std::rc::Rc<Fragment>, placement: PlacementData) -> F
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
-    pub(crate) reused_subtree_roots: std::collections::HashSet<u32>,
+    pub(crate) reused_subtree_roots: HashSet<u32>,
     pub(crate) propagated_pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
     pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
     pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
@@ -358,15 +358,12 @@ pub(crate) struct UnplacedRootFragment {
 
 pub(crate) struct CompletedPassFragments {
     pub(crate) roots: Vec<FragmentLink>,
-    pub(crate) reused_subtree_roots: std::collections::HashSet<u32>,
+    pub(crate) reused_subtree_roots: HashSet<u32>,
 }
 
 impl CompletedPassFragments {
-    pub(crate) fn links_by_slot(&self) -> std::collections::HashMap<u32, &FragmentLink> {
-        fn insert_links<'tree>(
-            links: &'tree [FragmentLink],
-            links_by_slot: &mut std::collections::HashMap<u32, &'tree FragmentLink>,
-        ) {
+    pub(crate) fn links_by_slot(&self) -> HashMap<u32, &FragmentLink> {
+        fn insert_links<'tree>(links: &'tree [FragmentLink], links_by_slot: &mut HashMap<u32, &'tree FragmentLink>) {
             for link in links {
                 let previous = links_by_slot.insert(link.fragment.node.slot_index(), link);
                 assert!(
@@ -377,7 +374,7 @@ impl CompletedPassFragments {
                 insert_links(&link.fragment.children, links_by_slot);
             }
         }
-        let mut links_by_slot = std::collections::HashMap::new();
+        let mut links_by_slot = HashMap::default();
         insert_links(&self.roots, &mut links_by_slot);
         links_by_slot
     }
@@ -416,16 +413,16 @@ pub(crate) struct RunFragmentBuilder {
 
 #[derive(Default)]
 struct RunFragmentBuilderInner {
-    pending_fragments: std::collections::HashMap<u32, PendingFragment>,
+    pending_fragments: HashMap<u32, PendingFragment>,
     #[cfg(debug_assertions)]
-    placed_slots: std::collections::HashSet<u32>,
-    child_roots_awaiting_placement: std::collections::HashMap<u32, UnplacedRootFragment>,
+    placed_slots: HashSet<u32>,
+    child_roots_awaiting_placement: HashMap<u32, UnplacedRootFragment>,
     pending_abspos_at_root: Vec<abspos_inputs::PendingAbsposChild>,
     anchor_candidates_at_root: Vec<AnchorCandidate>,
     inline_containing_block_rects_at_root: Vec<InlineContainingBlockRect>,
     abspos_containing_block_info_contributions: Vec<AbsposContainingBlockInfoContribution>,
     top_scope_links: Vec<FragmentLink>,
-    reused_subtree_roots: std::collections::HashSet<u32>,
+    reused_subtree_roots: HashSet<u32>,
 }
 
 impl RunFragmentBuilderInner {
