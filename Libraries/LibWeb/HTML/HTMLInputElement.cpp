@@ -1749,7 +1749,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
     update_radio_button_group_registration();
-    if (auto* form = this->form())
+    if (auto* form = this->form(); form && (is_submit_button(old_state) || is_submit_button(new_state)))
         form->default_button_state_maybe_changed(*this, was_default);
     else
         CSS::Invalidation::invalidate_style_after_default_state_change(*this, was_default);
@@ -3368,10 +3368,15 @@ bool HTMLInputElement::is_button() const
 
 bool HTMLInputElement::is_submit_button() const
 {
+    return is_submit_button(type_state());
+}
+
+bool HTMLInputElement::is_submit_button(TypeAttributeState type_state)
+{
     // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit):concept-submit-button
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):concept-submit-button
-    return type_state() == TypeAttributeState::SubmitButton
-        || type_state() == TypeAttributeState::ImageButton;
+    return type_state == TypeAttributeState::SubmitButton
+        || type_state == TypeAttributeState::ImageButton;
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#text-(type=text)-state-and-search-state-(type=search)

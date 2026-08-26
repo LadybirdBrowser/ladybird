@@ -198,6 +198,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/forms.html#concept-submit-button
     virtual bool is_submit_button() const override;
+    static bool is_submit_button(TypeAttributeState);
 
     bool is_single_line() const;
 

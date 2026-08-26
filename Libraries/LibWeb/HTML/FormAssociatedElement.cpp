@@ -247,7 +247,7 @@ void FormAssociatedElement::form_node_was_inserted()
     // 1. If the form-associated element's parser inserted flag is set, then return.
     auto const* rare_data = form_associated_rare_data();
     if (rare_data && rare_data->parser_inserted) {
-        if (auto* form = this->form())
+        if (auto* form = this->form(); form && is_submit_button())
             form->default_button_state_maybe_changed();
         return;
     }
@@ -263,8 +263,6 @@ void FormAssociatedElement::form_node_was_removed()
     auto* form = this->form();
     if (form && &form_associated_element_to_html_element().root() != &form->root())
         reset_form_owner();
-    else if (form)
-        form->default_button_state_maybe_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:attr-fae-form-2
@@ -274,7 +272,7 @@ void FormAssociatedElement::form_node_was_moved()
     auto* form = this->form();
     if (form && &form_associated_element_to_html_element().root() != &form->root())
         reset_form_owner();
-    else if (form)
+    else if (form && is_submit_button())
         form->default_button_state_maybe_changed();
 }
 
@@ -331,7 +329,8 @@ void FormAssociatedElement::reset_form_owner()
     if (auto* form = this->form(); form
         && (!is_listed() || !html_element.has_attribute(HTML::AttributeNames::form))
         && html_element.first_ancestor_of_type<HTMLFormElement>() == form) {
-        form->default_button_state_maybe_changed();
+        if (is_submit_button())
+            form->default_button_state_maybe_changed();
         return;
     }
 
@@ -371,10 +370,12 @@ void FormAssociatedElement::reset_form_owner()
     if (new_form != old_form.ptr() && html_element.is_form_associated_custom_element())
         html_element.enqueue_a_form_associated_callback_reaction(new_form);
 
-    if (old_form)
-        old_form->default_button_state_maybe_changed();
-    if (new_form && new_form != old_form.ptr())
-        new_form->default_button_state_maybe_changed();
+    if (is_submit_button()) {
+        if (old_form)
+            old_form->default_button_state_maybe_changed();
+        if (new_form && new_form != old_form.ptr())
+            new_form->default_button_state_maybe_changed();
+    }
 }
 
 void FormAssociatedElement::form_associated_element_was_inserted()
