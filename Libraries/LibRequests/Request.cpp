@@ -353,7 +353,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
 
     m_internal_stream_data->read_notifier->on_activation = [this]() {
         static constexpr size_t buffer_size = 256 * KiB;
-        static char buffer[buffer_size];
+        static thread_local char buffer[buffer_size];
 
         // If the request was stopped while this IPC was in-flight, just bail.
         if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
