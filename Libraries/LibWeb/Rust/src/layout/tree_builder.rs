@@ -83,7 +83,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
     pub layout_node_has_first_letter_style: unsafe extern "C" fn(*mut c_void) -> bool,
-    pub create_first_letter_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget),
+    pub create_first_letter_nodes:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget) -> FfiFirstLetterNodes,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut *mut c_void, usize),
     pub rendered_in_top_layer: unsafe extern "C" fn(*mut c_void) -> bool,
@@ -106,7 +107,8 @@ pub struct FfiDomTreeBuilderCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub principal_text_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiTextLayoutFacts,
-    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> NodeSlotId,
+    pub create_principal_text_layout:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalTextLayoutNodes,
     pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
@@ -126,6 +128,13 @@ pub struct FfiDomTreeBuilderCallbacks {
 pub struct FfiPrincipalNodeFrame {
     pub frame: *mut c_void,
     pub old_layout_node: NodeSlotId,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalTextLayoutNodes {
+    pub layout_node: NodeSlotId,
+    pub wrapped_text: NodeSlotId,
 }
 
 #[derive(Clone, Copy)]
@@ -1276,10 +1285,7 @@ unsafe fn update_principal_node_descendants(
                 {
                     let target = find_first_letter_in_block(host, layout_node);
                     if target.found {
-                        // SAFETY: `dom_node` is an Element and `target` identifies a live descendant text node.
-                        unsafe {
-                            (host.callbacks.create_first_letter_wrapper)(host.callbacks.builder, dom_node, target);
-                        }
+                        create_first_letter_boxes(host, dom_node, target);
                     }
                 }
             }
@@ -1424,7 +1430,16 @@ fn construct_principal_layout_node(
             // SAFETY: The frame and DOM text node remain live throughout construction.
             let created =
                 unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node, needs_style_wrapper) };
-            created_box = Some(host.layout().created(created));
+            let layout_host = host.layout();
+            if !created.wrapped_text.is_invalid() {
+                layout_host.set_children_are_inline(created.layout_node, true);
+                layout_host.attach_child(
+                    created.layout_node,
+                    layout_host.created(created.wrapped_text),
+                    NodeSlotId::INVALID,
+                );
+            }
+            created_box = Some(layout_host.created(created.layout_node));
         }
     } else {
         // SAFETY: The frame and DOM node remain live throughout the call.
@@ -1854,7 +1869,9 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     ) -> NodeSlotId,
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
-    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement),
+    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub create_nested_list_marker_content:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, *mut c_void) -> NodeSlotId,
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement),
     pub resolve_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
@@ -2022,8 +2039,24 @@ fn create_pseudo_element_with_frame(
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {
-        // SAFETY: The builder, frame, and element remain live throughout marker creation.
-        unsafe { (callbacks.create_nested_list_marker)(callbacks.builder, frame, element, pseudo_element) };
+        // SAFETY: The frame and element remain live throughout marker creation.
+        let marker = layout_host.created(unsafe { (callbacks.create_nested_list_marker)(frame, element) });
+        let marker_slot = marker.slot();
+        let first_child = layout_host.first_child(layout_node);
+        layout_host.attach_child(layout_node, marker, first_child);
+        // SAFETY: The frame, element, and marker remain live throughout content creation.
+        let content = unsafe {
+            (callbacks.create_nested_list_marker_content)(
+                frame,
+                element,
+                pseudo_element,
+                layout_host.shell(marker_slot),
+            )
+        };
+        if !content.is_invalid() {
+            layout_host.attach_child(marker_slot, layout_host.created(content), NodeSlotId::INVALID);
+        }
+        layout_host.set_children_are_inline(marker_slot, true);
     }
 
     // Resolve content after insertion because counter() and counters() items read the counters established by this
@@ -2107,6 +2140,7 @@ pub(crate) fn adjusted_table_display_for_replaced_element(
 #[repr(C)]
 pub struct FfiFirstLetterTarget {
     pub text_node: *mut c_void,
+    pub text_layout_node: NodeSlotId,
     pub letter_start: usize,
     pub letter_end: usize,
     pub found: bool,
@@ -2116,11 +2150,20 @@ impl FfiFirstLetterTarget {
     fn not_found() -> Self {
         Self {
             text_node: std::ptr::null_mut(),
+            text_layout_node: NodeSlotId::INVALID,
             letter_start: 0,
             letter_end: 0,
             found: false,
         }
     }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiFirstLetterNodes {
+    pub wrapper: NodeSlotId,
+    pub first_letter_slice: NodeSlotId,
+    pub remainder_slice: NodeSlotId,
 }
 
 #[derive(Clone, Copy)]
@@ -2930,6 +2973,7 @@ pub(crate) fn find_first_letter_in_text(
         if cursor >= code_units {
             return FfiFirstLetterTarget {
                 text_node: std::ptr::null_mut(),
+                text_layout_node: NodeSlotId::INVALID,
                 letter_start: match_start,
                 letter_end: cursor,
                 found: true,
@@ -2966,6 +3010,7 @@ pub(crate) fn find_first_letter_in_text(
 
         return FfiFirstLetterTarget {
             text_node: std::ptr::null_mut(),
+            text_layout_node: NodeSlotId::INVALID,
             letter_start: match_start,
             letter_end,
             found: true,
@@ -2987,8 +3032,32 @@ fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode
     let mut target = find_first_letter_in_text(&text_host, preserves_segment_breaks);
     if target.found {
         target.text_node = host.shell(node);
+        target.text_layout_node = node;
     }
     target
+}
+
+fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: *mut c_void, target: FfiFirstLetterTarget) {
+    let layout_host = host.layout();
+    // SAFETY: `element` is a live Element and `target` identifies a live descendant text node.
+    let nodes = unsafe { (host.callbacks.create_first_letter_nodes)(host.callbacks.builder, element, target) };
+    let first_letter_slice = layout_host.created(nodes.first_letter_slice);
+    let remainder_slice = layout_host.created(nodes.remainder_slice);
+    if nodes.wrapper.is_invalid() {
+        layout_host.release_owned(first_letter_slice);
+        layout_host.release_owned(remainder_slice);
+        return;
+    }
+    let wrapper = layout_host.created(nodes.wrapper);
+    let wrapper_slot = wrapper.slot();
+    let text_node = target.text_layout_node;
+    let parent = layout_host.parent(text_node);
+    assert!(!parent.is_invalid());
+    layout_host.set_children_are_inline(wrapper_slot, true);
+    layout_host.attach_child(wrapper_slot, first_letter_slice, NodeSlotId::INVALID);
+    layout_host.attach_child(parent, wrapper, text_node);
+    layout_host.attach_child(parent, remainder_slice, text_node);
+    layout_host.arena().detach_child(parent, text_node).release();
 }
 
 fn is_marker_content(data: &NodeData) -> bool {
