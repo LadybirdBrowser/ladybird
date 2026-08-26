@@ -1221,11 +1221,10 @@ FormAssociatedElement* HTMLFormElement::default_button() const
     FormAssociatedElement* default_button = nullptr;
 
     for (auto const& element : m_associated_elements) {
-        auto& form_associated_element = as<FormAssociatedElement>(*element);
-        if (!form_associated_element.is_submit_button())
+        if (!element->is_submit_button())
             continue;
         if (!default_button || element->is_before(default_button->form_associated_element_to_html_element()))
-            default_button = &form_associated_element;
+            default_button = element.ptr();
     }
 
     return default_button;
@@ -1234,8 +1233,7 @@ FormAssociatedElement* HTMLFormElement::default_button() const
 bool HTMLFormElement::has_invalid_associated_element() const
 {
     for (auto const& element : m_associated_elements) {
-        auto const& form_associated_element = as<FormAssociatedElement>(*element);
-        if (form_associated_element.is_candidate_for_constraint_validation() && !form_associated_element.satisfies_its_constraints())
+        if (element->is_candidate_for_constraint_validation() && !element->satisfies_its_constraints())
             return true;
     }
     return false;
