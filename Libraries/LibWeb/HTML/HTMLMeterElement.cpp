@@ -163,12 +163,6 @@ void HTMLMeterElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
         update_meter_value_element();
 }
 
-void HTMLMeterElement::inserted()
-{
-    Base::inserted();
-    create_shadow_tree_if_needed();
-}
-
 void HTMLMeterElement::create_shadow_tree_if_needed()
 {
     if (shadow_root())
