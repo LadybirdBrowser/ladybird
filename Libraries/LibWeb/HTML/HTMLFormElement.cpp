@@ -1125,7 +1125,8 @@ Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
     //    where the source is either id, name, or past, and, if the source is past, an age.
     struct SourcedName {
         Utf16FlyString name;
-        GC::Ptr<DOM::Element const> element;
+        // NB: The associated elements are in tree order, so this index stands in for the element's tree position.
+        size_t element_index;
         enum class Source {
             Id,
             Name,
@@ -1137,23 +1138,25 @@ Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
 
     // 2. For each listed element candidate whose form owner is the form element, with the exception of any
     //    input elements whose type attribute is in the Image Button state:
-    for (auto const& candidate : m_associated_elements_in_tree_order) {
+    for (size_t element_index = 0; element_index < m_associated_elements_in_tree_order.size(); ++element_index) {
+        auto const& candidate = m_associated_elements_in_tree_order[element_index];
         if (!is_form_control(*candidate, *this))
             continue;
 
         // 1. If candidate has an id attribute, add an entry to sourced names with that id attribute's value as the
         //    string, candidate as the element, and id as the source.
         if (candidate->id().has_value())
-            sourced_names.append(SourcedName { candidate->id().value(), candidate, SourcedName::Source::Id, {} });
+            sourced_names.append(SourcedName { candidate->id().value(), element_index, SourcedName::Source::Id, {} });
 
         // 2. If candidate has a name attribute, add an entry to sourced names with that name attribute's value as the
         //    string, candidate as the element, and name as the source.
         if (candidate->name().has_value())
-            sourced_names.append(SourcedName { candidate->name().value(), candidate, SourcedName::Source::Name, {} });
+            sourced_names.append(SourcedName { candidate->name().value(), element_index, SourcedName::Source::Name, {} });
     }
 
     // 3. For each img element candidate whose form owner is the form element:
-    for (auto const& candidate : m_associated_elements_in_tree_order) {
+    for (size_t element_index = 0; element_index < m_associated_elements_in_tree_order.size(); ++element_index) {
+        auto const& candidate = m_associated_elements_in_tree_order[element_index];
         if (!is<HTMLImageElement>(*candidate))
             continue;
 
@@ -1162,27 +1165,29 @@ Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
         // 1. If candidate has an id attribute, add an entry to sourced names with that id attribute's value as the
         //    string, candidate as the element, and id as the source.
         if (candidate->id().has_value())
-            sourced_names.append(SourcedName { candidate->id().value(), candidate, SourcedName::Source::Id, {} });
+            sourced_names.append(SourcedName { candidate->id().value(), element_index, SourcedName::Source::Id, {} });
 
         // 2. If candidate has a name attribute, add an entry to sourced names with that name attribute's value as the
         //    string, candidate as the element, and name as the source.
         if (candidate->name().has_value())
-            sourced_names.append(SourcedName { candidate->name().value(), candidate, SourcedName::Source::Name, {} });
+            sourced_names.append(SourcedName { candidate->name().value(), element_index, SourcedName::Source::Name, {} });
     }
 
     // 4. For each entry past entry in the past names map add an entry to sourced names with the past entry's name as
     //    the string, past entry's element as the element, past as the source, and the length of time past entry has
     //    been in the past names map as the age.
     auto const now = MonotonicTime::now();
-    for (auto const& entry : m_past_names_map)
-        sourced_names.append(SourcedName { entry.key, static_cast<DOM::Element const*>(entry.value.node.ptr()), SourcedName::Source::Past, now - entry.value.insertion_time });
+    for (auto const& entry : m_past_names_map) {
+        auto element_index = m_associated_elements_in_tree_order.find_first_index_if([&](auto const& element) { return element.ptr() == entry.value.node.ptr(); });
+        sourced_names.append(SourcedName { entry.key, element_index.value(), SourcedName::Source::Past, now - entry.value.insertion_time });
+    }
 
     // 5. Sort sourced names by tree order of the element entry of each tuple, sorting entries with the same element by
     //    putting entries whose source is id first, then entries whose source is name, and finally entries whose source
     //    is past, and sorting entries with the same element and source by their age, oldest first.
     quick_sort(sourced_names, [](auto const& lhs, auto const& rhs) -> bool {
-        if (lhs.element != rhs.element)
-            return lhs.element->is_before(*rhs.element);
+        if (lhs.element_index != rhs.element_index)
+            return lhs.element_index < rhs.element_index;
         if (lhs.source != rhs.source)
             return lhs.source < rhs.source;
         return lhs.age < rhs.age;
