@@ -652,11 +652,6 @@ void HTMLSelectElement::did_select_item(Optional<u32> const& id)
     send_select_update_notifications();
 }
 
-void HTMLSelectElement::form_associated_element_was_inserted()
-{
-    create_shadow_tree_if_needed();
-}
-
 void HTMLSelectElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const&)
 {
     if (name == HTML::AttributeNames::multiple) {
