@@ -49,6 +49,8 @@ public:
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const { return {}; }
 
+    ImageStyleValue const* selected_image_style_value() const;
+
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 };
 
