@@ -2152,7 +2152,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         m_client_state.hosts_committed_entry = !replaces_existing_client;
 
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
-        m_client_state.client = Application::the().launch_web_content_process(*this, root_navigable_id, initial_document_state_id).release_value_but_fixme_should_propagate_errors();
+        auto client_or_error = Application::the().launch_web_content_process(*this, root_navigable_id, initial_document_state_id);
+        if (client_or_error.is_error())
+            warnln("Failed to launch WebContent during process swap: {}", client_or_error.error());
+        m_client_state.client = client_or_error.release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
@@ -2508,8 +2511,10 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
     // with the close cannot be sent to a page that no longer exists.
     all_views().remove(m_view_id);
-    if (m_client_state.client)
+    if (m_client_state.client) {
         m_client_state.client->unregister_view(m_client_state.page_index);
+        m_client_state.client = nullptr;
+    }
 
     if (!window_handle.is_empty())
         Application::the().notify_webdriver_window_closed(window_handle);

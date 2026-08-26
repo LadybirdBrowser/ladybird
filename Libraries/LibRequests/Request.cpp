@@ -333,6 +333,9 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         auto has_received_all_reported_bytes = m_internal_stream_data->request_done && m_internal_stream_data->delivered_size >= m_internal_stream_data->total_size;
         if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof() || has_received_all_reported_bytes)) {
             m_internal_stream_data->user_finish_called = true;
+            m_internal_stream_data->read_notifier->close();
+            m_internal_stream_data->read_notifier = nullptr;
+            m_internal_stream_data->read_stream = nullptr;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
         }
     };
@@ -342,7 +345,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         static char buffer[buffer_size];
 
         // If the request was stopped while this IPC was in-flight, just bail.
-        if (!m_internal_stream_data)
+        if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
             return;
 
         NonnullRefPtr protector { *this };
@@ -369,7 +372,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
 
             m_internal_stream_data->delivered_size += read_bytes.size();
             m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
-            if (!m_internal_stream_data)
+            if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
                 return;
 
             if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {
