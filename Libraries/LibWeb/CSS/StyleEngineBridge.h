@@ -250,6 +250,7 @@ public:
     Optional<bool> selector_query_matches(void const* query, StyleNodeID node, StyleNodeID scope_root, StyleNodeID shadow_root);
     Optional<bool> selector_query_matches_without_document_root(void const* query, StyleNodeID node, StyleNodeID scope_root, StyleNodeID shadow_root);
     bool selector_query_all(void* query, StyleNodeID root, bool include_root, StyleNodeID scope_root, StyleNodeID shadow_root, bool has_document_root, Vector<StyleNodeID>& matches);
+    bool selector_query_first(void* query, StyleNodeID root, bool include_root, StyleNodeID scope_root, StyleNodeID shadow_root, bool has_document_root, StyleNodeID& matched);
 
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(size_t index, StringView& out_name, u64& out_value) const;

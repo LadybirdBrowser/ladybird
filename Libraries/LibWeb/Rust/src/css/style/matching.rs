@@ -16,6 +16,7 @@ pub(crate) struct SelectorQueryCache {
     attribute_values: Vec<Option<Vec<StyleAtomID>>>,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct SelectorQueryContext {
     pub(crate) root: StyleNodeID,
     pub(crate) include_root: bool,
@@ -171,6 +172,189 @@ impl StyleEngine {
         cache: &mut SelectorQueryCache,
         context: SelectorQueryContext,
     ) -> Result<Vec<StyleNodeID>, Incomplete> {
+        let matches = self.evaluate_selector_query(program, cache, context)?;
+        if matches.len() <= 1 {
+            return Ok(matches.into_iter().collect());
+        }
+
+        let match_count = matches.len();
+        let mut ordered_matches = Vec::with_capacity(match_count);
+        for node in self.tree.preorder(context.root) {
+            if matches.contains(&node) {
+                ordered_matches.push(node);
+                if ordered_matches.len() == match_count {
+                    break;
+                }
+            }
+        }
+        debug_assert_eq!(ordered_matches.len(), match_count);
+        Ok(ordered_matches)
+    }
+
+    /// The first match in tree order, or None. One engine call serves a whole querySelector:
+    /// candidate enumeration, evaluation, and tree ordering all stay on this side of the
+    /// boundary — instead of one boundary crossing per walked element.
+    ///
+    /// When every entry's subject carries posting-backed dispatch keys, only posted candidates
+    /// are evaluated, in tree order, stopping at the first hit. Otherwise, the subtree is walked
+    /// in tree order, and each element evaluated — still one boundary crossing for the query.
+    pub(crate) fn selector_query_first(
+        &mut self,
+        program: &SelectorProgram,
+        context: SelectorQueryContext,
+    ) -> Result<Option<StyleNodeID>, Incomplete> {
+        let share_sibling_geometry = program.has_positional_test();
+        if share_sibling_geometry && self.query_workspace_generation != self.selector_query_generation {
+            self.query_match_workspace = MatchEvaluationWorkspace::for_selector_query();
+            self.query_workspace_generation = self.selector_query_generation;
+        }
+        let candidates_are_known = self.ensure_sorted_query_candidates(program, context.root);
+
+        let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
+        if share_sibling_geometry {
+            evaluator = evaluator.with_match_workspace(&self.query_match_workspace, MatchEvaluationSide::Current);
+        }
+        if !context.has_document_root {
+            evaluator = evaluator.without_document_root();
+        }
+        if let Some(scope_root) = context.scope_root {
+            evaluator = evaluator.with_scope_root(scope_root);
+        }
+        if let Some(shadow_root) = context.shadow_root {
+            evaluator = evaluator.in_shadow_tree(shadow_root);
+        }
+
+        if candidates_are_known {
+            // With a single dispatch key, membership in its posting proved that feature on every
+            // candidate — but only for key kinds where the posting means exactly what the feature
+            // tests. An id or class key does: the posting holds the elements carrying that very
+            // atom. A tag-name key is folded while the feature test is case-sensitive for foreign
+            // elements, and an attribute-name key proves presence while the feature may compare a
+            // value — those must still be evaluated.
+            let proven_key = match &self.query_sorted_candidates_stamp {
+                Some(stamp)
+                    if stamp.keys.len() == 1 && matches!(stamp.keys[0], DispatchKey::Id(_) | DispatchKey::Class(_)) =>
+                {
+                    Some(stamp.keys[0])
+                }
+                _ => None,
+            };
+            for index in 0..self.query_sorted_candidates.len() {
+                let node = self.query_sorted_candidates[index];
+                if !context.include_root && node == context.root {
+                    continue;
+                }
+                for entry in program.entries() {
+                    if entry.pseudo_element.is_some() {
+                        continue;
+                    }
+                    let matched = match proven_key {
+                        Some(key) => {
+                            evaluator.matches_entry_after_dispatch(program, entry, key, node, &mut self.counters)?
+                        }
+                        None => evaluator.matches_entry(program, entry, node, &mut self.counters)?,
+                    };
+                    if matched {
+                        return Ok(Some(node));
+                    }
+                }
+            }
+            return Ok(None);
+        }
+
+        for node in self.tree.preorder(context.root) {
+            if !context.include_root && node == context.root {
+                continue;
+            }
+            for entry in program.entries() {
+                if entry.pseudo_element.is_none()
+                    && evaluator.matches_entry(program, entry, node, &mut self.counters)?
+                {
+                    return Ok(Some(node));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Refresh `query_sorted_candidates` for this program's subject keys under `root` — or report
+    /// that postings can't name every entry's candidates, and the caller has to walk.
+    fn ensure_sorted_query_candidates(&mut self, program: &SelectorProgram, root: StyleNodeID) -> bool {
+        let mut keys: Vec<DispatchKey> = Vec::new();
+        for (entry_index, entry) in program.entries().iter().enumerate() {
+            if entry.pseudo_element.is_some() {
+                continue;
+            }
+            let dispatch_keys = program.subject_dispatch_keys(entry_index);
+            if dispatch_keys.is_empty() {
+                return false;
+            }
+            for &key in dispatch_keys {
+                if !key.has_selector_posting() {
+                    return false;
+                }
+                keys.push(key);
+            }
+        }
+        if keys.is_empty() {
+            return false;
+        }
+        keys.sort_unstable();
+        keys.dedup();
+        let generation = self.selector_query_generation;
+        if let Some(stamp) = &self.query_sorted_candidates_stamp
+            && stamp.generation == generation
+            && stamp.root == root
+            && stamp.keys == keys
+        {
+            return true;
+        }
+        // The union of every key's posting is a superset of every entry's true matches. Missing
+        // means the facts haven't materialized that posting; the walk is the correct fallback —
+        // rather than forcing a materialization from the query path.
+        let mut candidates: Vec<StyleNodeID> = Vec::new();
+        for &key in &keys {
+            match self.facts.postings().lookup(key) {
+                Lookup::Known(posting) => candidates.extend(posting.candidates()),
+                Lookup::KnownAbsent => {}
+                Lookup::Missing(_) => return false,
+            }
+        }
+        self.ensure_query_preorder_ranks(root);
+        let ranks = &self.query_preorder_ranks;
+        // A candidate without a rank lies outside the queried subtree.
+        let mut ranked: Vec<(u32, StyleNodeID)> = candidates
+            .into_iter()
+            .filter_map(|node| ranks.get(&node).map(|&rank| (rank, node)))
+            .collect();
+        ranked.sort_unstable();
+        ranked.dedup();
+        self.query_sorted_candidates.clear();
+        self.query_sorted_candidates
+            .extend(ranked.into_iter().map(|(_, node)| node));
+        self.query_sorted_candidates_stamp = Some(QuerySortedCandidatesStamp { generation, root, keys });
+        true
+    }
+
+    fn ensure_query_preorder_ranks(&mut self, root: StyleNodeID) {
+        let generation = self.selector_query_generation;
+        if self.query_preorder_ranks_stamp == Some((generation, root)) {
+            return;
+        }
+        self.query_preorder_ranks.clear();
+        for (rank, node) in self.tree.preorder(root).enumerate() {
+            self.query_preorder_ranks
+                .insert(node, u32::try_from(rank).unwrap_or(u32::MAX));
+        }
+        self.query_preorder_ranks_stamp = Some((generation, root));
+    }
+
+    fn evaluate_selector_query(
+        &mut self,
+        program: &SelectorProgram,
+        cache: &mut SelectorQueryCache,
+        context: SelectorQueryContext,
+    ) -> Result<HashSet<StyleNodeID>, Incomplete> {
         let attribute_value_catalog_version = self.facts.attribute_value_catalog_version();
         if cache.attribute_value_catalog_version != attribute_value_catalog_version
             || cache.attribute_values.len() != program.entries().len()
@@ -198,8 +382,19 @@ impl StyleEngine {
             );
         }
 
+        // The same tree serves every candidate of this query, so sibling geometry and positional
+        // answers are shared across the candidate loop below - exactly as the per-node entry
+        // point shares them across the calls of one query.
+        let share_sibling_geometry = program.has_positional_test();
+        if share_sibling_geometry && self.query_workspace_generation != self.selector_query_generation {
+            self.query_match_workspace = MatchEvaluationWorkspace::for_selector_query();
+            self.query_workspace_generation = self.selector_query_generation;
+        }
         let mut matches = HashSet::default();
         let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
+        if share_sibling_geometry {
+            evaluator = evaluator.with_match_workspace(&self.query_match_workspace, MatchEvaluationSide::Current);
+        }
         if !context.has_document_root {
             evaluator = evaluator.without_document_root();
         }
@@ -271,22 +466,7 @@ impl StyleEngine {
                 }
             }
         }
-        if matches.len() <= 1 {
-            return Ok(matches.into_iter().collect());
-        }
-
-        let match_count = matches.len();
-        let mut ordered_matches = Vec::with_capacity(match_count);
-        for node in self.tree.preorder(context.root) {
-            if matches.contains(&node) {
-                ordered_matches.push(node);
-                if ordered_matches.len() == match_count {
-                    break;
-                }
-            }
-        }
-        debug_assert_eq!(ordered_matches.len(), match_count);
-        Ok(ordered_matches)
+        Ok(matches)
     }
 
     pub(super) fn materialize_cold_matching_batch(

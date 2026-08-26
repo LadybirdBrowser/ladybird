@@ -1682,6 +1682,49 @@ pub unsafe extern "C" fn style_engine_selector_query_all(
     })
 }
 
+/// # Safety
+/// `engine` and `query` must be live and belong to the same document. `matched` must be
+/// writable; it receives the first match in tree order — or zero, when nothing matches.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_selector_query_first(
+    engine: *mut c_void,
+    query: *mut c_void,
+    root: u32,
+    include_root: bool,
+    scope_root: u32,
+    shadow_root: u32,
+    has_document_root: bool,
+    matched: *mut u32,
+) -> bool {
+    abort_on_panic(|| {
+        let Some(root) = StyleNodeID::from_raw(root) else {
+            return false;
+        };
+        if query.is_null() || matched.is_null() {
+            return false;
+        }
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let query = unsafe { &mut *query.cast::<SelectorQuery>() };
+        let result = engine.selector_query_first(
+            &query.program,
+            SelectorQueryContext {
+                root,
+                include_root,
+                scope_root: StyleNodeID::from_raw(scope_root),
+                shadow_root: StyleNodeID::from_raw(shadow_root),
+                has_document_root,
+            },
+        );
+        let query_bytes = query.capacity_bytes();
+        query._memory.resize_required_to(&mut engine.memory, query_bytes);
+        let Ok(result) = result else {
+            return false;
+        };
+        unsafe { matched.write(result.map_or(0, |node| node.raw())) };
+        true
+    })
+}
+
 unsafe fn selector_query_matches_impl(
     engine: *mut c_void,
     query: *const c_void,
