@@ -729,14 +729,10 @@ Vector<GC::Ref<DOM::Element>> HTMLFormElement::get_submittable_elements()
 {
     Vector<GC::Ref<DOM::Element>> submittable_elements;
 
-    root().for_each_in_subtree([&](auto& node) {
-        if (auto* form_associated_element = as_if<FormAssociatedElement>(node)) {
-            if (form_associated_element->is_submittable() && form_associated_element->form() == this)
-                submittable_elements.append(form_associated_element->form_associated_element_to_html_element());
-        }
-
-        return TraversalDecision::Continue;
-    });
+    for (auto const& element : m_associated_elements_in_tree_order) {
+        if (element->is_submittable())
+            submittable_elements.append(element);
+    }
 
     return submittable_elements;
 }
