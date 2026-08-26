@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
@@ -578,40 +577,55 @@ NodeWithStyle::~NodeWithStyle()
 
 void NodeWithStyle::clear_image_observers()
 {
-    m_image_observers.clear();
+    m_image_observers = {};
 }
 
 void NodeWithStyle::rebuild_image_observers()
 {
-    auto add_observer_for = [&](CSS::AbstractImageStyleValue const* abstract_image, Vector<NonnullOwnPtr<ImageObserver>>& observers) {
+    auto observer_for = [&](CSS::AbstractImageStyleValue const* abstract_image) -> OwnPtr<ImageObserver> {
         if (!abstract_image)
-            return;
-        CSS::ImageStyleValue const* image_to_observe = nullptr;
-        if (abstract_image->is_image()) {
-            image_to_observe = &abstract_image->as_image();
-        } else if (abstract_image->is_image_set()) {
-            if (auto const* selected = abstract_image->as_image_set().selected_image(); selected && selected->is_image())
-                image_to_observe = &selected->as_image();
-        }
+            return nullptr;
+        auto const* image_to_observe = abstract_image->selected_image_style_value();
         if (!image_to_observe)
-            return;
-        observers.append(make<ImageObserver>(*this, *image_to_observe));
+            return nullptr;
+        return make<ImageObserver>(*this, *image_to_observe);
     };
 
-    Vector<NonnullOwnPtr<ImageObserver>> new_observers;
+    ImageObserverSlots new_observers;
     for (auto const& layer : background_layers())
-        add_observer_for(layer.background_image.ptr(), new_observers);
-    add_observer_for(list_style_image(), new_observers);
+        new_observers.background_layers.append(observer_for(layer.background_image.ptr()));
     for (auto const& layer : mask_layers())
-        add_observer_for(layer.background_image.ptr(), new_observers);
-    for (auto const& cursor_style_value : m_cursor_style_values) {
-        if (cursor_style_value)
-            add_observer_for(&cursor_style_value->image(), new_observers);
-    }
-    add_observer_for(border_image_source(), new_observers);
+        new_observers.mask_layers.append(observer_for(layer.background_image.ptr()));
+    for (auto const& cursor_style_value : m_cursor_style_values)
+        new_observers.cursors.append(cursor_style_value ? observer_for(&cursor_style_value->image()) : nullptr);
+    new_observers.border_image_source = observer_for(border_image().source.ptr());
+    new_observers.list_style_image = observer_for(list_style_image());
     // TODO: Observe other <image> accepting properties once we support them.
 
+    // Register the new observers before the old ones unregister so a shared resource is never dropped and refetched.
     m_image_observers = move(new_observers);
+}
+
+static NodeWithStyle::ImageObserver const* image_observer_at(Vector<OwnPtr<NodeWithStyle::ImageObserver>> const& observers, size_t index)
+{
+    if (index >= observers.size())
+        return nullptr;
+    return observers[index].ptr();
+}
+
+NodeWithStyle::ImageObserver const* NodeWithStyle::background_image_observer(size_t layer_index) const
+{
+    return image_observer_at(m_image_observers.background_layers, layer_index);
+}
+
+NodeWithStyle::ImageObserver const* NodeWithStyle::mask_image_observer(size_t layer_index) const
+{
+    return image_observer_at(m_image_observers.mask_layers, layer_index);
+}
+
+NodeWithStyle::ImageObserver const* NodeWithStyle::cursor_image_observer(size_t cursor_index) const
+{
+    return image_observer_at(m_image_observers.cursors, cursor_index);
 }
 
 }
@@ -657,7 +671,7 @@ void NodeWithStyle::attach_style_resources()
         load_image(layer.background_image.ptr());
     for (auto const& layer : mask_layers())
         load_image(layer.background_image.ptr());
-    load_image(border_image_source());
+    load_image(border_image().source.ptr());
     m_cursor_style_values.clear();
     m_cursor_style_values.ensure_capacity(cursor().size());
     for (auto const& cursor_data : cursor()) {

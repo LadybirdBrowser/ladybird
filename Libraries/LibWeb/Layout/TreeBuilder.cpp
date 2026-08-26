@@ -25,7 +25,6 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -336,7 +335,7 @@ public:
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
     {
         if (auto document = m_document.ptr()) {
-            if (auto const* image = selected_image_style_value())
+            if (auto const* image = m_image->selected_image_style_value())
                 return image->image_data(*document);
         }
         return nullptr;
@@ -392,21 +391,8 @@ private:
         : m_document(document)
         , m_image(move(image))
     {
-        if (auto const* image = selected_image_style_value())
+        if (auto const* image = m_image->selected_image_style_value())
             m_image_client = make<ImageClient>(*this, document, *image);
-    }
-
-    CSS::ImageStyleValue const* selected_image_style_value() const
-    {
-        if (m_image->is_image())
-            return &m_image->as_image();
-
-        if (m_image->is_image_set()) {
-            if (auto const* selected_image = m_image->as_image_set().selected_image(); selected_image && selected_image->is_image())
-                return &selected_image->as_image();
-        }
-
-        return nullptr;
     }
 
     GC::Weak<DOM::Document> m_document;

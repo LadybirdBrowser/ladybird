@@ -9,6 +9,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -422,6 +423,11 @@ public:
         NonnullRefPtr<CSS::ImageStyleValue const> m_image;
     };
 
+    ImageObserver const* background_image_observer(size_t layer_index) const;
+    ImageObserver const* mask_image_observer(size_t layer_index) const;
+    ImageObserver const* cursor_image_observer(size_t cursor_index) const;
+    ImageObserver const* border_image_source_observer() const { return m_image_observers.border_image_source.ptr(); }
+
     NonnullRefPtr<CSS::ComputedValues const> copy_computed_values() const;
     CSS::ComputedStyleRecordView computed_style_record_view() const;
     CSS::StyleRecordID style_record_identity() const { return m_style_record_identity; }
@@ -741,7 +747,14 @@ private:
     // unpins their records before this root is cleared. Every document destruction path goes
     // through that teardown.
     GC::Root<DOM::Document> m_style_record_owner;
-    Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
+    struct ImageObserverSlots {
+        Vector<OwnPtr<ImageObserver>> background_layers;
+        Vector<OwnPtr<ImageObserver>> mask_layers;
+        Vector<OwnPtr<ImageObserver>> cursors;
+        OwnPtr<ImageObserver> border_image_source;
+        OwnPtr<ImageObserver> list_style_image;
+    };
+    ImageObserverSlots m_image_observers;
     Vector<RefPtr<CSS::CursorStyleValue const>> m_cursor_style_values;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_background_layers;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_mask_layers;
