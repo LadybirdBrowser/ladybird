@@ -13,4 +13,9 @@ namespace Web::HTML::TagNames {
 ENUMERATE_HTML_TAGS
 #undef __ENUMERATE_HTML_TAG
 
+#define __ENUMERATE_HTML_TAG(name, tag) \
+    extern "C" WEB_API FlatPtr const ladybird_html_tag_name_##name = name.raw_identity();
+ENUMERATE_HTML_TAGS
+#undef __ENUMERATE_HTML_TAG
+
 }

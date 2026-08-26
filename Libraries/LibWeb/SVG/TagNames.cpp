@@ -13,4 +13,9 @@ namespace Web::SVG::TagNames {
 ENUMERATE_SVG_TAGS
 #undef __ENUMERATE_SVG_TAG
 
+#define __ENUMERATE_SVG_TAG(name, tag) \
+    extern "C" FlatPtr const ladybird_svg_tag_name_##name = name.raw_identity();
+ENUMERATE_SVG_TAGS
+#undef __ENUMERATE_SVG_TAG
+
 }

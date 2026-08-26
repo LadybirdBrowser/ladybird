@@ -283,6 +283,32 @@ impl Utf16FlyString {
     }
 }
 
+/// Returns AK's one-word representation for a short ASCII string.
+pub const fn utf16_short_string_raw(string: &str) -> Option<usize> {
+    let bytes = string.as_bytes();
+    if bytes.len() >= size_of::<usize>() {
+        return None;
+    }
+
+    let mut raw = (bytes.len() << SHORT_STRING_BYTE_COUNT_SHIFT) | SHORT_STRING_FLAG;
+    let mut index = 0;
+    while index < bytes.len() {
+        if !bytes[index].is_ascii() {
+            return None;
+        }
+        #[cfg(target_endian = "little")]
+        {
+            raw |= (bytes[index] as usize) << ((index + 1) * 8);
+        }
+        #[cfg(target_endian = "big")]
+        {
+            raw |= (bytes[index] as usize) << ((size_of::<usize>() - index - 1) * 8);
+        }
+        index += 1;
+    }
+    Some(raw)
+}
+
 impl PartialEq for Utf16String {
     fn eq(&self, other: &Self) -> bool {
         match (self.as_units(), other.as_units()) {

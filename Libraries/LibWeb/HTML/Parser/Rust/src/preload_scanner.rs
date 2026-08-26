@@ -5,7 +5,10 @@
  */
 
 use crate::decode_utf8_to_u32;
+use crate::known_names::attribute_name;
+use crate::known_names::tag_name;
 use crate::token::Attribute;
+use crate::token::KnownName;
 use crate::token::Token;
 use crate::token::TokenPayload;
 use crate::token::TokenType;
@@ -132,14 +135,14 @@ fn process_start_tag(
     foreign_depth: &mut u64,
     callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
 ) -> bool {
-    let tag_name = token.tag_name().as_bytes();
+    let tag_name = token.tag_name();
 
-    if tag_name == b"template" {
+    if *tag_name == tag_name!("template") {
         *template_depth = template_depth.saturating_add(1);
         return true;
     }
 
-    if tag_name == b"svg" || tag_name == b"math" {
+    if *tag_name == tag_name!("svg") || *tag_name == tag_name!("math") {
         *foreign_depth = foreign_depth.saturating_add(1);
         return true;
     }
@@ -152,26 +155,30 @@ fn process_start_tag(
         return true;
     };
 
-    match tag_name {
-        b"base" => process_base(attributes, callback),
-        b"script" => process_script(attributes, callback),
-        b"link" => process_link(attributes, callback),
-        b"img" => process_img(attributes, callback),
-        _ => true,
+    if *tag_name == tag_name!("base") {
+        process_base(attributes, callback)
+    } else if *tag_name == tag_name!("script") {
+        process_script(attributes, callback)
+    } else if *tag_name == tag_name!("link") {
+        process_link(attributes, callback)
+    } else if *tag_name == tag_name!("img") {
+        process_img(attributes, callback)
+    } else {
+        true
     }
 }
 
 fn process_end_tag(token: &Token, template_depth: &mut u64, foreign_depth: &mut u64) {
-    let tag_name = token.tag_name().as_bytes();
-    if tag_name == b"template" && *template_depth > 0 {
+    let tag_name = token.tag_name();
+    if *tag_name == tag_name!("template") && *template_depth > 0 {
         *template_depth -= 1;
-    } else if (tag_name == b"svg" || tag_name == b"math") && *foreign_depth > 0 {
+    } else if (*tag_name == tag_name!("svg") || *tag_name == tag_name!("math")) && *foreign_depth > 0 {
         *foreign_depth -= 1;
     }
 }
 
 fn process_base(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) -> bool {
-    let Some(href) = attribute_value(attributes, b"href") else {
+    let Some(href) = attribute_value(attributes, attribute_name!("href")) else {
         return true;
     };
     if href.is_empty() {
@@ -188,7 +195,7 @@ fn process_base(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrel
 }
 
 fn process_script(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) -> bool {
-    let Some(src) = attribute_value(attributes, b"src") else {
+    let Some(src) = attribute_value(attributes, attribute_name!("src")) else {
         return true;
     };
     if src.is_empty() {
@@ -205,21 +212,22 @@ fn process_script(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPr
 }
 
 fn process_link(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) -> bool {
-    let Some(href) = attribute_value(attributes, b"href") else {
+    let Some(href) = attribute_value(attributes, attribute_name!("href")) else {
         return true;
     };
     if href.is_empty() {
         return true;
     }
 
-    let Some(rel) = attribute_value(attributes, b"rel") else {
+    let Some(rel) = attribute_value(attributes, attribute_name!("rel")) else {
         return true;
     };
 
     let destination = if rel_contains_keyword(rel.as_bytes(), b"stylesheet") {
         RustFfiPreloadScannerDestination::Style
     } else if rel_contains_keyword(rel.as_bytes(), b"preload") {
-        let Some(destination) = translate_preload_destination(attribute_value(attributes, b"as")) else {
+        let Some(destination) = translate_preload_destination(attribute_value(attributes, attribute_name!("as")))
+        else {
             return true;
         };
         destination
@@ -237,7 +245,7 @@ fn process_link(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPrel
 }
 
 fn process_img(attributes: &[Attribute], callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) -> bool {
-    let Some(src) = attribute_value(attributes, b"src") else {
+    let Some(src) = attribute_value(attributes, attribute_name!("src")) else {
         return true;
     };
     if src.is_empty() {
@@ -270,10 +278,10 @@ fn emit_entry(
     callback(&entry)
 }
 
-fn attribute_value<'a>(attributes: &'a [Attribute], name: &[u8]) -> Option<&'a str> {
+fn attribute_value(attributes: &[Attribute], name: KnownName) -> Option<&str> {
     attributes
         .iter()
-        .find(|attribute| attribute.local_name_bytes() == name)
+        .find(|attribute| attribute.local_name == name)
         .map(|attribute| attribute.value.as_str())
 }
 
@@ -295,7 +303,7 @@ fn translate_preload_destination(destination: Option<&str>) -> Option<RustFfiPre
 }
 
 fn cors_setting_from_attribute(attributes: &[Attribute]) -> RustFfiPreloadScannerCorsSetting {
-    let Some(crossorigin) = attribute_value(attributes, b"crossorigin") else {
+    let Some(crossorigin) = attribute_value(attributes, attribute_name!("crossorigin")) else {
         return RustFfiPreloadScannerCorsSetting::NoCors;
     };
 

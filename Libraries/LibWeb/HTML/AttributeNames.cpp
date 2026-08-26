@@ -14,6 +14,11 @@ namespace AttributeNames {
 ENUMERATE_HTML_ATTRIBUTES
 #undef __ENUMERATE_HTML_ATTRIBUTE
 
+#define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) \
+    extern "C" WEB_API FlatPtr const ladybird_html_attribute_name_##name = name.raw_identity();
+ENUMERATE_HTML_ATTRIBUTES
+#undef __ENUMERATE_HTML_ATTRIBUTE
+
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#boolean-attribute

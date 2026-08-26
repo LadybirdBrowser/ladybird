@@ -5,7 +5,7 @@
  */
 
 pub mod entities;
-pub mod interned_names;
+mod known_names;
 pub mod parser;
 pub mod preload_scanner;
 pub mod token;
@@ -24,13 +24,13 @@ pub struct RustFfiTokenizerHandle {
     pub(crate) tokenizer: HtmlTokenizer,
     /// Temporary storage for the last token's string data, kept alive
     /// so that pointers in RustFfiToken remain valid until the next call.
-    last_tag_name: Vec<u16>,
+    last_tag_name: token::HtmlName,
     last_comment: Vec<u16>,
     last_doctype_name: Vec<u16>,
     last_public_id: Vec<u16>,
     last_system_id: Vec<u16>,
     last_attributes: Vec<RustFfiAttribute>,
-    last_attr_names: Vec<Vec<u16>>,
+    last_attr_names: Vec<token::HtmlName>,
     last_attr_values: Vec<Vec<u16>>,
     last_unparsed_input: Vec<u16>,
 }
@@ -48,13 +48,8 @@ pub struct RustFfiToken {
     pub self_closing: bool,
     pub had_duplicate_attribute: bool,
 
-    /// If nonzero, an interned tag-name id (1-based index into
-    /// `interned_names::INTERNED_TAG_NAMES`). When set, `tag_name_ptr` /
-    /// `tag_name_len` are unused and the C++ side uses its parallel
-    /// Utf16FlyString table directly. Otherwise the pointer is UTF-16.
-    pub tag_name_id: u16,
-    pub tag_name_ptr: *const u16,
-    pub tag_name_len: usize,
+    /// Borrowed `AK::Utf16FlyString` identity owned by the tokenizer handle.
+    pub tag_name: usize,
 
     pub comment_ptr: *const u16,
     pub comment_len: usize,
@@ -82,12 +77,8 @@ pub struct RustFfiToken {
 /// C-compatible attribute representation.
 #[repr(C)]
 pub struct RustFfiAttribute {
-    /// If nonzero, an interned attribute-name id (1-based index into
-    /// `interned_names::INTERNED_ATTR_NAMES`). When set, `name_ptr` /
-    /// `name_len` are unused. Otherwise the pointer is UTF-16.
-    pub name_id: u16,
-    pub name_ptr: *const u16,
-    pub name_len: usize,
+    /// Borrowed `AK::Utf16FlyString` identity owned by the tokenizer handle.
+    pub name: usize,
     pub value_ptr: *const u16,
     pub value_len: usize,
     pub name_start_line: u64,
@@ -107,9 +98,7 @@ impl Default for RustFfiToken {
             code_point: 0,
             self_closing: false,
             had_duplicate_attribute: false,
-            tag_name_id: 0,
-            tag_name_ptr: ptr::null(),
-            tag_name_len: 0,
+            tag_name: 0,
             comment_ptr: ptr::null(),
             comment_len: 0,
             doctype_name_ptr: ptr::null(),
@@ -213,7 +202,7 @@ fn decode_utf8_to_u32(bytes: &[u8]) -> Vec<u32> {
 fn make_handle(tokenizer: HtmlTokenizer) -> *mut RustFfiTokenizerHandle {
     let handle = Box::new(RustFfiTokenizerHandle {
         tokenizer,
-        last_tag_name: Vec::new(),
+        last_tag_name: Default::default(),
         last_comment: Vec::new(),
         last_doctype_name: Vec::new(),
         last_public_id: Vec::new(),
@@ -308,25 +297,16 @@ fn next_token_slow(
     match token.payload {
         TokenPayload::Tag {
             tag_name,
-            tag_name_id,
             self_closing,
             had_duplicate_attribute,
             attributes,
         } => {
             out.self_closing = self_closing;
             out.had_duplicate_attribute = had_duplicate_attribute;
-            // Tokenizer already resolved intern ids, so we trust tag_name_id.
-            out.tag_name_id = tag_name_id;
-            if tag_name_id == 0 {
-                handle.last_tag_name = tag_name.encode_utf16().collect();
-                out.tag_name_ptr = handle.last_tag_name.as_ptr();
-                out.tag_name_len = handle.last_tag_name.len();
-            }
+            handle.last_tag_name = tag_name;
+            out.tag_name = handle.last_tag_name.raw_identity();
 
-            // Convert attributes. Move owned Strings out of each Attribute
-            // instead of cloning, then point the FfiAttribute at the stable
-            // UTF-16 code units that now live in handle.last_attr_{names,values}
-            // (unless the name was interned, in which case skip the copy).
+            // Move names and values into the handle so the borrowed FFI data remains valid until the next call.
             handle.last_attr_names.clear();
             handle.last_attr_values.clear();
             handle.last_attributes.clear();
@@ -336,31 +316,19 @@ fn next_token_slow(
             for attr in attributes {
                 let Attribute {
                     local_name,
-                    local_name_id,
                     value,
                     name_start_position,
                     name_end_position,
                     value_start_position,
                     value_end_position,
                 } = attr;
-                if local_name_id == 0 {
-                    handle.last_attr_names.push(local_name.encode_utf16().collect());
-                } else {
-                    // Keep the slot aligned with last_attr_values so index math stays valid.
-                    handle.last_attr_names.push(Vec::new());
-                }
+                handle.last_attr_names.push(local_name);
                 handle.last_attr_values.push(value.encode_utf16().collect());
                 let last_idx = handle.last_attr_names.len() - 1;
-                let name_code_units = &handle.last_attr_names[last_idx];
+                let name = &handle.last_attr_names[last_idx];
                 let value_code_units = &handle.last_attr_values[last_idx];
                 handle.last_attributes.push(RustFfiAttribute {
-                    name_id: local_name_id,
-                    name_ptr: if local_name_id == 0 {
-                        name_code_units.as_ptr()
-                    } else {
-                        ptr::null()
-                    },
-                    name_len: if local_name_id == 0 { name_code_units.len() } else { 0 },
+                    name: name.raw_identity(),
                     value_ptr: value_code_units.as_ptr(),
                     value_len: value_code_units.len(),
                     name_start_line: name_start_position.line,
@@ -607,67 +575,5 @@ pub unsafe extern "C" fn rust_html_tokenizer_abort(handle: *mut RustFfiTokenizer
 pub unsafe extern "C" fn rust_html_tokenizer_destroy(handle: *mut RustFfiTokenizerHandle) {
     if !handle.is_null() {
         drop(unsafe { Box::from_raw(handle) });
-    }
-}
-
-// -- Interned name table enumeration --------------------------------------
-//
-// The C++ side builds a parallel FlyString array at static-init time by
-// enumerating the Rust-owned list once. Ids are 1-based; id 0 is reserved
-// for "not interned" in the per-token FFI struct.
-
-/// Number of interned HTML tag names known to the Rust tokenizer.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_html_tokenizer_interned_tag_name_count() -> usize {
-    interned_names::tag_name_count()
-}
-
-/// Number of interned HTML attribute names known to the Rust tokenizer.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_html_tokenizer_interned_attr_name_count() -> usize {
-    interned_names::attr_name_count()
-}
-
-/// Write the bytes and length of the interned tag name with the given
-/// 1-based id to the caller-provided out parameters. On unknown ids the
-/// out parameters are set to (null, 0).
-///
-/// # Safety
-/// `out_ptr` and `out_len` must be valid pointers.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_interned_tag_name(id: u16, out_ptr: *mut *const u8, out_len: *mut usize) {
-    if out_ptr.is_null() || out_len.is_null() {
-        return;
-    }
-    match interned_names::tag_name_by_id(id) {
-        Some(bytes) => unsafe {
-            *out_ptr = bytes.as_ptr();
-            *out_len = bytes.len();
-        },
-        None => unsafe {
-            *out_ptr = ptr::null();
-            *out_len = 0;
-        },
-    }
-}
-
-/// Same as `rust_html_tokenizer_interned_tag_name` for attribute names.
-///
-/// # Safety
-/// `out_ptr` and `out_len` must be valid pointers.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_interned_attr_name(id: u16, out_ptr: *mut *const u8, out_len: *mut usize) {
-    if out_ptr.is_null() || out_len.is_null() {
-        return;
-    }
-    match interned_names::attr_name_by_id(id) {
-        Some(bytes) => unsafe {
-            *out_ptr = bytes.as_ptr();
-            *out_len = bytes.len();
-        },
-        None => unsafe {
-            *out_ptr = ptr::null();
-            *out_len = 0;
-        },
     }
 }
