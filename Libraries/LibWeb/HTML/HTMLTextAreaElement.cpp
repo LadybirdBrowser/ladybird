@@ -192,10 +192,9 @@ void HTMLTextAreaElement::set_value(Utf16View value)
         if (m_text_node) {
             MUST(m_text_node->replace_data(0, m_text_node->length_in_utf16_code_units(), m_raw_value));
             update_placeholder_visibility();
-
-            set_the_selection_range(m_text_node->length(), m_text_node->length());
         }
 
+        set_the_selection_range(api_value().length_in_code_units(), api_value().length_in_code_units());
         CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
     }
 }
