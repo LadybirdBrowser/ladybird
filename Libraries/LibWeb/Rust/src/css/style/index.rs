@@ -4579,21 +4579,21 @@ impl ElementFactStore {
         // names are postings rather than facts, so they say only that at least one attribute of the
         // element answers to them.
         let keys = self.attribute_name_keys(name);
-        let old_value = self
-            .staging
-            .get(node)
-            .and_then(|facts| {
-                facts
-                    .attributes
-                    .binary_search_by_key(&name, |entry| entry.0)
-                    .ok()
-                    .map(|index| facts.attributes[index].1)
-            })
-            .or_else(|| {
-                let attributes = self.rows.attributes_of(self.rows.row_of(node)?);
-                let index = attributes.binary_search_by_key(&name, |entry| entry.name).ok()?;
-                Some(attributes[index].value)
-            });
+        let old_value = if let Some(facts) = self.staging.get(node) {
+            facts
+                .attributes
+                .binary_search_by_key(&name, |entry| entry.0)
+                .ok()
+                .map(|index| facts.attributes[index].1)
+        } else if let Some(row) = self.rows.row_of(node) {
+            let attributes = self.rows.attributes_of(row);
+            attributes
+                .binary_search_by_key(&name, |entry| entry.name)
+                .ok()
+                .map(|index| attributes[index].value)
+        } else {
+            None
+        };
         let changed = self.edit_staged_row(node, |facts| {
             let found = facts.attributes.binary_search_by_key(&name, |entry| entry.0);
             match (present, found) {
@@ -4626,7 +4626,7 @@ impl ElementFactStore {
                 }
             }
         }
-        if old_value != Some(value) {
+        if !present || old_value != Some(value) {
             if let Some(old_value) = old_value {
                 let old_value_is_still_present = self
                     .staging

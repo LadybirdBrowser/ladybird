@@ -21,5 +21,6 @@ moved results use tree order: true
 old value removed from index: true
 new value added to index: true
 old value posting is removed: true
+value restored before commit stays indexed: true
 shared value remains indexed: true
 shadow-root query stays scoped: true

@@ -88,6 +88,14 @@
         const staleAfter = internals.styleEngineCounters().selectorQueryEvaluations;
         println(`old value posting is removed: ${staleResults.length === 0 && staleAfter === staleBefore}`);
 
+        const restored = document.createElement("span");
+        restored.setAttribute("data-restored-value", "same");
+        root.appendChild(restored);
+        internals.updateStyle();
+        restored.removeAttribute("data-restored-value");
+        restored.setAttribute("data-restored-value", "same");
+        println(`value restored before commit stays indexed: ${root.querySelectorAll('[data-restored-value="same"]')[0] === restored}`);
+
         const shared = document.createElement("span");
         shared.setAttribute("data-first", "shared");
         shared.setAttribute("data-second", "shared");
