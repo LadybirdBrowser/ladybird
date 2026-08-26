@@ -209,7 +209,7 @@ impl State {
 pub struct HtmlTokenizer {
     pub state: State,
     return_state: State,
-    pub input: Vec<u32>,
+    pub input: Vec<u16>,
     pub current_offset: usize,
     prev_offset: usize,
     current_token: Token,
@@ -309,6 +309,11 @@ fn is_surrogate(c: u32) -> bool {
     (0xD800..=0xDFFF).contains(&c)
 }
 
+#[inline]
+fn is_high_surrogate(code_unit: u16) -> bool {
+    (0xD800..=0xDBFF).contains(&code_unit)
+}
+
 /// Check if a code point is a Unicode noncharacter.
 fn is_noncharacter(c: u32) -> bool {
     (0xFDD0..=0xFDEF).contains(&c) || matches!(c & 0xFFFF, 0xFFFE | 0xFFFF)
@@ -335,8 +340,8 @@ fn push_code_point(buf: &mut String, cp: u32) {
 }
 
 impl HtmlTokenizer {
-    /// Create a new tokenizer for the given input (as UTF-32 code points).
-    pub fn new(input: Vec<u32>) -> Self {
+    /// Create a new tokenizer for the given UTF-16 input.
+    pub fn new(input: Vec<u16>) -> Self {
         HtmlTokenizer {
             state: State::Data,
             return_state: State::Data,
@@ -395,31 +400,46 @@ impl HtmlTokenizer {
             .is_some_and(|insertion_point| self.current_offset >= insertion_point)
     }
 
-    pub fn append_input(&mut self, code_points: &[u32]) {
-        self.input.extend_from_slice(code_points);
+    pub fn append_input(&mut self, code_units: &[u16]) {
+        self.input.extend_from_slice(code_units);
     }
 
-    pub fn insert_input_at_insertion_point(&mut self, code_points: &[u32]) {
+    pub fn append_ascii_input(&mut self, bytes: &[u8]) {
+        self.input.extend(bytes.iter().map(|byte| u16::from(*byte)));
+    }
+
+    pub fn insert_input_at_insertion_point(&mut self, code_units: &[u16]) {
         if let Some(ip) = self.insertion_point {
             let ip = ip.min(self.input.len());
-            self.input.splice(ip..ip, code_points.iter().copied());
-            self.insertion_point = Some(ip + code_points.len());
+            self.input.splice(ip..ip, code_units.iter().copied());
+            self.insertion_point = Some(ip + code_units.len());
             for old_insertion_point in &mut self.old_insertion_points {
                 if let Some(old_ip) = old_insertion_point
                     && ip <= *old_ip
                 {
-                    *old_ip += code_points.len();
+                    *old_ip += code_units.len();
+                }
+            }
+        }
+    }
+
+    pub fn insert_ascii_input_at_insertion_point(&mut self, bytes: &[u8]) {
+        if let Some(ip) = self.insertion_point {
+            let ip = ip.min(self.input.len());
+            self.input.splice(ip..ip, bytes.iter().map(|byte| u16::from(*byte)));
+            self.insertion_point = Some(ip + bytes.len());
+            for old_insertion_point in &mut self.old_insertion_points {
+                if let Some(old_ip) = old_insertion_point
+                    && ip <= *old_ip
+                {
+                    *old_ip += bytes.len();
                 }
             }
         }
     }
 
     pub fn unparsed_input(&self) -> String {
-        let mut output = String::new();
-        for code_point in self.input[self.current_offset..].iter().copied() {
-            push_code_point(&mut output, code_point);
-        }
-        output
+        String::from_utf16_lossy(&self.input[self.current_offset..])
     }
 
     fn can_discard_consumed_input(&self) -> bool {
@@ -479,18 +499,62 @@ impl HtmlTokenizer {
         {
             return None;
         }
-        Some(self.input[idx as usize])
+        self.code_point_at(idx as usize).map(|(code_point, _)| code_point)
     }
 
     #[inline(always)]
-    fn skip(&mut self, count: usize) {
+    fn code_point_at(&self, offset: usize) -> Option<(u32, usize)> {
+        let limit = self.fast_scan_limit();
+        let first = *self.input.get(offset)?;
+        if is_high_surrogate(first) {
+            if offset + 1 < limit {
+                let second = self.input[offset + 1];
+                if (0xDC00..=0xDFFF).contains(&second) {
+                    let code_point = 0x10000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00);
+                    return Some((code_point, 2));
+                }
+            }
+            return Some((0xFFFD, 1));
+        }
+        if (0xDC00..=0xDFFF).contains(&first) {
+            return Some((0xFFFD, 1));
+        }
+        Some((u32::from(first), 1))
+    }
+
+    #[inline(always)]
+    fn advance(&mut self, code_unit_count: usize, code_point: u32) {
         if !self.source_positions.is_empty() {
             let last = *self.source_positions.last().unwrap();
             self.source_positions.push(last);
         }
-        // Keep position updates in local registers across the loop to
-        // avoid a store-to-load dependency on the source_positions stack
-        // top. The stack top is written back once at the end.
+        let (mut line, mut column) = if let Some(pos) = self.source_positions.last() {
+            (pos.line, pos.column)
+        } else {
+            (self.current_line, self.current_column)
+        };
+        self.prev_offset = self.current_offset;
+        if code_point == 0x0A {
+            line += 1;
+            column = 0;
+        } else {
+            column += 1;
+        }
+        self.current_offset += code_unit_count;
+        self.current_line = line;
+        self.current_column = column;
+        if let Some(pos) = self.source_positions.last_mut() {
+            pos.line = line;
+            pos.column = column;
+        }
+    }
+
+    #[inline(always)]
+    fn skip_ascii(&mut self, count: usize) {
+        if !self.source_positions.is_empty() {
+            let last = *self.source_positions.last().unwrap();
+            self.source_positions.push(last);
+        }
         let (mut line, mut column) = if let Some(pos) = self.source_positions.last() {
             (pos.line, pos.column)
         } else {
@@ -499,6 +563,7 @@ impl HtmlTokenizer {
         for _ in 0..count {
             self.prev_offset = self.current_offset;
             let code_point = self.input[self.current_offset];
+            debug_assert!(code_point < 0x80);
             if code_point == 0x0A {
                 line += 1;
                 column = 0;
@@ -521,17 +586,17 @@ impl HtmlTokenizer {
             self.prev_offset = self.current_offset;
             return None;
         }
-        let cp = self.input[self.current_offset];
+        let (cp, code_unit_count) = self.code_point_at(self.current_offset)?;
         if cp != 0x0D {
-            self.skip(1);
+            self.advance(code_unit_count, cp);
             return Some(cp);
         }
         // Slow path: CR normalization
         let next = self.peek_code_point(1).unwrap_or(0);
         if next == 0x0A {
-            self.skip(2);
+            self.advance(2, 0x0A);
         } else {
-            self.skip(1);
+            self.advance(1, 0x0A);
         }
         Some(0x0A)
     }
@@ -565,7 +630,7 @@ impl HtmlTokenizer {
             self.sync_source_positions();
             return None;
         }
-        let cp = self.input[self.current_offset];
+        let cp = u32::from(self.input[self.current_offset]);
         if cp == 0x3C || cp == 0x26 || cp == 0x00 || cp == 0x0D || cp >= 0x80 {
             self.sync_source_positions();
             return None;
@@ -599,7 +664,7 @@ impl HtmlTokenizer {
         let mut offset = start_offset;
         let mut contains_non_whitespace = false;
         while offset < input_len {
-            let code_point = self.input[offset];
+            let code_point = u32::from(self.input[offset]);
             if code_point == 0x3C
                 || code_point == 0x26
                 || code_point == 0x00
@@ -642,7 +707,7 @@ impl HtmlTokenizer {
         if self.current_offset >= self.fast_scan_limit() {
             return false;
         }
-        let code_point = self.input[self.current_offset];
+        let code_point = u32::from(self.input[self.current_offset]);
         code_point != 0x3C && code_point != 0x26 && code_point != 0x00 && code_point != 0x0D && code_point < 0x80
     }
 
@@ -658,6 +723,12 @@ impl HtmlTokenizer {
     }
 
     fn restore_to(&mut self, offset: usize) {
+        if offset == self.prev_offset && self.current_offset > offset {
+            if self.source_positions.len() > 1 {
+                self.source_positions.pop();
+            }
+            self.current_offset = offset;
+        }
         while self.current_offset > offset && self.source_positions.len() > 1 {
             self.source_positions.pop();
             self.current_offset -= 1;
@@ -833,7 +904,7 @@ impl HtmlTokenizer {
             }
 
             if self.current_offset < self.input.len()
-                && self.input[self.current_offset] == 0x0D
+                && (self.input[self.current_offset] == 0x0D || is_high_surrogate(self.input[self.current_offset]))
                 && self.current_offset + 1 == ip
             {
                 return true;
@@ -848,7 +919,8 @@ impl HtmlTokenizer {
             return true;
         }
 
-        self.input[self.current_offset] == 0x0D && self.current_offset + 1 >= self.input.len()
+        (self.input[self.current_offset] == 0x0D || is_high_surrogate(self.input[self.current_offset]))
+            && self.current_offset + 1 >= self.input.len()
     }
 
     /// Case-insensitive match of upcoming input against a string.
@@ -871,7 +943,7 @@ impl HtmlTokenizer {
             }
         }
         // All matched, consume them
-        self.skip(s.len());
+        self.skip_ascii(s.len());
         Some(true)
     }
 
@@ -892,7 +964,7 @@ impl HtmlTokenizer {
                 }
             }
         }
-        self.skip(s.len());
+        self.skip_ascii(s.len());
         Some(true)
     }
 
@@ -1115,7 +1187,7 @@ impl HtmlTokenizer {
                         let input_len = self.fast_scan_limit();
                         while off < input_len {
                             let next = self.input[off];
-                            if next < b'a' as u32 || next > b'z' as u32 {
+                            if next < b'a' as u16 || next > b'z' as u16 {
                                 break;
                             }
                             unsafe { self.current_builder.as_mut_vec().push(next as u8) };
@@ -1213,10 +1285,10 @@ impl HtmlTokenizer {
                             let input_len = self.fast_scan_limit();
                             while off < input_len {
                                 let next = self.input[off];
-                                let ok = (next >= b'a' as u32 && next <= b'z' as u32)
-                                    || (next >= b'0' as u32 && next <= b'9' as u32)
-                                    || next == b'-' as u32
-                                    || next == b'_' as u32;
+                                let ok = (next >= b'a' as u16 && next <= b'z' as u16)
+                                    || (next >= b'0' as u16 && next <= b'9' as u16)
+                                    || next == b'-' as u16
+                                    || next == b'_' as u16;
                                 if !ok {
                                     break;
                                 }
@@ -2574,12 +2646,12 @@ impl HtmlTokenizer {
                         }
                         let limit = self.input.len();
                         while self.current_offset < limit {
-                            let cp = self.input[self.current_offset];
+                            let cp = u32::from(self.input[self.current_offset]);
                             if !self.entity_matcher.try_consume_code_point(cp) {
                                 break;
                             }
                             self.temporary_buffer.push(cp);
-                            self.skip(1);
+                            self.advance(1, cp);
                         }
                         if !self.input_stream_closed && self.current_offset >= limit {
                             return None;
@@ -3304,13 +3376,13 @@ impl HtmlTokenizer {
 mod tests {
     use super::*;
 
-    fn code_points(input: &str) -> Vec<u32> {
-        input.chars().map(|ch| ch as u32).collect()
+    fn code_units(input: &str) -> Vec<u16> {
+        input.encode_utf16().collect()
     }
 
     #[test]
     fn parser_does_not_compact_unresolved_named_character_reference() {
-        let mut tokenizer = HtmlTokenizer::new(code_points("<p a=\"&tw"));
+        let mut tokenizer = HtmlTokenizer::new(code_units("<p a=\"&tw"));
         tokenizer.set_input_stream_closed(false);
 
         assert!(tokenizer.next_token(false, false).is_none());
@@ -3319,9 +3391,9 @@ mod tests {
 
         tokenizer.parser_did_run();
         assert_eq!(tokenizer.current_offset, tokenizer.input.len());
-        assert_eq!(tokenizer.input, code_points("<p a=\"&tw"));
+        assert_eq!(tokenizer.input, code_units("<p a=\"&tw"));
 
-        tokenizer.append_input(&code_points("s-checkout-success=4.1.0\">"));
+        tokenizer.append_input(&code_units("s-checkout-success=4.1.0\">"));
         tokenizer.set_input_stream_closed(true);
 
         let token = tokenizer.next_token(false, false).expect("start tag token");

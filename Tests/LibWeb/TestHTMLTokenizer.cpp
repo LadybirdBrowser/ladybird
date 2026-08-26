@@ -359,3 +359,32 @@ TEST_CASE(insertion_point_inside_fast_quoted_attribute_value)
     VERIFY(attribute.has_value());
     EXPECT_EQ(attribute->value, "abcxdef"sv);
 }
+
+TEST_CASE(supplementary_character)
+{
+    char16_t input[] { 0xD83D, 0xDE42 };
+    Tokenizer tokenizer { Utf16View { input, 2 } };
+
+    auto token = tokenizer.next_token();
+    VERIFY(token.has_value());
+    EXPECT_EQ(token->type(), Token::Type::Character);
+    EXPECT_EQ(token->code_point(), 0x1F642u);
+}
+
+TEST_CASE(supplementary_character_split_across_input_chunks)
+{
+    char16_t high_surrogate[] { 0xD83D };
+    char16_t low_surrogate[] { 0xDE42 };
+    Tokenizer tokenizer;
+
+    tokenizer.append_to_input_stream(Utf16View { high_surrogate, 1 });
+    EXPECT(!tokenizer.next_token().has_value());
+
+    tokenizer.append_to_input_stream(Utf16View { low_surrogate, 1 });
+    tokenizer.close_input_stream();
+
+    auto token = tokenizer.next_token();
+    VERIFY(token.has_value());
+    EXPECT_EQ(token->type(), Token::Type::Character);
+    EXPECT_EQ(token->code_point(), 0x1F642u);
+}

@@ -13,19 +13,11 @@
 
 namespace Web::HTML {
 
-static Vector<u32> code_points_from_utf16_view(Utf16View input)
-{
-    Vector<u32> code_points;
-    code_points.ensure_capacity(input.length_in_code_units());
-    for (auto code_point : input)
-        code_points.append(is_unicode_surrogate(code_point) ? AK::UnicodeUtils::REPLACEMENT_CODE_POINT : code_point);
-    return code_points;
-}
-
 static RustFfiTokenizerHandle* create_tokenizer_from_utf16(Utf16View input)
 {
-    auto code_points = code_points_from_utf16_view(input);
-    return rust_html_tokenizer_create(code_points.data(), code_points.size());
+    if (input.has_ascii_storage())
+        return rust_html_tokenizer_create_from_ascii(reinterpret_cast<u8 const*>(input.ascii_span().data()), input.length_in_code_units());
+    return rust_html_tokenizer_create_from_utf16(reinterpret_cast<u16 const*>(input.utf16_span().data()), input.length_in_code_units());
 }
 
 static Utf16FlyString utf16_fly_string_from_ffi(u16 const* ptr, size_t len)
@@ -176,8 +168,11 @@ void HTMLTokenizer::append_to_input_stream(Utf16View input)
     if (input.is_empty())
         return;
 
-    auto code_points = code_points_from_utf16_view(input);
-    rust_html_tokenizer_append_input(m_tokenizer, code_points.data(), code_points.size());
+    if (input.has_ascii_storage()) {
+        rust_html_tokenizer_append_ascii_input(m_tokenizer, reinterpret_cast<u8 const*>(input.ascii_span().data()), input.length_in_code_units());
+        return;
+    }
+    rust_html_tokenizer_append_utf16_input(m_tokenizer, reinterpret_cast<u16 const*>(input.utf16_span().data()), input.length_in_code_units());
 }
 
 void HTMLTokenizer::close_input_stream()
@@ -188,8 +183,11 @@ void HTMLTokenizer::close_input_stream()
 
 void HTMLTokenizer::insert_input_at_insertion_point(Utf16View input)
 {
-    auto code_points = code_points_from_utf16_view(input);
-    rust_html_tokenizer_insert_input(m_tokenizer, code_points.data(), code_points.size());
+    if (input.has_ascii_storage()) {
+        rust_html_tokenizer_insert_ascii_input(m_tokenizer, reinterpret_cast<u8 const*>(input.ascii_span().data()), input.length_in_code_units());
+        return;
+    }
+    rust_html_tokenizer_insert_utf16_input(m_tokenizer, reinterpret_cast<u16 const*>(input.utf16_span().data()), input.length_in_code_units());
 }
 
 void HTMLTokenizer::insert_eof()
