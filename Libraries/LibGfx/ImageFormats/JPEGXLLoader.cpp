@@ -5,8 +5,11 @@
  */
 
 #include <AK/Error.h>
+#include <AK/Math.h>
+#include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
-#include <jxl/decode.h>
+#include <LibImageDecoders/RustFFI.h>
 
 namespace Gfx {
 
@@ -15,177 +18,98 @@ class JPEGXLLoadingContext {
     AK_MAKE_NONMOVABLE(JPEGXLLoadingContext);
 
 public:
-    JPEGXLLoadingContext(JxlDecoder* decoder)
+    JPEGXLLoadingContext(ImageDecoders::FFI::JPEGXLDecoder* decoder, ImageDecoders::FFI::JPEGXLImageInfo const& info, ReadonlyBytes data, IntSize size)
         : m_decoder(decoder)
+        , m_data(data)
+        , m_size(size)
+        , m_alpha_type(info.alpha_premultiplied ? Gfx::AlphaType::Premultiplied : Gfx::AlphaType::Unpremultiplied)
+        , m_animated(info.is_animated)
+        , m_loop_count(info.loop_count)
     {
     }
 
     ~JPEGXLLoadingContext()
     {
-        JxlDecoderDestroy(m_decoder);
-    }
-
-    ErrorOr<void> decode_image_header()
-    {
-        return run_state_machine_until(State::HeaderDecoded);
+        ImageDecoders::FFI::jpegxl_rust_decoder_free(m_decoder);
     }
 
     ErrorOr<void> decode_image()
     {
-        return run_state_machine_until(State::FrameDecoded);
-    }
-
-    enum class State : u8 {
-        NotDecoded = 0,
-        Error,
-        HeaderDecoded,
-        FrameDecoded,
-    };
-
-    State state() const
-    {
-        return m_state;
-    }
-
-    IntSize size() const
-    {
-        return m_size;
-    }
-
-    Vector<ImageFrameDescriptor> const& frame_descriptors() const
-    {
-        return m_frame_descriptors;
-    }
-
-    bool is_animated() const
-    {
-        return m_animated;
-    }
-
-    u32 loop_count() const
-    {
-        return m_loop_count;
-    }
-
-    u32 frame_count() const
-    {
-        return m_frame_count;
-    }
-
-private:
-    ErrorOr<void> run_state_machine_until(State requested_state)
-    {
-        Optional<u32> frame_duration;
-        for (;;) {
-            auto const status = JxlDecoderProcessInput(m_decoder);
-
-            if (status == JXL_DEC_ERROR)
-                return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoder is corrupted.");
-            if (status == JXL_DEC_NEED_MORE_INPUT)
-                return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoder need more input.");
-
-            if (status == JXL_DEC_BASIC_INFO) {
-                TRY(decode_image_header_impl());
-                if (requested_state <= State::HeaderDecoded)
-                    return {};
-            }
-
-            if (status == JXL_DEC_FRAME) {
-                JxlFrameHeader header;
-                if (auto res = JxlDecoderGetFrameHeader(m_decoder, &header);
-                    res != JXL_DEC_SUCCESS)
-                    return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to retrieve frame header.");
-
-                frame_duration = header.duration;
-                continue;
-            }
-
-            if (status == JXL_DEC_NEED_IMAGE_OUT_BUFFER) {
-                if (!frame_duration.has_value())
-                    return Error::from_string_literal("JPEGXLImageDecoderPlugin: No frame header was read.");
-
-                TRY(set_output_buffer(*frame_duration));
-                continue;
-            }
-
-            if (status == JXL_DEC_FULL_IMAGE) {
-                m_frame_count++;
-                continue;
-            }
-
-            if (status == JXL_DEC_SUCCESS) {
-                if (m_state != State::Error)
-                    m_state = State::FrameDecoded;
-                return {};
-            }
-
-            warnln("JPEGXLImageDecoderPlugin: Unknown event.");
-            return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unknown event.");
+        if (!ImageDecoders::FFI::jpegxl_rust_decode(m_decoder, m_data.data(), m_data.size(), this, get_frame_buffer, frame_decoded)) {
+            m_state = State::Error;
+            m_pending_bitmap = nullptr;
+            m_frame_descriptors.clear();
+            return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoding failed.");
         }
-    }
 
-    ErrorOr<void> decode_image_header_impl()
-    {
-        JxlBasicInfo info;
+        if (m_pending_bitmap) {
+            m_state = State::Error;
+            m_pending_bitmap = nullptr;
+            m_frame_descriptors.clear();
+            return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoding failed.");
+        }
 
-        if (auto res = JxlDecoderGetBasicInfo(m_decoder, &info); res != JXL_DEC_SUCCESS)
-            return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to decode basic information.");
-
-        m_size = { info.xsize, info.ysize };
-
-        m_animated = static_cast<bool>(info.have_animation);
-        m_alpha_premultiplied = info.alpha_premultiplied ? Gfx::AlphaType::Premultiplied : Gfx::AlphaType::Unpremultiplied;
-
-        if (m_animated)
-            m_loop_count = info.animation.num_loops;
-
-        m_state = State::HeaderDecoded;
+        m_state = State::FrameDecoded;
         return {};
     }
 
-    ErrorOr<void> set_output_buffer(u32 duration)
+    enum class State : u8 {
+        HeaderDecoded,
+        FrameDecoded,
+        Error,
+    };
+
+    State state() const { return m_state; }
+    IntSize size() const { return m_size; }
+
+    Vector<ImageFrameDescriptor> const& frame_descriptors() const { return m_frame_descriptors; }
+
+    bool is_animated() const { return m_animated; }
+    u32 loop_count() const { return m_loop_count; }
+
+private:
+    static bool get_frame_buffer(void* context, u32 duration_ms, u8** buffer, size_t* stride)
     {
-        auto result = [this, duration]() -> ErrorOr<void> {
-            if (JxlDecoderProcessInput(m_decoder) != JXL_DEC_NEED_IMAGE_OUT_BUFFER)
-                return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoder is in an unexpected state.");
+        auto& self = *static_cast<JPEGXLLoadingContext*>(context);
+        if (self.m_pending_bitmap)
+            return false;
 
-            auto bitmap = TRY(Bitmap::create(Gfx::BitmapFormat::RGBA8888, m_alpha_premultiplied, m_size));
-            TRY(m_frame_descriptors.try_empend(bitmap, static_cast<int>(duration)));
+        auto bitmap_or_error = Bitmap::create(Gfx::BitmapFormat::RGBA8888, self.m_alpha_type, self.m_size);
+        if (bitmap_or_error.is_error())
+            return false;
 
-            JxlPixelFormat format = { 4, JXL_TYPE_UINT8, JXL_NATIVE_ENDIAN, 0 };
+        self.m_pending_bitmap = bitmap_or_error.release_value();
+        self.m_pending_frame_duration = AK::clamp_to<int>(duration_ms);
+        *buffer = self.m_pending_bitmap->scanline_u8(0);
+        *stride = self.m_pending_bitmap->pitch();
 
-            size_t needed_size = 0;
-            JxlDecoderImageOutBufferSize(m_decoder, &format, &needed_size);
-
-            if (needed_size != bitmap->size_in_bytes())
-                return Error::from_string_literal("JPEGXLImageDecoderPlugin: Expected bitmap size is wrong.");
-
-            if (auto res = JxlDecoderSetImageOutBuffer(m_decoder, &format, bitmap->begin(), bitmap->size_in_bytes());
-                res != JXL_DEC_SUCCESS)
-                return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to decode frame.");
-
-            return {};
-        }();
-
-        if (result.is_error()) {
-            m_state = State::Error;
-            warnln("{}", result.error());
-        }
-
-        return result;
+        return true;
     }
 
-    State m_state { State::NotDecoded };
+    static bool frame_decoded(void* context)
+    {
+        auto& self = *static_cast<JPEGXLLoadingContext*>(context);
+        if (!self.m_pending_bitmap)
+            return false;
 
-    JxlDecoder* m_decoder;
+        auto result = self.m_frame_descriptors.try_empend(self.m_pending_bitmap.release_nonnull(), self.m_pending_frame_duration);
+        return !result.is_error();
+    }
 
+    ImageDecoders::FFI::JPEGXLDecoder* m_decoder { nullptr };
+    State m_state { State::HeaderDecoded };
+
+    ReadonlyBytes m_data;
     IntSize m_size;
+
+    RefPtr<Bitmap> m_pending_bitmap;
+    int m_pending_frame_duration { 0 };
+
     Vector<ImageFrameDescriptor> m_frame_descriptors;
 
+    Gfx::AlphaType m_alpha_type { Gfx::AlphaType::Unpremultiplied };
     bool m_animated { false };
-    Gfx::AlphaType m_alpha_premultiplied { Gfx::AlphaType::Premultiplied };
     u32 m_loop_count { 0 };
-    u32 m_frame_count { 0 };
 };
 
 JPEGXLImageDecoderPlugin::JPEGXLImageDecoderPlugin(OwnPtr<JPEGXLLoadingContext> context)
@@ -202,31 +126,28 @@ IntSize JPEGXLImageDecoderPlugin::size()
 
 bool JPEGXLImageDecoderPlugin::sniff(ReadonlyBytes data)
 {
-    auto signature = JxlSignatureCheck(data.data(), data.size());
-    return signature == JXL_SIG_CODESTREAM || signature == JXL_SIG_CONTAINER;
+    return ImageDecoders::FFI::jpegxl_rust_sniff(data.data(), data.size());
 }
 
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> JPEGXLImageDecoderPlugin::create(ReadonlyBytes data)
 {
-    auto* decoder = JxlDecoderCreate(nullptr);
+    ImageDecoders::FFI::JPEGXLImageInfo info {};
+    auto* decoder = ImageDecoders::FFI::jpegxl_rust_decoder_new(data.data(), data.size(), &info);
     if (!decoder)
-        return Error::from_errno(ENOMEM);
+        return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to decode basic information.");
+    ArmedScopeGuard free_decoder = [decoder]() { ImageDecoders::FFI::jpegxl_rust_decoder_free(decoder); };
 
-    auto const events = JXL_DEC_BASIC_INFO | JXL_DEC_FRAME | JXL_DEC_FULL_IMAGE;
-    if (auto res = JxlDecoderSubscribeEvents(decoder, events); res == JXL_DEC_ERROR)
-        return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to subscribe to events.");
+    if (info.width > static_cast<size_t>(NumericLimits<int>::max()) || info.height > static_cast<size_t>(NumericLimits<int>::max()))
+        return Error::from_string_literal("JPEGXLImageDecoderPlugin: Image dimensions are too large.");
 
-    if (auto res = JxlDecoderSetInput(decoder, data.data(), data.size()); res == JXL_DEC_ERROR)
-        return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to set decoder input.");
+    IntSize size { static_cast<int>(info.width), static_cast<int>(info.height) };
+    if (Bitmap::size_would_overflow(BitmapFormat::RGBA8888, size))
+        return Error::from_string_literal("JPEGXLImageDecoderPlugin: Image dimensions are too large.");
 
-    // Tell the decoder that it won't receive more data for the image.
-    JxlDecoderCloseInput(decoder);
+    auto context = TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLLoadingContext(decoder, info, data, size)));
+    free_decoder.disarm();
 
-    auto context = TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLLoadingContext(decoder)));
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLImageDecoderPlugin(move(context))));
-
-    TRY(plugin->m_context->decode_image_header());
-    return plugin;
+    return TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLImageDecoderPlugin(move(context))));
 }
 
 bool JPEGXLImageDecoderPlugin::is_animated()
@@ -241,16 +162,9 @@ size_t JPEGXLImageDecoderPlugin::loop_count()
 
 size_t JPEGXLImageDecoderPlugin::frame_count()
 {
-    // FIXME: There doesn't seem to be a way to have that information
-    //        before decoding all the frames.
-    if (m_context->frame_count() == 0)
+    if (m_context->state() == JPEGXLLoadingContext::State::HeaderDecoded)
         (void)frame(0);
-    return m_context->frame_count();
-}
-
-size_t JPEGXLImageDecoderPlugin::first_animated_frame_index()
-{
-    return 0;
+    return m_context->frame_descriptors().size();
 }
 
 ErrorOr<ImageFrameDescriptor> JPEGXLImageDecoderPlugin::frame(size_t index, Optional<IntSize>)
@@ -258,7 +172,7 @@ ErrorOr<ImageFrameDescriptor> JPEGXLImageDecoderPlugin::frame(size_t index, Opti
     if (m_context->state() == JPEGXLLoadingContext::State::Error)
         return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoding failed.");
 
-    if (m_context->state() < JPEGXLLoadingContext::State::FrameDecoded)
+    if (m_context->state() == JPEGXLLoadingContext::State::HeaderDecoded)
         TRY(m_context->decode_image());
 
     if (index >= m_context->frame_descriptors().size())

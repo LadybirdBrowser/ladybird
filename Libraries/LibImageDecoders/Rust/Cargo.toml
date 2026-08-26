@@ -1,0 +1,20 @@
+[package]
+name = "libimagedecoders_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[features]
+default = []
+allocator = []
+
+[dependencies]
+jxl = "0.6"
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true

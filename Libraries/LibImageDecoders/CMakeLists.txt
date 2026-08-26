@@ -15,6 +15,14 @@ set(SOURCES
 
 ladybird_lib(LibImageDecoders imagedecoders)
 
+import_rust_crate(
+    MANIFEST_PATH Rust/Cargo.toml
+    CRATE_NAME libimagedecoders_rust
+    FEATURES allocator
+    FFI_HEADER RustFFI.h
+    PANIC_UNWIND
+)
+
 target_link_libraries(LibImageDecoders PRIVATE
     LibCompress
     LibCore
@@ -32,6 +40,7 @@ target_link_libraries(LibImageDecoders PRIVATE
     WebP::webpdemux
     WebP::libwebpmux
     avif
+    libimagedecoders_rust
 )
 
 target_include_directories(LibImageDecoders PRIVATE ${WUFFS_INCLUDE_DIR})
@@ -66,10 +75,4 @@ unset(CMAKE_REQUIRED_LIBRARIES)
 
 if (NOT LIBPNG_HAS_APNG)
     message(FATAL_ERROR "libpng does not support APNG, which is required by LibImageDecoders.")
-endif()
-
-if (NOT ANDROID)
-    target_link_libraries(LibImageDecoders PRIVATE PkgConfig::Jxl)
-else()
-    target_link_libraries(LibImageDecoders PRIVATE libjxl::libjxl hwy::hwy)
 endif()
