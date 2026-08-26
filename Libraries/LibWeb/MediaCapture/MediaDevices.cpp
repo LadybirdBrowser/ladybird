@@ -74,6 +74,9 @@ MediaDevices::MediaDevices(HTML::Window& window)
     : DOM::EventTarget()
     , m_window(window)
 {
+    if (HTML::Window::in_test_mode())
+        return;
+
     m_audio_device_cache_listener_id = Media::AudioDevices::the().add_devices_changed_listener([this] {
         did_observe_audio_device_cache_update();
     });
@@ -386,7 +389,9 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
     GC::Ref<MediaDevices> media_devices = *this;
 
     // FIXME: Add camera/video
-    Vector<Media::AudioDeviceInfo> audio_input_devices = Media::AudioDevices::the().input_devices();
+    Vector<Media::AudioDeviceInfo> audio_input_devices;
+    if (!HTML::Window::in_test_mode())
+        audio_input_devices = Media::AudioDevices::the().input_devices();
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, requested_device_ids = move(requested_device_ids), audio_input_devices = move(audio_input_devices)] mutable {
         auto& realm = WebIDL::promise_realm(*promise);
@@ -724,6 +729,9 @@ void MediaDevices::set_ondevicechange(WebIDL::CallbackType* event_handler)
 Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
 {
     Vector<StoredDevice> stored_devices;
+    if (HTML::Window::in_test_mode())
+        return stored_devices;
+
     auto input_devices = Media::AudioDevices::the().input_devices();
     auto output_devices = Media::AudioDevices::the().output_devices();
     stored_devices.ensure_capacity(input_devices.size() + output_devices.size());
