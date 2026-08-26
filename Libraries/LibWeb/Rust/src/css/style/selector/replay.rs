@@ -99,6 +99,7 @@ pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
         relative_queries,
         language_ranges,
         dispatch_metadata: CachedDispatchMetadata::default(),
+        relation_target_blooms: Box::default(),
         can_leave_scope: payload.read_bool()?,
     };
     program.cache_dispatch_metadata();

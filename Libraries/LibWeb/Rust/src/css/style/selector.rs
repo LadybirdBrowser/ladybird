@@ -684,6 +684,12 @@ pub struct SelectorProgram {
     language_ranges: Vec<(u32, u32)>,
     /// Immutable dispatch analysis, retained so rebuilding scope dispatches never walks the IR.
     dispatch_metadata: CachedDispatchMetadata,
+    /// Per selector node: the dispatch-bloom bits a node evaluated against that compound must
+    /// carry — or zero, when nothing certain is required. A combinator walk consults this before
+    /// trying the compound, so an ancestor that cannot possibly match costs one AND rather than
+    /// an evaluation. Only always-resident key kinds contribute (id, class, attribute name, tag
+    /// name); everything else stays out — rather than risking a bit facts never set.
+    relation_target_blooms: Box<[u64]>,
     can_leave_scope: bool,
 }
 
@@ -751,6 +757,13 @@ impl SelectorProgram {
     #[must_use]
     pub fn node(&self, id: SelectorNodeID) -> SelectorOp {
         self.nodes[id.0 as usize]
+    }
+
+    /// The dispatch-bloom bits a node evaluated against the compound at `id` must carry. Zero —
+    /// including for a program built without dispatch metadata — means no cheap requirement.
+    #[must_use]
+    fn relation_target_bloom(&self, id: SelectorNodeID) -> u64 {
+        self.relation_target_blooms.get(id.0 as usize).copied().unwrap_or(0)
     }
 
     #[must_use]
@@ -1082,6 +1095,36 @@ impl SelectorProgramBuilder {
 
 impl SelectorProgram {
     fn cache_dispatch_metadata(&mut self) {
+        let mut relation_target_blooms = vec![0_u64; self.nodes.len()];
+        for (id, target_bloom) in relation_target_blooms.iter_mut().enumerate() {
+            let node = SelectorNodeID(u32::try_from(id).unwrap_or(u32::MAX));
+            // Only a feature op standing directly in the compound is a test of the node itself.
+            // Anything deeper (a negation, a disjunction branch, a relative query's witness) may
+            // hold elsewhere, or not at all. And only the always-resident key kinds contribute —
+            // so a bit facts never set can't reject a node that matches.
+            let single = [node];
+            let operands = match self.node(node) {
+                SelectorOp::And { first, count } => self.operands(first, count),
+                _ => &single,
+            };
+            let mut bloom = 0_u64;
+            for &operand in operands {
+                if let SelectorOp::Feature(test) = self.node(operand) {
+                    let key = dispatch_key_for_feature(test);
+                    if matches!(
+                        key,
+                        DispatchKey::Id(_)
+                            | DispatchKey::Class(_)
+                            | DispatchKey::AttributeName(_)
+                            | DispatchKey::TagName(_)
+                    ) {
+                        bloom |= dispatch_bloom_bit(key);
+                    }
+                }
+            }
+            *target_bloom = bloom;
+        }
+        self.relation_target_blooms = relation_target_blooms.into_boxed_slice();
         self.dispatch_metadata.0 = (0..self.entries.len())
             .map(|entry| {
                 let selector_entry = &self.entries[entry];
@@ -5418,6 +5461,24 @@ impl<'a> MatchEvaluator<'a> {
         }
     }
 
+    /// Whether the dispatch bloom leaves `node` any chance of matching the compound at `inner`.
+    /// A row facts cannot answer for yet is never prejudged.
+    #[inline]
+    fn relation_target_may_match(&self, program: &SelectorProgram, inner: SelectorNodeID, node: StyleNodeID) -> bool {
+        let required = program.relation_target_bloom(inner);
+        if required == 0 {
+            return true;
+        }
+        // The shadow scope root matches featurelessly — so its facts prove nothing about it.
+        if Some(node) == self.scope_shadow_root {
+            return true;
+        }
+        match self.row_of(node) {
+            Ok(row) => row.facts.dispatch_bloom_of(row.row, false) & required == required,
+            Err(_) => true,
+        }
+    }
+
     #[inline]
     fn matches_relation_target(
         &self,
@@ -5714,7 +5775,9 @@ impl<'a> MatchEvaluator<'a> {
                 let mut ancestor = self.parent_of(node);
                 while let Some(current) = ancestor {
                     counters.bump(Counter::CombinatorSteps);
-                    if self.matches_relation_target(program, inner, current, counters)? {
+                    if self.relation_target_may_match(program, inner, current)
+                        && self.matches_relation_target(program, inner, current, counters)?
+                    {
                         return Ok(true);
                     }
                     ancestor = self.parent_of(current);
