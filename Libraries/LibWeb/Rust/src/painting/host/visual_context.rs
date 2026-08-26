@@ -104,7 +104,6 @@ pub enum FfiVisualContextNodeKind {
     BackfaceVisibility,
     ClipPath,
     Effects,
-    ScrollCompensation,
     AnchorScrollShift,
     Mask,
 }

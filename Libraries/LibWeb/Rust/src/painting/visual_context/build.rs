@@ -669,24 +669,23 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             slot,
             may_be_root_element,
         ) {
-            // Build a context that negates all scroll nodes in the ancestor chain. This keeps the
-            // background fixed relative to the viewport.
-            let mut fixed_background_context = own_state;
+            // Rooted above every scroll-like node on the box's root path, the background stays put
+            // under scrolling while the box's own frames keep clipping it in their scrolled spaces.
+            let mut fixed_background_spatial = own_state.spatial;
             let mut index = own_state.spatial;
             while index != VISUAL_VIEWPORT_NODE_INDEX {
-                if matches!(self.tree.spatial_nodes[index.0 as usize].data, SpatialData::Scroll(_)) {
-                    fixed_background_context = self.tree.append_spatial_under(
-                        fixed_background_context,
-                        SpatialData::ScrollCompensation(ScrollCompensation {
-                            scroll_node_index: index,
-                        }),
-                    );
+                let node = &self.tree.spatial_nodes[index.0 as usize];
+                if node.data.is_scroll_like() {
+                    fixed_background_spatial = node.parent;
                 }
-                index = self.tree.spatial_nodes[index.0 as usize].parent;
+                index = node.parent;
             }
             {
                 let assignment = self.assignment_mut(slot);
-                assignment.fixed_background_visual_context = fixed_background_context;
+                assignment.fixed_background_visual_context = ContextRef {
+                    spatial: fixed_background_spatial,
+                    frame: own_state.frame,
+                };
                 assignment.has_fixed_background_visual_context = true;
             }
         }

@@ -135,11 +135,6 @@ static bool spatial_data_is_equal(SpatialNodeIndex a_index, SpatialData const& a
             return other && data.plane_root_index == other->plane_root_index
                 && data.flattens_inherited_transform == other->flattens_inherited_transform;
         },
-        [&](ScrollCompensation const& data) {
-            auto const* other = b.get_pointer<ScrollCompensation>();
-            return other
-                && a_scroll_state.device_offset_for_index(data.scroll_node_index) == b_scroll_state.device_offset_for_index(other->scroll_node_index);
-        },
         [&](AnchorScrollShift const& data) {
             auto const* other = b.get_pointer<AnchorScrollShift>();
             return other
