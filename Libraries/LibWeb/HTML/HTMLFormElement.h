@@ -114,6 +114,8 @@ public:
 
     RadioButtonGroupRegistry& ensure_radio_button_group_registry();
 
+    void reposition_moved_associated_elements(Badge<FormAssociatedElement>, Vector<GC::Ref<HTMLElement>> const& moved_elements);
+
 private:
     HTMLFormElement(DOM::Document&, DOM::QualifiedName);
 
@@ -136,6 +138,8 @@ private:
     ErrorOr<void> mail_as_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
     void plan_to_navigate_to(URL::URL url, DocumentResource post_resource, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
 
+    size_t tree_order_insertion_index(HTMLElement const&) const;
+
     size_t number_of_fields_blocking_implicit_submission() const;
     void update_default_button_state_for_style(DOM::Element* element_with_known_previous_state, bool previous_state);
 
@@ -144,7 +148,7 @@ private:
     // https://html.spec.whatwg.org/multipage/forms.html#locked-for-reset
     bool m_locked_for_reset { false };
 
-    Vector<GC::Ref<HTMLElement>> m_associated_elements;
+    Vector<GC::Ref<HTMLElement>> m_associated_elements_in_tree_order;
 
     GC::Ptr<RadioButtonGroupRegistry> m_radio_button_group_registry;
     GC::Weak<HTMLElement> m_default_button_for_style_invalidation;

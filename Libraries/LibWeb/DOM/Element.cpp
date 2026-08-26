@@ -91,6 +91,7 @@
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
@@ -3016,6 +3017,9 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
 void Element::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
 {
     Base::moved_from(is_subtree_root, old_ancestor);
+
+    if (is_subtree_root == IsSubtreeRoot::Yes)
+        HTML::FormAssociatedElement::reposition_associated_elements_after_move({}, *this);
 }
 
 void Element::children_changed(ChildrenChangedMetadata const& metadata)

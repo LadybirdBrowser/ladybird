@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
@@ -59,7 +60,7 @@ void HTMLFormElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_elements);
-    visitor.visit(m_associated_elements);
+    visitor.visit(m_associated_elements_in_tree_order);
     visitor.visit(m_planned_navigation);
     visitor.visit(m_rel_list);
     visitor.visit(m_past_names_map);
@@ -367,7 +368,7 @@ void HTMLFormElement::reset_form()
 
     // 2. If reset is true, then invoke the reset algorithm of each resettable element whose form owner is form.
     if (reset) {
-        GC::RootVector<GC::Ref<HTMLElement>> associated_elements_copy { m_associated_elements };
+        GC::RootVector<GC::Ref<HTMLElement>> associated_elements_copy { m_associated_elements_in_tree_order };
         for (auto element : associated_elements_copy) {
             auto& form_associated_element = as<FormAssociatedElement>(*element);
             if (form_associated_element.is_resettable())
@@ -421,14 +422,39 @@ void HTMLFormElement::reset()
     m_locked_for_reset = false;
 }
 
+size_t HTMLFormElement::tree_order_insertion_index(HTMLElement const& element) const
+{
+    return lower_bound_index(m_associated_elements_in_tree_order, element, [](auto const& entry, auto const& new_element) {
+        return new_element.is_before(*entry) ? 1 : -1;
+    });
+}
+
 void HTMLFormElement::add_associated_element(Badge<FormAssociatedElement>, HTMLElement& element)
 {
-    m_associated_elements.append(element);
+    VERIFY(&element.root() == &root());
+    m_associated_elements_in_tree_order.insert(tree_order_insertion_index(element), element);
+}
+
+void HTMLFormElement::reposition_moved_associated_elements(Badge<FormAssociatedElement>, Vector<GC::Ref<HTMLElement>> const& moved_elements)
+{
+    if (moved_elements.size() == m_associated_elements_in_tree_order.size())
+        return;
+
+    HashTable<HTMLElement const*> moved_element_set;
+    for (auto const& element : moved_elements)
+        moved_element_set.set(element.ptr());
+
+    m_associated_elements_in_tree_order.remove_all_matching([&](auto const& entry) { return moved_element_set.contains(entry.ptr()); });
+
+    auto index = tree_order_insertion_index(*moved_elements.first());
+    for (size_t i = 0; i < moved_elements.size(); ++i)
+        m_associated_elements_in_tree_order.insert(index + i, moved_elements[i]);
 }
 
 void HTMLFormElement::remove_associated_element(Badge<FormAssociatedElement>, HTMLElement& element)
 {
-    m_associated_elements.remove_first_matching([&](auto& entry) { return entry.ptr() == &element; });
+    if (auto index = m_associated_elements_in_tree_order.find_first_index_if([&](auto const& entry) { return entry.ptr() == &element; }); index.has_value())
+        m_associated_elements_in_tree_order.remove(*index);
 
     // If an element listed in a form element's past names map changes form owner, then its entries must be removed from that map.
     m_past_names_map.remove_all_matching([&](auto&, auto const& entry) { return entry.node.ptr() == &element; });
@@ -1050,7 +1076,7 @@ GC::Ptr<DOM::Element> HTMLFormElement::item(size_t index) const
 bool HTMLFormElement::is_supported_property_name(Utf16FlyString const& name) const
 {
     // NB: This is a simplified version of ::supported_property_names() that does not require sorting or allocations.
-    for (auto const& candidate : m_associated_elements) {
+    for (auto const& candidate : m_associated_elements_in_tree_order) {
         if (is_form_control(*candidate, *this) || is<HTMLImageElement>(*candidate)) {
             if (first_is_one_of(name, candidate->id(), candidate->name()))
                 return true;
@@ -1081,7 +1107,7 @@ Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
 
     // 2. For each listed element candidate whose form owner is the form element, with the exception of any
     //    input elements whose type attribute is in the Image Button state:
-    for (auto const& candidate : m_associated_elements) {
+    for (auto const& candidate : m_associated_elements_in_tree_order) {
         if (!is_form_control(*candidate, *this))
             continue;
 
@@ -1097,11 +1123,11 @@ Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
     }
 
     // 3. For each img element candidate whose form owner is the form element:
-    for (auto const& candidate : m_associated_elements) {
+    for (auto const& candidate : m_associated_elements_in_tree_order) {
         if (!is<HTMLImageElement>(*candidate))
             continue;
 
-        // Every element in m_associated_elements has this as the form owner.
+        // Every element in m_associated_elements_in_tree_order has this as the form owner.
 
         // 1. If candidate has an id attribute, add an entry to sourced names with that id attribute's value as the
         //    string, candidate as the element, and id as the source.
@@ -1218,21 +1244,17 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
 FormAssociatedElement* HTMLFormElement::default_button() const
 {
     // A form element's default button is the first submit button in tree order whose form owner is that form element.
-    FormAssociatedElement* default_button = nullptr;
-
-    for (auto const& element : m_associated_elements) {
-        if (!element->is_submit_button())
-            continue;
-        if (!default_button || element->is_before(default_button->form_associated_element_to_html_element()))
-            default_button = element.ptr();
+    for (auto const& element : m_associated_elements_in_tree_order) {
+        if (element->is_submit_button())
+            return element.ptr();
     }
 
-    return default_button;
+    return nullptr;
 }
 
 bool HTMLFormElement::has_invalid_associated_element() const
 {
-    for (auto const& element : m_associated_elements) {
+    for (auto const& element : m_associated_elements_in_tree_order) {
         if (element->is_candidate_for_constraint_validation() && !element->satisfies_its_constraints())
             return true;
     }
@@ -1282,7 +1304,7 @@ size_t HTMLFormElement::number_of_fields_blocking_implicit_submission() const
     // Local Date and Time, Number.
     size_t count = 0;
 
-    for (auto element : m_associated_elements) {
+    for (auto element : m_associated_elements_in_tree_order) {
         if (!is<HTMLInputElement>(*element))
             continue;
 
