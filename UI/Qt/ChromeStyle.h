@@ -7,8 +7,11 @@
 #pragma once
 
 #include <QColor>
-#include <QPalette>
 #include <QString>
+
+class QAbstractButton;
+class QPainter;
+class QPalette;
 
 namespace Ladybird::ChromeStyle {
 
@@ -41,5 +44,11 @@ QString tab_widget_style_sheet(QPalette const&);
 QString autocomplete_popup_style_sheet(QPalette const&);
 QString downloads_popover_style_sheet(QPalette const&);
 QString private_session_popover_style_sheet(QPalette const&);
+
+enum class CircularControlFrameStyle {
+    InteractionOnly,
+    ActiveTabOverlay,
+};
+void paint_circular_control_frame(QPainter&, QAbstractButton const&, CircularControlFrameStyle = CircularControlFrameStyle::InteractionOnly);
 
 }

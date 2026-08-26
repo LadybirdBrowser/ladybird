@@ -46,6 +46,8 @@
 #include <QPixmap>
 #include <QScreen>
 #include <QStyle>
+#include <QStyleOptionButton>
+#include <QStylePainter>
 #include <QTimer>
 #include <QToolButton>
 #include <QToolTip>
@@ -2450,6 +2452,24 @@ bool TabBarButton::event(QEvent* event)
         setFlat(true);
 
     return QPushButton::event(event);
+}
+
+void TabBarButton::paintEvent(QPaintEvent*)
+{
+    QStyleOptionButton option;
+    initStyleOption(&option);
+
+    QStylePainter painter(this);
+
+    if (objectName() == "LadybirdTabButton") {
+        auto collapsed = property(COLLAPSED_VERTICAL_TAB_BUTTON_PROPERTY).toBool();
+        auto frame_style = collapsed
+            ? ChromeStyle::CircularControlFrameStyle::ActiveTabOverlay
+            : ChromeStyle::CircularControlFrameStyle::InteractionOnly;
+        ChromeStyle::paint_circular_control_frame(painter, *this, frame_style);
+    }
+
+    painter.drawControl(QStyle::CE_PushButton, option);
 }
 
 }

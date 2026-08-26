@@ -46,6 +46,8 @@
 #include <QResizeEvent>
 #include <QScreen>
 #include <QScrollArea>
+#include <QStyleOptionToolButton>
+#include <QStylePainter>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -53,9 +55,26 @@ namespace Ladybird {
 
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 
-class HamburgerButton final : public QToolButton {
+class ToolbarButton : public QToolButton {
 public:
     using QToolButton::QToolButton;
+
+protected:
+    virtual void paintEvent(QPaintEvent*) override
+    {
+        QStyleOptionToolButton option;
+        initStyleOption(&option);
+
+        QStylePainter painter(this);
+        ChromeStyle::paint_circular_control_frame(painter, *this);
+
+        painter.drawComplexControl(QStyle::CC_ToolButton, option);
+    }
+};
+
+class HamburgerButton final : public ToolbarButton {
+public:
+    using ToolbarButton::ToolbarButton;
 
 protected:
     virtual void mousePressEvent(QMouseEvent* event) override
@@ -87,9 +106,9 @@ private:
     }
 };
 
-class DownloadsButton final : public QToolButton {
+class DownloadsButton final : public ToolbarButton {
 public:
-    using QToolButton::QToolButton;
+    using ToolbarButton::ToolbarButton;
 
     void set_progress(Optional<double> progress)
     {
@@ -121,7 +140,7 @@ public:
 protected:
     virtual void paintEvent(QPaintEvent* event) override
     {
-        QToolButton::paintEvent(event);
+        ToolbarButton::paintEvent(event);
 
         if (!m_progress.has_value())
             return;
@@ -161,7 +180,7 @@ static constexpr int TOOLBAR_BUTTON_SIZE = 34;
 
 static QToolButton* create_toolbar_button(QWidget& parent, QAction& action)
 {
-    auto* button = new QToolButton(&parent);
+    auto* button = new ToolbarButton(&parent);
     button->setDefaultAction(&action);
     button->setAutoRaise(true);
     button->setFocusPolicy(Qt::NoFocus);
