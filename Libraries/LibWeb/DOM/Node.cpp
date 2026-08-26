@@ -95,41 +95,12 @@
 
 namespace Web::DOM {
 
-static bool content_uses_list_item_counter(CSS::ComputedContentData const& content)
-{
-    auto item_uses_list_item_counter = [](CSS::ComputedContentItem const& item) {
-        auto const* counter = item.get_pointer<CSS::ComputedContentCounter>();
-        return counter && counter->name == CSS::list_item_counter_name();
-    };
-    return any_of(content.items, item_uses_list_item_counter)
-        || any_of(content.alt_text, item_uses_list_item_counter);
-}
-
-static bool style_after_list_items_depends_on_list_item_counter(Element const& list_owner)
-{
-    auto style_depends_on_list_item_counter = [](CSS::ComputedValues const& style) {
-        auto definitions_contain_list_item_counter = [](auto const& definitions) {
-            return any_of(definitions, [](auto const& definition) {
-                return definition.name == CSS::list_item_counter_name();
-            });
-        };
-        return style.display().is_list_item()
-            || content_uses_list_item_counter(style.computed_content())
-            || definitions_contain_list_item_counter(style.counter_increment())
-            || definitions_contain_list_item_counter(style.counter_reset())
-            || definitions_contain_list_item_counter(style.counter_set());
-    };
-
-    auto style = list_owner.computed_style(CSS::PseudoElement::After);
-    return style && style_depends_on_list_item_counter(*style);
-}
-
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
 {
     auto list_owner = list_item.parent_element();
     if (!list_owner || !list_owner->is_html_ol_ul_menu_element() || list_item.next_element_sibling())
         return false;
-    if (style_after_list_items_depends_on_list_item_counter(*list_owner))
+    if (list_owner->after_pseudo_element_style_depends_on_list_item_counter())
         return false;
 
     auto counters_set = list_owner->counters_set();
@@ -1030,7 +1001,7 @@ void Node::insert_nodes_before(Vector<GC::Root<Node>> nodes, GC::Ptr<Node> child
         if (inserted_node->is_html_li_element()) {
             auto& list_item = static_cast<Element&>(*inserted_node);
             if (!final_direct_list_item_does_not_renumber_existing_content(list_item))
-                list_item.invalidate_list_item_counters_for_list_owner();
+                list_item.schedule_list_item_renumber_for_list_owner();
             break;
         }
     }
@@ -1308,7 +1279,7 @@ void Node::remove(bool suppress_observers)
         auto style = this_element->computed_style();
         if ((is_html_li_element() || (style && style->display().is_list_item()))
             && !final_direct_list_item_does_not_renumber_existing_content(*this_element)) {
-            this_element->invalidate_list_item_counters_for_list_owner();
+            this_element->schedule_list_item_renumber_for_list_owner();
         }
     }
 

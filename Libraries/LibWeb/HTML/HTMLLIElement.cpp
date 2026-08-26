@@ -30,7 +30,7 @@ void HTMLLIElement::attribute_changed(Utf16FlyString const& local_name, Optional
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
     if (local_name == HTML::AttributeNames::value)
-        invalidate_list_item_counters_for_list_owner();
+        schedule_list_item_renumber_for_list_owner();
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-li-value

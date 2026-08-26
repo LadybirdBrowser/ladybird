@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/ol-renumbers-after-removing-list-item-ref.html">
+<ol id="list"><li>a</li><li>b</li><li>c</li><li>d</li></ol>
+<script>
+    const list = document.getElementById("list");
+    document.body.offsetHeight;
+    list.children[0].remove();
+    document.body.offsetHeight;
+</script>

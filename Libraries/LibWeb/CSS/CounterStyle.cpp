@@ -626,6 +626,16 @@ bool CounterStyle::uses_a_negative_sign() const
         });
 }
 
+bool CounterStyle::representation_is_constant() const
+{
+    auto const* generic_algorithm = m_algorithm.get_pointer<GenericCounterStyleAlgorithm>();
+    if (!generic_algorithm || generic_algorithm->type != CounterStyleSystem::Cyclic || generic_algorithm->symbol_list.size() != 1)
+        return false;
+    return m_range.size() == 1
+        && m_range.first().start == NumericLimits<i32>::min()
+        && m_range.first().end == NumericLimits<i32>::max();
+}
+
 // https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
 static Utf16String generate_a_counter_representation_impl(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value, HashTable<Utf16FlyString>& fallback_history)
 {

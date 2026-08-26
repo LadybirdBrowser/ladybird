@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    ul {
+        list-style-type: none;
+    }
+    ul li::before {
+        content: counter(list-item) ") ";
+    }
+</style>
+<ul><li>b</li><li>c</li><li>d</li></ul>
