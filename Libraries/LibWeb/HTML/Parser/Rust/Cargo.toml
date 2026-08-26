@@ -6,5 +6,8 @@ edition = "2024"
 [lib]
 crate-type = ["rlib"]
 
+[dependencies]
+ak = { path = "../../../../../AK/Rust" }
+
 [build-dependencies]
 cbindgen = "0.29"

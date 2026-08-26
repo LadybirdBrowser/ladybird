@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 use crate::entities::NamedCharacterReferenceMatcher;
 use crate::token::Attribute;
 use crate::token::DoctypeData;
+use crate::token::HtmlName;
 use crate::token::Position;
 use crate::token::Token;
 use crate::token::TokenPayload;
@@ -216,7 +217,7 @@ pub struct HtmlTokenizer {
     pub queued_tokens: VecDeque<Token>,
     temporary_buffer: Vec<u32>,
     character_reference_code: u32,
-    last_emitted_start_tag_name: Option<String>,
+    last_emitted_start_tag_name: Option<HtmlName>,
     source_positions: Vec<Position>,
     // Mirror of the most recent entry in source_positions, kept in sync
     // with it on the slow path and updated directly on the fast
@@ -672,28 +673,18 @@ impl HtmlTokenizer {
         std::mem::take(&mut self.current_builder)
     }
 
-    /// Commit `current_builder` into `current_token.tag_name` (or its
-    /// interned-id slot). If the accumulated bytes hit the intern table
-    /// we clear the builder in place, preserving its capacity for the
-    /// next token and avoiding the String allocation entirely. Most real
-    /// HTML tag names are interned.
+    /// Commit `current_builder` into `current_token.tag_name`.
     #[inline]
     fn commit_current_builder_as_tag_name(&mut self) {
-        let id = crate::interned_names::lookup_tag_name(self.current_builder.as_bytes());
-        if id != 0 {
-            self.current_builder.clear();
-            self.current_token.set_tag_name_id(id);
-        } else {
-            let name = std::mem::take(&mut self.current_builder);
-            *self.current_token.tag_name_mut() = name;
-        }
+        self.current_token
+            .set_tag_name(crate::token::HtmlName::from_utf8(&self.current_builder));
+        self.current_builder.clear();
     }
 
     fn create_new_token(&mut self, token_type: TokenType) {
         let payload = match token_type {
             TokenType::StartTag | TokenType::EndTag => TokenPayload::Tag {
-                tag_name: String::new(),
-                tag_name_id: 0,
+                tag_name: Default::default(),
                 self_closing: false,
                 had_duplicate_attribute: false,
                 attributes: Vec::new(),
@@ -742,7 +733,7 @@ impl HtmlTokenizer {
                 self.current_token.normalize_attributes();
             }
             if self.current_token.token_type == TokenType::StartTag {
-                self.last_emitted_start_tag_name = Some(self.current_token.tag_name().to_string());
+                self.last_emitted_start_tag_name = Some(self.current_token.tag_name().clone());
             }
             let is_start_or_end_tag = self.current_token.token_type == TokenType::StartTag
                 || self.current_token.token_type == TokenType::EndTag;
@@ -3225,29 +3216,18 @@ impl HtmlTokenizer {
     }
 
     fn set_attribute_name(&mut self) {
-        let id = crate::interned_names::lookup_attr_name(self.current_builder.as_bytes());
+        let name = crate::token::HtmlName::from_utf8(&self.current_builder);
         let name_length = self.current_builder.chars().count() as u64;
         let name_end = self.nth_last_position(1);
         let name_start = Position {
             line: name_end.line,
             column: name_end.column.saturating_sub(name_length),
         };
-        if id != 0 {
-            self.current_builder.clear();
-            if let Some(attr) = self.current_token.attributes_mut().last_mut() {
-                attr.local_name_id = id;
-                attr.local_name.clear();
-                attr.name_start_position = name_start;
-                attr.name_end_position = name_end;
-            }
-        } else {
-            let name = self.consume_current_builder();
-            if let Some(attr) = self.current_token.attributes_mut().last_mut() {
-                attr.local_name_id = 0;
-                attr.local_name = name;
-                attr.name_start_position = name_start;
-                attr.name_end_position = name_end;
-            }
+        self.current_builder.clear();
+        if let Some(attr) = self.current_token.attributes_mut().last_mut() {
+            attr.local_name = name;
+            attr.name_start_position = name_start;
+            attr.name_end_position = name_end;
         }
     }
 

@@ -13,4 +13,9 @@ namespace Web::MathML::TagNames {
 ENUMERATE_MATHML_TAGS
 #undef __ENUMERATE_MATHML_TAG
 
+#define __ENUMERATE_MATHML_TAG(name, tag) \
+    extern "C" FlatPtr const ladybird_mathml_tag_name_##name = name.raw_identity();
+ENUMERATE_MATHML_TAGS
+#undef __ENUMERATE_MATHML_TAG
+
 }

@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#[cfg(not(test))]
+use ak::Utf16StringUnits;
+
 /// Source position in the input.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Position {
@@ -13,13 +16,9 @@ pub struct Position {
 
 /// A single attribute on a start or end tag token.
 ///
-/// If `local_name_id` is non-zero it is an index into
-/// `interned_names::INTERNED_ATTR_NAMES` and `local_name` is unused.
-/// Otherwise `local_name` holds the owned bytes.
 #[derive(Clone, Debug, Default)]
 pub struct Attribute {
-    pub local_name: String,
-    pub local_name_id: u16,
+    pub local_name: HtmlName,
     pub value: String,
     pub name_start_position: Position,
     pub name_end_position: Position,
@@ -27,13 +26,195 @@ pub struct Attribute {
     pub value_end_position: Position,
 }
 
-impl Attribute {
-    #[inline(always)]
-    pub fn local_name_bytes(&self) -> &[u8] {
-        if self.local_name_id != 0 {
-            crate::interned_names::attr_name_by_id(self.local_name_id).unwrap_or_default()
-        } else {
-            self.local_name.as_bytes()
+#[cfg(not(test))]
+#[derive(Clone, Default, Eq)]
+pub struct HtmlName(ak::Utf16FlyString);
+
+// Standalone Rust test binaries have no C++ fly-string table to own these names.
+#[cfg(test)]
+#[derive(Clone, Default, Eq)]
+pub struct HtmlName(String);
+
+#[cfg(not(test))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct KnownName(usize);
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum KnownName {
+    Raw(usize),
+    Literal(&'static str),
+}
+
+impl KnownName {
+    pub const fn from_raw(raw: usize) -> Self {
+        #[cfg(not(test))]
+        {
+            Self(raw)
+        }
+        #[cfg(test)]
+        {
+            Self::Raw(raw)
+        }
+    }
+
+    #[cfg(test)]
+    pub const fn from_literal(name: &'static str) -> Self {
+        Self::Literal(name)
+    }
+}
+
+impl HtmlName {
+    pub fn from_utf8(name: &str) -> Self {
+        #[cfg(not(test))]
+        {
+            Self(ak::Utf16FlyString::from_utf8(name))
+        }
+        #[cfg(test)]
+        {
+            Self(name.to_string())
+        }
+    }
+
+    /// Borrow an existing C++ `Utf16FlyString` identity.
+    ///
+    /// # Safety
+    /// `raw` must identify a live `Utf16FlyString` for the duration of this call.
+    pub unsafe fn from_borrowed_raw(raw: usize) -> Self {
+        #[cfg(not(test))]
+        {
+            unsafe { ak::reference_utf16_string(raw) };
+            Self(unsafe { ak::Utf16FlyString::from_raw_owned(raw) })
+        }
+        #[cfg(test)]
+        {
+            let _ = raw;
+            unreachable!("C++ string identities are unavailable in standalone Rust tests")
+        }
+    }
+
+    pub fn raw_identity(&self) -> usize {
+        #[cfg(not(test))]
+        {
+            self.0.raw_identity()
+        }
+        #[cfg(test)]
+        {
+            0
+        }
+    }
+
+    pub fn equals(&self, other: &str) -> bool {
+        #[cfg(test)]
+        return self.0 == other;
+
+        #[cfg(not(test))]
+        {
+            if let Some(raw) = ak::utf16_short_string_raw(other) {
+                return self.raw_identity() == raw;
+            }
+            match self.0.as_units() {
+                Utf16StringUnits::Ascii(units) => units == other.as_bytes(),
+                Utf16StringUnits::Utf16(units) => units.iter().copied().eq(other.encode_utf16()),
+            }
+        }
+    }
+
+    pub fn is_one_of(&self, names: &[KnownName]) -> bool {
+        #[cfg(not(test))]
+        {
+            names.contains(&KnownName::from_raw(self.raw_identity()))
+        }
+        #[cfg(test)]
+        {
+            names.iter().any(|name| self == name)
+        }
+    }
+
+    pub fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
+        #[cfg(test)]
+        return self.0.eq_ignore_ascii_case(&other.0);
+
+        #[cfg(not(test))]
+        {
+            match (self.0.as_units(), other.0.as_units()) {
+                (Utf16StringUnits::Ascii(left), Utf16StringUnits::Ascii(right)) => left.eq_ignore_ascii_case(right),
+                (Utf16StringUnits::Utf16(left), Utf16StringUnits::Utf16(right)) => {
+                    left.len() == right.len()
+                        && left.iter().zip(right).all(|(left, right)| {
+                            left == right
+                                || (*left <= 0x7f
+                                    && *right <= 0x7f
+                                    && (*left as u8).eq_ignore_ascii_case(&(*right as u8)))
+                        })
+                }
+                (Utf16StringUnits::Ascii(left), Utf16StringUnits::Utf16(right))
+                | (Utf16StringUnits::Utf16(right), Utf16StringUnits::Ascii(left)) => {
+                    left.len() == right.len()
+                        && left.iter().zip(right).all(|(left, right)| {
+                            u16::from(*left) == *right || (*right <= 0x7f && left.eq_ignore_ascii_case(&(*right as u8)))
+                        })
+                }
+            }
+        }
+    }
+}
+
+impl PartialEq<KnownName> for HtmlName {
+    fn eq(&self, other: &KnownName) -> bool {
+        #[cfg(not(test))]
+        {
+            self.raw_identity() == other.0
+        }
+        #[cfg(test)]
+        {
+            match other {
+                KnownName::Raw(raw) => self.raw_identity() == *raw,
+                KnownName::Literal(name) => self.0 == *name,
+            }
+        }
+    }
+}
+
+impl PartialEq<HtmlName> for KnownName {
+    fn eq(&self, other: &HtmlName) -> bool {
+        other == self
+    }
+}
+
+impl PartialEq for HtmlName {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl PartialEq<str> for HtmlName {
+    fn eq(&self, other: &str) -> bool {
+        self.equals(other)
+    }
+}
+
+impl PartialEq<&str> for HtmlName {
+    fn eq(&self, other: &&str) -> bool {
+        self.equals(other)
+    }
+}
+
+impl PartialEq<&HtmlName> for HtmlName {
+    fn eq(&self, other: &&HtmlName) -> bool {
+        self == *other
+    }
+}
+
+impl std::fmt::Debug for HtmlName {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[cfg(not(test))]
+        {
+            formatter.debug_tuple("HtmlName").field(&self.0.raw_identity()).finish()
+        }
+        #[cfg(test)]
+        {
+            formatter.debug_tuple("HtmlName").field(&self.0).finish()
         }
     }
 }
@@ -66,16 +247,12 @@ pub enum TokenType {
 
 /// Type-specific data for an HTML token.
 ///
-/// If `tag_name_id` is non-zero it is an index into
-/// `interned_names::INTERNED_TAG_NAMES` and `tag_name` is unused.
-/// Otherwise `tag_name` holds the owned bytes.
 #[derive(Clone, Debug, Default)]
 pub enum TokenPayload {
     #[default]
     None,
     Tag {
-        tag_name: String,
-        tag_name_id: u16,
+        tag_name: HtmlName,
         self_closing: bool,
         // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is tracked.
         had_duplicate_attribute: bool,
@@ -111,65 +288,18 @@ impl Token {
         }
     }
 
-    /// Return the tag name as a &str. For interned names this resolves
-    /// through the interned name table; for un-interned names it returns
-    /// the owned String's contents.
     #[inline(always)]
-    pub fn tag_name(&self) -> &str {
+    pub fn tag_name(&self) -> &HtmlName {
         match &self.payload {
-            TokenPayload::Tag {
-                tag_name, tag_name_id, ..
-            } => {
-                if *tag_name_id != 0 {
-                    // SAFETY: interned names are compile-time ASCII byte
-                    // literals in interned_names_generated.rs, so they are
-                    // always valid UTF-8.
-                    match crate::interned_names::tag_name_by_id(*tag_name_id) {
-                        Some(bytes) => unsafe { std::str::from_utf8_unchecked(bytes) },
-                        None => "",
-                    }
-                } else {
-                    tag_name
-                }
-            }
-            _ => "",
+            TokenPayload::Tag { tag_name, .. } => tag_name,
+            _ => panic!("tag_name called on non-tag token"),
         }
     }
 
-    #[inline(always)]
-    pub fn tag_name_mut(&mut self) -> &mut String {
+    pub fn set_tag_name(&mut self, name: HtmlName) {
         match &mut self.payload {
-            TokenPayload::Tag {
-                tag_name, tag_name_id, ..
-            } => {
-                *tag_name_id = 0;
-                tag_name
-            }
-            _ => panic!("tag_name_mut called on non-tag token"),
-        }
-    }
-
-    /// Set the tag name to an interned id, clearing any previously stored
-    /// owned name.
-    #[inline(always)]
-    pub fn set_tag_name_id(&mut self, id: u16) {
-        match &mut self.payload {
-            TokenPayload::Tag {
-                tag_name, tag_name_id, ..
-            } => {
-                tag_name.clear();
-                *tag_name_id = id;
-            }
-            _ => panic!("set_tag_name_id called on non-tag token"),
-        }
-    }
-
-    /// Returns the interned tag-name id, or 0 if the name is un-interned.
-    #[inline(always)]
-    pub fn tag_name_id(&self) -> u16 {
-        match &self.payload {
-            TokenPayload::Tag { tag_name_id, .. } => *tag_name_id,
-            _ => 0,
+            TokenPayload::Tag { tag_name, .. } => *tag_name = name,
+            _ => panic!("set_tag_name called on non-tag token"),
         }
     }
 
@@ -220,8 +350,7 @@ impl Token {
 
         let mut i = 0;
         while i < attributes.len() {
-            let is_duplicate =
-                (0..i).any(|seen_index| attributes[seen_index].local_name_bytes() == attributes[i].local_name_bytes());
+            let is_duplicate = (0..i).any(|seen_index| attributes[seen_index].local_name == attributes[i].local_name);
             if is_duplicate {
                 *had_duplicate_attribute = true;
                 attributes.remove(i);
