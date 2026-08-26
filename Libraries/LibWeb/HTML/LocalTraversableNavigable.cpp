@@ -89,7 +89,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Utf16String target_name, Optional<CrossProcessId> initial_document_state_id)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Utf16String target_name, Optional<CrossProcessId> initial_document_state_id, VisibilityState system_visibility_state)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -130,7 +130,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     auto traversable = vm.heap().allocate<LocalTraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
-    traversable->initialize_navigable(document_state, nullptr, *document);
+    traversable->initialize_navigable(document_state, nullptr, *document, system_visibility_state);
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.
     auto initial_history_entry = traversable->active_session_history_entry();
@@ -157,10 +157,10 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource, CrossProcessId initial_document_state_id)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource, CrossProcessId initial_document_state_id, VisibilityState system_visibility_state)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = create_a_new_top_level_traversable(page, nullptr, {}, initial_document_state_id);
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, {}, initial_document_state_id, system_visibility_state);
     page->set_top_level_traversable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
@@ -965,7 +965,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     bool const update_only = continuation->update_only;
     RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
     auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = continuation->navigation_type, navigation_api_abort_behavior = continuation->navigation_api_abort_behavior, on_complete] {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), system_visibility_state = command.system_visibility_state, navigation_type = continuation->navigation_type, navigation_api_abort_behavior = continuation->navigation_api_abort_behavior, on_complete] {
         if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
             auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
                 navigation_type, *target_entry, displayed_document_id);
@@ -1031,7 +1031,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         auto resolved_document = continuation->resolved_document;
         Optional<ReplicatedNavigableState> activated_navigable_state;
         if (!update_only) {
-            navigable->activate_history_entry(*target_entry, *resolved_document);
+            navigable->activate_history_entry(*target_entry, *resolved_document, system_visibility_state);
             activated_navigable_state = navigable->replicated_state();
         }
         if (target_entry_persisted_state.has_value())
@@ -1621,7 +1621,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
     return entries;
 }
 
-void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
+void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, VisibilityState system_visibility_state, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     auto operation = m_history_operations.find(operation_id);
     if (operation == m_history_operations.end()) {
@@ -1644,6 +1644,7 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(CrossPr
         {
             .history_object_length_and_index = history_object_length_and_index,
             .entries_for_navigation_api = move(entries_for_navigation_api),
+            .system_visibility_state = system_visibility_state,
         },
         on_complete);
 }
@@ -1798,33 +1799,6 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
     //        However, without this, we can keep stale destroyed traversables around.
     set_has_been_destroyed();
     remove_from_all_local_navigables();
-}
-
-// https://html.spec.whatwg.org/multipage/interaction.html#system-visibility-state
-void LocalTraversableNavigable::set_system_visibility_state(VisibilityState visibility_state)
-{
-    if (m_system_visibility_state == visibility_state)
-        return;
-    m_system_visibility_state = visibility_state;
-
-    // When a user agent determines that the system visibility state for
-    // traversable navigable traversable has changed to newState, it must run the following steps:
-
-    // 1. Let navigables be the inclusive descendant navigables of traversable's active document.
-    auto navigables = active_document()->inclusive_descendant_navigables();
-
-    // 2. For each navigable of navigables:
-    for (auto& navigable : navigables) {
-        // 1. Let document be navigable's active document.
-        auto document = navigable->active_document();
-        VERIFY(document);
-
-        // 2. Queue a global task on the user interaction task source given document's relevant global object
-        //    to update the visibility state of document with newState.
-        queue_global_task(Task::Source::UserInteraction, relevant_global_object(*document), GC::create_function(heap(), [visibility_state, document] {
-            document->update_the_visibility_state(visibility_state);
-        }));
-    }
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable

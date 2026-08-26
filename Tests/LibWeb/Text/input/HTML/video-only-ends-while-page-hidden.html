@@ -11,7 +11,7 @@
         video.src = "../../../Assets/resize-320x240-640x480.webm";
         await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
 
-        internals.setSystemVisibilityState("hidden");
+        await setSystemVisibilityState("hidden");
         await video.play();
         await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
 

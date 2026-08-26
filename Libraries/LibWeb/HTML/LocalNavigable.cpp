@@ -810,7 +810,7 @@ void LocalNavigable::consume_child_navigable_history_reconstruction_id(size_t in
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document)
+void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
 {
     set_id(page().client().allocate_navigable_id());
 
@@ -844,11 +844,11 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
     }
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
-    document->set_initial_visibility_state(traversable_navigable()->system_visibility_state());
+    document->set_initial_visibility_state(system_visibility_state);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
+void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
 {
     // 1. Save persisted state to the navigable's active session history entry.
     save_persisted_state_to_active_session_history_entry();
@@ -884,7 +884,7 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     new_document->make_active();
 
     // 6. Set the initial visibility state of newDocument to navigable's traversable navigable's system visibility state.
-    new_document->set_initial_visibility_state(traversable_navigable()->system_visibility_state());
+    new_document->set_initial_visibility_state(system_visibility_state);
 
     // AD-HOC: In the async state machine, documents created during populate may have completed
     //         their loading lifecycle before being activated (when they had no navigable).
@@ -1333,8 +1333,8 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             if (!name.equals_ignoring_ascii_case(u"_blank"sv))
                 target_name = Utf16String::from_utf16(name);
 
-            auto create_new_traversable_closure = [page = new_web_view.page, window_handle = move(new_web_view.window_handle), target_name](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name);
+            auto create_new_traversable_closure = [page = new_web_view.page, system_visibility_state = new_web_view.system_visibility_state, window_handle = move(new_web_view.window_handle), target_name](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
+                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name, {}, system_visibility_state);
                 page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(window_handle.bytes()));
 

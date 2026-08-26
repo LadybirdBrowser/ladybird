@@ -39,17 +39,14 @@ class WEB_API LocalTraversableNavigable final : public LocalNavigable {
     GC_DECLARE_ALLOCATOR(LocalTraversableNavigable);
 
 public:
-    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, Utf16String target_name, Optional<CrossProcessId> initial_document_state_id = {});
-    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, DocumentResource, CrossProcessId initial_document_state_id);
+    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, Utf16String target_name, Optional<CrossProcessId> initial_document_state_id = {}, VisibilityState system_visibility_state = VisibilityState::Hidden);
+    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, DocumentResource, CrossProcessId initial_document_state_id, VisibilityState system_visibility_state);
 
     virtual ~LocalTraversableNavigable() override;
 
     virtual bool is_top_level_traversable() const override;
 
     u64 session_history_entry_count() const { return m_session_history_entry_count; }
-
-    VisibilityState system_visibility_state() const { return m_system_visibility_state; }
-    void set_system_visibility_state(VisibilityState);
 
     bool is_created_by_web_content() const { return m_is_created_by_web_content; }
     void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
@@ -78,7 +75,7 @@ public:
     void handle_ui_history_operation_started(CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady>);
     void run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, LocalNavigable::NavigationAPIAbortBehavior, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
-    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
+    void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, VisibilityState, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count);
 
@@ -151,6 +148,7 @@ private:
     struct LocalApplyChangingNavigableHistoryStepContinuation {
         HistoryObjectLengthAndIndex history_object_length_and_index;
         Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
+        VisibilityState system_visibility_state { VisibilityState::Hidden };
     };
     bool run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob, GC::Ptr<SourceSnapshotParams>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete>);
     void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete);
@@ -165,9 +163,6 @@ private:
     // complete_history_operation; records for operations initiated elsewhere are created by the first UI job
     // that references them.
     HashMap<CrossProcessId, HistoryOperationState> m_history_operations;
-
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
-    VisibilityState m_system_visibility_state { VisibilityState::Hidden };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-created-by-web-content
     bool m_is_created_by_web_content { false };

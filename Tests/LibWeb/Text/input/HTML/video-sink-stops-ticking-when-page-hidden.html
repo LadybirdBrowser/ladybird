@@ -4,10 +4,6 @@
 <script>
     const video = document.getElementById("video");
 
-    function nextVisibilityChange() {
-        return new Promise(resolve => document.addEventListener("visibilitychange", resolve, { once: true }));
-    }
-
     asyncTest(async done => {
         video.src = "../../../Assets/test-webm.webm";
         await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
@@ -15,9 +11,7 @@
         await animationFrame();
         println(`ticking while visible: ${internals.mediaElementVideoSinkIsTicking(video)}`);
 
-        let visibilityChanged = nextVisibilityChange();
-        internals.setSystemVisibilityState("hidden");
-        await visibilityChanged;
+        await setSystemVisibilityState("hidden");
         println(`document.hidden: ${document.hidden}`);
         println(`ticking while hidden: ${internals.mediaElementVideoSinkIsTicking(video)}`);
 
@@ -28,9 +22,7 @@
         println(`ticking for a sink created while hidden: ${internals.mediaElementVideoSinkIsTicking(videoCreatedWhileHidden)}`);
 
         video.getBoundingClientRect();
-        visibilityChanged = nextVisibilityChange();
-        internals.setSystemVisibilityState("visible");
-        await visibilityChanged;
+        await setSystemVisibilityState("visible");
         println(`ticking after becoming visible: ${internals.mediaElementVideoSinkIsTicking(video)}`);
         document.body.appendChild(videoCreatedWhileHidden);
         await animationFrame();
