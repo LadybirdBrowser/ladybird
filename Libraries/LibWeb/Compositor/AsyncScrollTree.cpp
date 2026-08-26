@@ -14,7 +14,6 @@ namespace Web::Compositor {
 void AsyncScrollTree::set_state(AsyncScrollingState&& state)
 {
     m_scroll_nodes = move(state.scroll_nodes);
-    m_sticky_areas = move(state.sticky_areas);
     m_wheel_hit_test_regions = move(state.wheel_hit_test_targets);
     m_main_thread_wheel_event_regions = move(state.main_thread_wheel_event_regions);
     m_blocking_wheel_event_regions = move(state.blocking_wheel_event_regions);
@@ -51,15 +50,6 @@ AsyncScrollNode const* AsyncScrollTree::scroll_node_for_stable_id(AsyncScrollNod
     for (auto const& node : m_scroll_nodes) {
         if (node.stable_node_id == stable_node_id)
             return &node;
-    }
-    return nullptr;
-}
-
-AsyncStickyArea const* AsyncScrollTree::sticky_area_for_scroll_node_index(Painting::SpatialNodeIndex scroll_node_index) const
-{
-    for (auto const& sticky_area : m_sticky_areas) {
-        if (sticky_area.scroll_node_index == scroll_node_index)
-            return &sticky_area;
     }
     return nullptr;
 }
@@ -114,19 +104,6 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scrollable_ancestor_for_node(AsyncS
     return {};
 }
 
-Gfx::FloatPoint AsyncScrollTree::cumulative_device_sticky_offset_for_node(Painting::SpatialNodeIndex scroll_node_index, Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
-{
-    Gfx::FloatPoint offset;
-    for (auto index = scroll_node_index; index.value();) {
-        auto const* sticky_area = sticky_area_for_scroll_node_index(index);
-        if (!sticky_area)
-            break;
-        offset.translate_by(scroll_state_snapshot.device_offset_for_index(index));
-        index = sticky_area->parent_scroll_node_index;
-    }
-    return offset;
-}
-
 Gfx::FloatPoint AsyncScrollTree::apply_scroll_delta_to_node(AsyncScrollNode const& node, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot& scroll_state_snapshot)
 {
     auto old_scroll_offset = scroll_offset_for_node(node, scroll_state_snapshot);
@@ -157,54 +134,6 @@ Gfx::FloatPoint AsyncScrollTree::apply_scroll_delta_to_node(AsyncScrollNode cons
         delta.x() - consumed_delta.x(),
         delta.y() - consumed_delta.y()
     };
-}
-
-void AsyncScrollTree::update_sticky_offsets(Painting::ScrollStateSnapshot& scroll_state_snapshot) const
-{
-    // This mirrors DocumentPaintState::refresh_scroll_state(), but consumes the compositor's mutated
-    // ScrollStateSnapshot instead of live layout objects.
-    for (auto const& sticky_area : m_sticky_areas) {
-        if (!sticky_area.nearest_scrolling_ancestor_index.value())
-            continue;
-
-        auto parent_sticky_offset = cumulative_device_sticky_offset_for_node(sticky_area.parent_scroll_node_index, scroll_state_snapshot);
-
-        auto sticky_position_in_ancestor = sticky_area.position_relative_to_scroll_ancestor.translated(parent_sticky_offset);
-
-        auto containing_block_region = sticky_area.containing_block_region;
-        if (sticky_area.needs_parent_offset_adjustment)
-            containing_block_region.translate_by(parent_sticky_offset);
-
-        auto min_offset_within_containing_block = containing_block_region.top_left();
-        Gfx::FloatPoint max_offset_within_containing_block {
-            containing_block_region.right() - sticky_area.border_box_size.width(),
-            containing_block_region.bottom() - sticky_area.border_box_size.height()
-        };
-
-        auto ancestor_device_offset = scroll_state_snapshot.device_offset_for_index(sticky_area.nearest_scrolling_ancestor_index);
-        Gfx::FloatPoint scroll_ancestor_scroll_offset { -ancestor_device_offset.x(), -ancestor_device_offset.y() };
-        Gfx::FloatRect scrollport_rect { scroll_ancestor_scroll_offset, sticky_area.scrollport_size };
-        Gfx::FloatPoint sticky_offset;
-
-        if (sticky_area.inset_top.has_value()) {
-            if (scrollport_rect.top() > sticky_position_in_ancestor.y() - *sticky_area.inset_top)
-                sticky_offset.set_y(min(scrollport_rect.top() + *sticky_area.inset_top, max_offset_within_containing_block.y()) - sticky_position_in_ancestor.y());
-        }
-        if (sticky_area.inset_left.has_value()) {
-            if (scrollport_rect.left() > sticky_position_in_ancestor.x() - *sticky_area.inset_left)
-                sticky_offset.set_x(min(scrollport_rect.left() + *sticky_area.inset_left, max_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
-        }
-        if (sticky_area.inset_bottom.has_value()) {
-            if (scrollport_rect.bottom() < sticky_position_in_ancestor.y() + sticky_area.border_box_size.height() + *sticky_area.inset_bottom)
-                sticky_offset.set_y(max(scrollport_rect.bottom() - sticky_area.border_box_size.height() - *sticky_area.inset_bottom, min_offset_within_containing_block.y()) - sticky_position_in_ancestor.y());
-        }
-        if (sticky_area.inset_right.has_value()) {
-            if (scrollport_rect.right() < sticky_position_in_ancestor.x() + sticky_area.border_box_size.width() + *sticky_area.inset_right)
-                sticky_offset.set_x(max(scrollport_rect.right() - sticky_area.border_box_size.width() - *sticky_area.inset_right, min_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
-        }
-
-        scroll_state_snapshot.set_device_offset_for_index(sticky_area.scroll_node_index, sticky_offset);
-    }
 }
 
 static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offsets, AsyncScrollNode const& node, Gfx::FloatPoint compositor_scroll_offset, Gfx::FloatPoint unadopted_scroll_delta)

@@ -1802,25 +1802,8 @@ GC::Ref<JS::Object> Internals::async_scrolling_state_object()
         MUST(scroll_nodes->create_data_property_or_throw(i, node));
     }
 
-    auto sticky_areas = MUST(JS::Array::create(realm, state.sticky_areas.size()));
-    for (size_t i = 0; i < state.sticky_areas.size(); ++i) {
-        auto const& sticky_area = state.sticky_areas[i];
-        auto area = JS::Object::create(realm, nullptr);
-        area->define_direct_property("documentID"_utf16_fly_string, JS::Value(static_cast<double>(sticky_area.document_id.value())), JS::default_attributes);
-        area->define_direct_property("scrollNodeIndex"_utf16_fly_string, JS::Value(sticky_area.scroll_node_index.value()), JS::default_attributes);
-        area->define_direct_property("parentScrollNodeIndex"_utf16_fly_string, JS::Value(sticky_area.parent_scroll_node_index.value()), JS::default_attributes);
-        area->define_direct_property("nearestScrollingAncestorIndex"_utf16_fly_string, JS::Value(sticky_area.nearest_scrolling_ancestor_index.value()), JS::default_attributes);
-        area->define_direct_property("hasTopInset"_utf16_fly_string, JS::Value(sticky_area.inset_top.has_value()), JS::default_attributes);
-        area->define_direct_property("hasRightInset"_utf16_fly_string, JS::Value(sticky_area.inset_right.has_value()), JS::default_attributes);
-        area->define_direct_property("hasBottomInset"_utf16_fly_string, JS::Value(sticky_area.inset_bottom.has_value()), JS::default_attributes);
-        area->define_direct_property("hasLeftInset"_utf16_fly_string, JS::Value(sticky_area.inset_left.has_value()), JS::default_attributes);
-        MUST(sticky_areas->create_data_property_or_throw(i, area));
-    }
-
     object->define_direct_property("scrollNodeCount"_utf16_fly_string, JS::Value(state.scroll_nodes.size()), JS::default_attributes);
     object->define_direct_property("scrollNodes"_utf16_fly_string, scroll_nodes, JS::default_attributes);
-    object->define_direct_property("stickyAreaCount"_utf16_fly_string, JS::Value(state.sticky_areas.size()), JS::default_attributes);
-    object->define_direct_property("stickyAreas"_utf16_fly_string, sticky_areas, JS::default_attributes);
     object->define_direct_property("hasBlockingWheelEventListeners"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
     object->define_direct_property("blockingWheelEventRegionCount"_utf16_fly_string, JS::Value(state.blocking_wheel_event_regions.size()), JS::default_attributes);
     object->define_direct_property("mainThreadWheelEventRegionCount"_utf16_fly_string, JS::Value(state.main_thread_wheel_event_regions.size()), JS::default_attributes);

@@ -72,24 +72,6 @@ struct AsyncScrollNode {
     bool snaps_scroll_position_vertically { false };
 };
 
-// Sticky elements are represented as scroll nodes whose offset is derived from ancestor scroll offsets. Keep only
-// the precomputed geometry needed to replay that calculation on the compositor thread after an async scroll mutation.
-struct AsyncStickyArea {
-    UniqueNodeID document_id;
-    Painting::SpatialNodeIndex scroll_node_index;
-    Painting::SpatialNodeIndex parent_scroll_node_index;
-    Painting::SpatialNodeIndex nearest_scrolling_ancestor_index;
-    Gfx::FloatPoint position_relative_to_scroll_ancestor;
-    Gfx::FloatSize border_box_size;
-    Gfx::FloatSize scrollport_size;
-    Gfx::FloatRect containing_block_region;
-    bool needs_parent_offset_adjustment { false };
-    Optional<float> inset_top;
-    Optional<float> inset_right;
-    Optional<float> inset_bottom;
-    Optional<float> inset_left;
-};
-
 // A region with a non-passive wheel listener. Wheels inside it must stay on the main thread because script may cancel.
 struct BlockingWheelEventRegion {
     Painting::ContextRef context;
@@ -127,7 +109,6 @@ struct ViewportScrollbar {
 
 struct AsyncScrollingState {
     Vector<AsyncScrollNode> scroll_nodes;
-    Vector<AsyncStickyArea> sticky_areas;
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
     Vector<ViewportScrollbar> viewport_scrollbars;

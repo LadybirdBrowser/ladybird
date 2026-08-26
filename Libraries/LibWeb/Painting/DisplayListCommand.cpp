@@ -218,27 +218,6 @@ void CompositorScrollNode::dump(StringBuilder& builder) const
         scroll_node_index, parent_scroll_node_index, scrollport_rect, min_scroll_offset, max_scroll_offset, is_viewport);
 }
 
-static void dump_optional_float(StringBuilder& builder, Optional<float> value)
-{
-    if (value.has_value())
-        builder.appendff("{}", *value);
-    else
-        builder.append("none"sv);
-}
-
-void CompositorStickyArea::dump(StringBuilder& builder) const
-{
-    builder.appendff(" scroll_node_index={} parent_scroll_node_index={} nearest_scrolling_ancestor_index={} position_relative_to_scroll_ancestor={} border_box_size={} scrollport_size={} containing_block_region={} needs_parent_offset_adjustment={} inset_top=",
-        scroll_node_index, parent_scroll_node_index, nearest_scrolling_ancestor_index, position_relative_to_scroll_ancestor, border_box_size, scrollport_size, containing_block_region, needs_parent_offset_adjustment);
-    dump_optional_float(builder, inset_top);
-    builder.append(" inset_right="sv);
-    dump_optional_float(builder, inset_right);
-    builder.append(" inset_bottom="sv);
-    dump_optional_float(builder, inset_bottom);
-    builder.append(" inset_left="sv);
-    dump_optional_float(builder, inset_left);
-}
-
 void CompositorBlockingWheelEventRegion::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", rect);

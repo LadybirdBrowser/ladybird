@@ -45,7 +45,6 @@ namespace Web::Painting {
     V(AddRoundedRectClip, add_rounded_rect_clip)                                       \
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
     V(CompositorScrollNode, compositor_scroll_node)                                    \
-    V(CompositorStickyArea, compositor_sticky_area)                                    \
     V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
     V(CompositorWheelHitTestTargetWithCornerRadii,                                     \
         compositor_wheel_hit_test_target_with_corner_radii)                            \
@@ -59,7 +58,6 @@ constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandTyp
 {
     switch (type) {
     case DisplayListCommandType::CompositorScrollNode:
-    case DisplayListCommandType::CompositorStickyArea:
     case DisplayListCommandType::CompositorWheelHitTestTarget:
     case DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii:
     case DisplayListCommandType::CompositorMainThreadWheelEventRegion:
