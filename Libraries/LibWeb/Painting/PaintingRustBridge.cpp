@@ -425,25 +425,46 @@ extern "C" void* ladybird_web_svg_path_from_path_data_utf16(char16_t const* unit
     return new Gfx::Path(path_data.to_gfx_path());
 }
 
-static CSS::AbstractImageStyleValue const* layer_image_for(Layout::NodeWithStyle const& layout_node, Layout::RustFFI::FfiLayerImageList list, u32 computed_index)
+struct LayerImage {
+    CSS::AbstractImageStyleValue const* value { nullptr };
+    GC::Ptr<HTML::DecodedImageData> decoded_image_data;
+};
+
+static GC::Ptr<HTML::DecodedImageData> decoded_image_data_of(Layout::NodeWithStyle::ImageObserver const* observer)
+{
+    if (!observer)
+        return nullptr;
+    return observer->decoded_image_data();
+}
+
+static LayerImage layer_image_for(Layout::NodeWithStyle const& layout_node, Layout::RustFFI::FfiLayerImageList list, u32 computed_index)
 {
     switch (list) {
     case Layout::RustFFI::FfiLayerImageList::Background: {
         auto const& layers = layout_node.background_layers();
-        return computed_index < layers.size() ? layers[computed_index].background_image.ptr() : nullptr;
+        if (computed_index >= layers.size())
+            return {};
+        return { layers[computed_index].background_image.ptr(), decoded_image_data_of(layout_node.background_image_observer(computed_index)) };
     }
     case Layout::RustFFI::FfiLayerImageList::Mask: {
         auto const& layers = layout_node.mask_layers();
-        return computed_index < layers.size() ? layers[computed_index].background_image.ptr() : nullptr;
+        if (computed_index >= layers.size())
+            return {};
+        return { layers[computed_index].background_image.ptr(), decoded_image_data_of(layout_node.mask_image_observer(computed_index)) };
     }
     case Layout::RustFFI::FfiLayerImageList::BorderImageSource:
-        return layout_node.border_image().source.ptr();
+        return { layout_node.border_image().source.ptr(), decoded_image_data_of(layout_node.border_image_source_observer()) };
     case Layout::RustFFI::FfiLayerImageList::DocumentBackground: {
-        auto const* layers = layout_node.document().background_layers();
-        return layers && computed_index < layers->size() ? (*layers)[computed_index].background_image.ptr() : nullptr;
+        auto* body_element = layout_node.document().body();
+        if (!body_element)
+            return {};
+        auto const* body_layout_node = body_element->unsafe_layout_node();
+        if (!body_layout_node)
+            return {};
+        return layer_image_for(*body_layout_node, Layout::RustFFI::FfiLayerImageList::Background, computed_index);
     }
     default:
-        return nullptr;
+        return {};
     }
 }
 
@@ -867,18 +888,20 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         },
         .image_intrinsic_facts = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiImageIntrinsicFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            auto const& document = layout_node.document();
             Layout::RustFFI::FfiImageIntrinsicFacts facts {};
-            auto const* image = layer_image_for(layout_node, list, computed_index);
+            auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
             if (!image)
                 return facts;
-            facts.is_paintable = image->is_paintable(document);
-            facts.natural_width = image->natural_width(document);
-            facts.natural_height = image->natural_height(document);
-            if (auto aspect_ratio = image->natural_aspect_ratio(document); aspect_ratio.has_value()) {
-                facts.has_natural_aspect_ratio = true;
-                facts.natural_aspect_ratio_numerator = aspect_ratio->numerator();
-                facts.natural_aspect_ratio_denominator = aspect_ratio->denominator();
+            facts.is_paintable = image->is_paintable(decoded_image_data);
+            if (decoded_image_data) {
+                auto natural_size = image->natural_size(*decoded_image_data);
+                facts.natural_width = natural_size.width;
+                facts.natural_height = natural_size.height;
+                if (natural_size.aspect_ratio.has_value()) {
+                    facts.has_natural_aspect_ratio = true;
+                    facts.natural_aspect_ratio_numerator = natural_size.aspect_ratio->numerator();
+                    facts.natural_aspect_ratio_denominator = natural_size.aspect_ratio->denominator();
+                }
             }
             if (auto const* image_set = as_if<CSS::ImageSetStyleValue>(*image)) {
                 if (auto const* selected_image = image_set->selected_image()) {
@@ -957,23 +980,22 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         .layer_image_prepare = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiLayerImagePrepareFacts facts {};
-            auto const* image = layer_image_for(layout_node, list, computed_index);
+            auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
             if (!image)
                 return facts;
             facts.is_image_style_value = is<CSS::ImageStyleValue>(*image);
-            facts.single_pixel_color = image->color_if_single_pixel_bitmap(layout_node.document());
+            if (decoded_image_data)
+                facts.single_pixel_color = decoded_image_data->color_if_single_pixel_bitmap();
             return facts;
         },
         .layer_image_nested_display_list = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::IntRect dest) -> Layout::RustFFI::FfiLayerImageNestedDisplayListFacts {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiLayerImageNestedDisplayListFacts facts {};
-            auto const* image = layer_image_for(layout_node, list, computed_index);
-            if (!image || !is<CSS::ImageStyleValue>(*image))
+            auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
+            if (!image || !is<CSS::ImageStyleValue>(*image) || !decoded_image_data)
                 return facts;
-            auto dest_rect = dest.to_type<DevicePixels>();
-            auto color_scheme = layout_node.color_scheme();
-            if (auto display_list = static_cast<CSS::ImageStyleValue const&>(*image).record_display_list(context.resource_storage, layout_node.document(), dest_rect, color_scheme); display_list.has_value()) {
+            if (auto display_list = decoded_image_data->record_display_list(dest.size(), layout_node.color_scheme(), context.resource_storage); display_list.has_value()) {
                 facts.has_nested_display_list = true;
                 facts.nested_display_list_id = context.resource_storage.add_display_list(display_list->display_list, display_list->visual_context_tree).value();
             }
@@ -983,11 +1005,10 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiLayerImageFrameFacts facts {};
-            auto const* image = layer_image_for(layout_node, list, computed_index);
-            if (!image || !is<CSS::ImageStyleValue>(*image))
+            auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
+            if (!image || !is<CSS::ImageStyleValue>(*image) || !decoded_image_data)
                 return facts;
-            auto dest_rect = dest.to_type<DevicePixels>();
-            if (auto frame = static_cast<CSS::ImageStyleValue const&>(*image).current_frame(layout_node.document(), dest_rect); frame.has_value()) {
+            if (auto frame = decoded_image_data->current_frame(dest.size()); frame.has_value()) {
                 facts.has_frame = true;
                 facts.frame_id = context.resource_storage.add_image_frame(*frame).value();
                 facts.frame_width = frame->size().width();
@@ -999,19 +1020,18 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiImagePaintFacts facts {};
-            auto const* image_pointer = layer_image_for(layout_node, list, computed_index);
-            if (!image_pointer)
+            auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
+            if (!image)
                 return facts;
-            auto const& image = *image_pointer;
             ImagePaintRequest request {
                 .document = layout_node.document(),
-                .dest_rect = dest_rect,
+                .dest_rect = decoded_image_data ? dest_rect.to_type<int>().to_type<float>() : dest_rect,
                 .image_rendering = static_cast<CSS::ImageRendering>(image_rendering_raw),
                 .color_scheme = layout_node.color_scheme(),
                 .accumulated_scale = accumulated_scale,
                 .resource_storage = context.resource_storage,
             };
-            auto paint = image.image_paint(request, image.resolve_for_size(layout_node, css_size));
+            auto paint = decoded_image_data ? decoded_image_data->image_paint(request) : image->image_paint(request, image->resolve_for_size(layout_node, css_size));
             if (paint.has_value())
                 write_image_paint_facts(*paint, context, facts);
             return facts;

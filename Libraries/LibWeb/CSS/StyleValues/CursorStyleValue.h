@@ -26,7 +26,7 @@ public:
 
     AbstractImageStyleValue const& image() const { return m_image; }
 
-    Optional<Gfx::ImageCursor> make_image_cursor(Layout::NodeWithStyle const&) const;
+    Optional<Gfx::ImageCursor> make_image_cursor(Layout::NodeWithStyle const&, GC::Ptr<HTML::DecodedImageData>) const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 

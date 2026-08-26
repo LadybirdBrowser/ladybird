@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/SupportedImageTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
@@ -94,31 +95,18 @@ void ImageSetStyleValue::load_any_resources(DOM::Document& document)
         const_cast<AbstractImageStyleValue&>(*m_selected_image).load_any_resources(document);
 }
 
-Optional<CSSPixels> ImageSetStyleValue::natural_width(DOM::Document const& document) const
+SizeWithAspectRatio ImageSetStyleValue::natural_size(HTML::DecodedImageData const& decoded_image_data) const
 {
-    if (!m_selected_image)
-        return {};
-    auto natural_width = m_selected_image->natural_width(document);
-    if (!natural_width.has_value())
-        return {};
-    return CSSPixels { natural_width->to_double() / m_selected_resolution };
-}
-
-Optional<CSSPixels> ImageSetStyleValue::natural_height(DOM::Document const& document) const
-{
-    if (!m_selected_image)
-        return {};
-    auto natural_height = m_selected_image->natural_height(document);
-    if (!natural_height.has_value())
-        return {};
-    return CSSPixels { natural_height->to_double() / m_selected_resolution };
-}
-
-Optional<CSSPixelFraction> ImageSetStyleValue::natural_aspect_ratio(DOM::Document const& document) const
-{
-    if (m_selected_image)
-        return m_selected_image->natural_aspect_ratio(document);
-    return {};
+    auto scaled_by_selected_resolution = [&](Optional<CSSPixels> length) -> Optional<CSSPixels> {
+        if (!length.has_value())
+            return {};
+        return CSSPixels { length->to_double() / m_selected_resolution };
+    };
+    return {
+        .width = scaled_by_selected_resolution(decoded_image_data.intrinsic_width()),
+        .height = scaled_by_selected_resolution(decoded_image_data.intrinsic_height()),
+        .aspect_ratio = decoded_image_data.intrinsic_aspect_ratio(),
+    };
 }
 
 ResolvedImage ImageSetStyleValue::resolve_for_size(Layout::NodeWithStyle const& layout_node, CSSPixelSize size) const
@@ -128,25 +116,11 @@ ResolvedImage ImageSetStyleValue::resolve_for_size(Layout::NodeWithStyle const& 
     return Empty {};
 }
 
-bool ImageSetStyleValue::is_paintable(DOM::Document const& document) const
+bool ImageSetStyleValue::is_paintable(GC::Ptr<HTML::DecodedImageData> decoded_image_data) const
 {
     if (m_selected_image)
-        return m_selected_image->is_paintable(document);
+        return m_selected_image->is_paintable(decoded_image_data);
     return false;
-}
-
-Optional<Painting::ImagePaint> ImageSetStyleValue::image_paint(Painting::ImagePaintRequest const& request, ResolvedImage const& resolved_image) const
-{
-    if (m_selected_image)
-        return m_selected_image->image_paint(request, resolved_image);
-    return {};
-}
-
-Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const
-{
-    if (m_selected_image)
-        return m_selected_image->color_if_single_pixel_bitmap(document);
-    return {};
 }
 
 void ImageSetStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)

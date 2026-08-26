@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
@@ -54,11 +55,11 @@ ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(Comp
     return CursorStyleValue::create(image().absolutized(computation_context)->as_abstract_image(), absolutized_x, absolutized_y);
 }
 
-Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node) const
+Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithStyle const& layout_node, GC::Ptr<HTML::DecodedImageData> decoded_image_data) const
 {
     auto const& image = this->image();
     auto const& document = layout_node.document();
-    if (!image.is_paintable(document))
+    if (!image.is_paintable(decoded_image_data))
         return {};
 
     auto current_color = layout_node.color();
@@ -79,7 +80,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // 32x32 is selected arbitrarily.
         // FIXME: Ask the OS for the default size?
         CSSPixelSize const default_cursor_size { 32, 32 };
-        auto cursor_css_size = run_default_sizing_algorithm({}, {}, { image.natural_width(document), image.natural_height(document), image.natural_aspect_ratio(document) }, default_cursor_size);
+        auto natural_size = decoded_image_data ? image.natural_size(*decoded_image_data) : SizeWithAspectRatio {};
+        auto cursor_css_size = run_default_sizing_algorithm({}, {}, natural_size, default_cursor_size);
         // FIXME: How do we determine what cursor sizes the OS allows?
         // We don't multiply by the pixel ratio, because we want to use the image's actual pixel size.
         DevicePixelSize cursor_device_size { cursor_css_size.to_type<double>().to_rounded<int>() };
@@ -117,7 +119,8 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
             .accumulated_scale = { 1, 1 },
             .resource_storage = resource_storage,
         };
-        if (auto image_paint = image.image_paint(request, resolved_image); image_paint.has_value()) {
+        auto image_paint = decoded_image_data ? decoded_image_data->image_paint(request) : image.image_paint(request, resolved_image);
+        if (image_paint.has_value()) {
             auto display_list = Painting::record_image_paint_display_list(*image_paint, request.dest_rect, ImageRendering::Auto, document.page().client().device_pixels_per_css_pixel(), visual_context_tree, resource_storage);
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
             Painting::DisplayListPlayerSkia display_list_player;

@@ -334,33 +334,14 @@ public:
 
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
     {
-        if (auto document = m_document.ptr()) {
-            if (auto const* image = m_image->selected_image_style_value())
-                return image->image_data(*document);
-        }
-        return nullptr;
+        if (!m_image_client)
+            return nullptr;
+        return m_image_client->decoded_image_data();
     }
 
-    virtual Optional<CSSPixels> intrinsic_width() const override
-    {
-        if (auto document = m_document.ptr())
-            return m_image->natural_width(*document);
-        return {};
-    }
-
-    virtual Optional<CSSPixels> intrinsic_height() const override
-    {
-        if (auto document = m_document.ptr())
-            return m_image->natural_height(*document);
-        return {};
-    }
-
-    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override
-    {
-        if (auto document = m_document.ptr())
-            return m_image->natural_aspect_ratio(*document);
-        return {};
-    }
+    virtual Optional<CSSPixels> intrinsic_width() const override { return natural_size().width; }
+    virtual Optional<CSSPixels> intrinsic_height() const override { return natural_size().height; }
+    virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return natural_size().aspect_ratio; }
 
 private:
     class ImageClient final : public CSS::ImageStyleValue::Client {
@@ -388,14 +369,20 @@ private:
     };
 
     GeneratedContentImageProvider(DOM::Document& document, NonnullRefPtr<CSS::AbstractImageStyleValue> image)
-        : m_document(document)
-        , m_image(move(image))
+        : m_image(move(image))
     {
         if (auto const* image = m_image->selected_image_style_value())
             m_image_client = make<ImageClient>(*this, document, *image);
     }
 
-    GC::Weak<DOM::Document> m_document;
+    CSS::SizeWithAspectRatio natural_size() const
+    {
+        auto decoded_image_data = this->decoded_image_data();
+        if (!decoded_image_data)
+            return {};
+        return m_image->natural_size(*decoded_image_data);
+    }
+
     mutable WeakPtr<Layout::Node> m_layout_node;
     NonnullRefPtr<CSS::AbstractImageStyleValue> m_image;
     mutable OwnPtr<ImageClient> m_image_client;

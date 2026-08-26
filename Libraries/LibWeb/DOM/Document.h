@@ -450,7 +450,6 @@ public:
     Color background_color() const;
     Color canvas_background_color() const;
     CSS::PreferredColorScheme canvas_color_scheme() const;
-    Vector<CSS::BackgroundLayerData> const* background_layers() const;
     CSS::ImageRendering background_image_rendering() const;
 
     Optional<Color> normal_link_color() const;
@@ -988,7 +987,6 @@ public:
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
     CSS::ImageStyleValueResource* css_image_resource(URL::URL const&);
-    CSS::ImageStyleValueResource const* css_image_resource(URL::URL const&) const;
     CSS::ImageStyleValueResource& create_css_image_resource(GC::Ref<HTML::SharedResourceRequest>);
     void remove_css_image_resource_if_unused(URL::URL const&);
     void prune_image_resource_caches();
