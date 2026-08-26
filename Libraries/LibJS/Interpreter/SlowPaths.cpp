@@ -2561,7 +2561,53 @@ i64 asm_slow_path_array_append(VM* vm, u32 pc, Op::ArrayAppend const* instructio
     auto lhs_size = lhs_array.indexed_array_like_size();
 
     if (instruction->is_spread()) {
+        auto* rhs_array = rhs.is_object() ? as_if<JS::Array>(rhs.as_object()) : nullptr;
+        Optional<IteratorRecordImpl> iterator_record;
+
+        if (rhs_array && lhs_array.indexed_storage_kind() <= IndexedStorageKind::Packed) {
+            static auto& iterator_method_cache = *new StaticPropertyLookupCache;
+            auto iterator_method = ASM_TRY(*vm, pc, rhs.get_method(*vm, vm->well_known_symbol_iterator(), iterator_method_cache));
+            if (!iterator_method) {
+                auto completion = vm->throw_completion<TypeError>(ErrorType::NotIterable, rhs);
+                return handle_asm_exception(*vm, pc, completion.value());
+            }
+
+            // OPTIMIZATION: The original array iterator has no observable side effects, so a packed
+            //               array can be appended in bulk if its next method is also unchanged.
+            auto original_iterator_method = vm->current_realm()->intrinsics().array_prototype_values_function();
+            if (iterator_method == original_iterator_method && rhs_array->is_simple_packed_array()) {
+                auto iterator_prototype = vm->current_realm()->intrinsics().array_iterator_prototype();
+
+                // NB: Inspect the intrinsic prototype's own property without invoking it. Using get()
+                //     here would call an accessor with the prototype as its receiver, whereas the
+                //     iterator protocol calls it with the newly created iterator as its receiver.
+                //     Accessors and replacement methods therefore take the generic path below.
+                static auto& next_method_cache = *new StaticPropertyLookupCache;
+                auto next_method = get_own_property_without_side_effects(*iterator_prototype, vm->names.next, next_method_cache);
+                if (next_method.is_function() && next_method.as_function().is_native_function()
+                    && static_cast<NativeFunction const&>(next_method.as_function()).is_array_prototype_next_builtin()) {
+                    auto elements = rhs_array->indexed_packed_elements_span();
+                    if (elements.size() <= NumericLimits<u32>::max() - lhs_size) {
+                        lhs_array.indexed_append(elements);
+                        return static_cast<i64>(pc + sizeof(Op::ArrayAppend));
+                    }
+                }
+            }
+
+            iterator_record = ASM_TRY(*vm, pc, get_iterator_from_method_impl(*vm, rhs, *iterator_method));
+        }
+
         size_t i = lhs_size;
+        if (iterator_record.has_value()) {
+            while (true) {
+                auto iterator_value = ASM_TRY(*vm, pc, iterator_step_value(*vm, *iterator_record));
+                if (!iterator_value.has_value())
+                    break;
+                lhs_array.indexed_put(i++, iterator_value.release_value());
+            }
+            return static_cast<i64>(pc + sizeof(Op::ArrayAppend));
+        }
+
         auto result = get_iterator_values(*vm, rhs, [&i, &lhs_array](Value iterator_value) -> Optional<Completion> {
             lhs_array.indexed_put(i, iterator_value);
             ++i;

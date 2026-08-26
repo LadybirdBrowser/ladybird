@@ -24,6 +24,62 @@ test("basic functionality", () => {
     expect([...[], ...[...[1, 2, 3]], 4]).toEqual([1, 2, 3, 4]);
 });
 
+test("observes custom array iterator accessors", () => {
+    const array = [1, 2];
+    const originalIterator = Array.prototype[Symbol.iterator];
+    let getterCalls = 0;
+    Object.defineProperty(array, Symbol.iterator, {
+        configurable: true,
+        get() {
+            ++getterCalls;
+            this.push(3);
+            return originalIterator;
+        },
+    });
+
+    expect([...array]).toEqual([1, 2, 3]);
+    expect(getterCalls).toBe(1);
+});
+
+test("exhausts iterators when ArrayIteratorPrototype.next is an accessor", () => {
+    const iteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
+    const originalDescriptor = Object.getOwnPropertyDescriptor(iteratorPrototype, "next");
+    let iterator;
+
+    Object.defineProperty(iteratorPrototype, "next", {
+        configurable: true,
+        get() {
+            iterator = this;
+            return originalDescriptor.value;
+        },
+    });
+
+    try {
+        expect([...[1, 2, 3]]).toEqual([1, 2, 3]);
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+    } finally {
+        Object.defineProperty(iteratorPrototype, "next", originalDescriptor);
+    }
+});
+
+test("observes replacement ArrayIteratorPrototype.next methods", () => {
+    const iteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
+    const originalNext = iteratorPrototype.next;
+    let calls = 0;
+
+    iteratorPrototype.next = function () {
+        ++calls;
+        return originalNext.call(this);
+    };
+
+    try {
+        expect([...[1, 2, 3]]).toEqual([1, 2, 3]);
+        expect(calls).toBe(4);
+    } finally {
+        iteratorPrototype.next = originalNext;
+    }
+});
+
 test("elisions after spread remain holes", () => {
     let array = [...[], ,];
     expect(array).toHaveLength(1);

@@ -2154,6 +2154,26 @@ void Object::indexed_append(Value value, PropertyAttributes attributes)
     indexed_put(m_indexed_array_like_size, value, attributes);
 }
 
+void Object::indexed_append(ReadonlySpan<Value> values)
+{
+    VERIFY(m_indexed_storage_kind <= IndexedStorageKind::Packed);
+    VERIFY(values.size() <= NumericLimits<u32>::max() - m_indexed_array_like_size);
+
+    if (values.is_empty())
+        return;
+
+    auto old_size = m_indexed_array_like_size;
+    auto values_size = static_cast<u32>(values.size());
+    auto new_size = old_size + values_size;
+    ensure_indexed_elements(new_size);
+
+    for (u32 i = 0; i < values_size; ++i)
+        m_indexed_elements[old_size + i] = values[i];
+
+    m_indexed_storage_kind = IndexedStorageKind::Packed;
+    m_indexed_array_like_size = new_size;
+}
+
 ValueAndAttributes Object::indexed_take_first()
 {
     if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
