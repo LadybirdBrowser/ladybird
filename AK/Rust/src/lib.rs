@@ -268,6 +268,11 @@ impl Utf16String {
 impl Utf16FlyString {
     /// Creates a string through AK's authoritative UTF-8 fly-string table.
     pub fn from_utf8(string: &str) -> Self {
+        if let Some(raw) = utf16_short_string_raw(string) {
+            // SAFETY: Short strings own no allocation or reference count.
+            return Self(unsafe { OwnedUtf16String::from_raw(raw) });
+        }
+
         // SAFETY: The string's storage remains alive for the duration of the call.
         let raw = unsafe { ladybird_utf16_fly_string_from_utf8(string.as_ptr(), string.len()) };
         // SAFETY: The constructor transfers one ownership reference.
