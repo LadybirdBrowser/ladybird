@@ -11,16 +11,17 @@
 
 use crate::css::calc;
 use crate::css::computed_value_types::{
-    AlignmentValues, BackgroundValues, BorderLayoutFacts, BorderValues, BoxValues, ComputedAspectRatio, ComputedGap,
-    ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle, EffectsValues,
-    FontLayoutFacts, FontValues, GridValues, InheritedListValues, InheritedSVGValues, InheritedTextLayoutFacts,
-    InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues, STYLE_GROUP_INDEX_ALIGNMENT,
-    STYLE_GROUP_INDEX_BACKGROUND, STYLE_GROUP_INDEX_BORDER, STYLE_GROUP_INDEX_BOX, STYLE_GROUP_INDEX_EFFECTS,
-    STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_GRID, STYLE_GROUP_INDEX_INHERITED_BOX, STYLE_GROUP_INDEX_INHERITED_LIST,
-    STYLE_GROUP_INDEX_INHERITED_SVG, STYLE_GROUP_INDEX_INHERITED_TABLE, STYLE_GROUP_INDEX_INHERITED_TEXT,
-    STYLE_GROUP_INDEX_INHERITED_UI, STYLE_GROUP_INDEX_MASK, STYLE_GROUP_INDEX_MISC_RESET, STYLE_GROUP_INDEX_SIZING,
-    STYLE_GROUP_INDEX_SURROUND, STYLE_GROUP_INDEX_SVG_RESET, STYLE_GROUP_INDEX_TEXT_RESET, STYLE_GROUP_INDEX_TRANSFORM,
-    SVGResetValues, SizingValues, SurroundValues, TextResetValues, TransformValues,
+    AlignmentValues, AnchorValues, BackgroundValues, BorderLayoutFacts, BorderValues, BoxValues, ComputedAspectRatio,
+    ComputedGap, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
+    EffectsValues, FontLayoutFacts, FontValues, GridValues, InheritedListValues, InheritedSVGValues,
+    InheritedTextLayoutFacts, InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues,
+    STYLE_GROUP_INDEX_ALIGNMENT, STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_BACKGROUND, STYLE_GROUP_INDEX_BORDER,
+    STYLE_GROUP_INDEX_BOX, STYLE_GROUP_INDEX_EFFECTS, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_GRID,
+    STYLE_GROUP_INDEX_INHERITED_BOX, STYLE_GROUP_INDEX_INHERITED_LIST, STYLE_GROUP_INDEX_INHERITED_SVG,
+    STYLE_GROUP_INDEX_INHERITED_TABLE, STYLE_GROUP_INDEX_INHERITED_TEXT, STYLE_GROUP_INDEX_INHERITED_UI,
+    STYLE_GROUP_INDEX_MASK, STYLE_GROUP_INDEX_MISC_RESET, STYLE_GROUP_INDEX_SIZING, STYLE_GROUP_INDEX_SURROUND,
+    STYLE_GROUP_INDEX_SVG_RESET, STYLE_GROUP_INDEX_TEXT_RESET, STYLE_GROUP_INDEX_TRANSFORM, SVGResetValues,
+    SizingValues, SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::computed_values::{InheritedBoxValues, InheritedTableValues};
 use crate::css::css_enums::{direction, writing_mode};
@@ -536,6 +537,11 @@ impl<'a> ComputedValuesView<'a> {
     #[inline]
     pub(crate) fn grid_values(self) -> &'a GridValues {
         self.native_group(STYLE_GROUP_INDEX_GRID)
+    }
+
+    #[inline]
+    pub(crate) fn anchor(self) -> &'a AnchorValues {
+        self.native_group(STYLE_GROUP_INDEX_ANCHOR)
     }
 
     #[inline]

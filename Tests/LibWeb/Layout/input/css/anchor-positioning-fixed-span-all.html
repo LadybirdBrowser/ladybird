@@ -1,0 +1,133 @@
+<!doctype html>
+<style>
+    * {
+        margin: 0;
+    }
+
+    #fixed-anchor {
+        position: absolute;
+        left: 300px;
+        top: 100px;
+        width: 100px;
+        height: 50px;
+        anchor-name: --anchor;
+        background: green;
+    }
+
+    #fixed-target {
+        position: fixed;
+        position-anchor: --anchor;
+        position-area: span-all;
+        top: calc(anchor(bottom) + 10px);
+        width: 200px;
+        height: 40px;
+        background: blue;
+    }
+
+    #padded-containing-block {
+        position: absolute;
+        left: 50px;
+        top: 250px;
+        width: 300px;
+        height: 160px;
+        padding: 40px;
+    }
+
+    #padded-anchor {
+        position: absolute;
+        left: 100px;
+        top: 40px;
+        width: 80px;
+        height: 40px;
+        anchor-name: --padded-anchor;
+        background: green;
+    }
+
+    #padded-target {
+        position: absolute;
+        position-anchor: --padded-anchor;
+        position-area: span-all;
+        width: 160px;
+        height: 30px;
+        background: blue;
+    }
+
+    #overhanging-containing-block {
+        position: absolute;
+        left: 500px;
+        top: 300px;
+        width: 200px;
+        height: 150px;
+    }
+
+    #overhanging-anchor {
+        position: absolute;
+        left: -100px;
+        top: -60px;
+        width: 40px;
+        height: 20px;
+        anchor-name: --overhanging-anchor;
+        background: green;
+    }
+
+    #overhanging-target {
+        position: absolute;
+        position-anchor: --overhanging-anchor;
+        position-area: span-all;
+        left: 10px;
+        top: calc(anchor(bottom) + 10px);
+        width: 50%;
+        height: 50%;
+        background: blue;
+    }
+
+    #grid {
+        position: absolute;
+        display: grid;
+        left: 50px;
+        top: 480px;
+        width: 300px;
+        height: 100px;
+        grid-template-columns: 200px 100px;
+        grid-template-rows: 100px;
+    }
+
+    #grid-anchor {
+        position: absolute;
+        left: 50px;
+        top: 20px;
+        width: 40px;
+        height: 20px;
+        anchor-name: --grid-anchor;
+        background: green;
+    }
+
+    #grid-target {
+        position: absolute;
+        grid-column-start: 1;
+        grid-column-end: 2;
+        grid-row-start: 1;
+        grid-row-end: 2;
+        position-anchor: --grid-anchor;
+        position-area: span-all;
+        justify-self: end;
+        align-self: start;
+        width: 60px;
+        height: 20px;
+        background: blue;
+    }
+</style>
+<div id="fixed-anchor"></div>
+<div id="fixed-target"></div>
+<div id="padded-containing-block">
+    <div id="padded-anchor"></div>
+    <div id="padded-target"></div>
+</div>
+<div id="overhanging-containing-block">
+    <div id="overhanging-anchor"></div>
+    <div id="overhanging-target"></div>
+</div>
+<div id="grid">
+    <div id="grid-anchor"></div>
+    <div id="grid-target"></div>
+</div>

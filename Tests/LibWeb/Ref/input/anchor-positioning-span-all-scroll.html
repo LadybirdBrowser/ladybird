@@ -1,0 +1,53 @@
+<!doctype html>
+<link rel="match" href="../expected/anchor-positioning-span-all-scroll-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        position: relative;
+        width: 300px;
+        height: 150px;
+        overflow: scroll;
+        background: red;
+    }
+
+    #content {
+        position: relative;
+        width: 700px;
+        height: 700px;
+    }
+
+    #anchor {
+        position: absolute;
+        left: 400px;
+        top: 400px;
+        width: 40px;
+        height: 40px;
+        anchor-name: --anchor;
+        background: green;
+    }
+
+    #target {
+        position: fixed;
+        position-anchor: --anchor;
+        position-area: span-all;
+        width: 40px;
+        height: 40px;
+        background: green;
+    }
+</style>
+<div id="scroller">
+    <div id="content"><div id="anchor"></div></div>
+</div>
+<div id="target"></div>
+<script>
+    const scroller = document.querySelector("#scroller");
+    scroller.scrollLeft = 300;
+    scroller.scrollTop = 300;
+</script>
