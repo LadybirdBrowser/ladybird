@@ -37,6 +37,24 @@ describe("basic functionality", () => {
         ]);
     });
 
+    test("result arrays ignore inherited indexed setters", () => {
+        Object.defineProperty(Array.prototype, "0", {
+            configurable: true,
+            set() {
+                throw new Error("Inherited setter must not be called");
+            },
+        });
+
+        let entries;
+        try {
+            entries = Object.entries({ foo: 1 });
+        } finally {
+            delete Array.prototype[0];
+        }
+
+        expect(entries).toEqual([["foo", 1]]);
+    });
+
     test("ignores non-enumerable properties", () => {
         let obj = { foo: 1 };
         Object.defineProperty(obj, "getFoo", {
