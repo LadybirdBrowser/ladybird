@@ -2316,7 +2316,7 @@ Vector<u32> Object::indexed_indices() const
     VERIFY_NOT_REACHED();
 }
 
-void Object::set_indexed_property_elements(Vector<Value>&& values)
+void Object::set_indexed_property_elements(ReadonlySpan<Value> values)
 {
     free_indexed_elements();
 

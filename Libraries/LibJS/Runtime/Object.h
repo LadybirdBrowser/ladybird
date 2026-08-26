@@ -339,7 +339,7 @@ public:
     ValueAndAttributes indexed_take_last();
     size_t indexed_real_size() const;
     Vector<u32> indexed_indices() const;
-    void set_indexed_property_elements(Vector<Value>&& values);
+    void set_indexed_property_elements(ReadonlySpan<Value> values);
     IndexedStorageKind indexed_storage_kind() const { return m_indexed_storage_kind; }
 
     template<typename Callback>
