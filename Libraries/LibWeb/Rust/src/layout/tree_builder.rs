@@ -114,7 +114,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub set_layout_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub report_rebuild_outcome: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, bool),
     pub layout: FfiTreeBuilderCallbacks,
@@ -141,9 +140,6 @@ pub struct FfiPrincipalTextLayoutNodes {
 #[repr(C)]
 pub struct FfiPreparedPrincipalElementFacts {
     pub display: FfiPrincipalDisplayFacts,
-    // A stale ::backdrop box is a viewport child, so removing it restructures the tree outside
-    // every rebuild root.
-    pub removed_old_backdrop_layout_node: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -375,7 +371,6 @@ pub unsafe extern "C" fn rust_should_preserve_svg_resource_layout_node(
 pub struct FfiTopLayerDetachCallbacks {
     pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void),
-    pub remove_layout_node: unsafe extern "C" fn(*mut c_void),
     pub clear_stale_subtree: unsafe extern "C" fn(*mut c_void),
     pub slot_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
@@ -435,11 +430,12 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
             };
             // SAFETY: The chosen layout subtree and its shell remain live throughout detachment.
             let shell = unsafe { (*(*arena).data(layout_node_to_detach)).shell };
-            unsafe {
-                (callbacks.prepare_subtree_for_detach)(shell);
-                if !(*(*arena).data(layout_node_to_detach)).parent.is_invalid() {
-                    (callbacks.remove_layout_node)(shell);
-                }
+            // SAFETY: The C++ detach preparation walks the still-linked subtree; the arena borrow
+            // ends before the release below re-enters it.
+            unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
+            let detached = unsafe { &*arena }.detach_from_parent(layout_node_to_detach);
+            if let Some(detached) = detached {
+                detached.release();
             }
         }
 
@@ -1347,6 +1343,25 @@ fn construct_principal_layout_node(
     let must_create_subtree = update.must_create_subtree;
     let context = &mut *update.context;
     if entry_facts.is_element {
+        if should_create_layout_node {
+            // ::backdrop is a sibling of the element, not a child, so unlike other pseudo-elements, it is not
+            // automatically discarded when the element's layout is recomputed.
+            // A stale ::backdrop box is a viewport child, so removing it restructures the tree outside
+            // every rebuild root.
+            // SAFETY: The DOM element remains live throughout the call.
+            let old_backdrop =
+                unsafe { (host.callbacks.element_pseudo_layout_node)(dom_node, FfiPseudoElement::Backdrop) };
+            if !old_backdrop.is_invalid() {
+                update.state.layout_tree_update_escaped_rebuild_roots = true;
+                let layout_host = host.layout();
+                let backdrop_parent = layout_host.parent(old_backdrop);
+                assert!(!backdrop_parent.is_invalid());
+                layout_host
+                    .arena()
+                    .detach_child(backdrop_parent, old_backdrop)
+                    .release();
+            }
+        }
         // SAFETY: The frame, builder, and DOM element remain live throughout the call.
         let prepared = unsafe {
             (host.callbacks.prepare_principal_element)(
@@ -1356,9 +1371,6 @@ fn construct_principal_layout_node(
                 should_create_layout_node,
             )
         };
-        if prepared.removed_old_backdrop_layout_node {
-            update.state.layout_tree_update_escaped_rebuild_roots = true;
-        }
         let generation = principal_box_generation_decision(
             true,
             should_create_layout_node && prepared.display.display_is_none,
