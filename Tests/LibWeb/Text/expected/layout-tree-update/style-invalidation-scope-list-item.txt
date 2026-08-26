@@ -1,0 +1,81 @@
+PRESERVED: hide li in ul list-style none | list
+PRESERVED: hide li in ul list-style none | preceding item
+PRESERVED: hide li in ul list-style none | preceding item descendant
+REMOVED: hide li in ul list-style none | target
+PRESERVED: hide li in ul list-style none | following item
+PRESERVED: hide li in ul list-style none | following item descendant
+STATS: hide li in ul list-style none | rebuilt subtree roots=0, escaped=false
+PASS: hide li in ul list-style none | incremental tree matches full rebuild
+PRESERVED: show li in ul list-style none | list
+PRESERVED: show li in ul list-style none | preceding item
+PRESERVED: show li in ul list-style none | preceding item descendant
+CREATED: show li in ul list-style none | target
+PRESERVED: show li in ul list-style none | following item
+PRESERVED: show li in ul list-style none | following item descendant
+STATS: show li in ul list-style none | rebuilt subtree roots=1, escaped=false
+PASS: show li in ul list-style none | incremental tree matches full rebuild
+PRESERVED: hide li in ul disc | list
+PRESERVED: hide li in ul disc | preceding item
+PRESERVED: hide li in ul disc | preceding item descendant
+REMOVED: hide li in ul disc | target
+PRESERVED: hide li in ul disc | following item
+PRESERVED: hide li in ul disc | following item descendant
+STATS: hide li in ul disc | rebuilt subtree roots=0, escaped=false
+PASS: hide li in ul disc | incremental tree matches full rebuild
+PRESERVED: show li in ul disc | list
+PRESERVED: show li in ul disc | preceding item
+PRESERVED: show li in ul disc | preceding item descendant
+CREATED: show li in ul disc | target
+PRESERVED: show li in ul disc | following item
+PRESERVED: show li in ul disc | following item descendant
+STATS: show li in ul disc | rebuilt subtree roots=1, escaped=false
+PASS: show li in ul disc | incremental tree matches full rebuild
+RECREATED: hide li in ol decimal | list
+RECREATED: hide li in ol decimal | preceding item
+RECREATED: hide li in ol decimal | preceding item descendant
+REMOVED: hide li in ol decimal | target
+RECREATED: hide li in ol decimal | following item
+RECREATED: hide li in ol decimal | following item descendant
+STATS: hide li in ol decimal | rebuilt subtree roots=1, escaped=false
+PASS: hide li in ol decimal | incremental tree matches full rebuild
+RECREATED: show li in ol decimal | list
+RECREATED: show li in ol decimal | preceding item
+RECREATED: show li in ol decimal | preceding item descendant
+CREATED: show li in ol decimal | target
+RECREATED: show li in ol decimal | following item
+RECREATED: show li in ol decimal | following item descendant
+STATS: show li in ol decimal | rebuilt subtree roots=1, escaped=false
+PASS: show li in ol decimal | incremental tree matches full rebuild
+PRESERVED: hide last li in ol decimal | list
+PRESERVED: hide last li in ol decimal | preceding item
+PRESERVED: hide last li in ol decimal | preceding item descendant
+REMOVED: hide last li in ol decimal | target
+PRESERVED: hide last li in ol decimal | following item
+PRESERVED: hide last li in ol decimal | following item descendant
+STATS: hide last li in ol decimal | rebuilt subtree roots=0, escaped=false
+PASS: hide last li in ol decimal | incremental tree matches full rebuild
+RECREATED: hide li in ul none with counter in ::before | list
+RECREATED: hide li in ul none with counter in ::before | preceding item
+RECREATED: hide li in ul none with counter in ::before | preceding item descendant
+REMOVED: hide li in ul none with counter in ::before | target
+RECREATED: hide li in ul none with counter in ::before | following item
+RECREATED: hide li in ul none with counter in ::before | following item descendant
+STATS: hide li in ul none with counter in ::before | rebuilt subtree roots=1, escaped=false
+PASS: hide li in ul none with counter in ::before | incremental tree matches full rebuild
+RECREATED: hide li in ul none with counter in descendant ::after | list
+RECREATED: hide li in ul none with counter in descendant ::after | preceding item
+RECREATED: hide li in ul none with counter in descendant ::after | preceding item descendant
+REMOVED: hide li in ul none with counter in descendant ::after | target
+RECREATED: hide li in ul none with counter in descendant ::after | following item
+RECREATED: hide li in ul none with counter in descendant ::after | following item descendant
+STATS: hide li in ul none with counter in descendant ::after | rebuilt subtree roots=1, escaped=false
+PASS: hide li in ul none with counter in descendant ::after | incremental tree matches full rebuild
+RECREATED: hide li in ul none with counter in list ::after | list
+RECREATED: hide li in ul none with counter in list ::after | preceding item
+RECREATED: hide li in ul none with counter in list ::after | preceding item descendant
+REMOVED: hide li in ul none with counter in list ::after | target
+RECREATED: hide li in ul none with counter in list ::after | following item
+RECREATED: hide li in ul none with counter in list ::after | following item descendant
+STATS: hide li in ul none with counter in list ::after | rebuilt subtree roots=1, escaped=false
+PASS: hide li in ul none with counter in list ::after | incremental tree matches full rebuild
+10 cases; 10 matched; 0 mismatched

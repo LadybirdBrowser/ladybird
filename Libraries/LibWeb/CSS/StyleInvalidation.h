@@ -29,6 +29,9 @@ enum class AccumulatedVisualContextInvalidation : u8 {
 enum class LayoutTreeRebuildRoot : u8 {
     Self,
     SelfUnlessDocumentElementOrBody,
+    // The element's principal box appears or disappears while every sibling box keeps its kind.
+    // The parent absorbs that as a child-list change where it can, and rebuilds otherwise.
+    BoxPresenceChange,
     Parent,
 };
 
@@ -58,6 +61,11 @@ struct RequiredInvalidationAfterStyleChange {
     {
         VERIFY(needs_layout_tree_rebuild());
         return m_layout_tree_rebuild_root;
+    }
+    void set_layout_tree_rebuild_root(LayoutTreeRebuildRoot rebuild_root)
+    {
+        VERIFY(needs_layout_tree_rebuild());
+        m_layout_tree_rebuild_root = rebuild_root;
     }
     [[nodiscard]] bool needs_stacking_context_tree_rebuild() const { return m_rebuild_stacking_context_tree; }
     // NB: A pending relayout re-measures all scrollable overflow anyway, so this reports true only

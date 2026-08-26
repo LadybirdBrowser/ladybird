@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    ol, ul { margin: 0; }
+    ul { list-style: none; }
+</style>
+<ol><li>one</li><li id="hidden-ordered">two</li><li>three</li></ol>
+<ul><li>one</li><li id="hidden-unordered">two</li><li>three</li></ul>
+<script>
+    document.body.offsetHeight;
+    // Hiding an item renumbers the markers after it; the unordered list has no markers to update.
+    document.getElementById("hidden-ordered").hidden = true;
+    document.getElementById("hidden-unordered").hidden = true;
+    document.body.offsetHeight;
+</script>

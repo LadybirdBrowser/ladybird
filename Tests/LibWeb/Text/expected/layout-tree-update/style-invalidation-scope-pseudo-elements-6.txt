@@ -562,16 +562,16 @@ RECREATED: ::before change display table-caption on list-item in inline grid | f
 RECREATED: ::before change display table-caption on list-item in inline grid | following sibling descendant
 STATS: ::before change display table-caption on list-item in inline grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before change display table-caption on list-item in inline grid | incremental tree matches full rebuild
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | fixture ancestor
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | distant sibling
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | distant sibling descendant
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | DOM parent
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | preceding sibling
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | preceding sibling descendant
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | fixture ancestor
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | distant sibling
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | distant sibling descendant
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | DOM parent
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | preceding sibling
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | preceding sibling descendant
 RECREATED: ::before change display inline flow list-item on list-item in inline list-item | target
 RECREATED: ::before change display inline flow list-item on list-item in inline list-item | target descendant
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | following sibling
-RECREATED: ::before change display inline flow list-item on list-item in inline list-item | following sibling descendant
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | following sibling
+PRESERVED: ::before change display inline flow list-item on list-item in inline list-item | following sibling descendant
 STATS: ::before change display inline flow list-item on list-item in inline list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before change display inline flow list-item on list-item in inline list-item | incremental tree matches full rebuild
 RECREATED: ::after remove grid on list-item in table-footer-group | fixture ancestor
@@ -2389,13 +2389,13 @@ PASS: ::before change display table-caption on inline flex in table-footer-group
 PRESERVED: ::before change display inline flow list-item on inline flex in block grid | fixture ancestor
 PRESERVED: ::before change display inline flow list-item on inline flex in block grid | distant sibling
 PRESERVED: ::before change display inline flow list-item on inline flex in block grid | distant sibling descendant
-RECREATED: ::before change display inline flow list-item on inline flex in block grid | DOM parent
-RECREATED: ::before change display inline flow list-item on inline flex in block grid | preceding sibling
-RECREATED: ::before change display inline flow list-item on inline flex in block grid | preceding sibling descendant
+PRESERVED: ::before change display inline flow list-item on inline flex in block grid | DOM parent
+PRESERVED: ::before change display inline flow list-item on inline flex in block grid | preceding sibling
+PRESERVED: ::before change display inline flow list-item on inline flex in block grid | preceding sibling descendant
 RECREATED: ::before change display inline flow list-item on inline flex in block grid | target
 RECREATED: ::before change display inline flow list-item on inline flex in block grid | target descendant
-RECREATED: ::before change display inline flow list-item on inline flex in block grid | following sibling
-RECREATED: ::before change display inline flow list-item on inline flex in block grid | following sibling descendant
+PRESERVED: ::before change display inline flow list-item on inline flex in block grid | following sibling
+PRESERVED: ::before change display inline flow list-item on inline flex in block grid | following sibling descendant
 STATS: ::before change display inline flow list-item on inline flex in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before change display inline flow list-item on inline flex in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove grid on inline flex in list-item | fixture ancestor

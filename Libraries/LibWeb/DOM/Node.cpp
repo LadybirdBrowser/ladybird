@@ -1126,7 +1126,15 @@ static bool node_contributes_to_layout_tree(Node const& node)
         && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
 }
 
-static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& parent)
+// Which kind of box a detached child is. DOM removal reads it from the child's style; a style
+// change that stopped generating the box has already swapped the style, so it names the level.
+enum class DetachedBoxLevel {
+    FromStyle,
+    Block,
+    AtomicInline,
+};
+
+static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& parent, DetachedBoxLevel box_level = DetachedBoxLevel::FromStyle)
 {
     auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node());
     auto const* parent_layout_node = parent.unsafe_layout_node();
@@ -1166,9 +1174,36 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
             if (auto next_layout_sibling = layout_node->next_sibling(); next_layout_sibling && next_layout_sibling->is_anonymous())
                 return false;
         }
-        return layout_node->display().is_block_outside();
+        // Once only anonymous wrappers would remain, a full rebuild would place their inline
+        // content directly in the parent instead.
+        bool a_non_anonymous_sibling_remains = false;
+        for (auto sibling = parent_layout_node->first_child(); sibling; sibling = sibling->next_sibling()) {
+            if (sibling.ptr() != layout_node && !sibling->is_anonymous()) {
+                a_non_anonymous_sibling_remains = true;
+                break;
+            }
+        }
+        if (!a_non_anonymous_sibling_remains && parent_layout_node->first_child().ptr() != layout_node)
+            return false;
+        if (box_level == DetachedBoxLevel::FromStyle)
+            return layout_node->display().is_block_outside();
+        return box_level == DetachedBoxLevel::Block;
     }
-    return parent_layout_node->children_are_inline() && layout_node->is_inline_block() && !layout_node->is_out_of_flow();
+    if (!parent_layout_node->children_are_inline())
+        return false;
+    if (box_level == DetachedBoxLevel::FromStyle)
+        return layout_node->is_inline_block();
+    return box_level == DetachedBoxLevel::AtomicInline;
+}
+
+bool Node::can_detach_layout_subtree_in_place(Node const& node, Node const& parent, bool box_is_block_level)
+{
+    return can_detach_layout_subtree_for_removal(node, parent, box_is_block_level ? DetachedBoxLevel::Block : DetachedBoxLevel::AtomicInline);
+}
+
+bool Node::list_item_box_change_renumbers_list(Element const& list_item)
+{
+    return !final_direct_list_item_does_not_renumber_existing_content(list_item);
 }
 
 class RemovalStyleRecordPins {

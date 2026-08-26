@@ -1,0 +1,74 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // A list item that stops or starts generating a box keeps the surrounding layout tree unless
+    // some later content displays the renumbered list-item counter.
+    function listItemCase(name, { listTag, listStyle, extraCss, hide, hideLast }) {
+        return {
+            name,
+            setup(fixture) {
+                const style = document.createElement("style");
+                style.textContent = `#scope-list { list-style: ${listStyle}; } ${extraCss || ""}`;
+                const list = document.createElement(listTag);
+                list.id = "scope-list";
+                const items = [];
+                for (let i = 0; i < 4; ++i) {
+                    const item = document.createElement("li");
+                    const child = document.createElement("span");
+                    child.textContent = "child " + i;
+                    item.append("item " + i, child);
+                    list.append(item);
+                    items.push({ item, child });
+                }
+                const target = items[hideLast ? 3 : 1].item;
+                if (!hide) target.style.display = "none";
+                fixture.append(style, list);
+                return {
+                    mutate: () => {
+                        target.style.display = hide ? "none" : "";
+                    },
+                    trackedNodes: [
+                        { label: "list", node: list },
+                        { label: "preceding item", node: items[0].item },
+                        { label: "preceding item descendant", node: items[0].child },
+                        { label: "target", node: target },
+                        { label: "following item", node: items[2].item },
+                        { label: "following item descendant", node: items[2].child },
+                    ],
+                };
+            },
+        };
+    }
+
+    test(() => {
+        runLayoutTreeInvalidationScopeCases([
+            listItemCase("hide li in ul list-style none", { listTag: "ul", listStyle: "none", hide: true }),
+            listItemCase("show li in ul list-style none", { listTag: "ul", listStyle: "none", hide: false }),
+            listItemCase("hide li in ul disc", { listTag: "ul", listStyle: "disc", hide: true }),
+            listItemCase("show li in ul disc", { listTag: "ul", listStyle: "disc", hide: false }),
+            listItemCase("hide li in ol decimal", { listTag: "ol", listStyle: "decimal", hide: true }),
+            listItemCase("show li in ol decimal", { listTag: "ol", listStyle: "decimal", hide: false }),
+            listItemCase("hide last li in ol decimal", { listTag: "ol", listStyle: "decimal", hide: true, hideLast: true }),
+            listItemCase("hide li in ul none with counter in ::before", {
+                listTag: "ul",
+                listStyle: "none",
+                extraCss: "#scope-list li::before { content: counter(list-item); }",
+                hide: true,
+            }),
+            listItemCase("hide li in ul none with counter in descendant ::after", {
+                listTag: "ul",
+                listStyle: "none",
+                extraCss: "#scope-list span::after { content: counters(list-item, '.'); }",
+                hide: true,
+            }),
+            listItemCase("hide li in ul none with counter in list ::after", {
+                listTag: "ul",
+                listStyle: "none",
+                extraCss: "#scope-list::after { content: counter(list-item); }",
+                hide: true,
+            }),
+        ]);
+    });
+</script>

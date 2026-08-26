@@ -1,13 +1,13 @@
 PRESERVED: display none -> inline list-item in flex | fixture ancestor
 PRESERVED: display none -> inline list-item in flex | distant sibling
 PRESERVED: display none -> inline list-item in flex | distant sibling descendant
-RECREATED: display none -> inline list-item in flex | DOM parent
-RECREATED: display none -> inline list-item in flex | preceding sibling
-RECREATED: display none -> inline list-item in flex | preceding sibling descendant
+PRESERVED: display none -> inline list-item in flex | DOM parent
+PRESERVED: display none -> inline list-item in flex | preceding sibling
+PRESERVED: display none -> inline list-item in flex | preceding sibling descendant
 CREATED: display none -> inline list-item in flex | target
 CREATED: display none -> inline list-item in flex | target descendant
-RECREATED: display none -> inline list-item in flex | following sibling
-RECREATED: display none -> inline list-item in flex | following sibling descendant
+PRESERVED: display none -> inline list-item in flex | following sibling
+PRESERVED: display none -> inline list-item in flex | following sibling descendant
 STATS: display none -> inline list-item in flex | rebuilt subtree roots=1, escaped=false
 PASS: display none -> inline list-item in flex | incremental tree matches full rebuild
 RECREATED: display none -> -webkit-box in -webkit-inline-box | fixture ancestor
@@ -265,13 +265,13 @@ PASS: display flow-root -> block flow-root in inline grid | incremental tree mat
 PRESERVED: display flow-root -> block flow list-item in flow-root | fixture ancestor
 PRESERVED: display flow-root -> block flow list-item in flow-root | distant sibling
 PRESERVED: display flow-root -> block flow list-item in flow-root | distant sibling descendant
-RECREATED: display flow-root -> block flow list-item in flow-root | DOM parent
-RECREATED: display flow-root -> block flow list-item in flow-root | preceding sibling
-RECREATED: display flow-root -> block flow list-item in flow-root | preceding sibling descendant
+PRESERVED: display flow-root -> block flow list-item in flow-root | DOM parent
+PRESERVED: display flow-root -> block flow list-item in flow-root | preceding sibling
+PRESERVED: display flow-root -> block flow list-item in flow-root | preceding sibling descendant
 RECREATED: display flow-root -> block flow list-item in flow-root | target
 RECREATED: display flow-root -> block flow list-item in flow-root | target descendant
-RECREATED: display flow-root -> block flow list-item in flow-root | following sibling
-RECREATED: display flow-root -> block flow list-item in flow-root | following sibling descendant
+PRESERVED: display flow-root -> block flow list-item in flow-root | following sibling
+PRESERVED: display flow-root -> block flow list-item in flow-root | following sibling descendant
 STATS: display flow-root -> block flow list-item in flow-root | rebuilt subtree roots=1, escaped=false
 PASS: display flow-root -> block flow list-item in flow-root | incremental tree matches full rebuild
 RECREATED: display inline-block -> list-item in table | fixture ancestor
@@ -598,17 +598,17 @@ RECREATED: display inline-flex -> block flex in flow-root | following sibling
 RECREATED: display inline-flex -> block flex in flow-root | following sibling descendant
 STATS: display inline-flex -> block flex in flow-root | rebuilt subtree roots=1, escaped=false
 PASS: display inline-flex -> block flex in flow-root | incremental tree matches full rebuild
-RECREATED: display grid -> none in inline-grid | fixture ancestor
-RECREATED: display grid -> none in inline-grid | distant sibling
-RECREATED: display grid -> none in inline-grid | distant sibling descendant
-RECREATED: display grid -> none in inline-grid | DOM parent
-RECREATED: display grid -> none in inline-grid | preceding sibling
-RECREATED: display grid -> none in inline-grid | preceding sibling descendant
+PRESERVED: display grid -> none in inline-grid | fixture ancestor
+PRESERVED: display grid -> none in inline-grid | distant sibling
+PRESERVED: display grid -> none in inline-grid | distant sibling descendant
+PRESERVED: display grid -> none in inline-grid | DOM parent
+PRESERVED: display grid -> none in inline-grid | preceding sibling
+PRESERVED: display grid -> none in inline-grid | preceding sibling descendant
 REMOVED: display grid -> none in inline-grid | target
 REMOVED: display grid -> none in inline-grid | target descendant
-RECREATED: display grid -> none in inline-grid | following sibling
-RECREATED: display grid -> none in inline-grid | following sibling descendant
-STATS: display grid -> none in inline-grid | rebuilt subtree roots=1, escaped=false
+PRESERVED: display grid -> none in inline-grid | following sibling
+PRESERVED: display grid -> none in inline-grid | following sibling descendant
+STATS: display grid -> none in inline-grid | rebuilt subtree roots=0, escaped=false
 PASS: display grid -> none in inline-grid | incremental tree matches full rebuild
 RECREATED: display grid -> inline list-item in table-footer-group | fixture ancestor
 RECREATED: display grid -> inline list-item in table-footer-group | distant sibling
@@ -706,16 +706,16 @@ RECREATED: display inline-grid -> block flow-root in flow-root | following sibli
 RECREATED: display inline-grid -> block flow-root in flow-root | following sibling descendant
 STATS: display inline-grid -> block flow-root in flow-root | rebuilt subtree roots=1, escaped=false
 PASS: display inline-grid -> block flow-root in flow-root | incremental tree matches full rebuild
-RECREATED: display inline-grid -> block flow list-item in inline-grid | fixture ancestor
-RECREATED: display inline-grid -> block flow list-item in inline-grid | distant sibling
-RECREATED: display inline-grid -> block flow list-item in inline-grid | distant sibling descendant
-RECREATED: display inline-grid -> block flow list-item in inline-grid | DOM parent
-RECREATED: display inline-grid -> block flow list-item in inline-grid | preceding sibling
-RECREATED: display inline-grid -> block flow list-item in inline-grid | preceding sibling descendant
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | fixture ancestor
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | distant sibling
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | distant sibling descendant
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | DOM parent
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | preceding sibling
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | preceding sibling descendant
 RECREATED: display inline-grid -> block flow list-item in inline-grid | target
 RECREATED: display inline-grid -> block flow list-item in inline-grid | target descendant
-RECREATED: display inline-grid -> block flow list-item in inline-grid | following sibling
-RECREATED: display inline-grid -> block flow list-item in inline-grid | following sibling descendant
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | following sibling
+PRESERVED: display inline-grid -> block flow list-item in inline-grid | following sibling descendant
 STATS: display inline-grid -> block flow list-item in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: display inline-grid -> block flow list-item in inline-grid | incremental tree matches full rebuild
 RECREATED: display table -> run-in in table-footer-group | fixture ancestor
@@ -877,26 +877,26 @@ PASS: display math -> inline flow-root in inline list-item | incremental tree ma
 PRESERVED: display math -> inline flow list-item in -webkit-box | fixture ancestor
 PRESERVED: display math -> inline flow list-item in -webkit-box | distant sibling
 PRESERVED: display math -> inline flow list-item in -webkit-box | distant sibling descendant
-RECREATED: display math -> inline flow list-item in -webkit-box | DOM parent
-RECREATED: display math -> inline flow list-item in -webkit-box | preceding sibling
-RECREATED: display math -> inline flow list-item in -webkit-box | preceding sibling descendant
+PRESERVED: display math -> inline flow list-item in -webkit-box | DOM parent
+PRESERVED: display math -> inline flow list-item in -webkit-box | preceding sibling
+PRESERVED: display math -> inline flow list-item in -webkit-box | preceding sibling descendant
 RECREATED: display math -> inline flow list-item in -webkit-box | target
 RECREATED: display math -> inline flow list-item in -webkit-box | target descendant
-RECREATED: display math -> inline flow list-item in -webkit-box | following sibling
-RECREATED: display math -> inline flow list-item in -webkit-box | following sibling descendant
+PRESERVED: display math -> inline flow list-item in -webkit-box | following sibling
+PRESERVED: display math -> inline flow list-item in -webkit-box | following sibling descendant
 STATS: display math -> inline flow list-item in -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: display math -> inline flow list-item in -webkit-box | incremental tree matches full rebuild
-RECREATED: display -webkit-box -> list-item in table-column | fixture ancestor
-RECREATED: display -webkit-box -> list-item in table-column | distant sibling
-RECREATED: display -webkit-box -> list-item in table-column | distant sibling descendant
-RECREATED: display -webkit-box -> list-item in table-column | DOM parent
+PRESERVED: display -webkit-box -> list-item in table-column | fixture ancestor
+PRESERVED: display -webkit-box -> list-item in table-column | distant sibling
+PRESERVED: display -webkit-box -> list-item in table-column | distant sibling descendant
+PRESERVED: display -webkit-box -> list-item in table-column | DOM parent
 ABSENT: display -webkit-box -> list-item in table-column | preceding sibling
 ABSENT: display -webkit-box -> list-item in table-column | preceding sibling descendant
 ABSENT: display -webkit-box -> list-item in table-column | target
 ABSENT: display -webkit-box -> list-item in table-column | target descendant
 ABSENT: display -webkit-box -> list-item in table-column | following sibling
 ABSENT: display -webkit-box -> list-item in table-column | following sibling descendant
-STATS: display -webkit-box -> list-item in table-column | rebuilt subtree roots=1, escaped=false
+STATS: display -webkit-box -> list-item in table-column | rebuilt subtree roots=0, escaped=true
 PASS: display -webkit-box -> list-item in table-column | incremental tree matches full rebuild
 PRESERVED: display -webkit-box -> math in block grid | fixture ancestor
 PRESERVED: display -webkit-box -> math in block grid | distant sibling
@@ -1333,13 +1333,13 @@ PASS: display table-column-group -> inline flow list-item in table-column | incr
 PRESERVED: display table-column -> list-item in block grid | fixture ancestor
 PRESERVED: display table-column -> list-item in block grid | distant sibling
 PRESERVED: display table-column -> list-item in block grid | distant sibling descendant
-RECREATED: display table-column -> list-item in block grid | DOM parent
-RECREATED: display table-column -> list-item in block grid | preceding sibling
-RECREATED: display table-column -> list-item in block grid | preceding sibling descendant
+PRESERVED: display table-column -> list-item in block grid | DOM parent
+PRESERVED: display table-column -> list-item in block grid | preceding sibling
+PRESERVED: display table-column -> list-item in block grid | preceding sibling descendant
 RECREATED: display table-column -> list-item in block grid | target
 RECREATED: display table-column -> list-item in block grid | target descendant
-RECREATED: display table-column -> list-item in block grid | following sibling
-RECREATED: display table-column -> list-item in block grid | following sibling descendant
+PRESERVED: display table-column -> list-item in block grid | following sibling
+PRESERVED: display table-column -> list-item in block grid | following sibling descendant
 STATS: display table-column -> list-item in block grid | rebuilt subtree roots=1, escaped=false
 PASS: display table-column -> list-item in block grid | incremental tree matches full rebuild
 RECREATED: display table-column -> math in inline | fixture ancestor
@@ -1597,13 +1597,13 @@ PASS: display block flow-root -> inline flow in table-header-group | incremental
 PRESERVED: display block flow-root -> block flow list-item in block flow-root | fixture ancestor
 PRESERVED: display block flow-root -> block flow list-item in block flow-root | distant sibling
 PRESERVED: display block flow-root -> block flow list-item in block flow-root | distant sibling descendant
-RECREATED: display block flow-root -> block flow list-item in block flow-root | DOM parent
-RECREATED: display block flow-root -> block flow list-item in block flow-root | preceding sibling
-RECREATED: display block flow-root -> block flow list-item in block flow-root | preceding sibling descendant
+PRESERVED: display block flow-root -> block flow list-item in block flow-root | DOM parent
+PRESERVED: display block flow-root -> block flow list-item in block flow-root | preceding sibling
+PRESERVED: display block flow-root -> block flow list-item in block flow-root | preceding sibling descendant
 RECREATED: display block flow-root -> block flow list-item in block flow-root | target
 RECREATED: display block flow-root -> block flow list-item in block flow-root | target descendant
-RECREATED: display block flow-root -> block flow list-item in block flow-root | following sibling
-RECREATED: display block flow-root -> block flow list-item in block flow-root | following sibling descendant
+PRESERVED: display block flow-root -> block flow list-item in block flow-root | following sibling
+PRESERVED: display block flow-root -> block flow list-item in block flow-root | following sibling descendant
 STATS: display block flow-root -> block flow list-item in block flow-root | rebuilt subtree roots=1, escaped=false
 PASS: display block flow-root -> block flow list-item in block flow-root | incremental tree matches full rebuild
 PRESERVED: display inline flow-root -> run-in in block flow list-item | fixture ancestor
@@ -1765,25 +1765,25 @@ PASS: display inline flex -> block flow-root in table-column-group | incremental
 PRESERVED: display inline flex -> inline flow list-item in block grid | fixture ancestor
 PRESERVED: display inline flex -> inline flow list-item in block grid | distant sibling
 PRESERVED: display inline flex -> inline flow list-item in block grid | distant sibling descendant
-RECREATED: display inline flex -> inline flow list-item in block grid | DOM parent
-RECREATED: display inline flex -> inline flow list-item in block grid | preceding sibling
-RECREATED: display inline flex -> inline flow list-item in block grid | preceding sibling descendant
+PRESERVED: display inline flex -> inline flow list-item in block grid | DOM parent
+PRESERVED: display inline flex -> inline flow list-item in block grid | preceding sibling
+PRESERVED: display inline flex -> inline flow list-item in block grid | preceding sibling descendant
 RECREATED: display inline flex -> inline flow list-item in block grid | target
 RECREATED: display inline flex -> inline flow list-item in block grid | target descendant
-RECREATED: display inline flex -> inline flow list-item in block grid | following sibling
-RECREATED: display inline flex -> inline flow list-item in block grid | following sibling descendant
+PRESERVED: display inline flex -> inline flow list-item in block grid | following sibling
+PRESERVED: display inline flex -> inline flow list-item in block grid | following sibling descendant
 STATS: display inline flex -> inline flow list-item in block grid | rebuilt subtree roots=1, escaped=false
 PASS: display inline flex -> inline flow list-item in block grid | incremental tree matches full rebuild
-RECREATED: display block grid -> list-item in inline | fixture ancestor
-RECREATED: display block grid -> list-item in inline | distant sibling
-RECREATED: display block grid -> list-item in inline | distant sibling descendant
-RECREATED: display block grid -> list-item in inline | DOM parent
-RECREATED: display block grid -> list-item in inline | preceding sibling
-RECREATED: display block grid -> list-item in inline | preceding sibling descendant
+PRESERVED: display block grid -> list-item in inline | fixture ancestor
+PRESERVED: display block grid -> list-item in inline | distant sibling
+PRESERVED: display block grid -> list-item in inline | distant sibling descendant
+PRESERVED: display block grid -> list-item in inline | DOM parent
+PRESERVED: display block grid -> list-item in inline | preceding sibling
+PRESERVED: display block grid -> list-item in inline | preceding sibling descendant
 RECREATED: display block grid -> list-item in inline | target
 RECREATED: display block grid -> list-item in inline | target descendant
-RECREATED: display block grid -> list-item in inline | following sibling
-RECREATED: display block grid -> list-item in inline | following sibling descendant
+PRESERVED: display block grid -> list-item in inline | following sibling
+PRESERVED: display block grid -> list-item in inline | following sibling descendant
 STATS: display block grid -> list-item in inline | rebuilt subtree roots=1, escaped=false
 PASS: display block grid -> list-item in inline | incremental tree matches full rebuild
 PRESERVED: display block grid -> math in grid | fixture ancestor

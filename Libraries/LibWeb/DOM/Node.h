@@ -394,6 +394,13 @@ public:
     void set_needs_layout_update(SetNeedsLayoutReason);
     void set_needs_layout_update(SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
 
+    // Whether the node's layout subtree can leave the parent's box without restructuring the
+    // anonymous boxes around it, so the parent's subtree keeps its layout tree.
+    static bool can_detach_layout_subtree_in_place(Node const& node, Node const& parent, bool box_is_block_level);
+    // Whether a list item's box appearing or disappearing changes the list-item counter value of
+    // some item that stays in the list.
+    static bool list_item_box_change_renumbers_list(Element const& list_item);
+
     void clear_layout_node(Badge<Document>);
     void set_layout_node(Badge<Layout::Node>, Layout::Node&);
     void detach_layout_node(Badge<Layout::LayoutTreeBuilderAccess>);
