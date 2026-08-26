@@ -65,7 +65,7 @@ public:
 
     ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
-    bool is_paintable(DOM::Document const&) const override { return true; }
+    bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const override { return true; }
 
 private:
     friend class StyleValue;

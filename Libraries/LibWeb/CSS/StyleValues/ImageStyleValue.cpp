@@ -8,7 +8,6 @@
  */
 
 #include <LibGC/Weak.h>
-#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -159,82 +158,6 @@ GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document&
 void ImageStyleValue::load_any_resources(DOM::Document& document)
 {
     fetch_image(document);
-}
-
-Optional<CSSPixels> ImageStyleValue::natural_width(DOM::Document const& document) const
-{
-    if (auto image_data = this->image_data(document))
-        return image_data->intrinsic_width();
-    return {};
-}
-
-Optional<CSSPixels> ImageStyleValue::natural_height(DOM::Document const& document) const
-{
-    if (auto image_data = this->image_data(document))
-        return image_data->intrinsic_height();
-    return {};
-}
-
-Optional<CSSPixelFraction> ImageStyleValue::natural_aspect_ratio(DOM::Document const& document) const
-{
-    if (auto image_data = this->image_data(document))
-        return image_data->intrinsic_aspect_ratio();
-    return {};
-}
-
-bool ImageStyleValue::is_paintable(DOM::Document const& document) const
-{
-    return !!image_data(document);
-}
-
-Optional<Painting::ImagePaint> ImageStyleValue::image_paint(Painting::ImagePaintRequest const& request, ResolvedImage const&) const
-{
-    auto image_data = this->image_data(request.document);
-    if (!image_data)
-        return {};
-
-    auto integer_request = request;
-    integer_request.dest_rect = request.dest_rect.to_type<int>().to_type<float>();
-    return image_data->image_paint(integer_request);
-}
-
-Optional<Painting::DisplayListResource> ImageStyleValue::record_display_list(Painting::DisplayListResourceStorage& resource_storage, DOM::Document const& document, DevicePixelRect const& dest_rect, PreferredColorScheme color_scheme) const
-{
-    auto image_data = this->image_data(document);
-    if (!image_data)
-        return {};
-
-    return image_data->record_display_list(dest_rect.size().to_type<int>(), color_scheme, resource_storage);
-}
-
-Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DOM::Document const& document, DevicePixelRect const& dest_rect) const
-{
-    if (auto image_data = this->image_data(document))
-        return image_data->current_frame(dest_rect.size().to_type<int>());
-    return {};
-}
-
-GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data(DOM::Document const& document) const
-{
-    auto resolved_url = this->resolved_url(document);
-    if (!resolved_url.has_value())
-        return nullptr;
-
-    auto const* resource = document.css_image_resource(*resolved_url);
-
-    // NB: We should have registered a client for this before now which ensures a resource exists if we have a valid
-    //     resolved URL.
-    VERIFY(resource);
-
-    return resource->decoded_image_data();
-}
-
-Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const
-{
-    auto image_data = this->image_data(document);
-    if (!image_data)
-        return {};
-    return image_data->color_if_single_pixel_bitmap();
 }
 
 void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)

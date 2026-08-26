@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/CSSImageValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
@@ -78,6 +79,15 @@ ImageStyleValue const* AbstractImageStyleValue::selected_image_style_value() con
             return &selected_image->as_image();
     }
     return nullptr;
+}
+
+SizeWithAspectRatio AbstractImageStyleValue::natural_size(HTML::DecodedImageData const& decoded_image_data) const
+{
+    return {
+        .width = decoded_image_data.intrinsic_width(),
+        .height = decoded_image_data.intrinsic_height(),
+        .aspect_ratio = decoded_image_data.intrinsic_aspect_ratio(),
+    };
 }
 
 Optional<Painting::ImagePaint> AbstractImageStyleValue::image_paint(Painting::ImagePaintRequest const&, ResolvedImage const& resolved) const

@@ -1547,20 +1547,6 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
     return color_scheme;
 }
 
-Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
-{
-    auto* body_element = body();
-    if (!body_element)
-        return {};
-
-    // NB: Called during painting inside update_layout().
-    auto body_layout_node = body_element->unsafe_layout_node();
-    if (!body_layout_node)
-        return {};
-
-    return &body_layout_node->background_layers();
-}
-
 CSS::ImageRendering Document::background_image_rendering() const
 {
     auto* body_element = body();
@@ -7197,14 +7183,6 @@ HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& Document::shared_
 }
 
 CSS::ImageStyleValueResource* Document::css_image_resource(URL::URL const& url)
-{
-    auto it = m_css_image_resources.find(url);
-    if (it == m_css_image_resources.end())
-        return nullptr;
-    return it->value.ptr();
-}
-
-CSS::ImageStyleValueResource const* Document::css_image_resource(URL::URL const& url) const
 {
     auto it = m_css_image_resources.find(url);
     if (it == m_css_image_resources.end())
