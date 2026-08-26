@@ -53,9 +53,9 @@ ALLOWED_REALM_MENTIONS = {
     "FileAPI": (6, 11, "File/Blob/FileReader algorithms still create streams, buffers, and events in selected realms"),
     "Geometry": (8, 8, "geometry constructors and structured clone still materialize JS-facing geometry objects"),
     "HTML": (
-        64,
-        210,
-        "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker, and event realm use",
+        68,
+        218,
+        "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use",
     ),
     "IndexedDB": (
         14,
@@ -81,7 +81,11 @@ ALLOWED_REALM_MENTIONS = {
         104,
         "WebAssembly constructors/exports instantiate JS objects/functions in spec-selected realms",
     ),
-    "WebAudio": (2, 7, "WebAudio buffers still materialize JS buffers and callback/promise values in selected realms"),
+    "WebAudio": (
+        8,
+        19,
+        "WebAudio buffers, AudioParamMap, and AudioWorklet APIs still materialize JS buffers and callback/promise values in selected realms",
+    ),
     "WebDriver": (2, 7, "WebDriver execute/JSON conversion still materializes JS values for automation"),
     "WebGL": (72, 120, "WebGL APIs still materialize buffers, typed arrays, extensions, and wrapper objects"),
     "WebLocks": (6, 7, "Web Locks queue/callback algorithms still use callback and promise realms"),
