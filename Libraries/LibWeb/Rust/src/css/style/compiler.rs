@@ -904,8 +904,9 @@ impl<'a> SelectorCompiler<'a> {
         // An exact case-sensitive test is an identity question, and the DOM publishes each attribute
         // value under the same text key, so both sides can answer it by comparing two integers -
         // and the dispatch can reject a rule whose value the element does not hold without
-        // evaluating anything. Any other operator or case reads the literal.
+        // evaluating anything. Other value tests read the literal for their exact comparison.
         let value_atom = match (operator, case) {
+            (AttributeOperator::Presence, _) => StyleAtomID::NONE,
             (AttributeOperator::Exact, AttributeCase::Sensitive) => match &attribute.value_identity {
                 Some(identity) => (self.intern)(identity.raw(), None),
                 None => self.intern_text(&attribute.value),

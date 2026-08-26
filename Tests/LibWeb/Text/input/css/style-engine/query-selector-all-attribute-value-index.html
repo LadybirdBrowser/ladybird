@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="root" data-exact="alpha">
+    <span id="exact" data-exact="alpha"></span>
+    <span id="includes" data-includes="zero needle one"></span>
+    <span id="dash" data-dash="en-US"></span>
+    <span id="prefix" data-prefix="prefix-rest"></span>
+    <span id="suffix" data-suffix="rest-suffix"></span>
+    <span id="substring" data-substring="around-middle-around"></span>
+    <span id="insensitive" data-insensitive="MiXeD"></span>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let i = 0; i < 1000; ++i) {
+            const distractor = document.createElement("i");
+            distractor.setAttribute("data-noise", `unrelated-${i}`);
+            root.appendChild(distractor);
+        }
+        internals.updateStyle();
+
+        const check = (description, selector, expectedId) => {
+            const before = internals.styleEngineCounters().selectorQueryEvaluations;
+            const results = root.querySelectorAll(selector);
+            const after = internals.styleEngineCounters().selectorQueryEvaluations;
+            println(`${description}: ${results.length === 1 && results[0].id === expectedId}`);
+            println(`${description} is selective: ${after - before < 10}`);
+        };
+
+        check("exact", '[data-exact="alpha"]', "exact");
+        check("includes", '[data-includes~="needle"]', "includes");
+        check("dash match", '[data-dash|="en"]', "dash");
+        check("prefix", '[data-prefix^="prefix"]', "prefix");
+        check("suffix", '[data-suffix$="suffix"]', "suffix");
+        check("substring", '[data-substring*="middle"]', "substring");
+        check("ASCII insensitive", '[data-insensitive="mixed" i]', "insensitive");
+
+        const planBefore = internals.styleEngineCounters();
+        for (let i = 0; i < 10; ++i) {
+            root.className = `query-cache-${i}`;
+            root.querySelectorAll('[data-includes~="needle"]');
+        }
+        const planAfter = internals.styleEngineCounters();
+        println(`attribute value plan is reused: ${planAfter.selectorQueryAttributeValuePlanHits - planBefore.selectorQueryAttributeValuePlanHits >= 9}`);
+        println(`attribute value catalog is not rescanned: ${planAfter.selectorQueryAttributeValueCatalogScans - planBefore.selectorQueryAttributeValueCatalogScans <= 1}`);
+
+        const freshValue = document.createElement("span");
+        freshValue.setAttribute("data-includes", "fresh needle");
+        root.appendChild(freshValue);
+        const refreshBefore = internals.styleEngineCounters().selectorQueryAttributeValueCatalogScans;
+        const refreshedResults = root.querySelectorAll('[data-includes~="needle"]');
+        const refreshAfter = internals.styleEngineCounters().selectorQueryAttributeValueCatalogScans;
+        println(`new value refreshes plan: ${refreshedResults.length === 2 && refreshAfter - refreshBefore === 1}`);
+
+        const documentResults = document.querySelectorAll('[data-exact="alpha"]');
+        println(`document includes query root: ${documentResults.length === 2 && documentResults[0] === root && documentResults[1].id === "exact"}`);
+
+        const ordered = root.querySelectorAll('[data-suffix$="suffix"], [data-exact="alpha"]');
+        println(`selector-list results use tree order: ${ordered.length === 2 && ordered[0].id === "exact" && ordered[1].id === "suffix"}`);
+
+        const reorderedNodes = [];
+        for (let i = 0; i < 64; ++i) {
+            const node = document.createElement("b");
+            node.dataset.queryOrder = i;
+            root.prepend(node);
+            reorderedNodes.unshift(node);
+        }
+        const reorderedResults = root.querySelectorAll('[data-query-order]');
+        println(`moved results use tree order: ${reorderedResults.length === reorderedNodes.length && Array.from(reorderedResults).every((node, index) => node === reorderedNodes[index])}`);
+
+        const mutation = document.getElementById("exact");
+        mutation.setAttribute("data-exact", "beta");
+        println(`old value removed from index: ${root.querySelectorAll('[data-exact="alpha"]').length === 0}`);
+        println(`new value added to index: ${root.querySelectorAll('[data-exact="beta"]')[0] === mutation}`);
+
+        const staleCandidates = [];
+        for (let i = 0; i < 64; ++i) {
+            const candidate = document.createElement("span");
+            candidate.setAttribute("data-stale-value", "old");
+            root.appendChild(candidate);
+            staleCandidates.push(candidate);
+        }
+        internals.updateStyle();
+        for (const candidate of staleCandidates)
+            candidate.setAttribute("data-stale-value", "new");
+        const staleBefore = internals.styleEngineCounters().selectorQueryEvaluations;
+        const staleResults = root.querySelectorAll('[data-stale-value="old"]');
+        const staleAfter = internals.styleEngineCounters().selectorQueryEvaluations;
+        println(`old value posting is removed: ${staleResults.length === 0 && staleAfter === staleBefore}`);
+
+        const shared = document.createElement("span");
+        shared.setAttribute("data-first", "shared");
+        shared.setAttribute("data-second", "shared");
+        root.appendChild(shared);
+        shared.removeAttribute("data-first");
+        println(`shared value remains indexed: ${root.querySelectorAll('[data-second="shared"]')[0] === shared}`);
+
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const outside = document.createElement("span");
+        outside.setAttribute("data-shadow", "outside");
+        document.body.appendChild(outside);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = '<span id="shadow-outside" data-shadow="outside"></span><span id="shadow" data-shadow="inside"></span>';
+        const shadowResults = shadowRoot.querySelectorAll('[data-shadow$="side"]');
+        println(`shadow-root query stays scoped: ${shadowResults.length === 2 && shadowResults[0].id === "shadow-outside" && shadowResults[1].id === "shadow"}`);
+    });
+</script>

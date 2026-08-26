@@ -1,0 +1,25 @@
+exact: true
+exact is selective: true
+includes: true
+includes is selective: true
+dash match: true
+dash match is selective: true
+prefix: true
+prefix is selective: true
+suffix: true
+suffix is selective: true
+substring: true
+substring is selective: true
+ASCII insensitive: true
+ASCII insensitive is selective: true
+attribute value plan is reused: true
+attribute value catalog is not rescanned: true
+new value refreshes plan: true
+document includes query root: true
+selector-list results use tree order: true
+moved results use tree order: true
+old value removed from index: true
+new value added to index: true
+old value posting is removed: true
+shared value remains indexed: true
+shadow-root query stays scoped: true

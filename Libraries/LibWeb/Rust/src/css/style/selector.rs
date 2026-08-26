@@ -730,7 +730,9 @@ impl SelectorProgram {
                 let SelectorOp::Feature(FeatureTest::Attribute(test)) = node else {
                     return None;
                 };
-                (test.operator != AttributeOperator::Presence && test.value_atom.is_none()).then_some(test)
+                (test.operator != AttributeOperator::Presence
+                    && (test.operator != AttributeOperator::Exact || test.case != AttributeCase::Sensitive))
+                    .then_some(test)
             })
             .flat_map(|test| {
                 [Some(test.name), (test.folded != test.name).then_some(test.folded)]
@@ -1536,6 +1538,24 @@ impl SelectorProgram {
     #[must_use]
     pub fn subject_dispatch_keys(&self, entry: usize) -> &[DispatchKey] {
         &self.dispatch_metadata.0[entry].subject_dispatch_keys
+    }
+
+    pub(super) fn subject_attribute_value_test(&self, entry: usize) -> Option<AttributeTest> {
+        self.attribute_value_test_of(self.entries()[entry].root)
+    }
+
+    fn attribute_value_test_of(&self, id: SelectorNodeID) -> Option<AttributeTest> {
+        match self.node(id) {
+            SelectorOp::Feature(FeatureTest::Attribute(test)) if test.operator != AttributeOperator::Presence => {
+                Some(test)
+            }
+            SelectorOp::And { first, count } => self
+                .operands(first, count)
+                .iter()
+                .find_map(|&operand| self.attribute_value_test_of(operand)),
+            SelectorOp::Where(inner) => self.attribute_value_test_of(inner),
+            _ => None,
+        }
     }
 
     fn compute_subject_dispatch_keys(&self, entry: usize) -> Vec<DispatchKey> {

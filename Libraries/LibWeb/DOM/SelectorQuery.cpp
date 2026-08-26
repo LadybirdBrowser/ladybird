@@ -408,7 +408,36 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
         }
     } else {
         settle_connected_selector_query(document);
-        collect_matches(root, [&](auto& element) { return matches_in_style_engine(element, root); }, elements);
+        CSS::StyleNodeID query_root;
+        bool include_root = false;
+        CSS::StyleNodeID scope_root;
+        if (GC::Ptr<Element const> scope_element = as_if<Element>(root)) {
+            query_root = scope_element->style_node_id();
+            scope_root = scope_element->style_node_id();
+        } else if (GC::Ptr<ShadowRoot const> shadow = as_if<ShadowRoot>(root)) {
+            query_root = shadow->style_node_id();
+        } else {
+            auto const* document_element = document.document_element();
+            if (!document_element)
+                return create_node_list(elements);
+            query_root = document_element->style_node_id();
+            include_root = true;
+        }
+        CSS::StyleNodeID shadow_root;
+        if (GC::Ptr<ShadowRoot const> tree_root = as_if<ShadowRoot>(root.root()))
+            shadow_root = tree_root->style_node_id();
+
+        Vector<CSS::StyleNodeID> matches;
+        if (!document.style_computer().style_engine().selector_query_all(m_engine_query, query_root, include_root, scope_root, shadow_root, true, matches)) {
+            collect_matches(root, [&](auto& element) { return matches_in_style_engine(element, root); }, elements);
+        } else {
+            elements.ensure_capacity(matches.size());
+            for (auto node : matches) {
+                auto element = document.style_computer().element_for_style_node(node);
+                VERIFY(element);
+                elements.unchecked_append(*element);
+            }
+        }
     }
 
     auto node_list = create_node_list(elements);
