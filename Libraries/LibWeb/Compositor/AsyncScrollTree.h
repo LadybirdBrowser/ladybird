@@ -61,8 +61,8 @@ public:
     Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(AsyncScrollNodeStableID) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
-    Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
-    Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::ScrollStateSnapshot&);
+    Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
+    Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
 
 private:
     static Gfx::FloatPoint clamp_scroll_offset_to_node(AsyncScrollNode const&, Gfx::FloatPoint);

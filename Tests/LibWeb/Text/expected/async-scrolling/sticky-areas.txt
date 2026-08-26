@@ -1,23 +1,20 @@
 scroll nodes: 1
-sticky areas: 2
-outer parent is viewport: true
-inner parent is outer: true
-outer ancestor is viewport: true
-inner ancestor is viewport: true
-outer has top inset only: true
-inner has top inset only: true
+sticky nodes: 2
+inner parent sticky is outer: true
+outer scroller is viewport: true
+inner scroller is viewport: true
+outer insets: top=0
+inner insets: top=20
 display list:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] scroll (sticky) (PaintableWithLines(BlockContainer<DIV>#outer))
-          [s3] scroll (sticky) (PaintableWithLines(BlockContainer<DIV>#inner))
+        [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x2016] needs_parent_offset_adjustment=true insets=[top=0] (PaintableWithLines(BlockContainer<DIV>#outer))
+          [s3] sticky scroller=s1 parent_sticky=s2 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true insets=[top=20] (PaintableWithLines(BlockContainer<DIV>#inner))
 
 DisplayList:
 SaveLayer@s0
   CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1429] is_viewport=true
-  CompositorStickyArea@s2 scroll_node_index=s2 parent_scroll_node_index=s1 nearest_scrolling_ancestor_index=s1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x2016] needs_parent_offset_adjustment=true inset_top=0 inset_right=none inset_bottom=none inset_left=none
-  CompositorStickyArea@s3 scroll_node_index=s3 parent_scroll_node_index=s2 nearest_scrolling_ancestor_index=s1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true inset_top=20 inset_right=none inset_bottom=none inset_left=none
   DrawGlyphRun@s3 rect=[0,0 45x16] translation=[0,12.796875] color=rgb(0, 0, 0)
 Restore@s0

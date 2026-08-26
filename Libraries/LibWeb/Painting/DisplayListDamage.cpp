@@ -110,11 +110,14 @@ static bool matrices_are_equal(Gfx::FloatMatrix4x4 const& a, Gfx::FloatMatrix4x4
 static bool spatial_data_is_equal(SpatialNodeIndex a_index, SpatialData const& a, ScrollStateSnapshot const& a_scroll_state, SpatialNodeIndex b_index, SpatialData const& b, ScrollStateSnapshot const& b_scroll_state)
 {
     return a.visit(
-        [&](ScrollData const& data) {
-            auto const* other = b.get_pointer<ScrollData>();
+        [&](ScrollData const&) {
             // The payload carries no offset key; replay reads the offset stored under each node's
             // own index, so that is what has to match.
-            return other && data.is_sticky == other->is_sticky
+            return b.has<ScrollData>()
+                && a_scroll_state.device_offset_for_index(a_index) == b_scroll_state.device_offset_for_index(b_index);
+        },
+        [&](StickyData const&) {
+            return b.has<StickyData>()
                 && a_scroll_state.device_offset_for_index(a_index) == b_scroll_state.device_offset_for_index(b_index);
         },
         [&](TransformData const& data) {

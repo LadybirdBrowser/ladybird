@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] scroll (sticky) (PaintableWithLines(BlockContainer<DIV>#sticky))
+        [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true insets=[top=0] (PaintableWithLines(BlockContainer<DIV>#sticky))
           [s3] scroll (PaintableWithLines(BlockContainer<DIV>#scroller))
   frames:
     [f0 in s2] clip=[0,0 100x100] (PaintableWithLines(BlockContainer<DIV>#scroller))
@@ -20,7 +20,6 @@ SaveLayer@s0
   CompositorWheelHitTestTarget@s1 target_scroll_node_index=s1 rect=[0,0 800x2100]
   CompositorWheelHitTestTarget@s1 target_scroll_node_index=s1 rect=[0,100 800x2000]
   CompositorWheelHitTestTarget@s2 target_scroll_node_index=s1 rect=[0,0 800x100]
-  CompositorStickyArea@s2 scroll_node_index=s2 parent_scroll_node_index=s1 nearest_scrolling_ancestor_index=s1 position_relative_to_scroll_ancestor=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true inset_top=0 inset_right=none inset_bottom=none inset_left=none
   CompositorWheelHitTestTarget@s2 target_scroll_node_index=s3 rect=[0,0 100x100]
   CompositorScrollNode@s2 scroll_node_index=s3 parent_scroll_node_index=s1 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[400,400] is_viewport=false
   CompositorWheelHitTestTarget@s3/f0 target_scroll_node_index=s3 rect=[0,0 500x500]

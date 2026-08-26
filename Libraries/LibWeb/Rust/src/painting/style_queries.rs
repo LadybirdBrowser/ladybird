@@ -528,10 +528,6 @@ pub(crate) fn is_fixed_position(arena: &LayoutNodeArena, node: NodeSlotId) -> bo
     position(arena, node) == positioning::FIXED
 }
 
-pub(crate) fn is_sticky_position(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    position(arena, node) == positioning::STICKY
-}
-
 pub(crate) fn is_floating(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
     arena
         .node_data_if_live(node)

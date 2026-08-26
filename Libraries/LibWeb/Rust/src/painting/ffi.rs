@@ -1006,13 +1006,23 @@ pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(arena: *mut c_void) {
+pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
+    arena: *mut c_void,
+    callbacks: FfiVisualContextHostCallbacks,
+) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintable_rows = arena.paintable_rows();
         let mut paint_state = arena.paint_state().borrow_mut();
         let state = &mut paint_state.visual_context;
-        crate::painting::visual_context::refresh::refresh_sticky_constraints(&paintable_rows, &mut state.scroll_state);
+        if let Some(tree) = state.tree.as_mut() {
+            crate::painting::visual_context::refresh::refresh_sticky_constraints(
+                &paintable_rows,
+                &state.scroll_state,
+                tree,
+                callbacks.tree_inputs().device_pixels_per_css_pixel,
+            );
+        }
         state.needs_to_refresh_scroll_state = true;
     });
 }
@@ -2406,27 +2416,6 @@ pub unsafe extern "C" fn layout_arena_scroll_state_snapshot(
             }
         }
         needed
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_cumulative_scroll_offset_for_node(
-    arena: *mut c_void,
-    scroll_node_index: crate::painting::display_list::commands::SpatialNodeIndex,
-) -> FfiCssPixelPoint {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paint_state = arena.paint_state().borrow();
-        let state = &paint_state.visual_context;
-        let offset = state.tree.as_ref().map_or_else(Default::default, |tree| {
-            state
-                .scroll_state
-                .cumulative_offset(tree.scroll_state_slot_for_node(scroll_node_index))
-        });
-        offset.into()
     })
 }
 

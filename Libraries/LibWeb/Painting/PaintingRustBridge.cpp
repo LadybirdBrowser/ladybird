@@ -269,6 +269,8 @@ static_assert(sizeof(RustOptionalLayout<CSSPixelRect>) == sizeof(Optional<CSSPix
 static_assert(alignof(RustOptionalLayout<CSSPixelRect>) == alignof(Optional<CSSPixelRect>));
 static_assert(sizeof(RustOptionalLayout<Gfx::IntRect>) == sizeof(Optional<Gfx::IntRect>));
 static_assert(alignof(RustOptionalLayout<Gfx::IntRect>) == alignof(Optional<Gfx::IntRect>));
+static_assert(sizeof(RustOptionalLayout<float>) == sizeof(Optional<float>));
+static_assert(alignof(RustOptionalLayout<float>) == alignof(Optional<float>));
 static_assert(sizeof(RustOptionalLayout<Gfx::FloatPoint>) == sizeof(Optional<Gfx::FloatPoint>));
 static_assert(alignof(RustOptionalLayout<Gfx::FloatPoint>) == alignof(Optional<Gfx::FloatPoint>));
 static_assert(sizeof(RustOptionalLayout<Gfx::FloatSize>) == sizeof(Optional<Gfx::FloatSize>));
@@ -363,7 +365,21 @@ static SpatialData spatial_data_from_export(Layout::RustFFI::FfiVisualContextNod
 {
     switch (node.kind) {
     case Layout::RustFFI::FfiVisualContextNodeKind::Scroll:
-        return ScrollData { .is_sticky = node.is_sticky, .state_slot = static_cast<ScrollStateSlot>(node.state_slot) };
+        return ScrollData {};
+    case Layout::RustFFI::FfiVisualContextNodeKind::Sticky:
+        return StickyData {
+            .scroller = SpatialNodeIndex { node.index_value },
+            .parent_sticky = node.sticky_parent_sticky_index ? Optional<SpatialNodeIndex> { SpatialNodeIndex { node.sticky_parent_sticky_index } } : OptionalNone {},
+            .position_relative_to_scroller = node.sticky_position_relative_to_scroller,
+            .border_box_size = node.sticky_border_box_size,
+            .scrollport_size = node.sticky_scrollport_size,
+            .containing_block_region = node.sticky_containing_block_region,
+            .needs_parent_offset_adjustment = node.sticky_needs_parent_offset_adjustment,
+            .inset_top = node.sticky_inset_top,
+            .inset_right = node.sticky_inset_right,
+            .inset_bottom = node.sticky_inset_bottom,
+            .inset_left = node.sticky_inset_left,
+        };
     case Layout::RustFFI::FfiVisualContextNodeKind::Transform:
         return transform_data_from_export(node);
     case Layout::RustFFI::FfiVisualContextNodeKind::Perspective:
@@ -400,6 +416,7 @@ static FrameData frame_data_from_export(Layout::RustFFI::FfiVisualContextNodeExp
     case Layout::RustFFI::FfiVisualContextNodeKind::Mask:
         return MaskData { .rect = rect(), .kind = node.mask_kind, .origin = node.mask_origin };
     case Layout::RustFFI::FfiVisualContextNodeKind::Scroll:
+    case Layout::RustFFI::FfiVisualContextNodeKind::Sticky:
     case Layout::RustFFI::FfiVisualContextNodeKind::Transform:
     case Layout::RustFFI::FfiVisualContextNodeKind::Perspective:
     case Layout::RustFFI::FfiVisualContextNodeKind::BackfaceVisibility:
@@ -607,6 +624,27 @@ void patch_rust_visual_context_nodes(DOM::Document& document, AccumulatedVisualC
         visual_context_tree.frame_node_at(FrameNodeIndex { static_cast<u32>(frame_begin + i) }).data = frame_data_from_export(frame_nodes[i]);
 }
 
+bool patch_rust_sticky_visual_context_nodes(DOM::Document& document, AccumulatedVisualContextTree& visual_context_tree)
+{
+    auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree(layout_arena_handle(document));
+    VERIFY(tree);
+    bool any_payload_changed = false;
+    auto spatial_nodes = visual_context_tree.spatial_nodes();
+    for (size_t i = 0; i < spatial_nodes.size(); ++i) {
+        auto const* sticky = spatial_nodes[i].data.get_pointer<StickyData>();
+        if (!sticky)
+            continue;
+        auto exported = exported_visual_context_nodes(tree, i, i + 1, Layout::RustFFI::layout_arena_visual_context_tree_export_spatial_nodes);
+        auto refreshed = spatial_data_from_export(exported[0]);
+        auto const* refreshed_sticky = refreshed.get_pointer<StickyData>();
+        if (!refreshed_sticky || *refreshed_sticky == *sticky)
+            continue;
+        visual_context_tree.spatial_node_at(SpatialNodeIndex { static_cast<u32>(i) }).data = move(refreshed);
+        any_payload_changed = true;
+    }
+    return any_payload_changed;
+}
+
 bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable_slot)
 {
     return Layout::RustFFI::layout_arena_update_visual_context_values(layout_arena_handle(document), paintable_slot, visual_context_host_callbacks(document));
@@ -727,14 +765,9 @@ ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document& document)
     return snapshot;
 }
 
-CSSPixelPoint rust_cumulative_scroll_offset_for_node(DOM::Document const& document, SpatialNodeIndex scroll_node_index)
-{
-    return Layout::RustFFI::layout_arena_cumulative_scroll_offset_for_node(layout_arena_handle(document), scroll_node_index);
-}
-
 void mirror_rust_refresh_sticky_constraints(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_refresh_sticky_constraints(layout_arena_handle(document));
+    Layout::RustFFI::layout_arena_refresh_sticky_constraints(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
 void mirror_rust_clear_scroll_state(DOM::Document& document)

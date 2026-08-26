@@ -11,8 +11,10 @@ pub mod node_values;
 pub mod refresh;
 pub mod scroll_state;
 
+use crate::painting::display_list::commands::OptionalF32;
 use libgfx_rust::{
-    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, IntRect, MaskKind, WindingRule,
+    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
+    WindingRule,
 };
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 use std::ffi::c_void;
@@ -125,8 +127,50 @@ pub struct MaskData {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScrollData {
-    pub is_sticky: bool,
     pub state_slot: ScrollStateSlot,
+}
+
+// A sticky box's shift is derived when the scroll state snapshot is resolved, from the scroller's
+// entry and the parent sticky chain. Both references follow the containing block chain, which
+// continues through fixed-position ancestors, so they need not be spatial ancestors of the node.
+// Geometry is in device pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StickyData {
+    pub scroller: SpatialNodeIndex,
+    pub parent_sticky: Option<SpatialNodeIndex>,
+    pub position_relative_to_scroller: FloatPoint,
+    pub border_box_size: FloatSize,
+    pub scrollport_size: FloatSize,
+    pub containing_block_region: FloatRect,
+    pub needs_parent_offset_adjustment: bool,
+    pub inset_top: Option<f32>,
+    pub inset_right: Option<f32>,
+    pub inset_bottom: Option<f32>,
+    pub inset_left: Option<f32>,
+    pub state_slot: ScrollStateSlot,
+}
+
+impl StickyData {
+    pub fn unconstrained(
+        scroller: SpatialNodeIndex,
+        parent_sticky: Option<SpatialNodeIndex>,
+        state_slot: ScrollStateSlot,
+    ) -> Self {
+        Self {
+            scroller,
+            parent_sticky,
+            position_relative_to_scroller: FloatPoint::default(),
+            border_box_size: FloatSize::default(),
+            scrollport_size: FloatSize::default(),
+            containing_block_region: FloatRect::default(),
+            needs_parent_offset_adjustment: false,
+            inset_top: None,
+            inset_right: None,
+            inset_bottom: None,
+            inset_left: None,
+            state_slot,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -139,6 +183,7 @@ pub struct AnchorScrollShift {
 
 pub enum SpatialData {
     Scroll(ScrollData),
+    Sticky(StickyData),
     Transform(TransformData),
     Perspective(PerspectiveData),
     BackfaceVisibility(BackfaceVisibilityData),
@@ -157,6 +202,7 @@ impl SpatialData {
         use crate::painting::host::FfiVisualContextNodeKind;
         match self {
             Self::Scroll(_) => FfiVisualContextNodeKind::Scroll,
+            Self::Sticky(_) => FfiVisualContextNodeKind::Sticky,
             Self::Transform(_) => FfiVisualContextNodeKind::Transform,
             Self::Perspective(_) => FfiVisualContextNodeKind::Perspective,
             Self::BackfaceVisibility(_) => FfiVisualContextNodeKind::BackfaceVisibility,
@@ -165,7 +211,7 @@ impl SpatialData {
     }
 
     pub fn is_scroll_like(&self) -> bool {
-        matches!(self, Self::Scroll(_))
+        matches!(self, Self::Scroll(_) | Self::Sticky(_))
     }
 }
 
@@ -345,7 +391,8 @@ impl VisualContextTree {
         }
         match &self.spatial_nodes[index.0 as usize].data {
             SpatialData::Scroll(scroll) => scroll.state_slot,
-            _ => panic!("spatial node {} is not a scroll node", index.0),
+            SpatialData::Sticky(sticky) => sticky.state_slot,
+            _ => panic!("spatial node {} is not a scroll-like node", index.0),
         }
     }
 
@@ -382,8 +429,16 @@ fn empty_export(
         mask_kind: MaskKind::Alpha,
         mask_origin: MaskLayerOrigin::CssMaskLayers,
         index_value: 0,
-        is_sticky: false,
-        state_slot: 0,
+        sticky_parent_sticky_index: 0,
+        sticky_position_relative_to_scroller: FloatPoint::default(),
+        sticky_border_box_size: FloatSize::default(),
+        sticky_scrollport_size: FloatSize::default(),
+        sticky_containing_block_region: FloatRect::default(),
+        sticky_needs_parent_offset_adjustment: false,
+        sticky_inset_top: OptionalF32::none(),
+        sticky_inset_right: OptionalF32::none(),
+        sticky_inset_bottom: OptionalF32::none(),
+        sticky_inset_left: OptionalF32::none(),
         negate: false,
         compensate_horizontal_scroll: false,
         compensate_vertical_scroll: false,
@@ -394,9 +449,19 @@ pub fn export_spatial_node(node: &SpatialNode) -> crate::painting::host::FfiVisu
     let mut out = empty_export(node.data.kind());
     out.parent = node.parent.0;
     match &node.data {
-        SpatialData::Scroll(scroll) => {
-            out.is_sticky = scroll.is_sticky;
-            out.state_slot = scroll.state_slot;
+        SpatialData::Scroll(_) => {}
+        SpatialData::Sticky(sticky) => {
+            out.index_value = sticky.scroller.0;
+            out.sticky_parent_sticky_index = sticky.parent_sticky.map_or(0, |index| index.0);
+            out.sticky_position_relative_to_scroller = sticky.position_relative_to_scroller;
+            out.sticky_border_box_size = sticky.border_box_size;
+            out.sticky_scrollport_size = sticky.scrollport_size;
+            out.sticky_containing_block_region = sticky.containing_block_region;
+            out.sticky_needs_parent_offset_adjustment = sticky.needs_parent_offset_adjustment;
+            out.sticky_inset_top = sticky.inset_top.into();
+            out.sticky_inset_right = sticky.inset_right.into();
+            out.sticky_inset_bottom = sticky.inset_bottom.into();
+            out.sticky_inset_left = sticky.inset_left.into();
         }
         SpatialData::Transform(transform) => {
             out.matrix = transform.matrix;
