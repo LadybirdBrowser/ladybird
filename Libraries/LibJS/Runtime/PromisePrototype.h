@@ -15,6 +15,8 @@ class PromisePrototype final : public PrototypeObject<PromisePrototype, Promise>
     GC_DECLARE_ALLOCATOR(PromisePrototype);
 
 public:
+    static bool is_original_then_function(Value);
+
     virtual void initialize(Realm&) override;
     virtual ~PromisePrototype() override = default;
 

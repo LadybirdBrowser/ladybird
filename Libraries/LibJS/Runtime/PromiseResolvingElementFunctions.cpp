@@ -45,7 +45,11 @@ PromiseResolvingElementFunction::PromiseResolvingElementFunction(size_t index, P
 void PromiseResolvingElementFunction::initialize(Realm& realm)
 {
     Base::initialize(realm);
-    define_direct_property(vm().names.length, Value(1), Attribute::Configurable);
+
+    auto& intrinsics = realm.intrinsics();
+    unsafe_set_shape(intrinsics.native_function_shape());
+    put_direct(intrinsics.native_function_length_offset(), Value(1));
+    put_direct(intrinsics.native_function_name_offset(), PrimitiveString::create(vm(), Utf16String {}));
 }
 
 ThrowCompletionOr<Value> PromiseResolvingElementFunction::call()

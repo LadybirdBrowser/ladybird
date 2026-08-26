@@ -7,7 +7,9 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseCapability.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
 
 namespace JS {
 
@@ -63,6 +65,14 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Val
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor);
 
     // 2. NOTE: C is assumed to be a constructor function that supports the parameter conventions of the Promise constructor (see 27.2.3.1).
+
+    // OPTIMIZATION: Constructing the intrinsic Promise only creates a Promise and its resolving functions before invoking
+    //               the executor below. Create the resulting capability directly to avoid the temporary executor closure.
+    if (&constructor.as_function() == realm.intrinsics().promise_constructor().ptr()) {
+        auto promise = TRY(ordinary_create_from_constructor<Promise>(vm, constructor.as_function(), &Intrinsics::promise_prototype));
+        auto [resolve, reject] = promise->create_resolving_functions();
+        return PromiseCapability::create(vm, promise, resolve, reject);
+    }
 
     // 3. Let resolvingFunctions be the Record { [[Resolve]]: undefined, [[Reject]]: undefined }.
     auto resolving_functions = realm.create<ResolvingFunctions>();

@@ -17,6 +17,12 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(PromisePrototype);
 
+bool PromisePrototype::is_original_then_function(Value value)
+{
+    auto function = value.as_if<RawNativeFunction>();
+    return function && function->native_function() == then;
+}
+
 PromisePrototype::PromisePrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
 {
