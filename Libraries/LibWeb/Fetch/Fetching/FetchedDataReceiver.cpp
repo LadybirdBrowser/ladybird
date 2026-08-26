@@ -78,8 +78,12 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
         return;
     }
 
-    if (state == NetworkState::Error)
+    if (state == NetworkState::Error) {
+        // A response that died mid-body must not satisfy a sniff waiter with partial bytes.
+        if (m_body)
+            m_body->set_sniff_bytes_failed();
         return;
+    }
 
     // 1. If one or more bytes have been transmitted from response’s message body, then:
     auto bytes = data.bytes();

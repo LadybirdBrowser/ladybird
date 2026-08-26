@@ -1,0 +1,2 @@
+iframe produced a document from the partial body: false
+iframe stayed on its initial document: true
