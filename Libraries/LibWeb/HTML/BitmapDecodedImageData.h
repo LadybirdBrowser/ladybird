@@ -32,6 +32,8 @@ public:
     virtual Optional<CSSPixels> intrinsic_height() const override;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
 
+    virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
+
     virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
 
 private:

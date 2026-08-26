@@ -60,6 +60,14 @@ Optional<CSSPixelFraction> BitmapDecodedImageData::intrinsic_aspect_ratio() cons
     return CSSPixels(m_frame.width()) / CSSPixels(m_frame.height());
 }
 
+Optional<Gfx::Color> BitmapDecodedImageData::color_if_single_pixel_bitmap() const
+{
+    auto const& bitmap = m_frame.bitmap();
+    if (bitmap.width() != 1 || bitmap.height() != 1)
+        return {};
+    return bitmap.get_pixel(0, 0);
+}
+
 Optional<Painting::ImagePaint> BitmapDecodedImageData::image_paint(Painting::ImagePaintRequest const&) const
 {
     return Painting::ImagePaint { Painting::ImagePaint::DecodedFrame { .frame = m_frame, .natural_size = m_frame.size() } };

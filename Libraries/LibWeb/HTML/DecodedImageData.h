@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
@@ -55,6 +56,9 @@ public:
     virtual Optional<CSSPixels> intrinsic_width() const = 0;
     virtual Optional<CSSPixels> intrinsic_height() const = 0;
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const = 0;
+
+    // Only bitmap-backed data answers this, so asking never rasterizes an SVG image.
+    virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const { return {}; }
 
     bool has_clients() const { return !m_clients.is_empty(); }
 
