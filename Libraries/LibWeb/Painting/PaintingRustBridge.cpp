@@ -370,8 +370,6 @@ static SpatialData spatial_data_from_export(Layout::RustFFI::FfiVisualContextNod
         return PerspectiveData { .matrix = node.matrix, .flattens_inherited_transform = node.flattens_inherited_transform };
     case Layout::RustFFI::FfiVisualContextNodeKind::BackfaceVisibility:
         return BackfaceVisibilityData { .plane_root_index = SpatialNodeIndex { node.index_value }, .flattens_inherited_transform = node.flattens_inherited_transform };
-    case Layout::RustFFI::FfiVisualContextNodeKind::ScrollCompensation:
-        return ScrollCompensation { .scroll_node_index = SpatialNodeIndex { node.index_value } };
     case Layout::RustFFI::FfiVisualContextNodeKind::AnchorScrollShift:
         return AnchorScrollShift { .scroll_node_index = SpatialNodeIndex { node.index_value }, .negate = node.negate, .compensate_horizontal_scroll = node.compensate_horizontal_scroll, .compensate_vertical_scroll = node.compensate_vertical_scroll };
     case Layout::RustFFI::FfiVisualContextNodeKind::Clip:
@@ -405,7 +403,6 @@ static FrameData frame_data_from_export(Layout::RustFFI::FfiVisualContextNodeExp
     case Layout::RustFFI::FfiVisualContextNodeKind::Transform:
     case Layout::RustFFI::FfiVisualContextNodeKind::Perspective:
     case Layout::RustFFI::FfiVisualContextNodeKind::BackfaceVisibility:
-    case Layout::RustFFI::FfiVisualContextNodeKind::ScrollCompensation:
     case Layout::RustFFI::FfiVisualContextNodeKind::AnchorScrollShift:
         break;
     }

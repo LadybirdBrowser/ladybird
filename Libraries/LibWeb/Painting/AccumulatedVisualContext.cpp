@@ -195,10 +195,6 @@ static LocalSpatialMatrix local_spatial_matrix(SpatialNode const& node, SpatialN
             auto offset = scroll_state.device_offset_for_index(node_index);
             return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
         },
-        [&](ScrollCompensation const& compensation) {
-            auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
-            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { -offset.x(), -offset.y(), 0.f }) };
-        },
         [&](AnchorScrollShift const& shift) {
             auto offset = shift.masked_offset(scroll_state);
             return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
@@ -255,11 +251,20 @@ static Gfx::FloatRect map_rect_through_matrix(Gfx::FloatMatrix4x4 const& matrix,
     return { left, top, right - left, bottom - top };
 }
 
+// One root path of spatial nodes with the screen point mapped down it one inverse step at a time. Frames attach
+// to a path in non-decreasing depth order, so the steps still to apply before a frame always start where the
+// previous frame left off.
+struct SpatialChainWalk {
+    Vector<SpatialNodeIndex, 8> chain;
+    bool needs_accumulated_matrices { false };
+    bool has_3d_transform { false };
+    Vector<Gfx::FloatMatrix4x4, 8> accumulated_matrices;
+    Gfx::FloatPoint point;
+    size_t applied_steps { 0 };
+};
+
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
-    auto spatial_chain = build_ancestor_chain(context.spatial);
-    spatial_chain.reverse();
-
     Vector<FrameNodeIndex, 8> frame_chain;
     for (auto frame = context.frame; frame != NO_FRAME_NODE; frame = m_frame_nodes[frame.value()].parent)
         frame_chain.append(frame);
@@ -268,38 +273,43 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
     // The backface test needs forward matrices, but this walk only applies inverses. When the chain contains
     // backface markers, we accumulate the forward matrices as we walk, from the root down, so a marker can look up
     // the matrix at its plane root by chain position.
-    bool chain_has_backface_marker = any_of(spatial_chain, [&](SpatialNodeIndex index) {
-        return m_spatial_nodes[index.value()].data.has<BackfaceVisibilityData>();
-    });
-    bool chain_has_3d_transform = chain_contains_3d_transform(context.spatial);
-    bool needs_accumulated_matrices = chain_has_backface_marker || chain_has_3d_transform;
-    Vector<Gfx::FloatMatrix4x4, 8> accumulated_matrices;
-    if (needs_accumulated_matrices)
-        accumulated_matrices.ensure_capacity(spatial_chain.size());
+    auto begin_walk = [&](SpatialNodeIndex leaf) {
+        SpatialChainWalk walk;
+        walk.chain = build_ancestor_chain(leaf);
+        walk.chain.reverse();
+        bool chain_has_backface_marker = any_of(walk.chain, [&](SpatialNodeIndex index) {
+            return m_spatial_nodes[index.value()].data.has<BackfaceVisibilityData>();
+        });
+        walk.has_3d_transform = chain_contains_3d_transform(leaf);
+        walk.needs_accumulated_matrices = chain_has_backface_marker || walk.has_3d_transform;
+        if (walk.needs_accumulated_matrices)
+            walk.accumulated_matrices.ensure_capacity(walk.chain.size());
+        walk.point = screen_point;
+        return walk;
+    };
 
-    auto point = screen_point;
-    auto apply_spatial_step = [&](size_t position) -> bool {
-        auto node_index = spatial_chain[position];
+    auto apply_spatial_step = [&](SpatialChainWalk& walk, size_t position) -> bool {
+        auto node_index = walk.chain[position];
         auto const& node = m_spatial_nodes[node_index.value()];
 
-        if (needs_accumulated_matrices) {
+        if (walk.needs_accumulated_matrices) {
             auto local = local_spatial_matrix(node, node_index, scroll_state);
             if (position == 0) {
-                accumulated_matrices.unchecked_append(local.matrix);
+                walk.accumulated_matrices.unchecked_append(local.matrix);
             } else {
-                auto const& parent_matrix = accumulated_matrices.last();
-                accumulated_matrices.unchecked_append((local.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local.matrix);
+                auto const& parent_matrix = walk.accumulated_matrices.last();
+                walk.accumulated_matrices.unchecked_append((local.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local.matrix);
             }
         }
 
-        if (chain_has_3d_transform && !node.data.has<BackfaceVisibilityData>()) {
-            auto inverse = Gfx::flattened(accumulated_matrices.last()).inverse();
+        if (walk.has_3d_transform && !node.data.has<BackfaceVisibilityData>()) {
+            auto inverse = Gfx::flattened(walk.accumulated_matrices.last()).inverse();
             if (!inverse.has_value())
                 return false;
             auto mapped = *inverse * Gfx::FloatVector4 { screen_point.x(), screen_point.y(), 0, 1 };
             if (mapped.w() < minimum_projection_w)
                 return false;
-            point = { mapped.x() / mapped.w(), mapped.y() / mapped.w() };
+            walk.point = { mapped.x() / mapped.w(), mapped.y() / mapped.w() };
             return true;
         }
 
@@ -309,15 +319,15 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 auto inverse = affine.inverse();
                 if (!inverse.has_value())
                     return false;
-                point = inverse->map(point);
+                walk.point = inverse->map(walk.point);
                 return true;
             },
             [&](BackfaceVisibilityData const& backface) {
-                auto plane_root_position = spatial_chain.find_first_index(backface.plane_root_index).value();
-                return !should_cull_back_face(accumulated_matrices.last(), accumulated_matrices[plane_root_position]);
+                auto plane_root_position = walk.chain.find_first_index(backface.plane_root_index).value();
+                return !should_cull_back_face(walk.accumulated_matrices.last(), walk.accumulated_matrices[plane_root_position]);
             },
             [&](ScrollData const&) {
-                point.translate_by(-scroll_state.device_offset_for_index(node_index));
+                walk.point.translate_by(-scroll_state.device_offset_for_index(node_index));
                 return true;
             },
             [&](TransformData const& transform) {
@@ -326,39 +336,32 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 if (!inverse.has_value())
                     return false;
 
-                auto offset_point = point - transform.origin;
+                auto offset_point = walk.point - transform.origin;
                 auto transformed = inverse->map(offset_point);
-                point = transformed + transform.origin;
-                return true;
-            },
-            [&](ScrollCompensation const& compensation) {
-                point.translate_by(scroll_state.device_offset_for_index(compensation.scroll_node_index));
+                walk.point = transformed + transform.origin;
                 return true;
             },
             [&](AnchorScrollShift const& shift) {
-                point.translate_by(-shift.masked_offset(scroll_state));
+                walk.point.translate_by(-shift.masked_offset(scroll_state));
                 return true;
             });
     };
 
-    // Frames along the chain attach to spatial nodes in non-decreasing depth order, so the steps
-    // still to apply before a frame always start where the previous frame left off.
-    size_t applied_spatial_steps = 0;
-    auto apply_spatial_steps_through_node = [&](SpatialNodeIndex node_index) -> bool {
-        if (applied_spatial_steps > 0 && spatial_chain[applied_spatial_steps - 1] == node_index)
+    auto apply_spatial_steps_through_node = [&](SpatialChainWalk& walk, SpatialNodeIndex node_index) -> bool {
+        if (walk.applied_steps > 0 && walk.chain[walk.applied_steps - 1] == node_index)
             return true;
-        for (;; ++applied_spatial_steps) {
-            VERIFY(applied_spatial_steps < spatial_chain.size());
-            if (!apply_spatial_step(applied_spatial_steps))
+        for (;; ++walk.applied_steps) {
+            VERIFY(walk.applied_steps < walk.chain.size());
+            if (!apply_spatial_step(walk, walk.applied_steps))
                 return false;
-            if (spatial_chain[applied_spatial_steps] == node_index) {
-                ++applied_spatial_steps;
+            if (walk.chain[walk.applied_steps] == node_index) {
+                ++walk.applied_steps;
                 return true;
             }
         }
     };
 
-    auto point_passes_frame = [&](FrameNode const& frame) {
+    auto point_passes_frame = [&](FrameNode const& frame, Gfx::FloatPoint point) {
         return frame.data.visit(
             [&](ClipData const& clip) {
                 if (clip_behavior == ClipBehavior::Ignore)
@@ -380,17 +383,24 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
             [&](MaskData const&) { return true; });
     };
 
+    auto context_walk = begin_walk(context.spatial);
     for (auto frame_index : frame_chain) {
         auto const& frame = m_frame_nodes[frame_index.value()];
-        if (!apply_spatial_steps_through_node(frame.spatial))
-            return {};
-        if (!point_passes_frame(frame))
+        if (context_walk.chain.contains_slow(frame.spatial)) {
+            if (!apply_spatial_steps_through_node(context_walk, frame.spatial) || !point_passes_frame(frame, context_walk.point))
+                return {};
+            continue;
+        }
+        // A fixed-background context is rooted above the scroll nodes its frames record in, so such a frame hangs
+        // below the context's node and takes its own walk from the root.
+        auto frame_walk = begin_walk(frame.spatial);
+        if (!apply_spatial_steps_through_node(frame_walk, frame.spatial) || !point_passes_frame(frame, frame_walk.point))
             return {};
     }
-    if (!apply_spatial_steps_through_node(context.spatial))
+    if (!apply_spatial_steps_through_node(context_walk, context.spatial))
         return {};
 
-    return point;
+    return context_walk.point;
 }
 
 SpatialNodeIndex SortingContexts::outermost_context_of(SpatialNodeIndex context) const
@@ -566,9 +576,6 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(SpatialN
                 [&](ScrollData const&) {
                     rect.translate_by(scroll_state.device_offset_for_index(i));
                 },
-                [&](ScrollCompensation const& compensation) {
-                    rect.translate_by(-scroll_state.device_offset_for_index(compensation.scroll_node_index));
-                },
                 [&](AnchorScrollShift const& shift) {
                     rect.translate_by(shift.masked_offset(scroll_state));
                 },
@@ -626,9 +633,6 @@ void AccumulatedVisualContextTree::dump_spatial_node(SpatialNodeIndex index, Str
             builder.appendff("{}=[{},{},{},{},{},{}] origin=({},{})",
                 transform.role == TransformDataRole::SvgViewportTransform ? "svg-viewport-transform"sv : "transform"sv,
                 matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1], matrix[0][3], matrix[1][3], origin.x(), origin.y());
-        },
-        [&](ScrollCompensation const& compensation) {
-            builder.appendff("scroll_compensation(node_index={})", compensation.scroll_node_index);
         },
         [&](AnchorScrollShift const& shift) {
             builder.appendff("anchor_scroll_shift(node_index={}{}{}{})", shift.scroll_node_index,
@@ -846,21 +850,6 @@ ErrorOr<Web::Painting::MaskData> decode(Decoder& decoder)
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Painting::ScrollCompensation const& data)
-{
-    TRY(encoder.encode(data.scroll_node_index));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Painting::ScrollCompensation> decode(Decoder& decoder)
-{
-    return Web::Painting::ScrollCompensation {
-        .scroll_node_index = TRY(decoder.decode<Web::Painting::SpatialNodeIndex>()),
-    };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::AnchorScrollShift const& data)
 {
     TRY(encoder.encode(data.scroll_node_index));
@@ -965,7 +954,6 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
         auto referenced_spatial_precedes_node = spatial_nodes[i].data.visit(
             [&](TransformData const& transform) { return !transform.sorting_context_root_index.has_value() || transform.sorting_context_root_index->value() < i; },
             [&](BackfaceVisibilityData const& backface) { return backface.plane_root_index.value() < i; },
-            [&](ScrollCompensation const& compensation) { return compensation.scroll_node_index.value() < i; },
             [&](AnchorScrollShift const& shift) { return shift.scroll_node_index.value() < i; },
             [&](auto const&) { return true; });
         if (!referenced_spatial_precedes_node)

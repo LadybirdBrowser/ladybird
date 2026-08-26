@@ -130,11 +130,6 @@ pub struct ScrollData {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ScrollCompensation {
-    pub scroll_node_index: SpatialNodeIndex,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AnchorScrollShift {
     pub scroll_node_index: SpatialNodeIndex,
     pub negate: bool,
@@ -147,7 +142,6 @@ pub enum SpatialData {
     Transform(TransformData),
     Perspective(PerspectiveData),
     BackfaceVisibility(BackfaceVisibilityData),
-    ScrollCompensation(ScrollCompensation),
     AnchorScrollShift(AnchorScrollShift),
 }
 
@@ -166,9 +160,12 @@ impl SpatialData {
             Self::Transform(_) => FfiVisualContextNodeKind::Transform,
             Self::Perspective(_) => FfiVisualContextNodeKind::Perspective,
             Self::BackfaceVisibility(_) => FfiVisualContextNodeKind::BackfaceVisibility,
-            Self::ScrollCompensation(_) => FfiVisualContextNodeKind::ScrollCompensation,
             Self::AnchorScrollShift(_) => FfiVisualContextNodeKind::AnchorScrollShift,
         }
+    }
+
+    pub fn is_scroll_like(&self) -> bool {
+        matches!(self, Self::Scroll(_))
     }
 }
 
@@ -419,9 +416,6 @@ pub fn export_spatial_node(node: &SpatialNode) -> crate::painting::host::FfiVisu
         SpatialData::BackfaceVisibility(backface) => {
             out.index_value = backface.plane_root_index.0;
             out.flattens_inherited_transform = backface.flattens_inherited_transform;
-        }
-        SpatialData::ScrollCompensation(compensation) => {
-            out.index_value = compensation.scroll_node_index.0;
         }
         SpatialData::AnchorScrollShift(shift) => {
             out.index_value = shift.scroll_node_index.0;

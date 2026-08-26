@@ -106,12 +106,6 @@ struct MaskData {
     MaskLayerOrigin origin { MaskLayerOrigin::CssMaskLayers };
 };
 
-// Translates by another scroll node's negated offset during display list replay, keeping fixed
-// backgrounds stationary relative to the viewport regardless of scroll position.
-struct ScrollCompensation {
-    SpatialNodeIndex scroll_node_index;
-};
-
 // One scroll node's contribution to the default scroll shift of an anchor-positioned box, masked to the axes in which
 // the box compensates for scroll. Nodes that move the box but not its default anchor contribute negated.
 struct AnchorScrollShift {
@@ -123,7 +117,7 @@ struct AnchorScrollShift {
     Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
 };
 
-using SpatialData = Variant<ScrollData, TransformData, PerspectiveData, BackfaceVisibilityData, ScrollCompensation, AnchorScrollShift>;
+using SpatialData = Variant<ScrollData, TransformData, PerspectiveData, BackfaceVisibilityData, AnchorScrollShift>;
 using FrameData = Variant<ClipData, ClipPathData, EffectsData, MaskData>;
 
 CSSPixelRect apply_css_transform_to_rect(Layout::Node const&, CSSPixelRect const&);
@@ -133,8 +127,10 @@ struct SpatialNode {
     SpatialNodeIndex parent {};
 };
 
-// A frame's geometry is expressed in the space of the spatial node it records, which is an
-// ancestor-or-self of the spatial node of every context that applies the frame.
+// A frame's geometry is expressed in the space of the spatial node it records. That node and
+// the spatial node of every context applying the frame lie on one root path: the frame's node
+// is an ancestor-or-self of the context's, except for a fixed-background context, which is
+// rooted above the scroll nodes its frames record in and so has them hanging below its node.
 struct FrameNode {
     FrameData data;
     FrameNodeIndex parent { NO_FRAME_NODE };
@@ -279,11 +275,6 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::MaskData const&);
 template<>
 WEB_API ErrorOr<Web::Painting::MaskData> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ScrollCompensation const&);
-template<>
-WEB_API ErrorOr<Web::Painting::ScrollCompensation> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::AnchorScrollShift const&);

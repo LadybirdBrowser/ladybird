@@ -188,9 +188,6 @@ void DisplayListPlayer::execute_impl(
             [&](ScrollData const&) {
                 append_spatial_translation(scroll_state.device_offset_for_index(SpatialNodeIndex { static_cast<u32>(i) }).to_type<int>());
             },
-            [&](ScrollCompensation const& compensation) {
-                append_spatial_translation((-scroll_state.device_offset_for_index(compensation.scroll_node_index)).to_type<int>());
-            },
             [&](AnchorScrollShift const& shift) {
                 append_spatial_translation(shift.masked_offset(scroll_state).to_type<int>());
             });
