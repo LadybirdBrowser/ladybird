@@ -784,7 +784,6 @@ QString tab_widget_style_sheet(QPalette const& palette)
     auto text = style_sheet_color(chrome_button_text(palette));
     auto close_hover = style_sheet_color(chrome_destructive_hover());
     auto close_text = style_sheet_color(chrome_destructive_text());
-    auto strip_separator = style_sheet_color(chrome_border(palette));
     auto sidebar_separator = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.44 : 0.58));
     auto sidebar_separator_hover = style_sheet_color(mix(chrome_background_color, chrome_border(palette), dark ? 0.64 : 0.76));
     auto vertical_tab_button_background_color = style_sheet_color(chrome_active_tab_surface_top(palette));
@@ -801,23 +800,23 @@ QWidget#LadybirdVerticalTabBar {{
     color: {4};
     background: {0};
     border: 0;
-    border-right: 1px solid {8};
+    border-right: 1px solid {7};
 }}
 
 QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"] {{
     border-right: 0;
-    border-left: 1px solid {8};
+    border-left: 1px solid {7};
 }}
 
 QWidget#LadybirdVerticalTabBar[hovered="true"],
 QWidget#LadybirdVerticalTabBar[active="true"] {{
-    border-right: 1px solid {9};
+    border-right: 1px solid {8};
 }}
 
 QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][hovered="true"],
 QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][active="true"] {{
     border-right: 0;
-    border-left: 1px solid {9};
+    border-left: 1px solid {8};
 }}
 
 QWidget#LadybirdVerticalTabsResizeHandle {{
@@ -869,7 +868,7 @@ QPushButton#LadybirdTabButton[collapsedVerticalTabButton="true"] {{
     min-height: 16px;
     max-width: 16px;
     max-height: 16px;
-    background: {10};
+    background: {9};
     border-color: {1};
     border-radius: 8px;
 }}
@@ -927,8 +926,8 @@ QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
     background: transparent;
 }}
 )",
-        background, hover, pressed, control_border, text, close_hover, close_text, strip_separator,
-        sidebar_separator, sidebar_separator_hover, vertical_tab_button_background_color);
+        background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator,
+        sidebar_separator_hover, vertical_tab_button_background_color);
 }
 
 QString autocomplete_popup_style_sheet(QPalette const& palette)
