@@ -355,6 +355,11 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (AK::first_is_one_of(property_id, CSS::PropertyID::Content, CSS::PropertyID::ContentVisibility, CSS::PropertyID::TextTransform))
         return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
 
+    // Marker boxes and their text are generated during layout tree construction and belong to the item's own subtree.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::ListStyleType, CSS::PropertyID::ListStyleImage, CSS::PropertyID::ListStylePosition)
+        && (old_computed_values.display().is_list_item() || new_computed_values.display().is_list_item()))
+        return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
+
     // A box that appears or disappears leaves every sibling box intact, so the parent can treat the
     // change like a child-list mutation instead of rebuilding its whole subtree.
     if (property_id == CSS::PropertyID::Display) {
@@ -512,6 +517,8 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (AK::first_is_one_of(property_id, PropertyID::Display, PropertyID::Float, PropertyID::Position))
         return RequiredInvalidationAfterStyleChange::full();
     if (AK::first_is_one_of(property_id, PropertyID::Content, PropertyID::ContentVisibility, PropertyID::TextTransform))
+        return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
+    if (AK::first_is_one_of(property_id, PropertyID::ListStyleType, PropertyID::ListStyleImage, PropertyID::ListStylePosition))
         return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
     if (property_id == PropertyID::OverflowX || property_id == PropertyID::OverflowY)
         return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody);

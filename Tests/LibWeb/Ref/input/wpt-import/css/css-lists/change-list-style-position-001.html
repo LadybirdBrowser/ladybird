@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test the change of list-style-position</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel=match href="../../../../expected/wpt-import/css/css-lists/change-list-style-position-001-ref.html">
+
+<p>The test passes if you see the list marker followed by the text "inline" and "axxx" in a line below.</p>
+
+<ul>
+  <li>
+    <span>inline</span>
+    <div style="overflow:hidden;">
+      <span>a</span>xxx
+    </div>
+  </li>
+</ul>
+<script>
+  document.body.offsetHeight;
+  document.querySelector("li").style.listStylePosition = "inside";
+</script>
