@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillRect@1 rect=[8,8 29x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[38,8 28x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[67,8 29x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[97,8 28x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[126,8 29x30] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1 rect=[8,8 29x30] color=rgb(0, 0, 0)
+  FillRect@s1 rect=[38,8 28x30] color=rgb(0, 0, 0)
+  FillRect@s1 rect=[67,8 29x30] color=rgb(0, 0, 0)
+  FillRect@s1 rect=[97,8 28x30] color=rgb(0, 0, 0)
+  FillRect@s1 rect=[126,8 29x30] color=rgb(0, 0, 0)
+Restore@s0

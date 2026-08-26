@@ -1,12 +1,12 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillPath@1 path_bounding_rect=[8,31 40x40]
-  FillPath@1 path_bounding_rect=[8,71 40x40]
-  FillPath@1 path_bounding_rect=[8,8 40x20]
-  FillPath@1 path_bounding_rect=[48,8 40x20]
-Restore@0
-
+SaveLayer@s0
+  FillPath@s1 path_bounding_rect=[8,31 40x40]
+  FillPath@s1 path_bounding_rect=[8,71 40x40]
+  FillPath@s1 path_bounding_rect=[8,8 40x20]
+  FillPath@s1 path_bounding_rect=[48,8 40x20]
+Restore@s0

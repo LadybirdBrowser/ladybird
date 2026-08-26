@@ -1,16 +1,16 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  FillPath@1 path_bounding_rect=[192.04163,10.928932 15.958389x135.35535]
-  FillPath@1 path_bounding_rect=[182.14214,22 11.857864x114.38478]
-  FillPath@1 path_bounding_rect=[10.928932,142.04163 185.35535x15.958389]
-  FillPath@1 path_bounding_rect=[22,132.14214 164.38478x11.85788]
-  FillPath@1 path_bounding_rect=[7.999997,19.715729 15.958373x135.35535]
-  FillPath@1 path_bounding_rect=[22,29.615223 11.857864x114.38478]
-  FillPath@1 path_bounding_rect=[19.715729,8 185.35535x15.95837]
-  FillPath@1 path_bounding_rect=[29.615223,22 164.38478x11.857864]
-Restore@0
-
+SaveLayer@s0
+  FillPath@s1 path_bounding_rect=[192.04163,10.928932 15.958389x135.35535]
+  FillPath@s1 path_bounding_rect=[182.14214,22 11.857864x114.38478]
+  FillPath@s1 path_bounding_rect=[10.928932,142.04163 185.35535x15.958389]
+  FillPath@s1 path_bounding_rect=[22,132.14214 164.38478x11.85788]
+  FillPath@s1 path_bounding_rect=[7.999997,19.715729 15.958373x135.35535]
+  FillPath@s1 path_bounding_rect=[22,29.615223 11.857864x114.38478]
+  FillPath@s1 path_bounding_rect=[19.715729,8 185.35535x15.95837]
+  FillPath@s1 path_bounding_rect=[29.615223,22 164.38478x11.857864]
+Restore@s0

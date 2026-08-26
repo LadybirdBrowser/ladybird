@@ -9,7 +9,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::chrome_geometry::{
     ChromeGeometry, is_chrome_mirrored, scrollbar_colors_for_paint, scrollbar_is_enlarged,
 };
-use crate::painting::display_list::commands::VisualContextIndex;
+use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::paintable_data::PaintableKind;
@@ -20,7 +20,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
     let kind = recorder.data(paintable).kind;
     let own_scroll_node_index = recorder.data(paintable).own_scroll_node_index;
     if kind != PaintableKind::ViewportPaintable
-        && own_scroll_node_index == 0
+        && own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
         && !recorder.hit_test_facts(paintable).has_resizer
     {
         return;
@@ -41,7 +41,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
             recorder.inputs.root_background_source,
             recorder.inputs.canvas_color.blend(recorder.inputs.background_color),
         );
-        let scroll_node_index = VisualContextIndex(own_scroll_node_index);
+        let scroll_node_index = own_scroll_node_index;
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
             let enlarged = scrollbar_is_enlarged(recorder.layout_arena, paintable, direction);
             let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, enlarged, None) else {

@@ -7,7 +7,7 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
-use crate::painting::display_list::commands::OptionalU32;
+use crate::painting::display_list::commands::{ContextRef, OptionalU32, SpatialNodeIndex};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -70,27 +70,29 @@ pub struct FfiHitTestQueryCallbacks {
     pub viewport_wheel_overflow_y: u8,
     pub local_point_for_visual_context: unsafe extern "C" fn(
         *mut c_void,
-        usize,
+        ContextRef,
         used_values::FfiCssPixelPoint,
         bool,
         *mut libgfx_rust::FloatPoint,
     ) -> bool,
     pub line_in_scope: unsafe extern "C" fn(*mut c_void, usize) -> bool,
-    pub sorting_context_group: unsafe extern "C" fn(*mut c_void, usize, *mut usize) -> bool,
-    pub plane_depth_key: unsafe extern "C" fn(*mut c_void, usize, used_values::FfiCssPixelPoint, *mut i64) -> bool,
+    pub sorting_context_group: unsafe extern "C" fn(*mut c_void, SpatialNodeIndex, *mut usize) -> bool,
+    pub plane_depth_key:
+        unsafe extern "C" fn(*mut c_void, SpatialNodeIndex, used_values::FfiCssPixelPoint, *mut i64) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
     pub(crate) fn local_point_for_visual_context(
         &self,
-        index: usize,
+        context: ContextRef,
         point: used_values::FfiCssPixelPoint,
         respect_clip: bool,
     ) -> Option<(f32, f32)> {
         let mut local = libgfx_rust::FloatPoint::default();
         // SAFETY: The C++ host writes the point synchronously when it returns true.
-        let has_local =
-            unsafe { (self.local_point_for_visual_context)(self.context, index, point, respect_clip, &raw mut local) };
+        let has_local = unsafe {
+            (self.local_point_for_visual_context)(self.context, context, point, respect_clip, &raw mut local)
+        };
         has_local.then_some((local.x, local.y))
     }
     pub(crate) fn line_in_scope(&self, line_index: usize) -> bool {
@@ -98,22 +100,21 @@ impl FfiHitTestQueryCallbacks {
         unsafe { (self.line_in_scope)(self.context, line_index) }
     }
     // The outermost 3D rendering context sorting the plane the visual context node renders into.
-    pub(crate) fn sorting_context_group(&self, visual_context_index: usize) -> Option<usize> {
+    pub(crate) fn sorting_context_group(&self, spatial: SpatialNodeIndex) -> Option<usize> {
         let mut group = 0usize;
         // SAFETY: The C++ host writes the group synchronously when it returns true.
-        let has_group = unsafe { (self.sorting_context_group)(self.context, visual_context_index, &raw mut group) };
+        let has_group = unsafe { (self.sorting_context_group)(self.context, spatial, &raw mut group) };
         has_group.then_some(group)
     }
     // The depth of that plane at the queried point, quantized so coplanar planes compare equal.
     pub(crate) fn plane_depth_key(
         &self,
-        visual_context_index: usize,
+        spatial: SpatialNodeIndex,
         point: crate::css::css_pixels::CssPixelPoint,
     ) -> Option<i64> {
         let mut depth = 0i64;
         // SAFETY: The C++ host writes the depth synchronously when it returns true.
-        let has_depth =
-            unsafe { (self.plane_depth_key)(self.context, visual_context_index, point.into(), &raw mut depth) };
+        let has_depth = unsafe { (self.plane_depth_key)(self.context, spatial, point.into(), &raw mut depth) };
         has_depth.then_some(depth)
     }
 }
@@ -176,14 +177,14 @@ pub struct FfiHitTestItemExport {
     pub caret_offset: usize,
     pub rect: used_values::FfiCssPixelRect,
     pub caret_rect: used_values::FfiCssPixelRect,
-    pub visual_context_index: usize,
+    pub context: ContextRef,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiCaretLineExport {
     pub rect: used_values::FfiCssPixelRect,
-    pub visual_context_index: usize,
+    pub context: ContextRef,
     pub first_caret_item_index: usize,
     pub last_caret_item_index: usize,
 }

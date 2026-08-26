@@ -85,12 +85,12 @@ private:
         size_t caret_offset { 0 };
         CSSPixelRect rect;
         CSSPixelRect caret_rect;
-        VisualContextIndex visual_context_index;
+        ContextRef context;
     };
 
     struct CaretLine {
         CSSPixelRect rect;
-        VisualContextIndex visual_context_index;
+        ContextRef context;
         size_t first_caret_item_index { 0 };
         size_t last_caret_item_index { 0 };
     };
@@ -131,8 +131,8 @@ private:
     [[nodiscard]] bool item_is_inline_adjacent_to_line(size_t item_index, size_t line_index) const;
     [[nodiscard]] ClosestLine find_closest_line(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, CaretPositionMode, DOM::Node const* scope_dom_node, AccumulatedVisualContextTree::ClipBehavior) const;
 
-    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel) const;
-    [[nodiscard]] CSSPixelRect viewport_rect_for_context(VisualContextIndex, CSSPixelRect const&, DOM::Document const&, double device_pixels_per_css_pixel) const;
+    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(ContextRef, CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel) const;
+    [[nodiscard]] CSSPixelRect viewport_rect_for_context(SpatialNodeIndex, CSSPixelRect const&, DOM::Document const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] Layout::Node const* layout_node_for_item(Item const&) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;

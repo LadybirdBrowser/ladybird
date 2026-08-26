@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #containing-block {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        width: 300px;
+        height: 300px;
+        transform: translate(5px, 5px);
+    }
+    #clipped {
+        overflow: hidden;
+        opacity: 0.5;
+        width: 100px;
+        height: 100px;
+    }
+    #escaping {
+        position: absolute;
+        left: 150px;
+        top: 150px;
+        width: 50px;
+        height: 50px;
+        background: rgb(0, 128, 0);
+    }
+</style>
+<div id="containing-block"><div id="clipped"><div id="escaping"></div></div></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

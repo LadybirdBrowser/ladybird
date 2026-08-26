@@ -435,11 +435,11 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     if (!Painting::has_accumulated_visual_context(*layout_node))
         return {};
 
-    auto visual_context_index = Painting::svg_viewport_transform(*layout_node).has_value()
-        ? Painting::accumulated_visual_context_for_descendants_index(*layout_node)
-        : Painting::accumulated_visual_context_index(*layout_node);
+    auto visual_context = Painting::svg_viewport_transform(*layout_node).has_value()
+        ? Painting::accumulated_visual_context_for_descendants(*layout_node)
+        : Painting::accumulated_visual_context(*layout_node);
     auto ctm = visual_context_tree.accumulated_matrix(
-        visual_context_index,
+        visual_context.spatial,
         document().scroll_state_snapshot(),
         Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 

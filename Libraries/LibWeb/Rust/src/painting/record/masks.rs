@@ -13,7 +13,7 @@ use crate::painting::paintable_data::PaintableKind;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::{NestedRecordingState, PaintPhase, PaintRecorder};
 use crate::painting::visual_context::nested::build_nested_svg_visual_context_tree;
-use crate::painting::visual_context::{MaskLayerOrigin, TransformData, TransformDataRole, VisualContextData};
+use crate::painting::visual_context::{FrameData, FrameNodeIndex, MaskLayerOrigin, TransformData, TransformDataRole};
 use libgfx_rust::{AffineTransform, FloatPoint};
 use libgfx_rust::{affine_to_matrix, translated_then_multiplied};
 use std::collections::HashMap;
@@ -115,22 +115,22 @@ impl PaintRecorder<'_> {
             );
             return false;
         };
-        let mut mask_nodes: Vec<(usize, MaskLayerOrigin)> = Vec::new();
+        let mut mask_frames: Vec<(FrameNodeIndex, MaskLayerOrigin)> = Vec::new();
         if let Some(nested) = &self.nested {
-            if let Some(indices) = nested.assignments.mask_node_indices.get(&paintable.index) {
-                for index in indices {
+            if let Some(frames) = nested.assignments.mask_frames.get(&paintable.index) {
+                for frame in frames {
                     if let Some(tree) = &self.nested_tree
-                        && let VisualContextData::Mask(mask) = &tree.nodes[*index].data
+                        && let FrameData::Mask(mask) = &tree.frame_nodes[frame.0 as usize].data
                     {
-                        mask_nodes.push((*index, mask.origin));
+                        mask_frames.push((*frame, mask.origin));
                     }
                 }
             }
         } else if let Some(tree) = &self.paint_state.visual_context.tree {
             let data = self.data(paintable);
-            for index in data.visual_context_nodes_begin..data.visual_context_nodes_end {
-                if let VisualContextData::Mask(mask) = &tree.nodes[index].data {
-                    mask_nodes.push((index, mask.origin));
+            for index in data.frame_nodes_begin..data.frame_nodes_end {
+                if let FrameData::Mask(mask) = &tree.frame_nodes[index as usize].data {
+                    mask_frames.push((FrameNodeIndex(index), mask.origin));
                 }
             }
         }
@@ -148,14 +148,14 @@ impl PaintRecorder<'_> {
             let Some(display_list_id) = layer.display_list_id else {
                 continue;
             };
-            let indices: Vec<usize> = mask_nodes
+            let frames: Vec<FrameNodeIndex> = mask_frames
                 .iter()
                 .filter(|(_, origin)| *origin == layer.origin)
-                .map(|(index, _)| *index)
+                .map(|(frame, _)| *frame)
                 .collect();
-            assert!(!indices.is_empty(), "a mask display list without a mask node");
+            assert!(!frames.is_empty(), "a mask display list without a mask node");
             self.prevent_descendant_subtree_caching();
-            self.recorder.register_mask_display_list(&indices, display_list_id);
+            self.recorder.register_mask_display_list(&frames, display_list_id);
         }
         any_svg_mask_layer_area_is_empty
     }
@@ -189,7 +189,7 @@ impl PaintRecorder<'_> {
             .as_ref()
             .expect("the nested pre-pass runs with nested assignments")
             .assignments
-            .mask_node_indices
+            .mask_frames
             .contains_key(&root.index);
         if has_mask_nodes && self.record_mask_entry(root, MaskLayerSet::SvgOnly) {
             return;
@@ -353,7 +353,7 @@ impl PaintRecorder<'_> {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
         });
-        let mut session = self.nested_recording_session(DisplayListRecorder::new(vec![false]), None, Some(tree), false);
+        let mut session = self.nested_recording_session(DisplayListRecorder::new(Vec::new()), None, Some(tree), false);
         // FIXME: Respect `image-rendering` here.
         crate::painting::record::paint::background::paint_resolved_background(
             &mut session,
@@ -387,7 +387,7 @@ impl PaintRecorder<'_> {
             include_root_element_transform,
             self.inputs.device_pixels_per_css_pixel,
         );
-        let empty_effective_clips: Vec<bool> = tree.nodes.iter().map(|node| node.has_empty_effective_clip).collect();
+        let empty_effective_clips = tree.empty_effective_clips_by_frame();
 
         let mut session = self.nested_recording_session(
             DisplayListRecorder::new(empty_effective_clips),

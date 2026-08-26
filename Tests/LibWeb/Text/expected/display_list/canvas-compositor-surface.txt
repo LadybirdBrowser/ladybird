@@ -1,9 +1,9 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  DrawCanvas@1 dst_rect=[8,8 32x32] content_generation=0
-Restore@0
-
+SaveLayer@s0
+  DrawCanvas@s1 dst_rect=[8,8 32x32] content_generation=0
+Restore@s0

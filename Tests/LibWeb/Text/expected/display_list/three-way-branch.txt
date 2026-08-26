@@ -1,17 +1,17 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] transform=[0.9659258,-0.25881904,0.25881904,0.9659258,0,0] origin=(38,38) (PaintableWithLines(BlockContainer<DIV>.box.a))
-      [3] transform=[1.1,0,0,1.1,0,0] origin=(103,38) (PaintableWithLines(BlockContainer<DIV>.box.b))
-      [4] transform=[1,0.17632698,0,1,0,0] origin=(168,38) (PaintableWithLines(BlockContainer<DIV>.box.c))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] transform=[0.9659258,-0.25881904,0.25881904,0.9659258,0,0] origin=(38,38) (PaintableWithLines(BlockContainer<DIV>.box.a))
+        [s3] transform=[1.1,0,0,1.1,0,0] origin=(103,38) (PaintableWithLines(BlockContainer<DIV>.box.b))
+        [s4] transform=[1,0.17632698,0,1,0,0] origin=(168,38) (PaintableWithLines(BlockContainer<DIV>.box.c))
 
 DisplayList:
-SaveLayer@0
-  FillRect@2 rect=[8,8 60x60] color=rgb(255, 0, 0)
-  DrawGlyphRun@2 rect=[8,8 7x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-  FillRect@3 rect=[73,8 60x60] color=rgb(0, 128, 0)
-  DrawGlyphRun@3 rect=[73,8 9x16] translation=[73,20.796875] color=rgb(0, 0, 0)
-  FillRect@4 rect=[138,8 60x60] color=rgb(0, 0, 255)
-  DrawGlyphRun@4 rect=[138,8 10x16] translation=[138,20.796875] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s2 rect=[8,8 60x60] color=rgb(255, 0, 0)
+  DrawGlyphRun@s2 rect=[8,8 7x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+  FillRect@s3 rect=[73,8 60x60] color=rgb(0, 128, 0)
+  DrawGlyphRun@s3 rect=[73,8 9x16] translation=[73,20.796875] color=rgb(0, 0, 0)
+  FillRect@s4 rect=[138,8 60x60] color=rgb(0, 0, 255)
+  DrawGlyphRun@s4 rect=[138,8 10x16] translation=[138,20.796875] color=rgb(0, 0, 0)
+Restore@s0

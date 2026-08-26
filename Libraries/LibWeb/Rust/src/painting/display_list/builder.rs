@@ -24,8 +24,7 @@ impl CommandRange {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AppendContext {
-    pub context_index: VisualContextIndex,
-    pub context_geometry_only: bool,
+    pub context: ContextRef,
     pub has_empty_effective_clip: bool,
 }
 
@@ -64,7 +63,7 @@ impl DisplayListBuilder {
     }
 
     pub fn append<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8], context: AppendContext) -> bool {
-        if !context.context_geometry_only && context.has_empty_effective_clip {
+        if context.has_empty_effective_clip {
             return false;
         }
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
@@ -73,11 +72,10 @@ impl DisplayListBuilder {
         let trailing_padding = record_size.next_multiple_of(COMMAND_ALIGNMENT) - record_size;
         let header = DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
-            payload_size: u32::try_from(payload_size + trailing_padding).expect("display list payload exceeds u32"),
-            context_index: context.context_index,
-            context_geometry_only: context.context_geometry_only,
             has_bounding_rect: command.bounding_rect().is_some(),
             is_clip: command.is_clip(),
+            payload_size: u32::try_from(payload_size + trailing_padding).expect("display list payload exceeds u32"),
+            context: context.context,
             bounding_rect: command.bounding_rect().unwrap_or_default(),
         };
         let start = self.bytes.len();
@@ -96,8 +94,8 @@ impl DisplayListBuilder {
         &mut self,
         source: &[u8],
         range: CommandRange,
-        recorded_context_index: VisualContextIndex,
-        current_context_index: VisualContextIndex,
+        recorded_context: ContextRef,
+        current_context: ContextRef,
     ) -> u32 {
         // Captures are save/restore balanced (verified at capture end), so splicing never shifts the save nesting level.
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
@@ -108,8 +106,8 @@ impl DisplayListBuilder {
         }
         let source_range = &source[range.offset as usize..(range.offset + range.size) as usize];
         self.bytes.extend_from_slice(source_range);
-        if recorded_context_index != current_context_index {
-            set_command_sequence_visual_context(&mut self.bytes[destination_offset..], current_context_index);
+        if recorded_context != current_context {
+            set_command_sequence_visual_context(&mut self.bytes[destination_offset..], current_context);
         }
         u32::try_from(destination_offset).expect("display list exceeds u32")
     }
@@ -123,13 +121,16 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
             cursor.u8_at(std::mem::offset_of!(DisplayListCommandHeader, command_type)),
         )
         .expect("invalid display list command type"),
-        payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
-        context_index: VisualContextIndex(
-            cursor.usize_at(std::mem::offset_of!(DisplayListCommandHeader, context_index)),
-        ),
-        context_geometry_only: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, context_geometry_only)),
         has_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_bounding_rect)),
         is_clip: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, is_clip)),
+        payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
+        context: {
+            let base = std::mem::offset_of!(DisplayListCommandHeader, context);
+            ContextRef {
+                spatial: SpatialNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, spatial))),
+                frame: FrameNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, frame))),
+            }
+        },
         bounding_rect: {
             let base = std::mem::offset_of!(DisplayListCommandHeader, bounding_rect);
             libgfx_rust::IntRect {
@@ -159,22 +160,14 @@ impl HeaderReader<'_> {
     fn i32_at(&self, offset: usize) -> i32 {
         i32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
     }
-    fn usize_at(&self, offset: usize) -> usize {
-        usize::from_ne_bytes(
-            self.bytes[offset..offset + std::mem::size_of::<usize>()]
-                .try_into()
-                .unwrap(),
-        )
-    }
 }
 
-fn set_command_sequence_visual_context(bytes: &mut [u8], context_index: VisualContextIndex) {
+fn set_command_sequence_visual_context(bytes: &mut [u8], context: ContextRef) {
     let mut offset = 0;
     while offset < bytes.len() {
         let header = read_header(&bytes[offset..]);
-        let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context_index);
-        context_index
-            .write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<VisualContextIndex>()]);
+        let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context);
+        context.write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<ContextRef>()]);
         offset += HEADER_SIZE + header.payload_size as usize;
     }
     assert_eq!(offset, bytes.len());

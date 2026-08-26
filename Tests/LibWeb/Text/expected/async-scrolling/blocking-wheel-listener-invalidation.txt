@@ -3,9 +3,10 @@ listener generation increased: true
 after routing admission: blocking wheel event listeners
 display list:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  CompositorScrollNode@0 scroll_node_index=1 parent_scroll_node_index=0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
-Restore@0
+SaveLayer@s0
+  CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
+Restore@s0

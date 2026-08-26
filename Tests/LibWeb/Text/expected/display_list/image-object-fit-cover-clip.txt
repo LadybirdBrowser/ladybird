@@ -1,12 +1,12 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (ImagePaintable(ImageBox<IMG>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  Save@1
-    AddClipRect@1 rect=[0,0 40x40]
-    DrawScaledDecodedImageFrame@1 dst_rect=[0,-20 40x80]
-  Restore@1
-Restore@0
-
+SaveLayer@s0
+  Save@s1
+    AddClipRect@s1 rect=[0,0 40x40]
+    DrawScaledDecodedImageFrame@s1 dst_rect=[0,-20 40x80]
+  Restore@s1
+Restore@s0

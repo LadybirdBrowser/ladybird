@@ -475,7 +475,7 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: N
         recorder.recorder.add_clip_rect(image_rect);
     }
 
-    let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
+    let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
     let paint =
         recorder
             .paint_host

@@ -113,7 +113,8 @@ pub enum FfiVisualContextNodeKind {
 #[repr(C)]
 pub struct FfiVisualContextNodeExport {
     pub kind: FfiVisualContextNodeKind,
-    pub parent_index: usize,
+    pub parent: u32,
+    pub spatial: u32,
     pub matrix: FloatMatrix4x4,
     pub origin: FloatPoint,
     pub flattens_inherited_transform: bool,
@@ -131,7 +132,7 @@ pub struct FfiVisualContextNodeExport {
     pub winding_rule: WindingRule,
     pub mask_kind: MaskKind,
     pub mask_origin: MaskLayerOrigin,
-    pub index_value: usize,
+    pub index_value: u32,
     pub is_sticky: bool,
     pub state_slot: usize,
     pub negate: bool,

@@ -17,7 +17,9 @@ use libgfx_rust::{
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 use std::ffi::c_void;
 
-pub const VISUAL_VIEWPORT_NODE_INDEX: usize = 0;
+pub use crate::painting::display_list::commands::{
+    ContextRef, FrameNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+};
 
 pub struct FilterHandle {
     raw: *mut c_void,
@@ -57,7 +59,7 @@ pub enum TransformDataRole {
 pub struct TransformData {
     pub matrix: FloatMatrix4x4,
     pub origin: FloatPoint,
-    pub sorting_context_root_index: Option<usize>,
+    pub sorting_context_root_index: Option<SpatialNodeIndex>,
     pub flattens_inherited_transform: bool,
     pub role: TransformDataRole,
     pub synthetic_plane: bool,
@@ -71,7 +73,7 @@ pub struct PerspectiveData {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BackfaceVisibilityData {
-    pub plane_root_index: usize,
+    pub plane_root_index: SpatialNodeIndex,
     pub flattens_inherited_transform: bool,
 }
 
@@ -129,52 +131,77 @@ pub struct ScrollData {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScrollCompensation {
-    pub scroll_node_index: usize,
+    pub scroll_node_index: SpatialNodeIndex,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AnchorScrollShift {
-    pub scroll_node_index: usize,
+    pub scroll_node_index: SpatialNodeIndex,
     pub negate: bool,
     pub compensate_horizontal_scroll: bool,
     pub compensate_vertical_scroll: bool,
 }
 
-pub enum VisualContextData {
+pub enum SpatialData {
     Scroll(ScrollData),
-    Clip(ClipData),
     Transform(TransformData),
     Perspective(PerspectiveData),
     BackfaceVisibility(BackfaceVisibilityData),
-    ClipPath(ClipPathData),
-    Effects(EffectsData),
     ScrollCompensation(ScrollCompensation),
     AnchorScrollShift(AnchorScrollShift),
+}
+
+pub enum FrameData {
+    Clip(ClipData),
+    ClipPath(ClipPathData),
+    Effects(EffectsData),
     Mask(MaskData),
 }
 
-impl VisualContextData {
+impl SpatialData {
     fn kind(&self) -> crate::painting::host::FfiVisualContextNodeKind {
         use crate::painting::host::FfiVisualContextNodeKind;
         match self {
             Self::Scroll(_) => FfiVisualContextNodeKind::Scroll,
-            Self::Clip(_) => FfiVisualContextNodeKind::Clip,
             Self::Transform(_) => FfiVisualContextNodeKind::Transform,
             Self::Perspective(_) => FfiVisualContextNodeKind::Perspective,
             Self::BackfaceVisibility(_) => FfiVisualContextNodeKind::BackfaceVisibility,
-            Self::ClipPath(_) => FfiVisualContextNodeKind::ClipPath,
-            Self::Effects(_) => FfiVisualContextNodeKind::Effects,
             Self::ScrollCompensation(_) => FfiVisualContextNodeKind::ScrollCompensation,
             Self::AnchorScrollShift(_) => FfiVisualContextNodeKind::AnchorScrollShift,
-            Self::Mask(_) => FfiVisualContextNodeKind::Mask,
         }
     }
 }
 
-pub struct VisualContextNode {
-    pub data: VisualContextData,
-    pub parent_index: usize,
-    pub depth: usize,
+impl FrameData {
+    fn kind(&self) -> crate::painting::host::FfiVisualContextNodeKind {
+        use crate::painting::host::FfiVisualContextNodeKind;
+        match self {
+            Self::Clip(_) => FfiVisualContextNodeKind::Clip,
+            Self::ClipPath(_) => FfiVisualContextNodeKind::ClipPath,
+            Self::Effects(_) => FfiVisualContextNodeKind::Effects,
+            Self::Mask(_) => FfiVisualContextNodeKind::Mask,
+        }
+    }
+
+    fn is_empty_clip(&self) -> bool {
+        match self {
+            Self::Clip(clip) => clip.rect.is_empty(),
+            Self::ClipPath(clip_path) => clip_path.path_bounds_are_empty,
+            Self::Mask(mask) => mask.rect.is_empty(),
+            Self::Effects(_) => false,
+        }
+    }
+}
+
+pub struct SpatialNode {
+    pub data: SpatialData,
+    pub parent: SpatialNodeIndex,
+}
+
+pub struct FrameNode {
+    pub data: FrameData,
+    pub parent: FrameNodeIndex,
+    pub spatial: SpatialNodeIndex,
     pub has_empty_effective_clip: bool,
 }
 
@@ -201,7 +228,8 @@ impl VisualContextState {
 }
 
 pub struct VisualContextTree {
-    pub nodes: Vec<VisualContextNode>,
+    pub spatial_nodes: Vec<SpatialNode>,
+    pub frame_nodes: Vec<FrameNode>,
     pub root_is_visual_viewport: bool,
     pub version: u64,
     pub reused_previous_version: bool,
@@ -209,90 +237,136 @@ pub struct VisualContextTree {
 
 impl VisualContextTree {
     pub fn create(visual_viewport_transform: TransformData) -> Self {
-        Self {
-            nodes: vec![VisualContextNode {
-                data: VisualContextData::Transform(visual_viewport_transform),
-                parent_index: 0,
-                depth: 0,
-                has_empty_effective_clip: false,
-            }],
-            root_is_visual_viewport: true,
-            version: 0,
-            reused_previous_version: false,
-        }
+        Self::with_root(visual_viewport_transform, true)
     }
 
     pub fn create_with_content_root(content_transform: TransformData) -> Self {
+        Self::with_root(content_transform, false)
+    }
+
+    fn with_root(root_transform: TransformData, root_is_visual_viewport: bool) -> Self {
         Self {
-            nodes: vec![VisualContextNode {
-                data: VisualContextData::Transform(content_transform),
-                parent_index: 0,
-                depth: 0,
-                has_empty_effective_clip: false,
+            spatial_nodes: vec![SpatialNode {
+                data: SpatialData::Transform(root_transform),
+                parent: VISUAL_VIEWPORT_NODE_INDEX,
             }],
-            root_is_visual_viewport: false,
+            frame_nodes: Vec::new(),
+            root_is_visual_viewport,
             version: 0,
             reused_previous_version: false,
         }
     }
 
-    pub fn append(&mut self, data: VisualContextData, parent_index: usize) -> usize {
-        assert!(parent_index < self.nodes.len());
-        let depth = self.nodes[parent_index].depth + 1;
-        let empty_clip = if self.nodes[parent_index].has_empty_effective_clip {
-            true
+    pub fn append_spatial(&mut self, data: SpatialData, parent: SpatialNodeIndex) -> SpatialNodeIndex {
+        assert!((parent.0 as usize) < self.spatial_nodes.len());
+        self.spatial_nodes.push(SpatialNode { data, parent });
+        SpatialNodeIndex((self.spatial_nodes.len() - 1) as u32)
+    }
+
+    pub fn append_spatial_under(&mut self, context: ContextRef, data: SpatialData) -> ContextRef {
+        ContextRef {
+            spatial: self.append_spatial(data, context.spatial),
+            ..context
+        }
+    }
+
+    pub fn append_frame_under(&mut self, context: ContextRef, data: FrameData) -> ContextRef {
+        ContextRef {
+            frame: self.append_frame(data, context.frame, context.spatial),
+            ..context
+        }
+    }
+
+    pub fn append_frame(
+        &mut self,
+        data: FrameData,
+        parent: FrameNodeIndex,
+        spatial: SpatialNodeIndex,
+    ) -> FrameNodeIndex {
+        assert!((spatial.0 as usize) < self.spatial_nodes.len());
+        let inherited_empty_clip = if parent.is_none() {
+            false
         } else {
-            match &data {
-                VisualContextData::Clip(clip) => clip.rect.is_empty(),
-                VisualContextData::ClipPath(clip_path) => clip_path.path_bounds_are_empty,
-                VisualContextData::Mask(mask) => mask.rect.is_empty(),
-                _ => false,
-            }
+            let parent_node = &self.frame_nodes[parent.0 as usize];
+            debug_assert!(self.spatial_is_ancestor_or_self(parent_node.spatial, spatial));
+            parent_node.has_empty_effective_clip
         };
-        self.nodes.push(VisualContextNode {
+        self.frame_nodes.push(FrameNode {
+            has_empty_effective_clip: inherited_empty_clip || data.is_empty_clip(),
             data,
-            parent_index,
-            depth,
-            has_empty_effective_clip: empty_clip,
+            parent,
+            spatial,
         });
-        self.nodes.len() - 1
+        FrameNodeIndex((self.frame_nodes.len() - 1) as u32)
+    }
+
+    fn spatial_is_ancestor_or_self(&self, ancestor: SpatialNodeIndex, mut node: SpatialNodeIndex) -> bool {
+        loop {
+            if node == ancestor {
+                return true;
+            }
+            if node == VISUAL_VIEWPORT_NODE_INDEX {
+                return false;
+            }
+            node = self.spatial_nodes[node.0 as usize].parent;
+        }
     }
 
     pub fn set_visual_viewport_transform(&mut self, transform: TransformData) {
         assert!(matches!(
-            self.nodes[VISUAL_VIEWPORT_NODE_INDEX].data,
-            VisualContextData::Transform(_)
+            self.spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data,
+            SpatialData::Transform(_)
         ));
-        self.nodes[VISUAL_VIEWPORT_NODE_INDEX].data = VisualContextData::Transform(transform);
+        self.spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize].data = SpatialData::Transform(transform);
     }
 
     pub fn is_compatible_with(&self, other: &Self) -> bool {
-        if self.nodes.len() != other.nodes.len() {
+        if self.spatial_nodes.len() != other.spatial_nodes.len() || self.frame_nodes.len() != other.frame_nodes.len() {
             return false;
         }
-        self.nodes.iter().zip(&other.nodes).all(|(node, other_node)| {
-            node.parent_index == other_node.parent_index
-                && node.has_empty_effective_clip == other_node.has_empty_effective_clip
-                && node.data.kind() == other_node.data.kind()
-        })
+        let spatial_compatible = self
+            .spatial_nodes
+            .iter()
+            .zip(&other.spatial_nodes)
+            .all(|(node, other_node)| node.parent == other_node.parent && node.data.kind() == other_node.data.kind());
+        spatial_compatible
+            && self
+                .frame_nodes
+                .iter()
+                .zip(&other.frame_nodes)
+                .all(|(node, other_node)| {
+                    node.parent == other_node.parent
+                        && node.spatial == other_node.spatial
+                        && node.has_empty_effective_clip == other_node.has_empty_effective_clip
+                        && node.data.kind() == other_node.data.kind()
+                })
     }
 
-    pub fn scroll_state_slot_for_node(&self, index: usize) -> ScrollStateSlot {
-        if index == 0 {
+    pub fn scroll_state_slot_for_node(&self, index: SpatialNodeIndex) -> ScrollStateSlot {
+        if index == VISUAL_VIEWPORT_NODE_INDEX {
             return NO_SCROLL_STATE_SLOT;
         }
-        match &self.nodes[index].data {
-            VisualContextData::Scroll(scroll) => scroll.state_slot,
-            _ => panic!("visual context node {index} is not a scroll node"),
+        match &self.spatial_nodes[index.0 as usize].data {
+            SpatialData::Scroll(scroll) => scroll.state_slot,
+            _ => panic!("spatial node {} is not a scroll node", index.0),
         }
+    }
+
+    pub fn empty_effective_clips_by_frame(&self) -> Vec<bool> {
+        self.frame_nodes
+            .iter()
+            .map(|node| node.has_empty_effective_clip)
+            .collect()
     }
 }
 
-pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisualContextNodeExport {
-    use crate::painting::host::FfiVisualContextNodeExport;
-    let mut out = FfiVisualContextNodeExport {
-        kind: node.data.kind(),
-        parent_index: node.parent_index,
+fn empty_export(
+    kind: crate::painting::host::FfiVisualContextNodeKind,
+) -> crate::painting::host::FfiVisualContextNodeExport {
+    crate::painting::host::FfiVisualContextNodeExport {
+        kind,
+        parent: 0,
+        spatial: 0,
         matrix: FloatMatrix4x4::default(),
         origin: FloatPoint::default(),
         flattens_inherited_transform: false,
@@ -316,41 +390,64 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
         negate: false,
         compensate_horizontal_scroll: false,
         compensate_vertical_scroll: false,
-    };
+    }
+}
+
+pub fn export_spatial_node(node: &SpatialNode) -> crate::painting::host::FfiVisualContextNodeExport {
+    let mut out = empty_export(node.data.kind());
+    out.parent = node.parent.0;
     match &node.data {
-        VisualContextData::Scroll(scroll) => {
+        SpatialData::Scroll(scroll) => {
             out.is_sticky = scroll.is_sticky;
             out.state_slot = scroll.state_slot;
         }
-        VisualContextData::Clip(clip) => {
-            out.rect = clip.rect;
-            out.corner_radii = clip.corner_radii;
-        }
-        VisualContextData::Transform(transform) => {
+        SpatialData::Transform(transform) => {
             out.matrix = transform.matrix;
             out.origin = transform.origin;
             out.flattens_inherited_transform = transform.flattens_inherited_transform;
             out.transform_role = transform.role;
             if let Some(root) = transform.sorting_context_root_index {
                 out.has_sorting_context_root = true;
-                out.index_value = root;
+                out.index_value = root.0;
             }
             out.synthetic_plane = transform.synthetic_plane;
         }
-        VisualContextData::Perspective(perspective) => {
+        SpatialData::Perspective(perspective) => {
             out.matrix = perspective.matrix;
             out.flattens_inherited_transform = perspective.flattens_inherited_transform;
         }
-        VisualContextData::BackfaceVisibility(backface) => {
-            out.index_value = backface.plane_root_index;
+        SpatialData::BackfaceVisibility(backface) => {
+            out.index_value = backface.plane_root_index.0;
             out.flattens_inherited_transform = backface.flattens_inherited_transform;
         }
-        VisualContextData::ClipPath(clip_path) => {
+        SpatialData::ScrollCompensation(compensation) => {
+            out.index_value = compensation.scroll_node_index.0;
+        }
+        SpatialData::AnchorScrollShift(shift) => {
+            out.index_value = shift.scroll_node_index.0;
+            out.negate = shift.negate;
+            out.compensate_horizontal_scroll = shift.compensate_horizontal_scroll;
+            out.compensate_vertical_scroll = shift.compensate_vertical_scroll;
+        }
+    }
+    out
+}
+
+pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualContextNodeExport {
+    let mut out = empty_export(node.data.kind());
+    out.parent = node.parent.0;
+    out.spatial = node.spatial.0;
+    match &node.data {
+        FrameData::Clip(clip) => {
+            out.rect = clip.rect;
+            out.corner_radii = clip.corner_radii;
+        }
+        FrameData::ClipPath(clip_path) => {
             out.path = clip_path.path.as_raw();
             out.rect = clip_path.bounding_rect;
             out.winding_rule = clip_path.fill_rule;
         }
-        VisualContextData::Effects(effects) => {
+        FrameData::Effects(effects) => {
             out.opacity = effects.opacity;
             out.blend_mode = effects.blend_mode;
             if let Some(filter) = &effects.filter {
@@ -363,16 +460,7 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
                 }
             }
         }
-        VisualContextData::ScrollCompensation(compensation) => {
-            out.index_value = compensation.scroll_node_index;
-        }
-        VisualContextData::AnchorScrollShift(shift) => {
-            out.index_value = shift.scroll_node_index;
-            out.negate = shift.negate;
-            out.compensate_horizontal_scroll = shift.compensate_horizontal_scroll;
-            out.compensate_vertical_scroll = shift.compensate_vertical_scroll;
-        }
-        VisualContextData::Mask(mask) => {
+        FrameData::Mask(mask) => {
             out.rect = mask.rect;
             out.mask_kind = mask.kind;
             out.mask_origin = mask.origin;

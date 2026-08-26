@@ -56,18 +56,17 @@ static bool spin_event_loop_until(Core::EventLoop& event_loop, int timeout_in_mi
 }
 
 template<Web::Painting::DisplayListCommand Command>
-static void append_display_list_command(ByteBuffer& command_bytes, Command const& command, bool context_geometry_only, Optional<Gfx::IntRect> bounding_rect = {})
+static void append_display_list_command(ByteBuffer& command_bytes, Command const& command, Optional<Gfx::IntRect> bounding_rect = {})
 {
     auto payload = Web::Painting::display_list_object_bytes(command);
     auto record_size = sizeof(Web::Painting::DisplayListCommandHeader) + payload.size();
     auto payload_size = align_up_to(record_size, Web::Painting::DisplayList::command_alignment) - sizeof(Web::Painting::DisplayListCommandHeader);
     Web::Painting::DisplayListCommandHeader header {
         .command_type = Command::command_type,
-        .payload_size = static_cast<u32>(payload_size),
-        .context_index = Web::Painting::VISUAL_VIEWPORT_NODE_INDEX,
-        .context_geometry_only = context_geometry_only,
         .has_bounding_rect = bounding_rect.has_value(),
         .is_clip = false,
+        .payload_size = static_cast<u32>(payload_size),
+        .context = {},
         .bounding_rect = bounding_rect.value_or({}),
     };
     command_bytes.append(Web::Painting::display_list_object_bytes(header));
@@ -85,7 +84,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> decode_display_list(Web::Painti
     MUST(encoder.encode(visual_context_tree.version()));
     MUST(encoder.encode(surface_clear_color));
     MUST(encoder.encode(async_scrolling_metadata));
-    MUST(encoder.encode(HashMap<Web::Painting::VisualContextIndex, Web::Painting::DisplayListResourceId> {}));
+    MUST(encoder.encode(HashMap<Web::Painting::FrameNodeIndex, Web::Painting::DisplayListResourceId> {}));
 
     FixedMemoryStream stream { buffer.data().span() };
     Queue<IPC::Attachment> attachments;
@@ -98,16 +97,24 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting
     ByteBuffer command_bytes;
     if (color.has_value()) {
         auto command = Web::Painting::FillRect { { 0, 0, 4, 4 }, *color };
-        append_display_list_command(command_bytes, command, false, command.rect);
+        append_display_list_command(command_bytes, command, command.rect);
     }
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
+}
+
+static Web::Painting::AccumulatedVisualContextTree make_scrollable_viewport_visual_context_tree()
+{
+    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    visual_context_tree.append_spatial(Web::Painting::ScrollData {}, Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    return visual_context_tree;
 }
 
 static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, bool with_viewport_scrollbar = true)
 {
     ByteBuffer command_bytes;
     Web::UniqueNodeID document_id { 1 };
-    Web::Painting::VisualContextIndex scroll_node_index { 1 };
+    Web::Painting::SpatialNodeIndex scroll_node_index { 1 };
+    VERIFY(visual_context_tree.spatial_nodes().size() > scroll_node_index.value());
 
     append_display_list_command(
         command_bytes,
@@ -126,8 +133,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
             .can_be_wheel_scrolled_vertically = true,
             .snaps_scroll_position_horizontally = false,
             .snaps_scroll_position_vertically = false,
-        },
-        true);
+        });
 
     if (with_viewport_scrollbar) {
         append_display_list_command(
@@ -146,8 +152,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
                 .thumb_color = Gfx::Color::Black,
                 .track_color = Gfx::Color::Transparent,
                 .vertical = true,
-            },
-            true);
+            });
     }
 
     return decode_display_list(visual_context_tree, move(command_bytes), {},
@@ -222,7 +227,7 @@ TEST_CASE(viewport_scrollbar_collapses_when_drag_is_released_away_from_scrollbar
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
     auto hover_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10));
@@ -249,7 +254,7 @@ TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10)).accepted);
@@ -323,7 +328,7 @@ TEST_CASE(dragging_a_viewport_scrollbar_reports_a_user_scroll_gesture_until_it_i
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
@@ -356,7 +361,7 @@ TEST_CASE(losing_the_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
     TestWebContentClient client;
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { 0, client, canvas_surface_registry, true };
-    auto visual_context_tree = Web::Painting::AccumulatedVisualContextTree::create();
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);

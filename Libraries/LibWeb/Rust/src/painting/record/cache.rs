@@ -9,6 +9,7 @@ use std::rc::Rc;
 
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::painting::display_list::builder::CommandRange;
+use crate::painting::display_list::commands::ContextRef;
 use crate::painting::hit_test::HitTestItem;
 use crate::painting::record::PaintPhase;
 use crate::painting::record::traversal::StackingContextPaintPhase;
@@ -18,7 +19,7 @@ pub struct CachedCommands {
     // Display list ids start at 1, so a default-constructed entry never matches a real source list.
     pub source_display_list_id: u64,
     pub range: CommandRange,
-    pub recorded_context_index: usize,
+    pub recorded_context: ContextRef,
     // Commands recorded under an empty effective clip are dropped at append time, so a cached range is
     // usable only while the emptiness of the phase's effective clip matches what it was at capture time.
     pub captured_under_empty_effective_clip: bool,
@@ -33,8 +34,8 @@ pub struct CachedHitTestItems {
     // A capture may hold hit-test items recorded under both this paintable's own context index and its
     // descendants' context index, so spliced items are not rewritten; instead a cached range is usable
     // only while both indices still match what they were at capture time.
-    pub recorded_context_index: usize,
-    pub recorded_context_for_descendants_index: usize,
+    pub recorded_context: ContextRef,
+    pub recorded_context_for_descendants: ContextRef,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

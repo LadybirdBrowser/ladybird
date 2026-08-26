@@ -7,6 +7,7 @@
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelFraction, CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::ffi::{FfiChromeMetrics, ScrollDirection};
 use crate::painting::host::{FfiHitTestQueryCallbacks, FfiRecordingInputs, FfiRootBackgroundSource};
 use crate::painting::paintable_data::{PaintableFlag, PaintableKind};
@@ -372,7 +373,7 @@ impl<'a, Arena: PaintableRowsRead> ChromeGeometry<'a, Arena> {
         if overflow != css_enums::overflow::SCROLL && !self.wheel_scrollable_axes(slot).along(direction) {
             return None;
         }
-        if arena.paintable_data(slot).own_scroll_node_index == 0 {
+        if arena.paintable_data(slot).own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX {
             return None;
         }
         let overflow_length = primary_size(paintable_geometry::scrollable_overflow_rect(arena, slot)?, direction);

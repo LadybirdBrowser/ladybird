@@ -132,12 +132,54 @@ impl DisplayListCommandType {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct VisualContextIndex(pub usize);
+pub struct SpatialNodeIndex(pub u32);
 
-impl FfiBytes for VisualContextIndex {
+impl FfiBytes for SpatialNodeIndex {
     #[inline]
     fn write_ffi_bytes(&self, out: &mut [u8]) {
         self.0.write_ffi_bytes(out);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct FrameNodeIndex(pub u32);
+
+impl FrameNodeIndex {
+    pub const NONE: Self = Self(u32::MAX);
+
+    pub const fn is_none(self) -> bool {
+        self.0 == u32::MAX
+    }
+}
+
+impl Default for FrameNodeIndex {
+    fn default() -> Self {
+        Self::NONE
+    }
+}
+
+impl FfiBytes for FrameNodeIndex {
+    #[inline]
+    fn write_ffi_bytes(&self, out: &mut [u8]) {
+        self.0.write_ffi_bytes(out);
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[repr(C)]
+pub struct ContextRef {
+    pub spatial: SpatialNodeIndex,
+    pub frame: FrameNodeIndex,
+}
+ffi_bytes_fields!(ContextRef { spatial, frame });
+
+impl ContextRef {
+    pub const fn spatial_only(spatial: SpatialNodeIndex) -> Self {
+        Self {
+            spatial,
+            frame: FrameNodeIndex::NONE,
+        }
     }
 }
 
@@ -218,7 +260,7 @@ impl FfiBytes for UniqueNodeId {
     }
 }
 
-pub const VISUAL_VIEWPORT_NODE_INDEX: VisualContextIndex = VisualContextIndex(0);
+pub const VISUAL_VIEWPORT_NODE_INDEX: SpatialNodeIndex = SpatialNodeIndex(0);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -417,25 +459,21 @@ ffi_bytes_fields!(DisplayListGradientColorStops {
 #[repr(C)]
 pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
-    pub payload_size: u32,
-    pub context_index: VisualContextIndex,
-    // Apply only the coordinate-affecting nodes of the context chain, skipping clips and effects. Used
-    // by inspector overlays, which track the highlighted element's transforms and scroll offsets but
-    // must not be clipped or faded by its ancestors.
-    pub context_geometry_only: bool,
     pub has_bounding_rect: bool,
     pub is_clip: bool,
+    pub payload_size: u32,
+    pub context: ContextRef,
     pub bounding_rect: IntRect,
 }
 ffi_bytes_fields!(DisplayListCommandHeader {
     command_type,
-    payload_size,
-    context_index,
-    context_geometry_only,
     has_bounding_rect,
     is_clip,
+    payload_size,
+    context,
     bounding_rect
 });
+const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 32);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -1248,8 +1286,8 @@ impl DisplayListCommand for PaintNestedDisplayList {
 pub struct CompositorScrollNode {
     pub document_id: UniqueNodeId,
     pub scrollable_node_id: UniqueNodeId,
-    pub scroll_node_index: VisualContextIndex,
-    pub parent_scroll_node_index: VisualContextIndex,
+    pub scroll_node_index: SpatialNodeIndex,
+    pub parent_scroll_node_index: SpatialNodeIndex,
     pub scrollport_rect: IntRect,
     pub min_scroll_offset: FloatPoint,
     pub max_scroll_offset: FloatPoint,
@@ -1286,9 +1324,9 @@ impl DisplayListCommand for CompositorScrollNode {
 #[repr(C)]
 pub struct CompositorStickyArea {
     pub document_id: UniqueNodeId,
-    pub scroll_node_index: VisualContextIndex,
-    pub parent_scroll_node_index: VisualContextIndex,
-    pub nearest_scrolling_ancestor_index: VisualContextIndex,
+    pub scroll_node_index: SpatialNodeIndex,
+    pub parent_scroll_node_index: SpatialNodeIndex,
+    pub nearest_scrolling_ancestor_index: SpatialNodeIndex,
     pub position_relative_to_scroll_ancestor: FloatPoint,
     pub border_box_size: FloatSize,
     pub scrollport_size: FloatSize,
@@ -1334,7 +1372,7 @@ impl DisplayListCommand for CompositorBlockingWheelEventRegion {
 #[repr(C)]
 pub struct CompositorWheelHitTestTarget {
     pub document_id: UniqueNodeId,
-    pub target_scroll_node_index: VisualContextIndex,
+    pub target_scroll_node_index: SpatialNodeIndex,
     pub rect: FloatRect,
 }
 ffi_bytes_fields!(CompositorWheelHitTestTarget {
@@ -1351,7 +1389,7 @@ impl DisplayListCommand for CompositorWheelHitTestTarget {
 #[repr(C)]
 pub struct CompositorWheelHitTestTargetWithCornerRadii {
     pub document_id: UniqueNodeId,
-    pub target_scroll_node_index: VisualContextIndex,
+    pub target_scroll_node_index: SpatialNodeIndex,
     pub rect: FloatRect,
     pub corner_radii: CornerRadii,
 }
@@ -1381,7 +1419,7 @@ impl DisplayListCommand for CompositorMainThreadWheelEventRegion {
 #[repr(C)]
 pub struct CompositorViewportScrollbar {
     pub document_id: UniqueNodeId,
-    pub scroll_node_index: VisualContextIndex,
+    pub scroll_node_index: SpatialNodeIndex,
     pub gutter_rect: IntRect,
     pub thumb_rect: IntRect,
     pub expanded_gutter_rect: IntRect,
@@ -1417,7 +1455,7 @@ impl DisplayListCommand for CompositorViewportScrollbar {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct PaintScrollBar {
-    pub scroll_node_index: VisualContextIndex,
+    pub scroll_node_index: SpatialNodeIndex,
     pub gutter_rect: IntRect,
     pub thumb_rect: IntRect,
     pub track_rect: IntRect,

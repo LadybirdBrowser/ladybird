@@ -105,10 +105,7 @@ impl HitTestList {
         }
     }
 
-    fn candidate_item_lists(&self, visual_context_index: usize, local_point: CssPixelPoint) -> [Option<&[usize]>; 2] {
-        let spatial_index = self.spatial_indexes[visual_context_index]
-            .as_ref()
-            .expect("used visual context without spatial index");
+    fn candidate_item_lists(spatial_index: &SpatialIndex, local_point: CssPixelPoint) -> [Option<&[usize]>; 2] {
         let x = spatial_index_cell_for(local_point.x);
         let y = spatial_index_cell_for(local_point.y);
         let bucket = spatial_index.cells.get(&spatial_index_cell_key(x, y));
@@ -130,17 +127,15 @@ impl HitTestList {
         let mut topmost_caret: Option<TopmostItem> = None;
         let mut topmost_hit_index: Option<usize> = None;
         let mut topmost_caret_index: Option<usize> = None;
-        for context_position in 0..self.used_visual_context_indices.len() {
-            let visual_context_index = self.used_visual_context_indices[context_position];
-            let Some(local) = local_float_point(callbacks, visual_context_index, point, true) else {
+        for (context, spatial_index) in &self.spatial_indexes_by_context {
+            let Some(local) = local_float_point(callbacks, *context, point, true) else {
                 continue;
             };
             let local_point = to_css_point(local);
 
             let previous_hit = topmost_hit_index;
             let previous_caret = topmost_caret_index;
-            for candidate_list in self
-                .candidate_item_lists(visual_context_index, local_point)
+            for candidate_list in Self::candidate_item_lists(spatial_index, local_point)
                 .into_iter()
                 .flatten()
             {
@@ -186,7 +181,7 @@ impl HitTestList {
         item_index: usize,
     ) -> (Option<i64>, usize) {
         (
-            callbacks.plane_depth_key(self.items[item_index].visual_context_index, point),
+            callbacks.plane_depth_key(self.items[item_index].context.spatial, point),
             item_index,
         )
     }
@@ -198,20 +193,19 @@ impl HitTestList {
         point: CssPixelPoint,
         topmost: TopmostItem,
     ) -> TopmostItem {
-        let Some(group) = callbacks.sorting_context_group(self.items[topmost.index].visual_context_index) else {
+        let Some(group) = callbacks.sorting_context_group(self.items[topmost.index].context.spatial) else {
             return topmost;
         };
         let mut winner = topmost;
-        for &visual_context_index in &self.used_visual_context_indices {
-            if callbacks.sorting_context_group(visual_context_index) != Some(group) {
+        for (context, spatial_index) in &self.spatial_indexes_by_context {
+            if callbacks.sorting_context_group(context.spatial) != Some(group) {
                 continue;
             }
-            let Some(local) = local_float_point(callbacks, visual_context_index, point, true) else {
+            let Some(local) = local_float_point(callbacks, *context, point, true) else {
                 continue;
             };
             let local_point = to_css_point(local);
-            for candidate_list in self
-                .candidate_item_lists(visual_context_index, local_point)
+            for candidate_list in Self::candidate_item_lists(spatial_index, local_point)
                 .into_iter()
                 .flatten()
             {
@@ -266,14 +260,12 @@ impl HitTestList {
     ) -> Vec<usize> {
         debug_assert!(self.derived_structures_built);
         let mut hit_item_indices: Vec<usize> = Vec::new();
-        for context_position in 0..self.used_visual_context_indices.len() {
-            let visual_context_index = self.used_visual_context_indices[context_position];
-            let Some(local) = local_float_point(callbacks, visual_context_index, point, true) else {
+        for (context, spatial_index) in &self.spatial_indexes_by_context {
+            let Some(local) = local_float_point(callbacks, *context, point, true) else {
                 continue;
             };
             let local_point = to_css_point(local);
-            for candidate_list in self
-                .candidate_item_lists(visual_context_index, local_point)
+            for candidate_list in Self::candidate_item_lists(spatial_index, local_point)
                 .into_iter()
                 .flatten()
             {
@@ -298,7 +290,7 @@ impl HitTestList {
         point: CssPixelPoint,
         hit_item_indices: &mut [usize],
     ) {
-        let group_of = |item_index: usize| callbacks.sorting_context_group(self.items[item_index].visual_context_index);
+        let group_of = |item_index: usize| callbacks.sorting_context_group(self.items[item_index].context.spatial);
         let mut run_begin = 0;
         while run_begin < hit_item_indices.len() {
             let group = group_of(hit_item_indices[run_begin]);

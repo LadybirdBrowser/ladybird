@@ -1,19 +1,20 @@
 Before transform change:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-Restore@0
+SaveLayer@s0
+Restore@s0
 
 After transform change:
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] transform=[1,0,0,1,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>#box))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] transform=[1,0,0,1,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>#box))
 
 DisplayList:
-SaveLayer@0
-  FillRect@2 rect=[8,8 100x100] color=rgb(0, 128, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s2 rect=[8,8 100x100] color=rgb(0, 128, 0)
+Restore@s0

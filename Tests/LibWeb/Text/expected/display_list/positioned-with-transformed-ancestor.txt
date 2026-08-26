@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] transform=[1,0,0,1,10,10] origin=(108,108) (PaintableWithLines(BlockContainer(anonymous)))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] transform=[1,0,0,1,10,10] origin=(108,108) (PaintableWithLines(BlockContainer<DIV>.transformed-ancestor))
 
 DisplayList:
-SaveLayer@0
-  FillRect@2 rect=[8,8 200x200] color=rgb(211, 211, 211)
-  FillRect@2 rect=[8,8 200x90] color=rgb(173, 216, 230)
-  FillRect@2 rect=[33,33 100x50] color=rgb(255, 127, 80)
-  DrawGlyphRun@2 rect=[33,33 84x16] translation=[33,45.796875] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s2 rect=[8,8 200x200] color=rgb(211, 211, 211)
+  FillRect@s2 rect=[8,8 200x90] color=rgb(173, 216, 230)
+  FillRect@s2 rect=[33,33 100x50] color=rgb(255, 127, 80)
+  DrawGlyphRun@s2 rect=[33,33 84x16] translation=[33,45.796875] color=rgb(0, 0, 0)
+Restore@s0

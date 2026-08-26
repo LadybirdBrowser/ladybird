@@ -84,8 +84,7 @@ private:
     // replays build their own palettes without clobbering the outer one.
     struct ReplayPaletteStorage {
         Vector<Gfx::FloatMatrix4x4> to_root_matrices;
-        Vector<VisualContextIndex> nearest_spatial_nodes;
-        Vector<VisualContextIndex> nearest_frame_nodes;
+        Vector<SpatialNodeIndex> draw_spaces;
         Vector<bool> backface_culled;
     };
     ReplayPaletteStorage m_replay_palette_storage;
@@ -113,15 +112,14 @@ public:
     }
 
     template<DisplayListCommand Command>
-    bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, VisualContextIndex context_index, bool context_geometry_only, ReadonlyBytes inline_data = {})
+    bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, ContextRef context, ReadonlyBytes inline_data = {})
     {
         return append_bytes(
             Command::command_type,
             display_list_object_bytes(command),
             inline_data,
             visual_context_tree,
-            context_index,
-            context_geometry_only,
+            context,
             command_bounding_rectangle(command),
             command_is_clip(command));
     }
@@ -134,9 +132,9 @@ public:
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
-    Optional<DisplayListResourceId> mask_display_list_id(VisualContextIndex context_index) const { return m_mask_display_lists.get(context_index); }
-    void set_mask_display_list_id(VisualContextIndex context_index, DisplayListResourceId display_list_id) { m_mask_display_lists.set(context_index, display_list_id); }
-    HashMap<VisualContextIndex, DisplayListResourceId> const& mask_display_lists() const { return m_mask_display_lists; }
+    Optional<DisplayListResourceId> mask_display_list_id(FrameNodeIndex frame) const { return m_mask_display_lists.get(frame); }
+    void set_mask_display_list_id(FrameNodeIndex frame, DisplayListResourceId display_list_id) { m_mask_display_lists.set(frame, display_list_id); }
+    HashMap<FrameNodeIndex, DisplayListResourceId> const& mask_display_lists() const { return m_mask_display_lists; }
 
     static constexpr size_t command_alignment = 16;
 
@@ -163,7 +161,7 @@ public:
 
 private:
     explicit DisplayList(u64 compatible_visual_context_tree_version);
-    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<VisualContextIndex, DisplayListResourceId>&& mask_display_lists);
+    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists);
 
     static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
     {
@@ -186,8 +184,7 @@ private:
         ReadonlyBytes payload,
         ReadonlyBytes inline_data,
         AccumulatedVisualContextTree const&,
-        VisualContextIndex context_index,
-        bool context_geometry_only,
+        ContextRef,
         Optional<Gfx::IntRect> bounding_rect,
         bool is_clip);
 
@@ -196,7 +193,7 @@ private:
     ByteBuffer m_command_bytes;
     Optional<Gfx::Color> m_surface_clear_color;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
-    HashMap<VisualContextIndex, DisplayListResourceId> m_mask_display_lists;
+    HashMap<FrameNodeIndex, DisplayListResourceId> m_mask_display_lists;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);

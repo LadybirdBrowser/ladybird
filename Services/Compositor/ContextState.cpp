@@ -36,7 +36,7 @@ static void set_or_append_pending_scroll_offset(
 
 static Web::Painting::TransformData const& visual_viewport_transform(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
 {
-    auto const& visual_viewport_node = visual_context_tree.node_at(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto const& visual_viewport_node = visual_context_tree.spatial_node_at(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
     auto const* transform = visual_viewport_node.data.get_pointer<Web::Painting::TransformData>();
     VERIFY(transform);
     return *transform;

@@ -1,17 +1,17 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (ImagePaintable(ImageBox<IMG>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  PaintNestedDisplayList@1 rect=[8,13 300x200]
-    SaveLayer@0
-      FillPath@6 path_bounding_rect=[0,0 100x100]
-      FillPath@6 path_bounding_rect=[0,100 100x100]
-      FillPath@8 path_bounding_rect=[0,0 100x100]
-      FillPath@8 path_bounding_rect=[0,100 100x100]
-    Restore@0
-    MaskDisplayList for context 8:
-      FillPath@1 path_bounding_rect=[0,0 100x100]
-Restore@0
-
+SaveLayer@s0
+  PaintNestedDisplayList@s1 rect=[8,13 300x200]
+    SaveLayer@s0
+      FillPath@s6 path_bounding_rect=[0,0 100x100]
+      FillPath@s6 path_bounding_rect=[0,100 100x100]
+      FillPath@s7/f0 path_bounding_rect=[0,0 100x100]
+      FillPath@s7/f0 path_bounding_rect=[0,100 100x100]
+    Restore@s0
+    MaskDisplayList for frame f0:
+      FillPath@s1 path_bounding_rect=[0,0 100x100]
+Restore@s0

@@ -403,7 +403,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     auto const& list_resource = display_list_resource(id);
 
     bool requires_direct_replay = false;
-    for (auto const& node : list_resource.visual_context_tree.nodes()) {
+    for (auto const& node : list_resource.visual_context_tree.frame_nodes()) {
         if (auto const* effects = node.data.get_pointer<EffectsData>(); effects && effects->blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
             requires_direct_replay = true;
     }

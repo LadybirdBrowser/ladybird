@@ -21,16 +21,18 @@ use std::collections::HashSet;
 #[derive(Clone, Copy)]
 pub(crate) struct PaintableVisualContextAssignment {
     slot: NodeSlotId,
-    enclosing_scroll_node_index: usize,
-    own_scroll_node_index: usize,
+    enclosing_scroll_node_index: SpatialNodeIndex,
+    own_scroll_node_index: SpatialNodeIndex,
     has_accumulated_visual_context: bool,
-    accumulated_visual_context_index: usize,
-    accumulated_visual_context_for_descendants_index: usize,
-    fixed_background_visual_context: usize,
+    accumulated_visual_context: ContextRef,
+    accumulated_visual_context_for_descendants: ContextRef,
+    fixed_background_visual_context: ContextRef,
     has_fixed_background_visual_context: bool,
     has_scroll_offset_dependent_background: bool,
-    visual_context_nodes_begin: usize,
-    visual_context_nodes_end: usize,
+    spatial_nodes_begin: u32,
+    spatial_nodes_end: u32,
+    frame_nodes_begin: u32,
+    frame_nodes_end: u32,
     has_non_invertible_css_transform: bool,
 }
 
@@ -41,13 +43,15 @@ impl PaintableVisualContextAssignment {
             enclosing_scroll_node_index: data.enclosing_scroll_node_index,
             own_scroll_node_index: data.own_scroll_node_index,
             has_accumulated_visual_context: data.has_accumulated_visual_context,
-            accumulated_visual_context_index: data.accumulated_visual_context_index,
-            accumulated_visual_context_for_descendants_index: data.accumulated_visual_context_for_descendants_index,
+            accumulated_visual_context: data.accumulated_visual_context,
+            accumulated_visual_context_for_descendants: data.accumulated_visual_context_for_descendants,
             fixed_background_visual_context: data.fixed_background_visual_context,
             has_fixed_background_visual_context: data.has_fixed_background_visual_context,
             has_scroll_offset_dependent_background: data.has_scroll_offset_dependent_background,
-            visual_context_nodes_begin: data.visual_context_nodes_begin,
-            visual_context_nodes_end: data.visual_context_nodes_end,
+            spatial_nodes_begin: data.spatial_nodes_begin,
+            spatial_nodes_end: data.spatial_nodes_end,
+            frame_nodes_begin: data.frame_nodes_begin,
+            frame_nodes_end: data.frame_nodes_end,
             has_non_invertible_css_transform: data.has_flag(PaintableFlag::HasNonInvertibleCssTransform),
         }
     }
@@ -57,13 +61,15 @@ impl PaintableVisualContextAssignment {
         data.enclosing_scroll_node_index = self.enclosing_scroll_node_index;
         data.own_scroll_node_index = self.own_scroll_node_index;
         data.has_accumulated_visual_context = self.has_accumulated_visual_context;
-        data.accumulated_visual_context_index = self.accumulated_visual_context_index;
-        data.accumulated_visual_context_for_descendants_index = self.accumulated_visual_context_for_descendants_index;
+        data.accumulated_visual_context = self.accumulated_visual_context;
+        data.accumulated_visual_context_for_descendants = self.accumulated_visual_context_for_descendants;
         data.fixed_background_visual_context = self.fixed_background_visual_context;
         data.has_fixed_background_visual_context = self.has_fixed_background_visual_context;
         data.has_scroll_offset_dependent_background = self.has_scroll_offset_dependent_background;
-        data.visual_context_nodes_begin = self.visual_context_nodes_begin;
-        data.visual_context_nodes_end = self.visual_context_nodes_end;
+        data.spatial_nodes_begin = self.spatial_nodes_begin;
+        data.spatial_nodes_end = self.spatial_nodes_end;
+        data.frame_nodes_begin = self.frame_nodes_begin;
+        data.frame_nodes_end = self.frame_nodes_end;
         data.set_flag(
             PaintableFlag::HasNonInvertibleCssTransform,
             self.has_non_invertible_css_transform,
@@ -248,23 +254,23 @@ fn common_ancestor_slot_along_scroll_parent_chain(
 // for their sticky offset computation, so both resolutions are carried.
 #[derive(Clone, Copy)]
 struct NearestScrollNodeIndices {
-    stopping_at_fixed_position_ancestors: usize,
-    continuing_through_fixed_position_ancestors: usize,
+    stopping_at_fixed_position_ancestors: SpatialNodeIndex,
+    continuing_through_fixed_position_ancestors: SpatialNodeIndex,
 }
 
 #[derive(Clone, Copy)]
 struct DescendantVisualContexts {
-    normal: usize,
-    absolute_position: usize,
-    fixed_position: usize,
+    normal: ContextRef,
+    absolute_position: ContextRef,
+    fixed_position: ContextRef,
     normal_nearest_scroll_nodes: NearestScrollNodeIndices,
     absolute_position_nearest_scroll_nodes: NearestScrollNodeIndices,
     fixed_position_nearest_scroll_nodes: NearestScrollNodeIndices,
-    normal_plane_root: usize,
-    absolute_position_plane_root: usize,
-    fixed_position_plane_root: usize,
+    normal_plane_root: SpatialNodeIndex,
+    absolute_position_plane_root: SpatialNodeIndex,
+    fixed_position_plane_root: SpatialNodeIndex,
     flattens_inherited_transform: bool,
-    sorting_context_root: Option<usize>,
+    sorting_context_root: Option<SpatialNodeIndex>,
 }
 
 struct Builder<'a, Arena> {
@@ -289,7 +295,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         self.assignments[index].as_mut().unwrap()
     }
 
-    fn enclosing_scroll_node_index(&self, slot: NodeSlotId) -> usize {
+    fn enclosing_scroll_node_index(&self, slot: NodeSlotId) -> SpatialNodeIndex {
         self.assignments[slot.slot_index() as usize].map_or_else(
             || self.layout_arena.paintable_data(slot).enclosing_scroll_node_index,
             |assignment| assignment.enclosing_scroll_node_index,
@@ -304,12 +310,17 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             .default_scroll_shift_anchor(self.layout_arena.shell_if_live(slot))
     }
 
-    fn register_scroll_node(&mut self, node_index: usize, paintable: NodeSlotId, parent_index: usize) {
+    fn register_scroll_node(
+        &mut self,
+        node_index: SpatialNodeIndex,
+        paintable: NodeSlotId,
+        parent_index: SpatialNodeIndex,
+    ) {
         let parent_slot = self.tree.scroll_state_slot_for_node(parent_index);
         let slot = self
             .scroll_state
             .register_scroll_node(node_index, paintable, parent_slot);
-        if let VisualContextData::Scroll(scroll) = &mut self.tree.nodes[node_index].data {
+        if let SpatialData::Scroll(scroll) = &mut self.tree.spatial_nodes[node_index.0 as usize].data {
             scroll.state_slot = slot;
         }
         let data = self.layout_arena.paintable_data(paintable);
@@ -326,12 +337,17 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         }
     }
 
-    fn register_sticky_node(&mut self, node_index: usize, paintable: NodeSlotId, parent_index: usize) {
+    fn register_sticky_node(
+        &mut self,
+        node_index: SpatialNodeIndex,
+        paintable: NodeSlotId,
+        parent_index: SpatialNodeIndex,
+    ) {
         let parent_slot = self.tree.scroll_state_slot_for_node(parent_index);
         let slot = self
             .scroll_state
             .register_sticky_node(node_index, paintable, parent_slot);
-        if let VisualContextData::Scroll(scroll) = &mut self.tree.nodes[node_index].data {
+        if let SpatialData::Scroll(scroll) = &mut self.tree.spatial_nodes[node_index.0 as usize].data {
             scroll.state_slot = slot;
         }
         precompute_sticky_constraints(self.layout_arena, &mut self.scroll_state, slot, paintable);
@@ -343,7 +359,8 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         inherited: DescendantVisualContexts,
         may_be_root_element: bool,
     ) -> DescendantVisualContexts {
-        let first_visual_context_node_index = self.tree.nodes.len();
+        let first_spatial_node_index = self.tree.spatial_nodes.len() as u32;
+        let first_frame_node_index = self.tree.frame_nodes.len() as u32;
         let facts = BoxFacts::gather(
             self.layout_arena,
             self.callbacks,
@@ -359,16 +376,16 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         let layout_node = slot;
         {
             let assignment = self.assignment_mut(slot);
-            assignment.enclosing_scroll_node_index = 0;
-            assignment.own_scroll_node_index = 0;
-            assignment.fixed_background_visual_context = 0;
+            assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
+            assignment.own_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
+            assignment.fixed_background_visual_context = ContextRef::default();
             assignment.has_fixed_background_visual_context = false;
             assignment.has_scroll_offset_dependent_background = false;
         }
 
         let mut nearest_scroll_nodes_for_descendants = if is_fixed {
             NearestScrollNodeIndices {
-                stopping_at_fixed_position_ancestors: 0,
+                stopping_at_fixed_position_ancestors: VISUAL_VIEWPORT_NODE_INDEX,
                 continuing_through_fixed_position_ancestors: inherited
                     .fixed_position_nearest_scroll_nodes
                     .continuing_through_fixed_position_ancestors,
@@ -443,27 +460,27 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
                 );
                 let mut s = anchor_scroll_slot;
                 while s != NO_SCROLL_STATE_SLOT && s != shared_scroll_slot {
-                    own_state = self.tree.append(
-                        VisualContextData::AnchorScrollShift(AnchorScrollShift {
+                    own_state = self.tree.append_spatial_under(
+                        own_state,
+                        SpatialData::AnchorScrollShift(AnchorScrollShift {
                             scroll_node_index: self.scroll_state.node_index_for_slot(s),
                             negate: false,
                             compensate_horizontal_scroll,
                             compensate_vertical_scroll,
                         }),
-                        own_state,
                     );
                     s = self.scroll_state.state_at_slot(s).parent_slot;
                 }
                 let mut s = base_scroll_slot;
                 while s != NO_SCROLL_STATE_SLOT && s != shared_scroll_slot {
-                    own_state = self.tree.append(
-                        VisualContextData::AnchorScrollShift(AnchorScrollShift {
+                    own_state = self.tree.append_spatial_under(
+                        own_state,
+                        SpatialData::AnchorScrollShift(AnchorScrollShift {
                             scroll_node_index: self.scroll_state.node_index_for_slot(s),
                             negate: true,
                             compensate_horizontal_scroll,
                             compensate_vertical_scroll,
                         }),
-                        own_state,
                     );
                     s = self.scroll_state.state_at_slot(s).parent_slot;
                 }
@@ -478,30 +495,32 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         let mut state_for_absolute_position_descendants = inherited.absolute_position;
         let mut state_for_fixed_position_descendants = inherited.fixed_position;
 
-        macro_rules! append_to_own_and_positioned_descendant_contexts {
+        macro_rules! append_frame_to_own_and_positioned_descendant_contexts {
             ($make:expr) => {{
-                own_state = self.tree.append($make, own_state);
+                own_state = self.tree.append_frame_under(own_state, $make);
                 if !establishes_absolute_cb {
-                    state_for_absolute_position_descendants =
-                        self.tree.append($make, state_for_absolute_position_descendants);
+                    state_for_absolute_position_descendants = self
+                        .tree
+                        .append_frame_under(state_for_absolute_position_descendants, $make);
                 }
                 if !establishes_fixed_cb {
-                    state_for_fixed_position_descendants =
-                        self.tree.append($make, state_for_fixed_position_descendants);
+                    state_for_fixed_position_descendants = self
+                        .tree
+                        .append_frame_under(state_for_fixed_position_descendants, $make);
                 }
             }};
         }
 
-        let mut sticky_scroll_node_index = 0;
+        let mut sticky_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
         if creates_sticky_scroll_node {
-            sticky_scroll_node_index = self.tree.append(
-                VisualContextData::Scroll(ScrollData {
+            own_state = self.tree.append_spatial_under(
+                own_state,
+                SpatialData::Scroll(ScrollData {
                     is_sticky: true,
                     state_slot: NO_SCROLL_STATE_SLOT,
                 }),
-                own_state,
             );
-            own_state = sticky_scroll_node_index;
+            sticky_scroll_node_index = own_state.spatial;
             self.register_sticky_node(sticky_scroll_node_index, slot, nearest_ancestor_scroll_node_index);
             {
                 let assignment = self.assignment_mut(slot);
@@ -517,9 +536,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         let transform_data = facts.transform;
 
         if facts.effects.is_some() {
-            append_to_own_and_positioned_descendant_contexts!(VisualContextData::Effects(
-                facts.effects_data().unwrap()
-            ));
+            append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Effects(facts.effects_data().unwrap()));
         }
 
         let flattens_inherited_transform = inherited.flattens_inherited_transform;
@@ -529,7 +546,9 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             transform.flattens_inherited_transform = flattens_inherited_transform;
             transform.sorting_context_root_index = inherited.sorting_context_root;
             self.assignment_mut(slot).has_non_invertible_css_transform = !facts.transform_is_invertible;
-            own_state = self.tree.append(VisualContextData::Transform(transform), own_state);
+            own_state = self
+                .tree
+                .append_spatial_under(own_state, SpatialData::Transform(transform));
             appended_transform_node = true;
         } else {
             self.assignment_mut(slot).has_non_invertible_css_transform = false;
@@ -552,12 +571,12 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         //         matrices with a perspective component, so we test the z-component of the transformed plane normal
         //         instead. See: https://github.com/w3c/csswg-drafts/issues/917.
         if facts.backface_hidden {
-            own_state = self.tree.append(
-                VisualContextData::BackfaceVisibility(BackfaceVisibilityData {
+            own_state = self.tree.append_spatial_under(
+                own_state,
+                SpatialData::BackfaceVisibility(BackfaceVisibilityData {
                     plane_root_index: inherited_plane_root,
                     flattens_inherited_transform: !appended_transform_node && flattens_inherited_transform,
                 }),
-                own_state,
             );
             appended_backface_marker = true;
         }
@@ -579,7 +598,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             if establishes_or_extends_3d_rendering_context || invisible_to_3d_rendering_contexts {
                 inherited_plane_root
             } else {
-                own_state
+                own_state.spatial
             };
         let inherited_flatten_still_pending =
             flattens_inherited_transform && !appended_transform_node && !appended_backface_marker;
@@ -603,8 +622,9 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
                 sorting_context_root_for_descendants = None;
             } else {
                 if !appended_transform_node {
-                    own_state = self.tree.append(
-                        VisualContextData::Transform(TransformData {
+                    own_state = self.tree.append_spatial_under(
+                        own_state,
+                        SpatialData::Transform(TransformData {
                             matrix: libgfx_rust::FloatMatrix4x4::identity(),
                             origin: FloatPoint::default(),
                             sorting_context_root_index: sorting_context_root_for_descendants,
@@ -612,21 +632,20 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
                             role: TransformDataRole::CssTransform,
                             synthetic_plane: true,
                         }),
-                        own_state,
                     );
                 }
                 if sorting_context_root_for_descendants.is_none() {
-                    sorting_context_root_for_descendants = Some(own_state);
+                    sorting_context_root_for_descendants = Some(own_state.spatial);
                 }
             }
         }
 
         if let Some(css_clip) = facts.css_clip {
-            append_to_own_and_positioned_descendant_contexts!(VisualContextData::Clip(css_clip));
+            append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Clip(css_clip));
         }
 
         if facts.clip_path.is_some() {
-            append_to_own_and_positioned_descendant_contexts!(VisualContextData::ClipPath(
+            append_frame_to_own_and_positioned_descendant_contexts!(FrameData::ClipPath(
                 facts.clip_path_data().unwrap()
             ));
         }
@@ -635,13 +654,13 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             self.paintables_with_mask_nodes.push(slot);
         }
         for mask_layer in &facts.mask_layers {
-            append_to_own_and_positioned_descendant_contexts!(VisualContextData::Mask(*mask_layer));
+            append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Mask(*mask_layer));
         }
 
         {
             let assignment = self.assignment_mut(slot);
             assignment.has_accumulated_visual_context = true;
-            assignment.accumulated_visual_context_index = own_state;
+            assignment.accumulated_visual_context = own_state;
         }
 
         if super::node_values::wants_fixed_background_visual_context(
@@ -653,17 +672,17 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             // Build a context that negates all scroll nodes in the ancestor chain. This keeps the
             // background fixed relative to the viewport.
             let mut fixed_background_context = own_state;
-            let mut index = own_state;
-            while index != 0 {
-                if matches!(self.tree.nodes[index].data, VisualContextData::Scroll(_)) {
-                    fixed_background_context = self.tree.append(
-                        VisualContextData::ScrollCompensation(ScrollCompensation {
+            let mut index = own_state.spatial;
+            while index != VISUAL_VIEWPORT_NODE_INDEX {
+                if matches!(self.tree.spatial_nodes[index.0 as usize].data, SpatialData::Scroll(_)) {
+                    fixed_background_context = self.tree.append_spatial_under(
+                        fixed_background_context,
+                        SpatialData::ScrollCompensation(ScrollCompensation {
                             scroll_node_index: index,
                         }),
-                        fixed_background_context,
                     );
                 }
-                index = self.tree.nodes[index].parent_index;
+                index = self.tree.spatial_nodes[index.0 as usize].parent;
             }
             {
                 let assignment = self.assignment_mut(slot);
@@ -689,7 +708,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             descendants_flatten_inherited_transform = false;
             state_for_descendants = self
                 .tree
-                .append(VisualContextData::Perspective(perspective), state_for_descendants);
+                .append_spatial_under(state_for_descendants, SpatialData::Perspective(perspective));
         }
 
         if facts.may_have_clip
@@ -697,7 +716,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         {
             state_for_descendants = self
                 .tree
-                .append(VisualContextData::Clip(overflow_clip), state_for_descendants);
+                .append_frame_under(state_for_descendants, FrameData::Clip(overflow_clip));
         }
 
         if paintable_geometry::has_scrollable_overflow(self.layout_arena.paintable_data(slot)) {
@@ -706,14 +725,14 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             } else {
                 nearest_ancestor_scroll_node_index
             };
-            let scroll_node_index = self.tree.append(
-                VisualContextData::Scroll(ScrollData {
+            state_for_descendants = self.tree.append_spatial_under(
+                state_for_descendants,
+                SpatialData::Scroll(ScrollData {
                     is_sticky: false,
                     state_slot: NO_SCROLL_STATE_SLOT,
                 }),
-                state_for_descendants,
             );
-            state_for_descendants = scroll_node_index;
+            let scroll_node_index = state_for_descendants.spatial;
             self.register_scroll_node(scroll_node_index, slot, parent_index);
             self.assignment_mut(slot).own_scroll_node_index = scroll_node_index;
             nearest_scroll_nodes_for_descendants = NearestScrollNodeIndices {
@@ -731,18 +750,20 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
                 compute_svg_viewport_transform_data(self.layout_arena, slot, svg_viewport_transform, self.pixel_ratio);
             viewport_transform_data.flattens_inherited_transform = descendants_flatten_inherited_transform;
             descendants_flatten_inherited_transform = false;
-            state_for_descendants = self.tree.append(
-                VisualContextData::Transform(viewport_transform_data),
-                state_for_descendants,
-            );
+            state_for_descendants = self
+                .tree
+                .append_spatial_under(state_for_descendants, SpatialData::Transform(viewport_transform_data));
         }
 
         {
-            let visual_context_nodes_end = self.tree.nodes.len();
+            let spatial_nodes_end = self.tree.spatial_nodes.len() as u32;
+            let frame_nodes_end = self.tree.frame_nodes.len() as u32;
             let assignment = self.assignment_mut(slot);
-            assignment.accumulated_visual_context_for_descendants_index = state_for_descendants;
-            assignment.visual_context_nodes_begin = first_visual_context_node_index;
-            assignment.visual_context_nodes_end = visual_context_nodes_end;
+            assignment.accumulated_visual_context_for_descendants = state_for_descendants;
+            assignment.spatial_nodes_begin = first_spatial_node_index;
+            assignment.spatial_nodes_end = spatial_nodes_end;
+            assignment.frame_nodes_begin = first_frame_node_index;
+            assignment.frame_nodes_end = frame_nodes_end;
         }
         let mut absolute_position_nearest_scroll_nodes = inherited.absolute_position_nearest_scroll_nodes;
         let mut fixed_position_nearest_scroll_nodes = inherited.fixed_position_nearest_scroll_nodes;
@@ -809,36 +830,37 @@ pub(crate) fn build_visual_context_tree(
         may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
     };
 
-    builder.assignment_mut(viewport).enclosing_scroll_node_index = 0;
-    let viewport_state_for_descendants = builder.tree.append(
-        VisualContextData::Scroll(ScrollData {
+    builder.assignment_mut(viewport).enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
+    let viewport_scroll_node = builder.tree.append_spatial(
+        SpatialData::Scroll(ScrollData {
             is_sticky: false,
             state_slot: NO_SCROLL_STATE_SLOT,
         }),
         VISUAL_VIEWPORT_NODE_INDEX,
     );
-    builder.register_scroll_node(viewport_state_for_descendants, viewport, 0);
+    builder.register_scroll_node(viewport_scroll_node, viewport, VISUAL_VIEWPORT_NODE_INDEX);
+    let viewport_state_for_descendants = ContextRef::spatial_only(viewport_scroll_node);
     {
         let assignment = builder.assignment_mut(viewport);
-        assignment.own_scroll_node_index = viewport_state_for_descendants;
+        assignment.own_scroll_node_index = viewport_scroll_node;
         assignment.has_accumulated_visual_context = true;
-        assignment.accumulated_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
-        assignment.accumulated_visual_context_for_descendants_index = viewport_state_for_descendants;
+        assignment.accumulated_visual_context = ContextRef::default();
+        assignment.accumulated_visual_context_for_descendants = viewport_state_for_descendants;
     }
 
     let viewport_nearest_scroll_nodes = NearestScrollNodeIndices {
-        stopping_at_fixed_position_ancestors: viewport_state_for_descendants,
-        continuing_through_fixed_position_ancestors: viewport_state_for_descendants,
+        stopping_at_fixed_position_ancestors: viewport_scroll_node,
+        continuing_through_fixed_position_ancestors: viewport_scroll_node,
     };
     let viewport_contexts = DescendantVisualContexts {
         normal: viewport_state_for_descendants,
         absolute_position: viewport_state_for_descendants,
-        fixed_position: VISUAL_VIEWPORT_NODE_INDEX,
+        fixed_position: ContextRef::default(),
         normal_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
         absolute_position_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
         fixed_position_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
-        normal_plane_root: viewport_state_for_descendants,
-        absolute_position_plane_root: viewport_state_for_descendants,
+        normal_plane_root: viewport_scroll_node,
+        absolute_position_plane_root: viewport_scroll_node,
         fixed_position_plane_root: VISUAL_VIEWPORT_NODE_INDEX,
         flattens_inherited_transform: true,
         sorting_context_root: None,
@@ -975,11 +997,14 @@ pub(crate) fn update_visual_context_values(
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> (bool, Option<bool>) {
-    let (begin, end) = {
+    let (spatial_range, frame_range) = {
         let data = layout_arena.paintable_data(slot);
-        (data.visual_context_nodes_begin, data.visual_context_nodes_end)
+        (
+            data.spatial_nodes_begin as usize..data.spatial_nodes_end as usize,
+            data.frame_nodes_begin as usize..data.frame_nodes_end as usize,
+        )
     };
-    if end > tree.nodes.len() {
+    if spatial_range.end > tree.spatial_nodes.len() || frame_range.end > tree.frame_nodes.len() {
         return (false, None);
     }
     let transform_with_invertibility =
@@ -998,9 +1023,9 @@ pub(crate) fn update_visual_context_values(
         let mut found_svg_viewport_transform = false;
         let mut found_effects = false;
         let mut found_perspective = false;
-        for index in begin..end {
-            match &mut tree.nodes[index].data {
-                VisualContextData::Transform(transform_data) => {
+        for index in spatial_range {
+            match &mut tree.spatial_nodes[index].data {
+                SpatialData::Transform(transform_data) => {
                     if transform_data.role == TransformDataRole::SvgViewportTransform {
                         let Some(mut new_data) = svg_viewport_transform_data else {
                             return false;
@@ -1026,20 +1051,7 @@ pub(crate) fn update_visual_context_values(
                     *transform_data = new_data;
                     found_css_transform = true;
                 }
-                VisualContextData::Effects(effects_data) => {
-                    // The builder duplicates a box's EffectsData into the positioned-descendant chains, so every
-                    // node of a kind is patched with the same recomputed payload.
-                    let Some(new_effects) = &effects else {
-                        return false;
-                    };
-                    *effects_data = EffectsData {
-                        opacity: new_effects.opacity,
-                        blend_mode: new_effects.blend_mode,
-                        filter: new_effects.filter.clone(),
-                    };
-                    found_effects = true;
-                }
-                VisualContextData::Perspective(perspective_data) => {
+                SpatialData::Perspective(perspective_data) => {
                     let Some(mut new_data) = perspective else {
                         return false;
                     };
@@ -1048,6 +1060,21 @@ pub(crate) fn update_visual_context_values(
                     found_perspective = true;
                 }
                 _ => {}
+            }
+        }
+        for index in frame_range {
+            // The builder duplicates a box's EffectsData into the positioned-descendant chains, so every
+            // node of a kind is patched with the same recomputed payload.
+            if let FrameData::Effects(effects_data) = &mut tree.frame_nodes[index].data {
+                let Some(new_effects) = &effects else {
+                    return false;
+                };
+                *effects_data = EffectsData {
+                    opacity: new_effects.opacity,
+                    blend_mode: new_effects.blend_mode,
+                    filter: new_effects.filter.clone(),
+                };
+                found_effects = true;
             }
         }
         transform.is_some() == found_css_transform

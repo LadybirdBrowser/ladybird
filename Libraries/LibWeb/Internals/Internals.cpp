@@ -159,7 +159,8 @@ u64 Internals::visual_context_tree_node_count()
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
         return 0;
-    return document.paint_state().visual_context_tree(document).nodes().size();
+    auto const& visual_context_tree = document.paint_state().visual_context_tree(document);
+    return visual_context_tree.spatial_nodes().size() + visual_context_tree.frame_nodes().size();
 }
 
 void Internals::send_mismatched_visual_context_tree_update_to_compositor()

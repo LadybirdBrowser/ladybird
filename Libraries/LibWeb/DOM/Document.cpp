@@ -3153,7 +3153,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::
         auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
         auto const& visual_context_tree = document.visual_context_tree();
         auto transformed_position = visual_context_tree.inverse_transform_point(
-            Painting::accumulated_visual_context_index(layout_node), position.to_type<float>() * pixel_ratio);
+            Painting::accumulated_visual_context(layout_node).spatial, position.to_type<float>() * pixel_ratio);
         return (transformed_position / pixel_ratio).to_type<CSSPixels>();
     };
 
@@ -9714,7 +9714,12 @@ Utf16String Document::dump_display_list()
     if (!display_list)
         return "No display list"_utf16;
 
-    HashMap<size_t, Layout::Node const*> context_id_to_layout_node;
+    auto const& visual_context_tree = paint_state().visual_context_tree(*this);
+
+    HashMap<Painting::SpatialNodeIndex, Layout::Node const*> spatial_node_owners;
+    HashMap<Painting::FrameNodeIndex, Layout::Node const*> frame_node_owners;
+    spatial_node_owners.set(Painting::VISUAL_VIEWPORT_NODE_INDEX, m_layout_root.ptr());
+    spatial_node_owners.set(Painting::own_scroll_node_index(*m_layout_root), m_layout_root.ptr());
     auto viewport_slot = Painting::committed_row_slot(*m_layout_root);
     auto* arena = m_layout_root->arena_handle();
     auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(arena, viewport_slot);
@@ -9725,47 +9730,75 @@ Utf16String Document::dump_display_list()
         if (!entry.layout_node_shell)
             continue;
         auto& layout_node = *static_cast<Layout::Node*>(entry.layout_node_shell);
-        if (!Painting::has_committed_box(layout_node))
+        auto const* row = Painting::committed_row(layout_node);
+        if (!row)
             continue;
-        auto visual_context_index = Painting::accumulated_visual_context_index(layout_node);
-        (void)context_id_to_layout_node.try_set(visual_context_index.value(), &layout_node);
+        for (auto spatial = row->spatial_nodes_begin; spatial < row->spatial_nodes_end; ++spatial)
+            spatial_node_owners.set(Painting::SpatialNodeIndex { spatial }, &layout_node);
+        for (auto frame = row->frame_nodes_begin; frame < row->frame_nodes_end; ++frame)
+            frame_node_owners.set(Painting::FrameNodeIndex { frame }, &layout_node);
     }
 
     StringBuilder builder;
     builder.append("AccumulatedVisualContext Tree:\n"sv);
 
-    auto const& visual_context_tree = paint_state().visual_context_tree(*this);
-    HashTable<size_t> visited;
-    HashMap<size_t, Vector<size_t>> children;
-    Vector<size_t> root_contexts;
+    HashTable<Painting::SpatialNodeIndex> visited_spatial_nodes;
+    HashTable<Painting::FrameNodeIndex> visited_frame_nodes;
+    HashMap<Painting::SpatialNodeIndex, Vector<Painting::SpatialNodeIndex>> spatial_children;
+    HashMap<Painting::FrameNodeIndex, Vector<Painting::FrameNodeIndex>> frame_children;
+    Vector<Painting::FrameNodeIndex> frame_roots;
 
     display_list->for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes) {
-        for (size_t node_index = header.context_index.value(); !visited.contains(node_index);) {
-            visited.set(node_index);
-            if (node_index == Painting::VISUAL_VIEWPORT_NODE_INDEX.value()) {
-                if (!root_contexts.contains_slow(node_index))
-                    root_contexts.append(node_index);
+        for (auto spatial = header.context.spatial; !visited_spatial_nodes.contains(spatial);) {
+            visited_spatial_nodes.set(spatial);
+            if (spatial == Painting::VISUAL_VIEWPORT_NODE_INDEX)
                 break;
-            }
-            auto parent = visual_context_tree.node_at(Painting::VisualContextIndex(node_index)).parent_index.value();
-            children.ensure(parent).append(node_index);
-            node_index = parent;
+            auto parent = visual_context_tree.spatial_node_at(spatial).parent;
+            spatial_children.ensure(parent).append(spatial);
+            spatial = parent;
+        }
+        for (auto frame = header.context.frame; frame != Painting::NO_FRAME_NODE && !visited_frame_nodes.contains(frame);) {
+            visited_frame_nodes.set(frame);
+            auto parent = visual_context_tree.frame_node_at(frame).parent;
+            if (parent == Painting::NO_FRAME_NODE)
+                frame_roots.append(frame);
+            else
+                frame_children.ensure(parent).append(frame);
+            frame = parent;
         }
     });
 
-    Function<void(size_t, size_t)> dump_context = [&](size_t node_index, size_t indent) {
-        builder.append_repeated(' ', indent * 2);
-        builder.appendff("[{}] ", node_index);
-        visual_context_tree.dump(Painting::VisualContextIndex(node_index), builder);
-        if (auto it = context_id_to_layout_node.find(node_index); it != context_id_to_layout_node.end())
+    auto append_owner = [&](auto const& owners, auto node_index) {
+        if (auto it = owners.find(node_index); it != owners.end())
             builder.appendff(" ({})", Painting::debug_description(*it->value));
         builder.append('\n');
-        for (auto child_node_index : children.get(node_index).value_or({}))
-            dump_context(child_node_index, indent + 1);
     };
 
-    for (auto root : root_contexts)
-        dump_context(root, 1);
+    Function<void(Painting::SpatialNodeIndex, size_t)> dump_spatial_node = [&](Painting::SpatialNodeIndex node_index, size_t indent) {
+        builder.append_repeated(' ', indent * 2);
+        builder.appendff("[{}] ", node_index);
+        visual_context_tree.dump_spatial_node(node_index, builder);
+        append_owner(spatial_node_owners, node_index);
+        for (auto child : spatial_children.get(node_index).value_or({}))
+            dump_spatial_node(child, indent + 1);
+    };
+
+    Function<void(Painting::FrameNodeIndex, size_t)> dump_frame_node = [&](Painting::FrameNodeIndex node_index, size_t indent) {
+        builder.append_repeated(' ', indent * 2);
+        builder.appendff("[{} in {}] ", node_index, visual_context_tree.frame_node_at(node_index).spatial);
+        visual_context_tree.dump_frame_node(node_index, builder);
+        append_owner(frame_node_owners, node_index);
+        for (auto child : frame_children.get(node_index).value_or({}))
+            dump_frame_node(child, indent + 1);
+    };
+
+    builder.append("  spatial:\n"sv);
+    dump_spatial_node(Painting::VISUAL_VIEWPORT_NODE_INDEX, 2);
+    if (!frame_roots.is_empty()) {
+        builder.append("  frames:\n"sv);
+        for (auto root : frame_roots)
+            dump_frame_node(root, 2);
+    }
 
     builder.append("\nDisplayList:\n"sv);
 
@@ -9781,7 +9814,7 @@ Utf16String Document::dump_display_list()
                 builder.append_repeated(' ', indent * 2);
                 Optional<Painting::DisplayListResourceId> nested_display_list_id;
                 Painting::visit_display_list_command(header.command_type, payload, [&]<typename Command>(Command const& command) {
-                    builder.appendff("{}@{}", command.command_name, header.context_index.value());
+                    builder.appendff("{}@{}", command.command_name, header.context);
                     command.dump(builder);
                     if constexpr (IsSame<Command, Painting::PaintNestedDisplayList>)
                         nested_display_list_id = command.display_list_id;
@@ -9797,12 +9830,12 @@ Utf16String Document::dump_display_list()
                     indent += nesting_change;
             });
 
-            auto mask_context_indices = list.mask_display_lists().keys();
-            insertion_sort(mask_context_indices);
-            for (auto context_index : mask_context_indices) {
+            auto mask_frames = list.mask_display_lists().keys();
+            insertion_sort(mask_frames);
+            for (auto frame : mask_frames) {
                 builder.append_repeated(' ', base_indent * 2);
-                builder.appendff("MaskDisplayList for context {}:\n", context_index.value());
-                auto display_list_id = list.mask_display_list_id(context_index).release_value();
+                builder.appendff("MaskDisplayList for frame {}:\n", frame);
+                auto display_list_id = list.mask_display_list_id(frame).release_value();
                 auto& mask_display_list = resource_storage.display_list(display_list_id);
                 dump_commands(mask_display_list, base_indent + 1);
             }

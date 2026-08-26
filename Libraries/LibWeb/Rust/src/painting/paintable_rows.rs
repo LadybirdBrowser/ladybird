@@ -7,11 +7,22 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::{fragment_tree, used_values};
+use crate::painting::display_list::commands::ContextRef;
 use crate::painting::paintable_data::*;
 use crate::painting::record::cache::PaintCache;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct VisualContextAssignmentSnapshot {
+    pub slot_generation: u32,
+    pub has_accumulated_visual_context: bool,
+    pub accumulated_visual_context: ContextRef,
+    pub accumulated_visual_context_for_descendants: ContextRef,
+    pub spatial_nodes: (u32, u32),
+    pub frame_nodes: (u32, u32),
+}
 
 pub(crate) const PAINTABLE_SLOTS_PER_CHUNK: usize = 64;
 
@@ -174,19 +185,19 @@ where
         (self.paintable_row_is_populated(root) && self.paintable_data(root).kind.has_lines()).then_some(root)
     }
 
-    pub(crate) fn visual_context_assignments(&self) -> Vec<(u32, bool, usize, usize, usize, usize)> {
+    pub(crate) fn visual_context_assignments(&self) -> Vec<VisualContextAssignmentSnapshot> {
         (0..self.arena.paintable_row_count())
             .map(|index| {
                 let chunk = &self.arena.paintable_rows.chunks[index / PAINTABLE_SLOTS_PER_CHUNK];
                 let data = &chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK];
-                (
-                    u32::from(data.slot_generation),
-                    data.has_accumulated_visual_context,
-                    data.accumulated_visual_context_index,
-                    data.accumulated_visual_context_for_descendants_index,
-                    data.visual_context_nodes_begin,
-                    data.visual_context_nodes_end,
-                )
+                VisualContextAssignmentSnapshot {
+                    slot_generation: u32::from(data.slot_generation),
+                    has_accumulated_visual_context: data.has_accumulated_visual_context,
+                    accumulated_visual_context: data.accumulated_visual_context,
+                    accumulated_visual_context_for_descendants: data.accumulated_visual_context_for_descendants,
+                    spatial_nodes: (data.spatial_nodes_begin, data.spatial_nodes_end),
+                    frame_nodes: (data.frame_nodes_begin, data.frame_nodes_end),
+                }
             })
             .collect()
     }

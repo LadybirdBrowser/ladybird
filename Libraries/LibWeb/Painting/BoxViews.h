@@ -84,11 +84,11 @@ WEB_API CSSPixelPoint inverse_transform_point(Layout::Node const&, CSSPixelPoint
 WEB_API CSSPixelPoint transform_to_local_coordinates(Layout::Node const&, CSSPixelPoint);
 
 WEB_API bool has_accumulated_visual_context(Layout::Node const&);
-WEB_API VisualContextIndex accumulated_visual_context_index(Layout::Node const&);
-WEB_API VisualContextIndex accumulated_visual_context_for_descendants_index(Layout::Node const&);
-WEB_API Optional<VisualContextIndex> fixed_background_visual_context(Layout::Node const&);
-WEB_API VisualContextIndex enclosing_scroll_node_index(Layout::Node const&);
-WEB_API VisualContextIndex own_scroll_node_index(Layout::Node const&);
+WEB_API ContextRef accumulated_visual_context(Layout::Node const&);
+WEB_API ContextRef accumulated_visual_context_for_descendants(Layout::Node const&);
+WEB_API Optional<ContextRef> fixed_background_visual_context(Layout::Node const&);
+WEB_API SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const&);
+WEB_API SpatialNodeIndex own_scroll_node_index(Layout::Node const&);
 
 WEB_API Gfx::Path const* committed_svg_path(Layout::Node const&);
 WEB_API CSSPixelSize svg_viewport_size(Layout::Node const&);

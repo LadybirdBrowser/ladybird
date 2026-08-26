@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] scroll_compensation(node_index=1)
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] scroll_compensation(node_index=s1) (PaintableWithLines(BlockContainer<HTML>))
 
 DisplayList:
-SaveLayer@0
-  CompositorScrollNode@0 scroll_node_index=1 parent_scroll_node_index=0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,613] is_viewport=true
-  Save@1
-    PaintLinearGradient@2 rect=[0,0 800x600]
-  Restore@1
-Restore@0
-
+SaveLayer@s0
+  CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,613] is_viewport=true
+  Save@s1
+    PaintLinearGradient@s2 rect=[0,0 800x600]
+  Restore@s1
+Restore@s0

@@ -16,7 +16,7 @@ namespace Web::Painting {
 namespace {
 
 struct LeafBounds {
-    VisualContextIndex leaf;
+    SpatialNodeIndex leaf;
     Gfx::FloatRect bounds;
     bool unbounded { false };
 };
@@ -24,14 +24,14 @@ struct LeafBounds {
 struct CommandChunk {
     u32 offset { 0 };
     u32 size { 0 };
-    VisualContextIndex leaf;
-    VisualContextIndex context;
+    SpatialNodeIndex leaf;
+    SpatialNodeIndex context;
     Vector<LeafBounds, 2> bounds_by_level;
 };
 
 struct ChunkPlacement {
-    VisualContextIndex child_context;
-    VisualContextIndex leaf;
+    SpatialNodeIndex child_context;
+    SpatialNodeIndex leaf;
 };
 
 struct DepthSortedPlanBuilder {
@@ -39,8 +39,8 @@ struct DepthSortedPlanBuilder {
     ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette;
     Vector<DepthSortedReplayStep> steps;
 
-    void emit_chunks(ReadonlySpan<CommandChunk> chunks, VisualContextIndex enclosing_context);
-    void sort_and_emit_context(ReadonlySpan<CommandChunk> chunks, VisualContextIndex sorting_context);
+    void emit_chunks(ReadonlySpan<CommandChunk> chunks, SpatialNodeIndex enclosing_context);
+    void sort_and_emit_context(ReadonlySpan<CommandChunk> chunks, SpatialNodeIndex sorting_context);
 };
 
 }
@@ -49,19 +49,19 @@ static Vector<CommandChunk> partition_commands_into_plane_chunks(
     ReadonlyBytes commands,
     SortingContexts const& contexts,
     ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette,
-    ReadonlySpan<VisualContextIndex> nearest_spatial_node,
+    ReadonlySpan<SpatialNodeIndex> draw_space,
     ReadonlySpan<bool> backface_culled)
 {
     struct LeafMapping {
-        VisualContextIndex leaf;
+        SpatialNodeIndex leaf;
         Optional<Gfx::FloatMatrix4x4> to_leaf;
         bool unbounded { false };
     };
 
     struct LeafMappingsKey {
-        VisualContextIndex leaf;
-        VisualContextIndex context;
-        VisualContextIndex spatial_node;
+        SpatialNodeIndex leaf;
+        SpatialNodeIndex context;
+        SpatialNodeIndex spatial_node;
         bool operator==(LeafMappingsKey const&) const = default;
     };
 
@@ -101,16 +101,17 @@ static Vector<CommandChunk> partition_commands_into_plane_chunks(
     DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         auto offset = static_cast<u32>(payload.data() - commands.data() - sizeof(DisplayListCommandHeader));
         auto size = static_cast<u32>(sizeof(DisplayListCommandHeader) + header.payload_size);
-        auto leaf = contexts.leaf_by_node[header.context_index.value()];
-        auto sorting_context = contexts.context_by_node[header.context_index.value()];
+        auto spatial = header.context.spatial;
+        auto leaf = contexts.leaf_by_node[spatial.value()];
+        auto sorting_context = contexts.context_by_node[spatial.value()];
         if (chunks.is_empty() || chunks.last().leaf != leaf || chunks.last().context != sorting_context)
             chunks.append({ offset, size, leaf, sorting_context, {} });
         else
             chunks.last().size += size;
 
-        if (!header.has_bounding_rect || header.is_clip || sorting_context == NO_SORTING_CONTEXT || backface_culled[header.context_index.value()])
+        if (!header.has_bounding_rect || header.is_clip || sorting_context == NO_SORTING_CONTEXT || backface_culled[spatial.value()])
             return;
-        ensure_mappings({ leaf, sorting_context, nearest_spatial_node[header.context_index.value()] });
+        ensure_mappings({ leaf, sorting_context, draw_space[spatial.value()] });
         auto rect = header.bounding_rect.to_type<float>();
         auto& level_entries = chunks.last().bounds_by_level;
         for (auto const& mapping : mappings) {
@@ -131,7 +132,7 @@ static Vector<CommandChunk> partition_commands_into_plane_chunks(
     return chunks;
 }
 
-static ChunkPlacement place_chunk_within(CommandChunk const& chunk, VisualContextIndex enclosing_context, SortingContexts const& contexts)
+static ChunkPlacement place_chunk_within(CommandChunk const& chunk, SpatialNodeIndex enclosing_context, SortingContexts const& contexts)
 {
     if (chunk.context == enclosing_context)
         return { NO_SORTING_CONTEXT, chunk.leaf };
@@ -146,7 +147,7 @@ static ChunkPlacement place_chunk_within(CommandChunk const& chunk, VisualContex
     return { NO_SORTING_CONTEXT, chunk.leaf };
 }
 
-void DepthSortedPlanBuilder::emit_chunks(ReadonlySpan<CommandChunk> chunks, VisualContextIndex enclosing_context)
+void DepthSortedPlanBuilder::emit_chunks(ReadonlySpan<CommandChunk> chunks, SpatialNodeIndex enclosing_context)
 {
     size_t i = 0;
     while (i < chunks.size()) {
@@ -164,13 +165,13 @@ void DepthSortedPlanBuilder::emit_chunks(ReadonlySpan<CommandChunk> chunks, Visu
     }
 }
 
-void DepthSortedPlanBuilder::sort_and_emit_context(ReadonlySpan<CommandChunk> chunks, VisualContextIndex sorting_context)
+void DepthSortedPlanBuilder::sort_and_emit_context(ReadonlySpan<CommandChunk> chunks, SpatialNodeIndex sorting_context)
 {
     // The unit of sorting is a run of consecutive chunks sharing a plane, not the whole plane. Coplanar planes render
     // in painting order, and separate runs of one plane interleaved with a coplanar sibling must keep their recorded
     // positions relative to it.
     struct PlaneRun {
-        VisualContextIndex leaf;
+        SpatialNodeIndex leaf;
         size_t begin { 0 };
         size_t end { 0 };
         Gfx::FloatRect bounds;
@@ -236,11 +237,11 @@ Vector<DepthSortedReplayStep> build_depth_sorted_replay_plan(
     ReadonlyBytes commands,
     AccumulatedVisualContextTree const& visual_context_tree,
     ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette,
-    ReadonlySpan<VisualContextIndex> nearest_spatial_node,
+    ReadonlySpan<SpatialNodeIndex> draw_space,
     ReadonlySpan<bool> backface_culled)
 {
     auto contexts = visual_context_tree.resolve_sorting_contexts();
-    auto chunks = partition_commands_into_plane_chunks(commands, contexts, transform_palette, nearest_spatial_node, backface_culled);
+    auto chunks = partition_commands_into_plane_chunks(commands, contexts, transform_palette, draw_space, backface_culled);
     DepthSortedPlanBuilder builder { contexts, transform_palette, {} };
     builder.emit_chunks(chunks, NO_SORTING_CONTEXT);
     return move(builder.steps);

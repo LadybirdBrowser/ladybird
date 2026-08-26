@@ -175,6 +175,7 @@ decltype(auto) visit_display_list_command(
 }
 
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
+static_assert(sizeof(DisplayListCommandHeader) == 32);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
 
 #define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyCopyable<command>);

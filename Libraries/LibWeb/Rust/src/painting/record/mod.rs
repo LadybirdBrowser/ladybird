@@ -16,6 +16,7 @@ use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
 use crate::painting::border_radii::BorderRadii;
+use crate::painting::display_list::commands::{ContextRef, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
@@ -39,7 +40,7 @@ pub struct RecordingOutput {
     pub hit_test_list: HitTestList,
     pub display_list_bytes: Vec<u8>,
     pub has_blocking_wheel_event_listeners: bool,
-    pub mask_display_lists: Vec<(usize, crate::painting::display_list::commands::DisplayListResourceId)>,
+    pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     pub spliced_capture_count: usize,
 }
 
@@ -99,7 +100,7 @@ pub struct PaintRecorder<'a> {
     font_resource_id_cache: HashMap<usize, u64>,
     text_control_selection_cache: HashMap<u32, crate::painting::host::FfiTextControlSelection>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
-    pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, usize>,
+    pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -312,20 +313,20 @@ impl<'a> PaintRecorder<'a> {
         crate::painting::style_queries::is_replaced_box(self.layout_arena, paintable)
     }
 
-    pub(crate) fn own_context_index(&self, paintable: NodeSlotId) -> usize {
+    pub(crate) fn own_context(&self, paintable: NodeSlotId) -> ContextRef {
         if let Some(nested) = &self.nested
-            && let Some((own, _)) = nested.assignments.paintable_indices.get(&paintable.index)
+            && let Some((own, _)) = nested.assignments.paintable_contexts.get(&paintable.index)
         {
             return *own;
         }
-        self.data(paintable).accumulated_visual_context_index
+        self.data(paintable).accumulated_visual_context
     }
 
-    pub(crate) fn accumulated_2d_scale_at(&self, index: usize) -> libgfx_rust::FloatSize {
-        self.paint_host.accumulated_2d_scale(self.nested_tree.as_ref(), index)
+    pub(crate) fn accumulated_2d_scale_at(&self, spatial: SpatialNodeIndex) -> libgfx_rust::FloatSize {
+        self.paint_host.accumulated_2d_scale(self.nested_tree.as_ref(), spatial)
     }
 
     pub(crate) fn own_accumulated_2d_scale(&self, paintable: NodeSlotId) -> libgfx_rust::FloatSize {
-        self.accumulated_2d_scale_at(self.own_context_index(paintable))
+        self.accumulated_2d_scale_at(self.own_context(paintable).spatial)
     }
 }

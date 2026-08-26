@@ -28,21 +28,21 @@ struct WheelHitTestResult {
 
 struct CachedWheelHitTestTarget {
     Optional<AsyncScrollNodeID> target_node_id;
-    Painting::VisualContextIndex visual_context_index;
+    Painting::ContextRef context;
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
     Gfx::FloatRect viewport_rect;
 };
 
 struct CachedMainThreadWheelEventTarget {
-    Painting::VisualContextIndex visual_context_index;
+    Painting::ContextRef context;
     Gfx::FloatRect rect;
     Gfx::FloatRect viewport_rect;
 };
 
 // Viewport-space cache of regions containing non-passive wheel listeners.
 struct CachedBlockingWheelEventTarget {
-    Painting::VisualContextIndex visual_context_index;
+    Painting::ContextRef context;
     Gfx::FloatRect rect;
     Gfx::FloatRect viewport_rect;
 };
@@ -73,9 +73,9 @@ private:
     AsyncScrollNode const* scroll_node_for_id(AsyncScrollNodeID) const;
     WheelHitTestResult hit_test_result_for_scroll_node(AsyncScrollNodeID, Gfx::FloatPoint delta) const;
     AsyncScrollNode const* scroll_node_for_stable_id(AsyncScrollNodeStableID) const;
-    AsyncStickyArea const* sticky_area_for_scroll_node_index(Painting::VisualContextIndex) const;
+    AsyncStickyArea const* sticky_area_for_scroll_node_index(Painting::SpatialNodeIndex) const;
     Optional<AsyncScrollNodeID> scrollable_ancestor_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint delta) const;
-    Gfx::FloatPoint cumulative_device_sticky_offset_for_node(Painting::VisualContextIndex, Painting::ScrollStateSnapshot const&) const;
+    Gfx::FloatPoint cumulative_device_sticky_offset_for_node(Painting::SpatialNodeIndex, Painting::ScrollStateSnapshot const&) const;
     Gfx::FloatPoint apply_scroll_delta_to_node(AsyncScrollNode const&, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
     void update_sticky_offsets(Painting::ScrollStateSnapshot&) const;
 

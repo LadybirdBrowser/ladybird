@@ -1,30 +1,30 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
 
 DisplayList:
-SaveLayer@0
-  Save@1
-    AddClipRect@1 rect=[10,15 780x43]
-    FillRect@1 rect=[10,8 780x50] color=rgb(0, 0, 255)
-  Restore@1
-  FillPath@1 path_bounding_rect=[789,15 1x43]
-  FillPath@1 path_bounding_rect=[788,14 1x43]
-  FillPath@1 path_bounding_rect=[10,57 780x1]
-  FillPath@1 path_bounding_rect=[11,56 778x1]
-  FillPath@1 path_bounding_rect=[10,15 1x43]
-  FillPath@1 path_bounding_rect=[11,14 1x43]
-  Save@1
-    AddClipRect@1 rect=[10,15 14x2]
-    FillPath@1 path_bounding_rect=[10,15 780x1]
-    FillPath@1 path_bounding_rect=[9,16 782x1]
-  Restore@1
-  Save@1
-    AddClipRect@1 rect=[81,15 709x2]
-    FillPath@1 path_bounding_rect=[10,15 780x1]
-    FillPath@1 path_bounding_rect=[9,16 782x1]
-  Restore@1
-  DrawGlyphRun@1 rect=[26,8 54x16] translation=[26,20.796875] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[24,29 63x16] translation=[24,42.390625] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  Save@s1
+    AddClipRect@s1 rect=[10,15 780x43]
+    FillRect@s1 rect=[10,8 780x50] color=rgb(0, 0, 255)
+  Restore@s1
+  FillPath@s1 path_bounding_rect=[789,15 1x43]
+  FillPath@s1 path_bounding_rect=[788,14 1x43]
+  FillPath@s1 path_bounding_rect=[10,57 780x1]
+  FillPath@s1 path_bounding_rect=[11,56 778x1]
+  FillPath@s1 path_bounding_rect=[10,15 1x43]
+  FillPath@s1 path_bounding_rect=[11,14 1x43]
+  Save@s1
+    AddClipRect@s1 rect=[10,15 14x2]
+    FillPath@s1 path_bounding_rect=[10,15 780x1]
+    FillPath@s1 path_bounding_rect=[9,16 782x1]
+  Restore@s1
+  Save@s1
+    AddClipRect@s1 rect=[81,15 709x2]
+    FillPath@s1 path_bounding_rect=[10,15 780x1]
+    FillPath@s1 path_bounding_rect=[9,16 782x1]
+  Restore@s1
+  DrawGlyphRun@s1 rect=[26,8 54x16] translation=[26,20.796875] color=rgb(0, 0, 0)
+  DrawGlyphRun@s1 rect=[24,29 63x16] translation=[24,42.390625] color=rgb(0, 0, 0)
+Restore@s0

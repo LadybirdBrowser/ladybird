@@ -1,12 +1,13 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[8,8 200x200] (PaintableWithLines(BlockContainer(anonymous)))
-        [4] effects=[opacity=0.5]
-          [7] effects=[opacity=0.3] (PaintableWithLines(BlockContainer<DIV>.abspos))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s1] clip=[8,8 200x200] (PaintableWithLines(BlockContainer<DIV>.relpos))
+      [f2 in s1] effects=[opacity=0.5] (PaintableWithLines(BlockContainer<DIV>.outer-opacity))
+        [f5 in s1] effects=[opacity=0.3] (PaintableWithLines(BlockContainer<DIV>.inner-opacity))
 
 DisplayList:
-SaveLayer@0
-  FillRect@7 rect=[8,8 100x100] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillRect@s1/f5 rect=[8,8 100x100] color=rgb(0, 0, 0)
+Restore@s0

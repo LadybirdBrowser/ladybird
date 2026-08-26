@@ -1,26 +1,27 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[10,10 320x270] (PaintableWithLines(BlockContainer<DIV>.level2))
-        [3] clip=[21,21 143x248] (PaintableWithLines(BlockContainer(anonymous)))
-          [4] transform=[0.9986295,-0.05233596,0.05233596,0.9986295,0,0] origin=(92.5,46) (PaintableWithLines(BlockContainer<DIV>.level3.t1))
-          [5] transform=[0.9986295,0.05233596,-0.05233596,0.9986295,0,0] origin=(92.5,91) (PaintableWithLines(BlockContainer<DIV>.level3.t2))
-        [6] clip=[176,21 143x248] (PaintableWithLines(BlockContainer(anonymous)))
-          [7] transform=[0.95,0,0,0.95,0,0] origin=(247.5,46) (PaintableWithLines(BlockContainer<DIV>.level3.t3))
-          [8] transform=[1.05,0,0,1.05,0,0] origin=(247.5,91) (PaintableWithLines(BlockContainer<DIV>.level3.t4))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] transform=[0.9986295,-0.05233596,0.05233596,0.9986295,0,0] origin=(92.5,46) (PaintableWithLines(BlockContainer<DIV>.level3.t1))
+        [s3] transform=[0.9986295,0.05233596,-0.05233596,0.9986295,0,0] origin=(92.5,91) (PaintableWithLines(BlockContainer<DIV>.level3.t2))
+        [s4] transform=[0.95,0,0,0.95,0,0] origin=(247.5,46) (PaintableWithLines(BlockContainer<DIV>.level3.t3))
+        [s5] transform=[1.05,0,0,1.05,0,0] origin=(247.5,91) (PaintableWithLines(BlockContainer<DIV>.level3.t4))
+  frames:
+    [f0 in s1] clip=[10,10 320x270] (Paintable(Box<DIV>.level1))
+      [f1 in s1] clip=[21,21 143x248] (PaintableWithLines(BlockContainer<DIV>.level2))
+      [f2 in s1] clip=[176,21 143x248] (PaintableWithLines(BlockContainer<DIV>.level2))
 
 DisplayList:
-SaveLayer@0
-  FillPath@1 path_bounding_rect=[8,8 324x274]
-  FillPath@2 path_bounding_rect=[20,20 145x250]
-  FillPath@2 path_bounding_rect=[175,20 145x250]
-  FillRect@4 rect=[26,26 133x40] color=rgb(255, 136, 136)
-  DrawGlyphRun@4 rect=[26,26 20x16] translation=[26,38.796875] color=rgb(0, 0, 0)
-  FillRect@5 rect=[26,71 133x40] color=rgb(136, 255, 136)
-  DrawGlyphRun@5 rect=[26,71 22x16] translation=[26,83.796875] color=rgb(0, 0, 0)
-  FillRect@7 rect=[181,26 133x40] color=rgb(136, 136, 255)
-  DrawGlyphRun@7 rect=[181,26 22x16] translation=[181,38.796875] color=rgb(0, 0, 0)
-  FillRect@8 rect=[181,71 133x40] color=rgb(255, 255, 136)
-  DrawGlyphRun@8 rect=[181,71 25x16] translation=[181,83.796875] color=rgb(0, 0, 0)
-Restore@0
-
+SaveLayer@s0
+  FillPath@s1 path_bounding_rect=[8,8 324x274]
+  FillPath@s1/f0 path_bounding_rect=[20,20 145x250]
+  FillPath@s1/f0 path_bounding_rect=[175,20 145x250]
+  FillRect@s2/f1 rect=[26,26 133x40] color=rgb(255, 136, 136)
+  DrawGlyphRun@s2/f1 rect=[26,26 20x16] translation=[26,38.796875] color=rgb(0, 0, 0)
+  FillRect@s3/f1 rect=[26,71 133x40] color=rgb(136, 255, 136)
+  DrawGlyphRun@s3/f1 rect=[26,71 22x16] translation=[26,83.796875] color=rgb(0, 0, 0)
+  FillRect@s4/f2 rect=[181,26 133x40] color=rgb(136, 136, 255)
+  DrawGlyphRun@s4/f2 rect=[181,26 22x16] translation=[181,38.796875] color=rgb(0, 0, 0)
+  FillRect@s5/f2 rect=[181,71 133x40] color=rgb(255, 255, 136)
+  DrawGlyphRun@s5/f2 rect=[181,71 25x16] translation=[181,83.796875] color=rgb(0, 0, 0)
+Restore@s0

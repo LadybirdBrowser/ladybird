@@ -1,13 +1,14 @@
 AccumulatedVisualContext Tree:
-  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[8,8 200x200]
-        [3] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0)
-          [4] effects=[opacity=0.5]
-            [5] transform=[1,0,0,1,20,20] origin=(0,0) (SVGPathPaintable(SVGGeometryBox<rect>))
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+        [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
+          [s3] transform=[1,0,0,1,20,20] origin=(0,0) (SVGPathPaintable(SVGGeometryBox<rect>))
+  frames:
+    [f0 in s1] clip=[8,8 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
+      [f1 in s2] effects=[opacity=0.5] (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
-SaveLayer@0
-  FillPath@5 path_bounding_rect=[0,0 100x100]
-Restore@0
-
+SaveLayer@s0
+  FillPath@s3/f1 path_bounding_rect=[0,0 100x100]
+Restore@s0

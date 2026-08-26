@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+    #spacer {
+        height: 30px;
+    }
+    #transformed {
+        width: 100px;
+        height: 100px;
+        transform: translate(20px, 20px);
+    }
+    #clipped {
+        width: 100px;
+        height: 100px;
+        clip-path: circle(40px at 50px 50px);
+    }
+    #target {
+        width: 100%;
+        height: 100%;
+        background: rgb(0, 128, 0);
+    }
+    #filler {
+        height: 300px;
+    }
+</style>
+<div id="scroller">
+    <div id="spacer"></div>
+    <div id="transformed"><div id="clipped"><div id="target"></div></div></div>
+    <div id="filler"></div>
+</div>
+<script>
+    test(() => {
+        document.getElementById("scroller").scrollTop = 30;
+        println("inside the clip-path:");
+        printElement(internals.hitTest(70, 70).node);
+        println("inside the box but outside the clip-path:");
+        printElement(internals.hitTest(25, 25).node);
+    });
+</script>

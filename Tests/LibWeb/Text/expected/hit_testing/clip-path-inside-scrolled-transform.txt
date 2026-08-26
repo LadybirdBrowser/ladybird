@@ -1,0 +1,4 @@
+inside the clip-path:
+<DIV id="target">
+inside the box but outside the clip-path:
+<DIV id="transformed">
