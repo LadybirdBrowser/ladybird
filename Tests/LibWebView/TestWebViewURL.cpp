@@ -370,10 +370,15 @@ TEST_CASE(context_menu_url_text)
     expect_context_menu_text_url("www.ladybird.org/path?x=1"sv, "https://www.ladybird.org/path?x=1"sv);
     expect_context_menu_text_url("localhost:8000"sv, "http://localhost:8000/"sv);
     expect_context_menu_text_url("https://ladybird.org"sv, "https://ladybird.org/"sv);
+    expect_context_menu_text_url("192.168.0.1"sv, "http://192.168.0.1/"sv);
 
     expect_context_menu_text_not_url("ladybird"sv);
     expect_context_menu_text_not_url("ladybird org"sv);
     expect_context_menu_text_not_url("ladybird.org hello"sv);
+    expect_context_menu_text_not_url("192"sv);
+    expect_context_menu_text_not_url("192.168"sv);
+    expect_context_menu_text_not_url("192.168.0"sv);
+    expect_context_menu_text_not_url("192.168.0.999"sv);
     expect_context_menu_text_not_url("./Meta/ladybird.py"sv);
     expect_context_menu_text_not_url("../ladybird.org"sv);
     expect_context_menu_text_not_url("/tmp/ladybird.org"sv);

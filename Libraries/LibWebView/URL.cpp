@@ -207,6 +207,17 @@ Optional<URL::URL> url_from_text(StringView text)
     if (trimmed_text.starts_with('.') || trimmed_text.starts_with('/'))
         return {};
 
+    // The URL parser accepts abbreviated IPv4 addresses, causing numeric text such as "88" to be parsed as
+    // 0.0.0.88. For selected text, only recognize an IPv4 address when all four parts are present.
+    auto hostname_end = trimmed_text.find_any_of(":/?#"sv).value_or(trimmed_text.length());
+    auto hostname = trimmed_text.substring_view(0, hostname_end);
+    auto is_numeric_hostname = all_of(hostname.bytes(), [](auto byte) { return is_ascii_digit(byte) || byte == '.'; });
+    if (is_numeric_hostname) {
+        auto parts = hostname.split_view('.', SplitBehavior::KeepEmpty);
+        if (parts.size() != 4 || any_of(parts, [](auto part) { return part.is_empty(); }))
+            return {};
+    }
+
     return sanitize_url(trimmed_text);
 }
 
