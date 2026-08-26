@@ -1292,6 +1292,7 @@ GC::Ptr<DOM::Element> Node::pseudo_element_generator()
 
 void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
 {
+    static_assert(encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
     static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
     m_data->generated_for = encode_generated_for(type);
     m_pseudo_element_generator = element;

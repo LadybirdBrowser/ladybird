@@ -117,7 +117,6 @@ WEB_API void clear_cached_overflow_data(Layout::Node const&);
 WEB_API void set_sticky_insets(Layout::Node const&, OwnPtr<StickyInsets>);
 WEB_API StickyInsets sticky_insets(Layout::Node const&);
 WEB_API bool has_sticky_insets(Layout::Node const&);
-WEB_API void transfer_fragments_to_replacement_node(Layout::Node const& containing_block, Layout::Node const& old_node, Layout::Node const& new_node);
 
 WEB_API void inline_piece_border_box_rects(Layout::Node const&, Vector<CSSPixelRect>&);
 WEB_API CSSPixelPoint cumulative_scroll_compensation(Layout::Node const&);
