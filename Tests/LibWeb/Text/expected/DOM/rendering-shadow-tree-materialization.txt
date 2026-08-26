@@ -4,3 +4,5 @@ textarea connected before style: false
 textarea after style: true
 details connected before style: false
 details after style: true
+meter connected before style: false
+meter after style: true
