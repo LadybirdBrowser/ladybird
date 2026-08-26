@@ -113,6 +113,36 @@ static void settle_connected_selector_query(Document& document)
     document.style_computer().style_engine().prepare_selector_query();
 }
 
+// The style-engine coordinates of one connected subtree query. Present tense on has_query_root: A document whose
+// document element is yet to arrive has no queryable subtree at all.
+struct EngineSubtreeQuery {
+    CSS::StyleNodeID query_root;
+    bool include_root { false };
+    CSS::StyleNodeID scope_root;
+    CSS::StyleNodeID shadow_root;
+    bool has_query_root { false };
+};
+
+static EngineSubtreeQuery engine_subtree_query_for(Document& document, ParentNode& root)
+{
+    EngineSubtreeQuery query;
+    if (GC::Ptr<Element const> scope_element = as_if<Element>(root)) {
+        query.query_root = scope_element->style_node_id();
+        query.scope_root = scope_element->style_node_id();
+        query.has_query_root = true;
+    } else if (GC::Ptr<ShadowRoot const> shadow = as_if<ShadowRoot>(root)) {
+        query.query_root = shadow->style_node_id();
+        query.has_query_root = true;
+    } else if (auto const* document_element = document.document_element()) {
+        query.query_root = document_element->style_node_id();
+        query.include_root = true;
+        query.has_query_root = true;
+    }
+    if (GC::Ptr<ShadowRoot const> tree_root = as_if<ShadowRoot>(root.root()))
+        query.shadow_root = tree_root->style_node_id();
+    return query;
+}
+
 // Whether matching this pseudo-class can only change when Document::dom_tree_version() or
 // Document::character_data_version() change, i.e. it depends only on tree structure, attributes and character
 // data. Pseudo-classes that also depend on other state (user interaction, element states like checkedness or
@@ -370,7 +400,19 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
         return first_match(root, [&](auto& element) { return engine.matches(element, root); });
     }
 
-    settle_connected_selector_query(root.document());
+    auto& document = root.document();
+    settle_connected_selector_query(document);
+    auto subtree_query = engine_subtree_query_for(document, root);
+    if (!subtree_query.has_query_root)
+        return cache_result(nullptr);
+    CSS::StyleNodeID matched;
+    if (document.style_computer().style_engine().selector_query_first(m_engine_query, subtree_query.query_root, subtree_query.include_root, subtree_query.scope_root, subtree_query.shadow_root, true, matched)) {
+        if (!matched.value())
+            return cache_result(nullptr);
+        auto element = document.style_computer().element_for_style_node(matched);
+        VERIFY(element);
+        return cache_result(*element);
+    }
     return cache_result(first_match(root, [&](auto& element) { return matches_in_style_engine(element, root); }));
 }
 
@@ -408,27 +450,12 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
         }
     } else {
         settle_connected_selector_query(document);
-        CSS::StyleNodeID query_root;
-        bool include_root = false;
-        CSS::StyleNodeID scope_root;
-        if (GC::Ptr<Element const> scope_element = as_if<Element>(root)) {
-            query_root = scope_element->style_node_id();
-            scope_root = scope_element->style_node_id();
-        } else if (GC::Ptr<ShadowRoot const> shadow = as_if<ShadowRoot>(root)) {
-            query_root = shadow->style_node_id();
-        } else {
-            auto const* document_element = document.document_element();
-            if (!document_element)
-                return create_node_list(elements);
-            query_root = document_element->style_node_id();
-            include_root = true;
-        }
-        CSS::StyleNodeID shadow_root;
-        if (GC::Ptr<ShadowRoot const> tree_root = as_if<ShadowRoot>(root.root()))
-            shadow_root = tree_root->style_node_id();
+        auto subtree_query = engine_subtree_query_for(document, root);
+        if (!subtree_query.has_query_root)
+            return create_node_list(elements);
 
         Vector<CSS::StyleNodeID> matches;
-        if (!document.style_computer().style_engine().selector_query_all(m_engine_query, query_root, include_root, scope_root, shadow_root, true, matches)) {
+        if (!document.style_computer().style_engine().selector_query_all(m_engine_query, subtree_query.query_root, subtree_query.include_root, subtree_query.scope_root, subtree_query.shadow_root, true, matches)) {
             collect_matches(root, [&](auto& element) { return matches_in_style_engine(element, root); }, elements);
         } else {
             elements.ensure_capacity(matches.size());

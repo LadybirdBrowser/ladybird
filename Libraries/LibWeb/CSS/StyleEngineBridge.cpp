@@ -835,6 +835,23 @@ bool StyleEngine::selector_query_all(void* query, StyleNodeID root, bool include
     return true;
 }
 
+bool StyleEngine::selector_query_first(void* query, StyleNodeID root, bool include_root, StyleNodeID scope_root, StyleNodeID shadow_root, bool has_document_root, StyleNodeID& matched)
+{
+    u32 raw_matched = 0;
+    if (!StyleEngineFFI::style_engine_selector_query_first(
+            m_impl,
+            query,
+            root.value(),
+            include_root,
+            scope_root.value(),
+            shadow_root.value(),
+            has_document_root,
+            &raw_matched))
+        return false;
+    matched = StyleNodeID(raw_matched);
+    return true;
+}
+
 bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) const
 {
     size_t name_length = 0;

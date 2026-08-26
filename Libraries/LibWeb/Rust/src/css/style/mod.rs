@@ -735,6 +735,12 @@ impl ProgramStaging {
 }
 
 /// One document's style engine.
+struct QuerySortedCandidatesStamp {
+    generation: u64,
+    root: StyleNodeID,
+    keys: Vec<DispatchKey>,
+}
+
 pub struct StyleEngine {
     /// The capture-local document identity, absent when record-replay is disabled.
     #[cfg(feature = "style-recording")]
@@ -784,6 +790,16 @@ pub struct StyleEngine {
     /// The transaction version the last selector query settled at; the change detector for the
     /// generation above.
     query_settled_transaction_version: StyleTransactionVersion,
+    /// Tree-ordered candidates of the last posting-driven selector query. querySelector in a loop
+    /// typically asks with the same subject keys every time — so collect-and-sort pays once per
+    /// document change, rather than once per query.
+    query_sorted_candidates: Vec<StyleNodeID>,
+    /// What `query_sorted_candidates` was computed from. Same stamp, same list.
+    query_sorted_candidates_stamp: Option<QuerySortedCandidatesStamp>,
+    /// node -> preorder rank under the stamped root; how candidates get their tree order without a
+    /// walk per query.
+    query_preorder_ranks: HashMap<StyleNodeID, u32>,
+    query_preorder_ranks_stamp: Option<(u64, StyleNodeID)>,
     /// Which query `query_match_workspace` holds answers for.
     query_workspace_generation: u64,
     /// Scratch for the fact rows one exact candidate evaluation covers, reused across candidates.
