@@ -8,3 +8,5 @@ meter connected before style: false
 meter after style: true
 progress connected before style: false
 progress after style: true
+select connected before style: false
+select after style: true
