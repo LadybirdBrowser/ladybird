@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test the change of list-style-type</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=966750">
+<style type="text/css">
+.inside {
+  list-style-position: inside;
+}
+
+.none2symbol {
+  list-style-type: square;
+}
+
+.symbol2none {
+  list-style-type: none;
+}
+
+.symbol2symbol {
+  list-style-type: square;
+}
+
+.symbol2ordinal {
+  list-style-type: upper-roman;
+}
+
+.ordinal2ordinal {
+  list-style-type: decimal;
+}
+</style>
+
+<ul class="inside"><li class="none2symbol">inside: none to square</li></ul>
+<ul><li class="none2symbol">outside: none to square</li></ul>
+
+<ul class="inside"><li class="symbol2none">inside: square to none</li></ul>
+<ul><li class="symbol2none">outside: square to none</li></ul>
+
+<ul class="inside"><li class="symbol2symbol">inside: disc to square</li></ul>
+<ul><li class="symbol2symbol">outside: disc to square</li></ul>
+
+<ul class="inside"><li class="symbol2ordinal">inside: disc to upper-roman</li></ul>
+<ul><li class="symbol2ordinal">outside: disc to upper-roman</li></ul>
+
+<ul class="inside"><li class="ordinal2ordinal">inside: upper-roman to decimal</li></ul>
+<ul><li class="ordinal2ordinal">outside: upper-roman to decimal</li></ul>

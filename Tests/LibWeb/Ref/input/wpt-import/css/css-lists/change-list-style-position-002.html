@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test the change of list-style-position</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="match" href="../../../../expected/wpt-import/css/css-lists/change-list-style-position-002-ref.html">
+<link rel="help" href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<style>
+div {
+  display: list-item;
+  margin-left: 40px;
+  border: 5px solid;
+}
+div > div { list-style-type: decimal }
+div > div > div { list-style-type: lower-roman }
+.inside { list-style-position: inside }
+</style>
+<div><div id="bar"><div id="baz">text</div></div></div>
+<script>
+document.getElementById("bar").className = "inside";
+document.body.offsetHeight;
+document.getElementById("bar").className = "";
+document.body.offsetHeight;
+document.getElementById("baz").className = "inside";
+</script>
