@@ -19,7 +19,7 @@ fn commit_subtree(
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
     paintables: &mut crate::painting::paintable_build::PaintableCommit<'_>,
-    links_by_slot: &std::collections::HashMap<u32, &FragmentLink>,
+    links_by_slot: &HashMap<u32, &FragmentLink>,
     pass_fragments: &fragment_tree::CompletedPassFragments,
     enclosing_line_root_content_changed: bool,
 ) {

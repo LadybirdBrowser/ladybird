@@ -273,7 +273,7 @@ pub(crate) fn compute(
         collect_inline_containing_block_rects && context.facts(context.containing_block).inline_axis_is_reverse();
     let mut inline_containing_block_rect_candidates = Vec::<InlineContainingBlockRectCandidate>::new();
     let mut per_nodes = Vec::<PerNode>::new();
-    let mut node_to_index = HashMap::<Node, usize>::new();
+    let mut node_to_index = HashMap::<Node, usize>::default();
 
     let mut committed_fragment_index = 0u32;
     for (line_index, line) in context.line_data().line_boxes.iter().enumerate() {
@@ -1535,7 +1535,7 @@ impl<'context> InlineFormattingContext<'context> {
         if data.inline_box_pieces.is_empty() {
             return;
         }
-        let mut accumulated_relative_offset_by_chain_start = HashMap::<Node, FfiCssPixelPoint>::new();
+        let mut accumulated_relative_offset_by_chain_start = HashMap::<Node, FfiCssPixelPoint>::default();
         let mut accumulated_relative_offset_from = |first_ancestor: Node| -> FfiCssPixelPoint {
             *accumulated_relative_offset_by_chain_start
                 .entry(first_ancestor)

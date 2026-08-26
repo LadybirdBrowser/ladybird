@@ -12,13 +12,13 @@ use super::geometry::AvailableSpace;
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::abort_on_panic;
+use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{DetachedShell, DetachedShells};
 use std::cell::Cell;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::c_void;
 
 unsafe extern "C" {
@@ -464,7 +464,7 @@ impl LayoutNodeArena {
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
-            raw_table_column_spans: HashMap::new(),
+            raw_table_column_spans: HashMap::default(),
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),

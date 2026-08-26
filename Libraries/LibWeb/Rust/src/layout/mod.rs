@@ -41,6 +41,8 @@ mod tree_builder;
 mod tree_mutation;
 pub mod used_values;
 
+use crate::css::style::fast_hash::FastMap as HashMap;
+use crate::css::style::fast_hash::FastSet as HashSet;
 use crate::layout::layout_node_arena::IntrinsicBlockSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
@@ -71,8 +73,6 @@ use std::cell::OnceCell;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::cell::RefMut;
-use std::collections::HashMap;
-use std::collections::HashSet;
 use std::ffi::c_void;
 pub(crate) use style_values::StyleValues;
 pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};
