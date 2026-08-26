@@ -2662,6 +2662,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "NodeSlotId".to_string(),
     ];
     tree_builder_config.export.exclude = vec![
+        "ladybird_layout_node_shell_release".to_string(),
         "ladybird_layout_text_node_dom_offset_for_rendered_text_offset".to_string(),
         "ladybird_layout_text_node_rendered_text_offset_for_dom_offset".to_string(),
         "rust_calc_node_create_numeric_dimension".to_string(),

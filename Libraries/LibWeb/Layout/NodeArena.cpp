@@ -55,6 +55,11 @@ void NodeArena::drop_intrinsic_size_cache(RustFFI::NodeData const& node_data) co
     RustFFI::layout_arena_drop_intrinsic_size_cache(m_handle, &node_data);
 }
 
+bool detach_layout_node_for_destruction(Node& node)
+{
+    return RustFFI::layout_arena_detach_node_for_destruction(node.arena_handle(), Node::slot_id(&node));
+}
+
 void NodeArena::enroll_text_node_for_content_sync(TextNode const& text_node)
 {
     m_text_nodes_enrolled_for_content_sync.append(text_node.make_weak_ptr<TextNode>());

@@ -481,11 +481,8 @@ pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_clear_cached_overflow_data(arena: *mut c_void, slot: NodeSlotId) {
     abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle_mut(arena) };
-        let mut paintable_rows = arena.paintable_rows_mut();
-        if paintable_rows.paintable_row_is_populated(slot) {
-            paintable_rows.paintable_data_mut(slot).overflow_valid_across_recommits = false;
-        }
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.paintable_rows().clear_cached_overflow_data(slot);
     });
 }
 

@@ -39,6 +39,7 @@ include!("geometry.rs");
 include!("fc_run_cache.rs");
 mod layout_node_arena;
 pub mod node_data;
+mod tree_mutation;
 include!("run_records.rs");
 include!("style_values.rs");
 

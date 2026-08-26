@@ -155,6 +155,17 @@ where
         generation != 0 && generation == id.generation()
     }
 
+    pub(crate) fn clear_cached_overflow_data(&self, id: NodeSlotId) {
+        if !self.paintable_row_is_populated(id) {
+            return;
+        }
+        let index = id.slot_index() as usize;
+        let chunk = &self.arena.paintable_rows.chunks[index / PAINTABLE_SLOTS_PER_CHUNK];
+        let data = (&raw const chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK]).cast_mut();
+        // SAFETY: paintable_row_is_populated established that the chunk and slot exist.
+        unsafe { (&raw mut (*data).overflow_valid_across_recommits).write(false) };
+    }
+
     pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {
         if !self.paintable_row_is_populated(inline_paintable) {
             return None;

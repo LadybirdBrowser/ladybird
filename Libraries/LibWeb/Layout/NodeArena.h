@@ -54,4 +54,6 @@ private:
     Vector<WeakPtr<Node>> m_nodes_enrolled_for_replaced_content_facts_sync;
 };
 
+WEB_API bool detach_layout_node_for_destruction(Node&);
+
 }

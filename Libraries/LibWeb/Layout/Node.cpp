@@ -80,10 +80,6 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, AttachToDOMNode att
 Node::~Node()
 {
     VERIFY(!parent_ptr());
-    while (auto* child = first_child_ptr()) {
-        RustFFI::layout_arena_remove_child(m_arena->handle(), slot_id(this), slot_id(child));
-        child->unref();
-    }
 }
 
 RustFFI::NodeSlotId Node::slot_id(Node const* node)
@@ -172,19 +168,9 @@ void Node::bump_fragment_cache_epoch()
     ++node_data().fragment_cache_epoch;
 }
 
-// NB: Bumps can legitimately run while another document's layout pass is on the stack (a
-// parent pass sizing a child navigable's viewport invalidates the child document), so the
-// helpers must not assert against the process-global pass flag. A bump landing between a
-// run's probe and its store is handled by storing the probe-time validity, which turns it
-// into a fail-safe miss.
 void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
 {
-    for (auto* node = this; node; node = node->parent_ptr()) {
-        if (fragment_cache_epochs_enabled())
-            ++node->node_data().fragment_cache_epoch;
-        if (auto* box = as_if<Box>(*node))
-            Painting::clear_cached_overflow_data(*box);
-    }
+    RustFFI::layout_arena_bump_fragment_cache_epoch_of_self_and_ancestors(arena_handle(), slot_id(this));
 }
 
 // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
@@ -218,9 +204,8 @@ void* Node::arena_handle() const
 
 void Node::insert_before(NonnullRefPtr<Node> node, Node* before)
 {
-    RustFFI::layout_arena_insert_child(m_arena->handle(), slot_id(this), slot_id(node.ptr()), slot_id(before));
-    bump_fragment_cache_epoch_of_self_and_ancestors();
-    (void)node.leak_ref();
+    auto& adopted_node = node.leak_ref();
+    RustFFI::layout_arena_attach_child(m_arena->handle(), slot_id(this), slot_id(&adopted_node), slot_id(before));
 }
 
 void Node::append_child(NonnullRefPtr<Node> node)
@@ -235,27 +220,19 @@ void Node::prepend_child(NonnullRefPtr<Node> node)
 
 void Node::remove_child(Node& node)
 {
-    RustFFI::layout_arena_remove_child(m_arena->handle(), slot_id(this), slot_id(&node));
-    bump_fragment_cache_epoch_of_self_and_ancestors();
-    node.unref();
+    RustFFI::layout_arena_detach_child(m_arena->handle(), slot_id(this), slot_id(&node));
 }
 
 void Node::replace_child(NonnullRefPtr<Node> new_child, Node& old_child)
 {
     VERIFY(&old_child != new_child.ptr());
-    auto successor_slot = old_child.m_data->next_sibling;
-    RustFFI::layout_arena_remove_child(m_arena->handle(), slot_id(this), slot_id(&old_child));
-    RustFFI::layout_arena_insert_child(m_arena->handle(), slot_id(this), slot_id(new_child.ptr()), successor_slot);
-    bump_fragment_cache_epoch_of_self_and_ancestors();
-    old_child.unref();
-    (void)new_child.leak_ref();
+    auto& adopted_child = new_child.leak_ref();
+    RustFFI::layout_arena_replace_child(m_arena->handle(), slot_id(this), slot_id(&old_child), slot_id(&adopted_child));
 }
 
 void Node::remove()
 {
-    auto* parent = parent_ptr();
-    VERIFY(parent);
-    parent->remove_child(*this);
+    VERIFY(detach_layout_node_for_destruction(*this));
 }
 
 Box const* Node::containing_block() const
