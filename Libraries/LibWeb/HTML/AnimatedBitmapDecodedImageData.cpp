@@ -227,6 +227,17 @@ Optional<Gfx::DecodedImageFrame> AnimatedBitmapDecodedImageData::current_frame(G
     return frame(m_current_frame_index, size);
 }
 
+Optional<Gfx::Color> AnimatedBitmapDecodedImageData::color_if_single_pixel_bitmap() const
+{
+    auto frame = current_frame();
+    if (!frame.has_value())
+        return {};
+    auto const& bitmap = frame->bitmap();
+    if (bitmap.width() != 1 || bitmap.height() != 1)
+        return {};
+    return bitmap.get_pixel(0, 0);
+}
+
 int AnimatedBitmapDecodedImageData::frame_duration(size_t frame_index) const
 {
     if (frame_index >= m_durations.size())

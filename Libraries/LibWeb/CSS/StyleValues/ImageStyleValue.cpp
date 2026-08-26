@@ -15,8 +15,6 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
-#include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -236,19 +234,7 @@ Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap(DOM::Document
     auto image_data = this->image_data(document);
     if (!image_data)
         return {};
-
-    if (!is<HTML::BitmapDecodedImageData>(*image_data) && !is<HTML::AnimatedBitmapDecodedImageData>(*image_data))
-        return {};
-
-    auto decoded_frame = image_data->current_frame();
-    if (!decoded_frame.has_value())
-        return {};
-
-    auto const& bitmap = decoded_frame->bitmap();
-    if (bitmap.width() == 1 && bitmap.height() == 1)
-        return bitmap.get_pixel(0, 0);
-
-    return {};
+    return image_data->color_if_single_pixel_bitmap();
 }
 
 void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
