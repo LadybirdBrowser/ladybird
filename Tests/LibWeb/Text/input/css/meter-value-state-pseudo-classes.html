@@ -21,5 +21,9 @@
         println("after value=90 color: " + getComputedStyle(meter).color);
         meter.value = 10;
         println("after value=10 background-color: " + getComputedStyle(meter).backgroundColor);
+
+        meter.value = 50;
+        meter.setAttribute("value", "90");
+        println("after setAttribute(value) color: " + getComputedStyle(meter).color);
     });
 </script>
