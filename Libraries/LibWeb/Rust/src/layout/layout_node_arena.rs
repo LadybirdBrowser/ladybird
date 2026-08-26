@@ -15,7 +15,7 @@ use crate::layout::LayoutMode;
 use crate::layout::SizeConstraint;
 use crate::layout::UsedValues;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::tree_mutation::{DetachedShell, DetachedShells, OwnedLayoutNode};
+use crate::layout::tree_mutation::{DetachedShell, DetachedShells};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -2132,61 +2132,6 @@ pub unsafe extern "C" fn layout_arena_bump_fragment_cache_epoch_of_self_and_ance
     abort_on_panic(|| {
         // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
         unsafe { LayoutNodeArena::from_handle(arena) }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-    });
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `parent`, `child`, and a
-/// valid `before` must name live nodes in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_attach_child(
-    arena: *mut c_void,
-    parent: NodeSlotId,
-    child: NodeSlotId,
-    before: NodeSlotId,
-) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller leaked one reference on the child before this call.
-        let child = unsafe { OwnedLayoutNode::adopt_created(child) };
-        // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all
-        // access on the document thread.
-        unsafe { LayoutNodeArena::from_handle(arena) }.attach_child(parent, child, before);
-    });
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `parent` and `child` must
-/// name live nodes in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_detach_child(arena: *mut c_void, parent: NodeSlotId, child: NodeSlotId) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ wrapper keeps the arena alive for this call; the borrow ends before
-        // the release below re-enters the arena.
-        let detached = unsafe { LayoutNodeArena::from_handle(arena) }.detach_child(parent, child);
-        detached.release();
-    });
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `parent`, `old_child`, and
-/// `new_child` must name live nodes in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_replace_child(
-    arena: *mut c_void,
-    parent: NodeSlotId,
-    old_child: NodeSlotId,
-    new_child: NodeSlotId,
-) {
-    abort_on_panic(|| {
-        // SAFETY: The C++ caller leaked one reference on the new child before this call.
-        let new_child = unsafe { OwnedLayoutNode::adopt_created(new_child) };
-        // SAFETY: The C++ wrapper keeps the arena alive for this call; the borrow ends before
-        // the release below re-enters the arena.
-        let detached = unsafe { LayoutNodeArena::from_handle(arena) }.replace_child(parent, old_child, new_child);
-        detached.release();
     });
 }
 
