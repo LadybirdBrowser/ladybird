@@ -6,3 +6,5 @@ details connected before style: false
 details after style: true
 meter connected before style: false
 meter after style: true
+progress connected before style: false
+progress after style: true

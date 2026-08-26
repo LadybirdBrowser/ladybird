@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        for (const tagName of ["input", "textarea", "details", "meter"]) {
+        for (const tagName of ["input", "textarea", "details", "meter", "progress"]) {
             const element = document.createElement(tagName);
             document.body.appendChild(element);
             println(`${tagName} connected before style: ${internals.hasShadowRoot(element)}`);
