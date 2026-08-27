@@ -5,13 +5,13 @@ AccumulatedVisualContext Tree:
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
           [s3] transform=[1,0,0,1,1,0] origin=(0,0) (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
   frames:
-    [f0 in s1] clip=[8,8 100x100] (SVGSVGPaintable(SVGSVGBox<svg>))
-      [f1 in s3] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
-        [f2 in s3] clip=[0,0 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[8,8 100x100] (SVGSVGPaintable(SVGSVGBox<svg>))
+        [f2 in s3] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+          [f3 in s3] clip=[0,0 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s3/f2 rect=[0,0 100x100] color=rgb(0, 0, 0)
-Restore@s0
-MaskDisplayList for frame f1:
+FillRect@s3/f3 rect=[0,0 100x100] color=rgb(0, 0, 0)
+MaskDisplayList for frame f2:
   FillPath@s0 path_bounding_rect=[0,0 100x100]
+

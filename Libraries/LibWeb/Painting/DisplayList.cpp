@@ -383,6 +383,8 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         for (auto const& run : command_runs)
             execute_run(run);
     } else {
+        auto root_isolation_frame = visual_context_tree.root_isolation_frame();
+        size_t const plane_clip_base_length = root_isolation_frame.has_value() ? 1 : 0;
         for (auto const& step : build_depth_sorted_replay_plan(command_runs, visual_context_tree, transform_palette, draw_space, backface_culled)) {
             step.visit(
                 [&](ReadonlySpan<DisplayListCommandRun> runs) {
@@ -390,7 +392,9 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
                         execute_run(run);
                 },
                 [&](PushPlaneClip const& clip) {
-                    restore_to_length(0);
+                    if (root_isolation_frame.has_value())
+                        switch_to_context(ContextRef { visual_context_tree.frame_node_at(*root_isolation_frame).spatial, *root_isolation_frame });
+                    restore_to_length(plane_clip_base_length);
                     Gfx::Path path;
                     path.move_to({ clip.vertices[0].x(), clip.vertices[0].y() });
                     for (size_t i = 1; i < clip.vertices.size(); ++i)
@@ -400,7 +404,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
                     current_ctm_space = {};
                 },
                 [&](PopPlaneClip const&) {
-                    restore_to_length(0);
+                    restore_to_length(plane_clip_base_length);
                     pop();
                     current_ctm_space = {};
                 });

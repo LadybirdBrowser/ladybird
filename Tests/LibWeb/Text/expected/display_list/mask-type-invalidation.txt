@@ -5,18 +5,17 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
   frames:
-    [f0 in s1] clip=[8,8 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
-      [f1 in s2] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[8,8 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
+        [f2 in s2] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
-SaveLayer@s0
-  FillPath@s2/f1 path_bounding_rect=[0,0 100x100]
-Restore@s0
-MaskDisplayList for frame f1:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
+FillPath@s2/f2 path_bounding_rect=[0,0 100x100]
 MaskDisplayList for frame f2:
   FillPath@s0 path_bounding_rect=[0,0 100x50]
 MaskDisplayList for frame f3:
+  FillPath@s0 path_bounding_rect=[0,0 100x50]
+MaskDisplayList for frame f4:
   FillPath@s0 path_bounding_rect=[0,0 100x50]
 
 After switching to mask-type luminance:
@@ -26,16 +25,16 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
   frames:
-    [f0 in s1] clip=[8,8 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
-      [f1 in s2] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[8,8 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
+        [f2 in s2] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
-SaveLayer@s0
-  FillPath@s2/f1 path_bounding_rect=[0,0 100x100]
-Restore@s0
-MaskDisplayList for frame f1:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
+FillPath@s2/f2 path_bounding_rect=[0,0 100x100]
 MaskDisplayList for frame f2:
   FillPath@s0 path_bounding_rect=[0,0 100x50]
 MaskDisplayList for frame f3:
   FillPath@s0 path_bounding_rect=[0,0 100x50]
+MaskDisplayList for frame f4:
+  FillPath@s0 path_bounding_rect=[0,0 100x50]
+

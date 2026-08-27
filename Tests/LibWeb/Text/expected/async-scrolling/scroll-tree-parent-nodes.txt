@@ -10,19 +10,19 @@ AccumulatedVisualContext Tree:
         [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x100] scrollport_size=[800x600] containing_block_region=[0,0 800x2100] needs_parent_offset_adjustment=true insets=[top=0] (PaintableWithLines(BlockContainer<DIV>#sticky))
           [s3] scroll (PaintableWithLines(BlockContainer<DIV>#scroller))
   frames:
-    [f0 in s2] clip=[0,0 100x100] (PaintableWithLines(BlockContainer<DIV>#scroller))
+    [f0 in s0] effects=[]
+      [f1 in s2] clip=[0,0 100x100] (PaintableWithLines(BlockContainer<DIV>#scroller))
 
 DisplayList:
-SaveLayer@s0
-  CompositorWheelHitTestTarget@s0 target_scroll_node_index=s1 rect=[0,0 800x600]
-  CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1513] is_viewport=true
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s1 rect=[0,0 800x2113]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s1 rect=[0,0 800x2100]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s1 rect=[0,100 800x2000]
-  CompositorWheelHitTestTarget@s2 target_scroll_node_index=s1 rect=[0,0 800x100]
-  CompositorWheelHitTestTarget@s2 target_scroll_node_index=s3 rect=[0,0 100x100]
-  CompositorScrollNode@s2 scroll_node_index=s3 parent_scroll_node_index=s1 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[400,400] is_viewport=false
-  CompositorWheelHitTestTarget@s3/f0 target_scroll_node_index=s3 rect=[0,0 500x500]
-  PaintScrollBar@s2
-  PaintScrollBar@s2
-Restore@s0
+CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s1 rect=[0,0 800x600]
+CompositorScrollNode@s0/f0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1513] is_viewport=true
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s1 rect=[0,0 800x2113]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s1 rect=[0,0 800x2100]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s1 rect=[0,100 800x2000]
+CompositorWheelHitTestTarget@s2/f0 target_scroll_node_index=s1 rect=[0,0 800x100]
+CompositorWheelHitTestTarget@s2/f0 target_scroll_node_index=s3 rect=[0,0 100x100]
+CompositorScrollNode@s2/f0 scroll_node_index=s3 parent_scroll_node_index=s1 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[400,400] is_viewport=false
+CompositorWheelHitTestTarget@s3/f1 target_scroll_node_index=s3 rect=[0,0 500x500]
+PaintScrollBar@s2/f0
+PaintScrollBar@s2/f0
+

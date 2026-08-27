@@ -5,13 +5,13 @@ AccumulatedVisualContext Tree:
         [s3] scroll (PaintableWithLines(BlockContainer<DIV>.clipped))
         [s2] transform=[1,0,0,1,5,5] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>.transformed))
   frames:
-    [f0 in s1] clip=[119,9 100x100] (PaintableWithLines(BlockContainer<DIV>.clipped))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[119,9 100x100] (PaintableWithLines(BlockContainer<DIV>.clipped))
 
 DisplayList:
-SaveLayer@s0
-  FillPath@s1 path_bounding_rect=[118,8 102x102]
-  FillRect@s3/f0 rect=[119,9 150x150] color=rgb(173, 216, 230)
-  DrawGlyphRun@s3/f0 rect=[119,9 55x16] translation=[119,21.796875] color=rgb(0, 0, 0)
-  FillRect@s2 rect=[8,8 100x100] color=rgb(255, 127, 80)
-  DrawGlyphRun@s2 rect=[8,8 88x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-Restore@s0
+FillPath@s1/f0 path_bounding_rect=[118,8 102x102]
+FillRect@s3/f1 rect=[119,9 150x150] color=rgb(173, 216, 230)
+DrawGlyphRun@s3/f1 rect=[119,9 55x16] translation=[119,21.796875] color=rgb(0, 0, 0)
+FillRect@s2/f0 rect=[8,8 100x100] color=rgb(255, 127, 80)
+DrawGlyphRun@s2/f0 rect=[8,8 88x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+

@@ -11,10 +11,10 @@ AccumulatedVisualContext Tree:
         [s2] transform=[1,0,0,1,100,0] origin=(20,20) (PaintableWithLines(BlockContainer<DIV>#transformed))
         [s3] scroll (PaintableWithLines(BlockContainer<DIV>#clip))
   frames:
-    [f0 in s1] clip=[20,160 100x100] (PaintableWithLines(BlockContainer<DIV>#clip))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[20,160 100x100] (PaintableWithLines(BlockContainer<DIV>#clip))
 
 DisplayList:
-SaveLayer@s0
-  CompositorBlockingWheelEventRegion@s2 rect=[20,20 100x100]
-  CompositorBlockingWheelEventRegion@s3/f0 rect=[20,160 200x100]
-Restore@s0
+CompositorBlockingWheelEventRegion@s2/f0 rect=[20,20 100x100]
+CompositorBlockingWheelEventRegion@s3/f1 rect=[20,160 200x100]
+

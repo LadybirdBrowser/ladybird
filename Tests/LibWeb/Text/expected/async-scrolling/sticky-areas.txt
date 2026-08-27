@@ -12,9 +12,10 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
         [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x2016] needs_parent_offset_adjustment=true insets=[top=0] (PaintableWithLines(BlockContainer<DIV>#outer))
           [s3] sticky scroller=s1 parent_sticky=s2 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true insets=[top=20] (PaintableWithLines(BlockContainer<DIV>#inner))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1429] is_viewport=true
-  DrawGlyphRun@s3 rect=[0,0 45x16] translation=[0,12.796875] color=rgb(0, 0, 0)
-Restore@s0
+CompositorScrollNode@s0/f0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1429] is_viewport=true
+DrawGlyphRun@s3/f0 rect=[0,0 45x16] translation=[0,12.796875] color=rgb(0, 0, 0)
+

@@ -214,6 +214,12 @@ public:
     ReadonlySpan<SpatialNode> spatial_nodes() const { return m_spatial_nodes.span(); }
     ReadonlySpan<FrameNode> frame_nodes() const { return m_frame_nodes.span(); }
     bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
+    Optional<FrameNodeIndex> root_isolation_frame() const { return m_root_isolation_frame; }
+    void set_root_isolation_frame(FrameNodeIndex frame)
+    {
+        VERIFY(frame.value() < m_frame_nodes.size());
+        m_root_isolation_frame = frame;
+    }
 
     SortingContexts resolve_sorting_contexts() const;
     Optional<float> plane_depth_at_point_for_hit_test(SpatialNodeIndex plane_node_index, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
@@ -240,6 +246,7 @@ private:
     Vector<SpatialNode> m_spatial_nodes;
     Vector<FrameNode> m_frame_nodes;
     bool m_root_is_visual_viewport { true };
+    Optional<FrameNodeIndex> m_root_isolation_frame;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);

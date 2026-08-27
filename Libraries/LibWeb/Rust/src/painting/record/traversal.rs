@@ -149,9 +149,7 @@ pub(crate) fn record_display_list(
     recorder.recorder.fill_rect(inputs.bitmap_rect, inputs.background_color);
     recorder.prerecord_nested_display_lists();
     if !stacking_contexts.nodes.is_empty() {
-        recorder.recorder.save_layer();
         recorder.paint_stacking_context(0);
-        recorder.recorder.restore();
     }
     crate::painting::record::paint::inspector_overlay::record_inspector_overlays(&mut recorder);
     let mask_display_lists = recorder.recorder.take_mask_display_lists();

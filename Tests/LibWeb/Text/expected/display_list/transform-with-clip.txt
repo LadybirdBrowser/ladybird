@@ -5,11 +5,11 @@ AccumulatedVisualContext Tree:
         [s2] scroll (PaintableWithLines(BlockContainer<DIV>.container))
           [s3] transform=[1,0,0,1,20,20] origin=(110,110) (PaintableWithLines(BlockContainer<DIV>.transformed))
   frames:
-    [f0 in s1] clip=[10,10 150x150] (PaintableWithLines(BlockContainer<DIV>.container))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[10,10 150x150] (PaintableWithLines(BlockContainer<DIV>.container))
 
 DisplayList:
-SaveLayer@s0
-  FillPath@s1 path_bounding_rect=[8,8 154x154]
-  FillRect@s3/f0 rect=[10,10 200x200] color=rgb(144, 238, 144)
-  DrawGlyphRun@s3/f0 rect=[10,10 185x16] translation=[10,22.796875] color=rgb(0, 0, 0)
-Restore@s0
+FillPath@s1/f0 path_bounding_rect=[8,8 154x154]
+FillRect@s3/f1 rect=[10,10 200x200] color=rgb(144, 238, 144)
+DrawGlyphRun@s3/f1 rect=[10,10 185x16] translation=[10,22.796875] color=rgb(0, 0, 0)
+

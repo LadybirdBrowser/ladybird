@@ -5,22 +5,22 @@ AccumulatedVisualContext Tree:
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
           [s3] scroll (PaintableWithLines(BlockContainer<DIV>#scroller))
   frames:
-    [f0 in s1] clip=[8,8 100x100] (SVGSVGPaintable(SVGSVGBox<svg>))
-      [f1 in s2] clip=[0,0 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>))
-        [f2 in s2] clip=[0,0 80x80] (PaintableWithLines(BlockContainer<DIV>#scroller))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[8,8 100x100] (SVGSVGPaintable(SVGSVGBox<svg>))
+        [f2 in s2] clip=[0,0 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>))
+          [f3 in s2] clip=[0,0 80x80] (PaintableWithLines(BlockContainer<DIV>#scroller))
 
 DisplayList:
-SaveLayer@s0
-  CompositorWheelHitTestTarget@s0 target_scroll_node_index=s0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s0 rect=[0,0 800x121]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s0 rect=[8,8 784x100]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s0 rect=[8,8 784x100]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s0 rect=[8,8 100x100]
-  StrokePath@s2/f0 path_bounding_rect=[9.5,9.5 81x81] thickness=1 color=rgb(0, 0, 0)
-  CompositorWheelHitTestTarget@s2/f0 target_scroll_node_index=s0 rect=[0,0 100x100]
-  CompositorWheelHitTestTarget@s2/f1 target_scroll_node_index=s3 rect=[0,0 80x80]
-  CompositorScrollNode@s2/f1 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,0 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
-  CompositorWheelHitTestTarget@s3/f2 target_scroll_node_index=s3 rect=[0,0 80x300]
-  FillRect@s3/f2 rect=[0,0 80x300] color=rgb(0, 0, 0)
-  PaintScrollBar@s2/f1
-Restore@s0
+CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s0 rect=[0,0 800x600]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s0 rect=[0,0 800x121]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s0 rect=[8,8 784x100]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s0 rect=[8,8 784x100]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s0 rect=[8,8 100x100]
+StrokePath@s2/f1 path_bounding_rect=[9.5,9.5 81x81] thickness=1 color=rgb(0, 0, 0)
+CompositorWheelHitTestTarget@s2/f1 target_scroll_node_index=s0 rect=[0,0 100x100]
+CompositorWheelHitTestTarget@s2/f2 target_scroll_node_index=s3 rect=[0,0 80x80]
+CompositorScrollNode@s2/f2 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,0 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
+CompositorWheelHitTestTarget@s3/f3 target_scroll_node_index=s3 rect=[0,0 80x300]
+FillRect@s3/f3 rect=[0,0 80x300] color=rgb(0, 0, 0)
+PaintScrollBar@s2/f2
+

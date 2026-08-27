@@ -127,6 +127,20 @@ TEST_CASE(a_fractional_clip_rect_contains_points_by_float_containment)
     EXPECT(tree.transform_point_for_hit_test(context, { 10.75f, 15 }, scroll_state).has_value());
 }
 
+TEST_CASE(compatibility_requires_same_root_isolation_frame)
+{
+    auto isolated = AccumulatedVisualContextTree::create();
+    isolated.set_root_isolation_frame(isolated.append_frame(EffectsData {}, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX));
+
+    auto not_isolated = AccumulatedVisualContextTree::create();
+    not_isolated.append_frame(EffectsData {}, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX);
+    EXPECT(!isolated.is_compatible_with(not_isolated));
+
+    auto also_isolated = AccumulatedVisualContextTree::create();
+    also_isolated.set_root_isolation_frame(also_isolated.append_frame(EffectsData {}, NO_FRAME_NODE, VISUAL_VIEWPORT_NODE_INDEX));
+    EXPECT(isolated.is_compatible_with(also_isolated));
+}
+
 TEST_CASE(compatibility_requires_same_visual_context_types)
 {
     auto clip_tree = AccumulatedVisualContextTree::create();

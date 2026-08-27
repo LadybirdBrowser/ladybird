@@ -4,11 +4,11 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
         [s2] transform=[1,0,0,1,10,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>#box))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s2 rect=[8,8 100x100] color=rgb(0, 128, 0)
-Restore@s0
+FillRect@s2/f0 rect=[8,8 100x100] color=rgb(0, 128, 0)
 
 After animation update:
 AccumulatedVisualContext Tree:
@@ -16,8 +16,9 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
         [s2] transform=[1,0,0,1,15,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>#box))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s2 rect=[8,8 100x100] color=rgb(0, 128, 0)
-Restore@s0
+FillRect@s2/f0 rect=[8,8 100x100] color=rgb(0, 128, 0)
+
