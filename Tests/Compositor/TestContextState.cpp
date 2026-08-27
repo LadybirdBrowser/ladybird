@@ -17,6 +17,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWebView/PausedDebuggerOverlay.h>
+#include <Tests/LibWeb/DisplayListTestHelpers.h>
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
@@ -55,36 +56,20 @@ static bool spin_event_loop_until(Core::EventLoop& event_loop, int timeout_in_mi
     return !timed_out;
 }
 
-template<Web::Painting::DisplayListCommand Command>
-static void append_display_list_command(ByteBuffer& command_bytes, Command const& command, Optional<Gfx::IntRect> bounding_rect = {})
-{
-    auto payload = Web::Painting::display_list_object_bytes(command);
-    auto record_size = sizeof(Web::Painting::DisplayListCommandHeader) + payload.size();
-    auto payload_size = align_up_to(record_size, Web::Painting::DisplayList::command_alignment) - sizeof(Web::Painting::DisplayListCommandHeader);
-    Web::Painting::DisplayListCommandHeader header {
-        .command_type = Command::command_type,
-        .has_bounding_rect = bounding_rect.has_value(),
-        .is_clip = false,
-        .payload_size = static_cast<u32>(payload_size),
-        .context = {},
-        .bounding_rect = bounding_rect.value_or({}),
-    };
-    command_bytes.append(Web::Painting::display_list_object_bytes(header));
-    command_bytes.append(payload);
-    // Pad the record so the next command begins at an aligned offset.
-    command_bytes.resize(align_up_to(command_bytes.size(), Web::Painting::DisplayList::command_alignment), ByteBuffer::ZeroFillNewElements::Yes);
-}
-
+// Round-trips a freshly built display list through the IPC encoder, so the context receives it
+// the way the compositor process would.
 static NonnullRefPtr<Web::Painting::DisplayList> decode_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer command_bytes, Optional<Gfx::Color> surface_clear_color = {}, Optional<Web::Painting::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
 {
+    auto command_runs = Web::Painting::compute_display_list_command_runs(command_bytes);
+    auto display_list = Web::Painting::DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
+    if (surface_clear_color.has_value())
+        display_list->set_surface_clear_color(*surface_clear_color);
+    if (async_scrolling_metadata.has_value())
+        display_list->set_async_scrolling_metadata(*async_scrolling_metadata);
+
     IPC::MessageBuffer buffer;
     IPC::Encoder encoder { buffer };
-    MUST(encoder.encode(static_cast<u64>(1)));
-    MUST(encoder.encode(command_bytes));
-    MUST(encoder.encode(visual_context_tree.version()));
-    MUST(encoder.encode(surface_clear_color));
-    MUST(encoder.encode(async_scrolling_metadata));
-    MUST(encoder.encode(HashMap<Web::Painting::FrameNodeIndex, Web::Painting::DisplayListResourceId> {}));
+    MUST(encoder.encode(*display_list));
 
     FixedMemoryStream stream { buffer.data().span() };
     Queue<IPC::Attachment> attachments;

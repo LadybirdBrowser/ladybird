@@ -367,9 +367,10 @@ impl PaintRecorder<'_> {
             .nested_tree
             .take()
             .expect("CSS mask recording has a visual context tree");
-        let bytes = session.recorder.into_builder().into_bytes();
+        let recorded = session.recorder.into_builder().finish();
         let tree_handle = self.paint_host.materialize_visual_context_tree(&tree);
-        self.paint_host.nested_display_list_from_tree(&bytes, tree_handle, &[])
+        self.paint_host
+            .nested_display_list_from_tree(&recorded, tree_handle, &[])
     }
 
     pub(crate) fn record_nested_svg_display_list(
@@ -401,9 +402,9 @@ impl PaintRecorder<'_> {
         let tree = session.nested_tree.take().expect("nested tree");
         let nested_recorder = session.recorder;
         let mask_display_lists = nested_recorder.mask_display_lists().to_vec();
-        let bytes = nested_recorder.into_builder().into_bytes();
+        let recorded = nested_recorder.into_builder().finish();
         let tree_handle = self.paint_host.materialize_visual_context_tree(&tree);
         self.paint_host
-            .nested_display_list_from_tree(&bytes, tree_handle, &mask_display_lists)
+            .nested_display_list_from_tree(&recorded, tree_handle, &mask_display_lists)
     }
 }

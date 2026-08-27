@@ -7,7 +7,10 @@
 use super::*;
 
 use crate::layout::used_values;
-use crate::painting::display_list::commands::{DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
+use crate::painting::display_list::builder::RecordedDisplayList;
+use crate::painting::display_list::commands::{
+    DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex,
+};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use libgfx_rust::{
     AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
@@ -332,6 +335,39 @@ pub struct FfiStackingContextNodeExport {
     pub effective_z_index: i32,
 }
 
+// A recording lent to C++ for the duration of one call. An empty Vec's pointer is dangling, so
+// the C++ side never dereferences a pointer whose count is zero.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiRecordedDisplayList {
+    pub bytes: *const u8,
+    pub byte_count: usize,
+    pub command_runs: *const DisplayListCommandRun,
+    pub command_run_count: usize,
+}
+
+impl FfiRecordedDisplayList {
+    pub const fn empty() -> Self {
+        Self {
+            bytes: std::ptr::null(),
+            byte_count: 0,
+            command_runs: std::ptr::null(),
+            command_run_count: 0,
+        }
+    }
+}
+
+impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
+    fn from(recorded: &RecordedDisplayList) -> Self {
+        Self {
+            bytes: recorded.bytes.as_ptr(),
+            byte_count: recorded.bytes.len(),
+            command_runs: recorded.command_runs.as_ptr(),
+            command_run_count: recorded.command_runs.len(),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiPaintTreeDumpEntry {
@@ -376,7 +412,7 @@ pub struct FfiPaintHostCallbacks {
     pub replaced_image_paint:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
     pub backdrop_filter_bytes: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
-    pub nested_display_list_from_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, IntPoint) -> u64,
+    pub nested_display_list_from_bytes: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, IntPoint) -> u64,
     pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
@@ -388,7 +424,7 @@ pub struct FfiPaintHostCallbacks {
     pub accumulated_2d_scale: unsafe extern "C" fn(*mut c_void, *const c_void, SpatialNodeIndex) -> FloatSize,
     pub materialize_visual_context_tree: unsafe extern "C" fn(*mut c_void, *const c_void) -> *mut c_void,
     pub nested_display_list_from_tree:
-        unsafe extern "C" fn(*mut c_void, *const u8, usize, *mut c_void, *const u64, usize) -> u64,
+        unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *mut c_void, *const u64, usize) -> u64,
     pub overlay_label: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
@@ -565,12 +601,11 @@ impl FfiPaintHostCallbacks {
     }
     pub(crate) fn nested_display_list_from_bytes(
         &self,
-        bytes: &[u8],
+        recorded: &RecordedDisplayList,
         content_offset: libgfx_rust::IntPoint,
     ) -> DisplayListResourceId {
-        // SAFETY: The C++ host copies the bytes synchronously.
-        let id =
-            unsafe { (self.nested_display_list_from_bytes)(self.context, bytes.as_ptr(), bytes.len(), content_offset) };
+        // SAFETY: The C++ host copies the recording synchronously.
+        let id = unsafe { (self.nested_display_list_from_bytes)(self.context, recorded.into(), content_offset) };
         DisplayListResourceId(id)
     }
     pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
@@ -614,7 +649,7 @@ impl FfiPaintHostCallbacks {
     }
     pub(crate) fn nested_display_list_from_tree(
         &self,
-        bytes: &[u8],
+        recorded: &RecordedDisplayList,
         tree_handle: *mut c_void,
         mask_registrations: &[(FrameNodeIndex, DisplayListResourceId)],
     ) -> DisplayListResourceId {
@@ -622,12 +657,11 @@ impl FfiPaintHostCallbacks {
             .iter()
             .flat_map(|(frame, id)| [u64::from(frame.0), id.0])
             .collect();
-        // SAFETY: The C++ host copies the bytes and consumes the tree synchronously.
+        // SAFETY: The C++ host copies the recording and consumes the tree synchronously.
         let id = unsafe {
             (self.nested_display_list_from_tree)(
                 self.context,
-                bytes.as_ptr(),
-                bytes.len(),
+                recorded.into(),
                 tree_handle,
                 pairs.as_ptr(),
                 mask_registrations.len(),

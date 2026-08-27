@@ -12,6 +12,7 @@ use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::used_values::FfiCssPixelSize;
 use crate::layout::{grid_formatting_context, svg_formatting_context, used_values};
+use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use std::ffi::c_void;
@@ -1205,7 +1206,7 @@ pub struct FfiImagePaintRecordInputs {
 pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     inputs: *const FfiImagePaintRecordInputs,
     context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    consume: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList),
 ) {
     use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
     use crate::painting::display_list::recorder::{
@@ -1295,8 +1296,8 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                 );
             }
         }
-        let bytes = recorder.into_builder().into_bytes();
-        unsafe { consume(context, bytes.as_ptr(), bytes.len()) };
+        let recorded = recorder.into_builder().finish();
+        unsafe { consume(context, (&recorded).into()) };
     });
 }
 
@@ -2595,20 +2596,19 @@ pub unsafe extern "C" fn layout_arena_paint_push_bytes(sink: *mut c_void, bytes:
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
+/// returned pointers borrow the last recording and stay valid until the next one replaces it.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_display_list_bytes(arena: *mut c_void, out_length: *mut usize) -> *const u8 {
+pub unsafe extern "C" fn layout_arena_recorded_display_list(arena: *mut c_void) -> FfiRecordedDisplayList {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paint_state = arena.paint_state().borrow();
-        let Some(recording) = &paint_state.last_recording else {
-            // SAFETY: out_length is a live pointer for this synchronous call.
-            unsafe { *out_length = 0 };
-            return std::ptr::null();
-        };
-        // SAFETY: as above.
-        unsafe { *out_length = recording.display_list.bytes.len() };
-        recording.display_list.bytes.as_ptr()
+        paint_state
+            .last_recording
+            .as_ref()
+            .map_or_else(FfiRecordedDisplayList::empty, |recording| {
+                (&recording.display_list).into()
+            })
     })
 }
 

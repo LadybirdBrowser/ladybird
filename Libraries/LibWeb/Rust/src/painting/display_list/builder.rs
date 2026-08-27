@@ -54,10 +54,6 @@ impl DisplayListBuilder {
         &self.runs
     }
 
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.bytes
-    }
-
     pub fn finish(self) -> RecordedDisplayList {
         RecordedDisplayList {
             bytes: self.bytes,

@@ -903,6 +903,14 @@ static void write_image_paint_facts(ImagePaint const& paint, PaintHostContext& c
         [](auto const&) { VERIFY_NOT_REACHED(); });
 }
 
+static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVisualContextTree const& visual_context_tree, Layout::RustFFI::FfiRecordedDisplayList const& recorded)
+{
+    VERIFY(recorded.byte_count % DisplayList::command_alignment == 0);
+    auto command_bytes = MUST(ByteBuffer::copy(recorded.bytes, recorded.byte_count));
+    Vector<DisplayListCommandRun> command_runs { ReadonlySpan<DisplayListCommandRun> { recorded.command_runs, recorded.command_run_count } };
+    return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
+}
+
 Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& context)
 {
     return {
@@ -1234,11 +1242,10 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             Layout::RustFFI::layout_arena_paint_push_bytes(sink, filter_data.data(), filter_data.size());
             return true;
         },
-        .nested_display_list_from_bytes = [](void* context_pointer, u8 const* bytes, size_t length, Gfx::IntPoint content_offset) -> u64 {
+        .nested_display_list_from_bytes = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, Gfx::IntPoint content_offset) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset(content_offset);
-            auto command_bytes = MUST(ByteBuffer::copy(bytes, length));
-            auto display_list = DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes));
+            auto display_list = display_list_from_rust_recording(visual_context_tree, recorded);
             return context.resource_storage.add_display_list(move(display_list), visual_context_tree).value();
         },
         .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
@@ -1319,11 +1326,10 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         .materialize_visual_context_tree = [](void*, void const* tree) -> void* {
             return new AccumulatedVisualContextTree(materialize_rust_visual_context_tree(tree));
         },
-        .nested_display_list_from_tree = [](void* context_pointer, u8 const* bytes, size_t length, void* tree_handle, u64 const* mask_pairs, size_t mask_pair_count) -> u64 {
+        .nested_display_list_from_tree = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, void* tree_handle, u64 const* mask_pairs, size_t mask_pair_count) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             OwnPtr<AccumulatedVisualContextTree> visual_context_tree = adopt_own(*static_cast<AccumulatedVisualContextTree*>(tree_handle));
-            auto command_bytes = MUST(ByteBuffer::copy(bytes, length));
-            auto display_list = DisplayList::create_from_command_bytes(*visual_context_tree, move(command_bytes));
+            auto display_list = display_list_from_rust_recording(*visual_context_tree, recorded);
             for (size_t i = 0; i < mask_pair_count; ++i)
                 display_list->set_mask_display_list_id(FrameNodeIndex { static_cast<u32>(mask_pairs[i * 2]) }, DisplayListResourceId { mask_pairs[i * 2 + 1] });
             return context.resource_storage.add_display_list(move(display_list), *visual_context_tree).value();
@@ -1461,14 +1467,11 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
 
-    size_t rust_length = 0;
-    auto const* rust_bytes = Layout::RustFFI::layout_arena_display_list_bytes(arena, &rust_length);
+    auto recorded = Layout::RustFFI::layout_arena_recorded_display_list(arena);
     if (rust_painting_timing_enabled())
-        dbgln("PAINT_RECORD rust={} µs commands={} bytes spliced={} captures", rust_timer.elapsed_time().to_microseconds(), rust_length, Layout::RustFFI::layout_arena_last_recording_spliced_capture_count(arena));
+        dbgln("PAINT_RECORD rust={} µs commands={} bytes spliced={} captures", rust_timer.elapsed_time().to_microseconds(), recorded.byte_count, Layout::RustFFI::layout_arena_last_recording_spliced_capture_count(arena));
 
-    VERIFY(rust_length % DisplayList::command_alignment == 0);
-    auto command_bytes = MUST(ByteBuffer::copy(rust_bytes, rust_length));
-    auto display_list = DisplayList::create_from_command_bytes(document.visual_context_tree(), move(command_bytes));
+    auto display_list = display_list_from_rust_recording(document.visual_context_tree(), recorded);
     auto registration_count = Layout::RustFFI::layout_arena_display_list_mask_registration_count(arena);
     for (size_t i = 0; i < registration_count; ++i) {
         FrameNodeIndex frame;
@@ -1535,12 +1538,16 @@ NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& pai
             write_color_stops(gradient.data.color_stops);
             inputs.interpolation_method = gradient.data.interpolation_method;
         });
-    ByteBuffer command_bytes;
-    Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &command_bytes,
-        [](void* context, u8 const* bytes, size_t length) {
-            *static_cast<ByteBuffer*>(context) = MUST(ByteBuffer::copy(bytes, length));
+    struct ImagePaintRecordingContext {
+        AccumulatedVisualContextTree const& visual_context_tree;
+        RefPtr<DisplayList> display_list;
+    } recording_context { visual_context_tree, {} };
+    Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recording_context,
+        [](void* context, Layout::RustFFI::FfiRecordedDisplayList recorded) {
+            auto& recording_context = *static_cast<ImagePaintRecordingContext*>(context);
+            recording_context.display_list = display_list_from_rust_recording(recording_context.visual_context_tree, recorded);
         });
-    return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes));
+    return recording_context.display_list.release_nonnull();
 }
 
 }
