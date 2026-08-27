@@ -349,11 +349,9 @@ void SVGElement::children_changed(ChildrenChangedMetadata const& metadata)
 
 void SVGElement::update_use_elements_that_reference_this()
 {
-    if (is<SVGUseElement>(this)
+    if (
         // If this element is in a shadow root, it already represents a clone and is not itself referenced.
-        || is<DOM::ShadowRoot>(this->root())
-        // If this does not have an id it cannot be referenced, no point in notifying use elements.
-        || !id().has_value()
+        is<DOM::ShadowRoot>(this->root())
         // An unconnected node cannot have valid references.
         // This also prevents searches for elements that are in the process of being constructed - as clones.
         || !this->is_connected()) {
