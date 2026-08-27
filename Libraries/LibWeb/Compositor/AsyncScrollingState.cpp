@@ -61,7 +61,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         async_scrolling_state.has_blocking_wheel_event_region_covering_viewport = metadata->has_blocking_wheel_event_region_covering_viewport;
     }
 
-    display_list.for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+    auto read_compositor_metadata = [&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         auto append_wheel_hit_test_target = [&](auto const& command, Gfx::CornerRadii corner_radii) {
             async_scrolling_state.wheel_hit_test_targets.append({
                 .context = header.context,
@@ -141,7 +141,12 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         default:
             break;
         }
-    });
+    };
+    for (auto const& run : display_list.command_runs()) {
+        if (!run.has_compositor_metadata)
+            continue;
+        Painting::DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), read_compositor_metadata);
+    }
 
     VERIFY(parent_scroll_node_indices.size() == async_scrolling_state.scroll_nodes.size());
     for (size_t i = 0; i < async_scrolling_state.scroll_nodes.size(); ++i) {
