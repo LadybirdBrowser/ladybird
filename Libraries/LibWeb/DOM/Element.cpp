@@ -2081,6 +2081,20 @@ void Element::finish_recording_style_custom_property_references()
     }
 }
 
+static bool unregister_current_anchor_names(Element& element, Node& tree_root)
+{
+    auto const* anchor_values = element.style_group<CSS::ComputedValues::AnchorValues>();
+    if (!anchor_values || anchor_values->anchor_names_span().is_empty())
+        return false;
+
+    auto& anchor_names = is<ShadowRoot>(tree_root)
+        ? as<ShadowRoot>(tree_root).anchor_name_map()
+        : element.document().anchor_name_map();
+    for (auto const& name : anchor_values->anchor_names_span())
+        anchor_names.unregister_name(name, element);
+    return true;
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason recompute_reason, u8 inherited_style_groups)
 {
     VERIFY(parent());
@@ -2155,7 +2169,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     // already holds. Nothing derived from the originating style needs to be compared or published
     // again in that case. Pseudo-element declarations are a separate cascade projected from the
     // originating element's matches, so they still have to consume that shared match result.
-    if (style_record_is_unchanged(style_record_delta) && !did_change_custom_properties && !root_font_metrics_changed) {
+    if (old_computed_values && style_record_is_unchanged(style_record_delta) && !did_change_custom_properties && !root_font_metrics_changed) {
         if (recompute_reason == StyleEngineRecomputeReason::PseudoInputsUnchanged
             && !backdrop_style_needs_materialization()
             && style_engine_matches.node != 0
@@ -2285,14 +2299,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         });
     }
 
-    // NB: Elements inside a display:none subtree keep their last computed style without being recomputed, so
-    //     entering the subtree must mark those retained styles as hidden. The caller's typed reactions propagate a
-    //     display reveal to descendants.
+    // NB: Elements inside a display:none subtree are not recomputed, so discard their materialized styles. This
+    //     makes a CSSOM read rematerialize the requested inheritance path, and the caller's typed reactions
+    //     rematerialize all descendants when the subtree becomes visible again.
     auto current_computed_values = computed_style();
     VERIFY(current_computed_values);
     if (old_computed_values && old_computed_values->display().is_none() != current_computed_values->display().is_none()) {
         if (current_computed_values->display().is_none())
-            set_in_display_none_subtree_on_descendant_styles();
+            clear_computed_styles_from_display_none_descendants();
     }
 
     auto const element_style_changed = !invalidation.is_none();
@@ -2326,29 +2340,27 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     return invalidation;
 }
 
-void Element::set_in_display_none_subtree_on_descendant_styles()
+void Element::clear_computed_styles_from_display_none_descendants()
 {
     for_each_shadow_including_descendant([](auto& node) {
         auto* element = as_if<Element>(node);
         if (!element)
             return TraversalDecision::Continue;
-        auto computed_values = element->computed_style();
-        if (!computed_values)
+        if (!element->has_style())
             return TraversalDecision::SkipChildrenAndContinue;
-        if (computed_values->in_display_none_subtree())
-            return TraversalDecision::SkipChildrenAndContinue;
-        CSS::ComputedValues::Builder builder(*computed_values);
-        builder->set_in_display_none_subtree(true);
-        if (computed_values->has_animated_values()) {
-            CSS::ComputedValues::Builder base_values_builder(computed_values->base_values());
-            base_values_builder->set_in_display_none_subtree(true);
-            builder->set_base_values(move(base_values_builder).build());
-        }
-        auto updated_values = move(builder).build();
-        auto publication = element->document().style_computer().publish_computed_style_inputs({ *element }, *updated_values);
-        element->refresh_computed_style({}, publication.new_style_record);
-        element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element_type, SyntheticPseudoElement& pseudo_element) {
-            pseudo_element.set_computed_values_in_display_none_subtree({ *element, pseudo_element_type });
+
+        // Anchor names are registered outside the style record, so unregister them before discarding the only record
+        // that identifies them. Rematerializing the element's style will register its current names again.
+        if (element->is_connected() && unregister_current_anchor_names(*element, element->root()))
+            element->document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
+
+        // The layout tree is torn down after the style transaction. Keep its style alive until then without
+        // retaining the record as the descendant's current computed style.
+        if (auto* layout_node = element->unsafe_layout_node())
+            layout_node->pin_style_record_for_detachment();
+        element->m_style_record_identity = 0;
+        element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+            pseudo_element.clear_computed_style();
         });
         return TraversalDecision::Continue;
     });
@@ -3074,7 +3086,6 @@ void Element::inserted()
 void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
-    auto const* anchor_values = style_group<CSS::ComputedValues::AnchorValues>();
 
     // https://html.spec.whatwg.org/multipage/dom.html#render-blocking-mechanism
     // Whenever a render-blocking element el becomes browsing-context disconnected, unblock rendering on el.
@@ -3089,19 +3100,10 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
             document().element_with_id_was_removed({}, *this);
         if (m_has_name)
             document().element_with_name_was_removed({}, *this);
-        if (anchor_values) {
-            auto& anchor_names = is<ShadowRoot>(old_root)
-                ? as<ShadowRoot>(old_root).anchor_name_map()
-                : document().anchor_name_map();
-            bool element_had_registered_anchor_names = false;
-            for (auto const& name : anchor_values->anchor_names_span()) {
-                element_had_registered_anchor_names = true;
-                anchor_names.unregister_name(name, *this);
-            }
+        if (unregister_current_anchor_names(*this, old_root)) {
             // Positioned boxes anywhere may hold geometry resolved against these names, which
             // the dispatch-time check of the live anchor-name maps can no longer see.
-            if (element_had_registered_anchor_names)
-                document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
+            document().partial_relayout_invalidation().record_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
         }
     }
 

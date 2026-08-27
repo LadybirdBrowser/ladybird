@@ -1,3 +1,3 @@
 initial assignment is retained: true
-display-none propagation republishes the assignment: true
+display-none propagation clears the assignment: true
 returning to the shared style restores its identity: true
