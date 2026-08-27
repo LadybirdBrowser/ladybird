@@ -11,6 +11,7 @@ namespace Web {
 enum class PendingDialog {
     None,
     Alert,
+    BeforeUnload,
     Confirm,
     Prompt,
 };

@@ -110,6 +110,9 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         case Web::PendingDialog::Alert:
             alert_closed();
             break;
+        case Web::PendingDialog::BeforeUnload:
+            before_unload_closed(true);
+            break;
         case Web::PendingDialog::Confirm:
             confirm_closed(true);
             break;
@@ -128,6 +131,9 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
             break;
         case Web::PendingDialog::Alert:
             alert_closed();
+            break;
+        case Web::PendingDialog::BeforeUnload:
+            before_unload_closed(false);
             break;
         case Web::PendingDialog::Confirm:
             confirm_closed(false);

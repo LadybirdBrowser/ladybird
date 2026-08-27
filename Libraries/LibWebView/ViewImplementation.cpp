@@ -2040,6 +2040,11 @@ void ViewImplementation::alert_closed()
     });
 }
 
+void ViewImplementation::before_unload_closed(bool accepted)
+{
+    page().routed_proxy()->async_before_unload_closed(page().id(), accepted);
+}
+
 void ViewImplementation::confirm_closed(bool accepted)
 {
     traversable().for_each_hosting_page([&](WebContentPage& page) {

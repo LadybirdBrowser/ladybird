@@ -266,6 +266,7 @@ private:
 
     virtual void did_open_dialog_in_another_process(Web::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message) override;
     virtual void alert_closed(Web::PageId page_id) override;
+    virtual void before_unload_closed(Web::PageId page_id, bool accepted) override;
     virtual void confirm_closed(Web::PageId page_id, bool accepted) override;
     virtual void prompt_closed(Web::PageId page_id, Optional<Utf16String> response) override;
     virtual void color_picker_update(Web::PageId page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) override;

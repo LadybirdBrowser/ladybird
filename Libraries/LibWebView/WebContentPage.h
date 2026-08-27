@@ -323,6 +323,7 @@ private:
     virtual void did_get_debugger_object_properties(u64 request_id, Optional<String> error, DebuggerObjectProperties properties) override;
     virtual void did_get_debugger_source_positions(u64 request_id, Vector<DebuggerSourcePosition> positions) override;
     virtual void did_request_alert(Utf16String message) override;
+    virtual void did_request_before_unload(String source) override;
     virtual void did_request_confirm(Utf16String message) override;
     virtual void did_request_prompt(Utf16String message, Utf16String default_) override;
     virtual void did_change_favicon(Gfx::ShareableBitmap favicon) override;
