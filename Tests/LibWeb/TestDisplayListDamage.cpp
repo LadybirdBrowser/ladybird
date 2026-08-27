@@ -8,28 +8,15 @@
 #include <LibTest/TestCase.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
+#include <Tests/LibWeb/DisplayListTestHelpers.h>
 
 using namespace Web::Painting;
 
 template<DisplayListCommand Command>
 static ByteBuffer command_bytes(Command const& command, Optional<Gfx::IntRect> bounding_rect = {}, ContextRef context = {})
 {
-    auto payload = display_list_object_bytes(command);
-    auto record_size = sizeof(DisplayListCommandHeader) + payload.size();
-    constexpr size_t command_alignment = 16;
-    auto payload_size = align_up_to(record_size, command_alignment) - sizeof(DisplayListCommandHeader);
-    DisplayListCommandHeader header {
-        .command_type = Command::command_type,
-        .has_bounding_rect = bounding_rect.has_value(),
-        .is_clip = false,
-        .payload_size = static_cast<u32>(payload_size),
-        .context = context,
-        .bounding_rect = bounding_rect.value_or({}),
-    };
     ByteBuffer bytes;
-    bytes.append(display_list_object_bytes(header));
-    bytes.append(payload);
-    bytes.resize(sizeof(header) + payload_size, ByteBuffer::ZeroFillNewElements::Yes);
+    append_display_list_command(bytes, command, bounding_rect, context);
     return bytes;
 }
 

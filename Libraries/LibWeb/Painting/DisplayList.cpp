@@ -5,6 +5,7 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/Debug.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
@@ -23,14 +24,74 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
 {
 }
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists)
     : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(id)
     , m_command_bytes(move(command_bytes))
+    , m_command_runs(move(command_runs))
     , m_surface_clear_color(surface_clear_color)
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
     , m_mask_display_lists(move(mask_display_lists))
 {
+}
+
+NonnullRefPtr<DisplayList> DisplayList::create_from_command_bytes(AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs)
+{
+    MUST(validate_display_list_command_runs(command_bytes, command_runs));
+    auto display_list = create(visual_context_tree);
+    display_list->m_command_bytes = move(command_bytes);
+    display_list->m_command_runs = move(command_runs);
+    return display_list;
+}
+
+Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes command_bytes)
+{
+    Vector<DisplayListCommandRun> runs;
+    u32 offset = 0;
+    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
+        auto record_size = static_cast<u32>(sizeof(DisplayListCommandHeader) + header.payload_size);
+        if (runs.is_empty() || runs.last().context != header.context) {
+            DisplayListCommandRun new_run {};
+            new_run.offset = offset;
+            new_run.context = header.context;
+            runs.append(new_run);
+        }
+        auto& run = runs.last();
+        run.size += record_size;
+        offset += record_size;
+        auto nesting_level_change = display_list_command_nesting_level_change(header.command_type);
+        if (header.is_clip && run.nesting_delta == 0)
+            run.has_unconfined_clip = true;
+        run.nesting_delta += nesting_level_change;
+        run.min_relative_nesting = min(run.min_relative_nesting, run.nesting_delta);
+        if (display_list_command_is_compositor_metadata(header.command_type)) {
+            run.has_compositor_metadata = true;
+        } else if (nesting_level_change == 0 && !header.is_clip) {
+            if (header.has_bounding_rect)
+                run.ink_bounds.unite(header.bounding_rect);
+            else
+                run.has_unbounded_draw = true;
+        }
+        run.is_self_contained = run.nesting_delta == 0 && run.min_relative_nesting == 0 && !run.has_unconfined_clip;
+    });
+    return runs;
+}
+
+ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun> runs)
+{
+    size_t next_offset = 0;
+    for (auto const& run : runs) {
+        if (run.offset != next_offset || run.size == 0 || run.size % DisplayList::command_alignment != 0)
+            return Error::from_string_literal("Display list command runs do not cover the command bytes");
+        next_offset += run.size;
+    }
+    if (next_offset != command_bytes.size())
+        return Error::from_string_literal("Display list command runs do not cover the command bytes");
+    if constexpr (DISPLAY_LIST_RUNS_DEBUG) {
+        if (runs != compute_display_list_command_runs(command_bytes).span())
+            return Error::from_string_literal("Display list command runs disagree with the command bytes");
+    }
+    return {};
 }
 
 void DisplayListPlayer::execute(
@@ -425,6 +486,11 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
     TRY(encoder.encode(display_list.m_surface_clear_color));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
     TRY(encoder.encode(display_list.m_mask_display_lists));
+    // Trivially copyable records, so they travel as raw bytes like the command tape does.
+    auto const& command_runs = display_list.m_command_runs;
+    TRY(encoder.encode_size(command_runs.size()));
+    if (!command_runs.is_empty())
+        TRY(encoder.append(reinterpret_cast<u8 const*>(command_runs.data()), command_runs.size() * sizeof(Web::Painting::DisplayListCommandRun)));
     return {};
 }
 
@@ -443,7 +509,13 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
     auto surface_clear_color = TRY(decoder.decode<Optional<Gfx::Color>>());
     auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
     auto mask_display_lists = TRY(decoder.decode<HashMap<Web::Painting::FrameNodeIndex, Web::Painting::DisplayListResourceId>>());
-    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), surface_clear_color, move(async_scrolling_metadata), move(mask_display_lists)));
+    auto command_run_count = TRY(decoder.decode_size());
+    Vector<Web::Painting::DisplayListCommandRun> command_runs;
+    TRY(command_runs.try_resize(command_run_count));
+    if (!command_runs.is_empty())
+        TRY(decoder.decode_into(Bytes { reinterpret_cast<u8*>(command_runs.data()), command_runs.size() * sizeof(Web::Painting::DisplayListCommandRun) }));
+    TRY(Web::Painting::validate_display_list_command_runs(command_bytes, command_runs));
+    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), move(command_runs), surface_clear_color, move(async_scrolling_metadata), move(mask_display_lists)));
 }
 
 }

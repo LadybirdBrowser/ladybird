@@ -2248,6 +2248,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "SpatialNodeIndex",
             "FrameNodeIndex",
             "ContextRef",
+            "DisplayListCommandRun",
         ]
         .map(String::from),
     );
@@ -2287,6 +2288,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("SpatialNodeIndex", "Web::Painting::SpatialNodeIndex"),
         ("FrameNodeIndex", "Web::Painting::FrameNodeIndex"),
         ("ContextRef", "Web::Painting::ContextRef"),
+        ("DisplayListCommandRun", "Web::Painting::DisplayListCommandRun"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -2306,6 +2308,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/ScalingMode.h",
             "LibGfx/Size.h",
             "LibGfx/WindingRule.h",
+            "LibWeb/Forward.h",
             "LibWeb/Painting/AccumulatedVisualContext.h",
             "LibWeb/Painting/ChromeMetrics.h",
         ]

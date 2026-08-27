@@ -62,6 +62,10 @@
 #    cmakedefine01 DEVTOOLS_DEBUG
 #endif
 
+#ifndef DISPLAY_LIST_RUNS_DEBUG
+#    cmakedefine01 DISPLAY_LIST_RUNS_DEBUG
+#endif
+
 #ifndef DNS_DEBUG
 #    cmakedefine01 DNS_DEBUG
 #endif

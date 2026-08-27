@@ -663,9 +663,9 @@ fn paint_image_layer(
             }
         }
         let tile_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
-        let tile_bytes = tile_recorder.into_builder().into_bytes();
+        let tile = tile_recorder.into_builder().finish();
         let tile_display_list_id = recorder.paint_host.nested_display_list_from_bytes(
-            &tile_bytes,
+            &tile,
             IntPoint {
                 x: -tile_device_rect.x,
                 y: -tile_device_rect.y,
