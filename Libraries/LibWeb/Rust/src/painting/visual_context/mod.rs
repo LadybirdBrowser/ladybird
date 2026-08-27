@@ -80,9 +80,17 @@ pub struct BackfaceVisibilityData {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ClipMode {
+    Intersect,
+    Difference,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ClipData {
-    pub rect: IntRect,
+    pub rect: FloatRect,
     pub corner_radii: CornerRadii,
+    pub mode: ClipMode,
 }
 
 pub struct ClipPathData {
@@ -228,7 +236,7 @@ impl FrameData {
 
     fn is_empty_clip(&self) -> bool {
         match self {
-            Self::Clip(clip) => clip.rect.is_empty(),
+            Self::Clip(clip) => clip.mode == ClipMode::Intersect && clip.rect.is_empty(),
             Self::ClipPath(clip_path) => clip_path.path_bounds_are_empty,
             Self::Mask(mask) => mask.rect.is_empty(),
             Self::Effects(_) => false,
@@ -419,6 +427,8 @@ fn empty_export(
         synthetic_plane: false,
         rect: IntRect::default(),
         corner_radii: CornerRadii::default(),
+        clip_rect: FloatRect::default(),
+        clip_mode: ClipMode::Intersect,
         opacity: 1.0,
         blend_mode: CompositingAndBlendingOperator::Normal,
         filter: std::ptr::null_mut(),
@@ -498,8 +508,9 @@ pub fn export_frame_node(node: &FrameNode) -> crate::painting::host::FfiVisualCo
     out.spatial = node.spatial.0;
     match &node.data {
         FrameData::Clip(clip) => {
-            out.rect = clip.rect;
+            out.clip_rect = clip.rect;
             out.corner_radii = clip.corner_radii;
+            out.clip_mode = clip.mode;
         }
         FrameData::ClipPath(clip_path) => {
             out.path = clip_path.path.as_raw();

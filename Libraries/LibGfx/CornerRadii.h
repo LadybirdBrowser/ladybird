@@ -41,7 +41,8 @@ struct CornerRadii {
 
     void adjust_corners_for_spread_distance(int spread_distance);
 
-    bool contains(IntPoint point, IntRect const& rect) const
+    template<typename T>
+    bool contains(Point<T> point, Rect<T> const& rect) const
     {
         if (!rect.contains(point))
             return false;
@@ -52,7 +53,7 @@ struct CornerRadii {
         auto const px = point.x();
         auto const py = point.y();
 
-        auto outside_ellipse = [&](CornerRadius const& r, int cx, int cy) {
+        auto outside_ellipse = [&](CornerRadius const& r, T cx, T cy) {
             auto dx = static_cast<float>(px - cx) / r.horizontal_radius;
             auto dy = static_cast<float>(py - cy) / r.vertical_radius;
             return dx * dx + dy * dy > 1.f;

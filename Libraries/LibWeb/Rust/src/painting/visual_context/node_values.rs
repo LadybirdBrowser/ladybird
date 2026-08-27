@@ -282,8 +282,9 @@ pub(crate) fn compute_css_clip_data(
     };
     let converter = DevicePixelConverter::new(pixel_ratio);
     Some(ClipData {
-        rect: converter.rounded_device_rect(effective),
+        rect: converter.rounded_device_rect(effective).to_float(),
         corner_radii: CornerRadii::default(),
+        mode: super::ClipMode::Intersect,
     })
 }
 
@@ -790,7 +791,8 @@ pub(crate) fn compute_clip_data(
     };
     let converter = DevicePixelConverter::new(pixel_ratio);
     Some(ClipData {
-        rect: converter.rounded_device_rect(clip_rect),
+        rect: converter.rounded_device_rect(clip_rect).to_float(),
         corner_radii: radii.as_corners(&converter),
+        mode: super::ClipMode::Intersect,
     })
 }
