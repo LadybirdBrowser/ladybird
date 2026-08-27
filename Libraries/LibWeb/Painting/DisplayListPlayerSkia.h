@@ -45,13 +45,19 @@ private:
     void play_command(command_type const&) override;
     ENUMERATE_DISPLAY_LIST_COMMANDS(DECLARE_PLAY_COMMAND)
 #undef DECLARE_PLAY_COMMAND
-    void play_command(ApplyEffects const&, Gfx::Filter const*) override;
     void set_matrix(Gfx::FloatMatrix4x4 const&) override;
     Gfx::FloatMatrix4x4 canvas_matrix() const override;
-
-    void add_clip_path(Gfx::Path const&, Gfx::WindingRule, bool anti_aliased) override;
-
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
+
+    void push_clip(ClipData const&) override;
+    void push_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
+    void push_layer(EffectsData const&) override;
+    void push_mask(MaskData const&) override;
+    void pop_mask(MaskData const&, Optional<DisplayListResourceId> mask_content) override;
+    void pop() override;
+    void push_device_space_plane_clip(Gfx::Path const&) override;
+
+    void clip_path(Gfx::Path const&, Gfx::WindingRule, bool anti_aliased);
 
     SkPaint paint_style_to_skia_paint(DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
     Gfx::Path path_from_data(DisplayListDataSpan) const;

@@ -1002,7 +1002,7 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
 
 void DisplayListPlayerSkia::play_command(AddClipPath const& command)
 {
-    add_clip_path(path_from_data(command.path_data), command.winding_rule, true);
+    clip_path(path_from_data(command.path_data), command.winding_rule, true);
 }
 
 void DisplayListPlayerSkia::play_command(AddRoundedRectClip const& command)
@@ -1154,11 +1154,6 @@ void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
 
 void DisplayListPlayerSkia::play_command(ApplyEffects const& command)
 {
-    play_command(command, nullptr);
-}
-
-void DisplayListPlayerSkia::play_command(ApplyEffects const& command, Gfx::Filter const* filter)
-{
     auto& canvas = surface().canvas();
     SkPaint paint;
 
@@ -1168,21 +1163,93 @@ void DisplayListPlayerSkia::play_command(ApplyEffects const& command, Gfx::Filte
     if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
         paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
 
-    Optional<Gfx::Filter> deserialized_filter;
     if (command.has_filter) {
-        if (!filter) {
-            deserialized_filter = Gfx::deserialize_filter(inline_data(command.filter_data), [&](u64 image_id) {
-                return resource_storage().image_frame(ImageFrameResourceId { image_id });
-            });
-            filter = &deserialized_filter.value();
-        }
-        paint.setImageFilter(to_skia_image_filter(*filter));
+        auto filter = Gfx::deserialize_filter(inline_data(command.filter_data), [&](u64 image_id) {
+            return resource_storage().image_frame(ImageFrameResourceId { image_id });
+        });
+        paint.setImageFilter(to_skia_image_filter(filter));
     }
 
     if (command.has_mask_kind && command.mask_kind == Gfx::MaskKind::Luminance)
         paint.setColorFilter(SkLumaColorFilter::Make());
 
     canvas.saveLayer(nullptr, &paint);
+}
+
+void DisplayListPlayerSkia::push_clip(ClipData const& clip)
+{
+    auto& canvas = surface().canvas();
+    canvas.save();
+    auto rect = clip.rect.to_type<int>();
+    if (clip.corner_radii.has_any_radius())
+        canvas.clipRRect(to_skia_rrect(rect, clip.corner_radii), SkClipOp::kIntersect, true);
+    else
+        canvas.clipRect(to_skia_rect(rect.to_type<float>()), true);
+}
+
+void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+{
+    surface().canvas().save();
+    clip_path(path, winding_rule, true);
+}
+
+void DisplayListPlayerSkia::push_layer(EffectsData const& effects)
+{
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+
+    if (effects.opacity < 1.0f)
+        paint.setAlphaf(effects.opacity);
+
+    if (effects.blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
+        paint.setBlender(Gfx::to_skia_blender(effects.blend_mode));
+
+    if (effects.gfx_filter.has_value())
+        paint.setImageFilter(to_skia_image_filter(*effects.gfx_filter));
+
+    canvas.saveLayer(nullptr, &paint);
+}
+
+void DisplayListPlayerSkia::push_mask(MaskData const& mask)
+{
+    auto& canvas = surface().canvas();
+    canvas.save();
+    canvas.clipRect(to_skia_rect(mask.rect.to_type<int>().to_type<float>()), true);
+    canvas.saveLayer(nullptr, nullptr);
+}
+
+void DisplayListPlayerSkia::pop_mask(MaskData const& mask, Optional<DisplayListResourceId> mask_content)
+{
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
+    if (mask.kind == Gfx::MaskKind::Luminance)
+        paint.setColorFilter(SkLumaColorFilter::Make());
+    canvas.saveLayer(nullptr, &paint);
+    if (mask_content.has_value()) {
+        auto mask_rect = mask.rect.to_type<int>();
+        play_command(PaintNestedDisplayList {
+            .display_list_id = *mask_content,
+            .rect = mask_rect.to_type<float>(),
+            .list_size = mask_rect.size(),
+        });
+    }
+    canvas.restore();
+    canvas.restore();
+    canvas.restore();
+}
+
+void DisplayListPlayerSkia::pop()
+{
+    surface().canvas().restore();
+}
+
+void DisplayListPlayerSkia::push_device_space_plane_clip(Gfx::Path const& path)
+{
+    auto& canvas = surface().canvas();
+    canvas.save();
+    canvas.setMatrix(SkM44());
+    clip_path(path, Gfx::WindingRule::Nonzero, false);
 }
 
 void DisplayListPlayerSkia::set_matrix(Gfx::FloatMatrix4x4 const& matrix)
@@ -1195,7 +1262,7 @@ Gfx::FloatMatrix4x4 DisplayListPlayerSkia::canvas_matrix() const
     return to_gfx_matrix4x4(surface().canvas().getLocalToDevice());
 }
 
-void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule, bool anti_aliased)
+void DisplayListPlayerSkia::clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule, bool anti_aliased)
 {
     auto& canvas = surface().canvas();
     auto sk_path = to_skia_path(path);
