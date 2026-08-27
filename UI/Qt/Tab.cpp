@@ -829,6 +829,11 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
         m_javascript_dialog->show_alert(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
+    view().on_request_before_unload = [this](auto const& source, auto on_complete) {
+        m_before_unload_completion = AK::move(on_complete);
+        m_javascript_dialog->show_before_unload(qstring_from_ak_string(source));
+    };
+
     view().on_request_confirm = [this, javascript_dialog_title](auto const& message) {
         if (m_suppress_javascript_dialogs_until_navigation) {
             view().confirm_closed(false);
@@ -854,8 +859,16 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
         case JavaScriptDialog::Type::Alert:
             view().alert_closed();
             break;
-        case JavaScriptDialog::Type::BeforeUnload:
-            VERIFY_NOT_REACHED();
+        case JavaScriptDialog::Type::BeforeUnload: {
+            auto on_complete = AK::move(m_before_unload_completion);
+            VERIFY(on_complete);
+            on_complete(accepted);
+            if (!accepted) {
+                m_already_requested_close = false;
+                m_suppress_javascript_dialogs_until_navigation = false;
+            }
+            break;
+        }
         case JavaScriptDialog::Type::Confirm:
             view().confirm_closed(accepted);
             break;
