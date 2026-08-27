@@ -141,9 +141,13 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @property (nonatomic, strong) NSMenu* media_context_menu;
 @property (nonatomic, strong) NSMenu* select_dropdown;
 @property (nonatomic, strong) NSTextField* status_label;
+@property (nonatomic, strong) NSBox* crash_overlay;
+@property (nonatomic, strong) NSTextField* crash_overlay_url;
 @property (nonatomic, strong) NSAlert* dialog;
 @property (nonatomic, strong) NSAlert* external_url_confirmation_dialog;
+@property (nonatomic, strong) NSOpenPanel* file_picker;
 @property (nonatomic, strong) NSMagnificationGestureRecognizer* pinch_recognizer;
+@property (nonatomic, assign) BOOL suppress_select_dropdown_close;
 
 // NSEvent does not provide a way to mark whether it has been handled, nor can we attach user data to the event. So
 // when we dispatch the event for a second time after WebContent has had a chance to handle it, we must track that
@@ -159,9 +163,13 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
 @end
 
+// NSColorPanel only exposes a target setter, so track the owner of its shared instance ourselves.
+static __weak LadybirdWebView* s_color_panel_owner;
+
 @implementation LadybirdWebView
 
 @synthesize status_label = _status_label;
+@synthesize crash_overlay = _crash_overlay;
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
            isPrivate:(WebView::IsPrivate)is_private
@@ -430,6 +438,56 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         }
     };
 
+    m_web_view_bridge->on_crash_overlay_state_change = [weak_self](bool active) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        if (active) {
+            auto* overlay = self.crash_overlay;
+            [self.crash_overlay_url setStringValue:Ladybird::string_to_ns_string(self->m_web_view_bridge->crash_overlay_failed_url())];
+            [overlay setHidden:NO];
+            [self addSubview:overlay positioned:NSWindowAbove relativeTo:nil];
+        } else if (self->_crash_overlay != nil) {
+            [self.crash_overlay setHidden:YES];
+        }
+    };
+
+    m_web_view_bridge->on_web_content_crashed = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil)
+            return;
+
+        if (self.dialog != nil) {
+            auto* dialog = self.dialog;
+            self.dialog = nil;
+            [[self window] endSheet:[dialog window] returnCode:NSModalResponseCancel];
+        }
+        if (self.file_picker != nil) {
+            auto* file_picker = self.file_picker;
+            self.file_picker = nil;
+            [[self window] endSheet:file_picker returnCode:NSModalResponseCancel];
+        }
+        if (self.external_url_confirmation_dialog != nil) {
+            // NB: Not cleared first; its completion handler stays in the UI process and must still run to
+            //     complete the pending external URL request.
+            [[self window] endSheet:[self.external_url_confirmation_dialog window] returnCode:NSModalResponseCancel];
+        }
+        if (self.select_dropdown != nil) {
+            self.suppress_select_dropdown_close = YES;
+            [self.select_dropdown cancelTracking];
+        }
+
+        auto* color_panel = [NSColorPanel sharedColorPanel];
+        [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowWillCloseNotification object:color_panel];
+        if (s_color_panel_owner == self) {
+            s_color_panel_owner = nil;
+            [color_panel setTarget:nil];
+            [color_panel setAction:nil];
+            [color_panel orderOut:nil];
+        }
+    };
+
     m_web_view_bridge->on_loading_state_change = [weak_self](bool is_loading) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
@@ -681,14 +739,17 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         }
         auto* ns_message = Ladybird::utf16_string_to_ns_string(message);
 
-        self.dialog = [[NSAlert alloc] init];
-        [self.dialog setMessageText:ns_message];
+        auto* dialog = [[NSAlert alloc] init];
+        self.dialog = dialog;
+        [dialog setMessageText:ns_message];
 
-        [self.dialog beginSheetModalForWindow:[self window]
-                            completionHandler:^(NSModalResponse) {
-                                m_web_view_bridge->alert_closed();
-                                self.dialog = nil;
-                            }];
+        [dialog beginSheetModalForWindow:[self window]
+                       completionHandler:^(NSModalResponse) {
+                           if (self.dialog != dialog)
+                               return;
+                           m_web_view_bridge->alert_closed();
+                           self.dialog = nil;
+                       }];
     };
 
     m_web_view_bridge->on_request_confirm = [weak_self](auto const& message) {
@@ -698,16 +759,19 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         }
         auto* ns_message = Ladybird::utf16_string_to_ns_string(message);
 
-        self.dialog = [[NSAlert alloc] init];
-        [[self.dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
-        [[self.dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
-        [self.dialog setMessageText:ns_message];
+        auto* dialog = [[NSAlert alloc] init];
+        self.dialog = dialog;
+        [[dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
+        [[dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+        [dialog setMessageText:ns_message];
 
-        [self.dialog beginSheetModalForWindow:[self window]
-                            completionHandler:^(NSModalResponse response) {
-                                m_web_view_bridge->confirm_closed(response == NSModalResponseOK);
-                                self.dialog = nil;
-                            }];
+        [dialog beginSheetModalForWindow:[self window]
+                       completionHandler:^(NSModalResponse response) {
+                           if (self.dialog != dialog)
+                               return;
+                           m_web_view_bridge->confirm_closed(response == NSModalResponseOK);
+                           self.dialog = nil;
+                       }];
     };
 
     m_web_view_bridge->on_request_prompt = [weak_self](auto const& message, auto const& default_) {
@@ -721,25 +785,28 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         auto* input = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 200, 24)];
         [input setStringValue:ns_default];
 
-        self.dialog = [[NSAlert alloc] init];
-        [[self.dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
-        [[self.dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
-        [self.dialog setMessageText:ns_message];
-        [self.dialog setAccessoryView:input];
+        auto* dialog = [[NSAlert alloc] init];
+        self.dialog = dialog;
+        [[dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
+        [[dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+        [dialog setMessageText:ns_message];
+        [dialog setAccessoryView:input];
 
-        self.dialog.window.initialFirstResponder = input;
+        dialog.window.initialFirstResponder = input;
 
-        [self.dialog beginSheetModalForWindow:[self window]
-                            completionHandler:^(NSModalResponse response) {
-                                Optional<Utf16String> text;
+        [dialog beginSheetModalForWindow:[self window]
+                       completionHandler:^(NSModalResponse response) {
+                           if (self.dialog != dialog)
+                               return;
+                           Optional<Utf16String> text;
 
-                                if (response == NSModalResponseOK) {
-                                    text = Ladybird::ns_string_to_utf16_string([input stringValue]);
-                                }
+                           if (response == NSModalResponseOK) {
+                               text = Ladybird::ns_string_to_utf16_string([input stringValue]);
+                           }
 
-                                m_web_view_bridge->prompt_closed(move(text));
-                                self.dialog = nil;
-                            }];
+                           m_web_view_bridge->prompt_closed(move(text));
+                           self.dialog = nil;
+                       }];
     };
 
     m_web_view_bridge->on_request_set_prompt_text = [weak_self](auto const& message) {
@@ -820,10 +887,16 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         auto* panel = [NSColorPanel sharedColorPanel];
         [panel setColor:Ladybird::gfx_color_to_ns_color(current_color)];
         [panel setShowsAlpha:NO];
+
+        NSNotificationCenter* notification_center = [NSNotificationCenter defaultCenter];
+        LadybirdWebView* previous_owner = s_color_panel_owner;
+        if (previous_owner != nil)
+            [notification_center removeObserver:previous_owner name:NSWindowWillCloseNotification object:panel];
+
+        s_color_panel_owner = self;
         [panel setTarget:self];
         [panel setAction:@selector(colorPickerUpdate:)];
 
-        NSNotificationCenter* notification_center = [NSNotificationCenter defaultCenter];
         [notification_center addObserver:self
                                 selector:@selector(colorPickerClosed:)
                                     name:NSWindowWillCloseNotification
@@ -838,6 +911,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             return;
         }
         auto* panel = [NSOpenPanel openPanel];
+        self.file_picker = panel;
         [panel setCanChooseFiles:YES];
         [panel setCanChooseDirectories:NO];
 
@@ -888,6 +962,9 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
         [panel beginSheetModalForWindow:[self window]
                       completionHandler:^(NSInteger result) {
+                          if (self.file_picker != panel)
+                              return;
+                          self.file_picker = nil;
                           Vector<Web::HTML::SelectedFile> selected_files;
 
                           auto create_selected_file = [&](NSString* ns_file_path) {
@@ -917,6 +994,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         if (self == nil) {
             return;
         }
+        self.suppress_select_dropdown_close = NO;
         [self.select_dropdown removeAllItems];
         self.select_dropdown.minimumWidth = minimum_width;
 
@@ -1091,6 +1169,10 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
 - (void)menuDidClose:(NSMenu*)menu
 {
+    if (self.suppress_select_dropdown_close) {
+        self.suppress_select_dropdown_close = NO;
+        return;
+    }
     if (!menu.highlightedItem)
         m_web_view_bridge->select_dropdown_closed({});
 }
@@ -1102,7 +1184,15 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
 - (void)colorPickerClosed:(NSNotification*)notification
 {
-    m_web_view_bridge->color_picker_update(Ladybird::ns_color_to_gfx_color([NSColorPanel sharedColorPanel].color), Web::HTML::ColorPickerUpdateState::Closed);
+    if (s_color_panel_owner != self)
+        return;
+
+    auto* color_panel = [NSColorPanel sharedColorPanel];
+    s_color_panel_owner = nil;
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowWillCloseNotification object:color_panel];
+    [color_panel setTarget:nil];
+    [color_panel setAction:nil];
+    m_web_view_bridge->color_picker_update(Ladybird::ns_color_to_gfx_color(color_panel.color), Web::HTML::ColorPickerUpdateState::Closed);
 }
 
 #pragma mark - Properties
@@ -1115,10 +1205,129 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         [_status_label setBordered:YES];
         [_status_label setHidden:YES];
 
-        [self addSubview:_status_label];
+        if (_crash_overlay != nil)
+            [self addSubview:_status_label positioned:NSWindowBelow relativeTo:_crash_overlay];
+        else
+            [self addSubview:_status_label];
     }
 
     return _status_label;
+}
+
+// Sad-page glyph, stroked from 17.5x21.5 source coordinates at 64px tall.
+static NSImage* crash_overlay_icon()
+{
+    static NSImage* icon;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        icon = [NSImage imageWithSize:NSMakeSize(52, 64)
+                              flipped:YES
+                       drawingHandler:^BOOL(NSRect destination) {
+                           auto* transform = [NSAffineTransform transform];
+                           [transform scaleXBy:destination.size.width / 17.5 yBy:destination.size.height / 21.5];
+
+                           auto* page_outline = [NSBezierPath bezierPath];
+                           [page_outline moveToPoint:NSMakePoint(11.75, 0.75)];
+                           [page_outline lineToPoint:NSMakePoint(2.75, 0.75)];
+                           [page_outline curveToPoint:NSMakePoint(0.75, 2.75) controlPoint1:NSMakePoint(1.65, 0.75) controlPoint2:NSMakePoint(0.75, 1.65)];
+                           [page_outline lineToPoint:NSMakePoint(0.75, 18.75)];
+                           [page_outline curveToPoint:NSMakePoint(2.75, 20.75) controlPoint1:NSMakePoint(0.75, 19.85) controlPoint2:NSMakePoint(1.65, 20.75)];
+                           [page_outline lineToPoint:NSMakePoint(14.75, 20.75)];
+                           [page_outline curveToPoint:NSMakePoint(16.75, 18.75) controlPoint1:NSMakePoint(15.85, 20.75) controlPoint2:NSMakePoint(16.75, 19.85)];
+                           [page_outline lineToPoint:NSMakePoint(16.75, 5.75)];
+                           [page_outline closePath];
+
+                           auto* page_details = [NSBezierPath bezierPath];
+                           [page_details moveToPoint:NSMakePoint(10.75, 0.75)];
+                           [page_details lineToPoint:NSMakePoint(10.75, 4.75)];
+                           [page_details curveToPoint:NSMakePoint(12.75, 6.75) controlPoint1:NSMakePoint(10.75, 5.85) controlPoint2:NSMakePoint(11.65, 6.75)];
+                           [page_details lineToPoint:NSMakePoint(16.75, 6.75)];
+                           [page_details moveToPoint:NSMakePoint(4.75, 9.75)];
+                           [page_details lineToPoint:NSMakePoint(6.75, 11.75)];
+                           [page_details moveToPoint:NSMakePoint(6.75, 9.75)];
+                           [page_details lineToPoint:NSMakePoint(4.75, 11.75)];
+                           [page_details moveToPoint:NSMakePoint(10.75, 9.75)];
+                           [page_details lineToPoint:NSMakePoint(12.75, 11.75)];
+                           [page_details moveToPoint:NSMakePoint(12.75, 9.75)];
+                           [page_details lineToPoint:NSMakePoint(10.75, 11.75)];
+                           [page_details moveToPoint:NSMakePoint(5.75, 16.75)];
+                           [page_details curveToPoint:NSMakePoint(11.75, 16.75) controlPoint1:NSMakePoint(6.75, 14.08) controlPoint2:NSMakePoint(10.75, 14.08)];
+
+                           for (NSBezierPath* path in @[ page_outline, page_details ]) {
+                               [path transformUsingAffineTransform:transform];
+                               [path setLineWidth:1.5 * destination.size.height / 21.5];
+                               [path setLineCapStyle:NSLineCapStyleRound];
+                               [path setLineJoinStyle:NSLineJoinStyleRound];
+                               [[NSColor blackColor] setStroke];
+                               [path stroke];
+                           }
+                           return YES;
+                       }];
+        [icon setTemplate:YES];
+    });
+    return icon;
+}
+
+- (NSBox*)crash_overlay
+{
+    if (!_crash_overlay) {
+        auto* icon_view = [NSImageView imageViewWithImage:crash_overlay_icon()];
+        [icon_view setContentTintColor:[NSColor labelColor]];
+
+        auto* title = [NSTextField labelWithString:Ladybird::string_to_ns_string(WebView::ViewImplementation::crash_overlay_title())];
+        [title setFont:[NSFont boldSystemFontOfSize:24]];
+        [title setAlignment:NSTextAlignmentCenter];
+        [title setSelectable:YES];
+
+        self.crash_overlay_url = [NSTextField labelWithString:@""];
+        [self.crash_overlay_url setAlignment:NSTextAlignmentCenter];
+        [self.crash_overlay_url setTextColor:[NSColor secondaryLabelColor]];
+        [self.crash_overlay_url setLineBreakMode:NSLineBreakByTruncatingMiddle];
+        [self.crash_overlay_url setSelectable:YES];
+        [self.crash_overlay_url setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow
+                                                         forOrientation:NSLayoutConstraintOrientationHorizontal];
+
+        auto* message = [NSTextField wrappingLabelWithString:Ladybird::string_to_ns_string(WebView::ViewImplementation::crash_overlay_message())];
+        [message setAlignment:NSTextAlignmentCenter];
+        [message setTextColor:[NSColor secondaryLabelColor]];
+
+        auto* reload_button = [NSButton buttonWithTitle:Ladybird::string_to_ns_string(WebView::ViewImplementation::crash_overlay_reload_button_text())
+                                                 target:self
+                                                 action:@selector(reloadFromCrashOverlay:)];
+        [reload_button setKeyEquivalent:@"\r"];
+
+        auto* stack = [NSStackView stackViewWithViews:@[ icon_view, title, self.crash_overlay_url, message, reload_button ]];
+        [stack setOrientation:NSUserInterfaceLayoutOrientationVertical];
+        [stack setAlignment:NSLayoutAttributeCenterX];
+        [stack setSpacing:12];
+        [stack setCustomSpacing:32 afterView:icon_view];
+        [stack setCustomSpacing:16 afterView:title];
+        [stack setCustomSpacing:24 afterView:message];
+        [stack setTranslatesAutoresizingMaskIntoConstraints:NO];
+
+        _crash_overlay = [[NSBox alloc] init];
+        [_crash_overlay setBoxType:NSBoxCustom];
+        [_crash_overlay setBorderWidth:0];
+        [_crash_overlay setFillColor:[NSColor windowBackgroundColor]];
+        [_crash_overlay setTransparent:NO];
+        [_crash_overlay setHidden:YES];
+
+        [_crash_overlay addSubview:stack];
+        [[stack centerXAnchor] constraintEqualToAnchor:[_crash_overlay centerXAnchor]].active = YES;
+        [[stack centerYAnchor] constraintEqualToAnchor:[_crash_overlay centerYAnchor]].active = YES;
+        [[stack widthAnchor] constraintLessThanOrEqualToAnchor:[_crash_overlay widthAnchor] constant:-40].active = YES;
+
+        [_crash_overlay setFrame:[self bounds]];
+        [_crash_overlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        [self addSubview:_crash_overlay positioned:NSWindowAbove relativeTo:nil];
+    }
+
+    return _crash_overlay;
+}
+
+- (void)reloadFromCrashOverlay:(id)sender
+{
+    m_web_view_bridge->reload();
 }
 
 #pragma mark - NSView

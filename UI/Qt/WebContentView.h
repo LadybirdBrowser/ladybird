@@ -43,6 +43,7 @@
 #endif
 
 class QKeyEvent;
+class QPushButton;
 class QSinglePointEvent;
 class QCursor;
 
@@ -63,6 +64,8 @@ using WebContentViewBase = QRhiWidget;
 #else
 using WebContentViewBase = QWidget;
 #endif
+
+class CrashOverlayUrlLabel;
 
 struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
@@ -111,6 +114,7 @@ public:
     void set_vertical_tab_overlay_insets(int left, int right);
     void prepare_for_window_move();
     void finish_window_move();
+    void close_select_dropdown_after_crash();
 
     enum class PaletteMode {
         Default,
@@ -173,6 +177,8 @@ private:
 
     void update_screen_rects();
 
+    void set_crash_overlay_visible(bool);
+
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;
     QTimer m_tooltip_hover_timer;
@@ -184,6 +190,11 @@ private:
     int m_click_count { 0 };
 
     QMenu* m_select_dropdown { nullptr };
+    bool m_suppress_select_dropdown_close { false };
+
+    QWidget* m_crash_overlay { nullptr };
+    CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };
+    QPushButton* m_crash_overlay_reload_button { nullptr };
 
 #ifdef AK_OS_MACOS
     bool prepare_metal_renderer(unsigned long render_target_pixel_format);
