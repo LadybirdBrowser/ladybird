@@ -730,6 +730,12 @@ pub struct ComputedShadow {
     pub placement: u32,
 }
 
+impl ComputedShadow {
+    pub fn is_inner(&self) -> bool {
+        self.placement == 1
+    }
+}
+
 #[repr(C)]
 pub struct RetainedComputedShadowList {
     pub pointer: *mut ComputedShadow,

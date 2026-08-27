@@ -13,6 +13,7 @@ use crate::painting::record::paint::border::paint_box_borders;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels};
 use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
+use crate::painting::visual_context::PieceKey;
 
 pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     let root = {
@@ -49,7 +50,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                     || style.border_left_width() != zero
             })
         };
-        for piece_index in piece_indices {
+        for (position, piece_index) in piece_indices.iter().enumerate() {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
@@ -71,6 +72,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             crate::painting::record::paint::shadow::paint_box_shadow(
                 recorder,
                 paintable,
+                PieceKey::Piece(position as u16),
                 border_box_rect,
                 padding_box_rect,
                 border_radii,

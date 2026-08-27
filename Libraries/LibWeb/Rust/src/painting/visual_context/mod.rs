@@ -261,11 +261,18 @@ pub struct SpatialNode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PieceKey {
+    Box,
+    Piece(u16),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FrameRole {
     Structural,
     RootIsolation,
     ContentCornerClip,
     ContentClip,
+    OuterShadowClip { piece: PieceKey },
 }
 
 pub struct FrameNode {

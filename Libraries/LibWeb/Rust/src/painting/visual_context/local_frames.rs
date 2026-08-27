@@ -4,14 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::node_values::padding_edge_border_radii;
-use super::{ClipData, ClipMode, ContextRef, FrameData, FrameNodeIndex, FrameRole, VisualContextTree};
+use super::node_values::{border_radii_data, padding_edge_border_radii, piece_border_radii_data};
+use super::{ClipData, ClipMode, ContextRef, FrameData, FrameNodeIndex, FrameRole, PieceKey, VisualContextTree};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::overflow;
+use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paintable_data::PaintableKind;
-use crate::painting::paintable_geometry::absolute_rect;
+use crate::painting::paintable_geometry::{
+    absolute_border_box_rect, absolute_rect, for_each_rendered_inline_box_piece,
+};
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::svg::svg_image_unquantized_device_rect;
 use libgfx_rust::{CornerRadii, FloatRect};
@@ -49,6 +53,15 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         let Some(style) = self.layout_arena.node_style_if_live(self.slot) else {
             return self.finish();
         };
+        if self.kind == PaintableKind::InlinePaintable {
+            self.append_inline_box_frames(style, own_state);
+            return self.finish();
+        }
+
+        let border_box_rect = absolute_border_box_rect(self.layout_arena, self.slot);
+        let border_radii = border_radii_data(style, self.layout_arena, self.slot);
+        self.append_box_shadow_frames(style, own_state, PieceKey::Box, border_box_rect, border_radii);
+
         match self.kind {
             PaintableKind::ImagePaintable
             | PaintableKind::CanvasPaintable
@@ -92,6 +105,47 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             }),
             role,
         )
+    }
+
+    fn append_inline_box_frames(&mut self, style: ComputedValuesView<'_>, own_state: ContextRef) {
+        let arena = self.layout_arena;
+        for_each_rendered_inline_box_piece(arena, self.slot, |position, piece, border_box_rect| {
+            let piece_key = PieceKey::Piece(position);
+            let border_radii = piece_border_radii_data(
+                style,
+                piece.border_box_rect.width,
+                piece.border_box_rect.height,
+                piece.present_edges,
+            );
+            self.append_box_shadow_frames(style, own_state, piece_key, border_box_rect, border_radii);
+        });
+    }
+
+    fn append_box_shadow_frames(
+        &mut self,
+        style: ComputedValuesView<'_>,
+        own_state: ContextRef,
+        piece: PieceKey,
+        border_box_rect: CssPixelRect,
+        border_radii: BorderRadii,
+    ) {
+        let shadows = style.effects().box_shadows.as_slice();
+        if !shadows.iter().any(|shadow| !shadow.is_inner()) {
+            return;
+        }
+        let corner_radii = border_radii.corners_unconditionally(&self.converter);
+        if !corner_radii.has_any_radius() {
+            return;
+        }
+        self.append(
+            own_state,
+            FrameData::Clip(ClipData {
+                rect: self.converter.rounded_device_rect(border_box_rect).to_float(),
+                corner_radii,
+                mode: ClipMode::Difference,
+            }),
+            FrameRole::OuterShadowClip { piece },
+        );
     }
 
     fn append_replaced_content_frames(&mut self, style: ComputedValuesView<'_>, own_state: ContextRef) {
