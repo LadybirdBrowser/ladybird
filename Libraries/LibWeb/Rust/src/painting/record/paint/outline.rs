@@ -10,7 +10,11 @@ use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParams};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
-use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
+use crate::painting::record::paint::border::{
+    BorderDataDevicePixels, BordersDataDevicePixels, local_solid_edge_region_frames, paint_all_borders,
+};
+use crate::painting::style_queries::OutlineGeometry;
+use crate::painting::visual_context::{PatternedEdgeOwner, PieceKey};
 use libgfx_rust::{CapStyle, Color, JoinStyle, ShouldAntiAlias};
 
 pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
@@ -24,22 +28,25 @@ pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: N
     let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
     let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
     let border_radii = recorder.border_radii(paintable);
-    paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
+    paint_outline(
+        recorder,
+        paintable,
+        PieceKey::Box,
+        outline,
+        outline_offset,
+        border_box_rect,
+        border_radii,
+    );
     let facts = recorder.paint_host.outline_facts(recorder.layout_node_shell(paintable));
     paint_focused_area_outline(recorder, paintable, &facts);
 }
 
-pub(crate) fn paint_outline(
-    recorder: &mut PaintRecorder<'_>,
-    outline: Option<crate::painting::style_queries::OutlineData>,
+pub(crate) fn outline_border_geometry(
+    outline_width: CssPixels,
     outline_offset: CssPixels,
     border_box_rect: crate::css::css_pixels::CssPixelRect,
     border_radii: BorderRadii,
-) {
-    let Some(outline) = outline else {
-        return;
-    };
-    let converter = recorder.converter;
+) -> (crate::css::css_pixels::CssPixelRect, BorderRadii) {
     let mut border_radius_data = border_radii;
     let mut borders_rect = border_box_rect;
     let two = CssPixels::from_integer(2);
@@ -55,7 +62,7 @@ pub(crate) fn paint_outline(
         outline_offset_y = (-borders_rect.height).div_as_fraction(two);
     }
 
-    let width = outline.width;
+    let width = outline_width;
     border_radius_data.inflate(
         width + outline_offset_y,
         width + outline_offset_x,
@@ -68,23 +75,51 @@ pub(crate) fn paint_outline(
         width + outline_offset_y,
         width + outline_offset_x,
     );
+    (borders_rect, border_radius_data)
+}
 
+pub(crate) fn outline_borders_data(
+    geometry: OutlineGeometry,
+    color: Color,
+    converter: &crate::painting::display_list::device_pixels::DevicePixelConverter,
+) -> BordersDataDevicePixels {
     let side = BorderDataDevicePixels {
-        color: Color(outline.color),
-        line_style: outline.line_style,
-        width: converter.enclosing_device_pixels(width),
+        color,
+        line_style: geometry.line_style,
+        width: converter.enclosing_device_pixels(geometry.width),
     };
-    let borders_data = BordersDataDevicePixels {
+    BordersDataDevicePixels {
         top: side,
         right: side,
         bottom: side,
         left: side,
+    }
+}
+
+pub(crate) fn paint_outline(
+    recorder: &mut PaintRecorder<'_>,
+    paintable: NodeSlotId,
+    piece: PieceKey,
+    outline: Option<crate::painting::style_queries::OutlineData>,
+    outline_offset: CssPixels,
+    border_box_rect: crate::css::css_pixels::CssPixelRect,
+    border_radii: BorderRadii,
+) {
+    let Some(outline) = outline else {
+        return;
     };
+    let converter = recorder.converter;
+    let (borders_rect, border_radius_data) =
+        outline_border_geometry(outline.geometry.width, outline_offset, border_box_rect, border_radii);
+    let borders_data = outline_borders_data(outline.geometry, Color(outline.color), &converter);
+    let solid_edge_region_frames =
+        local_solid_edge_region_frames(recorder, paintable, PatternedEdgeOwner::Outline, piece, &borders_data);
     paint_all_borders(
         &mut recorder.recorder,
         converter.rounded_device_rect(borders_rect),
         border_radius_data.as_corners(&converter),
         &borders_data,
+        &solid_edge_region_frames,
     );
 }
 
