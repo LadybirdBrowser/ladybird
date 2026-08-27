@@ -1874,7 +1874,7 @@ static bool element_displays_a_list_item_counter_value(Element const& element)
         [](Utf16String const&) {
             return false;
         },
-        [](Utf16FlyString const&) {
+        [](CSS::UnresolvedCounterStyleName const&) {
             return true;
         },
         [](CSS::ListStyleSymbols const& symbols) {

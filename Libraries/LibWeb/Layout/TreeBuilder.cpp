@@ -517,7 +517,7 @@ static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& elem
         [](Utf16String const& string) -> Utf16String {
             return string;
         },
-        [&](Utf16FlyString const&) -> Utf16String {
+        [&](CSS::UnresolvedCounterStyleName const&) -> Utf16String {
             return generate_from_counter_style(nullptr);
         },
         [&](CSS::ListStyleSymbols const& symbols) -> Utf16String {
