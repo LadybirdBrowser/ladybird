@@ -131,16 +131,16 @@
     "argument": "<selector-list>"
   },
   "nth-child": {
-    "argument": "<an+b-of>"
+    "argument": "<a-n-plus-b-of>"
   },
   "nth-last-child": {
-    "argument": "<an+b-of>"
+    "argument": "<a-n-plus-b-of>"
   },
   "nth-last-of-type": {
-    "argument": "<an+b>"
+    "argument": "<a-n-plus-b>"
   },
   "nth-of-type": {
-    "argument": "<an+b>"
+    "argument": "<a-n-plus-b>"
   },
   "only-child": {
     "argument": ""

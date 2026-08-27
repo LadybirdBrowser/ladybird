@@ -983,8 +983,8 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
         }
         let parameter_type = match argument {
             "" => "None",
-            "<an+b>" => "AnPlusB",
-            "<an+b-of>" => "AnPlusBOf",
+            "<a-n-plus-b>" => "AnPlusB",
+            "<a-n-plus-b-of>" => "AnPlusBOf",
             "<compound-selector>" => "CompoundSelector",
             "<forgiving-selector-list>" => "ForgivingSelectorList",
             "<forgiving-relative-selector-list>" => "ForgivingRelativeSelectorList",
