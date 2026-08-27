@@ -9454,6 +9454,16 @@ Unicode::Segmenter& Document::word_segmenter() const
     return *m_word_segmenter;
 }
 
+bool Document::showing_an_unload_prompt_is_unlikely_to_be_annoying_deceptive_or_pointless() const
+{
+    // FIXME: Propagate enough WebDriver session information to test for exactly one active HTTP-only,
+    //        non-BiDi session instead of treating any active WebDriver session as equivalent.
+    if (page().is_webdriver_active())
+        return false;
+
+    return true;
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#steps-to-fire-beforeunload
 Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(bool unload_prompt_shown)
 {
@@ -9487,8 +9497,8 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
         && window.has_sticky_activation()
         //    - eventFiringResult is false, or the returnValue attribute of event is not the empty string; and
         && (!event_firing_result || !beforeunload_event->return_value().is_empty())
-        //    - FIXME: showing an unload prompt is unlikely to be annoying, deceptive, or pointless
-    ) {
+        //    - showing an unload prompt is unlikely to be annoying, deceptive, or pointless,
+        && showing_an_unload_prompt_is_unlikely_to_be_annoying_deceptive_or_pointless()) {
         // 1. Set unloadPromptShown to true.
         unload_prompt_shown = true;
 
