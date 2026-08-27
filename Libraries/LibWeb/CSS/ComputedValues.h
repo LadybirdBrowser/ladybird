@@ -415,7 +415,13 @@ struct ListStyleSymbols {
     bool operator==(ListStyleSymbols const&) const = default;
 };
 
-using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, Utf16String, Utf16FlyString, ListStyleSymbols>;
+struct UnresolvedCounterStyleName {
+    Utf16FlyString name;
+
+    bool operator==(UnresolvedCounterStyleName const&) const = default;
+};
+
+using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, Utf16String, UnresolvedCounterStyleName, ListStyleSymbols>;
 
 struct ComputedFontStyle {
     FontStyleKeyword keyword { FontStyleKeyword::Normal };

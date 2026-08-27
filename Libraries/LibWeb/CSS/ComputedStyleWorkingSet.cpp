@@ -812,7 +812,7 @@ ListStyleType ComputedStyleWorkingSet::list_style_type(StyleScope const& style_s
         return counter_style;
 
     VERIFY(value.as_counter_style().value().has<Utf16FlyString>());
-    return value.as_counter_style().value().get<Utf16FlyString>();
+    return UnresolvedCounterStyleName { value.as_counter_style().value().get<Utf16FlyString>() };
 }
 
 FontKerning ComputedStyleWorkingSet::font_kerning() const

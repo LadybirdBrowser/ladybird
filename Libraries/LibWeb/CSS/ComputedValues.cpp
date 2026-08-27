@@ -1168,7 +1168,7 @@ ListStyleType ComputedValues::InheritedListValues::list_style_type_value(StyleSc
     auto counter_style = counter_style_value.resolve_counter_style(style_scope);
     if (!counter_style) {
         VERIFY(counter_style_descriptor.has<Utf16FlyString>());
-        return counter_style_descriptor.get<Utf16FlyString>();
+        return UnresolvedCounterStyleName { counter_style_descriptor.get<Utf16FlyString>() };
     }
     if (!counter_style_descriptor.has<CounterStyleStyleValue::SymbolsFunction>())
         return counter_style;
