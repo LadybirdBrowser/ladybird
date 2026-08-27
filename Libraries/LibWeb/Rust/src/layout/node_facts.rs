@@ -207,16 +207,28 @@ pub(crate) fn kind_is_svg_box(kind: NodeKind) -> bool {
 pub(crate) struct NodeFacts<'pass> {
     callbacks: &'pass FfiLayoutFcCallbacks,
     node: Node,
+    data: &'pass NodeData,
+    style_payloads: Option<&'pass FfiStylePayloads>,
 }
 
 impl<'pass> NodeFacts<'pass> {
     #[inline]
     pub(crate) fn new(callbacks: &'pass FfiLayoutFcCallbacks, node: Node) -> Self {
-        Self { callbacks, node }
+        let data = callbacks.node_data(node);
+        // SAFETY: A non-null style pointer addresses the container's group
+        // pointer array, which FfiStylePayloads mirrors exactly. The node's
+        // ComputedValues keep the container alive for the layout pass.
+        let style_payloads = (!data.style.is_null()).then(|| unsafe { &*data.style.cast::<FfiStylePayloads>() });
+        Self {
+            callbacks,
+            node,
+            data,
+            style_payloads,
+        }
     }
 
     pub(super) fn data(&self) -> &'pass NodeData {
-        self.callbacks.node_data(self.node)
+        self.data
     }
 
     fn parent_data(&self) -> Option<&'pass NodeData> {
@@ -225,11 +237,15 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(super) fn style(&self) -> StyleValues<'pass> {
-        StyleValues::for_node(self.callbacks, self.node)
+        StyleValues::new(
+            self.style_payloads
+                .expect("styled node must publish its style container before layout"),
+        )
     }
 
     pub(super) fn computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
-        self.callbacks.computed_values_view_if_styled(self.node)
+        self.style_payloads
+            .map(|payloads| ComputedValuesView::new(&payloads.groups))
     }
 
     pub(super) fn parent_computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {

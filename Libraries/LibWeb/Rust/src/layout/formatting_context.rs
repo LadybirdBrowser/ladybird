@@ -992,6 +992,7 @@ impl FfiLayoutFcCallbacks {
         shell
     }
 
+    #[inline]
     pub(crate) fn slot_index(&self, node: Node) -> u32 {
         node.slot_index()
     }
@@ -1015,6 +1016,7 @@ impl FfiLayoutFcCallbacks {
         self.arena().set_committed_fragment_link(self.arena().data(node), link);
     }
 
+    #[inline]
     pub(crate) fn has_committed_fragment_link(&self, node: Node) -> bool {
         self.node_data(node).flags & NodeFlag::HasCommittedFragmentLink as u32 != 0
     }
@@ -1029,22 +1031,27 @@ impl FfiLayoutFcCallbacks {
         self.arena().set_saved_abspos_layout_inputs(data, inputs);
     }
 
+    #[inline]
     pub(crate) fn parent(&self, node: Node) -> Node {
         self.node_data(node).parent
     }
 
+    #[inline]
     pub(crate) fn first_child(&self, node: Node) -> Node {
         self.node_data(node).first_child
     }
 
+    #[inline]
     pub(crate) fn next_sibling(&self, node: Node) -> Node {
         self.node_data(node).next_sibling
     }
 
+    #[inline]
     pub(crate) fn containing_block(&self, node: Node) -> Node {
         self.node_data(node).containing_block
     }
 
+    #[inline]
     pub(crate) fn inline_containing_block(&self, node: Node) -> Node {
         self.node_data(node).inline_containing_block
     }
