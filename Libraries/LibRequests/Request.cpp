@@ -77,11 +77,14 @@ bool Request::stop()
     if (!had_active_request)
         release_transfer_lease();
     auto on_stop = move(m_on_stop);
+    auto teardown = move(on_teardown);
 
     defer_teardown();
 
     if (had_active_request && on_stop)
         on_stop();
+    if (teardown)
+        teardown();
 
     return had_active_request;
 }
@@ -275,11 +278,14 @@ void Request::did_transfer(Badge<RequestClient>)
 {
     m_transfer_lease.clear();
     auto on_stop = move(m_on_stop);
+    auto teardown = move(on_teardown);
 
     defer_teardown();
 
     if (on_stop)
         on_stop();
+    if (teardown)
+        teardown();
 }
 
 void Request::defer_teardown()
@@ -335,6 +341,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             m_internal_stream_data->read_stream = nullptr;
             // The request has finished for its owner, so a stop or transfer that follows has nothing left to report.
             m_on_stop = nullptr;
+            on_teardown = nullptr;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
             defer_teardown();
         }
