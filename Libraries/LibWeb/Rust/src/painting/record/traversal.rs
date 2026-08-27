@@ -162,7 +162,7 @@ pub(crate) fn record_display_list(
         compatible_visual_context_tree_version: visual_context_tree_version,
         recorded_device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
         hit_test_list,
-        display_list_bytes: recorder.recorder.into_builder().into_bytes(),
+        display_list: recorder.recorder.into_builder().finish(),
         has_blocking_wheel_event_listeners: recorder.has_blocking_wheel_event_listeners,
         mask_display_lists,
         spliced_capture_count: recorder.spliced_capture_count,
@@ -513,7 +513,7 @@ impl PaintRecorder<'_> {
 
         let command_range = self
             .recorder
-            .append_cached_command_range_verbatim(&command_source.display_list_bytes, cached.command_range);
+            .append_cached_command_range_verbatim(&command_source.display_list.bytes, cached.command_range);
         let hit_test_start = self.list.items.len();
         let source_start = cached.hit_test_start as usize;
         let source_end = source_start + cached.hit_test_count as usize;
@@ -754,7 +754,7 @@ impl PaintRecorder<'_> {
         };
         if let Some((source, cached)) = cached_commands {
             let destination_range = self.recorder.append_cached_command_range(
-                &source.display_list_bytes,
+                &source.display_list.bytes,
                 cached.range,
                 cached.recorded_context,
             );

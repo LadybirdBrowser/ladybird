@@ -2607,8 +2607,8 @@ pub unsafe extern "C" fn layout_arena_display_list_bytes(arena: *mut c_void, out
             return std::ptr::null();
         };
         // SAFETY: as above.
-        unsafe { *out_length = recording.display_list_bytes.len() };
-        recording.display_list_bytes.as_ptr()
+        unsafe { *out_length = recording.display_list.bytes.len() };
+        recording.display_list.bytes.as_ptr()
     })
 }
 

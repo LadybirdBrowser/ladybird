@@ -472,6 +472,29 @@ ffi_bytes_fields!(DisplayListCommandHeader {
 });
 const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 32);
 
+// A maximal sequence of consecutive commands sharing one visual context, summarized as the tape is
+// built so that replay can enter a context, cull, and depth-sort per run instead of rediscovering
+// the runs from every command header. Runs are contiguous and cover the whole tape.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct DisplayListCommandRun {
+    pub offset: u32,
+    pub size: u32,
+    pub context: ContextRef,
+    // Union of the draw commands' bounding rects, excluding clips, in the run's spatial node space.
+    pub ink_bounds: IntRect,
+    // Relative to the nesting level at the run's start.
+    pub nesting_delta: i32,
+    pub min_relative_nesting: i32,
+    pub has_unbounded_draw: bool,
+    pub has_compositor_metadata: bool,
+    // A clip at the run's base nesting level also narrows the clip of every command after the run.
+    pub has_unconfined_clip: bool,
+    // Skipping the whole run can neither unbalance the save stack nor drop a clip later runs rely on.
+    pub is_self_contained: bool,
+}
+const _: () = assert!(std::mem::size_of::<DisplayListCommandRun>() == 44);
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct DisplayListGlyph {

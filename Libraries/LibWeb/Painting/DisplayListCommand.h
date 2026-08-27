@@ -174,7 +174,23 @@ decltype(auto) visit_display_list_command(
 
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
 static_assert(sizeof(DisplayListCommandHeader) == 32);
+static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
+static_assert(sizeof(DisplayListCommandRun) == 44);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
+
+inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun const& b)
+{
+    return a.offset == b.offset
+        && a.size == b.size
+        && a.context == b.context
+        && a.ink_bounds == b.ink_bounds
+        && a.nesting_delta == b.nesting_delta
+        && a.min_relative_nesting == b.min_relative_nesting
+        && a.has_unbounded_draw == b.has_unbounded_draw
+        && a.has_compositor_metadata == b.has_compositor_metadata
+        && a.has_unconfined_clip == b.has_unconfined_clip
+        && a.is_self_contained == b.is_self_contained;
+}
 
 #define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyCopyable<command>);
 ENUMERATE_DISPLAY_LIST_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
