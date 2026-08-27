@@ -13,6 +13,7 @@ pub mod refresh;
 pub mod scroll_state;
 
 use crate::painting::display_list::commands::OptionalF32;
+use crate::painting::paintable_data::BorderEdge;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
     WindingRule,
@@ -119,6 +120,14 @@ impl FrameData {
             opacity: 1.0,
             blend_mode,
             filter: None,
+        })
+    }
+
+    pub fn rect_clip(rect: FloatRect) -> Self {
+        FrameData::Clip(ClipData {
+            rect,
+            corner_radii: CornerRadii::default(),
+            mode: ClipMode::Intersect,
         })
     }
 }
@@ -306,6 +315,17 @@ pub enum FrameRole {
     BackgroundTextMask {
         piece: PieceKey,
     },
+    PatternedEdge {
+        owner: PatternedEdgeOwner,
+        piece: PieceKey,
+        edge: BorderEdge,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PatternedEdgeOwner {
+    Border,
+    Outline,
 }
 
 pub struct FrameNode {

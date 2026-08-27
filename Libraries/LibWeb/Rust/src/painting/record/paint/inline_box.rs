@@ -5,13 +5,10 @@
  */
 
 use crate::css::css_pixels::CssPixelRect;
-use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_data::{PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP};
 use crate::painting::paintable_geometry;
 use crate::painting::record::paint::background_resolution::body_background_is_propagated_to_root;
-use crate::painting::record::paint::border::paint_box_borders;
-use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels};
+use crate::painting::record::paint::border::{paint_box_borders, present_css_border_widths, style_borders_data};
 use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
@@ -83,69 +80,21 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
         let Some(style) = recorder.layout_arena.node_style_if_live(paintable) else {
             return;
         };
-        let zero = CssPixels::from_raw(0);
-        let default_side = BorderDataDevicePixels {
-            color: libgfx_rust::Color::TRANSPARENT,
-            line_style: crate::css::css_enums::line_style::NONE,
-            width: 0,
-        };
-        let side = |present: bool, color: u32, line_style: u8, width: CssPixels| {
-            if !present {
-                return (zero, default_side);
-            }
-            (
-                width,
-                BorderDataDevicePixels {
-                    color: libgfx_rust::Color(color),
-                    line_style,
-                    width: converter.enclosing_device_pixels(width),
-                },
-            )
-        };
         let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
-        for piece_index in piece_indices {
+        for (position, piece_index) in piece_indices.iter().enumerate() {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
             }
-            let has = |edge: u8| piece.present_edges & edge != 0;
-            let (top_width, top) = side(
-                border.top != zero && has(PIECE_EDGE_TOP),
-                style.border_top_color(),
-                style.border_top_style(),
-                style.border_top_width(),
-            );
-            let (right_width, right) = side(
-                border.right != zero && has(PIECE_EDGE_RIGHT),
-                style.border_right_color(),
-                style.border_right_style(),
-                style.border_right_width(),
-            );
-            let (bottom_width, bottom) = side(
-                border.bottom != zero && has(PIECE_EDGE_BOTTOM),
-                style.border_bottom_color(),
-                style.border_bottom_style(),
-                style.border_bottom_width(),
-            );
-            let (left_width, left) = side(
-                border.left != zero && has(PIECE_EDGE_LEFT),
-                style.border_left_color(),
-                style.border_left_style(),
-                style.border_left_width(),
-            );
-            let borders_data = BordersDataDevicePixels {
-                top,
-                right,
-                bottom,
-                left,
-            };
+            let borders_data = style_borders_data(style, border, piece.present_edges, &converter);
             let border_radii = recorder.piece_border_radii(paintable, piece);
             paint_box_borders(
                 recorder,
                 paintable,
+                PieceKey::Piece(position as u16),
                 &facts,
                 CssPixelRect::from(piece.border_box_rect).translated_by(root_position),
-                [top_width, right_width, bottom_width, left_width],
+                present_css_border_widths(style, border, piece.present_edges),
                 &borders_data,
                 border_radii,
             );
@@ -161,7 +110,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             recorder.inputs.outline_auto_color.0,
         );
         let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
-        for piece_index in piece_indices {
+        for (position, piece_index) in piece_indices.iter().enumerate() {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
@@ -169,6 +118,8 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             let border_radii = recorder.piece_border_radii(paintable, piece);
             outline::paint_outline(
                 recorder,
+                paintable,
+                PieceKey::Piece(position as u16),
                 outline,
                 outline_offset,
                 CssPixelRect::from(piece.border_box_rect).translated_by(root_position),

@@ -282,6 +282,22 @@ pub struct InlineBoxPieceRecord {
     pub is_geometry_only_placeholder: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BorderEdge {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+impl BorderEdge {
+    pub const ALL: [BorderEdge; 4] = [BorderEdge::Top, BorderEdge::Right, BorderEdge::Bottom, BorderEdge::Left];
+
+    pub const fn index(self) -> usize {
+        self as usize
+    }
+}
+
 pub const PIECE_EDGE_TOP: u8 = 1 << 0;
 pub const PIECE_EDGE_RIGHT: u8 = 1 << 1;
 pub const PIECE_EDGE_BOTTOM: u8 = 1 << 2;

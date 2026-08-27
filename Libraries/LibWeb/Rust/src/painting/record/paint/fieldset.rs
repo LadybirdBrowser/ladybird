@@ -4,15 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background;
-use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
-use crate::painting::visual_context::FrameRole;
+use crate::painting::record::paint::border::{
+    BorderDataDevicePixels, BordersDataDevicePixels, local_solid_edge_region_frames, paint_all_borders,
+};
+use crate::painting::visual_context::{FrameRole, PatternedEdgeOwner, PieceKey};
 use libgfx_rust::Color;
 
 pub(crate) fn legend_paintable(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> Option<NodeSlotId> {
@@ -57,38 +61,28 @@ pub(crate) fn visual_border_box_rect(arena: &impl PaintableRowsRead, fieldset: N
     rect
 }
 
-pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
-    let clip = recorder.expected_local_context(fieldset, FrameRole::FieldsetBackgroundClip);
-    recorder.with_context(clip, |recorder| background::paint_background(recorder, fieldset));
+pub(crate) struct FieldsetBordersData {
+    pub all: BordersDataDevicePixels,
+    pub without_top: BordersDataDevicePixels,
+    pub top_only: BordersDataDevicePixels,
 }
 
-pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
-    if legend_paintable(recorder.layout_arena, fieldset).is_none() {
-        super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
-        return;
-    }
-    let Some(style) = recorder.layout_arena.node_style_if_live(fieldset) else {
-        return;
-    };
-    let converter = recorder.converter;
-
+pub(crate) fn fieldset_borders_data(
+    style: ComputedValuesView<'_>,
+    converter: &DevicePixelConverter,
+) -> FieldsetBordersData {
     let side = |color: u32, line_style: u8, width: CssPixels| BorderDataDevicePixels {
         color: Color(color),
         line_style,
         width: converter.enclosing_device_pixels(width),
     };
     let none = BorderDataDevicePixels::default();
-    let top_border_data = side(
-        style.border_top_color(),
-        style.border_top_style(),
-        style.border_top_width(),
-    );
-
-    let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
-    let corners = recorder.border_radii(fieldset).as_corners(&converter);
-
-    let borders_data = BordersDataDevicePixels {
-        top: none,
+    let all = BordersDataDevicePixels {
+        top: side(
+            style.border_top_color(),
+            style.border_top_style(),
+            style.border_top_width(),
+        ),
         right: side(
             style.border_right_color(),
             style.border_right_style(),
@@ -105,17 +99,59 @@ pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotI
             style.border_left_width(),
         ),
     };
-    paint_all_borders(&mut recorder.recorder, device_border_rect, corners, &borders_data);
+    FieldsetBordersData {
+        all,
+        without_top: BordersDataDevicePixels { top: none, ..all },
+        top_only: BordersDataDevicePixels {
+            top: all.top,
+            right: none,
+            bottom: none,
+            left: none,
+        },
+    }
+}
+
+pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
+    let clip = recorder.expected_local_context(fieldset, FrameRole::FieldsetBackgroundClip);
+    recorder.with_context(clip, |recorder| background::paint_background(recorder, fieldset));
+}
+
+pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
+    if legend_paintable(recorder.layout_arena, fieldset).is_none() {
+        super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
+        return;
+    }
+    let Some(style) = recorder.layout_arena.node_style_if_live(fieldset) else {
+        return;
+    };
+    let converter = recorder.converter;
+    let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
+    let corners = recorder.border_radii(fieldset).as_corners(&converter);
+    let borders = fieldset_borders_data(style, &converter);
+    let solid_edge_region_frames = local_solid_edge_region_frames(
+        recorder,
+        fieldset,
+        PatternedEdgeOwner::Border,
+        PieceKey::Box,
+        &borders.all,
+    );
+    paint_all_borders(
+        &mut recorder.recorder,
+        device_border_rect,
+        corners,
+        &borders.without_top,
+        &solid_edge_region_frames,
+    );
 
     // The top border is not expected to be painted behind the border box of the legend.
-    let top_border_only = BordersDataDevicePixels {
-        top: top_border_data,
-        right: none,
-        bottom: none,
-        left: none,
-    };
     let cutout = recorder.expected_local_context(fieldset, FrameRole::LegendCutout);
     recorder.with_context(cutout, |recorder| {
-        paint_all_borders(&mut recorder.recorder, device_border_rect, corners, &top_border_only);
+        paint_all_borders(
+            &mut recorder.recorder,
+            device_border_rect,
+            corners,
+            &borders.top_only,
+            &solid_edge_region_frames,
+        );
     });
 }
