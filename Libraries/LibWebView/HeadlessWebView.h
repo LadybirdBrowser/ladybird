@@ -37,6 +37,8 @@ public:
 protected:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
+    void propagate_web_content_crash();
+    void discard_child_web_view(HeadlessWebView&);
     void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     void update_zoom() override;
 
@@ -53,6 +55,8 @@ protected:
     // When restoring from fullscreen, we need to know to what dimension.
     Web::DevicePixelRect m_previous_dimensions;
 
+    WeakPtr<HeadlessWebView> m_parent_web_view;
+    bool m_propagate_crashes_to_parent { true };
     Vector<NonnullOwnPtr<HeadlessWebView>> m_child_web_views;
 };
 

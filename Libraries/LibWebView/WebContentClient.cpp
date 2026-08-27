@@ -1928,10 +1928,11 @@ void WebContentClient::did_close_browsing_context(u64 page_id)
     unregister_embedded_page(page_id);
     m_detached_pages_pending_close.remove(page_id);
 
-    if (auto view = m_views.get(page_id); view.has_value()) {
-        (*view)->did_close_browsing_context({});
-        if ((*view)->on_close)
-            (*view)->on_close();
+    if (auto registered_view = m_views.get(page_id); registered_view.has_value()) {
+        auto view = *registered_view;
+        view->did_close_browsing_context({});
+        if (view->on_close)
+            view->on_close();
     }
 
     close_server_if_unused();
