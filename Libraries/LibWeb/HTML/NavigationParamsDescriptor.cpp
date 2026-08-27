@@ -197,6 +197,10 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     if (!request)
         return {};
 
+    // Navigation may hand this response back to the UI process as a download. Do not consume any of its body before
+    // populate_session_history_entry_document() decides whether to load it as a document or transfer it again.
+    request->set_body_delivery_paused(true);
+
     auto stream = realm.heap().allocate<Streams::ReadableStream>();
     auto pull_algorithm = GC::create_function(realm.heap(), [&realm]() {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
