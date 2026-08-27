@@ -4,24 +4,23 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
   frames:
-    [f0 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (PaintableWithLines(BlockContainer<DIV>#box.box))
+    [f0 in s0] effects=[]
+      [f1 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (PaintableWithLines(BlockContainer<DIV>#box.box))
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1/f0 rect=[8,8 100x100] color=rgb(173, 216, 230)
-  DrawGlyphRun@s1/f0 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-Restore@s0
-MaskDisplayList for frame f0:
-  Save@s0
-    AddClipRect@s0 rect=[0,0 100x100]
-    PaintLinearGradient@s0 rect=[0,0 100x100]
-  Restore@s0
+FillRect@s1/f1 rect=[8,8 100x100] color=rgb(173, 216, 230)
+DrawGlyphRun@s1/f1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 MaskDisplayList for frame f1:
   Save@s0
     AddClipRect@s0 rect=[0,0 100x100]
     PaintLinearGradient@s0 rect=[0,0 100x100]
   Restore@s0
 MaskDisplayList for frame f2:
+  Save@s0
+    AddClipRect@s0 rect=[0,0 100x100]
+    PaintLinearGradient@s0 rect=[0,0 100x100]
+  Restore@s0
+MaskDisplayList for frame f3:
   Save@s0
     AddClipRect@s0 rect=[0,0 100x100]
     PaintLinearGradient@s0 rect=[0,0 100x100]
@@ -32,12 +31,12 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1 rect=[8,8 100x100] color=rgb(173, 216, 230)
-  DrawGlyphRun@s1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-Restore@s0
+FillRect@s1/f0 rect=[8,8 100x100] color=rgb(173, 216, 230)
+DrawGlyphRun@s1/f0 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 
 After mask-image reinstatement:
 AccumulatedVisualContext Tree:
@@ -45,18 +44,12 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
   frames:
-    [f0 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (PaintableWithLines(BlockContainer<DIV>#box.box))
+    [f0 in s0] effects=[]
+      [f1 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (PaintableWithLines(BlockContainer<DIV>#box.box))
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1/f0 rect=[8,8 100x100] color=rgb(173, 216, 230)
-  DrawGlyphRun@s1/f0 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-Restore@s0
-MaskDisplayList for frame f0:
-  Save@s0
-    AddClipRect@s0 rect=[0,0 100x100]
-    PaintLinearGradient@s0 rect=[0,0 100x100]
-  Restore@s0
+FillRect@s1/f1 rect=[8,8 100x100] color=rgb(173, 216, 230)
+DrawGlyphRun@s1/f1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 MaskDisplayList for frame f1:
   Save@s0
     AddClipRect@s0 rect=[0,0 100x100]
@@ -67,3 +60,9 @@ MaskDisplayList for frame f2:
     AddClipRect@s0 rect=[0,0 100x100]
     PaintLinearGradient@s0 rect=[0,0 100x100]
   Restore@s0
+MaskDisplayList for frame f3:
+  Save@s0
+    AddClipRect@s0 rect=[0,0 100x100]
+    PaintLinearGradient@s0 rect=[0,0 100x100]
+  Restore@s0
+

@@ -3,33 +3,34 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  DrawGlyphRun@s1 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(0, 0, 255)
-  DrawLine@s1 from=[8,24] to=[78,24] color=rgb(0, 0, 255) thickness=2 style=Solid
-  DrawGlyphRun@s1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
-  DrawLine@s1 from=[8,40] to=[55,40] color=rgb(0, 0, 255) thickness=2 style=Solid
-  DrawGlyphRun@s1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(0, 0, 255)
-  DrawLine@s1 from=[8,56] to=[68,56] color=rgb(0, 0, 255) thickness=2 style=Solid
-  DrawGlyphRun@s1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(0, 0, 255)
-  DrawLine@s1 from=[8,72] to=[44,72] color=rgb(0, 0, 255) thickness=2 style=Solid
-Restore@s0
+DrawGlyphRun@s1/f0 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(0, 0, 255)
+DrawLine@s1/f0 from=[8,24] to=[78,24] color=rgb(0, 0, 255) thickness=2 style=Solid
+DrawGlyphRun@s1/f0 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
+DrawLine@s1/f0 from=[8,40] to=[55,40] color=rgb(0, 0, 255) thickness=2 style=Solid
+DrawGlyphRun@s1/f0 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(0, 0, 255)
+DrawLine@s1/f0 from=[8,56] to=[68,56] color=rgb(0, 0, 255) thickness=2 style=Solid
+DrawGlyphRun@s1/f0 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(0, 0, 255)
+DrawLine@s1/f0 from=[8,72] to=[44,72] color=rgb(0, 0, 255) thickness=2 style=Solid
 
 After:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  DrawGlyphRun@s1 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(255, 0, 0)
-  DrawLine@s1 from=[8,24] to=[78,24] color=rgb(255, 0, 0) thickness=2 style=Solid
-  DrawGlyphRun@s1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)
-  DrawLine@s1 from=[8,40] to=[55,40] color=rgb(255, 0, 0) thickness=2 style=Solid
-  DrawGlyphRun@s1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(255, 0, 0)
-  DrawLine@s1 from=[8,56] to=[68,56] color=rgb(255, 0, 0) thickness=2 style=Solid
-  DrawGlyphRun@s1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(255, 0, 0)
-  DrawLine@s1 from=[8,72] to=[44,72] color=rgb(255, 0, 0) thickness=2 style=Solid
-Restore@s0
+DrawGlyphRun@s1/f0 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(255, 0, 0)
+DrawLine@s1/f0 from=[8,24] to=[78,24] color=rgb(255, 0, 0) thickness=2 style=Solid
+DrawGlyphRun@s1/f0 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)
+DrawLine@s1/f0 from=[8,40] to=[55,40] color=rgb(255, 0, 0) thickness=2 style=Solid
+DrawGlyphRun@s1/f0 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(255, 0, 0)
+DrawLine@s1/f0 from=[8,56] to=[68,56] color=rgb(255, 0, 0) thickness=2 style=Solid
+DrawGlyphRun@s1/f0 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(255, 0, 0)
+DrawLine@s1/f0 from=[8,72] to=[44,72] color=rgb(255, 0, 0) thickness=2 style=Solid
+

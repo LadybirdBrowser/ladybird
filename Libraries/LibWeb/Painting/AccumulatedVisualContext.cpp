@@ -142,6 +142,8 @@ bool AccumulatedVisualContextTree::is_compatible_with(AccumulatedVisualContextTr
 {
     if (m_spatial_nodes.size() != other.m_spatial_nodes.size() || m_frame_nodes.size() != other.m_frame_nodes.size())
         return false;
+    if (m_root_isolation_frame != other.m_root_isolation_frame)
+        return false;
 
     for (size_t i = 0; i < m_spatial_nodes.size(); ++i) {
         auto const& node = m_spatial_nodes[i];
@@ -1092,6 +1094,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTr
     TRY(encoder.encode(tree.m_spatial_nodes));
     TRY(encoder.encode(tree.m_frame_nodes));
     TRY(encoder.encode(tree.m_root_is_visual_viewport));
+    TRY(encoder.encode(tree.m_root_isolation_frame));
     return {};
 }
 
@@ -1103,6 +1106,7 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
     auto spatial_nodes = TRY(decoder.decode<Vector<SpatialNode>>());
     auto frame_nodes = TRY(decoder.decode<Vector<FrameNode>>());
     auto root_is_visual_viewport = TRY(decoder.decode<bool>());
+    auto root_isolation_frame = TRY(decoder.decode<Optional<FrameNodeIndex>>());
     if (spatial_nodes.is_empty())
         return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing visual viewport node");
     if (!spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<TransformData>())
@@ -1134,7 +1138,12 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
         if (frame_nodes[i].spatial.value() >= spatial_count)
             return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree frame node spatial index out of range");
     }
-    return AccumulatedVisualContextTree { version, move(spatial_nodes), move(frame_nodes), root_is_visual_viewport };
+    if (root_isolation_frame.has_value() && (root_isolation_frame->value() >= frame_nodes.size() || !frame_nodes[root_isolation_frame->value()].data.has<EffectsData>()))
+        return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree root isolation frame is not an effects frame");
+    AccumulatedVisualContextTree tree { version, move(spatial_nodes), move(frame_nodes), root_is_visual_viewport };
+    if (root_isolation_frame.has_value())
+        tree.set_root_isolation_frame(*root_isolation_frame);
+    return tree;
 }
 
 }

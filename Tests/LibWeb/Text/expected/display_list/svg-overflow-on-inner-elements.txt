@@ -4,9 +4,9 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
         [s2] svg-viewport-transform=[1,0,0,1,0,0] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
   frames:
-    [f0 in s1] clip=[0,0 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[0,0 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
 
 DisplayList:
-SaveLayer@s0
-  FillPath@s2/f0 path_bounding_rect=[10,10 100x100]
-Restore@s0
+FillPath@s2/f1 path_bounding_rect=[10,10 100x100]
+

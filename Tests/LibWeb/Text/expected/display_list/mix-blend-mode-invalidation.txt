@@ -3,11 +3,11 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1 rect=[8,8 100x100] color=rgb(0, 128, 0)
-Restore@s0
+FillRect@s1/f0 rect=[8,8 100x100] color=rgb(0, 128, 0)
 
 After mix-blend-mode change:
 AccumulatedVisualContext Tree:
@@ -15,9 +15,9 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
   frames:
-    [f0 in s1] effects=[blend_mode=2] (PaintableWithLines(BlockContainer<DIV>#box))
+    [f0 in s0] effects=[]
+      [f1 in s1] effects=[blend_mode=2] (PaintableWithLines(BlockContainer<DIV>#box))
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1/f0 rect=[8,8 100x100] color=rgb(0, 128, 0)
-Restore@s0
+FillRect@s1/f1 rect=[8,8 100x100] color=rgb(0, 128, 0)
+

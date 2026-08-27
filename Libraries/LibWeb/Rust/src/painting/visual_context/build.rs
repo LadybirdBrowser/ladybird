@@ -13,8 +13,8 @@ use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
 use libgfx_rust::{
-    AffineTransform, FloatPoint, IntRect, WindingRule, affine_to_matrix, scale_matrix_for_device_pixels,
-    translated_then_multiplied,
+    AffineTransform, CompositingAndBlendingOperator, FloatPoint, IntRect, WindingRule, affine_to_matrix,
+    scale_matrix_for_device_pixels, translated_then_multiplied,
 };
 use std::collections::HashSet;
 
@@ -829,6 +829,18 @@ pub(crate) fn build_visual_context_tree(
         may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
     };
 
+    let root_isolation_frame = builder.tree.append_frame_with_role(
+        FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
+        FrameNodeIndex::NONE,
+        VISUAL_VIEWPORT_NODE_INDEX,
+        FrameRole::RootIsolation,
+    );
+    builder.tree.root_isolation_frame = Some(root_isolation_frame);
+    let root_context = ContextRef {
+        spatial: VISUAL_VIEWPORT_NODE_INDEX,
+        frame: root_isolation_frame,
+    };
+
     builder.assignment_mut(viewport).enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     let viewport_scroll_node = builder.tree.append_spatial(
         SpatialData::Scroll(ScrollData {
@@ -837,12 +849,15 @@ pub(crate) fn build_visual_context_tree(
         VISUAL_VIEWPORT_NODE_INDEX,
     );
     builder.register_scroll_node(viewport_scroll_node, viewport, VISUAL_VIEWPORT_NODE_INDEX);
-    let viewport_state_for_descendants = ContextRef::spatial_only(viewport_scroll_node);
+    let viewport_state_for_descendants = ContextRef {
+        spatial: viewport_scroll_node,
+        frame: root_isolation_frame,
+    };
     {
         let assignment = builder.assignment_mut(viewport);
         assignment.own_scroll_node_index = viewport_scroll_node;
         assignment.has_accumulated_visual_context = true;
-        assignment.accumulated_visual_context = ContextRef::default();
+        assignment.accumulated_visual_context = root_context;
         assignment.accumulated_visual_context_for_descendants = viewport_state_for_descendants;
     }
 
@@ -853,7 +868,7 @@ pub(crate) fn build_visual_context_tree(
     let viewport_contexts = DescendantVisualContexts {
         normal: viewport_state_for_descendants,
         absolute_position: viewport_state_for_descendants,
-        fixed_position: ContextRef::default(),
+        fixed_position: root_context,
         normal_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
         absolute_position_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
         fixed_position_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
@@ -1061,9 +1076,13 @@ pub(crate) fn update_visual_context_values(
             }
         }
         for index in frame_range {
+            let node = &mut tree.frame_nodes[index];
+            if node.role != FrameRole::Structural {
+                continue;
+            }
             // The builder duplicates a box's EffectsData into the positioned-descendant chains, so every
             // node of a kind is patched with the same recomputed payload.
-            if let FrameData::Effects(effects_data) = &mut tree.frame_nodes[index].data {
+            if let FrameData::Effects(effects_data) = &mut node.data {
                 let Some(new_effects) = &effects else {
                     return false;
                 };

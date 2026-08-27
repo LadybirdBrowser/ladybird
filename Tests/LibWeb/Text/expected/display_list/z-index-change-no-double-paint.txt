@@ -3,19 +3,20 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1 rect=[8,8 50x50] color=rgb(0, 0, 255)
-Restore@s0
+FillRect@s1/f0 rect=[8,8 50x50] color=rgb(0, 0, 255)
 
 After z-index change:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  FillRect@s1 rect=[8,8 50x50] color=rgb(0, 0, 255)
-Restore@s0
+FillRect@s1/f0 rect=[8,8 50x50] color=rgb(0, 0, 255)
+

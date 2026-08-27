@@ -2,11 +2,12 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
       [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
 
 DisplayList:
-SaveLayer@s0
-  CompositorScrollNode@s0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,613] is_viewport=true
-  Save@s1
-    PaintLinearGradient@s0 rect=[0,0 800x600]
-  Restore@s1
-Restore@s0
+CompositorScrollNode@s0/f0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,613] is_viewport=true
+Save@s1/f0
+  PaintLinearGradient@s0/f0 rect=[0,0 800x600]
+Restore@s1/f0
+

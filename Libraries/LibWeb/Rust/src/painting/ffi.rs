@@ -1352,6 +1352,21 @@ pub unsafe extern "C" fn layout_arena_visual_context_tree_root_is_visual_viewpor
     })
 }
 
+///
+/// # Safety
+///
+/// `tree` must be the pointer handed to the callback, used synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_tree_root_isolation_frame(tree: *const c_void) -> u32 {
+    abort_on_panic(|| {
+        // SAFETY: `tree` is the VisualContextTree pointer handed out by the host callback wrapper.
+        let tree = unsafe { &*tree.cast::<crate::painting::visual_context::VisualContextTree>() };
+        tree.root_isolation_frame
+            .unwrap_or(crate::painting::visual_context::FrameNodeIndex::NONE)
+            .0
+    })
+}
+
 fn export_visual_context_nodes<Node>(
     nodes: &[Node],
     begin: usize,

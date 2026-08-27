@@ -7,21 +7,21 @@ AccumulatedVisualContext Tree:
         [s4] transform=[1,0,0,1,10,0] origin=(296,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-c))
         [s5] transform=[1,0,0,1,0,10] origin=(296,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-d))
   frames:
-    [f0 in s1] clip=[10,10 400x200] (Paintable(Box<DIV>.root))
-      [f1 in s1] clip=[11,11 193x198] (PaintableWithLines(BlockContainer<DIV>.branch))
-      [f2 in s1] clip=[216,11 193x198] (PaintableWithLines(BlockContainer<DIV>.branch))
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[10,10 400x200] (Paintable(Box<DIV>.root))
+        [f2 in s1] clip=[11,11 193x198] (PaintableWithLines(BlockContainer<DIV>.branch))
+        [f3 in s1] clip=[216,11 193x198] (PaintableWithLines(BlockContainer<DIV>.branch))
 
 DisplayList:
-SaveLayer@s0
-  FillPath@s1 path_bounding_rect=[8,8 404x204]
-  FillPath@s1/f0 path_bounding_rect=[10,10 195x200]
-  FillPath@s1/f0 path_bounding_rect=[215,10 195x200]
-  FillRect@s2/f1 rect=[16,16 150x80] color=rgb(255, 0, 0)
-  DrawGlyphRun@s2/f1 rect=[16,16 15x16] translation=[16,28.796875] color=rgb(0, 0, 0)
-  FillRect@s3/f1 rect=[16,101 150x80] color=rgb(0, 128, 0)
-  DrawGlyphRun@s3/f1 rect=[16,101 10x16] translation=[16,113.796875] color=rgb(0, 0, 0)
-  FillRect@s4/f2 rect=[221,16 150x80] color=rgb(0, 0, 255)
-  DrawGlyphRun@s4/f2 rect=[221,16 11x16] translation=[221,28.796875] color=rgb(0, 0, 0)
-  FillRect@s5/f2 rect=[221,101 150x80] color=rgb(255, 165, 0)
-  DrawGlyphRun@s5/f2 rect=[221,101 12x16] translation=[221,113.796875] color=rgb(0, 0, 0)
-Restore@s0
+FillPath@s1/f0 path_bounding_rect=[8,8 404x204]
+FillPath@s1/f1 path_bounding_rect=[10,10 195x200]
+FillPath@s1/f1 path_bounding_rect=[215,10 195x200]
+FillRect@s2/f2 rect=[16,16 150x80] color=rgb(255, 0, 0)
+DrawGlyphRun@s2/f2 rect=[16,16 15x16] translation=[16,28.796875] color=rgb(0, 0, 0)
+FillRect@s3/f2 rect=[16,101 150x80] color=rgb(0, 128, 0)
+DrawGlyphRun@s3/f2 rect=[16,101 10x16] translation=[16,113.796875] color=rgb(0, 0, 0)
+FillRect@s4/f3 rect=[221,16 150x80] color=rgb(0, 0, 255)
+DrawGlyphRun@s4/f3 rect=[221,16 11x16] translation=[221,28.796875] color=rgb(0, 0, 0)
+FillRect@s5/f3 rect=[221,101 150x80] color=rgb(255, 165, 0)
+DrawGlyphRun@s5/f3 rect=[221,101 12x16] translation=[221,113.796875] color=rgb(0, 0, 0)
+

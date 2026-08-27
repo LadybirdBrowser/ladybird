@@ -112,6 +112,16 @@ pub enum EffectsFilter {
     Host(std::rc::Rc<FilterHandle>),
 }
 
+impl FrameData {
+    pub fn layer_blending_with(blend_mode: CompositingAndBlendingOperator) -> Self {
+        FrameData::Effects(EffectsData {
+            opacity: 1.0,
+            blend_mode,
+            filter: None,
+        })
+    }
+}
+
 impl EffectsData {
     pub fn needs_layer(&self) -> bool {
         self.opacity < 1.0 || self.blend_mode != CompositingAndBlendingOperator::Normal || self.filter.is_some()
@@ -249,11 +259,18 @@ pub struct SpatialNode {
     pub parent: SpatialNodeIndex,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrameRole {
+    Structural,
+    RootIsolation,
+}
+
 pub struct FrameNode {
     pub data: FrameData,
     pub parent: FrameNodeIndex,
     pub spatial: SpatialNodeIndex,
     pub has_empty_effective_clip: bool,
+    pub role: FrameRole,
 }
 
 #[derive(Default)]
@@ -282,6 +299,7 @@ pub struct VisualContextTree {
     pub spatial_nodes: Vec<SpatialNode>,
     pub frame_nodes: Vec<FrameNode>,
     pub root_is_visual_viewport: bool,
+    pub root_isolation_frame: Option<FrameNodeIndex>,
     pub version: u64,
     pub reused_previous_version: bool,
 }
@@ -303,6 +321,7 @@ impl VisualContextTree {
             }],
             frame_nodes: Vec::new(),
             root_is_visual_viewport,
+            root_isolation_frame: None,
             version: 0,
             reused_previous_version: false,
         }
@@ -334,6 +353,16 @@ impl VisualContextTree {
         parent: FrameNodeIndex,
         spatial: SpatialNodeIndex,
     ) -> FrameNodeIndex {
+        self.append_frame_with_role(data, parent, spatial, FrameRole::Structural)
+    }
+
+    pub fn append_frame_with_role(
+        &mut self,
+        data: FrameData,
+        parent: FrameNodeIndex,
+        spatial: SpatialNodeIndex,
+        role: FrameRole,
+    ) -> FrameNodeIndex {
         assert!((spatial.0 as usize) < self.spatial_nodes.len());
         let inherited_empty_clip = if parent.is_none() {
             false
@@ -347,6 +376,7 @@ impl VisualContextTree {
             data,
             parent,
             spatial,
+            role,
         });
         FrameNodeIndex((self.frame_nodes.len() - 1) as u32)
     }
@@ -373,6 +403,9 @@ impl VisualContextTree {
 
     pub fn is_compatible_with(&self, other: &Self) -> bool {
         if self.spatial_nodes.len() != other.spatial_nodes.len() || self.frame_nodes.len() != other.frame_nodes.len() {
+            return false;
+        }
+        if self.root_isolation_frame != other.root_isolation_frame {
             return false;
         }
         let spatial_compatible = self

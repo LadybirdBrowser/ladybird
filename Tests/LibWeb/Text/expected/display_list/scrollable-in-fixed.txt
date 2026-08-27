@@ -4,21 +4,21 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
       [s2] scroll (PaintableWithLines(BlockContainer<DIV>.scroll-container))
   frames:
-    [f0 in s0] clip=[33,33 180x100] (PaintableWithLines(BlockContainer<DIV>.scroll-container))
+    [f0 in s0] effects=[]
+      [f1 in s0] clip=[33,33 180x100] (PaintableWithLines(BlockContainer<DIV>.scroll-container))
 
 DisplayList:
-SaveLayer@s0
-  CompositorWheelHitTestTarget@s0 target_scroll_node_index=s0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@s1 target_scroll_node_index=s0 rect=[0,0 800x21]
-  CompositorWheelHitTestTarget@s0 target_scroll_node_index=s0 rect=[20,20 204x154]
-  FillRect@s0 rect=[20,20 204x154] color=rgb(211, 211, 211)
-  FillPath@s0 path_bounding_rect=[20,20 204x154]
-  CompositorWheelHitTestTarget@s0 target_scroll_node_index=s2 rect=[32,32 182x102]
-  CompositorScrollNode@s0 scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[33,33 180x100] min_scroll_offset=[0,0] max_scroll_offset=[120,100] is_viewport=false
-  FillPath@s0 path_bounding_rect=[32,32 182x102]
-  CompositorWheelHitTestTarget@s2/f0 target_scroll_node_index=s2 rect=[33,33 300x200]
-  FillRect@s2/f0 rect=[33,33 300x200] color=rgb(240, 128, 128)
-  DrawGlyphRun@s2/f0 rect=[33,33 179x16] translation=[33,45.796875] color=rgb(0, 0, 0)
-  PaintScrollBar@s0
-  PaintScrollBar@s0
-Restore@s0
+CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s0 rect=[0,0 800x600]
+CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s0 rect=[0,0 800x21]
+CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s0 rect=[20,20 204x154]
+FillRect@s0/f0 rect=[20,20 204x154] color=rgb(211, 211, 211)
+FillPath@s0/f0 path_bounding_rect=[20,20 204x154]
+CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s2 rect=[32,32 182x102]
+CompositorScrollNode@s0/f0 scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[33,33 180x100] min_scroll_offset=[0,0] max_scroll_offset=[120,100] is_viewport=false
+FillPath@s0/f0 path_bounding_rect=[32,32 182x102]
+CompositorWheelHitTestTarget@s2/f1 target_scroll_node_index=s2 rect=[33,33 300x200]
+FillRect@s2/f1 rect=[33,33 300x200] color=rgb(240, 128, 128)
+DrawGlyphRun@s2/f1 rect=[33,33 179x16] translation=[33,45.796875] color=rgb(0, 0, 0)
+PaintScrollBar@s0/f0
+PaintScrollBar@s0/f0
+
