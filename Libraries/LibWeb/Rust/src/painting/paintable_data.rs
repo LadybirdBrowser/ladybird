@@ -75,6 +75,13 @@ impl PaintableKind {
         matches!(self, Self::NavigableContainerViewportPaintable)
     }
 
+    pub const fn paints_box_decorations(self) -> bool {
+        !matches!(
+            self,
+            Self::None | Self::InlinePaintable | Self::SVGPathPaintable | Self::SVGImagePaintable
+        )
+    }
+
     pub const fn forms_unconnected_subtree(self) -> bool {
         matches!(
             self,

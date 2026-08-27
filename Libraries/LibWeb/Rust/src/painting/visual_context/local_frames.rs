@@ -12,14 +12,21 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::paintable_data::PaintableKind;
+use crate::painting::host::FfiRootBackgroundSource;
+use crate::painting::paintable_data::{FfiPixelBox, PaintableKind};
 use crate::painting::paintable_geometry::{
-    absolute_border_box_rect, absolute_rect, for_each_rendered_inline_box_piece,
+    absolute_border_box_rect, absolute_rect, committed_border, committed_padding, for_each_rendered_inline_box_piece,
 };
 use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
+use crate::painting::record::paint::background_resolution::{
+    ComputedLayerFrameFacts, background_paint_source_from_style_and_geometry, body_background_is_propagated_to_root,
+    computed_background_layer_frame_facts, computed_mask_layer_frame_facts,
+};
 use crate::painting::record::paint::fieldset::{legend_paintable, visual_border_box_rect};
 use crate::painting::record::paint::svg::svg_image_unquantized_device_rect;
-use libgfx_rust::{CornerRadii, FloatRect, IntRect};
+use crate::painting::style_queries;
+use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatRect, IntRect};
 
 pub(crate) type LocalFrames = Vec<(FrameRole, FrameNodeIndex)>;
 
@@ -30,6 +37,20 @@ pub(crate) struct LocalFrameBuilder<'a, Arena: PaintableRowsRead> {
     kind: PaintableKind,
     converter: DevicePixelConverter,
     frames: Option<LocalFrames>,
+}
+
+#[derive(Clone, Copy)]
+struct BackgroundLayerBoxes {
+    border_box: BackgroundBox,
+    padding: FfiPixelBox,
+    border: FfiPixelBox,
+}
+
+fn root_background_source_or_no_propagation(source: Option<FfiRootBackgroundSource>) -> FfiRootBackgroundSource {
+    source.unwrap_or(FfiRootBackgroundSource {
+        use_body_background_properties: false,
+        body_layout_node: NodeSlotId::INVALID,
+    })
 }
 
 impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
@@ -50,12 +71,17 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         }
     }
 
-    pub(crate) fn build(mut self, own_state: ContextRef) -> LocalFrames {
+    pub(crate) fn build(
+        mut self,
+        own_state: ContextRef,
+        root_background_source: Option<FfiRootBackgroundSource>,
+    ) -> LocalFrames {
         let Some(style) = self.layout_arena.node_style_if_live(self.slot) else {
             return self.finish();
         };
+        let root_background_source = root_background_source_or_no_propagation(root_background_source);
         if self.kind == PaintableKind::InlinePaintable {
-            self.append_inline_box_frames(style, own_state);
+            self.append_inline_box_frames(style, own_state, root_background_source);
             return self.finish();
         }
 
@@ -63,6 +89,7 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         let border_radii = border_radii_data(style, self.layout_arena, self.slot);
         self.append_box_shadow_frames(style, own_state, PieceKey::Box, border_box_rect, border_radii);
 
+        let mut background_parent = own_state;
         match self.kind {
             PaintableKind::ImagePaintable
             | PaintableKind::CanvasPaintable
@@ -71,11 +98,32 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
                 self.append_replaced_content_frames(style, own_state);
             }
             PaintableKind::SVGImagePaintable => self.append_svg_image_frames(style, own_state),
-            PaintableKind::FieldSetPaintable => {
-                self.append_fieldset_frames(own_state);
-            }
+            PaintableKind::FieldSetPaintable => background_parent = self.append_fieldset_frames(own_state),
             _ => {}
         }
+
+        if self.kind.paints_box_decorations() {
+            self.append_background_frames(background_parent, root_background_source);
+        }
+        self.finish()
+    }
+
+    pub(crate) fn build_css_mask_layer_frames(
+        mut self,
+        root_context: ContextRef,
+        style: ComputedValuesView<'_>,
+        mask_rect: CssPixelRect,
+        is_root_element: bool,
+    ) -> LocalFrames {
+        let layers = computed_mask_layer_frame_facts(style);
+        self.append_background_layer_frames(
+            PieceKey::Box,
+            root_context,
+            mask_rect,
+            BorderRadii::default(),
+            is_root_element,
+            &layers,
+        );
         self.finish()
     }
 
@@ -111,8 +159,18 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         )
     }
 
-    fn append_inline_box_frames(&mut self, style: ComputedValuesView<'_>, own_state: ContextRef) {
+    fn append_inline_box_frames(
+        &mut self,
+        style: ComputedValuesView<'_>,
+        own_state: ContextRef,
+        root_background_source: FfiRootBackgroundSource,
+    ) {
         let arena = self.layout_arena;
+        let border = committed_border(arena, self.slot);
+        let has_borders = style_queries::has_css_borders(style);
+        let paints_background = !body_background_is_propagated_to_root(arena, self.slot, root_background_source)
+            && style_queries::background_layers_have_image(style);
+        let background_layers = paints_background.then(|| computed_background_layer_frame_facts(style));
         for_each_rendered_inline_box_piece(arena, self.slot, |position, piece, border_box_rect| {
             let piece_key = PieceKey::Piece(position);
             let border_radii = piece_border_radii_data(
@@ -122,6 +180,14 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
                 piece.present_edges,
             );
             self.append_box_shadow_frames(style, own_state, piece_key, border_box_rect, border_radii);
+            if let Some(layers) = &background_layers {
+                let background_rect = if has_borders {
+                    border_box_rect
+                } else {
+                    piece.shrunken_by_present_edges(border_box_rect, border)
+                };
+                self.append_background_layer_frames(piece_key, own_state, background_rect, border_radii, false, layers);
+            }
         });
     }
 
@@ -242,5 +308,127 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             FrameRole::LegendCutout,
         );
         background_clip
+    }
+
+    fn append_background_frames(
+        &mut self,
+        background_parent: ContextRef,
+        root_background_source: FfiRootBackgroundSource,
+    ) {
+        let Some(source) =
+            background_paint_source_from_style_and_geometry(self.layout_arena, self.slot, root_background_source)
+        else {
+            return;
+        };
+        let Some(layers_style) = source.layers_style_if_live else {
+            return;
+        };
+        if !style_queries::background_layers_have_image(layers_style) {
+            return;
+        }
+        let layers = computed_background_layer_frame_facts(layers_style);
+        self.append_background_layer_frames(
+            PieceKey::Box,
+            background_parent,
+            source.background_rect,
+            source.border_radii,
+            source.is_root_element,
+            &layers,
+        );
+    }
+
+    // https://drafts.fxtf.org/compositing/#background-blend-mode
+    #[allow(clippy::too_many_arguments)]
+    fn append_background_layer_frames(
+        &mut self,
+        piece: PieceKey,
+        background_parent: ContextRef,
+        background_rect: CssPixelRect,
+        border_radii: BorderRadii,
+        is_root_element: bool,
+        layers: &[ComputedLayerFrameFacts],
+    ) {
+        let parent = background_parent;
+        let boxes = BackgroundLayerBoxes {
+            border_box: BackgroundBox {
+                rect: background_rect,
+                radii: border_radii,
+            },
+            padding: committed_padding(self.layout_arena, self.slot),
+            border: committed_border(self.layout_arena, self.slot),
+        };
+        let some_layer_blends = layers
+            .iter()
+            .any(|layer| layer.may_be_painted && layer.blend_mode != CompositingAndBlendingOperator::Normal);
+        if !some_layer_blends {
+            self.append_background_layer_chain(piece, parent, boxes, is_root_element, layers, false);
+            return;
+        }
+        let isolation = self.append(
+            parent,
+            FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
+            FrameRole::BackgroundIsolation { piece },
+        );
+        self.append_background_layer_chain(piece, isolation, boxes, is_root_element, layers, true);
+        if layers.iter().filter(|layer| layer.may_be_painted).count() == 1 {
+            self.append_background_layer_chain(piece, parent, boxes, is_root_element, layers, false);
+        }
+    }
+
+    fn append_background_layer_chain(
+        &mut self,
+        piece: PieceKey,
+        chain_parent: ContextRef,
+        boxes: BackgroundLayerBoxes,
+        is_root_element: bool,
+        layers: &[ComputedLayerFrameFacts],
+        isolated: bool,
+    ) {
+        for (index, layer) in layers.iter().enumerate() {
+            if !layer.may_be_painted {
+                continue;
+            }
+            let layer_index = index as u16;
+            let mut layer_parent = chain_parent;
+            if !is_root_element {
+                let clip_box = background_box_for(layer.clip, boxes.border_box, boxes.padding, boxes.border);
+                let clip_rect = self.converter.rounded_device_rect(clip_box.rect).to_float();
+                let corner_radii = clip_box.radii.corners_unconditionally(&self.converter);
+                if corner_radii.has_any_radius() {
+                    layer_parent = self.append_clip(
+                        layer_parent,
+                        clip_rect,
+                        corner_radii,
+                        FrameRole::BackgroundLayerCornerClip {
+                            piece,
+                            layer: layer_index,
+                            isolated,
+                        },
+                    );
+                }
+                layer_parent = self.append_clip(
+                    layer_parent,
+                    clip_rect,
+                    CornerRadii::default(),
+                    FrameRole::BackgroundLayerClip {
+                        piece,
+                        layer: layer_index,
+                        isolated,
+                    },
+                );
+            }
+            let blend_layer_operator = layer.blend_layer_operator();
+            if blend_layer_operator != CompositingAndBlendingOperator::Normal {
+                self.append(
+                    layer_parent,
+                    FrameData::layer_blending_with(blend_layer_operator),
+                    FrameRole::BackgroundLayerBlend {
+                        piece,
+                        layer: layer_index,
+                        isolated,
+                    },
+                );
+            }
+        }
     }
 }

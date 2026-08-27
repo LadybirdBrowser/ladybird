@@ -93,27 +93,6 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     }
 }
 
-pub(crate) fn begin_corner_clip(
-    recorder: &mut PaintRecorder<'_>,
-    rect: libgfx_rust::IntRect,
-    radii: &crate::painting::border_radii::BorderRadii,
-    corner_clip: libgfx_rust::CornerClip,
-) -> bool {
-    let corner_radii = radii.corners_unconditionally(&recorder.converter);
-    if !corner_radii.has_any_radius() {
-        return false;
-    }
-    recorder.recorder.save();
-    recorder.recorder.add_rounded_rect_clip(corner_radii, rect, corner_clip);
-    true
-}
-
-pub(crate) fn end_corner_clip(recorder: &mut PaintRecorder<'_>, applied: bool) {
-    if applied {
-        recorder.recorder.restore();
-    }
-}
-
 pub(crate) fn paint_base(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     paint_base_with(recorder, paintable, phase, background::paint_background);
 }

@@ -9,13 +9,20 @@ use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::css::style_value::StyleValueData;
-use crate::layout::node_data::NodeSlotId;
-use crate::painting::host::FfiLayerImageList;
+use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::painting::border_radii::BorderRadii;
+use crate::painting::host::{FfiLayerImageList, FfiRootBackgroundSource};
+use crate::painting::paintable_geometry::{
+    absolute_border_box_rect, absolute_padding_box_rect, committed_border, committed_padding,
+};
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
 use crate::painting::record::paint::replaced::{Fraction, SizeWithAspectRatio, run_default_sizing_algorithm};
 use crate::painting::style_queries;
-use crate::painting::visual_context::node_values::mix_blend_mode_to_compositing_and_blending_operator;
+use crate::painting::visual_context::node_values::{
+    border_radii_data, mix_blend_mode_to_compositing_and_blending_operator,
+};
 use libgfx_rust::CompositingAndBlendingOperator;
 
 #[derive(Clone, Copy)]
@@ -51,6 +58,7 @@ struct ComputedLayer<'a> {
 
 pub(crate) struct ResolvedBackgroundLayer<'a> {
     pub image: Option<LayerImageSource<'a>>,
+    pub computed_index: u32,
     pub attachment: u8,
     pub clip: u8,
     pub position_x: CssPixels,
@@ -66,6 +74,7 @@ pub(crate) struct ResolvedBackgroundLayer<'a> {
 pub(crate) struct ResolvedBackground<'a> {
     pub color_box: BackgroundBox,
     pub layers: Vec<ResolvedBackgroundLayer<'a>>,
+    pub paintable_layer_count: usize,
     pub needs_text_clip: bool,
     pub background_rect: CssPixelRect,
     pub color: libgfx_rust::Color,
@@ -87,6 +96,138 @@ fn mask_composite_to_compositing_and_blending_operator(compositing_operator: u8)
         compositing_operator::EXCLUDE => CompositingAndBlendingOperator::Xor,
         _ => unreachable!("computed mask-composite holds an unknown keyword"),
     }
+}
+
+pub(crate) struct ComputedLayerFrameFacts {
+    pub clip: u8,
+    pub blend_mode: CompositingAndBlendingOperator,
+    pub mask_composite: Option<CompositingAndBlendingOperator>,
+    pub may_be_painted: bool,
+}
+
+impl ComputedLayerFrameFacts {
+    pub(crate) fn blend_layer_operator(&self) -> CompositingAndBlendingOperator {
+        self.mask_composite.unwrap_or(self.blend_mode)
+    }
+}
+
+impl ComputedLayer<'_> {
+    fn may_be_painted(&self, layer_type: LayerType) -> bool {
+        matches!(layer_type, LayerType::Mask) || self.image.is_some()
+    }
+
+    fn frame_facts(&self, layer_type: LayerType) -> ComputedLayerFrameFacts {
+        let is_mask = matches!(layer_type, LayerType::Mask);
+        ComputedLayerFrameFacts {
+            clip: self.clip,
+            blend_mode: mix_blend_mode_to_compositing_and_blending_operator(self.blend_mode),
+            mask_composite: is_mask.then(|| mask_composite_to_compositing_and_blending_operator(self.mask_composite)),
+            may_be_painted: self.may_be_painted(layer_type),
+        }
+    }
+}
+
+pub(crate) fn computed_background_layer_frame_facts(style: ComputedValuesView<'_>) -> Vec<ComputedLayerFrameFacts> {
+    computed_background_layers(style, FfiLayerImageList::Background)
+        .iter()
+        .map(|layer| layer.frame_facts(LayerType::Background))
+        .collect()
+}
+
+pub(crate) fn computed_mask_layer_frame_facts(style: ComputedValuesView<'_>) -> Vec<ComputedLayerFrameFacts> {
+    computed_mask_layers(style)
+        .iter()
+        .map(|layer| layer.frame_facts(LayerType::Mask))
+        .collect()
+}
+
+pub(crate) fn body_background_is_propagated_to_root(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    root_background_source: FfiRootBackgroundSource,
+) -> bool {
+    root_background_source.use_body_background_properties
+        && layout_arena.node_flags_if_live(slot) & NodeFlag::IsBody as u32 != 0
+}
+
+pub(crate) struct BackgroundPaintSource<'a> {
+    pub layers_style_if_live: Option<ComputedValuesView<'a>>,
+    pub image_list: FfiLayerImageList,
+    pub background_color: libgfx_rust::Color,
+    pub background_color_clip: u8,
+    pub background_rect: CssPixelRect,
+    pub border_radii: BorderRadii,
+    pub image_rendering: u8,
+    pub is_root_element: bool,
+}
+
+pub(crate) fn background_paint_source_from_style_and_geometry(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    root_background_source: FfiRootBackgroundSource,
+) -> Option<BackgroundPaintSource<'_>> {
+    let style = layout_arena.node_style_if_live(slot)?;
+    if body_background_is_propagated_to_root(layout_arena, slot, root_background_source) {
+        return None;
+    }
+    let border_radii = border_radii_data(style, layout_arena, slot);
+    let background_color_clip = style.background().background_color_clip;
+    let own_color = libgfx_rust::Color(style.background().background_color);
+
+    // https://drafts.csswg.org/css-backgrounds/#root-background
+    if style_queries::node_is_root_element(layout_arena, slot) {
+        let background_rect = absolute_border_box_rect(layout_arena, slot);
+        if !root_background_source.use_body_background_properties {
+            return Some(BackgroundPaintSource {
+                layers_style_if_live: Some(style),
+                image_list: FfiLayerImageList::Background,
+                background_color: own_color,
+                background_color_clip,
+                background_rect,
+                border_radii,
+                image_rendering: style.image_rendering(),
+                is_root_element: true,
+            });
+        }
+        let body_style = layout_arena.node_style_if_live(root_background_source.body_layout_node);
+        let background_color = if own_color.alpha() != 0 {
+            own_color
+        } else {
+            body_style.map_or(libgfx_rust::Color(0), |body_style| {
+                libgfx_rust::Color(body_style.background().background_color)
+            })
+        };
+        // If the body's background was propagated to the root element, use the body's image-rendering value.
+        let image_rendering = body_style.map_or(css_enums::image_rendering::AUTO, ComputedValuesView::image_rendering);
+        return Some(BackgroundPaintSource {
+            layers_style_if_live: body_style,
+            image_list: FfiLayerImageList::DocumentBackground,
+            background_color,
+            background_color_clip,
+            background_rect,
+            border_radii,
+            image_rendering,
+            is_root_element: true,
+        });
+    }
+
+    // HACK: If the Box has a border, use the bordered_rect to paint the background.
+    //       This way if we have a border-radius there will be no gap between the filling and actual border.
+    let background_rect = if style_queries::has_css_borders(style) {
+        absolute_border_box_rect(layout_arena, slot)
+    } else {
+        absolute_padding_box_rect(layout_arena, slot)
+    };
+    Some(BackgroundPaintSource {
+        layers_style_if_live: Some(style),
+        image_list: FfiLayerImageList::Background,
+        background_color: own_color,
+        background_color_clip,
+        background_rect,
+        border_radii,
+        image_rendering: style.image_rendering(),
+        is_root_element: false,
+    })
 }
 
 fn cycled<'b>(list: &[&'b StyleValueData], index: usize) -> &'b StyleValueData {
@@ -229,6 +370,7 @@ fn computed_mask_layers(style: ComputedValuesView<'_>) -> Vec<ComputedLayer<'_>>
     layers
 }
 
+#[derive(Clone, Copy)]
 enum LayerType {
     Background,
     Mask,
@@ -252,23 +394,30 @@ fn resolve_layers<'a>(
         rect: border_rect,
         radii: border_radii,
     };
-    let color_box = background_box_for(background_color_clip, border_box, recorder, paintable);
+    let padding = committed_padding(recorder.layout_arena, paintable);
+    let border = committed_border(recorder.layout_arena, paintable);
+    let color_box = background_box_for(background_color_clip, border_box, padding, border);
+    let paintable_layer_count = layers.iter().filter(|layer| layer.may_be_painted(layer_type)).count();
 
     let mut resolved_layers: Vec<ResolvedBackgroundLayer<'a>> = Vec::new();
     // A value of none counts as a transparent black image layer.
     // A mask reference that is an empty image (zero width or zero height), that fails to download, is not a reference
     // to an mask element, is non-existent, or that cannot be displayed (e.g. because it is not in a supported image
     // format) still counts as an image layer of transparent black.
-    for layer in layers {
+    for (computed_index, layer) in layers.into_iter().enumerate() {
         let is_mask = matches!(layer_type, LayerType::Mask);
-        let mask_composite = is_mask.then(|| mask_composite_to_compositing_and_blending_operator(layer.mask_composite));
-        let blend_mode = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
+        let ComputedLayerFrameFacts {
+            blend_mode,
+            mask_composite,
+            ..
+        } = layer.frame_facts(layer_type);
         let transparent_mask_layer = |resolved_layers: &mut Vec<ResolvedBackgroundLayer<'a>>| {
             if !is_mask {
                 return;
             }
             resolved_layers.push(ResolvedBackgroundLayer {
                 image: None,
+                computed_index: computed_index as u32,
                 attachment: 0,
                 clip: layer.clip,
                 position_x: CssPixels::from_raw(0),
@@ -293,7 +442,7 @@ fn resolve_layers<'a>(
             continue;
         }
 
-        let mut background_positioning_area = background_box_for(layer.origin, border_box, recorder, paintable).rect;
+        let mut background_positioning_area = background_box_for(layer.origin, border_box, padding, border).rect;
 
         // https://drafts.csswg.org/css-backgrounds-3/#background-origin
         // If the background-attachment value for this layer is fixed, then this property has no effect: in this case
@@ -435,6 +584,7 @@ fn resolve_layers<'a>(
 
         resolved_layers.push(ResolvedBackgroundLayer {
             image: Some(image),
+            computed_index: computed_index as u32,
             attachment: layer.attachment,
             clip: layer.clip,
             position_x,
@@ -454,6 +604,7 @@ fn resolve_layers<'a>(
     ResolvedBackground {
         color_box,
         layers: resolved_layers,
+        paintable_layer_count,
         needs_text_clip: background_color_clip == css_enums::background_box::TEXT,
         background_rect: border_rect,
         color: background_color,
@@ -557,125 +708,56 @@ pub(crate) fn resolve_background_for_paint<'a>(
     recorder: &PaintRecorder<'a>,
     paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
-    let layout_arena = recorder.layout_arena;
-    let node = paintable;
-    let style = layout_arena.node_style_if_live(node)?;
-
-    let node_flags = layout_arena.node_flags_if_live(node);
-    let node_is_body = node_flags & crate::layout::node_data::NodeFlag::IsBody as u32 != 0;
-    // If the body's background properties were propagated to the root element, do not re-paint the body's background.
-    if node_is_body && recorder.inputs.root_background_source.use_body_background_properties {
+    let source = background_paint_source_from_style_and_geometry(
+        recorder.layout_arena,
+        paintable,
+        recorder.inputs.root_background_source,
+    )?;
+    if !source.is_root_element
+        && source.background_color.alpha() == 0
+        && !source
+            .layers_style_if_live
+            .is_some_and(style_queries::background_layers_have_image)
+    {
         return None;
     }
-
-    // https://drafts.csswg.org/css-backgrounds/#root-background
-    if style_queries::node_is_root_element(layout_arena, node) {
-        let root_background_source = recorder.inputs.root_background_source;
-        let background_rect =
-            crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
-        let border_radii =
-            crate::painting::visual_context::node_values::border_radii_data(style, recorder.layout_arena, paintable);
-
-        let own_color = libgfx_rust::Color(style.background().background_color);
-        let body_style = root_background_source
-            .use_body_background_properties
-            .then(|| layout_arena.node_style_if_live(root_background_source.body_layout_node))
-            .flatten();
-        let (layers_style, background_color, image_rendering) = if root_background_source.use_body_background_properties
-        {
-            let background_color = if own_color.alpha() != 0 {
-                own_color
-            } else {
-                body_style.map_or(libgfx_rust::Color(0), |body_style| {
-                    libgfx_rust::Color(body_style.background().background_color)
-                })
-            };
-            // If the body's background was propagated to the root element, use the body's image-rendering value.
-            let image_rendering =
-                body_style.map_or(css_enums::image_rendering::AUTO, ComputedValuesView::image_rendering);
-            (body_style, background_color, image_rendering)
-        } else {
-            (Some(style), own_color, style.image_rendering())
-        };
-
-        let mut resolved_background = match layers_style {
-            Some(layers_style) => resolve_background_layers(
-                recorder,
-                paintable,
-                layers_style,
-                if root_background_source.use_body_background_properties {
-                    FfiLayerImageList::DocumentBackground
-                } else {
-                    FfiLayerImageList::Background
-                },
-                background_color,
-                style.background().background_color_clip,
-                background_rect,
-                border_radii,
-            ),
-            None => ResolvedBackground {
-                color_box: BackgroundBox {
-                    rect: CssPixelRect::default(),
-                    radii: crate::painting::border_radii::BorderRadii::default(),
-                },
-                layers: Vec::new(),
-                needs_text_clip: false,
-                background_rect: CssPixelRect::default(),
-                color: libgfx_rust::Color(0),
+    let mut resolved = match source.layers_style_if_live {
+        Some(layers_style) => resolve_background_layers(
+            recorder,
+            paintable,
+            layers_style,
+            source.image_list,
+            source.background_color,
+            source.background_color_clip,
+            source.background_rect,
+            source.border_radii,
+        ),
+        None => ResolvedBackground {
+            color_box: BackgroundBox {
+                rect: CssPixelRect::default(),
+                radii: BorderRadii::default(),
             },
-        };
-
+            layers: Vec::new(),
+            paintable_layer_count: 0,
+            needs_text_clip: false,
+            background_rect: CssPixelRect::default(),
+            color: libgfx_rust::Color(0),
+        },
+    };
+    if source.is_root_element {
         let mut canvas_rect = CssPixelRect::from(recorder.inputs.css_viewport_rect);
         if let Some(overflow_rect) =
             crate::painting::paintable_geometry::scrollable_overflow_rect(recorder.layout_arena, paintable)
         {
             canvas_rect.unite(overflow_rect);
         }
-        resolved_background.background_rect.unite(canvas_rect);
-        resolved_background.color_box.rect.unite(canvas_rect);
-
-        return Some(BackgroundPaintInputs {
-            resolved: resolved_background,
-            border_radii,
-            image_rendering,
-            is_root_element: true,
-        });
+        resolved.background_rect.unite(canvas_rect);
+        resolved.color_box.rect.unite(canvas_rect);
     }
-
-    if libgfx_rust::Color(style.background().background_color).alpha() == 0
-        && !style_queries::background_layers_have_image(style)
-    {
-        return None;
-    }
-
-    // HACK: If the Box has a border, use the bordered_rect to paint the background.
-    //       This way if we have a border-radius there will be no gap between the filling and actual border.
-    let zero = CssPixels::from_raw(0);
-    let has_css_borders = style.border_top_width() != zero
-        || style.border_right_width() != zero
-        || style.border_bottom_width() != zero
-        || style.border_left_width() != zero;
-    let background_rect = if has_css_borders {
-        crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable)
-    } else {
-        crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable)
-    };
-    let border_radii =
-        crate::painting::visual_context::node_values::border_radii_data(style, recorder.layout_arena, paintable);
-    let resolved_background = resolve_background_layers(
-        recorder,
-        paintable,
-        style,
-        FfiLayerImageList::Background,
-        libgfx_rust::Color(style.background().background_color),
-        style.background().background_color_clip,
-        background_rect,
-        border_radii,
-    );
     Some(BackgroundPaintInputs {
-        resolved: resolved_background,
-        border_radii,
-        image_rendering: style.image_rendering(),
-        is_root_element: false,
+        resolved,
+        border_radii: source.border_radii,
+        image_rendering: source.image_rendering,
+        is_root_element: source.is_root_element,
     })
 }

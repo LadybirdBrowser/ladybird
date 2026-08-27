@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 50px;
+        background-color: rgb(0, 128, 0);
+        background-image: linear-gradient(red, red);
+        background-blend-mode: multiply;
+    }
+</style>
+<script>
+    test(() => {
+        const propagatedToRoot = internals.dumpDisplayList();
+        document.documentElement.style.backgroundColor = "white";
+        const paintedByBody = internals.dumpDisplayList();
+        document.documentElement.style.backgroundColor = "transparent";
+        const propagatedToRootAgain = internals.dumpDisplayList();
+
+        println("Propagated to the root:");
+        println(propagatedToRoot);
+        println("Painted by the body:");
+        println(paintedByBody);
+        println("Propagated to the root again:");
+        println(propagatedToRootAgain);
+    });
+</script>

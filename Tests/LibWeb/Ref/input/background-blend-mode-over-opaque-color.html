@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-blend-mode-over-opaque-color-ref.html" />
+<style>
+body {
+    margin: 0;
+    background: linear-gradient(yellow, yellow) cyan;
+    background-blend-mode: multiply;
+}
+div {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 10px;
+    background-blend-mode: multiply;
+}
+#over-color {
+    background: linear-gradient(red, red) blue;
+}
+#clipped-to-content-box {
+    padding: 10px;
+    background: linear-gradient(magenta, magenta) cyan;
+    background-clip: content-box;
+}
+</style>
+<div id="over-color"></div>
+<div id="clipped-to-content-box"></div>

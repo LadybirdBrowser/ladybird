@@ -59,6 +59,14 @@ pub(crate) fn is_abstract_image(value: &StyleValueData) -> bool {
     )
 }
 
+pub(crate) fn has_css_borders(style: ComputedValuesView<'_>) -> bool {
+    let zero = CssPixels::from_raw(0);
+    style.border_top_width() != zero
+        || style.border_right_width() != zero
+        || style.border_bottom_width() != zero
+        || style.border_left_width() != zero
+}
+
 pub(crate) fn background_layers_have_image(style: ComputedValuesView<'_>) -> bool {
     let Some(value) = handle_value(&style.background().background_image) else {
         return false;
