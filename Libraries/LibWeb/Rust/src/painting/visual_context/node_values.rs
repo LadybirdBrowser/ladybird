@@ -369,6 +369,19 @@ pub(crate) fn border_radii_data(
     )
 }
 
+pub(crate) fn padding_edge_border_radii(
+    style: ComputedValuesView<'_>,
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> BorderRadii {
+    border_radii_data(style, layout_arena, slot).shrunken(
+        style.border_top_width(),
+        style.border_right_width(),
+        style.border_bottom_width(),
+        style.border_left_width(),
+    )
+}
+
 pub(crate) fn piece_border_radii_data(
     style: ComputedValuesView<'_>,
     piece_width: CssPixels,
@@ -780,12 +793,7 @@ pub(crate) fn compute_clip_data(
     // FIXME: Adjust the border radii for the overflow-clip-margin case.
     //        (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
     let radii = if overflow_x != overflow::VISIBLE && overflow_y != overflow::VISIBLE {
-        border_radii_data(style, layout_arena, slot).shrunken(
-            style.border_top_width(),
-            style.border_right_width(),
-            style.border_bottom_width(),
-            style.border_left_width(),
-        )
+        padding_edge_border_radii(style, layout_arena, slot)
     } else {
         BorderRadii::default()
     };

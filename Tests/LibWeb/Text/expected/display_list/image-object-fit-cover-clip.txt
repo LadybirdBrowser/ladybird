@@ -4,10 +4,8 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
   frames:
     [f0 in s0] effects=[]
+      [f1 in s1] clip=[0,0 40x40] (ImagePaintable(ImageBox<IMG>))
 
 DisplayList:
-Save@s1/f0
-  AddClipRect@s1/f0 rect=[0,0 40x40]
-  DrawScaledDecodedImageFrame@s1/f0 dst_rect=[0,-20 40x80]
-Restore@s1/f0
+DrawScaledDecodedImageFrame@s1/f1 dst_rect=[0,-20 40x80]
 

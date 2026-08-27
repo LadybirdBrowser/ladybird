@@ -13,8 +13,10 @@ use crate::painting::display_list::recorder::{
 use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvgPaintStyleKind};
 use crate::painting::paintable_data::PaintableKind;
 use crate::painting::paintable_geometry::absolute_rect;
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::background::paint_image;
 use crate::painting::record::{PaintPhase, PaintRecorder};
+use crate::painting::visual_context::FrameRole;
 use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
 #[derive(Clone, Copy, Default)]
@@ -414,6 +416,21 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId
     }
 }
 
+pub(crate) fn svg_image_unquantized_device_rect(
+    layout_arena: &impl PaintableRowsRead,
+    paintable: NodeSlotId,
+    pixel_ratio: f64,
+) -> FloatRect {
+    let device_scale = pixel_ratio as f32;
+    let css_rect = absolute_rect(layout_arena, paintable);
+    FloatRect::new(
+        css_rect.x.to_float() * device_scale,
+        css_rect.y.to_float() * device_scale,
+        css_rect.width.to_float() * device_scale,
+        css_rect.height.to_float() * device_scale,
+    )
+}
+
 pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
     // NB: An image has no geometry, so it contributes nothing to a clipping path.
     if recorder.draw_svg_geometry_for_clip_path {
@@ -434,15 +451,10 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: N
         return;
     }
 
-    // The image rect is in the viewport's user units; a fraction of a unit can span many device
-    // pixels, so the positioning math stays in float and only the overflow clip quantizes.
-    let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
-    let css_rect = absolute_rect(recorder.layout_arena, paintable);
-    let image_rect = FloatRect::new(
-        css_rect.x.to_float() * device_scale,
-        css_rect.y.to_float() * device_scale,
-        css_rect.width.to_float() * device_scale,
-        css_rect.height.to_float() * device_scale,
+    let image_rect = svg_image_unquantized_device_rect(
+        recorder.layout_arena,
+        paintable,
+        recorder.inputs.device_pixels_per_css_pixel,
     );
     let natural_size = if facts.has_natural_size {
         (facts.natural_width, facts.natural_height)
@@ -470,21 +482,21 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: N
     // Unless over-ridden by the author, images will therefore be clipped to the positioning
     // rectangle defined by the geometry properties.
     let draw_rect_needs_clip = !facts.overflow_is_visible && !image_rect.contains_rect(draw_rect);
-    if draw_rect_needs_clip {
-        recorder.recorder.save();
-        recorder.recorder.add_clip_rect(image_rect);
-    }
-
-    let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
-    let paint =
-        recorder
-            .paint_host
-            .replaced_image_paint(recorder.layout_node_shell(paintable), draw_rect, accumulated_scale);
-    if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-        paint_image(recorder, &paint, draw_rect, facts.image_rendering);
-    }
-
-    if draw_rect_needs_clip {
-        recorder.recorder.restore();
-    }
+    let draw_context = if draw_rect_needs_clip {
+        recorder.local_context(paintable, FrameRole::ContentClip)
+    } else {
+        None
+    };
+    recorder.with_optional_context(draw_context, |recorder| {
+        let accumulated_scale =
+            recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
+        let paint = recorder.paint_host.replaced_image_paint(
+            recorder.layout_node_shell(paintable),
+            draw_rect,
+            accumulated_scale,
+        );
+        if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
+            paint_image(recorder, &paint, draw_rect, facts.image_rendering);
+        }
+    });
 }

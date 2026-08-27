@@ -6,6 +6,7 @@
 
 pub mod basic_shapes;
 pub mod build;
+pub mod local_frames;
 pub mod nested;
 pub mod node_values;
 pub mod refresh;
@@ -259,10 +260,12 @@ pub struct SpatialNode {
     pub parent: SpatialNodeIndex,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FrameRole {
     Structural,
     RootIsolation,
+    ContentCornerClip,
+    ContentClip,
 }
 
 pub struct FrameNode {
