@@ -102,6 +102,20 @@ TEST_CASE(open_saves_and_unconfined_clips_are_not_self_contained)
     }
 }
 
+TEST_CASE(a_draw_confined_to_its_bounds_stays_self_contained)
+{
+    ByteBuffer bytes;
+    auto root = context(0);
+    append_display_list_command(bytes, FillRect { { 0, 0, 100, 100 }, Gfx::Color::Red }, Gfx::IntRect { 10, 10, 20, 20 }, root, false, true);
+    append_fill_rect(bytes, root, { 50, 50, 10, 10 });
+
+    auto runs = compute_display_list_command_runs(bytes);
+    EXPECT_EQ(runs.size(), 1u);
+    EXPECT_EQ(runs[0].ink_bounds, Gfx::IntRect(10, 10, 50, 50));
+    EXPECT(!runs[0].has_unconfined_clip);
+    EXPECT(runs[0].is_self_contained);
+}
+
 TEST_CASE(a_draw_without_bounds_marks_the_run_unbounded)
 {
     ByteBuffer bytes;

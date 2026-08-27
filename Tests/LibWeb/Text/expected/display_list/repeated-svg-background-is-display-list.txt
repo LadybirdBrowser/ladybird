@@ -7,6 +7,7 @@ DisplayList:
 SaveLayer@s0
   Save@s1
     AddClipRect@s1 rect=[8,8 120x80]
-    DrawRepeatedDisplayList@s1 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor
+    DrawRepeatedDisplayList@s1 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor clip_to_bounds=[8,8 120x80]
   Restore@s1
 Restore@s0
+

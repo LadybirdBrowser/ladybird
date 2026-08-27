@@ -12,7 +12,7 @@
 // Appends one record the way the Rust builder writes it: header, payload, then zero padding up to
 // the command alignment.
 template<Web::Painting::DisplayListCommand Command>
-void append_display_list_command(ByteBuffer& command_bytes, Command const& command, Optional<Gfx::IntRect> bounding_rect = {}, Web::Painting::ContextRef context = {}, bool is_clip = false)
+void append_display_list_command(ByteBuffer& command_bytes, Command const& command, Optional<Gfx::IntRect> bounding_rect = {}, Web::Painting::ContextRef context = {}, bool is_clip = false, bool clips_to_bounding_rect = false)
 {
     auto payload = Web::Painting::display_list_object_bytes(command);
     auto record_size = sizeof(Web::Painting::DisplayListCommandHeader) + payload.size();
@@ -21,6 +21,7 @@ void append_display_list_command(ByteBuffer& command_bytes, Command const& comma
         .command_type = Command::command_type,
         .has_bounding_rect = bounding_rect.has_value(),
         .is_clip = is_clip,
+        .clips_to_bounding_rect = clips_to_bounding_rect,
         .payload_size = static_cast<u32>(payload_size),
         .context = context,
         .bounding_rect = bounding_rect.value_or({}),

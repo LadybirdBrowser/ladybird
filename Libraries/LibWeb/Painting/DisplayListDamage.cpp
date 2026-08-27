@@ -39,6 +39,7 @@ static bool display_list_commands_are_equal(DisplayListCommandReference const& a
     if (a.header.command_type != b.header.command_type
         || a.header.has_bounding_rect != b.header.has_bounding_rect
         || a.header.is_clip != b.header.is_clip
+        || a.header.clips_to_bounding_rect != b.header.clips_to_bounding_rect
         || a.header.bounding_rect != b.header.bounding_rect)
         return false;
 

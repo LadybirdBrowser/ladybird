@@ -43,6 +43,7 @@ static ByteBuffer glyph_run_command_bytes(size_t inline_padding)
         .command_type = DrawGlyphRun::command_type,
         .has_bounding_rect = true,
         .is_clip = false,
+        .clips_to_bounding_rect = false,
         .payload_size = static_cast<u32>(payload_size),
         .context = {},
         .bounding_rect = command.glyph_bounding_rect,
@@ -113,6 +114,20 @@ TEST_CASE(damage_contains_old_and_new_command_bounds)
     auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });
     EXPECT(damage.has_value());
     EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 52, 52 }));
+}
+
+TEST_CASE(confining_a_draw_to_its_bounds_damages_the_draw)
+{
+    auto visual_context_tree = AccumulatedVisualContextTree::create();
+    Gfx::IntRect rect { 10, 10, 20, 20 };
+    auto old_display_list = fill_command_bytes(rect, Gfx::Color::Red);
+    ByteBuffer new_display_list;
+    append_display_list_command(new_display_list, FillRect { rect, Gfx::Color::Red }, rect, {}, false, true);
+    ScrollStateSnapshot scroll_state;
+
+    auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });
+    EXPECT(damage.has_value());
+    EXPECT_EQ(*damage, (Gfx::IntRect { 9, 9, 22, 22 }));
 }
 
 TEST_CASE(changed_unbounded_commands_require_full_repaint)

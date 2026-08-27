@@ -237,6 +237,7 @@ pub struct DisplayListRecorder {
     context: ContextRef,
     pub save_nesting_level: i32,
     mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
+    confining_clip: Option<IntRect>,
 }
 
 impl DisplayListRecorder {
@@ -247,7 +248,15 @@ impl DisplayListRecorder {
             context: ContextRef::default(),
             save_nesting_level: 0,
             mask_display_lists: Vec::new(),
+            confining_clip: None,
         }
+    }
+
+    pub fn record_clipped_to(&mut self, clip: IntRect, record: impl FnOnce(&mut Self)) {
+        let outer_clip = self.confining_clip;
+        self.confining_clip = Some(outer_clip.map_or(clip, |outer| outer.intersected(clip)));
+        record(self);
+        self.confining_clip = outer_clip;
     }
 
     pub fn register_mask_display_list(&mut self, frames: &[FrameNodeIndex], display_list_id: DisplayListResourceId) {
@@ -301,7 +310,8 @@ impl DisplayListRecorder {
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
         self.save_nesting_level += C::COMMAND_TYPE.nesting_level_change();
         let context = self.append_context();
-        self.builder.append(command, inline_data, context);
+        self.builder
+            .append_confined_to_clip(command, inline_data, context, self.confining_clip);
     }
 
     pub fn append_cached_command_range(
@@ -628,19 +638,21 @@ impl DisplayListRecorder {
         if dst_rect.is_empty() || clip_rect.is_empty() {
             return;
         }
-        self.append_command(
-            &DrawRepeatedDisplayList {
-                dst_rect,
-                clip_rect,
-                display_list_id,
-                scaling_mode,
-                repeat: Repeat {
-                    x: repeat_x,
-                    y: repeat_y,
+        self.record_clipped_to(clip_rect, |recorder| {
+            recorder.append_command(
+                &DrawRepeatedDisplayList {
+                    dst_rect,
+                    clip_rect,
+                    display_list_id,
+                    scaling_mode,
+                    repeat: Repeat {
+                        x: repeat_x,
+                        y: repeat_y,
+                    },
                 },
-            },
-            &[],
-        );
+                &[],
+            );
+        });
     }
 
     #[allow(clippy::too_many_arguments)]
