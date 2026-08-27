@@ -96,7 +96,6 @@ private:
     virtual void load_url(u64 page_id, URL::URL, Web::Bindings::NavigationHistoryBehavior, Utf16String navigation_id) override;
     virtual void populate_navigation(u64 page_id, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
     virtual void load_html(u64 page_id, ByteString, Utf16String navigation_id) override;
-    virtual void load_html_with_url(u64 page_id, ByteString, URL::URL, Utf16String navigation_id) override;
     virtual void reload(u64 page_id) override;
     virtual void stop_loading(u64 page_id) override;
     virtual void cancel_download(u64 page_id, u64 download_id) override;

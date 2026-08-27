@@ -130,6 +130,12 @@ public:
     bool is_loading() const { return m_is_loading; }
     bool cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
+    bool crash_overlay_active() const { return m_crash_state.has_value(); }
+    static constexpr StringView crash_overlay_title() { return "Ladybird flew off-course!"sv; }
+    static constexpr StringView crash_overlay_message() { return "The web page has crashed.\nYou can reload the page to try again."sv; }
+    static constexpr StringView crash_overlay_reload_button_text() { return "Reload Page"sv; }
+    String crash_overlay_failed_url() const;
+
     struct SessionHistoryTraversalMenuItem {
         i32 step { 0 };
         String title;
@@ -461,6 +467,7 @@ public:
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(Web::ScreenWakeLockState)> on_screen_wake_lock_state_changed;
     Function<void()> on_web_content_crashed;
+    Function<void(bool)> on_crash_overlay_state_change;
     Function<void()> on_web_content_process_change_for_cross_site_navigation;
 
     Menu& page_context_menu() { return *m_page_context_menu; }
@@ -554,7 +561,6 @@ protected:
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
-    void load_crash_page_html(StringView, URL::URL const& crashed_url);
 
     enum class CreateNewClient {
         No,
@@ -564,11 +570,11 @@ protected:
     void cancel_all_native_geolocation_requests();
     void reset_page_media_state();
 
-    enum class LoadErrorPage {
-        No,
-        Yes,
-    };
-    void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
+    struct CrashState;
+    void handle_web_content_process_crash();
+    void respawn_web_content_process_after_crash();
+    void prepare_for_navigation_after_crash(Optional<URL::URL> navigation_to_retry = {});
+    void set_crash_state(Optional<CrashState>);
 
     virtual void default_zoom_level_factor_changed() override;
     virtual void zoom_per_host_changed(StringView host) override;
@@ -628,7 +634,13 @@ protected:
     URL::URL m_url;
     Utf16String m_title;
     Optional<String> m_favicon_hash;
-    bool m_is_showing_crash_page { false };
+
+    struct CrashState {
+        URL::URL failed_url;
+        Optional<URL::URL> navigation_to_retry;
+        bool recovery_started { false };
+    };
+    Optional<CrashState> m_crash_state;
 
     double m_zoom_level { 1.0 };
     double m_device_pixel_ratio { 1.0 };
@@ -718,8 +730,6 @@ protected:
     Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
 
-    bool m_should_suppress_history_for_current_load { false };
-    bool m_should_suppress_history_for_next_load { false };
     HistoryVisitTransition m_history_visit_transition_for_current_load { HistoryVisitTransition::Link };
     HistoryVisitTransition m_history_visit_transition_for_next_load { HistoryVisitTransition::Link };
 

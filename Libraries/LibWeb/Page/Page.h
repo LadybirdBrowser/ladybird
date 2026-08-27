@@ -124,7 +124,6 @@ public:
 
     void load(URL::URL const&, Bindings::NavigationHistoryBehavior, Utf16String navigation_id);
     void load_html(StringView, Utf16String navigation_id);
-    void load_html(StringView, URL::URL const&, Utf16String navigation_id);
 
     void reload();
 

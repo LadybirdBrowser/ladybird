@@ -903,8 +903,6 @@ void WebContentClient::begin_top_level_load(ViewImplementation& view, u64 page_i
 
     view.m_history_visit_transition_for_current_load = view.m_history_visit_transition_for_next_load;
     view.m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
-    view.m_should_suppress_history_for_current_load = view.m_should_suppress_history_for_next_load;
-    view.m_should_suppress_history_for_next_load = false;
     view.did_start_navigation(move(navigation_id), url);
 
     view.set_url({}, url);
@@ -1023,30 +1021,31 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
         if (!view->matches_ongoing_navigation(navigation_id))
             return;
 
+        // A replacement process's bootstrap about:blank finishes before the process hosts the committed
+        // entry; it must not surface in the view or overwrite the crashed page's URL.
+        if (!view->m_client_state.hosts_committed_entry)
+            return;
+
         auto client_url = url;
-        // Browser-generated pages can finish with an internal document URL. Keep exposing the URL accepted at load
-        // start for suppressed loads. Documents created for inline error content finish with about:error; keep the URL
-        // the view already shows, which for a failed navigation is the URL that failed to load, including any redirects
-        // the navigation was taken through. Firefox/Chromium likewise never surface their internal error-document URLs.
-        if (view->m_should_suppress_history_for_current_load || url == URL::about_error())
+        // Documents created for inline error content finish with the internal about:error URL; keep the URL the view
+        // already shows, which for a failed navigation is the URL that failed to load, including any redirects the
+        // navigation was taken through. Firefox/Chromium likewise never surface their internal error-document URLs.
+        if (url == URL::about_error())
             client_url = view->url();
         else
             view->set_url({}, url);
-        auto should_update_history = !view->m_should_suppress_history_for_current_load;
         auto title = history_title(view->title(), url);
 
-        if (should_update_history) {
-            dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
-                page_id,
-                url,
-                title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
+            page_id,
+            url,
+            title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
 
-            maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
-            if (title.has_value())
-                Application::history_store(m_is_private).update_title(url, *title);
-            if (view->favicon_hash().has_value())
-                Application::history_store(m_is_private).update_favicon(url, *view->favicon_hash());
-        }
+        maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
+        if (title.has_value())
+            Application::history_store(m_is_private).update_title(url, *title);
+        if (view->favicon_hash().has_value())
+            Application::history_store(m_is_private).update_favicon(url, *view->favicon_hash());
 
         view->did_finish_navigation();
 
@@ -1122,7 +1121,7 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
         process->set_title(title);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!title.is_empty() && !view->m_should_suppress_history_for_current_load) {
+        if (!title.is_empty()) {
             auto title_utf8 = title.to_utf8();
 
             maybe_record_history_visit_for_current_load(page_id, view->url(), title_utf8, "title change"sv);
@@ -1699,8 +1698,7 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
     }
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->m_should_suppress_history_for_current_load)
-            maybe_record_history_visit_for_current_load(page_id, view->url(), history_title(view->title(), view->url()), "favicon change"sv);
+        maybe_record_history_visit_for_current_load(page_id, view->url(), history_title(view->title(), view->url()), "favicon change"sv);
         view->set_favicon({}, *favicon.bitmap());
     }
 }
