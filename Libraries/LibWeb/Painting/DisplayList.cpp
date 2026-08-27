@@ -246,29 +246,13 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
             if (mask) {
                 --applied_mask_frame_count;
                 ensure_ctm_space(frame_node.spatial);
-                play_command(ApplyEffects {
-                                 .opacity = 1.0f,
-                                 .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::DestinationIn,
-                                 .has_filter = false,
-                                 .filter_data = {},
-                                 .has_mask_kind = mask->kind == Gfx::MaskKind::Luminance,
-                                 .mask_kind = mask->kind,
-                             },
-                    nullptr);
+                Optional<DisplayListResourceId> mask_content;
                 if (auto display_list_id = display_list.mask_display_list_id(frame_index);
-                    display_list_id.has_value() && resource_storage().has_display_list(*display_list_id)) {
-                    auto mask_rect = mask->rect.to_type<int>();
-                    play_command(PaintNestedDisplayList {
-                        .display_list_id = *display_list_id,
-                        .rect = mask_rect.to_type<float>(),
-                        .list_size = mask_rect.size(),
-                    });
-                }
-                play_command(Restore {}); // DstIn layer
-                play_command(Restore {}); // content layer
-                play_command(Restore {}); // clip save
+                    display_list_id.has_value() && resource_storage().has_display_list(*display_list_id))
+                    mask_content = *display_list_id;
+                pop_mask(*mask, mask_content);
             } else {
-                play_command(Restore {});
+                pop();
             }
             current_ctm_space = {};
         }
@@ -295,8 +279,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         for (size_t i = common_prefix_length; i < target_frames.size(); ++i) {
             auto frame_index = target_frames[i];
             auto const& frame_node = visual_context_tree.frame_node_at(frame_index);
-            auto const* effects = frame_node.data.get_pointer<EffectsData>();
-            bool pushes_layer = effects || frame_node.data.has<MaskData>();
+            bool pushes_layer = frame_node.data.has<EffectsData>() || frame_node.data.has<MaskData>();
             if (pushes_layer && bounding_rect.has_value()) {
                 bool culled_by_layer_frame = bounding_rect->is_empty();
                 if (!culled_by_layer_frame) {
@@ -311,42 +294,15 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
                     return SwitchResult::CulledByEffect;
                 }
             }
-            if (effects) {
-                ensure_ctm_space(frame_node.spatial);
-                play_command(ApplyEffects {
-                                 .opacity = effects->opacity,
-                                 .compositing_and_blending_operator = effects->blend_mode,
-                                 .has_filter = effects->gfx_filter.has_value(),
-                                 .filter_data = {},
-                                 .has_mask_kind = false,
-                                 .mask_kind = {},
-                             },
-                    effects->gfx_filter.has_value() ? &effects->gfx_filter.value() : nullptr);
-            } else {
-                play_command(Save {});
-                ensure_ctm_space(frame_node.spatial);
-                frame_node.data.visit(
-                    [&](ClipData const& clip) {
-                        if (clip.corner_radii.has_any_radius()) {
-                            play_command(AddRoundedRectClip {
-                                .corner_radii = clip.corner_radii,
-                                .border_rect = clip.rect.to_type<int>(),
-                                .corner_clip = Gfx::CornerClip::Outside,
-                            });
-                        } else {
-                            play_command(AddClipRect { .rect = clip.rect.to_type<int>().to_type<float>() });
-                        }
-                    },
-                    [&](ClipPathData const& clip_path) {
-                        add_clip_path(clip_path.path, clip_path.fill_rule, true);
-                    },
-                    [&](MaskData const& mask) {
-                        play_command(AddClipRect { .rect = mask.rect.to_type<int>().to_type<float>() });
-                        play_command(SaveLayer {});
-                        ++applied_mask_frame_count;
-                    },
-                    [&](EffectsData const&) { VERIFY_NOT_REACHED(); });
-            }
+            ensure_ctm_space(frame_node.spatial);
+            frame_node.data.visit(
+                [&](ClipData const& clip) { push_clip(clip); },
+                [&](ClipPathData const& clip_path) { push_clip_path(clip_path.path, clip_path.fill_rule); },
+                [&](EffectsData const& effects) { push_layer(effects); },
+                [&](MaskData const& mask) {
+                    push_mask(mask);
+                    ++applied_mask_frame_count;
+                });
             applied_frames.append(frame_index);
         }
 
@@ -431,19 +387,17 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
                 },
                 [&](PushPlaneClip const& clip) {
                     restore_to_length(0);
-                    play_command(Save {});
-                    set_matrix(Gfx::FloatMatrix4x4::identity());
-                    current_ctm_space = {};
                     Gfx::Path path;
                     path.move_to({ clip.vertices[0].x(), clip.vertices[0].y() });
                     for (size_t i = 1; i < clip.vertices.size(); ++i)
                         path.line_to({ clip.vertices[i].x(), clip.vertices[i].y() });
                     path.close();
-                    add_clip_path(path, Gfx::WindingRule::Nonzero, false);
+                    push_device_space_plane_clip(path);
+                    current_ctm_space = {};
                 },
                 [&](PopPlaneClip const&) {
                     restore_to_length(0);
-                    play_command(Restore {});
+                    pop();
                     current_ctm_space = {};
                 });
         }
