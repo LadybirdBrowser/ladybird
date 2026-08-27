@@ -1,0 +1,34 @@
+Before background-blend-mode change:
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+
+DisplayList:
+SaveLayer@s0
+  FillRect@s1 rect=[8,13 100x100] color=rgb(173, 216, 230)
+  Save@s1
+    AddClipRect@s1 rect=[8,13 100x100]
+    PaintLinearGradient@s1 rect=[8,13 100x100]
+  Restore@s1
+  DrawGlyphRun@s1 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
+Restore@s0
+
+After background-blend-mode change:
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+
+DisplayList:
+SaveLayer@s0
+  FillRect@s1 rect=[8,13 100x100] color=rgb(173, 216, 230)
+  Save@s1
+    AddClipRect@s1 rect=[8,13 100x100]
+    ApplyEffects@s1 opacity=1 has_filter=false
+      PaintLinearGradient@s1 rect=[8,13 100x100]
+    Restore@s1
+  Restore@s1
+  DrawGlyphRun@s1 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
+Restore@s0
+

@@ -871,6 +871,9 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
                 CSS::PropertyID::TextAlign))
             result.requires_base_style_recomputation = true;
         auto property_invalidation = compute_property_invalidation(property_id, old_value, new_value);
+        bool const root_background_color_animation_may_move_body_background_propagation = property_id == CSS::PropertyID::BackgroundColor && !target.pseudo_element().has_value() && target.element().is_document_element();
+        if (root_background_color_animation_may_move_body_background_propagation)
+            property_invalidation.ensure_at_least(CSS::AccumulatedVisualContextInvalidation::Rebuild);
         if (!property_invalidation.is_none() && CSS::is_inherited_property(property_id)) {
             auto group = CSS::ComputedValues::style_group_of_property(property_id);
             if (group.has_value() && to_underlying(*group) < CSS::ComputedValues::inherited_style_group_count)

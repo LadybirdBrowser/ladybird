@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background-color: lightblue;
+        background-image: linear-gradient(red, blue);
+    }
+</style>
+<div class="box" id="box">Box</div>
+<script>
+    test(() => {
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("box").style.backgroundBlendMode = "multiply";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before background-blend-mode change:");
+        println(displayListBefore);
+        println("After background-blend-mode change:");
+        println(displayListAfter);
+    });
+</script>
