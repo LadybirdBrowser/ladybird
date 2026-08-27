@@ -7,7 +7,7 @@
 use super::node_values::{border_radii_data, padding_edge_border_radii, piece_border_radii_data};
 use super::{ClipData, ClipMode, ContextRef, FrameData, FrameNodeIndex, FrameRole, PieceKey, VisualContextTree};
 use crate::css::computed_value_views::ComputedValuesView;
-use crate::css::css_enums::overflow;
+use crate::css::css_enums::{background_box, overflow};
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
@@ -122,6 +122,7 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             mask_rect,
             BorderRadii::default(),
             is_root_element,
+            false,
             &layers,
         );
         self.finish()
@@ -168,8 +169,9 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         let arena = self.layout_arena;
         let border = committed_border(arena, self.slot);
         let has_borders = style_queries::has_css_borders(style);
+        let clips_to_text = style.background().background_color_clip == background_box::TEXT;
         let paints_background = !body_background_is_propagated_to_root(arena, self.slot, root_background_source)
-            && style_queries::background_layers_have_image(style);
+            && (clips_to_text || style_queries::background_layers_have_image(style));
         let background_layers = paints_background.then(|| computed_background_layer_frame_facts(style));
         for_each_rendered_inline_box_piece(arena, self.slot, |position, piece, border_box_rect| {
             let piece_key = PieceKey::Piece(position);
@@ -186,7 +188,15 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
                 } else {
                     piece.shrunken_by_present_edges(border_box_rect, border)
                 };
-                self.append_background_layer_frames(piece_key, own_state, background_rect, border_radii, false, layers);
+                self.append_background_layer_frames(
+                    piece_key,
+                    own_state,
+                    background_rect,
+                    border_radii,
+                    false,
+                    clips_to_text,
+                    layers,
+                );
             }
         });
     }
@@ -323,7 +333,8 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         let Some(layers_style) = source.layers_style_if_live else {
             return;
         };
-        if !style_queries::background_layers_have_image(layers_style) {
+        let clips_to_text = !source.is_root_element && source.background_color_clip == background_box::TEXT;
+        if !clips_to_text && !style_queries::background_layers_have_image(layers_style) {
             return;
         }
         let layers = computed_background_layer_frame_facts(layers_style);
@@ -333,10 +344,12 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             source.background_rect,
             source.border_radii,
             source.is_root_element,
+            clips_to_text,
             &layers,
         );
     }
 
+    // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
     // https://drafts.fxtf.org/compositing/#background-blend-mode
     #[allow(clippy::too_many_arguments)]
     fn append_background_layer_frames(
@@ -346,9 +359,28 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         background_rect: CssPixelRect,
         border_radii: BorderRadii,
         is_root_element: bool,
+        clips_to_text: bool,
         layers: &[ComputedLayerFrameFacts],
     ) {
-        let parent = background_parent;
+        let mut parent = background_parent;
+        if clips_to_text {
+            let text_clip = self.append_clip(
+                parent,
+                self.converter.rounded_device_rect(background_rect).to_float(),
+                CornerRadii::default(),
+                FrameRole::BackgroundTextClip { piece },
+            );
+            parent = self.append(
+                text_clip,
+                FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
+                FrameRole::BackgroundTextContentLayer { piece },
+            );
+            self.append(
+                parent,
+                FrameData::layer_blending_with(CompositingAndBlendingOperator::DestinationIn),
+                FrameRole::BackgroundTextMask { piece },
+            );
+        }
         let boxes = BackgroundLayerBoxes {
             border_box: BackgroundBox {
                 rect: background_rect,
