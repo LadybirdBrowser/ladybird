@@ -314,6 +314,14 @@ impl<'a> PaintRecorder<'a> {
         crate::painting::style_queries::is_replaced_box(self.layout_arena, paintable)
     }
 
+    pub(crate) fn with_context<R>(&mut self, context: ContextRef, paint: impl FnOnce(&mut Self) -> R) -> R {
+        let previous_context = self.recorder.accumulated_visual_context();
+        self.recorder.set_accumulated_visual_context(context);
+        let result = paint(self);
+        self.recorder.set_accumulated_visual_context(previous_context);
+        result
+    }
+
     pub(crate) fn own_context(&self, paintable: NodeSlotId) -> ContextRef {
         if let Some(nested) = &self.nested
             && let Some((own, _)) = nested.assignments.paintable_contexts.get(&paintable.index)
