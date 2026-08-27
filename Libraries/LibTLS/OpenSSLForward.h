@@ -10,4 +10,5 @@ extern "C" {
 typedef struct ssl_ctx_st SSL_CTX;
 typedef struct ssl_st SSL;
 typedef struct bio_st BIO;
+typedef struct x509_st X509;
 }
