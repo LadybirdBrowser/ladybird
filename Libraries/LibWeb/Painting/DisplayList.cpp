@@ -331,6 +331,8 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         }
 
         TemporaryChange current_command_payload_change { m_current_command_payload, payload };
+        if (header.clips_to_bounding_rect)
+            push_clip(ClipData { header.bounding_rect.to_type<DevicePixels>(), {} });
         auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
             auto command = read_display_list_command_payload<Command>(payload);
             if constexpr (IsSame<Command, PaintScrollBar>) {
@@ -353,6 +355,8 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
             ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
 #undef DISPATCH_DISPLAY_LIST_COMMAND
         }
+        if (header.clips_to_bounding_rect)
+            pop();
     };
 
     // A run enters its context once. Only a self-contained run with known ink bounds may be

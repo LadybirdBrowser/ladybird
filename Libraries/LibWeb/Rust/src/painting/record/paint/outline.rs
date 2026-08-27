@@ -111,21 +111,20 @@ fn paint_focused_area_outline(
 
     // AD-HOC: Only the user agent focus ring is painted. Other engines do not let author outline values style the
     // focus indicator of an image map area.
-    recorder.recorder.save();
     recorder
         .recorder
-        .add_clip_rect_int(converter.enclosing_device_rect(image_rect));
-    recorder.recorder.stroke_path(StrokePathParams {
-        cap_style: CapStyle::Round,
-        join_style: JoinStyle::Round,
-        miter_limit: 4.0,
-        dash_array: Vec::new(),
-        dash_offset: 0.0,
-        path: &transformed,
-        opacity: 1.0,
-        paint_style_or_color: PaintStyleOrColor::Color(facts.focused_area_color),
-        thickness: facts.focused_area_width.to_double() as f32 * scale,
-        should_anti_alias: ShouldAntiAlias::Yes,
-    });
-    recorder.recorder.restore();
+        .record_clipped_to(converter.enclosing_device_rect(image_rect), |recorder| {
+            recorder.stroke_path(StrokePathParams {
+                cap_style: CapStyle::Round,
+                join_style: JoinStyle::Round,
+                miter_limit: 4.0,
+                dash_array: Vec::new(),
+                dash_offset: 0.0,
+                path: &transformed,
+                opacity: 1.0,
+                paint_style_or_color: PaintStyleOrColor::Color(facts.focused_area_color),
+                thickness: facts.focused_area_width.to_double() as f32 * scale,
+                should_anti_alias: ShouldAntiAlias::Yes,
+            });
+        });
 }

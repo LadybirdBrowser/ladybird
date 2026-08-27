@@ -458,6 +458,7 @@ pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
     pub has_bounding_rect: bool,
     pub is_clip: bool,
+    pub clips_to_bounding_rect: bool,
     pub payload_size: u32,
     pub context: ContextRef,
     pub bounding_rect: IntRect,
@@ -466,6 +467,7 @@ ffi_bytes_fields!(DisplayListCommandHeader {
     command_type,
     has_bounding_rect,
     is_clip,
+    clips_to_bounding_rect,
     payload_size,
     context,
     bounding_rect

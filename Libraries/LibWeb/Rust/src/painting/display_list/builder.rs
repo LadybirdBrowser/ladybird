@@ -66,19 +66,35 @@ impl DisplayListBuilder {
     }
 
     pub fn append<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8], context: AppendContext) -> bool {
+        self.append_confined_to_clip(command, inline_data, context, None)
+    }
+
+    pub fn append_confined_to_clip<C: DisplayListCommand>(
+        &mut self,
+        command: &C,
+        inline_data: &[u8],
+        context: AppendContext,
+        confining_clip: Option<libgfx_rust::IntRect>,
+    ) -> bool {
         if context.has_empty_effective_clip {
             return false;
         }
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         let payload_size = std::mem::size_of::<C>() + inline_data.len();
         let padded_record_size = (HEADER_SIZE + payload_size).next_multiple_of(COMMAND_ALIGNMENT);
+        let mut bounding_rect = command.bounding_rect();
+        if let Some(clip) = confining_clip {
+            let rect = bounding_rect.expect("a draw clipped to its bounds has a bounding rect");
+            bounding_rect = Some(rect.intersected(clip));
+        }
         let header = DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
-            has_bounding_rect: command.bounding_rect().is_some(),
+            has_bounding_rect: bounding_rect.is_some(),
             is_clip: command.is_clip(),
+            clips_to_bounding_rect: confining_clip.is_some(),
             payload_size: u32::try_from(padded_record_size - HEADER_SIZE).expect("display list payload exceeds u32"),
             context: context.context,
-            bounding_rect: command.bounding_rect().unwrap_or_default(),
+            bounding_rect: bounding_rect.unwrap_or_default(),
         };
         let start = self.bytes.len();
         self.bytes.resize(start + padded_record_size, 0);
@@ -178,6 +194,7 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
         .expect("invalid display list command type"),
         has_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_bounding_rect)),
         is_clip: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, is_clip)),
+        clips_to_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, clips_to_bounding_rect)),
         payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
         context: {
             let base = std::mem::offset_of!(DisplayListCommandHeader, context);
@@ -346,6 +363,28 @@ mod tests {
         let run = builder.command_runs()[0];
         assert!(run.has_unconfined_clip);
         assert!(!run.is_self_contained);
+    }
+
+    #[test]
+    fn a_confining_clip_narrows_the_header_and_flags_the_draw() {
+        let mut builder = DisplayListBuilder::new();
+        let root = appendable(context(0, None));
+        builder.append_confined_to_clip(
+            &fill_rect(0, 0, 100, 100),
+            &[],
+            root,
+            Some(IntRect::new(10, 10, 20, 20)),
+        );
+        builder.append(&fill_rect(50, 50, 10, 10), &[], root);
+        let header = read_header(builder.bytes());
+        assert!(header.clips_to_bounding_rect);
+        assert!(header.has_bounding_rect);
+        assert_eq!(header.bounding_rect, IntRect::new(10, 10, 20, 20));
+        let runs = builder.command_runs();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].ink_bounds, IntRect::new(10, 10, 50, 50));
+        assert!(!runs[0].has_unconfined_clip);
+        assert!(runs[0].is_self_contained);
     }
 
     #[test]

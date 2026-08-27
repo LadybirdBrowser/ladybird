@@ -445,18 +445,17 @@ fn paint_text_fragment(
             || text_fragment::first_available_font(recorder.layout_arena, fragment),
         );
         let span_rect = converter.rounded_device_rect(range_rect);
-        recorder.recorder.save();
-        recorder.recorder.add_clip_rect_int(span_rect);
-        recorder.recorder.draw_glyph_run(
-            baseline_start,
-            run_for_recording,
-            Color(span.text_color),
-            fragment_device_rect,
-            scale,
-            orientation,
-            glyph_bounding_rect,
-        );
-        recorder.recorder.restore();
+        recorder.recorder.record_clipped_to(span_rect, |recorder| {
+            recorder.draw_glyph_run(
+                baseline_start,
+                run_for_recording,
+                Color(span.text_color),
+                fragment_device_rect,
+                scale,
+                orientation,
+                glyph_bounding_rect,
+            );
+        });
         decoration_box.x = range_rect.x;
         decoration_box.width = range_rect.width;
     }
