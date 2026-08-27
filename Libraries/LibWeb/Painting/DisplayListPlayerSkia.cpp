@@ -86,6 +86,14 @@ static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_ra
     return rrect;
 }
 
+static void clip_to_rounded_rect(SkCanvas& canvas, auto const& rect, Gfx::CornerRadii const& corner_radii, SkClipOp clip_op)
+{
+    if (corner_radii.has_any_radius())
+        canvas.clipRRect(to_skia_rrect(rect, corner_radii), clip_op, true);
+    else
+        canvas.clipRect(to_skia_rect(rect), clip_op, true);
+}
+
 static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
 {
     SkScalar affine[6];
@@ -911,9 +919,8 @@ void DisplayListPlayerSkia::play_command(ApplyBackdropFilter const& command)
 {
     auto& canvas = surface().canvas();
 
-    auto rect = to_skia_rect(command.backdrop_region);
     canvas.save();
-    canvas.clipRect(rect, true);
+    clip_to_rounded_rect(canvas, command.backdrop_region, command.corner_radii, SkClipOp::kIntersect);
     ScopeGuard guard = [&] { canvas.restore(); };
 
     if (command.has_backdrop_filter) {

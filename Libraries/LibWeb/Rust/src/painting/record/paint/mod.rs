@@ -194,12 +194,6 @@ pub(crate) fn paint_backdrop_filter(
                 paintable,
             ));
     let border_radii = recorder.border_radii(paintable);
-    let corner_clip = begin_corner_clip(
-        recorder,
-        backdrop_region,
-        &border_radii,
-        libgfx_rust::CornerClip::Outside,
-    );
     let filter_bytes = recorder.layout_arena.node_style_if_live(paintable).and_then(|style| {
         let backdrop_filter = &style.effects().backdrop_filter;
         if crate::painting::filter_bytes::contains_url(backdrop_filter) {
@@ -219,5 +213,4 @@ pub(crate) fn paint_backdrop_filter(
             .recorder
             .apply_backdrop_filter(backdrop_region, corner_radii, &filter_bytes);
     }
-    end_corner_clip(recorder, corner_clip);
 }
