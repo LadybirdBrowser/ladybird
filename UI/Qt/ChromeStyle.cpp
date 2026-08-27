@@ -743,6 +743,118 @@ QWidget#LadybirdFindInPageBar QLabel {{
         background, surface, hover, pressed, border, control_border, accent, text, muted, no_results_background, no_results_border);
 }
 
+QString javascript_dialog_style_sheet(QPalette const& palette)
+{
+    auto surface = style_sheet_color(chrome_surface(palette));
+    auto recessed = style_sheet_color(chrome_surface_recessed(palette));
+    auto hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto pressed = style_sheet_color(chrome_control_surface_pressed(palette));
+    auto control_border = style_sheet_color(chrome_control_border(palette));
+    auto accent = style_sheet_color(chrome_accent(palette));
+    auto text = style_sheet_color(chrome_text(palette));
+    auto muted = style_sheet_color(chrome_muted_text(palette));
+    auto scrim = is_dark(palette) ? QColor(0, 0, 0, 150) : QColor(20, 22, 25, 120);
+    auto scrim_color = qformatted("rgba({}, {}, {}, {})", scrim.red(), scrim.green(), scrim.blue(), scrim.alpha());
+
+    return qformatted(R"(
+QWidget#LadybirdJavaScriptDialogOverlay {{
+    background: {0};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel {{
+    color: {7};
+    background: {1};
+    border: 1px solid {5};
+    border-radius: 12px;
+}}
+
+QLabel#LadybirdJavaScriptDialogTitle {{
+    color: {7};
+    background: transparent;
+    border: 0;
+    font-size: 15px;
+    font-weight: 600;
+}}
+
+QScrollArea#LadybirdJavaScriptDialogMessageArea,
+QWidget#LadybirdJavaScriptDialogMessageViewport,
+QLabel#LadybirdJavaScriptDialogMessage {{
+    color: {7};
+    background: transparent;
+    border: 0;
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QLineEdit {{
+    color: {7};
+    background: {2};
+    border: 1px solid {5};
+    border-radius: 8px;
+    min-height: 26px;
+    padding: 2px 9px;
+    selection-background-color: {6};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QLineEdit:focus {{
+    border-color: {6};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QPushButton {{
+    color: {7};
+    background: {2};
+    border: 1px solid {5};
+    border-radius: 7px;
+    min-height: 26px;
+    min-width: 72px;
+    padding: 2px 12px;
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QPushButton:hover {{
+    background: {3};
+    border-color: {5};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QPushButton:pressed {{
+    background: {4};
+    border-color: {5};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QPushButton:default {{
+    border-color: {6};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QPushButton:focus {{
+    border-color: {6};
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar:vertical {{
+    background: transparent;
+    width: 10px;
+    margin: 0;
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar::groove:vertical {{
+    background: transparent;
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar::handle:vertical {{
+    background: {8};
+    border-radius: 4px;
+    min-height: 20px;
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar::add-line:vertical,
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar::add-page:vertical,
+QFrame#LadybirdJavaScriptDialogPanel QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
+)",
+        scrim_color, surface, recessed, hover, pressed, control_border, accent, text, muted);
+}
+
 QString devtools_banner_style_sheet(QPalette const& palette)
 {
     auto background = style_sheet_color(chrome_background(palette));
