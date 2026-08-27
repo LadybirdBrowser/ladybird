@@ -8,10 +8,24 @@
         display: inline-block;
         margin-left: 100px;
     }
+    #scroller {
+        width: 200px;
+        height: 50px;
+        overflow: scroll;
+    }
+    #scroll-content {
+        height: 200px;
+    }
+    #transformed {
+        display: inline-block;
+        transform: translate(20px, 10px) scale(2);
+        transform-origin: 0 0;
+    }
 </style>
 <body>
 <div id="x">x</div>
 <div id="start-container"><span><span>old</span></span></div><span id="following">new</span>
+<div id="scroller"><div id="scroll-content"><span id="transformed">hello</span></div></div>
 <script src="../include.js"></script>
 <script>
     function print_class_string(object) {
@@ -33,6 +47,21 @@
         const firstRangeRect = range.getClientRects()[0];
         const followingRect = following.getBoundingClientRect();
         println(firstRangeRect.left >= followingRect.left && firstRangeRect.left < followingRect.right ? "PASS" : "FAIL");
+
+        const scroller = document.getElementById("scroller");
+        const transformed = document.getElementById("transformed");
+        range.selectNodeContents(transformed.firstChild);
+
+        const rangeMatchesElement = () => {
+            const rangeRect = range.getClientRects()[0];
+            const elementRect = transformed.getBoundingClientRect();
+            return ["x", "y", "width", "height"].every(property =>
+                Math.abs(rangeRect[property] - elementRect[property]) < 0.01);
+        };
+
+        println(rangeMatchesElement() ? "PASS" : "FAIL");
+        scroller.scrollTop = 50;
+        println(rangeMatchesElement() ? "PASS" : "FAIL");
     });
 </script>
 

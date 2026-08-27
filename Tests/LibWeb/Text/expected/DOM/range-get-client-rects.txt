@@ -1,3 +1,5 @@
 [object DOMRectList]
 [object DOMRect]
 PASS
+PASS
+PASS
