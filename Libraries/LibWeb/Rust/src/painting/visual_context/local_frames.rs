@@ -17,8 +17,9 @@ use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_rect, for_each_rendered_inline_box_piece,
 };
 use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::record::paint::fieldset::{legend_paintable, visual_border_box_rect};
 use crate::painting::record::paint::svg::svg_image_unquantized_device_rect;
-use libgfx_rust::{CornerRadii, FloatRect};
+use libgfx_rust::{CornerRadii, FloatRect, IntRect};
 
 pub(crate) type LocalFrames = Vec<(FrameRole, FrameNodeIndex)>;
 
@@ -70,6 +71,9 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
                 self.append_replaced_content_frames(style, own_state);
             }
             PaintableKind::SVGImagePaintable => self.append_svg_image_frames(style, own_state),
+            PaintableKind::FieldSetPaintable => {
+                self.append_fieldset_frames(own_state);
+            }
             _ => {}
         }
         self.finish()
@@ -186,5 +190,57 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             self.converter.device_pixels_per_css_pixel(),
         );
         self.append_clip(own_state, image_rect, CornerRadii::default(), FrameRole::ContentClip);
+    }
+
+    fn append_fieldset_frames(&mut self, own_state: ContextRef) -> ContextRef {
+        let arena = self.layout_arena;
+        let css_border_top = arena
+            .node_style_if_live(self.slot)
+            .map(|style| style.border_top_width())
+            .unwrap_or_default();
+        let device_border_rect = self
+            .converter
+            .rounded_device_rect(visual_border_box_rect(arena, self.slot));
+        let background_clip = self.append_clip(
+            own_state,
+            device_border_rect.to_float(),
+            CornerRadii::default(),
+            FrameRole::FieldsetBackgroundClip,
+        );
+        let Some(legend) = legend_paintable(arena, self.slot) else {
+            return background_clip;
+        };
+        let legend_border_rect = self
+            .converter
+            .rounded_device_rect(absolute_border_box_rect(arena, legend));
+        let top_border = self.converter.enclosing_device_pixels(css_border_top);
+        let band = IntRect::new(
+            device_border_rect.x,
+            device_border_rect.y,
+            device_border_rect.width,
+            top_border,
+        );
+        let band_context = self.append_clip(
+            own_state,
+            band.to_float(),
+            CornerRadii::default(),
+            FrameRole::FieldsetTopBorderBand,
+        );
+        let cutout = IntRect::new(
+            legend_border_rect.x,
+            device_border_rect.y,
+            legend_border_rect.width,
+            top_border,
+        );
+        self.append(
+            band_context,
+            FrameData::Clip(ClipData {
+                rect: cutout.to_float(),
+                corner_radii: CornerRadii::default(),
+                mode: ClipMode::Difference,
+            }),
+            FrameRole::LegendCutout,
+        );
+        background_clip
     }
 }

@@ -273,6 +273,9 @@ pub enum FrameRole {
     ContentCornerClip,
     ContentClip,
     OuterShadowClip { piece: PieceKey },
+    FieldsetBackgroundClip,
+    FieldsetTopBorderBand,
+    LegendCutout,
 }
 
 pub struct FrameNode {
