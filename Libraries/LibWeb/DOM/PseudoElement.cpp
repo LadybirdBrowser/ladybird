@@ -92,22 +92,6 @@ void SyntheticPseudoElement::refresh_computed_style(CSS::StyleRecordID style_rec
     VERIFY(m_style_record_identity);
 }
 
-void SyntheticPseudoElement::set_computed_values_in_display_none_subtree(DOM::AbstractElement abstract_element)
-{
-    if (auto computed_values = abstract_element.computed_style()) {
-        CSS::ComputedValues::Builder builder(*computed_values);
-        builder->set_in_display_none_subtree(true);
-        if (computed_values->has_animated_values()) {
-            CSS::ComputedValues::Builder base_values_builder(computed_values->base_values());
-            base_values_builder->set_in_display_none_subtree(true);
-            builder->set_base_values(move(base_values_builder).build());
-        }
-        auto updated_values = move(builder).build();
-        auto publication = abstract_element.document().style_computer().publish_computed_style_inputs(abstract_element, *updated_values);
-        replace_style_record(publication.new_style_record);
-    }
-}
-
 RefPtr<CSS::CustomPropertyData const> SyntheticPseudoElement::custom_property_data() const
 {
     if (!m_custom_property_data)

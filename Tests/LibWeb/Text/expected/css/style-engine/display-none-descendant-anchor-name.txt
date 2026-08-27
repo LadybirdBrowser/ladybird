@@ -1,0 +1,2 @@
+initial anchor left: 101
+changed anchor left: 11

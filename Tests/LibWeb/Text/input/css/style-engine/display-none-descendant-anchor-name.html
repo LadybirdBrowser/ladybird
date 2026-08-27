@@ -1,0 +1,43 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    #fallback-anchor, #hidden-anchor {
+        position: absolute;
+        top: 0;
+        width: 10px;
+        height: 10px;
+        anchor-name: --old;
+    }
+    #fallback-anchor { left: 11px; }
+    #hidden-anchor { left: 101px; }
+    #hidden-anchor.changed { anchor-name: --new; }
+    #anchor-target {
+        position: absolute;
+        top: 20px;
+        position-anchor: --old;
+        left: anchor(left);
+        width: 10px;
+        height: 10px;
+    }
+    .hidden { display: none; }
+</style>
+<div id="fallback-anchor"></div>
+<div id="anchor-host"><div id="hidden-anchor"></div></div>
+<div id="anchor-target"></div>
+<script>
+    test(() => {
+        const anchorHost = document.getElementById("anchor-host");
+        const hiddenAnchor = document.getElementById("hidden-anchor");
+        const anchorTarget = document.getElementById("anchor-target");
+
+        println(`initial anchor left: ${anchorTarget.offsetLeft}`);
+
+        anchorHost.classList.add("hidden");
+        document.body.offsetWidth;
+        hiddenAnchor.classList.add("changed");
+        anchorHost.classList.remove("hidden");
+        document.body.offsetWidth;
+
+        println(`changed anchor left: ${anchorTarget.offsetLeft}`);
+    });
+</script>

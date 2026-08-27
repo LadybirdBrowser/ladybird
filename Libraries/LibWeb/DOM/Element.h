@@ -875,7 +875,7 @@ private:
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void replace_style_record(CSS::StyleRecordID);
-    void set_in_display_none_subtree_on_descendant_styles();
+    void clear_computed_styles_from_display_none_descendants();
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(Utf16View where, GC::Ref<Node> node);
 

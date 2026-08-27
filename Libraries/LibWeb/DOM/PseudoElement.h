@@ -58,7 +58,6 @@ public:
     void set_computed_style(CSS::StyleRecordID);
     void clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment = nullptr);
     void refresh_computed_style(CSS::StyleRecordID);
-    void set_computed_values_in_display_none_subtree(DOM::AbstractElement);
 
     RefPtr<CSS::CustomPropertyData const> custom_property_data() const override;
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override;

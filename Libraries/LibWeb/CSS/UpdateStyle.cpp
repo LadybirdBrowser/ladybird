@@ -324,7 +324,13 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         transaction_invalidation |= invalidation;
 
         auto current_style_state = document.style_computer().style_engine().style_record_state(element->style_record_identity());
-        VERIFY(current_style_state.present);
+        // A descendant whose style was cleared on entry to display:none can receive a reaction which only
+        // updates style-engine bookkeeping, such as a synthetic pseudo-element reaction. Keep the DOM style
+        // unmaterialized until a CSSOM read or the ancestor becomes visible.
+        if (!current_style_state.present) {
+            VERIFY(was_unstyled);
+            continue;
+        }
         if (current_style_state.display_none) {
             if (was_unstyled) {
                 record_direct_child_style_engine_reactions(*element, reaction_batch, StyleEngine::RecomputeStyle);

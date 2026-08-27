@@ -1,0 +1,10 @@
+hidden inherited style: rgb(40, 50, 60)
+hidden non-inherited style: 73px x 31px
+hidden pseudo style: "changed"
+hidden inserted style: 61px x 62px
+shown inherited style: rgb(70, 80, 90)
+shown target size: 91 x 47
+shown pseudo style: "final"
+shown inserted size: 61 x 62
+shown nested size: 35 x 36
+shown text: final text

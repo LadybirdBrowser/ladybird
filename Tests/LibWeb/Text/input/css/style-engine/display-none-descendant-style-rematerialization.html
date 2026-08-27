@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host { color: rgb(10, 20, 30); }
+    #host.hidden { display: none; }
+    #host.changed { color: rgb(40, 50, 60); }
+    #host.final { color: rgb(70, 80, 90); }
+    #target { width: 20px; height: 10px; }
+    #target.changed { width: 73px; height: 31px; }
+    #target.final { width: 91px; height: 47px; }
+    #target::before { content: "initial"; }
+    #target.changed::before { content: "changed"; }
+    #target.final::before { content: "final"; }
+    #nested.hidden-nested { display: none; }
+    #nested-child { width: 15px; height: 16px; }
+    #nested-child.final { width: 35px; height: 36px; }
+    #inserted { width: 61px; height: 62px; }
+</style>
+<div id="host">
+    <div id="target">initial text</div>
+    <div id="nested" class="hidden-nested"><div id="nested-child"></div></div>
+</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const target = document.getElementById("target");
+        const nested = document.getElementById("nested");
+        const nestedChild = document.getElementById("nested-child");
+        host.offsetWidth;
+
+        host.classList.add("hidden");
+        document.body.offsetWidth;
+
+        host.classList.add("changed");
+        target.classList.add("changed");
+        target.textContent = "text changed while hidden";
+        nested.classList.remove("hidden-nested");
+        nestedChild.classList.add("final");
+        const inserted = document.createElement("div");
+        inserted.id = "inserted";
+        host.prepend(inserted);
+
+        println(`hidden inherited style: ${getComputedStyle(target).color}`);
+        println(`hidden non-inherited style: ${getComputedStyle(target).width} x ${getComputedStyle(target).height}`);
+        println(`hidden pseudo style: ${getComputedStyle(target, "::before").content}`);
+        println(`hidden inserted style: ${getComputedStyle(inserted).width} x ${getComputedStyle(inserted).height}`);
+
+        host.classList.remove("changed");
+        host.classList.add("final");
+        target.classList.remove("changed");
+        target.classList.add("final");
+        target.textContent = "final text";
+        host.classList.remove("hidden");
+        document.body.offsetWidth;
+
+        println(`shown inherited style: ${getComputedStyle(target).color}`);
+        println(`shown target size: ${target.offsetWidth} x ${target.offsetHeight}`);
+        println(`shown pseudo style: ${getComputedStyle(target, "::before").content}`);
+        println(`shown inserted size: ${inserted.offsetWidth} x ${inserted.offsetHeight}`);
+        println(`shown nested size: ${nestedChild.offsetWidth} x ${nestedChild.offsetHeight}`);
+        println(`shown text: ${target.textContent}`);
+    });
+</script>
