@@ -116,6 +116,11 @@ void JavaScriptDialog::show_alert(QString const& title, QString const& message)
     open(Type::Alert, title, message);
 }
 
+void JavaScriptDialog::show_before_unload(QString const& title)
+{
+    open(Type::BeforeUnload, title, "Leave this page? Your changes may not be saved.");
+}
+
 void JavaScriptDialog::show_confirm(QString const& title, QString const& message)
 {
     open(Type::Confirm, title, message);
@@ -153,6 +158,12 @@ void JavaScriptDialog::open(Type type, QString const& title, QString const& mess
     }
     auto* ok_button = m_button_box->button(QDialogButtonBox::Ok);
     auto* cancel_button = m_button_box->button(QDialogButtonBox::Cancel);
+    if (type == Type::BeforeUnload) {
+        VERIFY(ok_button);
+        VERIFY(cancel_button);
+        ok_button->setText("Leave");
+        cancel_button->setText("Stay");
+    }
     if (ok_button)
         ok_button->setDefault(type != Type::Prompt);
 

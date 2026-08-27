@@ -877,6 +877,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         case JavaScriptDialog::Type::Alert:
             view().alert_closed();
             break;
+        case JavaScriptDialog::Type::BeforeUnload:
+            VERIFY_NOT_REACHED();
         case JavaScriptDialog::Type::Confirm:
             view().confirm_closed(accepted);
             break;
