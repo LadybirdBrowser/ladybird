@@ -540,6 +540,8 @@ public:
 
     bool style_uses_if_css_function() const { return m_style_uses_if_css_function; }
     void set_style_uses_if_css_function() { m_style_uses_if_css_function = true; }
+    bool style_depends_on_viewport_metrics() const { return m_style_depends_on_viewport_metrics; }
+    void set_style_depends_on_viewport_metrics() { m_style_depends_on_viewport_metrics = true; }
     bool style_uses_inherit_css_function() const { return m_style_uses_inherit_css_function; }
     void set_style_uses_inherit_css_function() { m_style_uses_inherit_css_function = true; }
     bool style_depends_on_size_container_query() const { return m_style_depends_on_size_container_query; }
@@ -921,6 +923,7 @@ private:
     bool m_style_uses_attr_css_function : 1 { false };
     bool m_style_uses_var_css_function : 1 { false };
     bool m_style_uses_if_css_function : 1 { false };
+    bool m_style_depends_on_viewport_metrics : 1 { false };
     bool m_style_uses_custom_function : 1 { false };
     bool m_style_uses_inherit_css_function : 1 { false };
     bool m_style_depends_on_size_container_query : 1 { false };

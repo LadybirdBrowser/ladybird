@@ -23,6 +23,12 @@
         // all - what the count answers for is which subtrees the resize had to look through.
         println(`dependent before: ${getComputedStyle(dependent).color}`);
 
+        document.body.offsetWidth;
+        resetStyleCounters();
+        queried.style.height = "20px";
+        document.body.offsetWidth;
+        println(`elements walked after block-size-only container relayout: ${styleCounters().sizeQueryContainerScanVisits}`);
+
         flushPendingStyleWork();
         unqueried.style.width = "400px";
         internals.updateStyle();

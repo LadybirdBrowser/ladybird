@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                @property --length {
+                    syntax: "<length>";
+                    initial-value: 0px;
+                    inherits: false;
+                }
+
+                #container { --length: 100px; }
+                #target { color: red; }
+                @container style(--length: 50vw) {
+                    #target { color: green; }
+                }
+            </style>
+            <div id="container"><div id="target"></div></div>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const target = child.document.getElementById("target");
+        println(`initial: ${child.getComputedStyle(target).color}`);
+
+        iframe.style.width = "400px";
+        document.body.offsetWidth;
+        println(`after resize: ${child.getComputedStyle(target).color}`);
+    });
+</script>
