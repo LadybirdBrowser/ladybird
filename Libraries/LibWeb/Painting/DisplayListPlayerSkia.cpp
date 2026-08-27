@@ -1119,11 +1119,7 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
             canvas.scale(command.rect.width() / command.list_size.width(), command.rect.height() / command.list_size.height());
     }
     ScrollStateSnapshot scroll_state_snapshot;
-    execute_nested_display_list(
-        *nested_display_list.display_list,
-        nested_display_list.visual_context_tree,
-        scroll_state_snapshot,
-        nested_display_list.display_list->command_bytes());
+    execute_nested_display_list(*nested_display_list.display_list, nested_display_list.visual_context_tree, scroll_state_snapshot);
     canvas.restore();
 }
 

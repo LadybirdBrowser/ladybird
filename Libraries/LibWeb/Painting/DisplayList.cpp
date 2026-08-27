@@ -130,30 +130,22 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& dis
 void DisplayListPlayer::execute_nested_display_list(
     DisplayList const& display_list,
     AccumulatedVisualContextTree const& visual_context_tree,
-    ScrollStateSnapshot const& scroll_state_snapshot,
-    ReadonlyBytes command_bytes)
+    ScrollStateSnapshot const& scroll_state_snapshot)
 {
     VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
     TemporaryChange display_list_change { m_active_display_list, &display_list };
     TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
-    execute_impl(display_list, scroll_state_snapshot, command_bytes);
+    execute_impl(display_list, scroll_state_snapshot);
 }
 
 void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
-{
-    execute_impl(display_list, scroll_state, display_list.command_bytes());
-}
-
-void DisplayListPlayer::execute_impl(
-    DisplayList const& display_list,
-    ScrollStateSnapshot const& scroll_state,
-    ReadonlyBytes commands)
 {
     auto const& visual_context_tree = active_visual_context_tree();
     VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
 
     VERIFY(m_surface);
+    auto command_runs = display_list.command_runs();
 
     // Cumulative to-root matrices for every spatial node, resolved against the live scroll offsets
     // and folded onto the canvas matrix at replay entry, so any node's space can be entered
@@ -366,18 +358,9 @@ void DisplayListPlayer::execute_impl(
         if (display_list_command_is_compositor_metadata(header.command_type))
             return;
 
-        auto context = header.context;
-        if (backface_culled[context.spatial.value()])
-            return;
-
         auto bounding_rect = header.has_bounding_rect
             ? Optional<Gfx::IntRect>(header.bounding_rect)
             : Optional<Gfx::IntRect> {};
-
-        if (switch_to_context(context, bounding_rect) == SwitchResult::CulledByEffect)
-            return;
-
-        ensure_ctm_space(context.spatial);
 
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             // Any clip that's located outside of the visible region is equivalent to a simple clip-rect,
@@ -416,14 +399,35 @@ void DisplayListPlayer::execute_impl(
         }
     };
 
+    // A run enters its context once. Only a self-contained run with known ink bounds may be
+    // skipped as a whole, and only such a run offers its bounds to the layer-frame cull; any
+    // other run gets none, so an open Save or a clip that outlives the run is never dropped.
+    // Skipping a run with nothing to draw before entering its context spares the frame pushes.
+    auto execute_run = [&](DisplayListCommandRun const& run) {
+        if (backface_culled[run.context.spatial.value()])
+            return;
+        Optional<Gfx::IntRect> skippable_ink_bounds;
+        if (run.is_self_contained && !run.has_unbounded_draw)
+            skippable_ink_bounds = run.ink_bounds;
+        if (skippable_ink_bounds.has_value() && skippable_ink_bounds->is_empty())
+            return;
+        if (switch_to_context(run.context, skippable_ink_bounds) == SwitchResult::CulledByEffect)
+            return;
+        ensure_ctm_space(run.context.spatial);
+        if (skippable_ink_bounds.has_value() && would_be_fully_clipped_by_painter(*skippable_ink_bounds))
+            return;
+        DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), execute_command);
+    };
+
     if (!tree_has_sorting_contexts) {
-        DisplayList::for_each_command_header(commands, execute_command);
+        for (auto const& run : command_runs)
+            execute_run(run);
     } else {
-        for (auto const& step : build_depth_sorted_replay_plan(display_list.command_runs(), visual_context_tree, transform_palette, draw_space, backface_culled)) {
+        for (auto const& step : build_depth_sorted_replay_plan(command_runs, visual_context_tree, transform_palette, draw_space, backface_culled)) {
             step.visit(
                 [&](ReadonlySpan<DisplayListCommandRun> runs) {
                     for (auto const& run : runs)
-                        DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), execute_command);
+                        execute_run(run);
                 },
                 [&](PushPlaneClip const& clip) {
                     restore_to_length(0);
