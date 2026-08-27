@@ -93,23 +93,6 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     }
 }
 
-pub(crate) fn border_radii_shrunk_for_borders(
-    recorder: &mut PaintRecorder<'_>,
-    paintable: NodeSlotId,
-) -> crate::painting::border_radii::BorderRadii {
-    let mut radii = recorder.border_radii(paintable);
-    let layout_node = paintable;
-    if let Some(style) = recorder.layout_arena.node_style_if_live(layout_node) {
-        radii.shrink(
-            style.border_top_width(),
-            style.border_right_width(),
-            style.border_bottom_width(),
-            style.border_left_width(),
-        );
-    }
-    radii
-}
-
 pub(crate) fn begin_corner_clip(
     recorder: &mut PaintRecorder<'_>,
     rect: libgfx_rust::IntRect,

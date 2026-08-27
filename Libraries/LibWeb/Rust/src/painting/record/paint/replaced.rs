@@ -15,7 +15,7 @@ use crate::painting::host::FfiReplacedPaintFacts;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{paint_image, to_gfx_scaling_mode};
-use crate::painting::record::paint::{begin_corner_clip, border_radii_shrunk_for_borders, end_corner_clip};
+use crate::painting::visual_context::FrameRole;
 use libgfx_rust::{Color, IntRect, ScalingMode};
 
 #[derive(Clone, Copy)]
@@ -240,14 +240,6 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
     let image_rect = absolute_rect(recorder.layout_arena, paintable);
     let image_rect_device_pixels = recorder.converter.rounded_device_rect(image_rect);
     if facts.has_decoded_image_data {
-        let radii = border_radii_shrunk_for_borders(recorder, paintable);
-        let corner_clip = begin_corner_clip(
-            recorder,
-            image_rect_device_pixels,
-            &radii,
-            libgfx_rust::CornerClip::Outside,
-        );
-
         // https://drafts.csswg.org/css-images/#the-object-fit
         let natural_size = SizeWithAspectRatio {
             width: facts.natural_width.has_value.then_some(facts.natural_width.value),
@@ -263,27 +255,25 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
 
         let draw_rect = get_replaced_box_painting_area(recorder, paintable, object_fit, concrete_object_size);
         if !draw_rect.is_empty() {
-            let draw_rect_needs_clip = !image_rect_device_pixels.contains_rect(draw_rect);
-            if draw_rect_needs_clip {
-                recorder.recorder.save();
-                recorder.recorder.add_clip_rect_int(image_rect_device_pixels);
-            }
+            let draw_context = if image_rect_device_pixels.contains_rect(draw_rect) {
+                recorder.local_context(paintable, FrameRole::ContentCornerClip)
+            } else {
+                recorder.local_context(paintable, FrameRole::ContentClip)
+            };
             let dest_rect = draw_rect.to_float();
-            let accumulated_scale =
-                recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
-            let paint = recorder.paint_host.replaced_image_paint(
-                recorder.layout_node_shell(paintable),
-                dest_rect,
-                accumulated_scale,
-            );
-            if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-                paint_image(recorder, &paint, dest_rect, image_rendering);
-            }
-            if draw_rect_needs_clip {
-                recorder.recorder.restore();
-            }
+            recorder.with_optional_context(draw_context, |recorder| {
+                let accumulated_scale =
+                    recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
+                let paint = recorder.paint_host.replaced_image_paint(
+                    recorder.layout_node_shell(paintable),
+                    dest_rect,
+                    accumulated_scale,
+                );
+                if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
+                    paint_image(recorder, &paint, dest_rect, image_rendering);
+                }
+            });
         }
-        end_corner_clip(recorder, corner_clip);
     }
 
     if recorder.data(paintable).selection_state != 0 {
@@ -302,9 +292,11 @@ pub(crate) fn paint_canvas_foreground(recorder: &mut PaintRecorder<'_>, paintabl
     let canvas_rect = recorder
         .converter
         .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
-    let radii = border_radii_shrunk_for_borders(recorder, paintable);
-    let corner_clip = begin_corner_clip(recorder, canvas_rect, &radii, libgfx_rust::CornerClip::Outside);
-    if facts.has_canvas_content {
+    if !facts.has_canvas_content {
+        return;
+    }
+    let corner_clip = recorder.local_context(paintable, FrameRole::ContentCornerClip);
+    recorder.with_optional_context(corner_clip, |recorder| {
         let scaling_mode = to_gfx_scaling_mode(
             image_rendering,
             (facts.canvas_content_width, facts.canvas_content_height),
@@ -316,22 +308,19 @@ pub(crate) fn paint_canvas_foreground(recorder: &mut PaintRecorder<'_>, paintabl
             facts.canvas_content_generation,
             scaling_mode,
         );
-    }
-    end_corner_clip(recorder, corner_clip);
+    });
 }
 
 pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
-    recorder.recorder.save();
     let video_rect = recorder
         .converter
         .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
-    recorder.recorder.add_clip_rect_int(video_rect);
-    let radii = border_radii_shrunk_for_borders(recorder, paintable);
-    let corner_clip = begin_corner_clip(recorder, video_rect, &radii, libgfx_rust::CornerClip::Outside);
-
-    match facts.video_representation {
+    let video_context = recorder
+        .local_context(paintable, FrameRole::ContentCornerClip)
+        .unwrap_or_else(|| recorder.expected_local_context(paintable, FrameRole::ContentClip));
+    recorder.with_context(video_context, |recorder| match facts.video_representation {
         crate::painting::host::FfiVideoRepresentation::VideoFrame => {
             if facts.has_video_frame {
                 let src_size = (facts.video_src_width, facts.video_src_height);
@@ -384,27 +373,21 @@ pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable
         crate::painting::host::FfiVideoRepresentation::TransparentBlack => {
             recorder.recorder.fill_rect(video_rect, Color::TRANSPARENT);
         }
-    }
-
-    end_corner_clip(recorder, corner_clip);
-    recorder.recorder.restore();
+    });
 }
 
 pub(crate) fn paint_navigable_container_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
+    if !facts.has_composited_context {
+        return;
+    }
     let absolute_rect = absolute_rect(recorder.layout_arena, paintable);
-    let clip_rect = recorder.converter.rounded_device_rect(absolute_rect);
-    let radii = border_radii_shrunk_for_borders(recorder, paintable);
-    let corner_clip = begin_corner_clip(recorder, clip_rect, &radii, libgfx_rust::CornerClip::Outside);
-    if facts.has_composited_context {
-        recorder.recorder.save();
-        recorder.recorder.add_clip_rect_int(clip_rect);
+    let content_clip = recorder.expected_local_context(paintable, FrameRole::ContentClip);
+    recorder.with_context(content_clip, |recorder| {
         recorder.recorder.draw_composited_context(
             recorder.converter.enclosing_device_rect(absolute_rect),
             CompositorContextId(facts.composited_context_id),
             ScalingMode::NearestNeighbor,
         );
-        recorder.recorder.restore();
-    }
-    end_corner_clip(recorder, corner_clip);
+    });
 }

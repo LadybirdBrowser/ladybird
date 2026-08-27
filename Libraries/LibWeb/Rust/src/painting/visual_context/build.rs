@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::local_frames::LocalFrameBuilder;
 use super::refresh::compute_sticky_data;
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
@@ -663,6 +664,8 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             assignment.has_accumulated_visual_context = true;
             assignment.accumulated_visual_context = own_state;
         }
+
+        LocalFrameBuilder::new(&mut self.tree, self.layout_arena, slot, self.pixel_ratio, false).build(own_state);
 
         if super::node_values::wants_fixed_background_visual_context(
             self.layout_arena,

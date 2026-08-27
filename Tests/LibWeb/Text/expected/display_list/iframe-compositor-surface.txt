@@ -4,11 +4,9 @@ AccumulatedVisualContext Tree:
       [s1] scroll (ViewportPaintable(Viewport<#document>))
   frames:
     [f0 in s0] effects=[]
+      [f1 in s1] clip=[0,0 120x80] (NavigableContainerViewportPaintable(NavigableContainerViewport<IFRAME>#frame))
 
 DisplayList:
 CompositorMainThreadWheelEventRegion@s1/f0 rect=[0,0 120x80]
-Save@s1/f0
-  AddClipRect@s1/f0 rect=[0,0 120x80]
-  DrawCompositedContext@s1/f0 dst_rect=[0,0 120x80]
-Restore@s1/f0
+DrawCompositedContext@s1/f1 dst_rect=[0,0 120x80]
 
