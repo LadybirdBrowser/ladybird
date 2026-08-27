@@ -129,30 +129,23 @@ pub(crate) fn paint_resolved_background(
 
     // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
     let needs_text_clip = resolved.needs_text_clip && !inputs.is_root_element;
-
-    if needs_text_clip {
-        recorder.recorder.save();
-        recorder
-            .recorder
-            .add_clip_rect_int(converter.rounded_device_rect(background_rect));
-        recorder.recorder.save_layer();
-    }
-
-    let isolation_context = backdrop
-        .is_isolated_group()
-        .then(|| recorder.expected_local_context(paintable, FrameRole::BackgroundIsolation { piece }));
-    recorder.with_optional_context(isolation_context, |recorder| {
+    let layers_context = if backdrop.is_isolated_group() {
+        Some(recorder.expected_local_context(paintable, FrameRole::BackgroundIsolation { piece }))
+    } else if needs_text_clip {
+        Some(recorder.expected_local_context(paintable, FrameRole::BackgroundTextContentLayer { piece }))
+    } else {
+        None
+    };
+    recorder.with_optional_context(layers_context, |recorder| {
         paint_background_layers(recorder, paintable, piece, inputs, backdrop);
     });
 
     if needs_text_clip {
-        recorder
-            .recorder
-            .apply_effects(CompositingAndBlendingOperator::DestinationIn);
-        append_text_clip_paths(recorder, paintable);
-        recorder.recorder.restore();
-        recorder.recorder.restore();
-        recorder.recorder.restore();
+        let mask_context = recorder.expected_local_context(paintable, FrameRole::BackgroundTextMask { piece });
+        recorder.with_context(mask_context, |recorder| {
+            fill_transparent_so_replay_pushes_the_layer(recorder, converter.rounded_device_rect(background_rect));
+            append_text_clip_paths(recorder, paintable);
+        });
     }
 }
 

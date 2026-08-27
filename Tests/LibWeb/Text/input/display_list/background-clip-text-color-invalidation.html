@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        position: absolute;
+        width: 100px;
+        height: 50px;
+        font-size: 30px;
+        background-clip: text;
+        background-color: transparent;
+    }
+</style>
+<div class="box" id="box">Text</div>
+<script>
+    test(() => {
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("box").style.backgroundColor = "blue";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before background-color change:");
+        println(displayListBefore);
+        println("After background-color change:");
+        println(displayListAfter);
+    });
+</script>

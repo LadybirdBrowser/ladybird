@@ -1,0 +1,28 @@
+Before background-color change:
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
+
+DisplayList:
+DrawGlyphRun@s1/f0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
+
+After background-color change:
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+      [s1] scroll (ViewportPaintable(Viewport<#document>))
+  frames:
+    [f0 in s0] effects=[]
+      [f1 in s1] clip=[8,13 100x50] (PaintableWithLines(BlockContainer<DIV>#box.box))
+        [f2 in s1] effects=[] (PaintableWithLines(BlockContainer<DIV>#box.box))
+          [f3 in s1] effects=[blend_mode=22] (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+FillRect@s1/f2 rect=[8,13 100x50] color=rgb(0, 0, 255)
+FillRect@s1/f3 rect=[8,13 100x50] color=rgba(0, 0, 0, 0)
+DrawGlyphRun@s1/f3 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/f0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
+
