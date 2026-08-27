@@ -1183,11 +1183,7 @@ void DisplayListPlayerSkia::push_clip(ClipData const& clip)
 {
     auto& canvas = surface().canvas();
     canvas.save();
-    auto rect = clip.rect.to_type<int>();
-    if (clip.corner_radii.has_any_radius())
-        canvas.clipRRect(to_skia_rrect(rect, clip.corner_radii), SkClipOp::kIntersect, true);
-    else
-        canvas.clipRect(to_skia_rect(rect.to_type<float>()), true);
+    clip_to_rounded_rect(canvas, clip.rect, clip.corner_radii, clip.mode == ClipMode::Difference ? SkClipOp::kDifference : SkClipOp::kIntersect);
 }
 
 void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule)

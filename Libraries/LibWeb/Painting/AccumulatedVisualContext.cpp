@@ -27,9 +27,12 @@
 
 namespace Web::Painting {
 
-bool ClipData::contains(DevicePixelPoint point) const
+bool ClipData::contains(Gfx::FloatPoint point) const
 {
-    return corner_radii.contains(point.to_type<int>(), rect.to_type<int>());
+    auto integral_rect = rect.to_type<int>();
+    if (integral_rect.to_type<float>() == rect)
+        return corner_radii.contains(point.to_type<int>(), integral_rect);
+    return corner_radii.contains(point, rect);
 }
 
 static Atomic<u64> s_next_accumulated_visual_context_tree_version { 1 };
@@ -115,8 +118,8 @@ FrameNodeIndex AccumulatedVisualContextTree::append_frame(FrameData data, FrameN
         empty_clip = m_frame_nodes[parent.value()].has_empty_effective_clip;
     }
     if (!empty_clip) {
-        if (data.has<ClipData>())
-            empty_clip = data.get<ClipData>().rect.is_empty();
+        if (auto const* clip = data.get_pointer<ClipData>())
+            empty_clip = clip->mode == ClipMode::Intersect && clip->rect.is_empty();
         else if (data.has<ClipPathData>())
             empty_clip = data.get<ClipPathData>().path.bounding_box().is_empty();
         else if (data.has<MaskData>())
@@ -376,7 +379,8 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                     return true;
                 // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
-                return clip.contains(point.to_type<int>().to_type<DevicePixels>());
+                bool inside = clip.contains(point);
+                return clip.mode == ClipMode::Intersect ? inside : !inside;
             },
             [&](ClipPathData const& clip_path) {
                 if (clip_behavior == ClipBehavior::Ignore)
@@ -758,6 +762,8 @@ void AccumulatedVisualContextTree::dump_frame_node(FrameNodeIndex index, StringB
                 auto const& corner_radii = clip.corner_radii;
                 builder.appendff(" radii=({},{},{},{})", corner_radii.top_left.horizontal_radius, corner_radii.top_right.horizontal_radius, corner_radii.bottom_right.horizontal_radius, corner_radii.bottom_left.horizontal_radius);
             }
+            if (clip.mode == ClipMode::Difference)
+                builder.append(" mode=difference"sv);
         },
         [&](ClipPathData const& clip_path) {
             auto const& rect = clip_path.bounding_rect;
@@ -873,6 +879,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::ClipData const& data)
 {
     TRY(encoder.encode(data.rect));
     TRY(encoder.encode(data.corner_radii));
+    TRY(encoder.encode(data.mode));
     return {};
 }
 
@@ -880,8 +887,9 @@ template<>
 ErrorOr<Web::Painting::ClipData> decode(Decoder& decoder)
 {
     return Web::Painting::ClipData {
-        TRY(decoder.decode<Web::DevicePixelRect>()),
-        TRY(decoder.decode<Gfx::CornerRadii>()),
+        .rect = TRY(decoder.decode<Gfx::FloatRect>()),
+        .corner_radii = TRY(decoder.decode<Gfx::CornerRadii>()),
+        .mode = TRY(decoder.decode<Web::Painting::ClipMode>()),
     };
 }
 

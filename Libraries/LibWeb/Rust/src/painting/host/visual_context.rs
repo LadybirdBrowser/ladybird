@@ -9,7 +9,7 @@ use super::*;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::display_list::commands::OptionalF32;
-use crate::painting::visual_context::{MaskLayerOrigin, TransformDataRole};
+use crate::painting::visual_context::{ClipMode, MaskLayerOrigin, TransformDataRole};
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
     WindingRule,
@@ -125,6 +125,8 @@ pub struct FfiVisualContextNodeExport {
     pub synthetic_plane: bool,
     pub rect: IntRect,
     pub corner_radii: CornerRadii,
+    pub clip_rect: FloatRect,
+    pub clip_mode: ClipMode,
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter: *mut c_void,

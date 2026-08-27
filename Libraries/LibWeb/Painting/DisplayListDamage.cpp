@@ -154,7 +154,7 @@ static bool frame_data_is_equal(FrameData const& a, FrameData const& b)
     return a.visit(
         [&](ClipData const& data) {
             auto const* other = b.get_pointer<ClipData>();
-            return other && data.rect == other->rect && corner_radii_are_equal(data.corner_radii, other->corner_radii);
+            return other && data.rect == other->rect && corner_radii_are_equal(data.corner_radii, other->corner_radii) && data.mode == other->mode;
         },
         [&](ClipPathData const& data) {
             auto const* other = b.get_pointer<ClipPathData>();

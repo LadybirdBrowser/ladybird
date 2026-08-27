@@ -51,17 +51,17 @@ struct StickyData {
     bool operator==(StickyData const&) const = default;
 };
 
+enum class ClipMode : u8 {
+    Intersect,
+    Difference,
+};
+
 struct ClipData {
-    DevicePixelRect rect;
+    Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
+    ClipMode mode { ClipMode::Intersect };
 
-    ClipData(DevicePixelRect r, Gfx::CornerRadii radii)
-        : rect(r)
-        , corner_radii(radii)
-    {
-    }
-
-    bool contains(DevicePixelPoint point) const;
+    bool contains(Gfx::FloatPoint) const;
 };
 
 // Distinguishes the two producers of transform nodes so value-only updates can patch each from its
@@ -217,7 +217,7 @@ public:
 
     SortingContexts resolve_sorting_contexts() const;
     Optional<float> plane_depth_at_point_for_hit_test(SpatialNodeIndex plane_node_index, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
-    Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
+    WEB_API Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;
     Gfx::FloatRect transform_rect_to_viewport(SpatialNodeIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;
     // Sum of the snapshot entries along the scroll-parent chain from the given scroll-like node.
