@@ -82,6 +82,10 @@ private:                                                                \
                                                                         \
     openssl_type* m_ptr { nullptr };
 
+class OpenSSL_X509 {
+    OPENSSL_WRAPPER_CLASS(OpenSSL_X509, X509, X509);
+};
+
 class OpenSSL_BN {
     OPENSSL_WRAPPER_CLASS(OpenSSL_BN, BIGNUM, BN);
 
