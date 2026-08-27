@@ -2441,6 +2441,31 @@ void WebContentPage::did_request_alert(Utf16String message)
         view().on_request_alert(message);
 }
 
+void WebContentPage::did_request_before_unload(String source)
+{
+    did_open_dialog(Web::PendingDialog::BeforeUnload, {});
+    auto weak_traversable = m_traversable;
+    auto origin_page_id = id();
+    auto close_prompt = [weak_traversable, origin_page_id](bool accepted) {
+        if (!weak_traversable)
+            return;
+
+        weak_traversable->for_each_hosting_page([&](WebContentPage& page) {
+            if (page.id() != origin_page_id)
+                page.async_did_open_dialog_in_another_process(Web::PendingDialog::None, Utf16View {});
+            else
+                page.routed_proxy()->async_before_unload_closed(origin_page_id, accepted);
+        });
+    };
+
+    if (view().on_request_before_unload) {
+        view().on_request_before_unload(source, move(close_prompt));
+        return;
+    }
+
+    close_prompt(true);
+}
+
 void WebContentPage::did_request_confirm(Utf16String message)
 {
     did_open_dialog(Web::PendingDialog::Confirm, message);

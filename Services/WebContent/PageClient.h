@@ -263,6 +263,7 @@ private:
     virtual void page_did_change_accessibility_focus(Web::UniqueNodeID) override;
 
     virtual void page_did_request_alert(Utf16String const&) override;
+    virtual void page_did_request_before_unload(String const&) override;
     virtual void page_did_request_confirm(Utf16String const&) override;
     virtual void page_did_request_prompt(Utf16String const&, Utf16String const&) override;
     virtual void page_did_request_set_prompt_text(Utf16String const&) override;

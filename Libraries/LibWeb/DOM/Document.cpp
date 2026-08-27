@@ -10683,7 +10683,10 @@ bool Document::showing_an_unload_prompt_is_unlikely_to_be_annoying_deceptive_or_
     if (page().is_webdriver_active())
         return false;
 
-    return true;
+    // FIXME: Revisit this approximation of "unlikely to be annoying, deceptive, or pointless".
+    return is_active()
+        && is_fully_active()
+        && visibility_state() == HTML::VisibilityState::Visible;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#steps-to-fire-beforeunload
@@ -10726,12 +10729,20 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
         unload_prompt_shown = true;
 
         // FIXME: 2. Invoke WebDriver BiDi user prompt opened with document's relevant global object, "beforeunload", and "".
-        // FIXME: 3. Ask the user to confirm that they wish to unload the document, and pause while waiting for the user's response.
-
-        auto user_prompt_handler = WebDriver::get_the_prompt_handler(WebDriver::PromptType::BeforeUnload);
+        // 3. Ask the user to confirm that they wish to unload the document, and pause while waiting for the user's response.
+        auto top_level_traversable = page().top_level_traversable();
+        auto top_level_origin = top_level_traversable->active_document_origin();
+        auto top_level_url = top_level_traversable->active_document_url();
+        VERIFY(top_level_origin.has_value());
+        VERIFY(top_level_url.has_value());
+        auto source = top_level_origin->is_opaque()
+            ? MUST(String::formatted("{}://", top_level_url->scheme()))
+            : top_level_origin->serialize();
+        HTML::TemporaryExecutionContext context { relevant_settings_object() };
+        auto confirmed = page().did_request_before_unload(source, event_loop);
 
         // 4. If the user did not confirm the page navigation, set unloadPromptCanceled to true.
-        if (user_prompt_handler.handler == WebDriver::PromptHandler::Dismiss)
+        if (!confirmed)
             unload_prompt_canceled = true;
 
         // FIXME: 5. Invoke WebDriver BiDi user prompt closed with document's relevant global object and true if unloadPromptCanceled is false or false otherwise.
