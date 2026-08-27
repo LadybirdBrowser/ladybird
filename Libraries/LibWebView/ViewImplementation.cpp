@@ -489,7 +489,6 @@ void ViewImplementation::reload()
         return;
     }
 
-    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
     if (m_crash_state.has_value() && m_crash_state->navigation_to_retry.has_value()) {
         load(m_crash_state->navigation_to_retry.release_value());
         return;
@@ -499,6 +498,7 @@ void ViewImplementation::reload()
         on_before_browser_initiated_navigation();
 
     set_loading_state(true);
+    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
     Optional<URL::URL> ongoing_url;
     if (m_top_level_traversable.ongoing_navigation().has_value())
         ongoing_url = move(m_top_level_traversable.ongoing_navigation()->url);

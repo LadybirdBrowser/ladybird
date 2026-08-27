@@ -28,6 +28,7 @@
 
 class QTimer;
 class QColorDialog;
+class QFileDialog;
 class QMessageBox;
 namespace Ladybird {
 
@@ -191,6 +192,7 @@ private:
 
     JavaScriptDialog* m_javascript_dialog { nullptr };
     QPointer<QColorDialog> m_color_picker_dialog;
+    QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
 
     bool m_suppress_javascript_dialogs_until_navigation { false };

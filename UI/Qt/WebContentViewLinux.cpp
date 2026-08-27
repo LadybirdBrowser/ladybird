@@ -1007,6 +1007,16 @@ bool WebContentView::current_paintable_can_use_vulkan_window() const
 
 void WebContentView::schedule_vulkan_window_update()
 {
+    if (crash_overlay_active()) {
+        QTimer::singleShot(0, this, [this] {
+            if (!crash_overlay_active())
+                return;
+            set_vulkan_window_container_visible(false);
+            update();
+        });
+        return;
+    }
+
     if (m_vulkan_window) {
         if (!current_paintable_can_use_vulkan_window()) {
             set_vulkan_window_container_visible(false);

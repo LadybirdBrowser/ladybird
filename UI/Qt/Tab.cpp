@@ -897,6 +897,24 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_web_content_crashed = [this] {
         m_suppress_javascript_dialogs_until_navigation = false;
         m_javascript_dialog->reset();
+
+        // Close pickers owned by the crashed renderer with their completion signals disconnected; they
+        // must not reply to its replacement.
+        if (m_color_picker_dialog) {
+            auto* dialog = m_color_picker_dialog.data();
+            m_color_picker_dialog = nullptr;
+            QObject::disconnect(dialog, nullptr, this, nullptr);
+            dialog->close();
+            dialog->deleteLater();
+        }
+        if (m_file_picker_dialog) {
+            auto* dialog = m_file_picker_dialog.data();
+            m_file_picker_dialog = nullptr;
+            QObject::disconnect(dialog, nullptr, this, nullptr);
+            dialog->close();
+        }
+        if (m_external_url_confirmation_dialog)
+            m_external_url_confirmation_dialog->close();
     };
 
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
@@ -967,17 +985,6 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_request_file_picker = [this](auto const& accepted_file_types, auto allow_multiple_files) {
-        Vector<Web::HTML::SelectedFile> selected_files;
-
-        auto create_selected_file = [&](auto const& qfile_path) {
-            auto file_path = ak_byte_string_from_qstring(qfile_path);
-
-            if (auto file = WebView::create_selected_file(file_path); file.is_error())
-                warnln("Unable to open file {}: {}", file_path, file.error());
-            else
-                selected_files.append(file.release_value());
-        };
-
         QStringList accepted_file_filters;
         QMimeDatabase mime_database;
 
@@ -1023,18 +1030,32 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         accepted_file_filters.size() > 1 ? accepted_file_filters.prepend("All files (*)") : accepted_file_filters.append("All files (*)");
         auto filters = accepted_file_filters.join(";;");
 
-        if (allow_multiple_files == Web::HTML::AllowMultipleFiles::Yes) {
-            auto paths = QFileDialog::getOpenFileNames(this, "Select files", QDir::homePath(), filters);
-            selected_files.ensure_capacity(static_cast<size_t>(paths.size()));
+        auto allow_multiple = allow_multiple_files == Web::HTML::AllowMultipleFiles::Yes;
+        auto* dialog = new QFileDialog(this, allow_multiple ? "Select files" : "Select file", QDir::homePath(), filters);
+        m_file_picker_dialog = dialog;
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setFileMode(allow_multiple ? QFileDialog::ExistingFiles : QFileDialog::ExistingFile);
 
-            for (auto const& path : paths)
-                create_selected_file(path);
-        } else {
-            auto path = QFileDialog::getOpenFileName(this, "Select file", QDir::homePath(), filters);
-            create_selected_file(path);
-        }
+        QObject::connect(dialog, &QDialog::finished, this, [this, dialog = QPointer<QFileDialog> { dialog }](int result) {
+            Vector<Web::HTML::SelectedFile> selected_files;
 
-        view().file_picker_closed(std::move(selected_files));
+            if (dialog && result == QDialog::Accepted) {
+                for (auto const& path : dialog->selectedFiles()) {
+                    auto file_path = ak_byte_string_from_qstring(path);
+
+                    if (auto file = WebView::create_selected_file(file_path); file.is_error())
+                        warnln("Unable to open file {}: {}", file_path, file.error());
+                    else
+                        selected_files.append(file.release_value());
+                }
+            }
+
+            if (m_file_picker_dialog == dialog)
+                m_file_picker_dialog = nullptr;
+            view().file_picker_closed(std::move(selected_files));
+        });
+
+        dialog->open();
     };
 
     view().on_find_in_page = [this](auto current_match_index, auto const& total_match_count) {
