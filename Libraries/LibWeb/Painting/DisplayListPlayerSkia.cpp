@@ -474,31 +474,6 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDisplayList const& command)
     paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.scaling_mode, command.repeat.x, command.repeat.y);
 }
 
-void DisplayListPlayerSkia::play_command(AddClipRect const& command)
-{
-    auto& canvas = surface().canvas();
-    auto const& rect = command.rect;
-    canvas.clipRect(to_skia_rect(rect), true);
-}
-
-void DisplayListPlayerSkia::play_command(Save const&)
-{
-    auto& canvas = surface().canvas();
-    canvas.save();
-}
-
-void DisplayListPlayerSkia::play_command(SaveLayer const&)
-{
-    auto& canvas = surface().canvas();
-    canvas.saveLayer(nullptr, nullptr);
-}
-
-void DisplayListPlayerSkia::play_command(Restore const&)
-{
-    auto& canvas = surface().canvas();
-    canvas.restore();
-}
-
 static SkGradient::Interpolation to_skia_interpolation(Gfx::GradientInterpolationMethod interpolation_method)
 {
     SkGradient::Interpolation interpolation;
@@ -1003,19 +978,6 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(AddClipPath const& command)
-{
-    clip_path(path_from_data(command.path_data), command.winding_rule, true);
-}
-
-void DisplayListPlayerSkia::play_command(AddRoundedRectClip const& command)
-{
-    auto rounded_rect = to_skia_rrect(command.border_rect, command.corner_radii);
-    auto& canvas = surface().canvas();
-    auto clip_op = command.corner_clip == Gfx::CornerClip::Inside ? SkClipOp::kDifference : SkClipOp::kIntersect;
-    canvas.clipRRect(rounded_rect, clip_op, true);
-}
-
 void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
 {
     auto& canvas = surface().canvas();
@@ -1153,30 +1115,6 @@ void DisplayListPlayerSkia::play_command(CompositorBlockingWheelEventRegion cons
 void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
 {
     paint_scrollbar_into_surface(surface(), command);
-}
-
-void DisplayListPlayerSkia::play_command(ApplyEffects const& command)
-{
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-
-    if (command.opacity < 1.0f)
-        paint.setAlphaf(command.opacity);
-
-    if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
-        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
-
-    if (command.has_filter) {
-        auto filter = Gfx::deserialize_filter(inline_data(command.filter_data), [&](u64 image_id) {
-            return resource_storage().image_frame(ImageFrameResourceId { image_id });
-        });
-        paint.setImageFilter(to_skia_image_filter(filter));
-    }
-
-    if (command.has_mask_kind && command.mask_kind == Gfx::MaskKind::Luminance)
-        paint.setColorFilter(SkLumaColorFilter::Make());
-
-    canvas.saveLayer(nullptr, &paint);
 }
 
 void DisplayListPlayerSkia::push_clip(ClipData const& clip)

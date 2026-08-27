@@ -402,9 +402,21 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     visited_display_lists.set(id.value());
     auto const& list_resource = display_list_resource(id);
 
+    auto const& frame_nodes = list_resource.visual_context_tree.frame_nodes();
+    auto isolated_by_layer_frame = [&](FrameNodeIndex frame) {
+        while (frame != NO_FRAME_NODE) {
+            auto const& node = frame_nodes[frame.value()];
+            if (node.data.has<EffectsData>() || node.data.has<MaskData>())
+                return true;
+            frame = node.parent;
+        }
+        return false;
+    };
+
     bool requires_direct_replay = false;
-    for (auto const& node : list_resource.visual_context_tree.frame_nodes()) {
-        if (auto const* effects = node.data.get_pointer<EffectsData>(); effects && effects->blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
+    for (auto const& node : frame_nodes) {
+        auto const* effects = node.data.get_pointer<EffectsData>();
+        if (effects && effects->blend_mode != Gfx::CompositingAndBlendingOperator::Normal && !isolated_by_layer_frame(node.parent))
             requires_direct_replay = true;
     }
 
@@ -415,28 +427,13 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
             requires_direct_replay = requires_direct_replay || nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
     };
 
-    Vector<bool, 32> save_stack_entry_is_layer;
-    u64 layer_depth = 0;
     DisplayList::for_each_command_header(list_resource.display_list->command_bytes(), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         if (requires_direct_replay)
             return;
         visit_display_list_command(header.command_type, payload, [&](auto const& command) {
             using Command = RemoveCVReference<decltype(command)>;
-            if constexpr (IsSame<Command, Save>) {
-                save_stack_entry_is_layer.append(false);
-            } else if constexpr (IsSame<Command, SaveLayer>) {
-                save_stack_entry_is_layer.append(true);
-                ++layer_depth;
-            } else if constexpr (IsSame<Command, ApplyEffects>) {
-                if (layer_depth == 0 && command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
-                    requires_direct_replay = true;
-                save_stack_entry_is_layer.append(true);
-                ++layer_depth;
-            } else if constexpr (IsSame<Command, Restore>) {
-                if (!save_stack_entry_is_layer.is_empty() && save_stack_entry_is_layer.take_last())
-                    --layer_depth;
-            } else if constexpr (IsSame<Command, ApplyBackdropFilter>) {
-                if (layer_depth == 0 && command.has_backdrop_filter)
+            if constexpr (IsSame<Command, ApplyBackdropFilter>) {
+                if (command.has_backdrop_filter && !isolated_by_layer_frame(header.context.frame))
                     requires_direct_replay = true;
             } else if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
                 requires_direct_replay = true;

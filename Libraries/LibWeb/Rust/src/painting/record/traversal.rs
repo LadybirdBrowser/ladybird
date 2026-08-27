@@ -677,7 +677,6 @@ impl PaintRecorder<'_> {
     }
 
     fn paint_node(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
-        let saved_nesting_level = std::mem::replace(&mut self.recorder.save_nesting_level, 0);
         let context = self.context_for_phase(paintable, phase);
         self.recorder.set_accumulated_visual_context(context);
 
@@ -791,11 +790,6 @@ impl PaintRecorder<'_> {
         }
 
         self.recorder.set_accumulated_visual_context(ContextRef::default());
-        assert_eq!(
-            self.recorder.save_nesting_level, 0,
-            "unbalanced save/restore in a paint capture"
-        );
-        self.recorder.save_nesting_level = saved_nesting_level;
     }
 
     fn valid_cached_commands(

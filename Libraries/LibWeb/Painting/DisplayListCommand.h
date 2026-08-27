@@ -24,11 +24,6 @@ namespace Web::Painting {
     V(DrawCompositedContext, draw_composited_context)                                  \
     V(DrawCanvas, draw_canvas)                                                         \
     V(DrawVideoFrame, draw_video_frame)                                                \
-    V(Save, save)                                                                      \
-    V(SaveLayer, save_layer)                                                           \
-    V(Restore, restore)                                                                \
-    V(AddClipRect, add_clip_rect)                                                      \
-    V(AddClipPath, add_clip_path)                                                      \
     V(PaintLinearGradient, paint_linear_gradient)                                      \
     V(PaintRadialGradient, paint_radial_gradient)                                      \
     V(PaintConicGradient, paint_conic_gradient)                                        \
@@ -42,7 +37,6 @@ namespace Web::Painting {
     V(DrawLine, draw_line)                                                             \
     V(ApplyBackdropFilter, apply_backdrop_filter)                                      \
     V(DrawRect, draw_rect)                                                             \
-    V(AddRoundedRectClip, add_rounded_rect_clip)                                       \
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
     V(CompositorScrollNode, compositor_scroll_node)                                    \
     V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
@@ -51,8 +45,7 @@ namespace Web::Painting {
     V(CompositorMainThreadWheelEventRegion, compositor_main_thread_wheel_event_region) \
     V(CompositorViewportScrollbar, compositor_viewport_scrollbar)                      \
     V(CompositorBlockingWheelEventRegion, compositor_blocking_wheel_event_region)      \
-    V(PaintScrollBar, paint_scrollbar)                                                 \
-    V(ApplyEffects, apply_effects)
+    V(PaintScrollBar, paint_scrollbar)
 
 constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandType type)
 {
@@ -69,20 +62,6 @@ constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandTyp
     }
 }
 
-constexpr int display_list_command_nesting_level_change(DisplayListCommandType command_type)
-{
-    switch (command_type) {
-    case DisplayListCommandType::Save:
-    case DisplayListCommandType::SaveLayer:
-    case DisplayListCommandType::ApplyEffects:
-        return 1;
-    case DisplayListCommandType::Restore:
-        return -1;
-    default:
-        return 0;
-    }
-}
-
 inline Gfx::IntRect DrawGlyphRun::bounding_rect() const { return glyph_bounding_rect; }
 inline Gfx::IntRect FillRect::bounding_rect() const { return rect; }
 inline Gfx::IntRect DrawScaledDecodedImageFrame::bounding_rect() const { return Gfx::enclosing_int_rect(dst_rect); }
@@ -92,10 +71,6 @@ inline Gfx::IntRect DrawTiledDecodedImageFrame::bounding_rect() const { return c
 inline Gfx::IntRect DrawCompositedContext::bounding_rect() const { return dst_rect; }
 inline Gfx::IntRect DrawCanvas::bounding_rect() const { return dst_rect; }
 inline Gfx::IntRect DrawVideoFrame::bounding_rect() const { return dst_rect; }
-inline Gfx::IntRect AddClipRect::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
-inline bool AddClipRect::is_clip() const { return true; }
-inline Gfx::IntRect AddClipPath::bounding_rect() const { return path_bounding_rect; }
-inline bool AddClipPath::is_clip() const { return true; }
 inline Gfx::IntRect PaintLinearGradient::bounding_rect() const { return gradient_rect; }
 inline Gfx::IntRect PaintTextShadow::bounding_rect() const { return { draw_location.to_type<int>(), shadow_bounding_rect.size() }; }
 inline Gfx::IntRect FillRectWithRoundedCorners::bounding_rect() const { return rect; }
@@ -107,8 +82,6 @@ inline Gfx::IntRect ApplyBackdropFilter::bounding_rect() const { return backdrop
 inline Gfx::IntRect DrawRect::bounding_rect() const { return rect; }
 inline Gfx::IntRect PaintRadialGradient::bounding_rect() const { return rect; }
 inline Gfx::IntRect PaintConicGradient::bounding_rect() const { return rect; }
-inline Gfx::IntRect AddRoundedRectClip::bounding_rect() const { return border_rect; }
-inline bool AddRoundedRectClip::is_clip() const { return true; }
 inline Gfx::IntRect PaintNestedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
 inline Gfx::IntRect PaintScrollBar::bounding_rect() const { return track_rect.united(thumb_rect); }
 
@@ -175,7 +148,7 @@ decltype(auto) visit_display_list_command(
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
 static_assert(sizeof(DisplayListCommandHeader) == 32);
 static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
-static_assert(sizeof(DisplayListCommandRun) == 44);
+static_assert(sizeof(DisplayListCommandRun) == 36);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
 
 inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun const& b)
@@ -184,12 +157,8 @@ inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun con
         && a.size == b.size
         && a.context == b.context
         && a.ink_bounds == b.ink_bounds
-        && a.nesting_delta == b.nesting_delta
-        && a.min_relative_nesting == b.min_relative_nesting
         && a.has_unbounded_draw == b.has_unbounded_draw
-        && a.has_compositor_metadata == b.has_compositor_metadata
-        && a.has_unconfined_clip == b.has_unconfined_clip
-        && a.is_self_contained == b.is_self_contained;
+        && a.has_compositor_metadata == b.has_compositor_metadata;
 }
 
 #define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyCopyable<command>);

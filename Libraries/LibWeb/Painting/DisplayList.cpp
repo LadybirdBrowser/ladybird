@@ -59,20 +59,12 @@ Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes co
         auto& run = runs.last();
         run.size += record_size;
         offset += record_size;
-        auto nesting_level_change = display_list_command_nesting_level_change(header.command_type);
-        if (header.is_clip && run.nesting_delta == 0)
-            run.has_unconfined_clip = true;
-        run.nesting_delta += nesting_level_change;
-        run.min_relative_nesting = min(run.min_relative_nesting, run.nesting_delta);
-        if (display_list_command_is_compositor_metadata(header.command_type)) {
+        if (display_list_command_is_compositor_metadata(header.command_type))
             run.has_compositor_metadata = true;
-        } else if (nesting_level_change == 0 && !header.is_clip) {
-            if (header.has_bounding_rect)
-                run.ink_bounds.unite(header.bounding_rect);
-            else
-                run.has_unbounded_draw = true;
-        }
-        run.is_self_contained = run.nesting_delta == 0 && run.min_relative_nesting == 0 && !run.has_unconfined_clip;
+        else if (header.has_bounding_rect)
+            run.ink_bounds.unite(header.bounding_rect);
+        else
+            run.has_unbounded_draw = true;
     });
     return runs;
 }
@@ -211,7 +203,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
             });
     }
 
-    // The palette entry the canvas matrix currently equals, if known; every Restore resets the
+    // The palette entry the canvas matrix currently equals, if known; popping a frame resets the
     // matrix to its save point, so unwinding applied frames invalidates it. Recorded streams
     // contain no matrix-mutating commands, so playing commands never invalidates the cache.
     Optional<SpatialNodeIndex> current_ctm_space;
@@ -318,17 +310,8 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
             ? Optional<Gfx::IntRect>(header.bounding_rect)
             : Optional<Gfx::IntRect> {};
 
-        if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
-            // Any clip that's located outside of the visible region is equivalent to a simple clip-rect,
-            // so replace it with one to avoid doing unnecessary work.
-            if (header.is_clip) {
-                if (header.command_type == DisplayListCommandType::AddClipRect)
-                    play_command(read_display_list_command_payload<AddClipRect>(payload));
-                else
-                    play_command(AddClipRect { bounding_rect.release_value().to_type<float>() });
-            }
+        if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect)))
             return;
-        }
 
         TemporaryChange current_command_payload_change { m_current_command_payload, payload };
         if (header.clips_to_bounding_rect)
@@ -359,15 +342,14 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
             pop();
     };
 
-    // A run enters its context once. Only a self-contained run with known ink bounds may be
-    // skipped as a whole, and only such a run offers its bounds to the layer-frame cull; any
-    // other run gets none, so an open Save or a clip that outlives the run is never dropped.
-    // Skipping a run with nothing to draw before entering its context spares the frame pushes.
+    // A run enters its context once. Only a run whose ink bounds are known may be skipped as a
+    // whole, and only such a run offers its bounds to the layer-frame cull. Skipping a run with
+    // nothing to draw before entering its context spares the frame pushes.
     auto execute_run = [&](DisplayListCommandRun const& run) {
         if (backface_culled[run.context.spatial.value()])
             return;
         Optional<Gfx::IntRect> skippable_ink_bounds;
-        if (run.is_self_contained && !run.has_unbounded_draw)
+        if (!run.has_unbounded_draw)
             skippable_ink_bounds = run.ink_bounds;
         if (skippable_ink_bounds.has_value() && skippable_ink_bounds->is_empty())
             return;

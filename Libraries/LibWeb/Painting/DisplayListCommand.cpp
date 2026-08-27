@@ -109,28 +109,6 @@ void DrawVideoFrame::dump(StringBuilder& builder) const
     builder.appendff(" dst_rect={}", dst_rect);
 }
 
-void Save::dump(StringBuilder&) const
-{
-}
-
-void SaveLayer::dump(StringBuilder&) const
-{
-}
-
-void Restore::dump(StringBuilder&) const
-{
-}
-
-void AddClipRect::dump(StringBuilder& builder) const
-{
-    builder.appendff(" rect={}", rect);
-}
-
-void AddClipPath::dump(StringBuilder& builder) const
-{
-    builder.appendff(" path_bounding_rect={}", path_bounding_rect);
-}
-
 void PaintLinearGradient::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", gradient_rect);
@@ -202,11 +180,6 @@ void DrawRect::dump(StringBuilder& builder) const
     builder.appendff(" rect={} color={} rough={}", rect, color, rough);
 }
 
-void AddRoundedRectClip::dump(StringBuilder& builder) const
-{
-    builder.appendff(" rect={}", border_rect);
-}
-
 void PaintNestedDisplayList::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", rect);
@@ -253,11 +226,6 @@ void CompositorViewportScrollbar::dump(StringBuilder& builder) const
 
 void PaintScrollBar::dump(StringBuilder&) const
 {
-}
-
-void ApplyEffects::dump(StringBuilder& builder) const
-{
-    builder.appendff(" opacity={} has_filter={}", opacity, has_filter);
 }
 
 }

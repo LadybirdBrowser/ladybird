@@ -123,7 +123,6 @@ impl DisplayListBuilder {
         let header = DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
             has_bounding_rect: bounding_rect.is_some(),
-            is_clip: command.is_clip(),
             clips_to_bounding_rect: confining_clip.is_some(),
             payload_size: u32::try_from(padded_record_size - HEADER_SIZE).expect("display list payload exceeds u32"),
             context: context.context,
@@ -141,7 +140,6 @@ impl DisplayListBuilder {
     }
 
     pub fn append_command_range(&mut self, source: &[u8], range: CommandRange, rewrite: Option<ContextRewrite>) -> u32 {
-        // Captures are save/restore balanced (verified at capture end), so splicing never shifts the save nesting level.
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         debug_assert_eq!(range.size as usize % COMMAND_ALIGNMENT, 0);
         let destination_offset = self.bytes.len();
@@ -195,22 +193,13 @@ fn note_command(
     let run = runs.last_mut().expect("a run was pushed above");
     debug_assert_eq!(run.offset + run.size, offset);
     run.size += record_size;
-    let nesting_level_change = header.command_type.nesting_level_change();
-    if header.is_clip && run.nesting_delta == 0 {
-        run.has_unconfined_clip = true;
-    }
-    run.nesting_delta += nesting_level_change;
-    run.min_relative_nesting = run.min_relative_nesting.min(run.nesting_delta);
     if header.command_type.is_compositor_metadata() {
         run.has_compositor_metadata = true;
-    } else if nesting_level_change == 0 && !header.is_clip {
-        if header.has_bounding_rect {
-            run.ink_bounds = run.ink_bounds.united(header.bounding_rect);
-        } else {
-            run.has_unbounded_draw = true;
-        }
+    } else if header.has_bounding_rect {
+        run.ink_bounds = run.ink_bounds.united(header.bounding_rect);
+    } else {
+        run.has_unbounded_draw = true;
     }
-    run.is_self_contained = run.nesting_delta == 0 && run.min_relative_nesting == 0 && !run.has_unconfined_clip;
 }
 
 pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
@@ -222,7 +211,6 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
         )
         .expect("invalid display list command type"),
         has_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_bounding_rect)),
-        is_clip: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, is_clip)),
         clips_to_bounding_rect: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, clips_to_bounding_rect)),
         payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
         context: {
@@ -289,12 +277,6 @@ mod tests {
         }
     }
 
-    fn clip_rect() -> AddClipRect {
-        AddClipRect {
-            rect: FloatRect::new(0.0, 0.0, 500.0, 500.0),
-        }
-    }
-
     fn whole_tape(builder: &DisplayListBuilder) -> CommandRange {
         CommandRange {
             offset: 0,
@@ -344,7 +326,6 @@ mod tests {
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].context, root.context);
         assert_eq!(runs[0].ink_bounds, IntRect::new(0, 0, 30, 30));
-        assert!(runs[0].is_self_contained);
         assert!(!runs[0].has_unbounded_draw);
         assert!(!runs[0].has_compositor_metadata);
     }
@@ -364,13 +345,10 @@ mod tests {
     }
 
     #[test]
-    fn ink_bounds_skip_clips_and_metadata() {
+    fn ink_bounds_skip_metadata() {
         let mut builder = DisplayListBuilder::new();
         let root = appendable(context(0, None));
-        builder.append(&Save::default(), &[], root);
-        builder.append(&clip_rect(), &[], root);
         builder.append(&fill_rect(5, 5, 10, 10), &[], root);
-        builder.append(&Restore::default(), &[], root);
         let metadata = CompositorBlockingWheelEventRegion {
             rect: FloatRect::new(0.0, 0.0, 900.0, 900.0),
         };
@@ -379,39 +357,6 @@ mod tests {
         assert_eq!(run.ink_bounds, IntRect::new(5, 5, 10, 10));
         assert!(run.has_compositor_metadata);
         assert!(!run.has_unbounded_draw);
-        assert!(!run.has_unconfined_clip);
-        assert!(run.is_self_contained);
-    }
-
-    #[test]
-    fn nesting_fields_follow_saves_and_restores() {
-        let root = appendable(context(0, None));
-
-        let mut builder = DisplayListBuilder::new();
-        builder.append(&Save::default(), &[], root);
-        let run = builder.command_runs()[0];
-        assert_eq!(run.nesting_delta, 1);
-        assert_eq!(run.min_relative_nesting, 0);
-        assert!(!run.is_self_contained);
-
-        let mut builder = DisplayListBuilder::new();
-        builder.append(&Restore::default(), &[], root);
-        builder.append(&Save::default(), &[], root);
-        let run = builder.command_runs()[0];
-        assert_eq!(run.nesting_delta, 0);
-        assert_eq!(run.min_relative_nesting, -1);
-        assert!(!run.is_self_contained);
-    }
-
-    #[test]
-    fn a_clip_at_the_base_nesting_is_unconfined() {
-        let mut builder = DisplayListBuilder::new();
-        let root = appendable(context(0, None));
-        builder.append(&clip_rect(), &[], root);
-        builder.append(&fill_rect(0, 0, 10, 10), &[], root);
-        let run = builder.command_runs()[0];
-        assert!(run.has_unconfined_clip);
-        assert!(!run.is_self_contained);
     }
 
     #[test]
@@ -432,8 +377,6 @@ mod tests {
         let runs = builder.command_runs();
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].ink_bounds, IntRect::new(10, 10, 50, 50));
-        assert!(!runs[0].has_unconfined_clip);
-        assert!(runs[0].is_self_contained);
     }
 
     #[test]
@@ -522,9 +465,8 @@ mod tests {
         let a = appendable(context(2, None));
         let b = appendable(context(3, Some(0)));
         source.append(&fill_rect(0, 0, 10, 10), &[], a);
-        source.append(&Save::default(), &[], b);
         source.append(&fill_rect(20, 20, 10, 10), &[], b);
-        source.append(&Restore::default(), &[], b);
+        source.append(&fill_rect(40, 40, 10, 10), &[], b);
         let source_runs = source.command_runs().to_vec();
         assert_eq!(source_runs.len(), 2);
 
