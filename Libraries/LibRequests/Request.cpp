@@ -345,6 +345,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         if (!m_internal_stream_data)
             return;
 
+        NonnullRefPtr protector { *this };
+
         do {
             auto bytes_to_read = buffer_size;
             if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {

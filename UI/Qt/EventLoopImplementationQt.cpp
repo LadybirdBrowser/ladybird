@@ -316,11 +316,11 @@ void EventLoopManagerQt::register_notifier(Core::Notifier& notifier)
     default:
         TODO();
     }
+
     auto socket_notifier = make<QSocketNotifier>(notifier.fd(), type);
     QObject::connect(socket_notifier, &QSocketNotifier::activated, [weak_notifier = notifier.make_weak_ptr()] {
-        if (!weak_notifier)
-            return;
-        qt_notifier_activated(static_cast<Core::Notifier&>(*weak_notifier));
+        if (auto notifier = weak_notifier.strong_ref())
+            qt_notifier_activated(static_cast<Core::Notifier&>(*notifier));
     });
 
     {
