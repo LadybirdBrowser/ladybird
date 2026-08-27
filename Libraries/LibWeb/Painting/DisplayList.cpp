@@ -419,10 +419,11 @@ void DisplayListPlayer::execute_impl(
     if (!tree_has_sorting_contexts) {
         DisplayList::for_each_command_header(commands, execute_command);
     } else {
-        for (auto const& step : build_depth_sorted_replay_plan(commands, visual_context_tree, transform_palette, draw_space, backface_culled)) {
+        for (auto const& step : build_depth_sorted_replay_plan(display_list.command_runs(), visual_context_tree, transform_palette, draw_space, backface_culled)) {
             step.visit(
-                [&](DisplayListCommandRange const& range) {
-                    DisplayList::for_each_command_header(commands.slice(range.offset, range.size), execute_command);
+                [&](ReadonlySpan<DisplayListCommandRun> runs) {
+                    for (auto const& run : runs)
+                        DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), execute_command);
                 },
                 [&](PushPlaneClip const& clip) {
                     restore_to_length(0);

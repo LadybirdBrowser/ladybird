@@ -22,8 +22,8 @@ struct LeafBounds {
 };
 
 struct CommandChunk {
-    u32 offset { 0 };
-    u32 size { 0 };
+    u32 first_run { 0 };
+    u32 run_count { 0 };
     SpatialNodeIndex leaf;
     SpatialNodeIndex context;
     Vector<LeafBounds, 2> bounds_by_level;
@@ -37,6 +37,7 @@ struct ChunkPlacement {
 struct DepthSortedPlanBuilder {
     SortingContexts const& contexts;
     ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette;
+    ReadonlySpan<DisplayListCommandRun> command_runs;
     Vector<DepthSortedReplayStep> steps;
 
     void emit_chunks(ReadonlySpan<CommandChunk> chunks, SpatialNodeIndex enclosing_context);
@@ -45,8 +46,8 @@ struct DepthSortedPlanBuilder {
 
 }
 
-static Vector<CommandChunk> partition_commands_into_plane_chunks(
-    ReadonlyBytes commands,
+static Vector<CommandChunk> partition_command_runs_into_plane_chunks(
+    ReadonlySpan<DisplayListCommandRun> command_runs,
     SortingContexts const& contexts,
     ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette,
     ReadonlySpan<SpatialNodeIndex> draw_space,
@@ -97,22 +98,23 @@ static Vector<CommandChunk> partition_commands_into_plane_chunks(
         return bounding_box.to_rect();
     };
 
+    // A run's ink bounds already leave out clips and unbounded draws; mapping their union once per
+    // level is conservative, as it can only widen a plane's bounds.
     Vector<CommandChunk> chunks;
-    DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        auto offset = static_cast<u32>(payload.data() - commands.data() - sizeof(DisplayListCommandHeader));
-        auto size = static_cast<u32>(sizeof(DisplayListCommandHeader) + header.payload_size);
-        auto spatial = header.context.spatial;
+    for (size_t run_index = 0; run_index < command_runs.size(); ++run_index) {
+        auto const& run = command_runs[run_index];
+        auto spatial = run.context.spatial;
         auto leaf = contexts.leaf_by_node[spatial.value()];
         auto sorting_context = contexts.context_by_node[spatial.value()];
         if (chunks.is_empty() || chunks.last().leaf != leaf || chunks.last().context != sorting_context)
-            chunks.append({ offset, size, leaf, sorting_context, {} });
+            chunks.append({ static_cast<u32>(run_index), 1, leaf, sorting_context, {} });
         else
-            chunks.last().size += size;
+            ++chunks.last().run_count;
 
-        if (!header.has_bounding_rect || header.is_clip || sorting_context == NO_SORTING_CONTEXT || backface_culled[spatial.value()])
-            return;
+        if (run.ink_bounds.is_empty() || sorting_context == NO_SORTING_CONTEXT || backface_culled[spatial.value()])
+            continue;
         ensure_mappings({ leaf, sorting_context, draw_space[spatial.value()] });
-        auto rect = header.bounding_rect.to_type<float>();
+        auto rect = run.ink_bounds.to_type<float>();
         auto& level_entries = chunks.last().bounds_by_level;
         for (auto const& mapping : mappings) {
             auto entry = level_entries.find_if([&](auto const& existing_entry) { return existing_entry.leaf == mapping.leaf; });
@@ -128,7 +130,7 @@ static Vector<CommandChunk> partition_commands_into_plane_chunks(
                 entry->bounds.unite(rect);
             }
         }
-    });
+    }
     return chunks;
 }
 
@@ -153,7 +155,7 @@ void DepthSortedPlanBuilder::emit_chunks(ReadonlySpan<CommandChunk> chunks, Spat
     while (i < chunks.size()) {
         auto child_context = place_chunk_within(chunks[i], enclosing_context, contexts).child_context;
         if (child_context == NO_SORTING_CONTEXT) {
-            steps.append(DisplayListCommandRange { chunks[i].offset, chunks[i].size });
+            steps.append(command_runs.slice(chunks[i].first_run, chunks[i].run_count));
             ++i;
             continue;
         }
@@ -229,20 +231,20 @@ void DepthSortedPlanBuilder::sort_and_emit_context(ReadonlySpan<CommandChunk> ch
 // according to Newell's algorithm, with the planes transformed by the accumulated 3D transformation matrix.
 // Coplanar 3D transformed elements are rendered in painting order.
 //
-// The command stream is partitioned into contiguous chunks that share a plane. Each 3D rendering context's
+// The command run table is partitioned into contiguous chunks that share a plane. Each 3D rendering context's
 // planes are ordered back to front with a BSP tree over their content bounds; a plane cut by another's plane is
 // replayed once per piece under a device-space polygon clip. Chunks in a nested context sort among themselves
 // inside the plane of the outer context they render into.
 Vector<DepthSortedReplayStep> build_depth_sorted_replay_plan(
-    ReadonlyBytes commands,
+    ReadonlySpan<DisplayListCommandRun> command_runs,
     AccumulatedVisualContextTree const& visual_context_tree,
     ReadonlySpan<Gfx::FloatMatrix4x4> transform_palette,
     ReadonlySpan<SpatialNodeIndex> draw_space,
     ReadonlySpan<bool> backface_culled)
 {
     auto contexts = visual_context_tree.resolve_sorting_contexts();
-    auto chunks = partition_commands_into_plane_chunks(commands, contexts, transform_palette, draw_space, backface_culled);
-    DepthSortedPlanBuilder builder { contexts, transform_palette, {} };
+    auto chunks = partition_command_runs_into_plane_chunks(command_runs, contexts, transform_palette, draw_space, backface_culled);
+    DepthSortedPlanBuilder builder { contexts, transform_palette, command_runs, {} };
     builder.emit_chunks(chunks, NO_SORTING_CONTEXT);
     return move(builder.steps);
 }
