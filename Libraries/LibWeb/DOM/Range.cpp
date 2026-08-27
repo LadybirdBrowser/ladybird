@@ -8,7 +8,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
@@ -42,12 +41,6 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Range);
 
-HashTable<Range*>& Range::live_ranges()
-{
-    static NeverDestroyed<HashTable<Range*>> ranges;
-    return *ranges;
-}
-
 GC::Ref<Range> Range::create(Document& document)
 {
     return GC::Heap::the().allocate<Range>(document);
@@ -74,7 +67,7 @@ Range::Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, G
     VERIFY(start_offset <= start_container->length());
     VERIFY(end_offset <= end_container->length());
 
-    live_ranges().set(this);
+    update_owner_document();
 }
 
 Range::~Range() = default;
@@ -82,13 +75,26 @@ Range::~Range() = default;
 void Range::finalize()
 {
     Base::finalize();
-    live_ranges().remove(this);
+    if (m_owner_document)
+        m_owner_document->detach_range({}, *this);
 }
 
 void Range::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_selection);
+    visitor.visit(m_owner_document);
+}
+
+void Range::update_owner_document()
+{
+    auto& document = m_start_container->document();
+    if (&document == m_owner_document.ptr())
+        return;
+    if (m_owner_document)
+        m_owner_document->detach_range({}, *this);
+    m_owner_document = document;
+    document.attach_range({}, *this);
 }
 
 void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection> selection)
@@ -242,6 +248,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
         m_end_offset = offset;
     }
 
+    update_owner_document();
     update_associated_selection();
     return {};
 }
@@ -424,6 +431,7 @@ WebIDL::ExceptionOr<void> Range::select(GC::Ref<Node> node)
     m_end_container = *parent;
     m_end_offset = index + 1;
 
+    update_owner_document();
     update_associated_selection();
     return {};
 }
@@ -467,6 +475,7 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
     m_end_container = node;
     m_end_offset = length;
 
+    update_owner_document();
     update_associated_selection();
     return {};
 }

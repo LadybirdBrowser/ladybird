@@ -40,6 +40,7 @@
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
@@ -788,6 +789,11 @@ public:
 
     void register_node_iterator(Badge<NodeIterator>, NodeIterator&);
     void unregister_node_iterator(Badge<NodeIterator>, NodeIterator&);
+
+    void attach_range(Badge<Range>, Range&);
+    void detach_range(Badge<Range>, Range&);
+
+    Range::DocumentLiveRangeList& live_ranges() { return m_live_ranges; }
 
     void register_document_observer(Badge<DocumentObserver>, DocumentObserver&);
     void unregister_document_observer(Badge<DocumentObserver>, DocumentObserver&);
@@ -1692,6 +1698,9 @@ private:
     bool m_needs_animated_style_update { false };
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
+
+    // A live Range keeps its owner document alive and removes itself from this list when finalized.
+    Range::DocumentLiveRangeList m_live_ranges;
 
     // Document should not visit DocumentObserver to avoid leaks.
     // It's responsibility of object that requires DocumentObserver to keep it alive.
