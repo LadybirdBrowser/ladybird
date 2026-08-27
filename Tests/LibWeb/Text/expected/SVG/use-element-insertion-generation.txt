@@ -1,0 +1,5 @@
+No clone during insertion steps: true, insertion generation cloned once: true, updated: true
+Insertion-step reentrancy complete: true, cloned at most twice: true
+Failed insertion clone retried: true
+Post-connection reentrancy complete: true, cloned at most twice: true
+Reconnect during post-connection complete: true, cloned at most twice: true

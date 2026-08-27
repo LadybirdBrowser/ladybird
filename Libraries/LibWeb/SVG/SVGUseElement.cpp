@@ -99,13 +99,29 @@ void SVGUseElement::inserted()
         return;
 
     register_for_referenced_element_changes();
+}
 
-    // The insertion that connected us may have inserted our referenced element along with us, with its insertion
-    // steps running before ours, i.e. before we were registered to be notified about changes to it. If our shadow
-    // tree has not been populated yet, try resolving the reference again.
+void SVGUseElement::post_connection()
+{
+    Base::post_connection();
+
+    if (!root().is_document())
+        return;
+
+    // If our reference element is part of the same document, it may have been connected before we were and thus we
+    // would have never gotten a notification about it. If our shadow tree has not been populated yet, try resolving
+    // the reference again.
     if (!instance_root()
         && m_href.has_value() && m_href->fragment().has_value() && is_referenced_element_same_document()) {
-        clone_element_tree_as_our_shadow_tree(referenced_element());
+        m_needs_document_complete_reclone = false;
+
+        auto insertion_generation = current_insertion_generation();
+        auto referenced_element = this->referenced_element();
+
+        clone_element_tree_as_our_shadow_tree(referenced_element);
+
+        if (instance_root() && insertion_generation.has_value())
+            m_last_insertion_clone = { *insertion_generation, *referenced_element };
     }
 }
 
@@ -155,6 +171,7 @@ void SVGUseElement::register_for_referenced_element_changes()
 {
     if (m_list_node.is_in_list())
         return;
+    m_last_insertion_clone = {};
     document().register_svg_use_element({}, *this);
 }
 
@@ -227,28 +244,44 @@ Gfx::AffineTransform SVGUseElement::additional_element_transform() const
     return Gfx::AffineTransform {}.translate(x, y);
 }
 
-void SVGUseElement::svg_element_changed(SVGElement& svg_element)
+void SVGUseElement::svg_element_changed(SVGElement& svg_element, Optional<u64> insertion_generation)
 {
     auto to_clone = referenced_element();
     if (!to_clone) {
         return;
     }
 
+    if (has_already_applied_insertion_clone(to_clone, insertion_generation))
+        return;
+
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
     if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element)) {
         clone_element_tree_as_our_shadow_tree(to_clone);
+        if (instance_root() && insertion_generation.has_value())
+            m_last_insertion_clone = { *insertion_generation, *to_clone };
     }
 }
 
-void SVGUseElement::svg_element_changed_before_document_complete(SVGElement& svg_element)
+void SVGUseElement::svg_element_changed_before_document_complete(SVGElement& svg_element, Optional<u64> insertion_generation)
 {
     auto to_clone = referenced_element();
     if (!to_clone)
         return;
 
+    if (has_already_applied_insertion_clone(to_clone, insertion_generation))
+        return;
+
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
     if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element))
         m_needs_document_complete_reclone = true;
+}
+
+bool SVGUseElement::has_already_applied_insertion_clone(GC::Ptr<DOM::Element> target, Optional<u64> insertion_generation) const
+{
+    return instance_root()
+        && insertion_generation.has_value()
+        && m_last_insertion_clone.generation >= *insertion_generation
+        && m_last_insertion_clone.target.ptr() == target;
 }
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)
@@ -259,6 +292,7 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 
     auto id = decode_fragment_identifier(*m_href->fragment());
     if (svg_element.get_attribute_value("id"_utf16_fly_string) == id) {
+        m_last_insertion_clone = {};
         shadow_root()->remove_all_children();
     }
 }
