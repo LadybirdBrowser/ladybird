@@ -268,6 +268,40 @@ static bool transform_change_requires_repaint(CSS::PropertyID property_id, Compu
     return old_invertible.value() != new_invertible.value();
 }
 
+static bool accumulated_visual_context_property_always_requires_repaint(CSS::PropertyID property_id)
+{
+    switch (property_id) {
+    case CSS::PropertyID::BackdropFilter:
+    case CSS::PropertyID::BackgroundAttachment:
+    case CSS::PropertyID::BackgroundBlendMode:
+    case CSS::PropertyID::BackgroundClip:
+    case CSS::PropertyID::BackgroundImage:
+    case CSS::PropertyID::BorderBottomLeftRadius:
+    case CSS::PropertyID::BorderBottomRightRadius:
+    case CSS::PropertyID::BorderBottomStyle:
+    case CSS::PropertyID::BorderLeftStyle:
+    case CSS::PropertyID::BorderRightStyle:
+    case CSS::PropertyID::BorderTopLeftRadius:
+    case CSS::PropertyID::BorderTopRightRadius:
+    case CSS::PropertyID::BorderTopStyle:
+    case CSS::PropertyID::BoxShadow:
+    case CSS::PropertyID::Clip:
+    case CSS::PropertyID::ClipPath:
+    case CSS::PropertyID::MaskClip:
+    case CSS::PropertyID::MaskComposite:
+    case CSS::PropertyID::MaskImage:
+    case CSS::PropertyID::MaskType:
+    case CSS::PropertyID::MixBlendMode:
+    case CSS::PropertyID::OutlineOffset:
+    case CSS::PropertyID::OutlineStyle:
+    case CSS::PropertyID::OutlineWidth:
+    case CSS::PropertyID::Perspective:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID property_id, ComputedValues const& old_values, ComputedValues const& new_values)
 {
     if (opacity_change_affects_paintable_visibility(property_id, old_values, new_values))
@@ -276,21 +310,7 @@ static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID p
     if (transform_change_requires_repaint(property_id, old_values, new_values))
         return true;
 
-    switch (property_id) {
-    case CSS::PropertyID::BackdropFilter:
-    case CSS::PropertyID::BackgroundAttachment:
-    case CSS::PropertyID::Clip:
-    case CSS::PropertyID::ClipPath:
-    case CSS::PropertyID::MaskImage:
-    case CSS::PropertyID::MaskType:
-    case CSS::PropertyID::MixBlendMode:
-    case CSS::PropertyID::Perspective:
-        return true;
-    default:
-        break;
-    }
-
-    return false;
+    return accumulated_visual_context_property_always_requires_repaint(property_id);
 }
 
 // Whether this change only affects values carried by existing accumulated visual context nodes, so they can be
@@ -576,9 +596,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
             auto old_invertible = animated_transform_value_is_invertible(old_value);
             auto new_invertible = animated_transform_value_is_invertible(new_value);
             requires_repaint = !old_invertible.has_value() || !new_invertible.has_value() || old_invertible.value() != new_invertible.value();
-        } else if (AK::first_is_one_of(property_id, PropertyID::BackdropFilter, PropertyID::BackgroundAttachment,
-                       PropertyID::Clip, PropertyID::ClipPath, PropertyID::MaskImage, PropertyID::MaskType,
-                       PropertyID::MixBlendMode, PropertyID::Perspective)) {
+        } else if (accumulated_visual_context_property_always_requires_repaint(property_id)) {
             requires_repaint = true;
         }
         if (!requires_repaint && !invalidation.needs_repaint() && !invalidation.recompute_descendant_styles)

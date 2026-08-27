@@ -1623,6 +1623,13 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
             result.invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
     }
 
+    // https://drafts.csswg.org/css-backgrounds/#root-background
+    bool const root_background_color_change_moves_body_background_propagation = !abstract_element.pseudo_element().has_value()
+        && abstract_element.element().is_document_element()
+        && (old_computed_values.background_color() == Color::Transparent) != (new_computed_values.background_color() == Color::Transparent);
+    if (root_background_color_change_moves_body_background_propagation)
+        result.invalidation.ensure_at_least(CSS::AccumulatedVisualContextInvalidation::Rebuild);
+
     // The table fixup algorithm needs an authored box's display from before box type
     // transformation. A flex or grid item can therefore keep the same blockified display while
     // changing whether it needs anonymous table wrappers. Generated pseudo-element boxes are

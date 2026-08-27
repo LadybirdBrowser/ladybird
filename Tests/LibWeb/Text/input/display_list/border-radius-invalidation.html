@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+        overflow: hidden;
+    }
+</style>
+<div class="box" id="box">Box</div>
+<script>
+    test(() => {
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("box").style.borderRadius = "20px";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before border-radius change:");
+        println(displayListBefore);
+        println("After border-radius change:");
+        println(displayListAfter);
+    });
+</script>
