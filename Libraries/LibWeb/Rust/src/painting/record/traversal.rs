@@ -754,6 +754,8 @@ impl PaintRecorder<'_> {
                 &source.display_list.bytes,
                 cached.range,
                 cached.recorded_context,
+                cached.recorded_local_frame_range,
+                self.local_frame_range(paintable),
             );
             if cache_writes_enabled {
                 self.set_cached_commands(
@@ -855,6 +857,7 @@ impl PaintRecorder<'_> {
         recorded_context: ContextRef,
         captured_under_empty_effective_clip: bool,
     ) {
+        let recorded_local_frame_range = self.local_frame_range(paintable);
         let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.register_capture_position(self.current_absolute_position(paintable));
         cache.set_commands(
@@ -863,9 +866,14 @@ impl PaintRecorder<'_> {
                 source_display_list_id: self.display_list_id,
                 range,
                 recorded_context,
+                recorded_local_frame_range,
                 captured_under_empty_effective_clip,
             },
         );
+    }
+
+    fn local_frame_range(&self, paintable: NodeSlotId) -> (u32, u32) {
+        self.data(paintable).local_frame_range()
     }
 
     fn set_cached_hit_test_items(

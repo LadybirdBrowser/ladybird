@@ -192,6 +192,10 @@ impl Default for PaintableData {
 }
 
 impl PaintableData {
+    pub fn local_frame_range(&self) -> (u32, u32) {
+        (self.frame_nodes_begin, self.frame_nodes_end)
+    }
+
     pub fn has_flag(&self, flag: PaintableFlag) -> bool {
         self.flags & flag as u32 != 0
     }
