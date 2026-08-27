@@ -52,6 +52,7 @@ struct StyleInputRecord {
     bool style_uses_custom_function { false };
     bool style_uses_inherit_css_function { false };
     bool style_uses_tree_counting_function { false };
+    bool style_depends_on_viewport_metrics { false };
     bool style_depends_on_size_container_query { false };
     bool style_depends_on_style_container_query { false };
     u32 explicitly_inherited_non_inherited_style_groups { 0 };

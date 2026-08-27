@@ -4093,6 +4093,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
             && !element.style_uses_if_css_function()
             && !element.style_uses_custom_function()
             && !element.style_uses_tree_counting_function()
+            && !element.style_depends_on_viewport_metrics()
             && !element.style_depends_on_size_container_query()
             && !element.style_depends_on_style_container_query()
             && !has_monospace_font_size_recascade
@@ -4694,6 +4695,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         bool style_uses_custom_function { false };
         bool style_uses_inherit_css_function { false };
         bool style_uses_tree_counting_function { false };
+        bool style_depends_on_viewport_metrics { false };
         bool style_depends_on_size_container_query { false };
         bool style_depends_on_style_container_query { false };
         u32 explicitly_inherited_non_inherited_style_groups { 0 };
@@ -4724,6 +4726,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         record->style_uses_custom_function = false;
         record->style_uses_inherit_css_function = false;
         record->style_uses_tree_counting_function = false;
+        record->style_depends_on_viewport_metrics = false;
         record->style_depends_on_size_container_query = false;
         record->style_depends_on_style_container_query = false;
         record->explicitly_inherited_non_inherited_style_groups = 0;
@@ -4779,6 +4782,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 record->style_uses_custom_function = previous->style_uses_custom_function;
                 record->style_uses_inherit_css_function = previous->style_uses_inherit_css_function;
                 record->style_uses_tree_counting_function = previous->style_uses_tree_counting_function;
+                record->style_depends_on_viewport_metrics = previous->style_depends_on_viewport_metrics;
                 record->style_depends_on_size_container_query = previous->style_depends_on_size_container_query;
                 record->style_depends_on_style_container_query = previous->style_depends_on_style_container_query;
                 record->explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups;
@@ -4796,6 +4800,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                         .style_uses_custom_function = previous->style_uses_custom_function,
                         .style_uses_inherit_css_function = previous->style_uses_inherit_css_function,
                         .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
+                        .style_depends_on_viewport_metrics = previous->style_depends_on_viewport_metrics,
                         .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
                         .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
                         .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
@@ -4818,6 +4823,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                     .style_uses_custom_function = previous->style_uses_custom_function,
                     .style_uses_inherit_css_function = previous->style_uses_inherit_css_function,
                     .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
+                    .style_depends_on_viewport_metrics = previous->style_depends_on_viewport_metrics,
                     .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
                     .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
                     .explicitly_inherited_non_inherited_style_groups = previous->explicitly_inherited_non_inherited_style_groups,
@@ -4870,6 +4876,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             element.set_style_uses_inherit_css_function();
         if (record.style_uses_tree_counting_function)
             element.set_style_uses_tree_counting_function();
+        if (record.style_depends_on_viewport_metrics)
+            element.set_style_depends_on_viewport_metrics();
         if (record.style_depends_on_size_container_query)
             element.set_style_depends_on_size_container_query();
         if (record.style_depends_on_style_container_query)
@@ -5112,6 +5120,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         new_style_input_record->style_uses_custom_function = previous_computation->style_uses_custom_function;
         new_style_input_record->style_uses_inherit_css_function = previous_computation->style_uses_inherit_css_function;
         new_style_input_record->style_uses_tree_counting_function = previous_computation->style_uses_tree_counting_function;
+        new_style_input_record->style_depends_on_viewport_metrics = previous_computation->style_depends_on_viewport_metrics;
         new_style_input_record->style_depends_on_size_container_query = previous_computation->style_depends_on_size_container_query;
         new_style_input_record->style_depends_on_style_container_query = previous_computation->style_depends_on_style_container_query;
         new_style_input_record->explicitly_inherited_non_inherited_style_groups = previous_computation->explicitly_inherited_non_inherited_style_groups;

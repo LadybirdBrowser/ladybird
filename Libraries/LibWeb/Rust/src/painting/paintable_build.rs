@@ -220,17 +220,12 @@ impl<'a> PaintableCommit<'a> {
                 )
             })
         });
-        let previous_content_size_for_diff = if reuses_committed_subtree {
-            old_content_size
-        } else {
-            used_values::FfiCssPixelSize::default()
-        };
-        if previous_content_size_for_diff != new_content_size {
+        if old_content_size != new_content_size {
             assert!(
                 !reuses_committed_subtree,
                 "a reused committed subtree changed its content size"
             );
-            content_size_change = Some((previous_content_size_for_diff, new_content_size));
+            content_size_change = Some((old_content_size, new_content_size));
         }
         let committed_fragment_identity_changed = old_identity != fragment.identity;
         let painted_geometry_lives_in_enclosing_line_root =

@@ -1,0 +1,2 @@
+initial: rgb(0, 128, 0)
+after resize: rgb(255, 0, 0)

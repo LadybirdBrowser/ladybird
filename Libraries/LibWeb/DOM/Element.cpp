@@ -2071,6 +2071,7 @@ void Element::finish_recording_style_custom_property_references()
     m_style_input_record->style_uses_custom_function = m_style_uses_custom_function;
     m_style_input_record->style_uses_inherit_css_function = m_style_uses_inherit_css_function;
     m_style_input_record->style_uses_tree_counting_function = m_style_uses_tree_counting_function;
+    m_style_input_record->style_depends_on_viewport_metrics = m_style_depends_on_viewport_metrics;
     m_style_input_record->style_depends_on_size_container_query = m_style_depends_on_size_container_query;
     m_style_input_record->style_depends_on_style_container_query = m_style_depends_on_style_container_query;
     auto& references = m_style_input_record->custom_property_references;
@@ -2154,6 +2155,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         m_style_uses_custom_function = false;
         m_style_uses_inherit_css_function = false;
         m_style_uses_tree_counting_function = false;
+        m_style_depends_on_viewport_metrics = false;
         m_style_depends_on_size_container_query = false;
         m_style_depends_on_style_container_query = false;
         reusable_style_engine_matches = &style_engine_matches;

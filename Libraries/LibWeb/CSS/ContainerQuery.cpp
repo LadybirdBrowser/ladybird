@@ -331,9 +331,10 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleRange
         });
 }
 
-static MatchResult evaluate_style_range(StyleRange const& range, DOM::Document const& document, AbstractOrHypotheticalElement element)
+static MatchResult evaluate_style_range(StyleRange const& range, DOM::Document const& document, AbstractOrHypotheticalElement element, bool& depends_on_viewport_metrics)
 {
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
+    computation_context.length_resolution_context.set_did_resolve_viewport_relative_length(depends_on_viewport_metrics);
     auto left = evaluate_style_range_value(range.left, element, document, computation_context);
     if (!left.has_value())
         return MatchResult::False;
@@ -356,10 +357,10 @@ static MatchResult evaluate_style_range(StyleRange const& range, DOM::Document c
 }
 
 // https://drafts.csswg.org/css-conditional-5/#style-container
-static MatchResult evaluate_style_feature(EvaluatedStyleFeature const& style_feature, DOM::Document const& document, AbstractOrHypotheticalElement element)
+static MatchResult evaluate_style_feature(EvaluatedStyleFeature const& style_feature, DOM::Document const& document, AbstractOrHypotheticalElement element, bool& depends_on_viewport_metrics)
 {
     if (auto const* range = style_feature.get_pointer<StyleRange>())
-        return evaluate_style_range(*range, document, element);
+        return evaluate_style_range(*range, document, element, depends_on_viewport_metrics);
 
     auto const& feature = style_feature.get<StyleFeaturePlain>();
     auto const& property = feature.property;
@@ -394,6 +395,7 @@ static MatchResult evaluate_style_feature(EvaluatedStyleFeature const& style_fea
 
     // FIXME: We should use the computed style that we are currently computing rather than the fallback (i.e. the previously applied style).
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
+    computation_context.length_resolution_context.set_did_resolve_viewport_relative_length(depends_on_viewport_metrics);
     auto computed_values = element.abstract_element().computed_style();
     auto const* computed_style_for_custom_property_resolution = computed_values ? document.style_computer().reconstruct_computed_properties(*computed_values).ptr() : nullptr;
 
@@ -552,6 +554,7 @@ static bool container_satisfies_requirements(DOM::Element const& element, Contai
 struct ContainerStyleEvaluationContext {
     GC::Ref<DOM::Document const> document;
     AbstractOrHypotheticalElement element;
+    bool depends_on_viewport_metrics { false };
 };
 
 static Utf16View ffi_utf16_view(Parser::ValueParserFFI::FfiUtf16View const& value)
@@ -657,7 +660,7 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
     auto& evaluation_context = *static_cast<ContainerStyleEvaluationContext*>(context);
     if (!style_feature.has_value())
         return to_underlying(MatchResult::Unknown);
-    return to_underlying(evaluate_style_feature(*style_feature, *evaluation_context.document, evaluation_context.element));
+    return to_underlying(evaluate_style_feature(*style_feature, *evaluation_context.document, evaluation_context.element, evaluation_context.depends_on_viewport_metrics));
 }
 
 MatchResult evaluate_style_query(RustQueryHandle const& handle, AbstractOrHypotheticalElement element)
@@ -715,6 +718,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
                 root->set_is_style_query_container();
         }
 
+        Optional<ComputationContext> computation_context;
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         Parser::ValueParserFFI::FfiContainerFacts facts {
             .container_available = true,
@@ -731,12 +735,13 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
             facts.width = Painting::content_width(*layout_node).to_double();
             facts.height = Painting::content_height(*layout_node).to_double();
             facts.inline_axis_horizontal = layout_node->writing_mode() == WritingMode::HorizontalTb;
-            auto computation_context = ComputationContext {
+            computation_context = ComputationContext {
                 .length_resolution_context = Length::ResolutionContext::for_layout_node(*layout_node),
                 .abstract_element = DOM::AbstractElement { *container },
             };
+            computation_context->reset_viewport_metric_dependency_tracking();
             length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
-                computation_context.length_resolution_context, all_container_relative_length_units_mask);
+                computation_context->length_resolution_context, all_container_relative_length_units_mask);
             facts.length_resolution_context = &*length_resolution_context;
         } else if (!container->document().layout_is_up_to_date()) {
             const_cast<DOM::Document&>(container->document()).set_needs_container_query_evaluation_after_layout(*container);
@@ -745,6 +750,8 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         ContainerStyleEvaluationContext style_context { element.document(), DOM::AbstractElement { *container } };
         facts.style_context = &style_context;
         auto result = Parser::ValueParserFFI::css_query_evaluate_container(m_rust_query_handle.data(), facts);
+        if ((computation_context.has_value() && computation_context->depends_on_viewport_metrics()) || style_context.depends_on_viewport_metrics)
+            const_cast<DOM::Element&>(element.element()).set_style_depends_on_viewport_metrics();
         VERIFY(result <= to_underlying(MatchResult::Unknown));
         return static_cast<MatchResult>(result);
     }
