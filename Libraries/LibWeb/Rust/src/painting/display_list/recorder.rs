@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{AppendContext, CommandRange, DisplayListBuilder, HEADER_SIZE};
+use super::builder::{AppendContext, CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE};
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
 use libgfx_rust::*;
@@ -319,10 +319,19 @@ impl DisplayListRecorder {
         source: &[u8],
         range: CommandRange,
         recorded_context: ContextRef,
+        recorded_local_frame_range: (u32, u32),
+        current_local_frame_range: (u32, u32),
     ) -> CommandRange {
-        let offset = self
-            .builder
-            .append_command_range(source, range, recorded_context, self.context);
+        let offset = self.builder.append_command_range(
+            source,
+            range,
+            Some(ContextRewrite {
+                recorded_context,
+                current_context: self.context,
+                recorded_local_frame_range,
+                current_local_frame_range,
+            }),
+        );
         CommandRange {
             offset,
             size: range.size,
@@ -332,9 +341,7 @@ impl DisplayListRecorder {
     /// Copies a cached command range without rewriting visual-context indices. The caller must
     /// establish that the recorded indices are still valid for the current visual context tree.
     pub fn append_cached_command_range_verbatim(&mut self, source: &[u8], range: CommandRange) -> CommandRange {
-        let offset = self
-            .builder
-            .append_command_range(source, range, ContextRef::default(), ContextRef::default());
+        let offset = self.builder.append_command_range(source, range, None);
         CommandRange {
             offset,
             size: range.size,

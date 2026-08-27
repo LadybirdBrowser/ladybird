@@ -28,6 +28,39 @@ pub struct AppendContext {
     pub has_empty_effective_clip: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContextRewrite {
+    pub recorded_context: ContextRef,
+    pub current_context: ContextRef,
+    pub recorded_local_frame_range: (u32, u32),
+    pub current_local_frame_range: (u32, u32),
+}
+
+impl ContextRewrite {
+    fn is_identity(&self) -> bool {
+        self.recorded_context == self.current_context
+            && self.recorded_local_frame_range.0 == self.current_local_frame_range.0
+    }
+
+    fn rewrite(&self, context: ContextRef) -> ContextRef {
+        let spatial = if context.spatial == self.recorded_context.spatial {
+            self.current_context.spatial
+        } else {
+            context.spatial
+        };
+        let (recorded_begin, recorded_end) = self.recorded_local_frame_range;
+        let frame =
+            if context.frame != FrameNodeIndex::NONE && (recorded_begin..recorded_end).contains(&context.frame.0) {
+                FrameNodeIndex(context.frame.0 - recorded_begin + self.current_local_frame_range.0)
+            } else if context.frame == self.recorded_context.frame {
+                self.current_context.frame
+            } else {
+                context.frame
+            };
+        ContextRef { spatial, frame }
+    }
+}
+
 // A finished tape together with the run table summarizing it.
 #[derive(Default)]
 pub struct RecordedDisplayList {
@@ -107,13 +140,7 @@ impl DisplayListBuilder {
         true
     }
 
-    pub fn append_command_range(
-        &mut self,
-        source: &[u8],
-        range: CommandRange,
-        recorded_context: ContextRef,
-        current_context: ContextRef,
-    ) -> u32 {
+    pub fn append_command_range(&mut self, source: &[u8], range: CommandRange, rewrite: Option<ContextRewrite>) -> u32 {
         // Captures are save/restore balanced (verified at capture end), so splicing never shifts the save nesting level.
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         debug_assert_eq!(range.size as usize % COMMAND_ALIGNMENT, 0);
@@ -123,22 +150,24 @@ impl DisplayListBuilder {
         }
         let source_range = &source[range.offset as usize..(range.offset + range.size) as usize];
         self.bytes.extend_from_slice(source_range);
-        let context_override = (recorded_context != current_context).then_some(current_context);
-        self.note_appended_records(destination_offset, context_override);
+        self.note_appended_records(destination_offset, rewrite.filter(|rewrite| !rewrite.is_identity()));
         u32::try_from(destination_offset).expect("display list exceeds u32")
     }
 
     // Folds the records appended from `start` on into the run table, first rewriting their
-    // context when a spliced capture is replayed under a different one.
-    fn note_appended_records(&mut self, start: usize, context_override: Option<ContextRef>) {
+    // contexts when a spliced capture is replayed under different ones.
+    fn note_appended_records(&mut self, start: usize, rewrite: Option<ContextRewrite>) {
         let Self { bytes, runs } = self;
         let mut offset = start;
         while offset < bytes.len() {
             let mut header = read_header(&bytes[offset..]);
-            if let Some(context) = context_override {
-                header.context = context;
-                let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context);
-                context.write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<ContextRef>()]);
+            if let Some(rewrite) = rewrite {
+                let context = rewrite.rewrite(header.context);
+                if context != header.context {
+                    header.context = context;
+                    let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context);
+                    context.write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<ContextRef>()]);
+                }
             }
             let record_size = HEADER_SIZE + header.payload_size as usize;
             note_command(runs, &header, offset, record_size);
@@ -271,6 +300,26 @@ mod tests {
             offset: 0,
             size: u32::try_from(builder.byte_size()).unwrap(),
         }
+    }
+
+    fn rewrite(recorded: ContextRef, current: ContextRef) -> ContextRewrite {
+        ContextRewrite {
+            recorded_context: recorded,
+            current_context: current,
+            recorded_local_frame_range: (0, 0),
+            current_local_frame_range: (0, 0),
+        }
+    }
+
+    fn header_contexts(builder: &DisplayListBuilder) -> Vec<ContextRef> {
+        let mut contexts = Vec::new();
+        let mut offset = 0;
+        while offset < builder.byte_size() {
+            let header = read_header(&builder.bytes()[offset..]);
+            contexts.push(header.context);
+            offset += HEADER_SIZE + header.payload_size as usize;
+        }
+        contexts
     }
 
     fn assert_runs_cover_tape(builder: &DisplayListBuilder) {
@@ -409,14 +458,62 @@ mod tests {
         let mut builder = DisplayListBuilder::new();
         let current = appendable(context(7, Some(1)));
         builder.append(&fill_rect(100, 100, 10, 10), &[], current);
-        let destination_offset =
-            builder.append_command_range(source.bytes(), whole_tape(&source), recorded.context, current.context);
+        let destination_offset = builder.append_command_range(
+            source.bytes(),
+            whole_tape(&source),
+            Some(rewrite(recorded.context, current.context)),
+        );
         assert_ne!(destination_offset, 0);
         assert_runs_cover_tape(&builder);
         let runs = builder.command_runs();
         assert_eq!(runs.len(), 1);
         assert_eq!(runs[0].context, current.context);
         assert_eq!(runs[0].ink_bounds, IntRect::new(0, 0, 110, 110));
+    }
+
+    #[test]
+    fn a_spliced_capture_rebases_the_frames_of_its_own_range() {
+        let mut source = DisplayListBuilder::new();
+        source.append(&fill_rect(0, 0, 10, 10), &[], appendable(context(2, Some(5))));
+        source.append(&fill_rect(20, 20, 10, 10), &[], appendable(context(2, Some(6))));
+        source.append(&fill_rect(40, 40, 10, 10), &[], appendable(context(2, None)));
+
+        let mut builder = DisplayListBuilder::new();
+        builder.append_command_range(
+            source.bytes(),
+            whole_tape(&source),
+            Some(ContextRewrite {
+                recorded_context: context(2, Some(5)),
+                current_context: context(3, Some(11)),
+                recorded_local_frame_range: (4, 8),
+                current_local_frame_range: (10, 14),
+            }),
+        );
+        assert_eq!(
+            header_contexts(&builder),
+            vec![context(3, Some(11)), context(3, Some(12)), context(3, None)]
+        );
+        assert_runs_cover_tape(&builder);
+        assert_eq!(builder.command_runs().len(), 3);
+    }
+
+    #[test]
+    fn a_spliced_phase_frame_outside_the_range_maps_to_the_current_phase_frame() {
+        let mut source = DisplayListBuilder::new();
+        source.append(&fill_rect(0, 0, 10, 10), &[], appendable(context(2, Some(1))));
+
+        let mut builder = DisplayListBuilder::new();
+        builder.append_command_range(
+            source.bytes(),
+            whole_tape(&source),
+            Some(ContextRewrite {
+                recorded_context: context(2, Some(1)),
+                current_context: context(2, Some(3)),
+                recorded_local_frame_range: (7, 7),
+                current_local_frame_range: (9, 9),
+            }),
+        );
+        assert_eq!(header_contexts(&builder), vec![context(2, Some(3))]);
     }
 
     #[test]
@@ -433,12 +530,7 @@ mod tests {
 
         let mut builder = DisplayListBuilder::new();
         builder.append(&fill_rect(0, 0, 1, 1), &[], appendable(context(9, None)));
-        let destination_offset = builder.append_command_range(
-            source.bytes(),
-            whole_tape(&source),
-            ContextRef::default(),
-            ContextRef::default(),
-        );
+        let destination_offset = builder.append_command_range(source.bytes(), whole_tape(&source), None);
         assert_runs_cover_tape(&builder);
         let spliced_runs = &builder.command_runs()[1..];
         assert_eq!(spliced_runs.len(), source_runs.len());
