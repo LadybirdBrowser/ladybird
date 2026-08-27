@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    .scroller {
+        align-items: center;
+        height: 44px;
+        justify-content: center;
+        overflow-x: hidden;
+        padding: 4px;
+        width: 56px;
+    }
+
+    #flex-scroller {
+        display: flex;
+    }
+
+    #grid-scroller {
+        display: grid;
+        place-items: center;
+    }
+
+    .item {
+        flex: none;
+        height: 44px;
+        margin: -4px;
+        padding: 4px;
+        width: 44px;
+    }
+
+    .content {
+        height: 36px;
+        width: 36px;
+    }
+</style>
+<div class="scroller" id="flex-scroller">
+    <div class="item">
+        <div class="content"></div>
+    </div>
+</div>
+<div class="scroller" id="grid-scroller">
+    <div class="item">
+        <div class="content"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        for (const id of ["flex-scroller", "grid-scroller"]) {
+            const scroller = document.getElementById(id);
+            println(`${id} client width: ${scroller.clientWidth}`);
+            println(`${id} scroll width: ${scroller.scrollWidth}`);
+            println(`${id} client height: ${scroller.clientHeight}`);
+            println(`${id} scroll height: ${scroller.scrollHeight}`);
+        }
+    });
+</script>
