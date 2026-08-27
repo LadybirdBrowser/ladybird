@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/IntrusiveList.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/DOM/Node.h>
@@ -91,7 +92,7 @@ public:
 
     Utf16String to_string() const;
 
-    static HashTable<Range*>& live_ranges();
+    void update_owner_document(Badge<Document>) { update_owner_document(); }
 
     GC::Ref<Geometry::DOMRectList> get_client_rects();
     GC::Ref<Geometry::DOMRect> get_bounding_client_rect();
@@ -146,9 +147,17 @@ private:
         End,
     };
 
-    void set_start_node(GC::Ref<Node> node) { m_start_container = node; }
+    void set_start_node(GC::Ref<Node> node)
+    {
+        m_start_container = node;
+        update_owner_document();
+    }
     void set_start_offset(WebIDL::UnsignedLong offset) { m_start_offset = offset; }
-    void set_end_node(GC::Ref<Node> node) { m_end_container = node; }
+    void set_end_node(GC::Ref<Node> node)
+    {
+        m_end_container = node;
+        update_owner_document();
+    }
     void set_end_offset(WebIDL::UnsignedLong offset) { m_end_offset = offset; }
 
     void increase_start_offset(WebIDL::UnsignedLong count) { m_start_offset += count; }
@@ -165,7 +174,15 @@ private:
 
     bool partially_contains_node(GC::Ref<Node>) const;
 
+    void update_owner_document();
+
     GC::Ptr<Selection::Selection> m_associated_selection;
+    GC::Ptr<Document> m_owner_document;
+
+    IntrusiveListNode<Range> m_live_range_list_node;
+
+public:
+    using DocumentLiveRangeList = IntrusiveList<&Range::m_live_range_list_node>;
 };
 
 }

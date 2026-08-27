@@ -3912,6 +3912,19 @@ void Document::adopt_node_steps(Node& node)
             m_node_iterators.set(&node_iterator);
         }
 
+        // AD-HOC: Live ranges are registered with the document their boundary points belong to. The removal in step 2
+        //         only clamps ranges anchored in node's own tree, so ranges anchored in a parentless node's tree cross
+        //         into this document with their boundaries intact and must be re-registered here.
+        if (!old_document.live_ranges().is_empty()) {
+            Vector<GC::Ref<Range>> ranges_to_transfer;
+            for (auto& range : old_document.live_ranges()) {
+                if (&range.start_container()->document() == this)
+                    ranges_to_transfer.append(range);
+            }
+            for (auto range : ranges_to_transfer)
+                range->update_owner_document({});
+        }
+
         // AD-HOC: A parentless node leaves oldDocument without any mutation observable through oldDocument's
         //         dom_tree_version. Bump it so that caches keyed on that version can't serve stale results for this
         //         node if it is later adopted back after being mutated under another document.
@@ -5265,6 +5278,18 @@ void Document::unregister_node_iterator(Badge<NodeIterator>, NodeIterator& node_
 {
     bool was_removed = m_node_iterators.remove(&node_iterator);
     VERIFY(was_removed);
+}
+
+void Document::attach_range(Badge<Range>, Range& range)
+{
+    VERIFY(!m_live_ranges.contains(range));
+    m_live_ranges.append(range);
+}
+
+void Document::detach_range(Badge<Range>, Range& range)
+{
+    VERIFY(m_live_ranges.contains(range));
+    m_live_ranges.remove(range);
 }
 
 void Document::register_document_observer(Badge<DocumentObserver>, DocumentObserver& document_observer)

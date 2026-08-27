@@ -142,21 +142,21 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
     auto replaced_data_end_offset = offset + count;
     auto replacement_data_length = data.length_in_code_units();
-    for (auto* range : Range::live_ranges()) {
-        if (range == selection_range_to_preserve.ptr())
+    for (auto& range : document().live_ranges()) {
+        if (&range == selection_range_to_preserve.ptr())
             continue;
 
-        if (range->start_container().ptr() == this) {
-            if (range->start_offset() > offset && range->start_offset() <= replaced_data_end_offset)
-                range->set_start_offset(offset);
-            else if (range->start_offset() > replaced_data_end_offset)
-                range->set_start_offset(range->start_offset() + replacement_data_length - count);
+        if (range.start_container().ptr() == this) {
+            if (range.start_offset() > offset && range.start_offset() <= replaced_data_end_offset)
+                range.set_start_offset(offset);
+            else if (range.start_offset() > replaced_data_end_offset)
+                range.set_start_offset(range.start_offset() + replacement_data_length - count);
         }
-        if (range->end_container().ptr() == this) {
-            if (range->end_offset() > offset && range->end_offset() <= replaced_data_end_offset)
-                range->set_end_offset(offset);
-            else if (range->end_offset() > replaced_data_end_offset)
-                range->set_end_offset(range->end_offset() + replacement_data_length - count);
+        if (range.end_container().ptr() == this) {
+            if (range.end_offset() > offset && range.end_offset() <= replaced_data_end_offset)
+                range.set_end_offset(offset);
+            else if (range.end_offset() > replaced_data_end_offset)
+                range.set_end_offset(range.end_offset() + replacement_data_length - count);
         }
     }
 
