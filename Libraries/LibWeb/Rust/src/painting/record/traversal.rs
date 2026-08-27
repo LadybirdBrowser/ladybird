@@ -220,8 +220,7 @@ impl PaintRecorder<'_> {
         self.register_mask_display_lists(paintable, MaskLayerSet::CssAndSvg);
 
         let context_before_children = self.recorder.accumulated_visual_context();
-        self.paint_internal(index);
-        self.recorder.set_accumulated_visual_context(context_before_children);
+        self.with_context(context_before_children, |this| this.paint_internal(index));
     }
 
     fn paint_child(&mut self, child: u32) {

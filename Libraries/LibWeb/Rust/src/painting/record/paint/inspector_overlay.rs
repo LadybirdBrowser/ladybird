@@ -59,13 +59,10 @@ fn with_highlight_context(
     if paintable.is_invalid() || !recorder.layout_arena.paintable_row_is_populated(paintable) {
         return;
     }
-    let previous_context = recorder.recorder.accumulated_visual_context();
     // Overlays follow the highlighted element's transforms and scroll offsets, but must not be clipped
     // or faded by its ancestors, so their commands apply the element's spatial node without its frame.
     let context = ContextRef::spatial_only(recorder.data(paintable).accumulated_visual_context.spatial);
-    recorder.recorder.set_accumulated_visual_context(context);
-    callback(recorder, paintable);
-    recorder.recorder.set_accumulated_visual_context(previous_context);
+    recorder.with_context(context, |recorder| callback(recorder, paintable));
 }
 
 fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {

@@ -207,8 +207,6 @@ pub(crate) fn paint_resolved_background(
             }
         }
 
-        let original_context = recorder.recorder.accumulated_visual_context();
-
         let mut compositing_and_blending_operator = layer.compositing_and_blending_operator;
         // https://drafts.fxtf.org/css-masking-1/#the-mask-composite
         // If there is no further mask layer, the compositing operator must be ignored.
@@ -218,31 +216,32 @@ pub(crate) fn paint_resolved_background(
             }
             painted_mask_layer = true;
         }
-        let mut applied_blend_layer = false;
 
-        if layer.image.is_none() {
-            if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
-                recorder.recorder.apply_effects(compositing_and_blending_operator);
-                applied_blend_layer = true;
+        let layer_context = recorder.recorder.accumulated_visual_context();
+        recorder.with_context(layer_context, |recorder| {
+            let mut applied_blend_layer = false;
+            if layer.image.is_none() {
+                if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
+                    recorder.recorder.apply_effects(compositing_and_blending_operator);
+                    applied_blend_layer = true;
+                }
+            } else {
+                paint_image_layer(
+                    recorder,
+                    paintable,
+                    layer,
+                    image_rendering,
+                    css_clip_rect,
+                    clip_rect,
+                    compositing_and_blending_operator,
+                    _isolated_backdrop_color,
+                    &mut applied_blend_layer,
+                );
             }
-        } else {
-            paint_image_layer(
-                recorder,
-                paintable,
-                layer,
-                image_rendering,
-                css_clip_rect,
-                clip_rect,
-                compositing_and_blending_operator,
-                _isolated_backdrop_color,
-                &mut applied_blend_layer,
-            );
-        }
-
-        if applied_blend_layer {
-            recorder.recorder.restore();
-        }
-        recorder.recorder.set_accumulated_visual_context(original_context);
+            if applied_blend_layer {
+                recorder.recorder.restore();
+            }
+        });
         crate::painting::record::paint::end_corner_clip(recorder, corner_clip_applied);
         recorder.recorder.restore();
     }
