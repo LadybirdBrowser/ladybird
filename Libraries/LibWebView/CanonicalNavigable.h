@@ -129,6 +129,7 @@ public:
     void set_current_session_history_entry_identity(Optional<Web::HTML::SessionHistoryEntryIdentity> identity) { m_current_session_history_entry_identity = move(identity); }
     void set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
     void set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity identity) { m_active_session_history_entry_identity = move(identity); }
+    void clear_active_session_history_entry_identity() { m_active_session_history_entry_identity = {}; }
     bool current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
     bool active_document_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
 
