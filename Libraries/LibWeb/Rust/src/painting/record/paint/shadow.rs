@@ -53,17 +53,10 @@ pub(crate) fn paint_box_shadow(
     if layers.is_empty() {
         return;
     }
-    let (top, right, bottom, left) = (
-        style.border_top_width(),
-        style.border_right_width(),
-        style.border_bottom_width(),
-        style.border_left_width(),
-    );
     paint_box_shadow_layers(
         recorder,
         bordered_content_rect,
         borderless_content_rect,
-        (top, right, bottom, left),
         border_radii,
         layers,
     );
@@ -73,7 +66,6 @@ fn paint_box_shadow_layers(
     recorder: &mut PaintRecorder<'_>,
     bordered_content_rect: CssPixelRect,
     borderless_content_rect: CssPixelRect,
-    border_widths: (CssPixels, CssPixels, CssPixels, CssPixels),
     border_radii: BorderRadii,
     layers: &[crate::css::computed_value_types::ComputedShadow],
 ) {
@@ -117,14 +109,6 @@ fn paint_box_shadow_layers(
             let mut inner_shadow_corner_radii = corner_radii;
             adjust_corners_for_spread_distance(&mut inner_shadow_corner_radii, -spread_distance);
 
-            let mut shrinked_border_radii = border_radii;
-            shrinked_border_radii.shrink(border_widths.0, border_widths.1, border_widths.2, border_widths.3);
-            let clipped = begin_corner_clip(
-                recorder,
-                device_content_rect,
-                &shrinked_border_radii,
-                CornerClip::Outside,
-            );
             recorder.recorder.paint_inner_box_shadow(PaintInnerBoxShadow {
                 color: Color(layer.color),
                 blur_radius,
@@ -134,7 +118,6 @@ fn paint_box_shadow_layers(
                 inner_shadow_rect,
                 inner_shadow_corner_radii,
             });
-            end_corner_clip(recorder, clipped);
         } else {
             let mut shadow_rect =
                 device_content_rect.inflated_edges(spread_distance, spread_distance, spread_distance, spread_distance);
