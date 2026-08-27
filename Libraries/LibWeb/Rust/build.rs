@@ -2337,7 +2337,6 @@ fn public_type_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
 struct DisplayListCommandImplFacts {
     name: String,
     has_bounding_rect: bool,
-    has_is_clip: bool,
 }
 
 fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommandImplFacts>, Box<dyn Error>> {
@@ -2353,7 +2352,6 @@ fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommand
             return Err(format!("unparsable DisplayListCommand impl header: {line}").into());
         }
         let mut has_bounding_rect = false;
-        let mut has_is_clip = false;
         let mut closed = false;
         for body_line in lines.by_ref() {
             if body_line == "}" {
@@ -2362,7 +2360,6 @@ fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommand
             }
             let body_line = body_line.trim_start();
             has_bounding_rect |= body_line.starts_with("fn bounding_rect");
-            has_is_clip |= body_line.starts_with("fn is_clip");
         }
         if !closed {
             return Err(format!("unterminated DisplayListCommand impl for {name}").into());
@@ -2370,7 +2367,6 @@ fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommand
         facts.push(DisplayListCommandImplFacts {
             name,
             has_bounding_rect,
-            has_is_clip,
         });
     }
     if facts.is_empty() {
@@ -2891,9 +2887,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut member_declarations = String::new();
         if command.has_bounding_rect {
             member_declarations.push_str("    [[nodiscard]] Gfx::IntRect bounding_rect() const;\n");
-        }
-        if command.has_is_clip {
-            member_declarations.push_str("    bool is_clip() const;\n");
         }
         member_declarations.push_str("    void dump(StringBuilder&) const;");
         display_list_commands_config

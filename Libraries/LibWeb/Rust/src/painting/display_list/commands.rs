@@ -21,11 +21,6 @@ pub enum DisplayListCommandType {
     DrawCompositedContext,
     DrawCanvas,
     DrawVideoFrame,
-    Save,
-    SaveLayer,
-    Restore,
-    AddClipRect,
-    AddClipPath,
     PaintLinearGradient,
     PaintRadialGradient,
     PaintConicGradient,
@@ -39,7 +34,6 @@ pub enum DisplayListCommandType {
     DrawLine,
     ApplyBackdropFilter,
     DrawRect,
-    AddRoundedRectClip,
     PaintNestedDisplayList,
     CompositorScrollNode,
     CompositorWheelHitTestTarget,
@@ -48,11 +42,10 @@ pub enum DisplayListCommandType {
     CompositorViewportScrollbar,
     CompositorBlockingWheelEventRegion,
     PaintScrollBar,
-    ApplyEffects,
 }
 ffi_enum_bytes!(DisplayListCommandType as u8);
 
-pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::ApplyEffects as usize + 1;
+pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::PaintScrollBar as usize + 1;
 
 impl DisplayListCommandType {
     pub fn from_u8(value: u8) -> Option<Self> {
@@ -76,14 +69,6 @@ impl DisplayListCommandType {
         )
     }
 
-    pub const fn nesting_level_change(self) -> i32 {
-        match self {
-            Self::Save | Self::SaveLayer | Self::ApplyEffects => 1,
-            Self::Restore => -1,
-            _ => 0,
-        }
-    }
-
     pub const fn name(self) -> &'static str {
         match self {
             Self::DrawGlyphRun => "DrawGlyphRun",
@@ -95,11 +80,6 @@ impl DisplayListCommandType {
             Self::DrawCompositedContext => "DrawCompositedContext",
             Self::DrawCanvas => "DrawCanvas",
             Self::DrawVideoFrame => "DrawVideoFrame",
-            Self::Save => "Save",
-            Self::SaveLayer => "SaveLayer",
-            Self::Restore => "Restore",
-            Self::AddClipRect => "AddClipRect",
-            Self::AddClipPath => "AddClipPath",
             Self::PaintLinearGradient => "PaintLinearGradient",
             Self::PaintRadialGradient => "PaintRadialGradient",
             Self::PaintConicGradient => "PaintConicGradient",
@@ -113,7 +93,6 @@ impl DisplayListCommandType {
             Self::DrawLine => "DrawLine",
             Self::ApplyBackdropFilter => "ApplyBackdropFilter",
             Self::DrawRect => "DrawRect",
-            Self::AddRoundedRectClip => "AddRoundedRectClip",
             Self::PaintNestedDisplayList => "PaintNestedDisplayList",
             Self::CompositorScrollNode => "CompositorScrollNode",
             Self::CompositorWheelHitTestTarget => "CompositorWheelHitTestTarget",
@@ -122,7 +101,6 @@ impl DisplayListCommandType {
             Self::CompositorViewportScrollbar => "CompositorViewportScrollbar",
             Self::CompositorBlockingWheelEventRegion => "CompositorBlockingWheelEventRegion",
             Self::PaintScrollBar => "PaintScrollBar",
-            Self::ApplyEffects => "ApplyEffects",
         }
     }
 }
@@ -457,7 +435,6 @@ ffi_bytes_fields!(DisplayListGradientColorStops {
 pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
     pub has_bounding_rect: bool,
-    pub is_clip: bool,
     pub clips_to_bounding_rect: bool,
     pub payload_size: u32,
     pub context: ContextRef,
@@ -466,7 +443,6 @@ pub struct DisplayListCommandHeader {
 ffi_bytes_fields!(DisplayListCommandHeader {
     command_type,
     has_bounding_rect,
-    is_clip,
     clips_to_bounding_rect,
     payload_size,
     context,
@@ -483,19 +459,12 @@ pub struct DisplayListCommandRun {
     pub offset: u32,
     pub size: u32,
     pub context: ContextRef,
-    // Union of the draw commands' bounding rects, excluding clips, in the run's spatial node space.
+    // Union of the draw commands' bounding rects in the run's spatial node space.
     pub ink_bounds: IntRect,
-    // Relative to the nesting level at the run's start.
-    pub nesting_delta: i32,
-    pub min_relative_nesting: i32,
     pub has_unbounded_draw: bool,
     pub has_compositor_metadata: bool,
-    // A clip at the run's base nesting level also narrows the clip of every command after the run.
-    pub has_unconfined_clip: bool,
-    // Skipping the whole run can neither unbalance the save stack nor drop a clip later runs rely on.
-    pub is_self_contained: bool,
 }
-const _: () = assert!(std::mem::size_of::<DisplayListCommandRun>() == 44);
+const _: () = assert!(std::mem::size_of::<DisplayListCommandRun>() == 36);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -625,9 +594,6 @@ pub trait DisplayListCommand: Copy + FfiBytes {
     const COMMAND_TYPE: DisplayListCommandType;
     fn bounding_rect(&self) -> Option<IntRect> {
         None
-    }
-    fn is_clip(&self) -> bool {
-        false
     }
 }
 
@@ -846,79 +812,6 @@ impl DisplayListCommand for DrawVideoFrame {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DrawVideoFrame;
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(self.dst_rect)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct Save {
-    _empty: u8,
-}
-ffi_bytes_fields!(Save { _empty });
-
-impl DisplayListCommand for Save {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Save;
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct SaveLayer {
-    _empty: u8,
-}
-ffi_bytes_fields!(SaveLayer { _empty });
-
-impl DisplayListCommand for SaveLayer {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::SaveLayer;
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct Restore {
-    _empty: u8,
-}
-ffi_bytes_fields!(Restore { _empty });
-
-impl DisplayListCommand for Restore {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::Restore;
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct AddClipRect {
-    pub rect: FloatRect,
-}
-ffi_bytes_fields!(AddClipRect { rect });
-
-impl DisplayListCommand for AddClipRect {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::AddClipRect;
-    fn bounding_rect(&self) -> Option<IntRect> {
-        Some(enclosing_int_rect(self.rect))
-    }
-    fn is_clip(&self) -> bool {
-        true
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct AddClipPath {
-    pub path_bounding_rect: IntRect,
-    pub path_data: DisplayListDataSpan,
-    pub winding_rule: WindingRule,
-}
-ffi_bytes_fields!(AddClipPath {
-    path_bounding_rect,
-    path_data,
-    winding_rule
-});
-
-impl DisplayListCommand for AddClipPath {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::AddClipPath;
-    fn bounding_rect(&self) -> Option<IntRect> {
-        Some(self.path_bounding_rect)
-    }
-    fn is_clip(&self) -> bool {
-        true
     }
 }
 
@@ -1261,29 +1154,6 @@ impl DisplayListCommand for PaintConicGradient {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
-pub struct AddRoundedRectClip {
-    pub corner_radii: CornerRadii,
-    pub border_rect: IntRect,
-    pub corner_clip: CornerClip,
-}
-ffi_bytes_fields!(AddRoundedRectClip {
-    corner_radii,
-    border_rect,
-    corner_clip
-});
-
-impl DisplayListCommand for AddRoundedRectClip {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::AddRoundedRectClip;
-    fn bounding_rect(&self) -> Option<IntRect> {
-        Some(self.border_rect)
-    }
-    fn is_clip(&self) -> bool {
-        true
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
 pub struct PaintNestedDisplayList {
     pub display_list_id: DisplayListResourceId,
     pub rect: FloatRect,
@@ -1465,29 +1335,6 @@ impl DisplayListCommand for PaintScrollBar {
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(self.track_rect.united(self.thumb_rect))
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct ApplyEffects {
-    pub opacity: f32,
-    pub compositing_and_blending_operator: CompositingAndBlendingOperator,
-    pub has_filter: bool,
-    pub filter_data: DisplayListDataSpan,
-    pub has_mask_kind: bool,
-    pub mask_kind: MaskKind,
-}
-ffi_bytes_fields!(ApplyEffects {
-    opacity,
-    compositing_and_blending_operator,
-    has_filter,
-    filter_data,
-    has_mask_kind,
-    mask_kind
-});
-
-impl DisplayListCommand for ApplyEffects {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::ApplyEffects;
 }
 
 pub fn int_rect_from_two_points(a: IntPoint, b: IntPoint) -> IntRect {

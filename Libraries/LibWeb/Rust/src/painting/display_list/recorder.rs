@@ -235,7 +235,6 @@ pub struct DisplayListRecorder {
     builder: DisplayListBuilder,
     empty_effective_clips_by_frame: Vec<bool>,
     context: ContextRef,
-    pub save_nesting_level: i32,
     mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     confining_clip: Option<IntRect>,
 }
@@ -246,7 +245,6 @@ impl DisplayListRecorder {
             builder: DisplayListBuilder::new(),
             empty_effective_clips_by_frame,
             context: ContextRef::default(),
-            save_nesting_level: 0,
             mask_display_lists: Vec::new(),
             confining_clip: None,
         }
@@ -308,7 +306,6 @@ impl DisplayListRecorder {
     }
 
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
-        self.save_nesting_level += C::COMMAND_TYPE.nesting_level_change();
         let context = self.append_context();
         self.builder
             .append_confined_to_clip(command, inline_data, context, self.confining_clip);
@@ -747,42 +744,6 @@ impl DisplayListRecorder {
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn add_clip_rect(&mut self, rect: FloatRect) {
-        self.append_command(&AddClipRect { rect }, &[]);
-    }
-
-    pub fn add_clip_rect_int(&mut self, rect: IntRect) {
-        self.add_clip_rect(FloatRect::new(
-            rect.x as f32,
-            rect.y as f32,
-            rect.width as f32,
-            rect.height as f32,
-        ));
-    }
-
-    pub fn add_clip_path(&mut self, path: &libgfx_rust::path::OwnedPath, winding_rule: WindingRule) {
-        let mut payload = CommandPayloadBuilder::new::<AddClipPath>(&self.builder);
-        let path_data = payload.append_data(&path.serialize_to_bytes(), std::mem::align_of::<u32>());
-        let command = AddClipPath {
-            path_bounding_rect: enclosing_int_rect(FloatRect::from_array(path.bounding_box())),
-            path_data,
-            winding_rule,
-        };
-        self.append_command(&command, payload.inline_data());
-    }
-
-    pub fn save(&mut self) {
-        self.append_command(&Save::default(), &[]);
-    }
-
-    pub fn save_layer(&mut self) {
-        self.append_command(&SaveLayer::default(), &[]);
-    }
-
-    pub fn restore(&mut self) {
-        self.append_command(&Restore::default(), &[]);
-    }
-
     pub fn apply_backdrop_filter(&mut self, backdrop_region: IntRect, corner_radii: CornerRadii, filter_bytes: &[u8]) {
         if backdrop_region.is_empty() {
             return;
@@ -881,17 +842,6 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn add_rounded_rect_clip(&mut self, corner_radii: CornerRadii, border_rect: IntRect, corner_clip: CornerClip) {
-        self.append_command(
-            &AddRoundedRectClip {
-                corner_radii,
-                border_rect,
-                corner_clip,
-            },
-            &[],
-        );
-    }
-
     pub fn paint_nested_display_list(
         &mut self,
         display_list_id: DisplayListResourceId,
@@ -933,19 +883,5 @@ impl DisplayListRecorder {
 
     pub fn compositor_blocking_wheel_event_region(&mut self, region: CompositorBlockingWheelEventRegion) {
         self.append_command(&region, &[]);
-    }
-
-    pub fn apply_effects(&mut self, compositing_and_blending_operator: CompositingAndBlendingOperator) {
-        self.append_command(
-            &ApplyEffects {
-                opacity: 1.0,
-                compositing_and_blending_operator,
-                has_filter: false,
-                filter_data: DisplayListDataSpan::default(),
-                has_mask_kind: false,
-                mask_kind: MaskKind::default(),
-            },
-            &[],
-        );
     }
 }

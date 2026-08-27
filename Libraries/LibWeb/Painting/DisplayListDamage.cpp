@@ -38,7 +38,6 @@ static bool display_list_commands_are_equal(DisplayListCommandReference const& a
 {
     if (a.header.command_type != b.header.command_type
         || a.header.has_bounding_rect != b.header.has_bounding_rect
-        || a.header.is_clip != b.header.is_clip
         || a.header.clips_to_bounding_rect != b.header.clips_to_bounding_rect
         || a.header.bounding_rect != b.header.bounding_rect)
         return false;
@@ -284,10 +283,7 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     bool changed_unbounded_command = false;
     auto add_command_damage = [&](DisplayListCommandReference const& command, auto const& visual_context_tree, auto const& scroll_state) {
         if (!command.header.has_bounding_rect) {
-            if (display_list_command_is_compositor_metadata(command.header.command_type)
-                || command.header.command_type == DisplayListCommandType::Save
-                || command.header.command_type == DisplayListCommandType::SaveLayer
-                || command.header.command_type == DisplayListCommandType::Restore)
+            if (display_list_command_is_compositor_metadata(command.header.command_type))
                 return;
             changed_unbounded_command = true;
             return;

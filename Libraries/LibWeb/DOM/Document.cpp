@@ -9885,14 +9885,8 @@ Utf16String Document::dump_display_list()
 
     Function<void(Painting::DisplayList const&, int)> dump_commands =
         [&](Painting::DisplayList const& list, int base_indent) {
-            int indent = base_indent;
             list.for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-                auto nesting_change = Painting::display_list_command_nesting_level_change(header.command_type);
-
-                if (nesting_change < 0)
-                    indent = max(base_indent, indent + nesting_change);
-
-                builder.append_repeated(' ', indent * 2);
+                builder.append_repeated(' ', base_indent * 2);
                 Optional<Painting::DisplayListResourceId> nested_display_list_id;
                 Painting::visit_display_list_command(header.command_type, payload, [&]<typename Command>(Command const& command) {
                     builder.appendff("{}@{}", command.command_name, header.context);
@@ -9906,11 +9900,8 @@ Utf16String Document::dump_display_list()
 
                 if (nested_display_list_id.has_value()) {
                     auto& nested_display_list = resource_storage.display_list(*nested_display_list_id);
-                    dump_commands(nested_display_list, indent + 1);
+                    dump_commands(nested_display_list, base_indent + 1);
                 }
-
-                if (nesting_change > 0)
-                    indent += nesting_change;
             });
 
             auto mask_frames = list.mask_display_lists().keys();
