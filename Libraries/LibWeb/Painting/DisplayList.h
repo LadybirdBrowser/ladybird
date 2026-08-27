@@ -111,19 +111,6 @@ public:
         return display_list;
     }
 
-    template<DisplayListCommand Command>
-    bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, ContextRef context, ReadonlyBytes inline_data = {})
-    {
-        return append_bytes(
-            Command::command_type,
-            display_list_object_bytes(command),
-            inline_data,
-            visual_context_tree,
-            context,
-            command_bounding_rectangle(command),
-            command_is_clip(command));
-    }
-
     u64 compatible_visual_context_tree_version() const { return m_compatible_visual_context_tree_version; }
     u64 id() const { return m_id; }
 
@@ -162,31 +149,6 @@ public:
 private:
     explicit DisplayList(u64 compatible_visual_context_tree_version);
     DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists);
-
-    static Optional<Gfx::IntRect> command_bounding_rectangle(auto const& command)
-    {
-        if constexpr (requires { command.bounding_rect(); })
-            return command.bounding_rect();
-        else
-            return {};
-    }
-
-    static bool command_is_clip(auto const& command)
-    {
-        if constexpr (requires { command.is_clip(); })
-            return command.is_clip();
-        else
-            return false;
-    }
-
-    bool append_bytes(
-        DisplayListCommandType,
-        ReadonlyBytes payload,
-        ReadonlyBytes inline_data,
-        AccumulatedVisualContextTree const&,
-        ContextRef,
-        Optional<Gfx::IntRect> bounding_rect,
-        bool is_clip);
 
     u64 m_compatible_visual_context_tree_version { 0 };
     u64 m_id { 0 };

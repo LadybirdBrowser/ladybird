@@ -5,7 +5,6 @@
  */
 
 #include <AK/Atomic.h>
-#include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
@@ -32,43 +31,6 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, Byt
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
     , m_mask_display_lists(move(mask_display_lists))
 {
-}
-
-bool DisplayList::append_bytes(
-    DisplayListCommandType type,
-    ReadonlyBytes payload,
-    ReadonlyBytes inline_data,
-    AccumulatedVisualContextTree const& visual_context_tree,
-    ContextRef context,
-    Optional<Gfx::IntRect> bounding_rect,
-    bool is_clip)
-{
-    VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
-    if (visual_context_tree.has_empty_effective_clip(context.frame))
-        return false;
-    VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
-    VERIFY(payload.size() <= NumericLimits<u32>::max());
-    VERIFY(inline_data.size() <= NumericLimits<u32>::max() - payload.size());
-    auto payload_size = payload.size() + inline_data.size();
-    auto record_size = sizeof(DisplayListCommandHeader) + payload_size;
-    constexpr auto command_alignment = DisplayList::command_alignment;
-    auto trailing_padding = align_up_to(record_size, command_alignment) - record_size;
-    VERIFY(trailing_padding <= NumericLimits<u32>::max() - payload_size);
-    DisplayListCommandHeader header {
-        .command_type = type,
-        .has_bounding_rect = bounding_rect.has_value(),
-        .is_clip = is_clip,
-        .payload_size = static_cast<u32>(payload_size + trailing_padding),
-        .context = context,
-        .bounding_rect = bounding_rect.value_or({}),
-    };
-    auto header_bytes = display_list_object_bytes(header);
-    m_command_bytes.append(header_bytes.data(), header_bytes.size());
-    m_command_bytes.append(payload.data(), payload.size());
-    if (!inline_data.is_empty())
-        m_command_bytes.append(inline_data.data(), inline_data.size());
-    m_command_bytes.resize(m_command_bytes.size() + trailing_padding, ByteBuffer::ZeroFillNewElements::Yes);
-    return true;
 }
 
 void DisplayListPlayer::execute(
