@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibWebView/HeadlessWebView.h>
 
 namespace WebView {
@@ -38,12 +39,21 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
             ? HeadlessWebView::create_child(*this, *page_index)
             : HeadlessWebView::create(m_theme, m_viewport_size);
 
+        auto* child_web_view = web_view.ptr();
+        auto weak_this = make_weak_ptr<HeadlessWebView>();
+        web_view->m_parent_web_view = weak_this;
+        auto discard_child_web_view = [weak_this, child_web_view]() {
+            if (weak_this)
+                weak_this->discard_child_web_view(*child_web_view);
+        };
+
         // Propagate crashes from child views to parent, so parent tests don't hang
         // waiting for a child that crashed.
-        web_view->on_web_content_crashed = [this]() {
-            if (on_web_content_crashed)
-                on_web_content_crashed();
+        web_view->on_web_content_crashed = [child_web_view, discard_child_web_view]() {
+            child_web_view->propagate_web_content_crash();
+            discard_child_web_view();
         };
+        web_view->on_close = move(discard_child_web_view);
 
         m_child_web_views.append(move(web_view));
         return m_child_web_views.last()->handle();
@@ -154,6 +164,32 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     };
 
     m_top_level_traversable.set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+}
+
+void HeadlessWebView::propagate_web_content_crash()
+{
+    if (!m_propagate_crashes_to_parent)
+        return;
+
+    if (m_parent_web_view) {
+        m_parent_web_view->propagate_web_content_crash();
+        return;
+    }
+
+    if (on_web_content_crashed)
+        on_web_content_crashed();
+}
+
+void HeadlessWebView::discard_child_web_view(HeadlessWebView& child_web_view)
+{
+    auto* child_web_view_pointer = &child_web_view;
+    Core::deferred_invoke([weak_this = make_weak_ptr<HeadlessWebView>(), child_web_view_pointer] {
+        if (!weak_this)
+            return;
+        weak_this->m_child_web_views.remove_first_matching([child_web_view_pointer](auto const& child) {
+            return child.ptr() == child_web_view_pointer;
+        });
+    });
 }
 
 void HeadlessWebView::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
