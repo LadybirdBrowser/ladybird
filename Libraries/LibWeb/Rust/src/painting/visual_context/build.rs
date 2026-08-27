@@ -665,7 +665,8 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             assignment.accumulated_visual_context = own_state;
         }
 
-        LocalFrameBuilder::new(&mut self.tree, self.layout_arena, slot, self.pixel_ratio, false).build(own_state);
+        LocalFrameBuilder::new(&mut self.tree, self.layout_arena, slot, self.pixel_ratio, false)
+            .build(own_state, Some(self.root_background_source));
 
         if super::node_values::wants_fixed_background_visual_context(
             self.layout_arena,

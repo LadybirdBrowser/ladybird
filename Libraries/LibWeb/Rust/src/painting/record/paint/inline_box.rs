@@ -9,10 +9,12 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::{PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT, PIECE_EDGE_RIGHT, PIECE_EDGE_TOP};
 use crate::painting::paintable_geometry;
+use crate::painting::record::paint::background_resolution::body_background_is_propagated_to_root;
 use crate::painting::record::paint::border::paint_box_borders;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels};
 use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
+use crate::painting::style_queries;
 use crate::painting::visual_context::PieceKey;
 
 pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
@@ -35,21 +37,15 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
 
     if phase == PaintPhase::Background && facts.is_visible {
         crate::painting::record::paint::paint_backdrop_filter(recorder, paintable, &facts);
-        let background_is_propagated_to_root = {
-            let node_flags = recorder.layout_arena.node_flags_if_live(paintable);
-            node_flags & crate::layout::node_data::NodeFlag::IsBody as u32 != 0
-                && recorder.inputs.root_background_source.use_body_background_properties
-        };
-        let has_borders = {
-            let style = recorder.layout_arena.node_style_if_live(paintable);
-            let zero = CssPixels::from_raw(0);
-            style.is_some_and(|style| {
-                style.border_top_width() != zero
-                    || style.border_right_width() != zero
-                    || style.border_bottom_width() != zero
-                    || style.border_left_width() != zero
-            })
-        };
+        let background_is_propagated_to_root = body_background_is_propagated_to_root(
+            recorder.layout_arena,
+            paintable,
+            recorder.inputs.root_background_source,
+        );
+        let has_borders = recorder
+            .layout_arena
+            .node_style_if_live(paintable)
+            .is_some_and(style_queries::has_css_borders);
         for (position, piece_index) in piece_indices.iter().enumerate() {
             let piece = &root_pieces[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
@@ -61,10 +57,12 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
                 crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable),
             );
             let border_radii = recorder.piece_border_radii(paintable, piece);
+            let piece_key = PieceKey::Piece(position as u16);
             if !background_is_propagated_to_root {
                 background::paint_background_within(
                     recorder,
                     paintable,
+                    piece_key,
                     if has_borders { border_box_rect } else { padding_box_rect },
                     border_radii,
                 );
@@ -72,7 +70,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             crate::painting::record::paint::shadow::paint_box_shadow(
                 recorder,
                 paintable,
-                PieceKey::Piece(position as u16),
+                piece_key,
                 border_box_rect,
                 padding_box_rect,
                 border_radii,

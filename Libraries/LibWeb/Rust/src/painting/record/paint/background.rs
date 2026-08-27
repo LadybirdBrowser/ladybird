@@ -10,15 +10,19 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
+use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform};
 use crate::painting::display_list::recorder::{DisplayListRecorder, FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
-use crate::painting::paintable_data::PaintableKind;
+use crate::painting::paintable_data::{FfiPixelBox, PaintableKind};
 use crate::painting::record::PaintRecorder;
+use crate::painting::record::paint::background_resolution::{
+    BackgroundPaintInputs, ResolvedBackgroundLayer, resolve_background_for_paint, resolve_background_layers,
+};
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
+use crate::painting::visual_context::{FrameRole, PieceKey};
 use libgfx_rust::{
-    CompositingAndBlendingOperator, CornerClip, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, ShouldAntiAlias,
-    WindingRule,
+    CompositingAndBlendingOperator, FloatRect, IntPoint, IntRect, IntSize, ScalingMode, ShouldAntiAlias, WindingRule,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -34,25 +38,41 @@ impl BackgroundBox {
     }
 }
 
+#[derive(Clone, Copy)]
+enum LayerBackdrop {
+    Canvas,
+    OpaqueColorUnderLoneLayer(libgfx_rust::Color),
+    IsolatedGroup,
+}
+
+impl LayerBackdrop {
+    fn is_isolated_group(self) -> bool {
+        matches!(self, Self::IsolatedGroup)
+    }
+
+    fn opaque_color_under_lone_layer(self) -> Option<libgfx_rust::Color> {
+        match self {
+            Self::OpaqueColorUnderLoneLayer(color) => Some(color),
+            Self::Canvas | Self::IsolatedGroup => None,
+        }
+    }
+}
+
+fn fill_transparent_so_replay_pushes_the_layer(recorder: &mut PaintRecorder<'_>, rect: IntRect) {
+    recorder.recorder.fill_rect_transparent(rect);
+}
+
 pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
-    let Some(inputs) =
-        crate::painting::record::paint::background_resolution::resolve_background_for_paint(recorder, paintable)
-    else {
+    let Some(inputs) = resolve_background_for_paint(recorder, paintable) else {
         return;
     };
-    paint_resolved_background(
-        recorder,
-        paintable,
-        &inputs.resolved,
-        inputs.image_rendering,
-        inputs.is_root_element,
-        inputs.border_radii,
-    );
+    paint_resolved_background(recorder, paintable, PieceKey::Box, &inputs);
 }
 
 pub(crate) fn paint_background_within(
     recorder: &mut PaintRecorder<'_>,
     paintable: NodeSlotId,
+    piece: PieceKey,
     background_rect: CssPixelRect,
     border_radii: BorderRadii,
 ) {
@@ -60,7 +80,7 @@ pub(crate) fn paint_background_within(
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return;
     };
-    let resolved = crate::painting::record::paint::background_resolution::resolve_background_layers(
+    let resolved = resolve_background_layers(
         recorder,
         paintable,
         style,
@@ -70,26 +90,24 @@ pub(crate) fn paint_background_within(
         background_rect,
         border_radii,
     );
-    paint_resolved_background(
-        recorder,
-        paintable,
-        &resolved,
-        style.image_rendering(),
-        false,
+    let inputs = BackgroundPaintInputs {
+        resolved,
         border_radii,
-    );
+        image_rendering: style.image_rendering(),
+        is_root_element: false,
+    };
+    paint_resolved_background(recorder, paintable, piece, &inputs);
 }
 
 pub(crate) fn paint_resolved_background(
     recorder: &mut PaintRecorder<'_>,
     paintable: NodeSlotId,
-    resolved: &crate::painting::record::paint::background_resolution::ResolvedBackground<'_>,
-    image_rendering: u8,
-    is_root_element: bool,
-    border_radii: BorderRadii,
+    piece: PieceKey,
+    inputs: &BackgroundPaintInputs<'_>,
 ) {
     // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
     let converter = recorder.converter;
+    let resolved = &inputs.resolved;
     let color = resolved.color;
     let background_rect = resolved.background_rect;
     let color_box = resolved.color_box;
@@ -98,19 +116,19 @@ pub(crate) fn paint_resolved_background(
     // https://drafts.fxtf.org/compositing/#background-blend-mode
     // Background layers must not blend with the content that is behind the element, instead they
     // must act as if they are rendered into an isolated group.
-    let mut paint_into_isolated_group = layers
+    let some_layer_blends = layers
         .iter()
         .any(|layer| layer.compositing_and_blending_operator != CompositingAndBlendingOperator::Normal);
-    // An opaque color covering the border box already isolates a single background layer from
-    // the element's backdrop.
-    let mut _isolated_backdrop_color = None;
-    if paint_into_isolated_group && layers.len() == 1 && color.alpha() == 255 && color_box.rect == background_rect {
-        paint_into_isolated_group = false;
-        _isolated_backdrop_color = Some(color);
-    }
+    let backdrop = if !some_layer_blends {
+        LayerBackdrop::Canvas
+    } else if resolved.paintable_layer_count == 1 && color.alpha() == 255 && color_box.rect == background_rect {
+        LayerBackdrop::OpaqueColorUnderLoneLayer(color)
+    } else {
+        LayerBackdrop::IsolatedGroup
+    };
 
     // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
-    let needs_text_clip = resolved.needs_text_clip && !is_root_element;
+    let needs_text_clip = resolved.needs_text_clip && !inputs.is_root_element;
 
     if needs_text_clip {
         recorder.recorder.save();
@@ -120,14 +138,46 @@ pub(crate) fn paint_resolved_background(
         recorder.recorder.save_layer();
     }
 
-    if paint_into_isolated_group {
-        recorder.recorder.save_layer();
+    let isolation_context = backdrop
+        .is_isolated_group()
+        .then(|| recorder.expected_local_context(paintable, FrameRole::BackgroundIsolation { piece }));
+    recorder.with_optional_context(isolation_context, |recorder| {
+        paint_background_layers(recorder, paintable, piece, inputs, backdrop);
+    });
+
+    if needs_text_clip {
+        recorder
+            .recorder
+            .apply_effects(CompositingAndBlendingOperator::DestinationIn);
+        append_text_clip_paths(recorder, paintable);
+        recorder.recorder.restore();
+        recorder.recorder.restore();
+        recorder.recorder.restore();
     }
+}
+
+fn paint_background_layers(
+    recorder: &mut PaintRecorder<'_>,
+    paintable: NodeSlotId,
+    piece: PieceKey,
+    inputs: &BackgroundPaintInputs<'_>,
+    backdrop: LayerBackdrop,
+) {
+    let converter = recorder.converter;
+    let resolved = &inputs.resolved;
+    let is_root_element = inputs.is_root_element;
+    let isolated = backdrop.is_isolated_group();
+    let color = resolved.color;
+    let background_rect = resolved.background_rect;
+    let color_box = resolved.color_box;
+    let layers = &resolved.layers;
 
     let border_box = BackgroundBox {
         rect: background_rect,
-        radii: border_radii,
+        radii: inputs.border_radii,
     };
+    let padding = crate::painting::paintable_geometry::committed_padding(recorder.layout_arena, paintable);
+    let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
 
     if is_root_element {
         recorder
@@ -187,25 +237,24 @@ pub(crate) fn paint_resolved_background(
 
     // Background layers are ordered front-to-back, so we paint them in reverse.
     for layer in layers.iter().rev() {
-        recorder.recorder.save();
-
-        // Clip
-        let clip_box = background_box_for(layer.clip, border_box, recorder, paintable);
+        let clip_box = background_box_for(layer.clip, border_box, padding, border);
         let css_clip_rect = clip_box.rect;
         let mut clip_rect = converter.rounded_device_rect(css_clip_rect);
-        let corner_clip_applied = !is_root_element
-            && crate::painting::record::paint::begin_corner_clip(
-                recorder,
-                clip_rect,
-                &clip_box.radii,
-                CornerClip::Outside,
-            );
-        if !is_root_element {
-            recorder.recorder.add_clip_rect_int(clip_rect);
+        let layer_context = if is_root_element {
+            recorder.recorder.accumulated_visual_context()
+        } else {
             if layer.clip == css_enums::background_box::BORDER_BOX {
                 clip_rect = clip_rect.shrunken(clip_shrink.0, clip_shrink.1, clip_shrink.2, clip_shrink.3);
             }
-        }
+            recorder.expected_local_context(
+                paintable,
+                FrameRole::BackgroundLayerClip {
+                    piece,
+                    layer: layer.computed_index as u16,
+                    isolated,
+                },
+            )
+        };
 
         let mut compositing_and_blending_operator = layer.compositing_and_blending_operator;
         // https://drafts.fxtf.org/css-masking-1/#the-mask-composite
@@ -217,63 +266,49 @@ pub(crate) fn paint_resolved_background(
             painted_mask_layer = true;
         }
 
-        let layer_context = recorder.recorder.accumulated_visual_context();
         recorder.with_context(layer_context, |recorder| {
-            let mut applied_blend_layer = false;
             if layer.image.is_none() {
                 if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
-                    recorder.recorder.apply_effects(compositing_and_blending_operator);
-                    applied_blend_layer = true;
+                    let blend_context = recorder.expected_local_context(
+                        paintable,
+                        FrameRole::BackgroundLayerBlend {
+                            piece,
+                            layer: layer.computed_index as u16,
+                            isolated,
+                        },
+                    );
+                    recorder.with_context(blend_context, |recorder| {
+                        fill_transparent_so_replay_pushes_the_layer(recorder, clip_rect);
+                    });
                 }
             } else {
                 paint_image_layer(
                     recorder,
                     paintable,
+                    piece,
                     layer,
-                    image_rendering,
+                    inputs.image_rendering,
                     css_clip_rect,
                     clip_rect,
                     compositing_and_blending_operator,
-                    _isolated_backdrop_color,
-                    &mut applied_blend_layer,
+                    backdrop,
                 );
             }
-            if applied_blend_layer {
-                recorder.recorder.restore();
-            }
         });
-        crate::painting::record::paint::end_corner_clip(recorder, corner_clip_applied);
-        recorder.recorder.restore();
-    }
-
-    if paint_into_isolated_group {
-        recorder.recorder.restore();
-    }
-
-    if needs_text_clip {
-        recorder
-            .recorder
-            .apply_effects(CompositingAndBlendingOperator::DestinationIn);
-        append_text_clip_paths(recorder, paintable);
-        recorder.recorder.restore();
-        recorder.recorder.restore();
-        recorder.recorder.restore();
     }
 }
 
 pub(crate) fn background_box_for(
     box_clip: u8,
     border_box: BackgroundBox,
-    recorder: &PaintRecorder<'_>,
-    paintable: NodeSlotId,
+    padding: FfiPixelBox,
+    border: FfiPixelBox,
 ) -> BackgroundBox {
     let mut background_box = border_box;
     if box_clip == css_enums::background_box::CONTENT_BOX {
-        let padding = crate::painting::paintable_geometry::committed_padding(recorder.layout_arena, paintable);
         background_box.shrink(padding.top, padding.right, padding.bottom, padding.left);
     }
     if box_clip == css_enums::background_box::CONTENT_BOX || box_clip == css_enums::background_box::PADDING_BOX {
-        let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
         background_box.shrink(border.top, border.right, border.bottom, border.left);
     }
     background_box
@@ -336,16 +371,17 @@ pub(crate) fn paint_image(
 fn paint_image_layer(
     recorder: &mut PaintRecorder<'_>,
     paintable: NodeSlotId,
-    layer: &crate::painting::record::paint::background_resolution::ResolvedBackgroundLayer<'_>,
+    piece: PieceKey,
+    layer: &ResolvedBackgroundLayer<'_>,
     image_rendering: u8,
     css_clip_rect: CssPixelRect,
     clip_rect: IntRect,
     compositing_and_blending_operator: CompositingAndBlendingOperator,
-    isolated_backdrop_color: Option<libgfx_rust::Color>,
-    applied_blend_layer: &mut bool,
+    backdrop: LayerBackdrop,
 ) {
     let converter = recorder.converter;
     let shell = recorder.layout_node_shell(paintable);
+    let isolated = backdrop.is_isolated_group();
     let image = layer.image.expect("an imageless layer never reaches the image paint");
     let mut image_rect = layer.image_rect;
     let mut background_positioning_area = layer.background_positioning_area;
@@ -354,9 +390,11 @@ fn paint_image_layer(
         css_enums::background_attachment::FIXED => {
             let data = recorder.data(paintable);
             if data.has_fixed_background_visual_context {
-                recorder
-                    .recorder
-                    .set_accumulated_visual_context(data.fixed_background_visual_context);
+                let frame = recorder.recorder.accumulated_visual_context().frame;
+                recorder.recorder.set_accumulated_visual_context(ContextRef {
+                    spatial: data.fixed_background_visual_context.spatial,
+                    frame,
+                });
             }
         }
         css_enums::background_attachment::LOCAL
@@ -511,16 +549,23 @@ fn paint_image_layer(
     };
     let tile_count = tile_columns * tile_rows;
 
-    let apply_blend_layer = |recorder: &mut PaintRecorder<'_>, applied: &mut bool| {
+    let enter_blend_layer = |recorder: &mut PaintRecorder<'_>| {
         if compositing_and_blending_operator == CompositingAndBlendingOperator::Normal {
             return;
         }
-        recorder.recorder.apply_effects(compositing_and_blending_operator);
-        *applied = true;
+        let blend_context = recorder.expected_local_context(
+            paintable,
+            FrameRole::BackgroundLayerBlend {
+                piece,
+                layer: layer.computed_index as u16,
+                isolated,
+            },
+        );
+        recorder.recorder.set_accumulated_visual_context(blend_context);
     };
 
     if prepare.single_pixel_color.has_value {
-        apply_blend_layer(recorder, applied_blend_layer);
+        enter_blend_layer(recorder);
         // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
         //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
@@ -556,7 +601,7 @@ fn paint_image_layer(
                 .paint_host
                 .layer_image_nested_display_list(shell, image.list, image.computed_index, dest_rect);
         if nested.has_nested_display_list {
-            apply_blend_layer(recorder, applied_blend_layer);
+            enter_blend_layer(recorder);
             let scaling_mode = to_gfx_scaling_mode(
                 image_rendering,
                 (dest_rect.width, dest_rect.height),
@@ -601,7 +646,7 @@ fn paint_image_layer(
                     ImageFrameResourceId(frame.frame_id),
                     scaling_mode,
                     compositing_and_blending_operator,
-                    isolated_backdrop_color,
+                    backdrop.opaque_color_under_lone_layer(),
                 );
             } else if tile_count > 1.0 {
                 let scaling_mode = to_gfx_scaling_mode(
@@ -617,7 +662,7 @@ fn paint_image_layer(
                     repeat_x,
                     repeat_y,
                     compositing_and_blending_operator,
-                    isolated_backdrop_color,
+                    backdrop.opaque_color_under_lone_layer(),
                 );
             }
         }
@@ -626,7 +671,7 @@ fn paint_image_layer(
         && !repeat_y_has_gap
         && tile_count > MAX_TILES_BEFORE_PATTERN_FALLBACK
     {
-        apply_blend_layer(recorder, applied_blend_layer);
+        enter_blend_layer(recorder);
         // A not-decoded-image repeating background otherwise records a separate painting command
         // for every tile — which for very-large tile counts can lead to enough commands that we
         // crash. So, instead record a single tile into a nested display list, and fill the area
@@ -709,7 +754,7 @@ fn paint_image_layer(
             should_anti_alias: ShouldAntiAlias::Yes,
         });
     } else {
-        apply_blend_layer(recorder, applied_blend_layer);
+        enter_blend_layer(recorder);
         for image_device_rect in device_rects(image_rect) {
             let dest_rect = image_device_rect.to_float();
             if let Some(gradient) = &resolved_gradient {

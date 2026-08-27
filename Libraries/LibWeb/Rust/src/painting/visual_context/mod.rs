@@ -272,10 +272,30 @@ pub enum FrameRole {
     RootIsolation,
     ContentCornerClip,
     ContentClip,
-    OuterShadowClip { piece: PieceKey },
+    OuterShadowClip {
+        piece: PieceKey,
+    },
     FieldsetBackgroundClip,
     FieldsetTopBorderBand,
     LegendCutout,
+    BackgroundIsolation {
+        piece: PieceKey,
+    },
+    BackgroundLayerCornerClip {
+        piece: PieceKey,
+        layer: u16,
+        isolated: bool,
+    },
+    BackgroundLayerClip {
+        piece: PieceKey,
+        layer: u16,
+        isolated: bool,
+    },
+    BackgroundLayerBlend {
+        piece: PieceKey,
+        layer: u16,
+        isolated: bool,
+    },
 }
 
 pub struct FrameNode {

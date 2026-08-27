@@ -59,8 +59,8 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
                 .push(own_state.frame);
         }
 
-        let local_frames =
-            LocalFrameBuilder::new(&mut self.tree, self.layout_arena, slot, self.pixel_ratio, true).build(own_state);
+        let local_frames = LocalFrameBuilder::new(&mut self.tree, self.layout_arena, slot, self.pixel_ratio, true)
+            .build(own_state, None);
         if !local_frames.is_empty() {
             self.assignments.local_frames.insert(slot.index, local_frames);
         }

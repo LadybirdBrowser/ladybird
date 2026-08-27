@@ -8,11 +8,14 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::DisplayListResourceId;
+use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::paintable_data::PaintableKind;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::{NestedRecordingState, PaintPhase, PaintRecorder};
-use crate::painting::visual_context::nested::build_nested_svg_visual_context_tree;
+use crate::painting::visual_context::PieceKey;
+use crate::painting::visual_context::local_frames::LocalFrameBuilder;
+use crate::painting::visual_context::nested::{NestedAssignments, build_nested_svg_visual_context_tree};
 use crate::painting::visual_context::{FrameData, FrameNodeIndex, MaskLayerOrigin, TransformData, TransformDataRole};
 use libgfx_rust::{AffineTransform, FloatPoint};
 use libgfx_rust::{affine_to_matrix, translated_then_multiplied};
@@ -345,7 +348,7 @@ impl PaintRecorder<'_> {
         let resolved = crate::painting::record::paint::background_resolution::resolve_mask_layers(
             self, paintable, style, mask_rect,
         );
-        let tree = crate::painting::visual_context::VisualContextTree::create(TransformData {
+        let mut tree = crate::painting::visual_context::VisualContextTree::create(TransformData {
             matrix: libgfx_rust::FloatMatrix4x4::identity(),
             origin: FloatPoint::default(),
             sorting_context_root_index: None,
@@ -353,15 +356,37 @@ impl PaintRecorder<'_> {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
         });
-        let mut session = self.nested_recording_session(DisplayListRecorder::new(Vec::new()), None, Some(tree), false);
+        let root_context = ContextRef::spatial_only(VISUAL_VIEWPORT_NODE_INDEX);
+        let local_frames = LocalFrameBuilder::new(
+            &mut tree,
+            layout_arena,
+            paintable,
+            self.inputs.device_pixels_per_css_pixel,
+            true,
+        )
+        .build_css_mask_layer_frames(root_context, style, mask_rect, is_root_element);
+        let mut assignments = NestedAssignments::default();
+        assignments.local_frames.insert(paintable.index, local_frames);
+        let empty_effective_clips = tree.empty_effective_clips_by_frame();
+        let mut session = self.nested_recording_session(
+            DisplayListRecorder::new(empty_effective_clips),
+            Some(NestedRecordingState { assignments }),
+            Some(tree),
+            false,
+        );
+        session.recorder.set_accumulated_visual_context(root_context);
         // FIXME: Respect `image-rendering` here.
+        let inputs = crate::painting::record::paint::background_resolution::BackgroundPaintInputs {
+            resolved,
+            border_radii: crate::painting::border_radii::BorderRadii::default(),
+            image_rendering: crate::css::css_enums::image_rendering::AUTO,
+            is_root_element,
+        };
         crate::painting::record::paint::background::paint_resolved_background(
             &mut session,
             paintable,
-            &resolved,
-            crate::css::css_enums::image_rendering::AUTO,
-            is_root_element,
-            crate::painting::border_radii::BorderRadii::default(),
+            PieceKey::Box,
+            &inputs,
         );
         let tree = session
             .nested_tree
