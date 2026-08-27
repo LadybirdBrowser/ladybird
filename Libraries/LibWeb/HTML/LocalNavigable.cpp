@@ -506,6 +506,20 @@ void LocalNavigable::handle_as_a_download(GC::Ref<Fetch::Infrastructure::Respons
     start_download_for_response(response, download_url, move(suggested_filename), fetch_controller);
 }
 
+static void stop_or_resume_response_body_delivery(LocalNavigable::NavigationParamsVariant const& navigation_params)
+{
+    // AD-HOC: FetchController::stop_fetch() is an implementation hook for tearing down a paused network body when no
+    //         spec consumer remains.
+    auto const* nav_params = navigation_params.get_pointer<GC::Ref<NavigationParams>>();
+    if (!nav_params)
+        return;
+
+    if ((*nav_params)->fetch_controller)
+        (*nav_params)->fetch_controller->stop_fetch();
+    else
+        (*nav_params)->response->resume_body_delivery();
+}
+
 static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> navigation_params, bool source_allows_downloading, Optional<URL::Origin> interface_origin, Optional<ReadonlyBytes> initial_data = {})
 {
     auto response = navigation_params->response;
@@ -526,7 +540,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
     VERIFY(navigation_params->navigable);
     auto active_window = navigation_params->navigable->active_window();
     if (!active_window) {
-        response->release_request_transfer_lease();
+        stop_or_resume_response_body_delivery(navigation_params);
         return true;
     }
 
@@ -543,7 +557,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
             if (navigation_params->fetch_controller)
                 navigation_params->fetch_controller->stop_fetch();
             else
-                response->release_request_transfer_lease();
+                response->resume_body_delivery();
             return true;
         }
 
@@ -555,20 +569,6 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
 
     navigation_params->navigable->handle_as_a_download(*response, download_url, navigation_params->fetch_controller, {}, interface_origin);
     return true;
-}
-
-static void stop_or_resume_response_body_delivery(LocalNavigable::NavigationParamsVariant const& navigation_params)
-{
-    // AD-HOC: Fetch controller stop_fetch() is an implementation hook for
-    //         tearing down a paused network body when no spec consumer remains.
-    if (!navigation_params.has<GC::Ref<NavigationParams>>())
-        return;
-
-    auto const& nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
-    if (nav_params->fetch_controller)
-        nav_params->fetch_controller->stop_fetch();
-    else
-        nav_params->response->resume_body_delivery();
 }
 
 void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHistoryEntry> entry)
@@ -2383,6 +2383,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
     queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, output, completion_steps]() mutable {
         // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
         if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
+            stop_or_resume_response_body_delivery(navigation_params);
             if (completion_steps)
                 completion_steps->function()(nullptr);
             return;
@@ -2518,8 +2519,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                 nav_params->response->resume_body_delivery();
             }
         } else {
-            auto nav_params = navigation_params.get<GC::Ref<NavigationParams>>();
-            nav_params->response->release_request_transfer_lease();
+            stop_or_resume_response_body_delivery(navigation_params);
         }
 
         output->navigation_params = navigation_params;
