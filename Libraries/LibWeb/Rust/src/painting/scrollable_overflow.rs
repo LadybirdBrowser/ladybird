@@ -443,8 +443,10 @@ fn measure_scrollable_overflow_impl(
 
             let child_has_css_transform =
                 child_style.is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
-            let child_is_flex_item = layout_arena.node_flags_if_live(child_node) & NodeFlag::IsFlexItem as u32 != 0;
-            let child_is_floating = !child_is_flex_item && child_style.is_some_and(|style| style.is_floating());
+            let child_flags = layout_arena.node_flags_if_live(child_node);
+            let child_is_flex_or_grid_item =
+                child_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
+            let child_is_floating = !child_is_flex_or_grid_item && child_style.is_some_and(|style| style.is_floating());
             let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
 
             {
@@ -503,11 +505,32 @@ fn measure_scrollable_overflow_impl(
             // Border boxes with zero area do not affect the scrollable overflow area.
             if !child_border_box.is_empty() {
                 scrollable_overflow_rect.unite(child_border_box);
+
+                let untransformed_child_margin_box = if child_is_flex_or_grid_item {
+                    let child_margin = paintable_geometry::committed_margin(layout_arena, child_node);
+                    let zero = CssPixels::from_raw(0);
+                    Some(untransformed_child_border_box.inflated(
+                        child_margin.top.min(zero),
+                        child_margin.right.min(zero),
+                        child_margin.bottom.min(zero),
+                        child_margin.left.min(zero),
+                    ))
+                } else {
+                    None
+                };
+
                 let child_is_absolutely_positioned =
                     matches!(child_position, positioning::ABSOLUTE | positioning::FIXED);
                 let child_is_in_flow = !(child_is_floating || child_is_absolutely_positioned);
                 if child_is_in_flow || child_is_floating {
-                    in_flow_and_floated_content_bounds.unite(untransformed_child_border_box);
+                    if let Some(child_margin_box) = untransformed_child_margin_box {
+                        // Use negative flex and grid item margin edges to determine whether the container's end
+                        // padding has already been consumed by in-flow content.
+                        in_flow_and_floated_content_bounds.unite_horizontally(child_margin_box);
+                        in_flow_and_floated_content_bounds.unite_vertically(child_margin_box);
+                    } else {
+                        in_flow_and_floated_content_bounds.unite(untransformed_child_border_box);
+                    }
                 }
             }
 

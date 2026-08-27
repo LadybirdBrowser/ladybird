@@ -1,0 +1,69 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    .scroller {
+        height: 100px;
+        overflow: auto;
+        width: 100px;
+    }
+
+    .container {
+        height: 20px;
+        overflow: visible;
+        width: 20px;
+    }
+
+    #flex-container {
+        display: flex;
+    }
+
+    #grid-container {
+        display: grid;
+    }
+
+    #rtl-scroller {
+        align-items: flex-end;
+        direction: rtl;
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .item {
+        height: 20px;
+        margin-bottom: 200px;
+        width: 20px;
+    }
+
+    #rtl-item {
+        height: 20px;
+        left: 40px;
+        margin-right: 100px;
+        position: relative;
+        width: 20px;
+    }
+</style>
+<div class="scroller" id="flex-scroller">
+    <div class="container" id="flex-container">
+        <div class="item"></div>
+    </div>
+</div>
+<div class="scroller" id="grid-scroller">
+    <div class="container" id="grid-container">
+        <div class="item"></div>
+    </div>
+</div>
+<div class="scroller" id="rtl-scroller">
+    <div id="rtl-item"></div>
+</div>
+<script>
+    test(() => {
+        println(`flex scroll height: ${document.getElementById("flex-scroller").scrollHeight}`);
+        println(`grid scroll height: ${document.getElementById("grid-scroller").scrollHeight}`);
+        println(`rtl scroll width: ${document.getElementById("rtl-scroller").scrollWidth}`);
+    });
+</script>
