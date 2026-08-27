@@ -7,8 +7,24 @@ if (NOT Qt6_FOUND)
     return()
 endif()
 
+add_library(QtTestMain OBJECT
+    QtTestMain.cpp
+    "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
+)
+target_link_libraries(QtTestMain PRIVATE AK LibCore LibTest Qt::Core Qt::Gui Qt::Widgets)
+
 ladybird_test("TestNativeWindowContainerFocus.cpp" UI/Qt LIBS Qt::Core Qt::Gui Qt::Widgets)
 target_sources(TestNativeWindowContainerFocus PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/NativeWindowContainer.cpp")
+
+ladybird_test("TestJavaScriptDialog.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibURL Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestJavaScriptDialog PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/JavaScriptDialog.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+)
 
 ladybird_test("TestStringUtils.cpp" UI/Qt NAME TestQtStringUtils LIBS LibURL Qt::Core)
 target_sources(TestQtStringUtils PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp")
