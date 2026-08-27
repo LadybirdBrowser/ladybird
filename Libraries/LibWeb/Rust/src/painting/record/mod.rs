@@ -16,6 +16,7 @@ use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
 use crate::painting::border_radii::BorderRadii;
+use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::{ContextRef, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -38,7 +39,7 @@ pub struct RecordingOutput {
     // A default-constructed output's 0.0 never matches a real recording scale.
     pub recorded_device_pixels_per_css_pixel: f64,
     pub hit_test_list: HitTestList,
-    pub display_list_bytes: Vec<u8>,
+    pub display_list: RecordedDisplayList,
     pub has_blocking_wheel_event_listeners: bool,
     pub mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
     pub spliced_capture_count: usize,
