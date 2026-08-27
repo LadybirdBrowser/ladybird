@@ -27,6 +27,7 @@ public:
 
     enum class Type {
         Alert,
+        BeforeUnload,
         Confirm,
         Prompt,
     };
@@ -36,6 +37,7 @@ public:
     bool is_open() const { return m_type.has_value(); }
 
     void show_alert(QString const& title, QString const& message);
+    void show_before_unload(QString const& title);
     void show_confirm(QString const& title, QString const& message);
     void show_prompt(QString const& title, QString const& message, QString const& default_text);
     void set_prompt_text(QString const& text);
