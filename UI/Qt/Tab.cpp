@@ -738,7 +738,8 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
             if (auto index_to_activate = m_window->tab_index(m_tab_to_activate_on_close); index_to_activate >= 0)
                 m_window->activate_tab(index_to_activate);
         }
-        m_window->definitely_close_tab(index);
+        if (!m_window_is_closing)
+            m_window->definitely_close_tab(index);
     };
 
     view().on_link_hover = [this](auto const& url) {
@@ -755,12 +756,12 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     view().on_loading_state_change = [this](bool is_loading) {
         set_loading(is_loading);
     };
-    set_loading(view().is_loading());
-
     view().on_load_start = [this] {
+        m_window->on_tab_load_start(*this);
         if (m_content_blocking_popover)
             m_content_blocking_popover->close();
     };
+    set_loading(view().is_loading());
 
     view().on_load_finish = [this](auto const&) {
         m_suppress_javascript_dialogs_until_navigation = false;
@@ -868,7 +869,8 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
             VERIFY(on_complete);
             on_complete(accepted);
             if (!accepted) {
-                m_already_requested_close = false;
+                if (!m_preserve_close_retry_state_on_dialog_dismissal)
+                    m_already_requested_close = false;
                 m_suppress_javascript_dialogs_until_navigation = false;
             }
             break;
@@ -1765,8 +1767,11 @@ void Tab::find_next()
 
 void Tab::request_close()
 {
+    m_window->cancel_window_close_preflight();
     m_suppress_javascript_dialogs_until_navigation = true;
+    m_preserve_close_retry_state_on_dialog_dismissal = m_already_requested_close;
     m_javascript_dialog->dismiss();
+    m_preserve_close_retry_state_on_dialog_dismissal = false;
 
     if (!view().needs_beforeunload_check()) {
         auto request_close = view().prepare_for_immediate_close();
@@ -1812,12 +1817,15 @@ void Tab::request_window_close_preflight(Function<void(bool)> on_complete)
 
 void Tab::cancel_window_close_preflight()
 {
+    if (m_javascript_dialog->type() == JavaScriptDialog::Type::BeforeUnload)
+        m_javascript_dialog->dismiss();
     m_already_requested_close = false;
     m_suppress_javascript_dialogs_until_navigation = false;
 }
 
 Function<void()> Tab::prepare_for_window_close()
 {
+    m_window_is_closing = true;
     m_suppress_javascript_dialogs_until_navigation = true;
     m_javascript_dialog->dismiss();
     return view().prepare_for_close_without_prompting();

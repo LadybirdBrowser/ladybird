@@ -138,5 +138,8 @@ target_sources(TestJavaScriptDialog PRIVATE
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
 )
 
+ladybird_test("TestWindowCloseCoordinator.cpp" UI/Qt LIBS Qt::Core)
+target_sources(TestWindowCloseCoordinator PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/WindowCloseCoordinator.cpp")
+
 ladybird_test("TestStringUtils.cpp" UI/Qt NAME TestQtStringUtils LIBS LibURL Qt::Core)
 target_sources(TestQtStringUtils PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp")

@@ -511,6 +511,7 @@ void BrowserWindow::duplicate_tab(Tab& source_tab)
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<WebView::CanonicalTraversable&> traversable)
 {
+    cancel_window_close_preflight();
     if (!traversable.has_value())
         return create_new_tab(activate_tab, TabLocation::end());
 
@@ -546,6 +547,8 @@ bool BrowserWindow::has_chrome_in_titlebar()
 
 Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation location)
 {
+    cancel_window_close_preflight();
+
     auto* tab = new Tab(this);
 
     if (m_current_tab == nullptr) {
@@ -643,6 +646,8 @@ void BrowserWindow::uninitialize_tab(Tab* tab)
 
 void BrowserWindow::adopt_tab(Tab& tab, int index)
 {
+    cancel_window_close_preflight();
+
     index = clamp(index, 0, m_tabs_container->count());
 
     tab.set_window(*this);
@@ -692,6 +697,8 @@ void BrowserWindow::move_tab_to_window(int index, BrowserWindow& target_window, 
 
     if (is_private() != target_window.is_private())
         return;
+
+    cancel_window_close_preflight();
 
     auto* tab = m_tabs_container->tab(index);
     tab->view().prepare_for_window_move();
@@ -772,6 +779,8 @@ bool BrowserWindow::activate_tab_with_url(URL::URL const& url)
 
 bool BrowserWindow::definitely_close_tab(int index)
 {
+    cancel_window_close_preflight();
+
     if (m_tabs_container->count() == 1 && Application::the().file_downloader().has_active_downloads() && visible_browser_window_count() <= 1) {
         if (!Application::the().confirm_stop_active_downloads(this))
             return false;
@@ -1599,18 +1608,36 @@ void BrowserWindow::wheelEvent(QWheelEvent* event)
 
 void BrowserWindow::closeEvent(QCloseEvent* event)
 {
-    if (Application::the().file_downloader().has_active_downloads()) {
-        if (visible_browser_window_count() <= 1) {
-            if (!Application::the().confirm_stop_active_downloads(this)) {
-                event->ignore();
-                return;
+    if (!m_window_close_approved) {
+        if (m_window_close_coordinator.is_running()) {
+            event->ignore();
+            return;
+        }
+
+        if (Application::the().file_downloader().has_active_downloads()) {
+            if (visible_browser_window_count() <= 1) {
+                if (!Application::the().confirm_stop_active_downloads(this)) {
+                    event->ignore();
+                    return;
+                }
             }
         }
+
+        begin_window_close_preflight();
+        event->ignore();
+        return;
     }
+
+    Vector<Function<void()>> close_requests;
+    for_each_tab([&](auto& tab) {
+        close_requests.append(tab.prepare_for_window_close());
+    });
+    for (auto& close_request : close_requests)
+        close_request();
 
     clear_resize_cursor();
 
-    auto active_tab_index = static_cast<i64>(max(m_tabs_container->current_index(), 0));
+    auto active_tab_index = m_window_close_active_tab_index.value_or(static_cast<i64>(max(m_tabs_container->current_index(), 0)));
 
     if (m_is_private == WebView::IsPrivate::No) {
         if (m_is_popup_window == IsPopupWindow::No) {
@@ -1634,6 +1661,117 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
             dbgln("Unable to record the closing window in the session store: {}", result.error());
         Application::the().update_reopen_recently_closed_actions();
     }
+}
+
+void BrowserWindow::begin_window_close_preflight()
+{
+    m_window_close_active_tab_index = static_cast<i64>(max(m_tabs_container->current_index(), 0));
+    m_window_close_original_active_tab = m_current_tab;
+    m_window_close_current_preflight_tab = nullptr;
+    m_window_close_approved_tabs.clear();
+
+    Vector<QPointer<Tab>> tabs;
+    if (m_current_tab)
+        tabs.append(m_current_tab);
+    for_each_tab([&](auto& tab) {
+        if (&tab != m_current_tab)
+            tabs.append(&tab);
+    });
+
+    Vector<WindowCloseCoordinator::Preflight> preflights;
+    preflights.ensure_capacity(tabs.size());
+    for (auto tab : tabs) {
+        preflights.append([this, tab](Function<void(bool)> on_complete) mutable {
+            if (!tab) {
+                on_complete(true);
+                return;
+            }
+
+            auto index = tab_index(tab);
+            if (index < 0) {
+                on_complete(true);
+                return;
+            }
+
+            activate_tab(index);
+            m_window_close_current_preflight_tab = tab;
+            auto weak_this = QPointer<BrowserWindow>(this);
+            tab->request_window_close_preflight([weak_this, tab, on_complete = AK::move(on_complete)](bool approved) mutable {
+                if (!weak_this) {
+                    on_complete(approved);
+                    return;
+                }
+                if (weak_this->m_window_close_current_preflight_tab == tab)
+                    weak_this->m_window_close_current_preflight_tab = nullptr;
+                if (approved && tab && !weak_this->m_window_close_approved_tabs.contains([&](auto const& approved_tab) { return approved_tab == tab; }))
+                    weak_this->m_window_close_approved_tabs.append(tab);
+                on_complete(approved);
+            });
+        });
+    }
+
+    auto weak_this = QPointer<BrowserWindow>(this);
+    m_window_close_coordinator.start(
+        AK::move(preflights),
+        [weak_this] {
+            if (!weak_this)
+                return;
+            weak_this->m_window_close_approved = true;
+            QTimer::singleShot(0, weak_this, [weak_this] {
+                if (weak_this && weak_this->m_window_close_approved)
+                    weak_this->close();
+            });
+        },
+        [weak_this] {
+            if (!weak_this)
+                return;
+            if (auto* original_tab = weak_this->m_window_close_original_active_tab.data()) {
+                auto index = weak_this->tab_index(original_tab);
+                if (index >= 0)
+                    weak_this->activate_tab(index);
+            }
+            weak_this->m_window_close_active_tab_index.clear();
+            weak_this->m_window_close_original_active_tab = nullptr;
+            weak_this->m_window_close_current_preflight_tab = nullptr;
+            weak_this->m_window_close_approved_tabs.clear();
+            weak_this->for_each_tab([](auto& tab) {
+                tab.cancel_window_close_preflight();
+            });
+        });
+}
+
+void BrowserWindow::cancel_window_close_preflight()
+{
+    if (m_window_close_coordinator.is_running()) {
+        m_window_close_coordinator.cancel();
+        return;
+    }
+
+    if (!m_window_close_approved)
+        return;
+
+    if (auto* original_tab = m_window_close_original_active_tab.data()) {
+        auto index = tab_index(original_tab);
+        if (index >= 0)
+            activate_tab(index);
+    }
+    m_window_close_approved = false;
+    m_window_close_active_tab_index.clear();
+    m_window_close_original_active_tab = nullptr;
+    m_window_close_current_preflight_tab = nullptr;
+    m_window_close_approved_tabs.clear();
+    for_each_tab([](auto& tab) {
+        tab.cancel_window_close_preflight();
+    });
+}
+
+void BrowserWindow::on_tab_load_start(Tab& tab)
+{
+    if (!m_window_close_coordinator.is_running() && !m_window_close_approved)
+        return;
+
+    if (m_window_close_current_preflight_tab == &tab || m_window_close_approved_tabs.contains([&](auto const& approved_tab) { return approved_tab == &tab; }))
+        cancel_window_close_preflight();
 }
 
 }
