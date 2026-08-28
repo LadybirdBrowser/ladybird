@@ -27,11 +27,13 @@ const SPATIAL_KIND_TRANSFORM: u8 = 2;
 const SPATIAL_KIND_PERSPECTIVE: u8 = 3;
 const SPATIAL_KIND_BACKFACE_VISIBILITY: u8 = 4;
 const SPATIAL_KIND_ANCHOR_SCROLL_SHIFT: u8 = 5;
+const SPATIAL_KIND_DEAD: u8 = 6;
 
 const FRAME_KIND_CLIP: u8 = 0;
 const FRAME_KIND_CLIP_PATH: u8 = 1;
 const FRAME_KIND_EFFECTS: u8 = 2;
 const FRAME_KIND_MASK: u8 = 3;
+const FRAME_KIND_DEAD: u8 = 4;
 
 const MINIMUM_SERIALIZED_SPATIAL_NODE_SIZE: usize = 5;
 const MINIMUM_SERIALIZED_FRAME_NODE_SIZE: usize = 9;
@@ -308,6 +310,7 @@ fn write_spatial_data(writer: &mut TreeByteWriter, data: &SpatialData) {
             writer.bool(shift.compensate_horizontal_scroll);
             writer.bool(shift.compensate_vertical_scroll);
         }
+        SpatialData::Dead => writer.u8(SPATIAL_KIND_DEAD),
     }
 }
 
@@ -361,6 +364,7 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
             compensate_horizontal_scroll: reader.bool()?,
             compensate_vertical_scroll: reader.bool()?,
         }),
+        SPATIAL_KIND_DEAD => SpatialData::Dead,
         _ => return None,
     })
 }
@@ -392,6 +396,7 @@ fn write_frame_data(writer: &mut TreeByteWriter, data: &FrameData) {
             writer.i32(mask.kind as i32);
             writer.u8(mask.origin as u8);
         }
+        FrameData::Dead => writer.u8(FRAME_KIND_DEAD),
     }
 }
 
@@ -428,6 +433,7 @@ fn read_frame_data(reader: &mut TreeByteReader<'_>) -> Option<FrameData> {
             kind: reader.mask_kind()?,
             origin: reader.mask_layer_origin()?,
         }),
+        FRAME_KIND_DEAD => FrameData::Dead,
         _ => return None,
     })
 }
@@ -478,7 +484,9 @@ impl VisualContextTree {
             }
         }
         for node in &self.frame_nodes {
-            if node.spatial.0 as usize >= spatial_nodes.len() {
+            let spatial_is_out_of_range = node.spatial.0 as usize >= spatial_nodes.len();
+            let live_frame_in_a_tombstone = node.data.is_live() && !self.spatial_is_live(node.spatial);
+            if spatial_is_out_of_range || live_frame_in_a_tombstone {
                 return false;
             }
         }
@@ -554,6 +562,8 @@ impl VisualContextTree {
             return None;
         }
 
+        let live_spatial_node_count = spatial_nodes.iter().filter(|node| node.data.is_live()).count() as u32;
+        let live_frame_node_count = frame_nodes.iter().filter(|node| node.data.is_live()).count() as u32;
         let tree = Self {
             spatial_nodes,
             frame_nodes,
@@ -561,6 +571,12 @@ impl VisualContextTree {
             root_isolation_frame: (!root_isolation_frame.is_none()).then_some(root_isolation_frame),
             version,
             reused_previous_version: false,
+            live_spatial_node_count,
+            live_frame_node_count,
+            free_spatial_slots: Vec::new(),
+            free_frame_slots: Vec::new(),
+            quarantined_spatial_slots: Vec::new(),
+            quarantined_frame_slots: Vec::new(),
         };
         tree.decoded_references_are_consistent().then_some(tree)
     }
@@ -760,6 +776,7 @@ mod tests {
             (SpatialData::Perspective(a), SpatialData::Perspective(b)) => a == b,
             (SpatialData::BackfaceVisibility(a), SpatialData::BackfaceVisibility(b)) => a == b,
             (SpatialData::AnchorScrollShift(a), SpatialData::AnchorScrollShift(b)) => a == b,
+            (SpatialData::Dead, SpatialData::Dead) => true,
             _ => false,
         }
     }
@@ -774,6 +791,7 @@ mod tests {
                 a.opacity == b.opacity && a.blend_mode == b.blend_mode && a.filter == b.filter
             }
             (FrameData::Mask(a), FrameData::Mask(b)) => a == b,
+            (FrameData::Dead, FrameData::Dead) => true,
             _ => false,
         }
     }
@@ -784,6 +802,8 @@ mod tests {
         assert_eq!(a.root_isolation_frame, b.root_isolation_frame);
         assert_eq!(a.spatial_nodes.len(), b.spatial_nodes.len());
         assert_eq!(a.frame_nodes.len(), b.frame_nodes.len());
+        assert_eq!(a.live_spatial_node_count, b.live_spatial_node_count);
+        assert_eq!(a.live_frame_node_count, b.live_frame_node_count);
         for (node, other) in a.spatial_nodes.iter().zip(&b.spatial_nodes) {
             assert_eq!(node.parent, other.parent);
             assert!(spatial_data_matches(&node.data, &other.data));
@@ -808,6 +828,127 @@ mod tests {
                 .all(|node| node.role == FrameRole::Structural)
         );
         assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn a_tree_with_tombstones_round_trips_and_keeps_its_live_counts() {
+        let mut tree = tree_with_every_node_kind();
+        let scroll_node = SpatialNodeIndex(1);
+        let stale_transform = tree.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            scroll_node,
+        );
+        let stale_frame = tree.append_frame(
+            FrameData::Effects(EffectsData {
+                opacity: 0.5,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+            }),
+            FrameNodeIndex::NONE,
+            scroll_node,
+        );
+        assert!(tree.tombstone_spatial_slot(stale_transform));
+        assert!(tree.tombstone_frame_slot(stale_frame));
+        let bytes = tree.to_bytes();
+        let decoded = VisualContextTree::from_bytes(&bytes).expect("a serialized tree decodes");
+        assert_trees_match(&tree, &decoded);
+        assert!(!decoded.spatial_is_live(stale_transform));
+        assert!(!decoded.frame_is_live(stale_frame));
+        assert_eq!(decoded.dead_node_count(), 2);
+        assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn a_live_node_referencing_a_tombstone_is_rejected() {
+        let tree_with_tombstoned_target = |make_referencing_data: &dyn Fn(SpatialNodeIndex) -> SpatialData| {
+            let mut tree = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
+            let target = tree.append_spatial(
+                SpatialData::Scroll(ScrollData {
+                    state_slot: NO_SCROLL_STATE_SLOT,
+                    owner_paintable: NodeSlotId::INVALID,
+                    registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
+                }),
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            tree.append_spatial(make_referencing_data(target), VISUAL_VIEWPORT_NODE_INDEX);
+            assert!(tree.tombstone_spatial_slot(target));
+            tree
+        };
+        let plane_root = tree_with_tombstoned_target(&|target| {
+            SpatialData::BackfaceVisibility(BackfaceVisibilityData {
+                plane_root_index: target,
+                flattens_inherited_transform: false,
+            })
+        });
+        assert!(VisualContextTree::from_bytes(&encode_tree(&plane_root)).is_none());
+        let sorting_root = tree_with_tombstoned_target(&|target| {
+            SpatialData::Transform(TransformData {
+                sorting_context_root_index: Some(target),
+                ..transform(FloatMatrix4x4::identity())
+            })
+        });
+        assert!(VisualContextTree::from_bytes(&encode_tree(&sorting_root)).is_none());
+        let anchor = tree_with_tombstoned_target(&|target| {
+            SpatialData::AnchorScrollShift(AnchorScrollShift {
+                scroll_node_index: target,
+                negate: false,
+                compensate_horizontal_scroll: true,
+                compensate_vertical_scroll: true,
+            })
+        });
+        assert!(VisualContextTree::from_bytes(&encode_tree(&anchor)).is_none());
+        let scroller = tree_with_tombstoned_target(&|target| {
+            SpatialData::Sticky(StickyData::unconstrained(
+                target,
+                None,
+                NO_SCROLL_STATE_SLOT,
+                NodeSlotId::INVALID,
+                target,
+            ))
+        });
+        assert!(VisualContextTree::from_bytes(&encode_tree(&scroller)).is_none());
+    }
+
+    #[test]
+    fn a_live_node_under_a_tombstone_is_rejected() {
+        let mut child_under_tombstone = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
+        let parent = child_under_tombstone.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        child_under_tombstone.append_spatial(SpatialData::Transform(transform(FloatMatrix4x4::identity())), parent);
+        assert!(child_under_tombstone.tombstone_spatial_slot(parent));
+        assert!(VisualContextTree::from_bytes(&encode_tree(&child_under_tombstone)).is_none());
+
+        let effects = || {
+            FrameData::Effects(EffectsData {
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+            })
+        };
+        let mut frame_under_tombstone = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
+        let parent_frame =
+            frame_under_tombstone.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        frame_under_tombstone.append_frame(effects(), parent_frame, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(frame_under_tombstone.tombstone_frame_slot(parent_frame));
+        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_under_tombstone)).is_none());
+
+        let mut frame_in_tombstone = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
+        let spatial = frame_in_tombstone.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        frame_in_tombstone.append_frame(effects(), FrameNodeIndex::NONE, spatial);
+        assert!(frame_in_tombstone.tombstone_spatial_slot(spatial));
+        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_in_tombstone)).is_none());
+
+        let mut tombstoned_isolation_frame = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
+        let isolation_frame =
+            tombstoned_isolation_frame.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(tombstoned_isolation_frame.tombstone_frame_slot(isolation_frame));
+        tombstoned_isolation_frame.root_isolation_frame = Some(isolation_frame);
+        assert!(VisualContextTree::from_bytes(&encode_tree(&tombstoned_isolation_frame)).is_none());
     }
 
     #[test]

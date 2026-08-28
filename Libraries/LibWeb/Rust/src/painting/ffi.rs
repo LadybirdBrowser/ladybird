@@ -2386,6 +2386,47 @@ pub unsafe extern "C" fn visual_context_tree_frame_node_count(tree: *const c_voi
 
 /// # Safety
 ///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_live_spatial_node_count(tree: *const c_void) -> usize {
+    abort_on_panic(|| unsafe { tree_from_handle(tree) }.live_spatial_node_count as usize)
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_live_frame_node_count(tree: *const c_void) -> usize {
+    abort_on_panic(|| unsafe { tree_from_handle(tree) }.live_frame_node_count as usize)
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle; `command_runs` must address `command_run_count`
+/// runs and `mask_frames` `mask_frame_count` frame indices for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(
+    tree: *const c_void,
+    command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
+    command_run_count: usize,
+    mask_frames: *const FrameNodeIndex,
+    mask_frame_count: usize,
+) -> bool {
+    abort_on_panic(|| {
+        let tree = unsafe { tree_from_handle(tree) };
+        // SAFETY: The caller guarantees the slices address the stated number of values.
+        let (command_runs, mask_frames) = unsafe {
+            (
+                ffi_slice(command_runs, command_run_count),
+                ffi_slice(mask_frames, mask_frame_count),
+            )
+        };
+        tree.display_list_references_only_live_nodes(command_runs, mask_frames)
+    })
+}
+
+/// # Safety
+///
 /// `tree` must be a live retained tree handle; `scroll_offsets` must address `scroll_offsets_len`
 /// points and `out_local_point` must be writable.
 #[unsafe(no_mangle)]

@@ -170,6 +170,7 @@ WEB_API Vector<DisplayListCommandRun> compute_display_list_command_runs(Readonly
 // Runs must start at offset zero, follow each other without gaps, stay aligned, end at the tape's
 // end, and under DISPLAY_LIST_RUNS_DEBUG match the table recomputed from the tape.
 WEB_API ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun>);
+WEB_API ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const&, AccumulatedVisualContextTree const&);
 
 }
 

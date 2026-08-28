@@ -230,6 +230,7 @@ fn fill_replay_palette_in_dependency_order(
             SpatialData::AnchorScrollShift(shift) => {
                 write_spatial_translation(palette, shift.masked_offset(scroll_offsets));
             }
+            SpatialData::Dead => {}
         }
     }
 }
@@ -333,6 +334,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     self.painter.push_mask(&replay_mask_of(mask));
                     self.applied_mask_frame_count += 1;
                 }
+                FrameData::Dead => unreachable!("a run never records under a tombstoned frame"),
             }
             self.applied_frames.push(frame_index);
         }

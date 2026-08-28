@@ -49,6 +49,7 @@ public:
     void set_test_timeout(double milliseconds);
     void force_incompatible_visual_context_tree_rebuild();
     u64 visual_context_tree_node_count();
+    u64 visual_context_tree_node_capacity();
     void send_mismatched_visual_context_tree_update_to_compositor();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
