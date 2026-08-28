@@ -1351,12 +1351,12 @@ impl<'context> InlineFormattingContext<'context> {
                             line_builder.set_trailing_whitespace_on_previous_line();
                             continue;
                         }
-                        let line_is_empty = self
+                        let line_is_empty_or_ends_in_whitespace = self
                             .line_data()
                             .line_boxes
                             .last()
-                            .is_some_and(line_box::LineBoxData::is_empty);
-                        if !is_whitespace && (item.can_break_before || line_is_empty) {
+                            .is_some_and(line_box::LineBoxData::is_empty_or_ends_in_whitespace);
+                        if !is_whitespace && (item.can_break_before || line_is_empty_or_ends_in_whitespace) {
                             line_builder.break_if_needed(item.border_box_inline_size());
                         }
                     }
