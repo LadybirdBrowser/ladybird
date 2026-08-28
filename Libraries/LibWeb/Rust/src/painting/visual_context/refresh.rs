@@ -91,15 +91,17 @@ pub(crate) fn compute_sticky_data(
     let parent_sticky = (sticky_state.parent_slot != NO_SCROLL_STATE_SLOT
         && scroll_state.state_at_slot(sticky_state.parent_slot).is_sticky)
         .then(|| scroll_state.node_index_for_slot(sticky_state.parent_slot));
+    let paintable: NodeSlotId = sticky_state.paintable;
     let mut data = StickyData::unconstrained(
         scroll_state.node_index_for_slot(scroller_slot),
         parent_sticky,
         sticky_slot,
+        paintable,
+        scroll_state.node_index_for_slot(sticky_state.parent_slot),
     );
     if scroller_slot == NO_SCROLL_STATE_SLOT {
         return data;
     }
-    let paintable: NodeSlotId = sticky_state.paintable;
     let scroller = scroll_state.state_at_slot(scroller_slot).paintable;
     if !layout_arena.paintable_row_is_populated(paintable) || !layout_arena.paintable_row_is_populated(scroller) {
         return data;

@@ -20,6 +20,13 @@ pub struct FfiSvgMaskFacts {
     pub clip_area: OptionalCssPixelRect,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiVisualContextBoxNodeList {
+    SpatialNodes,
+    FrameNodes,
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiVisualContextTreeInputs {

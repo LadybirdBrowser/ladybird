@@ -473,6 +473,7 @@ pub fn replay_display_list(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
     use crate::painting::visual_context::{
         BackfaceVisibilityData, ClipData, ClipMode, EffectsData, FrameData, MaskData, MaskLayerOrigin, SpatialData,
@@ -729,6 +730,8 @@ mod tests {
         let scroll_node = tree.append_spatial(
             SpatialData::Scroll(crate::painting::visual_context::ScrollData {
                 state_slot: crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );

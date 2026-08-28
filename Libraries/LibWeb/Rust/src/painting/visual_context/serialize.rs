@@ -10,6 +10,7 @@ use super::{
     SpatialNodeIndex, StickyData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
     scroll_state::NO_SCROLL_STATE_SLOT,
 };
+use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize,
@@ -314,21 +315,29 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
     Some(match reader.u8()? {
         SPATIAL_KIND_SCROLL => SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
+            owner_paintable: NodeSlotId::INVALID,
+            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         }),
-        SPATIAL_KIND_STICKY => SpatialData::Sticky(StickyData {
-            scroller: reader.spatial_index()?,
-            parent_sticky: reader.optional_spatial_index()?,
-            position_relative_to_scroller: reader.point()?,
-            border_box_size: reader.size()?,
-            scrollport_size: reader.size()?,
-            containing_block_region: reader.float_rect()?,
-            needs_parent_offset_adjustment: reader.bool()?,
-            inset_top: reader.optional_f32()?,
-            inset_right: reader.optional_f32()?,
-            inset_bottom: reader.optional_f32()?,
-            inset_left: reader.optional_f32()?,
-            state_slot: NO_SCROLL_STATE_SLOT,
-        }),
+        SPATIAL_KIND_STICKY => {
+            let scroller = reader.spatial_index()?;
+            let parent_sticky = reader.optional_spatial_index()?;
+            SpatialData::Sticky(StickyData {
+                scroller,
+                parent_sticky,
+                position_relative_to_scroller: reader.point()?,
+                border_box_size: reader.size()?,
+                scrollport_size: reader.size()?,
+                containing_block_region: reader.float_rect()?,
+                needs_parent_offset_adjustment: reader.bool()?,
+                inset_top: reader.optional_f32()?,
+                inset_right: reader.optional_f32()?,
+                inset_bottom: reader.optional_f32()?,
+                inset_left: reader.optional_f32()?,
+                state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: parent_sticky.unwrap_or(scroller),
+            })
+        }
         SPATIAL_KIND_TRANSFORM => SpatialData::Transform(TransformData {
             matrix: reader.matrix()?,
             origin: reader.point()?,
@@ -572,6 +581,8 @@ mod tests {
         let scroll_node = tree.append_spatial(
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -606,6 +617,8 @@ mod tests {
                 inset_bottom: Some(2.5),
                 inset_left: None,
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: scroll_node,
             }),
             scroll_node,
         );
@@ -629,6 +642,8 @@ mod tests {
                 inset_bottom: None,
                 inset_left: Some(3.0),
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: scroll_node,
             }),
             outer_sticky,
         );
@@ -728,6 +743,8 @@ mod tests {
             (SpatialData::Sticky(a), SpatialData::Sticky(b)) => {
                 StickyData {
                     state_slot: NO_SCROLL_STATE_SLOT,
+                    owner_paintable: b.owner_paintable,
+                    registry_parent_node: b.registry_parent_node,
                     ..*a
                 } == *b
             }
@@ -831,6 +848,8 @@ mod tests {
         tree.append_spatial(
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -839,6 +858,8 @@ mod tests {
                 SpatialNodeIndex(1),
                 None,
                 NO_SCROLL_STATE_SLOT,
+                NodeSlotId::INVALID,
+                SpatialNodeIndex(1),
             )),
             SpatialNodeIndex(1),
         );
@@ -876,6 +897,8 @@ mod tests {
         let mut root_is_not_a_transform = hostile_tree();
         root_is_not_a_transform.spatial_nodes[0].data = SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
+            owner_paintable: NodeSlotId::INVALID,
+            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         });
         assert!(VisualContextTree::from_bytes(&encode_tree(&root_is_not_a_transform)).is_none());
 
@@ -898,6 +921,8 @@ mod tests {
             SpatialNodeIndex(1),
             Some(SpatialNodeIndex(1)),
             NO_SCROLL_STATE_SLOT,
+            NodeSlotId::INVALID,
+            SpatialNodeIndex(1),
         ));
         assert!(VisualContextTree::from_bytes(&encode_tree(&sticky_parent_is_not_sticky)).is_none());
 

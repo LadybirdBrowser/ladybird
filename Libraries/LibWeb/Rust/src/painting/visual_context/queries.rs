@@ -697,6 +697,7 @@ impl VisualContextTree {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::node_data::NodeSlotId;
     use crate::painting::visual_context::{
         BackfaceVisibilityData, ClipData, ClipMode, EffectsData, FrameData, PerspectiveData, ScrollData, SpatialData,
         StickyData, TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
@@ -722,6 +723,8 @@ mod tests {
     fn scroll() -> SpatialData {
         SpatialData::Scroll(ScrollData {
             state_slot: NO_SCROLL_STATE_SLOT,
+            owner_paintable: NodeSlotId::INVALID,
+            registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
         })
     }
 
@@ -1106,7 +1109,13 @@ mod tests {
         );
         let inner_scroll = tree.append_spatial(scroll(), transformed);
         let sticky = tree.append_spatial(
-            SpatialData::Sticky(StickyData::unconstrained(inner_scroll, None, NO_SCROLL_STATE_SLOT)),
+            SpatialData::Sticky(StickyData::unconstrained(
+                inner_scroll,
+                None,
+                NO_SCROLL_STATE_SLOT,
+                NodeSlotId::INVALID,
+                inner_scroll,
+            )),
             inner_scroll,
         );
         let mut scroll_offsets = vec![FloatPoint::default(); 5];
@@ -1153,6 +1162,8 @@ mod tests {
                 inset_bottom: None,
                 inset_left: None,
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: viewport_scroll_node,
             }),
             viewport_scroll_node,
         );
@@ -1177,6 +1188,8 @@ mod tests {
                 inset_bottom: None,
                 inset_left: None,
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: viewport_scroll_node,
             }),
             header_node,
         );
@@ -1212,6 +1225,8 @@ mod tests {
                 VISUAL_VIEWPORT_NODE_INDEX,
                 None,
                 NO_SCROLL_STATE_SLOT,
+                NodeSlotId::INVALID,
+                VISUAL_VIEWPORT_NODE_INDEX,
             )),
             VISUAL_VIEWPORT_NODE_INDEX,
         );

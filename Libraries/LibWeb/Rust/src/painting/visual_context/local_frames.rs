@@ -7,7 +7,7 @@
 use super::node_values::{border_radii_data, padding_edge_border_radii, piece_border_radii_data};
 use super::{
     ClipData, ClipMode, ClipPathData, ContextRef, FrameData, FrameNodeIndex, FrameRole, PatternedEdgeOwner, PieceKey,
-    VisualContextTree,
+    VisualContextNodeSink,
 };
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{background_box, line_style, overflow};
@@ -42,8 +42,8 @@ use std::rc::Rc;
 
 pub(crate) type LocalFrames = Vec<(FrameRole, FrameNodeIndex)>;
 
-pub(crate) struct LocalFrameBuilder<'a, Arena: PaintableRowsRead> {
-    tree: &'a mut VisualContextTree,
+pub(crate) struct LocalFrameBuilder<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> {
+    tree: &'a mut Sink,
     layout_arena: &'a Arena,
     slot: NodeSlotId,
     kind: NodeKind,
@@ -71,9 +71,9 @@ fn root_background_source_or_no_propagation(source: Option<FfiRootBackgroundSour
     })
 }
 
-impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
+impl<'a, Sink: VisualContextNodeSink, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Sink, Arena> {
     pub(crate) fn new(
-        tree: &'a mut VisualContextTree,
+        tree: &'a mut Sink,
         layout_arena: &'a Arena,
         slot: NodeSlotId,
         pixel_ratio: f64,
@@ -157,9 +157,7 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
     }
 
     fn append(&mut self, parent: ContextRef, data: FrameData, role: FrameRole) -> ContextRef {
-        let frame = self
-            .tree
-            .append_frame_with_role(data, parent.frame, parent.spatial, role);
+        let frame = self.tree.append_frame_node(data, parent.frame, parent.spatial, role);
         if let Some(frames) = &mut self.frames {
             frames.push((role, frame));
         }
