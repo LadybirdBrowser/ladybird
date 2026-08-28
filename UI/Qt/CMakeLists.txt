@@ -53,6 +53,7 @@ target_sources(ladybird PRIVATE
     Tab.cpp
     TabBar.cpp
     WebContentView.cpp
+    WindowCloseCoordinator.cpp
     WindowControlButton.cpp
     ladybird.qrc
 )
