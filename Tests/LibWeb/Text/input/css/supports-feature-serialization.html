@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const conditions = [
+            "selector(.item)",
+            "font-tech(color-COLRv1)",
+            "font-format(woff2)",
+            "at-rule(@media)",
+            "env(preferred-text-scale)",
+            "(display: grid)",
+            "not ((display: grid) and ((color: red) or (width: 1px)))",
+        ];
+
+        for (const condition of conditions) {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(`@supports ${condition} {}`);
+            const rule = sheet.cssRules[0];
+            println(`input: ${condition}`);
+            println(`conditionText: ${rule.conditionText}`);
+            println(`cssText: ${JSON.stringify(rule.cssText)}`);
+        }
+    });
+</script>

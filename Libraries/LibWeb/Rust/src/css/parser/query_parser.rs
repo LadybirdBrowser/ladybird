@@ -1542,8 +1542,7 @@ fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: Quer
                 sink.push_ascii(")");
             }
             SupportsFeature::Env { name, .. } => {
-                // NB: Preserve the existing C++ serialization until the behavior can be changed separately.
-                sink.push_ascii("font-format(");
+                sink.push_ascii("env(");
                 serialize_an_identifier(sink, &StringUnits::Utf16(name));
                 sink.push_ascii(")");
             }
