@@ -155,6 +155,14 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
     document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
 }
 
+u64 Internals::accumulated_visual_context_incremental_update_count()
+{
+    auto& document = window().associated_document();
+    if (!document.has_committed_viewport_box())
+        return 0;
+    return document.paint_state().accumulated_visual_context_tree_incremental_update_count();
+}
+
 u64 Internals::visual_context_pending_dirty_box_count()
 {
     auto& document = window().associated_document();

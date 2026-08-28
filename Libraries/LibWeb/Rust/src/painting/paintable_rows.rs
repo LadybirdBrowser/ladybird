@@ -684,6 +684,13 @@ impl LayoutNodeArena {
         .ok()
     }
 
+    pub(crate) fn cloned_paintable_visual_context_record(
+        &self,
+        id: NodeSlotId,
+    ) -> Option<PaintableVisualContextRecord> {
+        self.paintable_visual_context_record(id).map(|record| record.clone())
+    }
+
     pub(crate) fn take_paintable_visual_context_record(&self, id: NodeSlotId) -> Option<PaintableVisualContextRecord> {
         if !self.paintable_row_is_populated(id) {
             return None;
@@ -709,6 +716,17 @@ impl LayoutNodeArena {
             Some(record) => read(&record.node_handles),
             None => read(&EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES),
         }
+    }
+
+    pub(crate) fn mark_paintable_subtree_may_own_geometry_dependent_nodes(&self, id: NodeSlotId) -> Option<bool> {
+        if !self.paintable_row_is_populated(id) {
+            return None;
+        }
+        let mut records = self.paintable_rows.visual_context_records.borrow_mut();
+        let record = records.get_mut(id.slot_index() as usize)?.as_mut()?;
+        let was_flagged = record.subtree_may_own_geometry_dependent_nodes;
+        record.subtree_may_own_geometry_dependent_nodes = true;
+        Some(was_flagged)
     }
 
     pub(crate) fn note_visual_context_box_dirty(&self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {

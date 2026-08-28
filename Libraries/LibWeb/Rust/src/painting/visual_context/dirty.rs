@@ -39,6 +39,10 @@ impl BoxDirtyBits {
         self.0 & kind.bit() != 0
     }
 
+    pub fn merge(&mut self, other: BoxDirtyBits) {
+        self.0 |= other.0;
+    }
+
     pub fn moves_descendants(&self) -> bool {
         self.contains(VisualContextBoxDirtyKind::MovedWithDescendants)
             || self.contains(VisualContextBoxDirtyKind::ContainingBlockChanged)
@@ -69,6 +73,7 @@ pub enum VisualContextGlobalRebuildReason {
     SvgResourceSubtreeChanged = 6,
     FilterResourcesChanged = 7,
     ForcedForTesting = 8,
+    StructuralDirtyBoxes = 9,
 }
 
 #[derive(Default)]

@@ -1905,7 +1905,6 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_accumulated_visual_contexts_update { false };
-    Vector<Layout::RustFFI::NodeSlotId> m_boxes_needing_visual_context_value_update;
 
     bool m_needs_full_scrollable_overflow_recalculation { false };
     Vector<Layout::RustFFI::NodeSlotId> m_boxes_needing_scrollable_overflow_recalculation;

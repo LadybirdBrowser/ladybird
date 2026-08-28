@@ -44,6 +44,15 @@ pub enum FfiVisualContextBoxNodeList {
     FrameNodes,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiVisualContextUpdateOutcome {
+    pub performed_full_build: bool,
+    pub structural_epoch_changed: bool,
+    pub requires_display_list_recording: bool,
+    pub structural_epoch: u64,
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiVisualContextTreeInputs {

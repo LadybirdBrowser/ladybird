@@ -306,7 +306,28 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         if output.assignment.record.has_mask_nodes {
             self.paintables_with_mask_nodes.push(slot);
         }
-        self.assignments[slot.slot_index() as usize] = Some(output.assignment);
+        let mut assignment = output.assignment;
+        assignment.record.owns_geometry_dependent_nodes = super::incremental::box_owns_geometry_dependent_nodes(
+            self.layout_arena,
+            &self.tree,
+            slot,
+            &assignment.record.node_handles,
+        );
+        if assignment.record.owns_geometry_dependent_nodes {
+            assignment.record.subtree_may_own_geometry_dependent_nodes = true;
+            let mut ancestor = crate::painting::paint_order::paint_parent(self.layout_arena, slot);
+            while let Some(current) = ancestor {
+                let Some(ancestor_assignment) = self.assignments[current.slot_index() as usize].as_mut() else {
+                    break;
+                };
+                if ancestor_assignment.record.subtree_may_own_geometry_dependent_nodes {
+                    break;
+                }
+                ancestor_assignment.record.subtree_may_own_geometry_dependent_nodes = true;
+                ancestor = crate::painting::paint_order::paint_parent(self.layout_arena, current);
+            }
+        }
+        self.assignments[slot.slot_index() as usize] = Some(assignment);
         output.descendant_contexts
     }
 
@@ -399,6 +420,8 @@ pub(crate) fn build_visual_context_tree(
                 node_handles: BoxVisualContextNodeHandles::default(),
                 has_mask_nodes: false,
                 may_be_root_element: false,
+                owns_geometry_dependent_nodes: false,
+                subtree_may_own_geometry_dependent_nodes: false,
             },
         );
         viewport_assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
@@ -529,112 +552,4 @@ pub(crate) fn build_visual_context_tree(
         builder.paintables_with_mask_nodes,
         builder.assignments.into_iter().flatten().collect(),
     )
-}
-
-// Patches the transform/effects/perspective values of the box's existing visual context nodes in place.
-// Returns false if the box's node structure no longer matches; the caller must then do a full rebuild.
-pub(crate) fn update_visual_context_values(
-    layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
-    tree: &mut VisualContextTree,
-    slot: NodeSlotId,
-    pixel_ratio: f64,
-) -> (bool, Option<bool>) {
-    let Some(node_handles) = layout_arena
-        .paintable_visual_context_record(slot)
-        .map(|record| record.node_handles.clone())
-    else {
-        return (false, None);
-    };
-    if node_handles
-        .spatial
-        .iter()
-        .any(|index| index.0 as usize >= tree.spatial_nodes.len())
-        || node_handles
-            .frame_handles()
-            .any(|index| index.0 as usize >= tree.frame_nodes.len())
-    {
-        return (false, None);
-    }
-    let transform_with_invertibility =
-        super::node_values::compute_transform(layout_arena, callbacks, slot, pixel_ratio);
-    let transform = transform_with_invertibility.map(|(transform, _)| transform);
-    let transform_is_invertible = transform_with_invertibility.is_some_and(|(_, invertible)| invertible);
-    let effects = super::node_values::compute_effects_data(layout_arena, callbacks, slot, pixel_ratio);
-    let perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
-    let svg_viewport_transform_data = svg_viewport_transform_of(layout_arena, slot)
-        .map(|transform| compute_svg_viewport_transform_data(layout_arena, slot, transform, pixel_ratio));
-
-    let has_non_invertible_css_transform = transform.is_some() && !transform_is_invertible;
-
-    let compatible = (|| {
-        let mut found_css_transform = false;
-        let mut found_svg_viewport_transform = false;
-        let mut found_effects = false;
-        let mut found_perspective = false;
-        for index in node_handles.spatial.iter().map(|index| index.0 as usize) {
-            match &mut tree.spatial_nodes[index].data {
-                SpatialData::Transform(transform_data) => {
-                    if transform_data.role == TransformDataRole::SvgViewportTransform {
-                        let Some(mut new_data) = svg_viewport_transform_data else {
-                            return false;
-                        };
-                        new_data.flattens_inherited_transform = transform_data.flattens_inherited_transform;
-                        *transform_data = new_data;
-                        found_svg_viewport_transform = true;
-                        continue;
-                    }
-                    // A synthetic plane node has no computed transform behind it. It stays as-is unless the element
-                    // gained a real transform, which changes the structure the node was built for.
-                    if transform_data.synthetic_plane {
-                        if transform.is_some() {
-                            return false;
-                        }
-                        continue;
-                    }
-                    let Some(mut new_data) = transform else {
-                        return false;
-                    };
-                    new_data.flattens_inherited_transform = transform_data.flattens_inherited_transform;
-                    new_data.sorting_context_root_index = transform_data.sorting_context_root_index;
-                    new_data.establishes_sorting_context = transform_data.establishes_sorting_context;
-                    *transform_data = new_data;
-                    found_css_transform = true;
-                }
-                SpatialData::Perspective(perspective_data) => {
-                    let Some(mut new_data) = perspective else {
-                        return false;
-                    };
-                    new_data.flattens_inherited_transform = perspective_data.flattens_inherited_transform;
-                    *perspective_data = new_data;
-                    found_perspective = true;
-                }
-                _ => {}
-            }
-        }
-        for index in node_handles.frame_handles().map(|index| index.0 as usize) {
-            let node = &mut tree.frame_nodes[index];
-            if node.role != FrameRole::Structural {
-                continue;
-            }
-            // The builder duplicates a box's EffectsData into the positioned-descendant chains, so every
-            // node of a kind is patched with the same recomputed payload.
-            if let FrameData::Effects(effects_data) = &mut node.data {
-                let Some(new_effects) = &effects else {
-                    return false;
-                };
-                *effects_data = EffectsData {
-                    opacity: new_effects.opacity,
-                    blend_mode: new_effects.blend_mode,
-                    filter: new_effects.filter.clone(),
-                };
-                found_effects = true;
-            }
-        }
-        transform.is_some() == found_css_transform
-            && effects.is_some() == found_effects
-            && perspective.is_some() == found_perspective
-            && svg_viewport_transform_data.is_some() == found_svg_viewport_transform
-    })();
-    (compatible, Some(has_non_invertible_css_transform))
 }

@@ -112,35 +112,29 @@ void DocumentPaintState::clear_scroll_state(DOM::Document& document)
     mirror_rust_clear_scroll_state(document);
 }
 
-void DocumentPaintState::assign_accumulated_visual_contexts(DOM::Document& document)
+void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& document)
 {
-    clear_scroll_state(document);
-    ++m_accumulated_visual_context_tree_build_count;
-    auto forced_incompatible_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
+    auto force_full_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
     m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
-    auto is_compatible = rust_assign_accumulated_visual_contexts(document, forced_incompatible_rebuild);
-    if (!is_compatible)
+    auto result = rust_update_accumulated_visual_contexts(document, force_full_rebuild);
+    if (result.performed_full_build) {
+        m_scroll_state_snapshot = {};
+        ++m_accumulated_visual_context_tree_build_count;
+    } else {
+        ++m_accumulated_visual_context_tree_incremental_update_count;
+    }
+    set_needs_to_refresh_scroll_state(document, true);
+    if (result.requires_display_list_recording)
         document.set_needs_to_record_display_list();
-    m_visual_context_tree_visual_animations = nullptr;
+    if (result.performed_full_build || result.structural_epoch_changed)
+        m_visual_context_tree_visual_animations = nullptr;
     m_visual_context_tree_needs_compositor_update = true;
-}
-
-bool DocumentPaintState::update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable_slot)
-{
-    if (!has_visual_context_tree())
-        return false;
-    if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
-        return false;
-    if (!rust_update_accumulated_visual_context_values(document, paintable_slot))
-        return false;
-    m_visual_context_tree_needs_compositor_update = true;
-    return true;
 }
 
 void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::Document& document)
 {
     if (!has_visual_context_tree()) {
-        assign_accumulated_visual_contexts(document);
+        update_accumulated_visual_contexts(document);
         return;
     }
     rust_update_visual_viewport_transform(document);
