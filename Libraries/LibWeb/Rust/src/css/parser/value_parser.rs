@@ -165,8 +165,7 @@ pub struct ParseContext {
     pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub precomputed_svg_paths: *const FfiPrecomputedSvgPath,
     pub precomputed_svg_path_count: usize,
-    pub descriptor_integer_resolution_context: *const c_void,
-    pub resolve_descriptor_integer: Option<unsafe extern "C" fn(*const c_void, *const c_void, *mut i32) -> bool>,
+    pub length_resolution_context: *const c_void,
     pub random_function_index: *mut usize,
 }
 
@@ -6022,8 +6021,7 @@ mod tests {
             normalize_svg_path_data: None,
             precomputed_svg_paths: std::ptr::null(),
             precomputed_svg_path_count: 0,
-            descriptor_integer_resolution_context: std::ptr::null(),
-            resolve_descriptor_integer: None,
+            length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }
     }

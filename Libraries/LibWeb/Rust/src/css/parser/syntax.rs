@@ -563,8 +563,7 @@ mod tests {
             normalize_svg_path_data: None,
             precomputed_svg_paths: std::ptr::null(),
             precomputed_svg_path_count: 0,
-            descriptor_integer_resolution_context: std::ptr::null(),
-            resolve_descriptor_integer: None,
+            length_resolution_context: std::ptr::null(),
             random_function_index,
         }
     }
