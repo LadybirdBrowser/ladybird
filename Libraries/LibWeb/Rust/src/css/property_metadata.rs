@@ -29,6 +29,34 @@ pub(crate) fn property_name(property_id: u16) -> &'static str {
         .unwrap_or("<unknown>")
 }
 
+fn compare_property_name(candidate: &str, name: &[u16]) -> std::cmp::Ordering {
+    candidate.bytes().map(u16::from).cmp(name.iter().map(|&code_unit| {
+        if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
+            code_unit + u16::from(b'a' - b'A')
+        } else {
+            code_unit
+        }
+    }))
+}
+
+pub(crate) fn is_custom_property_name(name: &[u16]) -> bool {
+    name.len() > 2 && name[0] == u16::from(b'-') && name[1] == u16::from(b'-')
+}
+
+// NB: This mirrors the property-name resolution formerly performed by
+//     CSS/Parser/RustSyntaxParsing.cpp:106 and CSS/Parser/RustQueryParsing.cpp:63.
+//     Legacy aliases are accepted by the generated table, while custom property
+//     names map to PropertyID::Custom.
+pub(crate) fn property_id_from_name(name: &[u16]) -> Option<u16> {
+    if is_custom_property_name(name) {
+        return Some(property_id::CUSTOM);
+    }
+    PROPERTY_NAME_LOOKUP
+        .binary_search_by(|(candidate, _)| compare_property_name(candidate, name))
+        .ok()
+        .map(|index| PROPERTY_NAME_LOOKUP[index].1)
+}
+
 pub(crate) fn property_accepted_keywords(property_id: u16) -> &'static [u16] {
     PROPERTY_ACCEPTED_KEYWORDS[property_index(property_id)]
 }
@@ -273,6 +301,33 @@ pub extern "C" fn rust_animation_property_is_preferred(a: u16, b: u16) -> bool {
 mod tests {
     use super::*;
     use crate::css::css_enums::keyword;
+
+    fn utf16(value: &str) -> Vec<u16> {
+        value.encode_utf16().collect()
+    }
+
+    #[test]
+    fn resolves_property_names() {
+        for (index, name) in PROPERTY_NAMES.iter().enumerate() {
+            assert_eq!(property_id_from_name(&utf16(name)), Some(index as u16 + 1), "{name}");
+        }
+        for &(name, property_id) in &PROPERTY_NAME_LOOKUP {
+            assert_eq!(property_id_from_name(&utf16(name)), Some(property_id), "{name}");
+        }
+
+        assert_eq!(
+            property_id_from_name(&utf16("BaCkGrOuNd-CoLoR")),
+            Some(property_id::BACKGROUND_COLOR)
+        );
+        assert_eq!(
+            property_id_from_name(&utf16("-WeBkIt-BoX-OrIeNt")),
+            Some(property_id::FLEX_DIRECTION)
+        );
+        assert_eq!(property_id_from_name(&utf16("--")), None);
+        assert_eq!(property_id_from_name(&utf16("--x")), Some(property_id::CUSTOM));
+        assert_eq!(property_id_from_name(&utf16("-webkit-foo")), None);
+        assert_eq!(property_id_from_name(&utf16("unknown-property")), None);
+    }
 
     #[test]
     fn layout_geometry_effects_include_direct_and_indirect_effects() {

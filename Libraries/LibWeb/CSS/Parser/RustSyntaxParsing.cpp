@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
-#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
@@ -102,13 +101,6 @@ void QualifiedRule::for_each_as_declaration_list(Utf16FlyString const& rule_name
 }
 
 using namespace ValueParserFFI;
-
-static u16 resolve_property_id(u16 const* code_units, size_t length)
-{
-    auto name = Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length });
-    auto property = PropertyNameAndID::from_name(move(name));
-    return property.has_value() ? to_underlying(property->id()) : NumericLimits<u16>::max();
-}
 
 static Utf16View utf16_value(FfiSyntaxParseData const& data, size_t offset, size_t length)
 {
@@ -332,7 +324,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
 Vector<Rule> RustSyntaxParser::parse_stylesheet(Parser& parser)
 {
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
-    auto* parse = rust_parse_css_stylesheet_syntax(ffi_utf16_view(parser.m_source), &context.context, resolve_property_id, RustQueryParser::resolve_query_feature);
+    auto* parse = rust_parse_css_stylesheet_syntax(ffi_utf16_view(parser.m_source), &context.context, RustQueryParser::resolve_query_feature);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);
@@ -348,7 +340,7 @@ Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleCon
 {
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
     static_assert(sizeof(RuleContext) == sizeof(u8));
-    auto* parse = rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context, resolve_property_id, RustQueryParser::resolve_query_feature);
+    auto* parse = rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context, RustQueryParser::resolve_query_feature);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);
@@ -361,7 +353,7 @@ Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleCon
 ParsedRulePrelude RustSyntaxParser::parse_keyframe_selectors(Parser& parser)
 {
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
-    auto* parse = rust_parse_css_keyframe_selectors_syntax(ffi_utf16_view(parser.m_source), &context.context, resolve_property_id, RustQueryParser::resolve_query_feature);
+    auto* parse = rust_parse_css_keyframe_selectors_syntax(ffi_utf16_view(parser.m_source), &context.context, RustQueryParser::resolve_query_feature);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);
@@ -381,7 +373,7 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
 {
     static_assert(sizeof(RuleContext) == sizeof(u8));
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
-    auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, resolve_property_id, RustQueryParser::resolve_query_feature, preserve_property_source_text == PreservePropertySourceText::Yes);
+    auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, RustQueryParser::resolve_query_feature, preserve_property_source_text == PreservePropertySourceText::Yes);
     VERIFY(parse);
     ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
     auto data = rust_css_syntax_parse_data(parse);

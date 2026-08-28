@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
-#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/QueryValueType.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -53,14 +52,11 @@ u16 RustQueryParser::resolve_query_feature(u8 kind, u16 const* code_units, size_
             return NumericLimits<u16>::max();
         return to_underlying(*id) | (media_feature_type_is_range(*id) ? 0x100 : 0);
     }
-    if (kind == 1) {
-        auto id = size_feature_id_from_string(name);
-        if (!id.has_value())
-            return NumericLimits<u16>::max();
-        return to_underlying(*id) | (size_feature_type_is_range(*id) ? 0x100 : 0);
-    }
-    VERIFY(kind == 2);
-    return PropertyNameAndID::from_name(Utf16FlyString::from_utf16(name)).has_value() ? 0 : NumericLimits<u16>::max();
+    VERIFY(kind == 1);
+    auto id = size_feature_id_from_string(name);
+    if (!id.has_value())
+        return NumericLimits<u16>::max();
+    return to_underlying(*id) | (size_feature_type_is_range(*id) ? 0x100 : 0);
 }
 
 static bool at_rule_is_supported(Utf16View name)
