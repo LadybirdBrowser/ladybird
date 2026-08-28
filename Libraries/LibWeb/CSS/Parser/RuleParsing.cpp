@@ -780,7 +780,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 
     if (page_rule.parsed_prelude.kind != ParsedRulePreludeKind::PageSelectors)
         return nullptr;
-    auto page_selectors = page_selector_list_from_parsed_prelude(page_rule.parsed_prelude);
+    auto page_selectors = page_rule.parsed_prelude.page_selectors;
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     page_rule.for_each_as_declaration_rule_list(
