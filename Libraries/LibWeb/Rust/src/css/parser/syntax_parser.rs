@@ -29,7 +29,7 @@ use crate::css::parser::value_parser::{
     FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
     is_valid_custom_ident, parse_css_value_with_utf16_source, parse_url_value,
 };
-use crate::css::property_metadata::property_id;
+use crate::css::property_metadata::{property_id, property_id_from_name};
 use crate::css::selector_parser::{RustParsedSelectorList, SelectorType, parse_selector_list_from_component_values};
 use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_compute::value_is_computationally_independent;
@@ -1973,7 +1973,6 @@ pub struct FfiSyntaxParse {
     query_handles: Vec<Arc<FfiQueryHandle>>,
     diagnostics: Vec<FfiSyntaxDiagnostic>,
     parse_context: *const ParseContext,
-    resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     resolve_query_feature: Option<ResolveQueryFeature>,
     preserve_property_source_text: bool,
 }
@@ -2106,7 +2105,6 @@ fn parse_font_feature_values(declaration: &Declaration, maximum_value_count: usi
 impl FfiSyntaxParse {
     pub(crate) fn new(
         parse_context: *const ParseContext,
-        resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
         resolve_query_feature: Option<ResolveQueryFeature>,
         preserve_property_source_text: bool,
     ) -> Self {
@@ -2127,7 +2125,6 @@ impl FfiSyntaxParse {
             query_handles: Vec::new(),
             diagnostics: Vec::new(),
             parse_context,
-            resolve_property_id,
             resolve_query_feature,
             preserve_property_source_text,
         }
@@ -2333,15 +2330,9 @@ impl FfiSyntaxParse {
                 None => (u16::MAX, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
             };
         }
-        let Some(resolve_property_id) = self.resolve_property_id else {
+        let Some(property_id) = property_id_from_name(declaration.name.as_ref()) else {
             return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         };
-        // SAFETY: The declaration name remains live for this callback and the caller owns the callback.
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolvePropertyIdCallback);
-        let property_id = unsafe { resolve_property_id(declaration.name.as_ptr(), declaration.name.len()) };
-        if property_id == u16::MAX {
-            return (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
-        }
 
         let parse_context = unsafe { &*self.parse_context };
         let mut value_contexts = if parse_context.value_context_count == 0 {
@@ -2917,7 +2908,6 @@ fn token_diagnostics(tokens: &[ParserToken]) -> Vec<FfiSyntaxDiagnostic> {
 pub unsafe extern "C" fn rust_parse_css_stylesheet_syntax(
     source: FfiUtf16View,
     parse_context: *const ParseContext,
-    resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     resolve_query_feature: ResolveQueryFeature,
 ) -> *mut FfiSyntaxParse {
     crate::abort_on_panic(|| {
@@ -2925,7 +2915,7 @@ pub unsafe extern "C" fn rust_parse_css_stylesheet_syntax(
             return std::ptr::null_mut();
         };
         let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
-        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, Some(resolve_query_feature), false);
+        let mut parse = FfiSyntaxParse::new(parse_context, Some(resolve_query_feature), false);
         parse.diagnostics = diagnostics;
         let rules = parser.consume_stylesheet_contents();
         parse.append_roots(&rules);
@@ -2944,7 +2934,6 @@ pub unsafe extern "C" fn rust_parse_css_rule_syntax(
     context_count: usize,
     nested: bool,
     parse_context: *const ParseContext,
-    resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     resolve_query_feature: ResolveQueryFeature,
 ) -> *mut FfiSyntaxParse {
     crate::abort_on_panic(|| {
@@ -2969,7 +2958,7 @@ pub unsafe extern "C" fn rust_parse_css_rule_syntax(
             return std::ptr::null_mut();
         };
         let (parser, diagnostics) = Parser::from_source(source, contexts);
-        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, Some(resolve_query_feature), false);
+        let mut parse = FfiSyntaxParse::new(parse_context, Some(resolve_query_feature), false);
         parse.diagnostics = diagnostics;
         let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
         if let Some(rule) = rule {
@@ -2987,7 +2976,6 @@ pub unsafe extern "C" fn rust_parse_css_rule_syntax(
 pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
     source: FfiUtf16View,
     parse_context: *const ParseContext,
-    resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     resolve_query_feature: ResolveQueryFeature,
 ) -> *mut FfiSyntaxParse {
     crate::abort_on_panic(|| {
@@ -2997,7 +2985,7 @@ pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
         let tokens = tokenize_for_parser(source);
         let diagnostics = token_diagnostics(&tokens);
         let prelude = consume_a_list_of_component_values(tokens).unwrap_or_default();
-        let mut parse = FfiSyntaxParse::new(parse_context, resolve_property_id, Some(resolve_query_feature), false);
+        let mut parse = FfiSyntaxParse::new(parse_context, Some(resolve_query_feature), false);
         parse.diagnostics = diagnostics;
         parse.append_roots(&[Rule::Qualified(QualifiedRule {
             prelude,
@@ -3021,7 +3009,6 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
     contexts: *const u8,
     context_count: usize,
     parse_context: *const ParseContext,
-    resolve_property_id: Option<unsafe extern "C" fn(*const u16, usize) -> u16>,
     resolve_query_feature: ResolveQueryFeature,
     preserve_property_source_text: bool,
 ) -> *mut FfiSyntaxParse {
@@ -3049,7 +3036,6 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
         let (mut parser, diagnostics) = Parser::from_source(source, contexts);
         let mut parse = FfiSyntaxParse::new(
             parse_context,
-            resolve_property_id,
             Some(resolve_query_feature),
             preserve_property_source_text,
         );
@@ -3143,7 +3129,7 @@ mod tests {
 
     #[test]
     fn exposes_token_diagnostics_with_source_spans() {
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, None, false);
+        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, false);
         let tokens =
             crate::css::css_tokenizer::tokenize_for_parser(&utf16("a { color: \"bad\n; background: url(foo\"bar) }"));
         parse.diagnostics = token_diagnostics(&tokens);
@@ -3240,7 +3226,7 @@ mod tests {
     #[test]
     fn transfers_selector_preludes_verbatim() {
         let rules = parse_stylesheet(b":heading(1.0) {}");
-        let mut parse = super::FfiSyntaxParse::new(std::ptr::null(), None, None, false);
+        let mut parse = super::FfiSyntaxParse::new(std::ptr::null(), None, false);
         parse.append_roots(&rules);
         let rule = parse.rules[parse.roots[0]];
         assert_eq!(
@@ -3261,7 +3247,7 @@ mod tests {
     #[test]
     fn parses_selector_preludes_from_component_values() {
         let rules = parse_stylesheet(b"svg|a {} :heading(1.0) {} a { > b {} @scope (> .start) to (> .end) {} }");
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, None, false);
+        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, false);
         parse.append_roots(&rules);
 
         assert!(!parse.rules[parse.roots[0]].selector_list.is_null());
@@ -3288,7 +3274,7 @@ mod tests {
         }
 
         let rules = parse_stylesheet(b"@media all { > b {} @scope (> .start) {} }");
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, None, false);
+        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, false);
         parse.append_roots(&rules);
         let group_child = parse.rules.iter().find(|rule| rule.rule_type == 1).unwrap();
         assert!(group_child.selector_list.is_null());
@@ -3344,7 +3330,7 @@ mod tests {
         let rules = parse_stylesheet(
             b"@media screen and (width > 1px) {} @supports (display: grid) {} @container card (width > 1px), style(--theme: dark) {} @supports {}",
         );
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), None, Some(resolve_query_feature), false);
+        let mut parse = FfiSyntaxParse::new(std::ptr::null(), Some(resolve_query_feature), false);
         parse.append_roots(&rules);
 
         let media = &parse.rules[parse.roots[0]];

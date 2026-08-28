@@ -17,6 +17,7 @@ use crate::css::parser::value_parser::{
     is_valid_custom_ident, parse_integer_from_stream, parse_length_from_stream, parse_number_from_stream,
     parse_ratio_value_with_context, parse_resolution_from_stream,
 };
+use crate::css::property_metadata::property_id_from_name;
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier, serialize_component_values_to_utf16};
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::StyleValueData;
@@ -2391,6 +2392,9 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
 
 pub(crate) fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
     move |kind, name| {
+        if kind == QueryKind::Style {
+            return property_id_from_name(name).map(|_| (0, false));
+        }
         // SAFETY: The name slice remains live for the duration of the callback.
         crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolveQueryFeatureCallback);
         let result = unsafe { callback(kind as u8, name.as_ptr(), name.len()) };
