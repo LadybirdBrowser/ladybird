@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const conditions = [
+            "selector(:is(a, b))",
+            "selector(a, b)",
+            "selector(::-webkit-foo)",
+            "(display: grid)",
+            "(display: invalid)",
+            "(unknown-property: value)",
+            "(--custom: any token stream)",
+            "(--: value)",
+            "(display: grid !important)",
+            "(-webkit-box-orient: horizontal)",
+            "(-webkit-box-orient: vertical)",
+            "(-webkit-box-orient: row)",
+            "(-webkit-box-orient: invalid)",
+            "(clip-path: path(\"M 0 0 L 10 10\"))",
+            "(clip-path: path(\"M 0 0 X\"))",
+        ];
+        for (const condition of conditions)
+            println(`${condition}: ${CSS.supports(condition)}`);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`
+            @namespace ns "urn:known";
+            @supports selector(ns|a) {}
+            @supports selector(missing|a) {}
+        `);
+        println(`selector(ns|a) with namespace: ${sheet.cssRules[1].matches}`);
+        println(`selector(missing|a) without namespace: ${sheet.cssRules[2].matches}`);
+    });
+</script>
