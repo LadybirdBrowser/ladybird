@@ -391,7 +391,6 @@ Each entry has 3 properties, all taken from the spec:
 
 The generated code provides:
 - An `EnvironmentVariable` enum listing the environment variables
-- `Optional<EnvironmentVariable> environment_variable_from_string(StringView)` to parse a string as an `EnvironmentVariable`
 - `StringView to_string(EnvironmentVariable)` to convert the `EnvironmentVariable` back to a string
 - `ValueType environment_variable_type(EnvironmentVariable)` to get the variable's value type
 - `u32 environment_variable_dimension_count(EnvironmentVariable)` to get its dimension count

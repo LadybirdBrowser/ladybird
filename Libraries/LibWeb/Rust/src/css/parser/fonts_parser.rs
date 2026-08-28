@@ -27,6 +27,52 @@ use crate::css::style_value::{
 };
 use std::sync::Arc;
 
+// NB: Mirrors Libraries/LibGfx/Font/FontSupport.cpp:13 and the format-name mapping in
+//     Libraries/LibWeb/CSS/FontFace.cpp:876 at commit bb989979110.
+const FONT_FORMAT_SUPPORT: &[(&str, bool)] = &[
+    ("embedded-opentype", false),
+    ("opentype", true),
+    ("svg", false),
+    ("truetype", true),
+    ("collection", true),
+    ("woff", true),
+    ("woff2", true),
+];
+
+// NB: Mirrors Libraries/LibGfx/Font/FontSupport.cpp:36. Its HB_HAS_GRAPHITE branch is false because
+//     vcpkg.json does not enable HarfBuzz's optional Graphite support on any supported platform.
+const FONT_TECH_SUPPORT: [bool; font_tech::NAMES.len()] = [
+    true,  // avar2
+    true,  // color-cbdt
+    true,  // color-colrv0
+    true,  // color-colrv1
+    true,  // color-sbix
+    true,  // color-svg
+    true,  // features-aat
+    false, // features-graphite
+    true,  // features-opentype
+    false, // incremental
+    true,  // palettes
+    true,  // variations
+];
+
+pub(crate) fn font_format_is_supported(format: &[u16]) -> bool {
+    FONT_FORMAT_SUPPORT
+        .iter()
+        .find(|(name, _)| equals_ascii_case_insensitive(format, name.as_bytes()))
+        .is_some_and(|(_, supported)| *supported)
+}
+
+pub(crate) fn font_tech_is_supported(tech: u8) -> bool {
+    FONT_TECH_SUPPORT.get(usize::from(tech)).copied().unwrap_or(false)
+}
+
+pub(crate) fn font_tech_name_is_supported(name: &[u16]) -> bool {
+    keyword_from_ascii_case_insensitive(name)
+        .and_then(keyword_to_font_tech)
+        .is_some_and(font_tech_is_supported)
+}
+
 fn retained(value: StyleValueData) -> RetainedStyleValueData {
     RetainedStyleValueData::from_owned(value)
 }
@@ -343,14 +389,7 @@ fn parse_font_variation_settings(context: &ParseContext, values: &[ComponentValu
     (!settings.is_empty()).then(|| value_list(settings, 1, true))
 }
 
-fn font_format_is_supported(context: &ParseContext, format: &[u16]) -> bool {
-    context.font_format_is_supported.is_some_and(|callback| {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::FontFormatIsSupportedCallback);
-        unsafe { callback(format.as_ptr(), format.len()) }
-    })
-}
-
-fn parse_font_format(context: &ParseContext, values: &[ComponentValue], tech: &mut Vec<u8>) -> Option<Vec<u16>> {
+fn parse_font_format(values: &[ComponentValue], tech: &mut Vec<u8>) -> Option<Vec<u16>> {
     let mut values = values.iter().filter(|value| !value.is_whitespace());
     let value = values.next()?;
     if values.next().is_some() {
@@ -386,11 +425,10 @@ fn parse_font_format(context: &ParseContext, values: &[ComponentValue], tech: &m
         }
         format.encode_utf16().collect()
     };
-    font_format_is_supported(context, &format).then_some(format)
+    font_format_is_supported(&format).then_some(format)
 }
 
-fn parse_font_tech(context: &ParseContext, values: &[ComponentValue]) -> Option<Vec<u8>> {
-    let callback = context.font_tech_is_supported?;
+fn parse_font_tech(values: &[ComponentValue]) -> Option<Vec<u8>> {
     values
         .split(ComponentValue::is_comma)
         .map(|item| {
@@ -400,8 +438,7 @@ fn parse_font_tech(context: &ParseContext, values: &[ComponentValue]) -> Option<
                 return None;
             }
             let tech = keyword_to_font_tech(keyword)?;
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::FontTechIsSupportedCallback);
-            unsafe { callback(tech) }.then_some(tech)
+            font_tech_is_supported(tech).then_some(tech)
         })
         .collect()
 }
@@ -467,14 +504,14 @@ fn parse_font_source(context: &ParseContext, values: &[ComponentValue]) -> Optio
     if let Some((name, arguments)) = tokens.next_token().function()
         && equals_ascii_case_insensitive(name, b"format")
     {
-        format = Some(parse_font_format(context, arguments, &mut tech)?);
+        format = Some(parse_font_format(arguments, &mut tech)?);
         tokens.discard_a_token();
         tokens.discard_whitespace();
     }
     if let Some((name, arguments)) = tokens.next_token().function()
         && equals_ascii_case_insensitive(name, b"tech")
     {
-        tech.extend(parse_font_tech(context, arguments)?);
+        tech.extend(parse_font_tech(arguments)?);
         tokens.discard_a_token();
         tokens.discard_whitespace();
     }
@@ -639,7 +676,11 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
 
 #[cfg(test)]
 mod tests {
-    use super::{FontDescriptorKind, parse_font_descriptor, parse_font_property};
+    use super::{
+        FONT_FORMAT_SUPPORT, FONT_TECH_SUPPORT, FontDescriptorKind, font_format_is_supported, font_tech_is_supported,
+        font_tech_name_is_supported, parse_font_descriptor, parse_font_property,
+    };
+    use crate::css::css_enums::font_tech;
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
     use crate::css::parser::value_parser::{ParseContext, ParseOutcome};
@@ -647,14 +688,6 @@ mod tests {
 
     unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
         0
-    }
-
-    unsafe extern "C" fn support_font_format(_: *const u16, _: usize) -> bool {
-        true
-    }
-
-    unsafe extern "C" fn support_font_tech(_: u8) -> bool {
-        true
     }
 
     fn context() -> ParseContext {
@@ -674,12 +707,61 @@ mod tests {
             normalize_svg_path_data: None,
             precomputed_svg_paths: std::ptr::null(),
             precomputed_svg_path_count: 0,
-            font_format_is_supported: Some(support_font_format),
-            font_tech_is_supported: Some(support_font_tech),
             descriptor_integer_resolution_context: std::ptr::null(),
             resolve_descriptor_integer: None,
             random_function_index: std::ptr::null_mut(),
         }
+    }
+
+    #[test]
+    fn mirrors_configured_font_support() {
+        let expected_formats = [
+            ("embedded-opentype", false),
+            ("opentype", true),
+            ("svg", false),
+            ("truetype", true),
+            ("collection", true),
+            ("woff", true),
+            ("woff2", true),
+        ];
+        assert_eq!(FONT_FORMAT_SUPPORT, expected_formats);
+        for (name, supported) in expected_formats {
+            let name = name.to_ascii_uppercase().encode_utf16().collect::<Vec<_>>();
+            assert_eq!(font_format_is_supported(&name), supported);
+        }
+        assert!(!font_format_is_supported(&"unknown".encode_utf16().collect::<Vec<_>>()));
+
+        let expected_tech = [
+            ("avar2", true),
+            ("color-cbdt", true),
+            ("color-colrv0", true),
+            ("color-colrv1", true),
+            ("color-sbix", true),
+            ("color-svg", true),
+            ("features-aat", true),
+            ("features-graphite", false),
+            ("features-opentype", true),
+            ("incremental", false),
+            ("palettes", true),
+            ("variations", true),
+        ];
+        assert_eq!(
+            font_tech::NAMES
+                .iter()
+                .copied()
+                .zip(FONT_TECH_SUPPORT)
+                .collect::<Vec<_>>(),
+            expected_tech
+        );
+        for (tech, (name, supported)) in expected_tech.into_iter().enumerate() {
+            assert_eq!(font_tech_is_supported(u8::try_from(tech).unwrap()), supported);
+            let name = name.to_ascii_uppercase().encode_utf16().collect::<Vec<_>>();
+            assert_eq!(font_tech_name_is_supported(&name), supported);
+        }
+        assert!(!font_tech_is_supported(u8::MAX));
+        assert!(!font_tech_name_is_supported(
+            &"unknown".encode_utf16().collect::<Vec<_>>()
+        ));
     }
 
     fn parse(property: u16, source: &str) -> ParseOutcome {
@@ -806,6 +888,17 @@ mod tests {
             parse_descriptor(FontDescriptorKind::FamilyName, "Ladybird Sans"),
             ParseOutcome::Parsed(_)
         ));
+        for source in [
+            "url(font.svg) format(svg)",
+            "url(font.eot) format(embedded-opentype)",
+            "url(font.woff2) tech(features-graphite)",
+            "url(font.woff2) tech(incremental)",
+        ] {
+            assert!(matches!(
+                parse_descriptor(FontDescriptorKind::SourceList, source),
+                ParseOutcome::Invalid
+            ));
+        }
         for source in ["U +26", "U+110000", "U+20-10"] {
             assert!(matches!(
                 parse_descriptor(FontDescriptorKind::UnicodeRangeList, source),

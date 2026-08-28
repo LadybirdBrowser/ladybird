@@ -738,8 +738,6 @@ fn parse_substituted_without_callbacks(
         normalize_svg_path_data: None,
         precomputed_svg_paths: ffi_svg_paths.as_ptr(),
         precomputed_svg_path_count: ffi_svg_paths.len(),
-        font_format_is_supported: None,
-        font_tech_is_supported: None,
         descriptor_integer_resolution_context: std::ptr::null(),
         resolve_descriptor_integer: None,
         random_function_index: &raw mut random_function_index,

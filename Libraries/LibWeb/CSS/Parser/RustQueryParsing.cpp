@@ -5,11 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/ContainerQuery.h>
-#include <LibWeb/CSS/EnvironmentVariable.h>
-#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
@@ -40,31 +36,6 @@ Optional<Vector<RustQueryParser::SizesAttributeEntry>> RustQueryParser::split_si
     if (!rust_visit_sizes_attribute_entries(ffi_utf16_view(source), &entries, visit))
         return {};
     return entries;
-}
-
-static bool at_rule_is_supported(Utf16View name)
-{
-    if (name.equals_ignoring_ascii_case("charset"sv))
-        return false;
-    if (name.equals_ignoring_ascii_case("container"sv)
-        || name.equals_ignoring_ascii_case("counter-style"sv)
-        || name.equals_ignoring_ascii_case("font-face"sv)
-        || name.equals_ignoring_ascii_case("font-feature-values"sv)
-        || name.equals_ignoring_ascii_case("function"sv)
-        || name.equals_ignoring_ascii_case("import"sv)
-        || name.equals_ignoring_ascii_case("keyframes"sv)
-        || name.equals_ignoring_ascii_case("-webkit-keyframes"sv)
-        || name.equals_ignoring_ascii_case("layer"sv)
-        || name.equals_ignoring_ascii_case("media"sv)
-        || name.equals_ignoring_ascii_case("namespace"sv)
-        || name.equals_ignoring_ascii_case("page"sv)
-        || name.equals_ignoring_ascii_case("property"sv)
-        || name.equals_ignoring_ascii_case("scope"sv)
-        || name.equals_ignoring_ascii_case("supports"sv))
-        return true;
-    auto fly_string = Utf16FlyString::from_utf16(name);
-    return CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(fly_string)
-        || is_margin_rule_name(fly_string);
 }
 
 Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser&, Utf16View source)
@@ -203,14 +174,6 @@ bool RustQueryParser::evaluate_supports_feature(void* context, FfiSupportsFeatur
         return selectors.has_value() && selectors->size() == 1
             && !selectors->first()->contains_unknown_webkit_pseudo_element();
     }
-    case FfiSupportsFeatureKind::FontTech:
-        return font_tech_is_supported(source);
-    case FfiSupportsFeatureKind::FontFormat:
-        return font_format_is_supported(source);
-    case FfiSupportsFeatureKind::AtRule:
-        return at_rule_is_supported(source);
-    case FfiSupportsFeatureKind::Env:
-        return environment_variable_from_string(source).has_value();
     }
     VERIFY_NOT_REACHED();
 }

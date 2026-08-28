@@ -7,10 +7,13 @@
 use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{ParserString, ParserTokenKind, TokenizerInput, tokenize_for_parser};
+use crate::css::custom_properties::environment_variable_is_known;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
 };
+use crate::css::parser::fonts_parser::{font_format_is_supported, font_tech_name_is_supported};
+use crate::css::parser::syntax_parser::at_rule_is_supported;
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, NumericRange, ParseContext, equals_ascii_case_insensitive,
@@ -123,6 +126,12 @@ pub enum FfiMediaFeatureValueKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiSupportsFeatureKind {
+    Declaration,
+    Selector,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SupportsFeatureKind {
     Declaration,
     Selector,
     FontTech,
@@ -931,7 +940,7 @@ fn supports_components_source(components: &[ComponentValue]) -> Vec<u16> {
 
 fn parse_supports_feature<E>(stream: &mut TokenStream<'_>, evaluate_feature: &E) -> Option<Expression>
 where
-    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
 {
     let mut transaction = stream.begin_transaction();
     transaction.discard_whitespace();
@@ -939,7 +948,7 @@ where
     if let Some(values) = parenthesized_values(&first) {
         let values = trim_whitespace(values);
         if looks_like_supports_declaration(values) && contains_only_any_value(values) {
-            let matches = evaluate_feature(FfiSupportsFeatureKind::Declaration, &supports_components_source(values));
+            let matches = evaluate_feature(SupportsFeatureKind::Declaration, &supports_components_source(values));
             transaction.commit();
             return Some(Expression::InParens(Box::new(Expression::SupportsFeature(
                 SupportsFeature::Declaration {
@@ -952,19 +961,13 @@ where
     }
     let (name, values) = first.function()?;
     let (kind, name_or_source) = if equals_ascii_case_insensitive(name, b"selector") {
-        (FfiSupportsFeatureKind::Selector, supports_components_source(values))
+        (SupportsFeatureKind::Selector, supports_components_source(values))
     } else if equals_ascii_case_insensitive(name, b"font-tech") {
-        (
-            FfiSupportsFeatureKind::FontTech,
-            single_ident(values)?.as_ref().to_vec(),
-        )
+        (SupportsFeatureKind::FontTech, single_ident(values)?.as_ref().to_vec())
     } else if equals_ascii_case_insensitive(name, b"font-format") {
-        (
-            FfiSupportsFeatureKind::FontFormat,
-            single_ident(values)?.as_ref().to_vec(),
-        )
+        (SupportsFeatureKind::FontFormat, single_ident(values)?.as_ref().to_vec())
     } else if equals_ascii_case_insensitive(name, b"env") {
-        (FfiSupportsFeatureKind::Env, single_ident(values)?.as_ref().to_vec())
+        (SupportsFeatureKind::Env, single_ident(values)?.as_ref().to_vec())
     } else if equals_ascii_case_insensitive(name, b"at-rule") {
         let values = trim_whitespace(values);
         let [value] = values else {
@@ -973,33 +976,33 @@ where
         let ComponentKind::Token(ParserTokenKind::AtKeyword(name)) = &value.kind else {
             return None;
         };
-        (FfiSupportsFeatureKind::AtRule, name.as_ref().to_vec())
+        (SupportsFeatureKind::AtRule, name.as_ref().to_vec())
     } else {
         return None;
     };
     let matches = evaluate_feature(kind, &name_or_source);
     let feature = match kind {
-        FfiSupportsFeatureKind::Selector => SupportsFeature::Selector {
+        SupportsFeatureKind::Selector => SupportsFeature::Selector {
             components: values.to_vec(),
             matches,
         },
-        FfiSupportsFeatureKind::FontTech => SupportsFeature::FontTech {
+        SupportsFeatureKind::FontTech => SupportsFeature::FontTech {
             name: ParserString::from(name_or_source.into_boxed_slice()),
             matches,
         },
-        FfiSupportsFeatureKind::FontFormat => SupportsFeature::FontFormat {
+        SupportsFeatureKind::FontFormat => SupportsFeature::FontFormat {
             name: ParserString::from(name_or_source.into_boxed_slice()),
             matches,
         },
-        FfiSupportsFeatureKind::AtRule => SupportsFeature::AtRule {
+        SupportsFeatureKind::AtRule => SupportsFeature::AtRule {
             name: ParserString::from(name_or_source.into_boxed_slice()),
             matches,
         },
-        FfiSupportsFeatureKind::Env => SupportsFeature::Env {
+        SupportsFeatureKind::Env => SupportsFeature::Env {
             name: ParserString::from(name_or_source.into_boxed_slice()),
             matches,
         },
-        FfiSupportsFeatureKind::Declaration => unreachable!(),
+        SupportsFeatureKind::Declaration => unreachable!(),
     };
     transaction.commit();
     Some(Expression::SupportsFeature(feature))
@@ -1010,7 +1013,7 @@ pub(crate) fn parse_supports_condition_from_component_values<E>(
     evaluate_feature: &E,
 ) -> Option<Expression>
 where
-    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
 {
     let mut stream = TokenStream::new(values);
     let expression = parse_boolean_expression(&mut stream, MatchResult::False, &|stream| {
@@ -1025,7 +1028,7 @@ pub(crate) fn parse_supports_condition<'a, E>(
     evaluate_feature: &E,
 ) -> Option<Expression>
 where
-    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
 {
     let values = components_from_source(source)?;
     parse_supports_condition_from_component_values(&values, evaluate_feature)
@@ -1036,13 +1039,13 @@ pub(crate) fn parse_supports_declaration_from_component_values<E>(
     evaluate_feature: &E,
 ) -> Option<Expression>
 where
-    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
 {
     let trimmed = trim_whitespace(values);
     if !looks_like_supports_declaration(trimmed) || !contains_only_any_value(values) {
         return None;
     }
-    let matches = evaluate_feature(FfiSupportsFeatureKind::Declaration, &supports_components_source(values));
+    let matches = evaluate_feature(SupportsFeatureKind::Declaration, &supports_components_source(values));
     Some(Expression::SupportsFeature(SupportsFeature::Declaration {
         components: values.to_vec(),
         matches,
@@ -1054,7 +1057,7 @@ fn parse_supports_declaration_from_source<'a, E>(
     evaluate_feature: &E,
 ) -> Option<Expression>
 where
-    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
 {
     let values = components_from_source(source)?;
     parse_supports_declaration_from_component_values(&values, evaluate_feature)
@@ -1629,8 +1632,6 @@ fn media_value_parse_context(value_context: &FfiValueParsingContext) -> ParseCon
         normalize_svg_path_data: None,
         precomputed_svg_paths: std::ptr::null(),
         precomputed_svg_path_count: 0,
-        font_format_is_supported: None,
-        font_tech_is_supported: None,
         descriptor_integer_resolution_context: std::ptr::null(),
         resolve_descriptor_integer: None,
         random_function_index: std::ptr::null_mut(),
@@ -2448,22 +2449,30 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
 fn ffi_supports_evaluator(
     context: *mut c_void,
     callback: EvaluateSupportsFeature,
-) -> impl Fn(FfiSupportsFeatureKind, &[u16]) -> bool {
+) -> impl Fn(SupportsFeatureKind, &[u16]) -> bool {
     move |kind, value| {
-        let value = FfiUtf16View {
+        let ffi_kind = match kind {
+            SupportsFeatureKind::Declaration => FfiSupportsFeatureKind::Declaration,
+            SupportsFeatureKind::Selector => FfiSupportsFeatureKind::Selector,
+            SupportsFeatureKind::FontTech => return font_tech_name_is_supported(value),
+            SupportsFeatureKind::FontFormat => return font_format_is_supported(value),
+            SupportsFeatureKind::AtRule => return at_rule_is_supported(value),
+            SupportsFeatureKind::Env => return environment_variable_is_known(value),
+        };
+        let ffi_value = FfiUtf16View {
             ascii: std::ptr::null(),
             utf16: value.as_ptr(),
             length: value.len(),
         };
         // SAFETY: The UTF-16 slice remains live for the duration of the callback.
         crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateSupportsFeatureCallback);
-        unsafe { callback(context, kind, value) }
+        unsafe { callback(context, ffi_kind, ffi_value) }
     }
 }
 
 fn reevaluate_supports_features<E>(expression: &mut Expression, evaluate_feature: &E)
 where
-    E: Fn(FfiSupportsFeatureKind, &[u16]) -> bool,
+    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
 {
     match expression {
         Expression::Not(child) | Expression::InParens(child) => {
@@ -2477,27 +2486,25 @@ where
         Expression::SupportsFeature(feature) => {
             let (kind, value, matches) = match feature {
                 SupportsFeature::Declaration { components, matches } => (
-                    FfiSupportsFeatureKind::Declaration,
+                    SupportsFeatureKind::Declaration,
                     supports_components_source(components),
                     matches,
                 ),
                 SupportsFeature::Selector { components, matches } => (
-                    FfiSupportsFeatureKind::Selector,
+                    SupportsFeatureKind::Selector,
                     supports_components_source(components),
                     matches,
                 ),
                 SupportsFeature::FontTech { name, matches } => {
-                    (FfiSupportsFeatureKind::FontTech, name.as_ref().to_vec(), matches)
+                    (SupportsFeatureKind::FontTech, name.as_ref().to_vec(), matches)
                 }
                 SupportsFeature::FontFormat { name, matches } => {
-                    (FfiSupportsFeatureKind::FontFormat, name.as_ref().to_vec(), matches)
+                    (SupportsFeatureKind::FontFormat, name.as_ref().to_vec(), matches)
                 }
                 SupportsFeature::AtRule { name, matches } => {
-                    (FfiSupportsFeatureKind::AtRule, name.as_ref().to_vec(), matches)
+                    (SupportsFeatureKind::AtRule, name.as_ref().to_vec(), matches)
                 }
-                SupportsFeature::Env { name, matches } => {
-                    (FfiSupportsFeatureKind::Env, name.as_ref().to_vec(), matches)
-                }
+                SupportsFeature::Env { name, matches } => (SupportsFeatureKind::Env, name.as_ref().to_vec(), matches),
             };
             *matches = evaluate_feature(kind, &value);
         }
@@ -2939,6 +2946,14 @@ pub unsafe extern "C" fn css_query_serialize_condition(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static SUPPORTS_CALLBACK_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    unsafe extern "C" fn count_supports_callback(_: *mut c_void, _: FfiSupportsFeatureKind, _: FfiUtf16View) -> bool {
+        SUPPORTS_CALLBACK_CALLS.fetch_add(1, Ordering::Relaxed);
+        true
+    }
 
     fn parse_single_container_query(source: &[u8]) -> Option<Expression> {
         let mut conditions = parse_container_condition_list(source, &resolve_query_feature)?;
@@ -3050,6 +3065,35 @@ mod tests {
         assert_eq!(evaluate_supports_expression(&condition), MatchResult::False);
         reevaluate_supports_features(&mut condition, &supported);
         assert_eq!(evaluate_supports_expression(&condition), MatchResult::True);
+    }
+
+    #[test]
+    fn evaluates_static_supports_features_without_cpp() {
+        SUPPORTS_CALLBACK_CALLS.store(0, Ordering::Relaxed);
+        let evaluate = ffi_supports_evaluator(std::ptr::null_mut(), count_supports_callback);
+        let utf16 = |value: &str| value.encode_utf16().collect::<Vec<_>>();
+
+        for (kind, name) in [
+            (SupportsFeatureKind::FontFormat, "WOFF2"),
+            (SupportsFeatureKind::FontTech, "COLOR-COLRV1"),
+            (SupportsFeatureKind::AtRule, "-WEBKIT-KEYFRAMES"),
+            (SupportsFeatureKind::Env, "PREFERRED-TEXT-SCALE"),
+        ] {
+            assert!(evaluate(kind, &utf16(name)), "{name}");
+        }
+        for (kind, name) in [
+            (SupportsFeatureKind::FontFormat, "svg"),
+            (SupportsFeatureKind::FontTech, "features-graphite"),
+            (SupportsFeatureKind::AtRule, "charset"),
+            (SupportsFeatureKind::Env, "unknown"),
+        ] {
+            assert!(!evaluate(kind, &utf16(name)), "{name}");
+        }
+        assert_eq!(SUPPORTS_CALLBACK_CALLS.load(Ordering::Relaxed), 0);
+
+        assert!(evaluate(SupportsFeatureKind::Declaration, &utf16("display: grid")));
+        assert!(evaluate(SupportsFeatureKind::Selector, &utf16(":has(*)")));
+        assert_eq!(SUPPORTS_CALLBACK_CALLS.load(Ordering::Relaxed), 2);
     }
 
     #[test]

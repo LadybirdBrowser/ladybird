@@ -1204,6 +1204,14 @@ fn at_rule_kind(name: &[u16]) -> FfiRuleKind {
     }
 }
 
+// NB: Mirrors Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp:45 at commit bb989979110.
+pub(crate) fn at_rule_is_supported(name: &[u16]) -> bool {
+    !matches!(
+        at_rule_kind(name),
+        FfiRuleKind::Qualified | FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor
+    )
+}
+
 fn font_feature_values_rule(name: &[u16]) -> Option<(FfiFontFeatureValuesRuleKind, usize)> {
     if equals_ascii_case_insensitive(name, b"annotation") {
         Some((FfiFontFeatureValuesRuleKind::Annotation, 1))
@@ -3053,10 +3061,10 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 mod tests {
     use super::{
         Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiRuleKind,
-        FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, at_rule_kind,
-        collect_descriptors, consume_a_list_of_component_values, has_ignored_vendor_prefix, parse_block_contents,
-        parse_font_feature_values, parse_keyframe_selectors, parse_rule, parse_rule_prelude, parse_stylesheet,
-        rule_kind, token_diagnostics, tokenize_for_parser,
+        FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, at_rule_is_supported,
+        at_rule_kind, collect_descriptors, consume_a_list_of_component_values, has_ignored_vendor_prefix,
+        parse_block_contents, parse_font_feature_values, parse_keyframe_selectors, parse_rule, parse_rule_prelude,
+        parse_stylesheet, rule_kind, token_diagnostics, tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -3089,8 +3097,6 @@ mod tests {
             normalize_svg_path_data: None,
             precomputed_svg_paths: std::ptr::null(),
             precomputed_svg_path_count: 0,
-            font_format_is_supported: None,
-            font_tech_is_supported: None,
             descriptor_integer_resolution_context: std::ptr::null(),
             resolve_descriptor_integer: None,
             random_function_index: std::ptr::null_mut(),
@@ -3298,7 +3304,13 @@ mod tests {
         ];
         for (name, expected) in expected {
             assert_eq!(at_rule_kind(&utf16(name)), expected, "{name}");
+            assert_eq!(
+                at_rule_is_supported(&utf16(name)),
+                !matches!(expected, FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor),
+                "{name}"
+            );
         }
+        assert!(!at_rule_is_supported(&utf16("charset")));
         assert!(has_ignored_vendor_prefix(b"-webkit-unknown".into()));
         assert!(!has_ignored_vendor_prefix(b"-libweb-unknown".into()));
         assert_eq!(rule_kind(&parse_stylesheet(b"a {}")[0]), FfiRuleKind::Qualified);
