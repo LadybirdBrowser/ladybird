@@ -1,0 +1,17 @@
+selector(:is(a, b)): true
+selector(a, b): false
+selector(::-webkit-foo): false
+(display: grid): true
+(display: invalid): false
+(unknown-property: value): false
+(--custom: any token stream): true
+(--: value): false
+(display: grid !important): true
+(-webkit-box-orient: horizontal): true
+(-webkit-box-orient: vertical): true
+(-webkit-box-orient: row): true
+(-webkit-box-orient: invalid): false
+(clip-path: path("M 0 0 L 10 10")): true
+(clip-path: path("M 0 0 X")): false
+selector(ns|a) with namespace: true
+selector(missing|a) without namespace: false
