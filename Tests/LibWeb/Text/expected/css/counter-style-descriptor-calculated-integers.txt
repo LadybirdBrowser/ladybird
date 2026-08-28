@@ -1,0 +1,5 @@
+@counter-style pad { pad: calc(3) "0"; }
+@counter-style range { range: calc(6) infinite; }
+@counter-style nested { additive-symbols: calc(8) "A", calc(3.5) "B"; }
+@counter-style rounded { }
+@counter-style invalid { }

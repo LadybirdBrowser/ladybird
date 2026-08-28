@@ -1,0 +1,29 @@
+<!doctype html>
+<style>
+    @counter-style pad {
+        pad: calc(1 + 2) "0";
+    }
+
+    @counter-style range {
+        range: calc(2 * 3) infinite;
+    }
+
+    @counter-style nested {
+        additive-symbols: calc(calc(4 + 4)) "A", calc(7 / 2) "B";
+    }
+
+    @counter-style rounded {
+        range: calc(3.5) calc(3.49);
+    }
+
+    @counter-style invalid {
+        pad: calc(1px + 2px) "0";
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const rule of document.styleSheets[0].cssRules)
+            println(rule.cssText);
+    });
+</script>
