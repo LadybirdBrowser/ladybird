@@ -419,6 +419,7 @@ pub(crate) fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> b
 
 pub(crate) fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
     let callback = context.intern_utf16_fly_string?;
+    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
     let raw = unsafe { callback(string.as_ptr(), string.len()) };
     Some(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
 }

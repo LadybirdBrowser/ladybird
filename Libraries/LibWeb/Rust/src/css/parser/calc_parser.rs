@@ -563,6 +563,7 @@ fn parse_rounding_strategy(values: &[ComponentValue]) -> Option<u8> {
 
 fn retain_fly_string(context: CalcParserContext, value: &[u16]) -> Result<RetainedUtf16FlyString> {
     let callback = context.intern_utf16_fly_string.ok_or(CalcParseError::NotHandled)?;
+    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
     let raw = unsafe { callback(value.as_ptr(), value.len()) };
     Ok(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
 }

@@ -344,9 +344,10 @@ fn parse_font_variation_settings(context: &ParseContext, values: &[ComponentValu
 }
 
 fn font_format_is_supported(context: &ParseContext, format: &[u16]) -> bool {
-    context
-        .font_format_is_supported
-        .is_some_and(|callback| unsafe { callback(format.as_ptr(), format.len()) })
+    context.font_format_is_supported.is_some_and(|callback| {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::FontFormatIsSupportedCallback);
+        unsafe { callback(format.as_ptr(), format.len()) }
+    })
 }
 
 fn parse_font_format(context: &ParseContext, values: &[ComponentValue], tech: &mut Vec<u8>) -> Option<Vec<u16>> {
@@ -399,6 +400,7 @@ fn parse_font_tech(context: &ParseContext, values: &[ComponentValue]) -> Option<
                 return None;
             }
             let tech = keyword_to_font_tech(keyword)?;
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::FontTechIsSupportedCallback);
             unsafe { callback(tech) }.then_some(tech)
         })
         .collect()

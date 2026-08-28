@@ -2392,6 +2392,7 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
 pub(crate) fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
     move |kind, name| {
         // SAFETY: The name slice remains live for the duration of the callback.
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolveQueryFeatureCallback);
         let result = unsafe { callback(kind as u8, name.as_ptr(), name.len()) };
         if result == u16::MAX {
             return None;
@@ -2411,6 +2412,7 @@ fn ffi_supports_evaluator(
             length: value.len(),
         };
         // SAFETY: The UTF-16 slice remains live for the duration of the callback.
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateSupportsFeatureCallback);
         unsafe { callback(context, kind, value) }
     }
 }
@@ -2568,6 +2570,7 @@ pub unsafe extern "C" fn rust_reevaluate_supports_condition(
     context: *mut c_void,
     evaluate_feature: EvaluateSupportsFeature,
 ) -> *const FfiQueryHandle {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::RustReevaluateSupportsConditionEntry);
     crate::abort_on_panic(|| {
         let QueryTree::Expression {
             expression,

@@ -670,6 +670,7 @@ fn parse_substituted_without_callbacks(
         .into_iter()
         .map(|path| {
             let normalized = base_context.normalize_svg_path_data.and_then(|normalize| {
+                crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::NormalizeSvgPathDataCallback);
                 let raw = unsafe { normalize(path.as_ptr(), path.len()) };
                 if raw == 0 {
                     return None;

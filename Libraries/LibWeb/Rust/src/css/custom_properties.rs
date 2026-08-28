@@ -1377,6 +1377,7 @@ fn evaluate_style_feature(
             return ConditionEvaluation::NotHandled;
         };
         let source = serialize_tokens(tokens);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
         return match unsafe {
             evaluate(
                 context.condition_context,
@@ -1440,6 +1441,7 @@ fn evaluate_style_feature(
         && let Some(evaluate) = context.evaluate_condition
     {
         let source = serialize_tokens(tokens);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
         return match unsafe {
             evaluate(
                 context.condition_context,
@@ -1602,6 +1604,7 @@ fn evaluate_if_condition(
                 return ConditionEvaluation::NotHandled;
             };
             let source = serialize_tokens(&test[1..close]);
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
             return match unsafe {
                 evaluate(
                     context.condition_context,

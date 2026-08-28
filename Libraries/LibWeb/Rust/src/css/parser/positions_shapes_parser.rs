@@ -1074,6 +1074,7 @@ fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<St
         return None;
     }
     let path_string = if let Some(normalize) = context.normalize_svg_path_data {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::NormalizeSvgPathDataCallback);
         let raw = unsafe { normalize(path.as_ptr(), path.len()) };
         if raw == 0 {
             return None;
