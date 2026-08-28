@@ -20,13 +20,17 @@ use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 
 use crate::abort_on_panic;
+use crate::css::custom_properties::CustomPropertyStore;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::query_parser::FfiMediaEnvironment;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
 };
-use crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID;
-use crate::css::style_compute::expand_shorthands_with;
+use crate::css::property_metadata::{
+    FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES, property_is_in_logical_group,
+    property_logical_group,
+};
+use crate::css::style_compute::{expand_shorthands_with, font_family_is_monospace, initial_value_data};
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
@@ -516,6 +520,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
 
 pub const CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL: u8 = 1 << 0;
 pub const CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT: u8 = 1 << 1;
+const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
 
 #[repr(C)]
 pub struct FfiUnfixedRandomSharing {
@@ -525,13 +530,238 @@ pub struct FfiUnfixedRandomSharing {
 }
 
 #[repr(C)]
+pub struct FfiStyleComputationPlanInput {
+    pub initial_computed_group_mask: u32,
+    pub all_computed_groups: u32,
+    pub previous_longhand_values: *const *const c_void,
+    pub previous_longhand_value_count: usize,
+    pub computed_property_words: *const u64,
+    pub computed_property_word_count: usize,
+    pub computed_property_closure_is_exact: bool,
+    pub selected_transition_properties: *const u16,
+    pub selected_transition_property_count: usize,
+    pub has_retained_transition_candidates: bool,
+    pub has_relevant_animations: bool,
+    pub has_css_defined_animations: bool,
+}
+
+#[repr(C)]
 pub struct FfiStyleComputationRequirements {
     pub uses_tree_counting_function: bool,
     pub container_relative_length_unit_mask: u8,
     pub environment_requirements: u8,
+    pub has_monospace_font_family: bool,
+    pub computed_group_mask: u32,
+    pub has_computed_property_selection: bool,
+    pub computed_property_words: *const u64,
+    pub computed_property_word_count: usize,
     pub unfixed_random_sharings: *const FfiUnfixedRandomSharing,
     pub unfixed_random_sharing_count: usize,
     pub storage: *mut c_void,
+}
+
+struct StyleComputationRequirementsStorage {
+    computed_property_words: [u64; LONGHAND_WORD_COUNT],
+    unfixed_random_sharings: Box<[FfiUnfixedRandomSharing]>,
+}
+
+fn style_values_are_equal(first: &StyleValueData, second: &StyleValueData) -> bool {
+    std::ptr::eq(first, second) || first == second
+}
+
+fn longhand_is_selected(words: &[u64], property_id: u16) -> bool {
+    let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    words[index / 64] & (1 << (index % 64)) != 0
+}
+
+fn select_longhand(words: &mut [u64], property_id: u16) -> bool {
+    let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    let bit = 1 << (index % 64);
+    let changed = words[index / 64] & bit == 0;
+    words[index / 64] |= bit;
+    changed
+}
+
+fn expand_logical_property_closure(words: &mut [u64]) {
+    let mut selected_groups = 0u32;
+    for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+        if longhand_is_selected(words, property_id)
+            && let Some(group) = property_logical_group(property_id)
+        {
+            selected_groups |= 1 << group;
+        }
+    }
+    for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+        if property_logical_group(property_id).is_some_and(|group| selected_groups & (1 << group) != 0) {
+            select_longhand(words, property_id);
+        }
+    }
+}
+
+fn select_coupled_border_style_and_width_groups(words: &mut [u64]) {
+    use crate::css::property_metadata::property_id as prop;
+
+    const BORDER_STYLE_AND_WIDTH: [u16; 16] = [
+        prop::BORDER_TOP_STYLE,
+        prop::BORDER_RIGHT_STYLE,
+        prop::BORDER_BOTTOM_STYLE,
+        prop::BORDER_LEFT_STYLE,
+        prop::BORDER_BLOCK_START_STYLE,
+        prop::BORDER_BLOCK_END_STYLE,
+        prop::BORDER_INLINE_START_STYLE,
+        prop::BORDER_INLINE_END_STYLE,
+        prop::BORDER_TOP_WIDTH,
+        prop::BORDER_RIGHT_WIDTH,
+        prop::BORDER_BOTTOM_WIDTH,
+        prop::BORDER_LEFT_WIDTH,
+        prop::BORDER_BLOCK_START_WIDTH,
+        prop::BORDER_BLOCK_END_WIDTH,
+        prop::BORDER_INLINE_START_WIDTH,
+        prop::BORDER_INLINE_END_WIDTH,
+    ];
+    if BORDER_STYLE_AND_WIDTH
+        .iter()
+        .any(|&property_id| longhand_is_selected(words, property_id))
+    {
+        for property_id in BORDER_STYLE_AND_WIDTH {
+            select_longhand(words, property_id);
+        }
+    }
+}
+
+fn property_has_independent_computed_closure(property_id: u16) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+
+    property_is_in_logical_group(property_id)
+        || matches!(
+            property_id,
+            prop::ASPECT_RATIO
+                | prop::BACKDROP_FILTER
+                | prop::BACKGROUND_COLOR
+                | prop::BOX_SHADOW
+                | prop::CLIP_PATH
+                | prop::FILTER
+                | prop::ISOLATION
+                | prop::MIX_BLEND_MODE
+                | prop::OBJECT_FIT
+                | prop::OBJECT_POSITION
+                | prop::OPACITY
+                | prop::PERSPECTIVE
+                | prop::PERSPECTIVE_ORIGIN
+                | prop::ROTATE
+                | prop::SCALE
+                | prop::TRANSFORM
+                | prop::TRANSFORM_ORIGIN
+                | prop::TRANSLATE
+                | prop::VISIBILITY
+                | prop::WILL_CHANGE
+                | prop::Z_INDEX
+        )
+}
+
+unsafe fn plan_style_computation(
+    store: &CascadedPropertyStore,
+    input: Option<&FfiStyleComputationPlanInput>,
+) -> (bool, u32, bool, [u64; LONGHAND_WORD_COUNT]) {
+    use crate::css::property_metadata::property_id as prop;
+
+    let has_monospace_font_family = store
+        .last_entry(prop::FONT_FAMILY)
+        .is_some_and(|entry| font_family_is_monospace(entry.value.data()));
+    let Some(input) = input else {
+        return (has_monospace_font_family, 0, false, [0; LONGHAND_WORD_COUNT]);
+    };
+    let previous_values = if input.previous_longhand_value_count == 0 {
+        None
+    } else {
+        assert_eq!(input.previous_longhand_value_count, NUMBER_OF_LONGHAND_PROPERTIES);
+        Some(unsafe { std::slice::from_raw_parts(input.previous_longhand_values, input.previous_longhand_value_count) })
+    };
+    let retained_transition_candidates = input.has_retained_transition_candidates;
+    let transition_properties = [
+        prop::TRANSITION_PROPERTY,
+        prop::TRANSITION_DURATION,
+        prop::TRANSITION_TIMING_FUNCTION,
+        prop::TRANSITION_DELAY,
+        prop::TRANSITION_BEHAVIOR,
+    ];
+    let has_transition_definition = retained_transition_candidates
+        || transition_properties.iter().any(|&property_id| {
+            store.last_entry(property_id).is_some_and(|entry| {
+                let initial = unsafe { &*initial_value_data(property_id) };
+                !style_values_are_equal(entry.value.data(), initial)
+            })
+        });
+    let transition_definition_changed = previous_values.is_some_and(|previous_values| {
+        has_transition_definition
+            && transition_properties.iter().any(|&property_id| {
+                let current = store
+                    .last_entry(property_id)
+                    .map(|entry| entry.value.data())
+                    .unwrap_or_else(|| unsafe { &*initial_value_data(property_id) });
+                let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+                let previous = previous_values[index].cast::<StyleValueData>();
+                let previous = if previous.is_null() {
+                    unsafe { &*initial_value_data(property_id) }
+                } else {
+                    unsafe { &*previous }
+                };
+                !style_values_are_equal(current, previous)
+            })
+    });
+    let must_compute_all_properties = previous_values.is_none()
+        || has_monospace_font_family
+        || input.has_relevant_animations
+        || input.has_css_defined_animations
+        || transition_definition_changed;
+    let mut computed_group_mask = if input.initial_computed_group_mask == 0 {
+        input.all_computed_groups
+    } else {
+        input.initial_computed_group_mask
+    };
+    if must_compute_all_properties || retained_transition_candidates {
+        computed_group_mask = input.all_computed_groups;
+    }
+
+    let mut computed_property_words = [0; LONGHAND_WORD_COUNT];
+    let mut has_computed_property_selection = false;
+    if !must_compute_all_properties
+        && !input.computed_property_words.is_null()
+        && (computed_group_mask != input.all_computed_groups || retained_transition_candidates)
+    {
+        assert_eq!(input.computed_property_word_count, LONGHAND_WORD_COUNT);
+        computed_property_words.copy_from_slice(unsafe {
+            std::slice::from_raw_parts(input.computed_property_words, input.computed_property_word_count)
+        });
+        let selected_transition_properties = if input.selected_transition_property_count == 0 {
+            &[]
+        } else {
+            unsafe {
+                std::slice::from_raw_parts(
+                    input.selected_transition_properties,
+                    input.selected_transition_property_count,
+                )
+            }
+        };
+        for &property_id in selected_transition_properties {
+            select_longhand(&mut computed_property_words, property_id);
+        }
+        expand_logical_property_closure(&mut computed_property_words);
+        select_coupled_border_style_and_width_groups(&mut computed_property_words);
+        let only_independent_properties_changed =
+            (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).all(|property_id| {
+                !longhand_is_selected(&computed_property_words, property_id)
+                    || property_has_independent_computed_closure(property_id)
+            });
+        has_computed_property_selection =
+            input.computed_property_closure_is_exact || only_independent_properties_changed;
+    }
+    (
+        has_monospace_font_family,
+        computed_group_mask,
+        has_computed_property_selection,
+        computed_property_words,
+    )
 }
 
 /// Collects the external inputs needed to compute the winning declarations.
@@ -541,14 +771,16 @@ pub struct FfiStyleComputationRequirements {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_cascaded_properties_computation_requirements(
     store: *const CascadedPropertyStore,
+    plan_input: *const FfiStyleComputationPlanInput,
 ) -> FfiStyleComputationRequirements {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| {
+        let store = unsafe { &*store };
         let mut uses_tree_counting_function = false;
         let mut container_relative_length_unit_mask = 0;
         let mut environment_requirements = 0;
         let mut sharings = Vec::new();
-        for (_, entry) in unsafe { &*store }.winning_entries() {
+        for (_, entry) in store.winning_entries() {
             let dependencies = entry.dependencies();
             uses_tree_counting_function |= dependencies.uses_tree_counting_function;
             container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
@@ -582,34 +814,37 @@ pub unsafe extern "C" fn rust_cascaded_properties_computation_requirements(
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        let unfixed_random_sharing_count = unfixed_random_sharings.len();
-        let unfixed_random_sharings = Box::into_raw(unfixed_random_sharings);
+        let (has_monospace_font_family, computed_group_mask, has_computed_property_selection, computed_property_words) =
+            unsafe { plan_style_computation(store, plan_input.as_ref()) };
+        let storage = Box::new(StyleComputationRequirementsStorage {
+            computed_property_words,
+            unfixed_random_sharings,
+        });
+        let unfixed_random_sharings = storage.unfixed_random_sharings.as_ptr();
+        let unfixed_random_sharing_count = storage.unfixed_random_sharings.len();
+        let computed_property_words = storage.computed_property_words.as_ptr();
+        let storage = Box::into_raw(storage);
         FfiStyleComputationRequirements {
             uses_tree_counting_function,
             container_relative_length_unit_mask,
             environment_requirements,
+            has_monospace_font_family,
+            computed_group_mask,
+            has_computed_property_selection,
+            computed_property_words,
+            computed_property_word_count: LONGHAND_WORD_COUNT,
             unfixed_random_sharings: unfixed_random_sharings.cast(),
             unfixed_random_sharing_count,
-            storage: unfixed_random_sharings.cast(),
+            storage: storage.cast(),
         }
     })
 }
 
 /// # Safety
-/// `storage` must be null or returned by `rust_cascaded_properties_computation_requirements`.
+/// `storage` must be returned by `rust_cascaded_properties_computation_requirements`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_computation_requirements_destroy(
-    storage: *mut c_void,
-    unfixed_random_sharing_count: usize,
-) {
-    if !storage.is_null() {
-        drop(unsafe {
-            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                storage.cast::<FfiUnfixedRandomSharing>(),
-                unfixed_random_sharing_count,
-            ))
-        });
-    }
+pub unsafe extern "C" fn rust_style_computation_requirements_destroy(storage: *mut c_void) {
+    drop(unsafe { Box::from_raw(storage.cast::<StyleComputationRequirementsStorage>()) });
 }
 
 /// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
@@ -986,6 +1221,157 @@ pub struct FfiCustomPropertyResolutionStats {
     pub final_value_hits: u64,
     pub final_value_misses: u64,
     pub cycle_participants: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiCustomPropertyDriveInput {
+    pub store: *const c_void,
+    pub resolution_context: *const FfiCascadeResolutionContext,
+    pub finalizer_context: *mut c_void,
+    pub finalize_component:
+        Option<unsafe extern "C" fn(*mut c_void, *const usize, *const u32, usize, *mut FfiResolvedStyleValue)>,
+}
+
+#[repr(C)]
+pub struct FfiResolvedCustomProperty {
+    pub name_raw: usize,
+    pub important: bool,
+    /// Transfers one strong style-value reference to C++.
+    pub data: *const c_void,
+}
+
+#[repr(C)]
+pub struct FfiResolvedCustomProperties {
+    pub properties: *const FfiResolvedCustomProperty,
+    pub count: usize,
+    pub stats: FfiCustomPropertyResolutionStats,
+    pub storage: *mut c_void,
+}
+
+fn custom_property_needs_resolution(value: &StyleValueData) -> bool {
+    matches!(
+        value,
+        StyleValueData::Unresolved {
+            presence_attr: true,
+            ..
+        } | StyleValueData::Unresolved {
+            presence_dashed_function: true,
+            ..
+        } | StyleValueData::Unresolved { presence_env: true, .. }
+            | StyleValueData::Unresolved { presence_if: true, .. }
+            | StyleValueData::Unresolved {
+                presence_inherit: true,
+                ..
+            }
+            | StyleValueData::Unresolved { presence_var: true, .. }
+    )
+}
+
+struct CustomPropertyFinalizerContext<'a> {
+    input: &'a FfiCustomPropertyDriveInput,
+    names: &'a [usize],
+}
+
+unsafe extern "C" fn finalize_custom_property_component(
+    context: *mut c_void,
+    members: *const u32,
+    member_count: usize,
+    outputs: *mut FfiResolvedStyleValue,
+) {
+    let context = unsafe { &*context.cast::<CustomPropertyFinalizerContext>() };
+    unsafe {
+        (context
+            .input
+            .finalize_component
+            .expect("custom-property drive finalizer"))(
+            context.input.finalizer_context,
+            context.names.as_ptr(),
+            members,
+            member_count,
+            outputs,
+        );
+    }
+}
+
+/// Resolves every value declared by one custom-property store while the
+/// element style computation remains in Rust.
+///
+/// # Safety
+/// Every pointer in `input` must remain valid for the call. The finalizer must
+/// replace each component output with one transferred style-value reference.
+pub(crate) unsafe fn drive_custom_property_resolution(
+    input: &FfiCustomPropertyDriveInput,
+) -> FfiResolvedCustomProperties {
+    let store = unsafe { &*input.store.cast::<CustomPropertyStore>() };
+    let names = &store.declared_names;
+    let mut inputs = Vec::with_capacity(names.len());
+    for name_raw in names {
+        let entry = store
+            .own_values
+            .get(name_raw)
+            .expect("declared custom property must be an own value");
+        inputs.push(FfiUnresolvedStyleValue {
+            property_id: crate::css::property_metadata::property_id::CUSTOM,
+            root_custom_property_name: FfiUtf16View {
+                ascii: std::ptr::null(),
+                utf16: entry.name.as_ptr(),
+                length: entry.name.len(),
+            },
+            data: entry.value.pointer().cast(),
+            resolve_substitutions: custom_property_needs_resolution(entry.value.data()),
+        });
+    }
+    let mut outputs: Vec<FfiResolvedStyleValue> = names
+        .iter()
+        .map(|_| FfiResolvedStyleValue { data: std::ptr::null() })
+        .collect();
+    let mut finalizer_context = CustomPropertyFinalizerContext { input, names };
+    let stats = unsafe {
+        rust_resolve_unresolved_style_values(
+            input.resolution_context,
+            inputs.as_ptr(),
+            inputs.len(),
+            outputs.as_mut_ptr(),
+            std::ptr::from_mut(&mut finalizer_context).cast(),
+            Some(finalize_custom_property_component),
+        )
+    };
+    let properties: Vec<FfiResolvedCustomProperty> = names
+        .iter()
+        .zip(outputs)
+        .map(|(name_raw, output)| {
+            let entry = store
+                .own_values
+                .get(name_raw)
+                .expect("declared custom property must be an own value");
+            FfiResolvedCustomProperty {
+                name_raw: *name_raw,
+                important: entry.important,
+                data: output.data,
+            }
+        })
+        .collect();
+    let properties = properties.into_boxed_slice();
+    let count = properties.len();
+    let storage = Box::into_raw(properties);
+    FfiResolvedCustomProperties {
+        properties: storage.cast::<FfiResolvedCustomProperty>(),
+        count,
+        stats,
+        storage: storage.cast(),
+    }
+}
+
+/// # Safety
+/// `storage` and `count` must identify a live custom-property result batch.
+pub(crate) unsafe fn destroy_resolved_custom_properties(storage: *mut c_void, count: usize) {
+    drop(unsafe {
+        Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+            storage.cast::<FfiResolvedCustomProperty>(),
+            count,
+        ))
+    });
 }
 
 /// Source assignments produced by a completed cascade.
@@ -1657,6 +2043,8 @@ pub unsafe extern "C" fn rust_cascade_result_destroy(storage: *mut c_void, count
 mod tests {
     use std::sync::Arc;
 
+    use crate::css::property_metadata::property_id as prop;
+
     use super::*;
 
     #[test]
@@ -1758,7 +2146,7 @@ mod tests {
             },
         ));
 
-        let requirements = unsafe { rust_cascaded_properties_computation_requirements(&store) };
+        let requirements = unsafe { rust_cascaded_properties_computation_requirements(&store, std::ptr::null()) };
         assert!(requirements.uses_tree_counting_function);
         assert_eq!(requirements.container_relative_length_unit_mask, 0b1111);
         assert_eq!(
@@ -1767,10 +2155,51 @@ mod tests {
         );
         assert_eq!(requirements.unfixed_random_sharing_count, 0);
         unsafe {
-            rust_style_computation_requirements_destroy(
-                requirements.storage,
-                requirements.unfixed_random_sharing_count,
-            );
+            rust_style_computation_requirements_destroy(requirements.storage);
         }
+    }
+
+    #[test]
+    fn logical_property_closure_reaches_the_entire_group() {
+        let mut words = [0; LONGHAND_WORD_COUNT];
+        select_longhand(&mut words, prop::MARGIN_TOP);
+
+        expand_logical_property_closure(&mut words);
+
+        for property_id in [
+            prop::MARGIN_TOP,
+            prop::MARGIN_RIGHT,
+            prop::MARGIN_BOTTOM,
+            prop::MARGIN_LEFT,
+            prop::MARGIN_BLOCK_START,
+            prop::MARGIN_INLINE_END,
+            prop::MARGIN_BLOCK_END,
+            prop::MARGIN_INLINE_START,
+        ] {
+            assert!(longhand_is_selected(&words, property_id));
+        }
+        assert!(!longhand_is_selected(&words, prop::PADDING_TOP));
+    }
+
+    #[test]
+    fn border_style_and_width_groups_are_coupled() {
+        let mut words = [0; LONGHAND_WORD_COUNT];
+        select_longhand(&mut words, prop::BORDER_TOP_STYLE);
+
+        expand_logical_property_closure(&mut words);
+        select_coupled_border_style_and_width_groups(&mut words);
+
+        assert!(longhand_is_selected(&words, prop::BORDER_INLINE_END_STYLE));
+        assert!(longhand_is_selected(&words, prop::BORDER_INLINE_END_WIDTH));
+        assert!(longhand_is_selected(&words, prop::BORDER_BOTTOM_WIDTH));
+        assert!(!longhand_is_selected(&words, prop::BORDER_TOP_COLOR));
+    }
+
+    #[test]
+    fn computed_property_closure_identifies_independent_properties() {
+        assert!(property_has_independent_computed_closure(prop::OPACITY));
+        assert!(property_has_independent_computed_closure(prop::MARGIN_BLOCK_START));
+        assert!(!property_has_independent_computed_closure(prop::COLOR));
+        assert!(!property_has_independent_computed_closure(prop::FONT_SIZE));
     }
 }

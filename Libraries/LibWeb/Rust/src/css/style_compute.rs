@@ -20,7 +20,9 @@ use std::sync::{Arc, OnceLock};
 
 use crate::abort_on_panic;
 use crate::css::animated_overlay::AnimatedOverlay;
-use crate::css::cascaded_properties::CascadedPropertyStore;
+use crate::css::cascaded_properties::{
+    CascadedPropertyStore, FfiCustomPropertyDriveInput, FfiCustomPropertyResolutionStats, FfiResolvedCustomProperties,
+};
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::css_pixels::CssPixels;
 use crate::css::display::FfiDisplay;
@@ -2037,25 +2039,25 @@ fn compute_corner_shape_parameter(value: &StyleValueData) -> FfiComputedNumber {
 /// Whether a font-family value is a single monospace keyword, which triggers
 /// the monospace font-size recascade. The list entry's keyword is read through
 /// the nested value's shared Rust data handle.
+pub(crate) fn font_family_is_monospace(value: &StyleValueData) -> bool {
+    let StyleValueData::ValueList { values, .. } = value else {
+        return false;
+    };
+    let values = values.as_slice();
+    values.len() == 1
+        && matches!(
+            values[0].data(),
+            StyleValueData::Keyword { keyword } if *keyword == keyword::MONOSPACE
+        )
+}
+
 ///
 /// # Safety
 /// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_font_family_is_monospace(data: *const c_void) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let StyleValueData::ValueList { values, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
-            return false;
-        };
-        let values = values.as_slice();
-        if values.len() != 1 {
-            return false;
-        }
-        matches!(
-            values[0].data(),
-            StyleValueData::Keyword { keyword } if *keyword == keyword::MONOSPACE
-        )
-    })
+    abort_on_panic(|| font_family_is_monospace(unsafe { &*data.cast::<StyleValueData>() }))
 }
 
 /// Computes a font-feature-settings or font-variation-settings value list:
@@ -2428,33 +2430,9 @@ pub extern "C" fn rust_style_metadata_initial_value(property_id: u16) -> *const 
     abort_on_panic(|| initial_value_data(property_id).cast())
 }
 
-/// One bit per keyword marking the color keywords, installed once from the
-/// C++ side's KeywordStyleValue::is_color classification.
-static COLOR_KEYWORD_BITMAP: std::sync::OnceLock<Vec<u64>> = std::sync::OnceLock::new();
-
-/// Installs the color keyword bitmap.
-///
-/// # Safety
-/// `words` must point at `length` valid words.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_metadata_set_color_keyword_bitmap(words: *const u64, length: usize) {
-    abort_on_panic(|| {
-        let words = unsafe { std::slice::from_raw_parts(words, length) }.to_vec();
-        assert!(
-            COLOR_KEYWORD_BITMAP.set(words).is_ok(),
-            "color keyword bitmap installed twice"
-        );
-    });
-}
-
+/// Whether a keyword resolves as a color during computed-value processing.
 pub(crate) fn keyword_is_color(keyword: u16) -> bool {
-    let Some(bitmap) = COLOR_KEYWORD_BITMAP.get() else {
-        return false;
-    };
-    let index = keyword as usize;
-    bitmap
-        .get(index / 64)
-        .is_some_and(|word| word & (1 << (index % 64)) != 0)
+    keyword == keyword::CURRENTCOLOR || crate::css::color_resolution::system_color_for_keyword(keyword, false).is_some()
 }
 
 /// The inherit-or-initial decision for one longhand in the property
@@ -2503,42 +2481,24 @@ fn longhand_decision(value: Option<&StyleValueData>, property_id: u16) -> FfiLon
     }
 }
 
-/// The logical-alias-to-physical-property mapping, marshalled once from the
-/// C++ generated mapping function so the two sides cannot drift: for each
-/// longhand, one physical property id per (writing-mode, direction) pair, with
-/// zero marking properties that are not logical aliases.
+/// The number of writing-mode and direction values represented in the
+/// generated logical-property mapping tables.
 pub const WRITING_MODE_COUNT: usize = 5;
 pub const DIRECTION_COUNT: usize = 2;
-
-static LOGICAL_ALIAS_TABLE: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
-
-/// Installs the logical alias mapping table. `table` holds one entry per
-/// (longhand, writing-mode, direction) triple in row-major order.
-///
-/// # Safety
-/// `table` must point at `longhand_count * WRITING_MODE_COUNT * DIRECTION_COUNT` entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_metadata_set_logical_alias_table(table: *const u16, length: usize) {
-    abort_on_panic(|| {
-        let entries = unsafe { std::slice::from_raw_parts(table, length) }.to_vec();
-        assert!(
-            LOGICAL_ALIAS_TABLE.set(entries).is_ok(),
-            "logical alias table installed twice"
-        );
-    });
-}
 
 /// Maps a logical alias longhand to its physical property for the given
 /// writing mode and direction, or returns the property itself when it is not
 /// a logical alias.
 pub fn map_logical_alias_to_physical(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let Some(table) = LOGICAL_ALIAS_TABLE.get() else {
-        return property_id;
+    use crate::css::property_metadata::{
+        FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, LOGICAL_ALIAS_TO_PHYSICAL,
     };
+    if !(FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
+        return property_id;
+    }
     let longhand_index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
     let index = (longhand_index * WRITING_MODE_COUNT + writing_mode as usize) * DIRECTION_COUNT + direction as usize;
-    match table.get(index) {
+    match LOGICAL_ALIAS_TO_PHYSICAL.get(index) {
         Some(&physical) if physical != 0 => physical,
         _ => property_id,
     }
@@ -2550,36 +2510,18 @@ pub extern "C" fn rust_map_logical_alias_to_physical(property_id: u16, writing_m
     map_logical_alias_to_physical(property_id, writing_mode, direction)
 }
 
-static PHYSICAL_TO_LOGICAL_TABLE: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
-
-/// Installs the physical-to-logical-alias mapping table, in the same layout as
-/// the logical alias table.
-///
-/// # Safety
-/// `table` must point at `longhand_count * WRITING_MODE_COUNT * DIRECTION_COUNT` entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_metadata_set_physical_to_logical_table(table: *const u16, length: usize) {
-    abort_on_panic(|| {
-        let entries = unsafe { std::slice::from_raw_parts(table, length) }.to_vec();
-        assert!(
-            PHYSICAL_TO_LOGICAL_TABLE.set(entries).is_ok(),
-            "physical to logical table installed twice"
-        );
-        // Both tables are in by now, so what they map between them can be summarized once.
-        let _ = TABLE_MAPS_SUMMARY.set(summarize_table_rows());
-    });
-}
-
 /// Maps a physical longhand to its logical alias for the given writing mode
 /// and direction, or returns the property itself when it has no logical alias.
 pub fn map_physical_to_logical_alias(property_id: u16, writing_mode: u8, direction: u8) -> u16 {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let Some(table) = PHYSICAL_TO_LOGICAL_TABLE.get() else {
-        return property_id;
+    use crate::css::property_metadata::{
+        FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, PHYSICAL_TO_LOGICAL_ALIAS,
     };
+    if !(FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
+        return property_id;
+    }
     let longhand_index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
     let index = (longhand_index * WRITING_MODE_COUNT + writing_mode as usize) * DIRECTION_COUNT + direction as usize;
-    match table.get(index) {
+    match PHYSICAL_TO_LOGICAL_ALIAS.get(index) {
         Some(&logical) if logical != 0 => logical,
         _ => property_id,
     }
@@ -2646,6 +2588,42 @@ pub struct FfiLonghandStoreBatch {
     pub count: usize,
     pub effective_color_scheme: i16,
     pub storage: *mut c_void,
+}
+
+#[repr(C)]
+pub struct FfiLonghandDriveInput {
+    pub longhand_table: *mut ComputedLonghandTable,
+    pub store: *const CascadedPropertyStore,
+    pub parent_snapshot: *const FfiParentSnapshot,
+    pub environment: *const FfiStyleComputationEnvironment,
+    pub computed_group_mask: u32,
+    pub computed_property_words: *const u64,
+    pub font_length_resolution_context: FfiLengthResolutionContext,
+    pub callback_context: *mut c_void,
+    pub prepare_phase_context: unsafe extern "C" fn(
+        *mut c_void,
+        u8,
+        *const FfiComputedStoreEntry,
+        usize,
+        i16,
+        *const FfiLonghandDriverResults,
+        *mut FfiLonghandPhaseContext,
+    ),
+}
+
+#[repr(C)]
+pub struct FfiLonghandPhaseContext {
+    pub length_resolution_context: FfiLengthResolutionContext,
+    pub input_line_height_metrics: FfiInputLineHeightMetrics,
+    pub line_height_before_adjustments: *const c_void,
+    pub custom_property_input: FfiCustomPropertyDriveInput,
+}
+
+#[repr(C)]
+pub struct FfiLonghandDriveResult {
+    pub store_batch: FfiLonghandStoreBatch,
+    pub driver_results: FfiLonghandDriverResults,
+    pub custom_properties: FfiResolvedCustomProperties,
 }
 
 /// Document-level inputs to used color-scheme resolution. Scheme values use
@@ -2964,7 +2942,9 @@ pub struct FfiLonghandDriverResults {
     pub raw_cascaded_font_size_data: *const c_void,
     pub depends_on_viewport_metrics: bool,
     pub font_metrics_depend_on_viewport_metrics: bool,
-    pub explicitly_inherited_non_inherited_property: bool,
+    /// Groups containing non-inherited properties explicitly inherited from
+    /// the parent. `u32::MAX` means the owning group is unknown.
+    pub explicitly_inherited_non_inherited_style_groups: u32,
     pub uses_tree_counting_function: bool,
     /// The used color scheme produced by the color-scheme stage, or -1 until
     /// that stage has run.
@@ -2991,7 +2971,7 @@ fn empty_longhand_driver_results() -> FfiLonghandDriverResults {
         raw_cascaded_font_size_data: std::ptr::null(),
         depends_on_viewport_metrics: false,
         font_metrics_depend_on_viewport_metrics: false,
-        explicitly_inherited_non_inherited_property: false,
+        explicitly_inherited_non_inherited_style_groups: 0,
         uses_tree_counting_function: false,
         effective_color_scheme: -1,
         display_before_box_type_transformation: FfiDisplay::inline(),
@@ -3009,6 +2989,8 @@ pub const LONGHAND_DRIVE_PHASE_FONT: u8 = 0;
 pub const LONGHAND_DRIVE_PHASE_LINE_HEIGHT: u8 = 1;
 pub const LONGHAND_DRIVE_PHASE_COLOR_SCHEME: u8 = 2;
 pub const LONGHAND_DRIVE_PHASE_REMAINING: u8 = 3;
+pub const LONGHAND_PHASE_CONTEXT_AFTER_FONT: u8 = 0;
+pub const LONGHAND_PHASE_CONTEXT_AFTER_LINE_HEIGHT: u8 = 1;
 
 fn property_computation_order_for_phase(phase: u8) -> &'static [u16] {
     use crate::css::property_metadata::{property_computation_order, property_id as prop};
@@ -3036,52 +3018,23 @@ fn property_computation_order_for_phase(phase: u8) -> &'static [u16] {
     }
 }
 
-/// Which longhands either table maps at all, as one bit each.
-///
-/// Whether a longhand is in a logical property group is a fact about the stylesheet language, and
-/// the driver asked it of both tables for every longhand of every element - ten entries scanned
-/// twice, seven hundred times an element, to answer something that never changes.
-static TABLE_MAPS_SUMMARY: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
-
 const LOGICAL_ALIAS_BIT: u8 = 1;
 const PHYSICAL_TO_LOGICAL_BIT: u8 = 2;
 
-fn summarize_table_rows() -> Vec<u8> {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let row_maps = |table: &std::sync::OnceLock<Vec<u16>>, property_id: u16| -> bool {
-        let Some(table) = table.get() else {
-            return false;
-        };
-        let start = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize * WRITING_MODE_COUNT * DIRECTION_COUNT;
-        table[start..start + WRITING_MODE_COUNT * DIRECTION_COUNT]
-            .iter()
-            .any(|&entry| entry != 0)
-    };
-    let longhand_count = LOGICAL_ALIAS_TABLE
-        .get()
-        .map_or(0, |table| table.len() / (WRITING_MODE_COUNT * DIRECTION_COUNT));
-    (0..longhand_count)
-        .map(|index| {
-            let property_id = FIRST_LONGHAND_PROPERTY_ID + index as u16;
-            let mut bits = 0;
-            if row_maps(&LOGICAL_ALIAS_TABLE, property_id) {
-                bits |= LOGICAL_ALIAS_BIT;
-            }
-            if row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
-                bits |= PHYSICAL_TO_LOGICAL_BIT;
-            }
-            bits
-        })
-        .collect()
-}
-
 fn table_row_bits(property_id: u16) -> u8 {
-    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let Some(summary) = TABLE_MAPS_SUMMARY.get() else {
-        return 0;
+    use crate::css::property_metadata::{
+        FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, longhand_is_logical_alias, property_is_in_logical_group,
     };
-    let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
-    summary.get(index).copied().unwrap_or(0)
+    if !(FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id) {
+        return 0;
+    }
+    if longhand_is_logical_alias(property_id) {
+        LOGICAL_ALIAS_BIT
+    } else if property_is_in_logical_group(property_id) {
+        PHYSICAL_TO_LOGICAL_BIT
+    } else {
+        0
+    }
 }
 
 fn value_is_initial_or_unset(value: *const c_void) -> bool {
@@ -3178,6 +3131,10 @@ fn publish_longhand_store_batch(
         effective_color_scheme,
         storage: Box::into_raw(entries).cast(),
     }
+}
+
+unsafe fn take_longhand_store_batch(batch: FfiLonghandStoreBatch) -> Vec<FfiComputedStoreEntry> {
+    *unsafe { Box::from_raw(batch.storage.cast::<Vec<FfiComputedStoreEntry>>()) }
 }
 
 /// Drives the property computation loop: iterates every longhand in
@@ -3423,7 +3380,8 @@ unsafe fn drive_property_computation(
                 let snapshot = snapshot.unwrap();
                 set_longhand_bit(&mut inherited_words, property_id);
                 if decision.explicitly_inherits_non_inherited_property {
-                    results.explicitly_inherited_non_inherited_property = true;
+                    results.explicitly_inherited_non_inherited_style_groups |=
+                        crate::css::computed_values::computed_group_output_mask(property_id).unwrap_or(u32::MAX);
                 }
                 // Both the inherited-by-default read and an explicit `inherit` of a
                 // non-inherited property take the parent's stored computed value for
@@ -4478,41 +4436,108 @@ fn is_required_driver_input(property_id: u16) -> bool {
     )
 }
 
-/// FFI entry for the native longhand driver.
+/// Computes all longhand phases, pausing only where the native style system
+/// must apply side effects and prepare a length resolution context.
 ///
 /// # Safety
-/// All pointers must satisfy `drive_property_computation`'s contract.
+/// `input` and every pointer it contains must remain valid for this call. The
+/// phase callback must initialize its output context.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_drive_property_computation(
-    longhand_table: *mut ComputedLonghandTable,
-    store: *const CascadedPropertyStore,
-    parent_snapshot: *const FfiParentSnapshot,
-    environment: *const FfiStyleComputationEnvironment,
-    computed_group_mask: u32,
-    computed_property_words: *const u64,
-    phase: u8,
-    length_resolution_context: *const FfiLengthResolutionContext,
-    input_line_height_metrics: *const FfiInputLineHeightMetrics,
-    line_height_before_adjustments: *const c_void,
-    results: *mut FfiLonghandDriverResults,
-) -> FfiLonghandStoreBatch {
+pub unsafe extern "C" fn rust_compute_longhands(input: *const FfiLonghandDriveInput) -> FfiLonghandDriveResult {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
-    unsafe {
-        drive_property_computation(
-            longhand_table,
-            store,
-            parent_snapshot,
-            environment,
-            computed_group_mask,
-            computed_property_words,
-            phase,
-            length_resolution_context,
-            input_line_height_metrics,
-            line_height_before_adjustments,
-            results,
-            true,
-        )
-    }
+    abort_on_panic(|| {
+        let input = unsafe { &*input };
+        let mut driver_results = empty_longhand_driver_results();
+        let driver_results_pointer = &raw mut driver_results;
+        let drive_phase =
+            |phase, length_resolution_context, input_line_height_metrics, line_height_before_adjustments| unsafe {
+                drive_property_computation(
+                    input.longhand_table,
+                    input.store,
+                    input.parent_snapshot,
+                    input.environment,
+                    input.computed_group_mask,
+                    input.computed_property_words,
+                    phase,
+                    length_resolution_context,
+                    input_line_height_metrics,
+                    line_height_before_adjustments,
+                    driver_results_pointer,
+                    true,
+                )
+            };
+        let prepare_phase_context = |phase, batch: FfiLonghandStoreBatch| {
+            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverPhaseCallback);
+            let mut context = std::mem::MaybeUninit::<FfiLonghandPhaseContext>::uninit();
+            unsafe {
+                (input.prepare_phase_context)(
+                    input.callback_context,
+                    phase,
+                    batch.entries,
+                    batch.count,
+                    batch.effective_color_scheme,
+                    driver_results_pointer,
+                    context.as_mut_ptr(),
+                );
+                (context.assume_init(), take_longhand_store_batch(batch))
+            }
+        };
+
+        let font_batch = drive_phase(
+            LONGHAND_DRIVE_PHASE_FONT,
+            &raw const input.font_length_resolution_context,
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        let (line_height_context, _) = prepare_phase_context(LONGHAND_PHASE_CONTEXT_AFTER_FONT, font_batch);
+        let line_height_batch = drive_phase(
+            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+            &raw const line_height_context.length_resolution_context,
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        let color_scheme_batch = drive_phase(
+            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        let mut intermediate_entries = unsafe { take_longhand_store_batch(line_height_batch) };
+        let color_scheme = color_scheme_batch.effective_color_scheme;
+        intermediate_entries.extend(unsafe { take_longhand_store_batch(color_scheme_batch) });
+        let intermediate_batch = publish_longhand_store_batch(intermediate_entries, color_scheme);
+        let (remaining_context, _) =
+            prepare_phase_context(LONGHAND_PHASE_CONTEXT_AFTER_LINE_HEIGHT, intermediate_batch);
+        let store_batch = drive_phase(
+            LONGHAND_DRIVE_PHASE_REMAINING,
+            &raw const remaining_context.length_resolution_context,
+            &raw const remaining_context.input_line_height_metrics,
+            remaining_context.line_height_before_adjustments,
+        );
+        let custom_properties = if remaining_context.custom_property_input.store.is_null() {
+            FfiResolvedCustomProperties {
+                properties: std::ptr::null(),
+                count: 0,
+                stats: FfiCustomPropertyResolutionStats {
+                    final_value_hits: 0,
+                    final_value_misses: 0,
+                    cycle_participants: 0,
+                },
+                storage: std::ptr::null_mut(),
+            }
+        } else {
+            unsafe {
+                crate::css::cascaded_properties::drive_custom_property_resolution(
+                    &remaining_context.custom_property_input,
+                )
+            }
+        };
+        FfiLonghandDriveResult {
+            store_batch,
+            driver_results,
+            custom_properties,
+        }
+    })
 }
 
 /// Computes every initial document longhand in the native driver. Unlike a
@@ -4601,7 +4626,7 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
                 )
             };
             assert_eq!(batch.count, 0, "document initialization has no C++ store side effects");
-            unsafe { rust_longhand_store_batch_destroy(batch.storage) };
+            unsafe { destroy_longhand_store_batch(batch.storage) };
         }
         FfiDocumentLonghandResult {
             depends_on_viewport_metrics: results.depends_on_viewport_metrics,
@@ -4731,7 +4756,7 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                         false,
                     )
                 };
-                unsafe { rust_longhand_store_batch_destroy(batch.storage) };
+                unsafe { destroy_longhand_store_batch(batch.storage) };
             }
             depends_on_viewport_metrics |= results.depends_on_viewport_metrics;
             font_metrics_depend_on_viewport_metrics |= results.font_metrics_depend_on_viewport_metrics;
@@ -4764,11 +4789,30 @@ pub unsafe extern "C" fn rust_animation_keyframe_longhands_destroy(storage: *mut
     }
 }
 
+unsafe fn destroy_longhand_store_batch(storage: *mut c_void) {
+    drop(unsafe { Box::from_raw(storage.cast::<Vec<FfiComputedStoreEntry>>()) });
+}
+
 /// # Safety
-/// `storage` must be a live pointer returned by `rust_drive_property_computation`.
+/// Both storage pointers and the custom-property count must come from one live
+/// `rust_compute_longhands` result.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_longhand_store_batch_destroy(storage: *mut c_void) {
-    abort_on_panic(|| drop(unsafe { Box::from_raw(storage.cast::<Vec<FfiComputedStoreEntry>>()) }));
+pub unsafe extern "C" fn rust_style_computation_result_destroy(
+    longhand_storage: *mut c_void,
+    custom_property_storage: *mut c_void,
+    custom_property_count: usize,
+) {
+    abort_on_panic(|| {
+        unsafe { destroy_longhand_store_batch(longhand_storage) };
+        if !custom_property_storage.is_null() {
+            unsafe {
+                crate::css::cascaded_properties::destroy_resolved_custom_properties(
+                    custom_property_storage,
+                    custom_property_count,
+                );
+            };
+        }
+    });
 }
 
 fn apply_post_compute_adjustments(
@@ -5875,6 +5919,14 @@ mod tests {
         );
         assert_eq!(resolve_effective_color_scheme(&[], AUTO, Some(&[DARK])), DARK);
         assert_eq!(resolve_effective_color_scheme(&[], AUTO, None), LIGHT);
+    }
+
+    #[test]
+    fn color_keyword_classification_uses_rust_color_metadata() {
+        assert!(keyword_is_color(keyword::CURRENTCOLOR));
+        assert!(keyword_is_color(keyword::CANVAS));
+        assert!(keyword_is_color(keyword::_LIBWEB_BUTTONFACEHOVER));
+        assert!(!keyword_is_color(keyword::AUTO));
     }
 
     #[test]

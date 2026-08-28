@@ -44,7 +44,7 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
         });
     }
     m_rust_store = ComputedValuesFFI::rust_custom_property_store_create(
-        entries.data(), entries.size(), m_parent ? m_parent->rust_store() : nullptr,
+        entries.data(), entries.size(), m_declared_count, m_parent ? m_parent->rust_store() : nullptr,
         inheritance_parent ? inheritance_parent->rust_store() : nullptr);
 }
 

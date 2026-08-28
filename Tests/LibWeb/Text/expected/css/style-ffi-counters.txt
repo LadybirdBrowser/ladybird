@@ -1,7 +1,8 @@
 has counters: true
 all zero after reset: true
 simple element stayed callback-free: true
-longhand computation entered Rust: true
+longhand computation used one Rust entry: true
+longhand computation used two context callbacks: true
 shorthand expansion entered Rust: true
 inherited partial restyle stayed callback-free: true
 pseudo-element stayed callback-free: true

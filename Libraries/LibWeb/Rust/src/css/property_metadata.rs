@@ -250,8 +250,20 @@ fn property_is_logical_alias_including_shorthands(property_id: u16) -> bool {
     PROPERTY_IS_LOGICAL_ALIAS[property_index(property_id)]
 }
 
+pub(crate) fn longhand_is_logical_alias(property_id: u16) -> bool {
+    debug_assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id));
+    property_is_logical_alias_including_shorthands(property_id)
+}
+
 pub(crate) fn property_is_in_logical_group(property_id: u16) -> bool {
-    PROPERTY_IS_LOGICAL_GROUP_MEMBER[property_index(property_id)]
+    property_logical_group(property_id).is_some()
+}
+
+pub(crate) fn property_logical_group(property_id: u16) -> Option<u8> {
+    match PROPERTY_LOGICAL_GROUPS[property_index(property_id)] {
+        0 => None,
+        group => Some(group),
+    }
 }
 
 /// Returns whether `a` wins a keyframe declaration conflict with `b`.
