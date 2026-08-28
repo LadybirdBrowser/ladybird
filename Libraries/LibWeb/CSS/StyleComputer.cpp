@@ -3521,20 +3521,6 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
     }
 }
 
-static void prepare_overflow_finalization(ComputedStyleWorkingSet const& style, ComputedValuesFFI::FfiStyleFinalizationInput& input)
-{
-    input.overflow_x = to_underlying(style.property(PropertyID::OverflowX).to_keyword());
-    input.overflow_y = to_underlying(style.property(PropertyID::OverflowY).to_keyword());
-}
-
-static void apply_overflow_finalization(ComputedStyleWorkingSet& style, ComputedValuesFFI::FfiEffectiveOverflow const& effective_overflow)
-{
-    if (effective_overflow.changed_x)
-        style.set_property(PropertyID::OverflowX, KeywordStyleValue::create(static_cast<Keyword>(effective_overflow.x_keyword)));
-    if (effective_overflow.changed_y)
-        style.set_property(PropertyID::OverflowY, KeywordStyleValue::create(static_cast<Keyword>(effective_overflow.y_keyword)));
-}
-
 static bool prepare_text_align_finalization(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationInput& input)
 {
     auto text_align_keyword = style.property(PropertyID::TextAlign).to_keyword();
@@ -3547,10 +3533,6 @@ static bool prepare_text_align_finalization(ComputedStyleWorkingSet& style, DOM:
     input.text_align = to_underlying(text_align_keyword);
     input.is_th_element = abstract_element.element().local_name() == HTML::TagNames::th;
 
-    // The resolved value does not remember that it read the parent's direction and text alignment.
-    // Keep the specified keyword so inherited-style refresh can resolve it again when either moves.
-    style.add_inheritance_dependent_specified_value(PropertyID::TextAlign, style.property(PropertyID::TextAlign));
-
     auto const parent = abstract_element.element_to_inherit_style_from();
     input.has_parent_with_computed_values = parent.has_value() && parent->has_style();
     input.parent_direction_is_ltr = true;
@@ -3561,14 +3543,6 @@ static bool prepare_text_align_finalization(ComputedStyleWorkingSet& style, DOM:
         input.parent_direction_is_ltr = parent_values.direction() == Direction::Ltr;
     }
     return true;
-}
-
-static void apply_text_align_finalization(ComputedStyleWorkingSet& style, ComputedValuesFFI::FfiTextAlignAdjustment const& adjustment)
-{
-    if (adjustment.changed) {
-        style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.keyword)),
-            adjustment.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
-    }
 }
 
 static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transformation_input(
@@ -3676,27 +3650,6 @@ static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(Co
     return line_height_metrics;
 }
 
-template<typename SetProperty>
-static void apply_element_style_adjustments(ComputedStyleWorkingSet const& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiElementStyleAdjustments const& adjustments, SetProperty set_property)
-{
-    if (adjustments.box_type.set_float_none)
-        set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
-    if (adjustments.box_type.changed_display)
-        set_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(adjustments.box_type.display)));
-
-    auto const& element_style = adjustments.element_style;
-    if (element_style.changed_display)
-        set_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(element_style.display)));
-    if (element_style.set_position_static)
-        set_property(PropertyID::Position, KeywordStyleValue::create(Keyword::Static));
-    if (element_style.changed_text_align)
-        set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(element_style.text_align)));
-
-    auto line_height_metrics = input_line_height_metrics(style, abstract_element, element_style.check_input_line_height);
-    if (element_style.set_line_height_normal || (element_style.check_input_line_height && line_height_metrics.current_line_height < line_height_metrics.minimum_line_height))
-        set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
-}
-
 // https://drafts.csswg.org/css-display/#transformations
 void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode mode) const
 {
@@ -3717,41 +3670,22 @@ void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::Abstract
             style.property(PropertyID::Float).to_keyword());
     }
     if (mode == ComputedValuesFFI::FfiStyleFinalizationMode::All) {
-        prepare_overflow_finalization(style, input);
+        input.overflow_x = to_underlying(style.property(PropertyID::OverflowX).to_keyword());
+        input.overflow_y = to_underlying(style.property(PropertyID::OverflowY).to_keyword());
         prepare_text_align_finalization(style, abstract_element, input);
     } else if (mode == ComputedValuesFFI::FfiStyleFinalizationMode::TextAlign && !prepare_text_align_finalization(style, abstract_element, input)) {
         return;
     }
 
-    auto finalization = ComputedValuesFFI::rust_finalize_style(&input);
-    if (finalize_box_type) {
-        auto set_adjusted_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> value) {
-            if (animated_box_type) {
-                if (style.property(property_id).equals(*value))
-                    return;
-            } else if (!style.has_animated_property(property_id)) {
-                style.set_property(property_id, move(value));
-                return;
-            }
-            auto is_result_of_transition = style.has_animated_property(property_id) && style.is_animated_property_result_of_transition(property_id)
-                ? AnimatedPropertyResultOfTransition::Yes
-                : AnimatedPropertyResultOfTransition::No;
-            auto inherited = style.has_animated_property(property_id) && style.is_animated_property_inherited(property_id)
-                ? ComputedStyleWorkingSet::Inherited::Yes
-                : ComputedStyleWorkingSet::Inherited::No;
-            style.set_animated_property(Badge<StyleComputer> {}, property_id, value, is_result_of_transition, inherited);
-            if (!animated_box_type)
-                style.set_property(property_id, move(value));
-        };
-
-        if (animated_box_type && !style.has_animated_property(PropertyID::Display))
-            set_adjusted_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(input.box_type.display)));
-        if (!animated_box_type)
-            style.set_display_before_box_type_transformation(display_from_ffi_display(input.box_type.display));
-        apply_element_style_adjustments(style, abstract_element, finalization.element_style, set_adjusted_property);
-    }
-    apply_overflow_finalization(style, finalization.overflow);
-    apply_text_align_finalization(style, finalization.text_align);
+    if (finalize_box_type && !animated_box_type)
+        style.set_display_before_box_type_transformation(display_from_ffi_display(input.box_type.display));
+    auto line_height_metrics = input_line_height_metrics(style, abstract_element, finalize_box_type && input.box_type.check_input_line_height);
+    auto* animated_overlay = style.prepare_animated_overlay_for_rust_finalization(
+        Badge<StyleComputer> {}, animated_box_type ? ComputedStyleWorkingSet::CreateAnimatedOverlay::Yes : ComputedStyleWorkingSet::CreateAnimatedOverlay::No);
+    auto finalization = ComputedValuesFFI::rust_finalize_style(
+        &input, style.mutable_computed_longhand_table(), animated_overlay, &line_height_metrics);
+    style.did_apply_style_finalization_from_rust(finalization.invalidated_longhands);
+    style.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
 }
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
@@ -4407,7 +4341,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
     finalization_input.mode = ComputedValuesFFI::FfiStyleFinalizationMode::Overflow;
     finalization_input.overflow_x = to_underlying(to_keyword(animated_values->overflow_x()));
     finalization_input.overflow_y = to_underlying(to_keyword(animated_values->overflow_y()));
-    auto effective_overflow = ComputedValuesFFI::rust_finalize_style(&finalization_input).overflow;
+    auto effective_overflow = ComputedValuesFFI::rust_finalize_style(&finalization_input, nullptr, nullptr, nullptr).overflow;
     if (effective_overflow.changed_x)
         builder->set_overflow_x(keyword_to_overflow(static_cast<Keyword>(effective_overflow.x_keyword)).value());
     if (effective_overflow.changed_y)

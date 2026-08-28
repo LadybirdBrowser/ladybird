@@ -64,6 +64,11 @@ public:
         Yes
     };
 
+    enum class CreateAnimatedOverlay {
+        No,
+        Yes,
+    };
+
     static NonnullRefPtr<ComputedStyleWorkingSet> create();
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedStyleWorkingSet const&);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedValues const&);
@@ -126,7 +131,9 @@ public:
     bool has_pseudo_element_style(PseudoElement) const;
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
+    ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>, CreateAnimatedOverlay);
     void finish_animated_overlay_rust_mutation(Badge<StyleComputer>);
+    void did_apply_style_finalization_from_rust(u16 invalidated_longhands);
     void clear_animated_properties(Badge<StyleComputer>);
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     void const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
