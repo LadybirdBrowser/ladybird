@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test reference</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org/">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" type="text/css" href="../../../../../../data/fonts/ahem.css" />
+<style>
+#wrapper {
+  width: 0px;
+  font: 16px / 1 Ahem;
+  color: green;
+}
+#test {
+  float: left;
+}
+#reference {
+  position: absolute;
+  width: 16px;
+  height: 128px;
+  background: red;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a vertical green bar below.
+<div id="wrapper">
+  <div id="reference"></div>
+  <div id="test">X<br>X<br>X<br>X<br>X<br>X<br>X<br>X</div>
+</div>

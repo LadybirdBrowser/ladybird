@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap - break-word and white-space - nowrap</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="author" title="Shiyou Tan" href="mailto:shiyoux.tan@intel.com">
+<link rel="help" href="http://www.w3.org/TR/css-text-3/#overflow-wrap-property">
+<link rel="help" href="http://www.w3.org/TR/css-text-3/#white-space">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/overflow-wrap-002-ref.html">
+<meta name="flags" content="ahem">
+<meta name="assert" content="Test checks that the 'overflow-wrap' property has effect if and only if the 'white-space' allows wrapping">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+  #ref {
+    border: 5px solid orange;
+    font: 20px/1 Ahem;
+    overflow-wrap: break-word;
+    width: 200px;
+  }
+  #test {
+    border: 5px solid blue;
+    font: 20px/1 Ahem;
+    overflow-wrap: break-word;
+    white-space: nowrap;
+    width: 200px;
+  }
+</style>
+<body>
+  <p class="instructions">Test passes if the black box overflows the blue border box, but fits within the orange border box.</p>
+  <p id="ref">FillerTextFillerTextFillerTextFillerText</p>
+  <p id="test">FillerTextFillerTextFillerTextFillerText</p>
+</body>

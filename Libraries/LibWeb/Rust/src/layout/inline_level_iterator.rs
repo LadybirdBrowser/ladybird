@@ -38,6 +38,28 @@ pub(crate) struct Item {
     pub(crate) trailing_whitespace: line_box_fragment::TrailingWhitespace,
 }
 
+fn shape_glyph_data(
+    text: &[u16],
+    font: *const c_void,
+    text_type: u8,
+    baseline_start_x: f32,
+    letter_spacing: f32,
+    word_spacing: f32,
+) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
+    let shaped = font::shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
+    let glyph_data = line_box_fragment::GlyphData {
+        glyphs: shaped.glyphs,
+        font,
+        text_type,
+        width: shaped.width,
+    };
+    let trailing_whitespace = line_box_fragment::TrailingWhitespace {
+        length_in_code_units: shaped.trailing_whitespace_length_in_code_units,
+        inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance),
+    };
+    (glyph_data, trailing_whitespace)
+}
+
 impl Item {
     fn new(type_: ItemType, node: Node) -> Self {
         Self {
@@ -87,6 +109,185 @@ impl Item {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
         text[self.offset_in_node..self.offset_in_node + self.length_in_node].contains(&(b'\t' as u16))
+    }
+
+    pub(crate) fn allows_overflow_break(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> bool {
+        self.type_ == ItemType::Text
+            && !self.is_collapsible_whitespace
+            && !self.is_ascii_whitespace(context)
+            && context.overflow_break_applies(self.node)
+    }
+
+    pub(crate) fn split_for_overflow_break(
+        &mut self,
+        text: &[u16],
+        segmenter: &text_chunker::GraphemeSegmenter,
+        letter_spacing: f32,
+        word_spacing: f32,
+        max_border_box_inline_size: CssPixels,
+        take_first_grapheme_when_none_fits: bool,
+    ) -> Option<Item> {
+        assert_eq!(self.type_, ItemType::Text);
+        self.split_at_shaped_glyph(
+            segmenter,
+            max_border_box_inline_size,
+            take_first_grapheme_when_none_fits,
+        )
+        .or_else(|| {
+            self.split_by_reshaping(
+                text,
+                segmenter,
+                letter_spacing,
+                word_spacing,
+                max_border_box_inline_size,
+                take_first_grapheme_when_none_fits,
+            )
+        })
+    }
+
+    fn take_prefix_before(
+        &mut self,
+        split_offset_in_node: usize,
+        prefix_glyphs: line_box_fragment::GlyphData,
+        remainder_glyphs: line_box_fragment::GlyphData,
+    ) -> Item {
+        let mut prefix = Item::new(ItemType::Text, self.node);
+        prefix.offset_in_node = self.offset_in_node;
+        prefix.length_in_node = split_offset_in_node - self.offset_in_node;
+        prefix.inline_size = CssPixels::nearest_value_for_f32(prefix_glyphs.width);
+        prefix.margin_start = self.margin_start;
+        prefix.border_start = self.border_start;
+        prefix.padding_start = self.padding_start;
+        prefix.can_break_before = self.can_break_before;
+        prefix.glyphs = Some(prefix_glyphs);
+
+        self.length_in_node -= prefix.length_in_node;
+        self.offset_in_node = split_offset_in_node;
+        self.inline_size = CssPixels::nearest_value_for_f32(remainder_glyphs.width);
+        self.glyphs = Some(remainder_glyphs);
+        self.margin_start = CssPixels::default();
+        self.border_start = CssPixels::default();
+        self.padding_start = CssPixels::default();
+        self.can_break_before = false;
+
+        prefix
+    }
+
+    fn split_at_shaped_glyph(
+        &mut self,
+        segmenter: &text_chunker::GraphemeSegmenter,
+        max_border_box_inline_size: CssPixels,
+        take_first_grapheme_when_none_fits: bool,
+    ) -> Option<Item> {
+        let glyph_data = self.glyphs.as_ref()?;
+        if glyph_data.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL || glyph_data.glyphs.len() < 2 {
+            return None;
+        }
+        let shaped_length_in_code_units: usize = glyph_data.glyphs.iter().map(|glyph| glyph.length_in_code_units).sum();
+        if shaped_length_in_code_units != self.length_in_node {
+            return None;
+        }
+
+        let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
+        let mut split: Option<(usize, usize)> = None;
+        let mut code_units = glyph_data.glyphs[0].length_in_code_units;
+        for (glyph_index, glyph) in glyph_data.glyphs.iter().enumerate().skip(1) {
+            let offset = self.offset_in_node + code_units;
+            if segmenter.next_boundary(offset, true) == Some(offset) {
+                let prefix_inline_size = CssPixels::nearest_value_for_f32(glyph.x);
+                if leading_edge_inline_size + prefix_inline_size > max_border_box_inline_size {
+                    if split.is_none() && take_first_grapheme_when_none_fits {
+                        split = Some((glyph_index, code_units));
+                    }
+                    break;
+                }
+                split = Some((glyph_index, code_units));
+            }
+            code_units += glyph.length_in_code_units;
+        }
+        let (split_glyph_index, split_code_units) = split?;
+
+        let glyph_data = self.glyphs.as_mut().unwrap();
+        let split_x = glyph_data.glyphs[split_glyph_index].x;
+        let font = glyph_data.font;
+        let text_type = glyph_data.text_type;
+        let remainder_glyphs = glyph_data.glyphs.split_off(split_glyph_index);
+        let prefix_glyphs = std::mem::replace(&mut glyph_data.glyphs, remainder_glyphs);
+        for glyph in &mut glyph_data.glyphs {
+            glyph.x -= split_x;
+        }
+        let remainder_width = glyph_data.width - split_x;
+        let remainder_glyphs = std::mem::take(&mut glyph_data.glyphs);
+
+        Some(self.take_prefix_before(
+            self.offset_in_node + split_code_units,
+            line_box_fragment::GlyphData {
+                glyphs: prefix_glyphs,
+                font,
+                text_type,
+                width: split_x,
+            },
+            line_box_fragment::GlyphData {
+                glyphs: remainder_glyphs,
+                font,
+                text_type,
+                width: remainder_width,
+            },
+        ))
+    }
+
+    fn split_by_reshaping(
+        &mut self,
+        text: &[u16],
+        segmenter: &text_chunker::GraphemeSegmenter,
+        letter_spacing: f32,
+        word_spacing: f32,
+        max_border_box_inline_size: CssPixels,
+        take_first_grapheme_when_none_fits: bool,
+    ) -> Option<Item> {
+        let glyph_data = self.glyphs.as_ref()?;
+        if glyph_data.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL {
+            return None;
+        }
+        let font = glyph_data.font;
+        let text_type = glyph_data.text_type;
+        let start = self.offset_in_node;
+        let end = start + self.length_in_node;
+
+        let mut boundaries = Vec::with_capacity(end - start);
+        let mut boundary = segmenter.next_boundary(start, false)?;
+        while boundary < end {
+            boundaries.push(boundary);
+            let Some(next) = segmenter.next_boundary(boundary, false) else {
+                break;
+            };
+            boundary = next;
+        }
+        if boundaries.is_empty() {
+            return None;
+        }
+
+        let shape =
+            |text_range: &[u16]| shape_glyph_data(text_range, font, text_type, 0.0, letter_spacing, word_spacing).0;
+
+        let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
+        let prefix_fits = |boundary: usize| {
+            let shaped = shape(&text[start..boundary]);
+            leading_edge_inline_size + CssPixels::nearest_value_for_f32(shaped.width) <= max_border_box_inline_size
+        };
+        let mut fitting_count = boundaries.partition_point(|boundary| prefix_fits(*boundary));
+        if fitting_count == 0 {
+            if !take_first_grapheme_when_none_fits {
+                return None;
+            }
+            fitting_count = 1;
+        }
+        let split = boundaries[fitting_count - 1];
+
+        Some(self.take_prefix_before(split, shape(&text[start..split]), shape(&text[split..end])))
     }
 }
 
@@ -382,29 +583,6 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
     }
 
-    fn shape_text(
-        &mut self,
-        text: &[u16],
-        font: *const c_void,
-        text_type: u8,
-        baseline_start_x: f32,
-        letter_spacing: f32,
-        word_spacing: f32,
-    ) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
-        let shaped = font::shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
-        let glyph_data = line_box_fragment::GlyphData {
-            glyphs: shaped.glyphs,
-            font,
-            text_type,
-            width: shaped.width,
-        };
-        let trailing_whitespace = line_box_fragment::TrailingWhitespace {
-            length_in_code_units: shaped.trailing_whitespace_length_in_code_units,
-            inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance),
-        };
-        (glyph_data, trailing_whitespace)
-    }
-
     fn add_extra_box_model_metrics_to_item(
         &mut self,
         item: &mut Item,
@@ -519,7 +697,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             inline_offset = tab_stop_distance.to_double() as f32;
         }
         let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
-        let (glyphs, shaped_trailing_whitespace) = self.shape_text(
+        let (glyphs, shaped_trailing_whitespace) = shape_glyph_data(
             shaped_text,
             chunk.font,
             text_type,
@@ -662,6 +840,21 @@ impl InlineLevelIterator {
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> CssPixels {
+        self.next_sequence_inline_size(context, false)
+    }
+
+    pub(crate) fn next_unbreakable_run_inline_size(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> CssPixels {
+        self.next_sequence_inline_size(context, true)
+    }
+
+    fn next_sequence_inline_size(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+        stop_at_overflow_breakable_text: bool,
+    ) -> CssPixels {
         let mut size = CssPixels::default();
         for item in &self.items[self.next_item_index..] {
             if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
@@ -675,10 +868,22 @@ impl InlineLevelIterator {
                 if item.is_ascii_whitespace(context) {
                     break;
                 }
+                if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
+                    break;
+                }
             }
             size += item.border_box_inline_size();
         }
         size
+    }
+
+    pub(crate) fn next_non_whitespace_text_allows_overflow_break(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> bool {
+        self.items
+            .get(self.next_item_index)
+            .is_some_and(|item| item.allows_overflow_break(context))
     }
 
     pub(crate) fn take_visited_fragmented_inlines(&mut self) -> Vec<Node> {

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap: anywhere and intrinsic sizing</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#overflow-wrap-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-anywhere">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-word-break-keep-all">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-min-content-size-001-ref.html">
+<meta name="assert" content="The word shouldn't be broken, honoring word-break: keep-all, but 'overflow-wrap: anywhere' introduce additional soft wrap opportunities, which **are** considered when calculating min-content intrinsic sizes.">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div {
+  position: relative;
+  font: 20px/1 Ahem;
+}
+#red {
+  position: absolute;
+  z-index: -1;
+  background: red;
+  color: transparent;
+}
+.test {
+  background: green;
+  color: transparent;
+  width: min-content;
+
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+</style>
+<body>
+  <p>Test passes if there is a green box below and no red.
+  <div id=red>X<br>X<br>X<br>X</div>
+  <div class="test">XXXX</div>
+</body>

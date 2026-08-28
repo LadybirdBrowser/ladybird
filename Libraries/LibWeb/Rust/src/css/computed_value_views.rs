@@ -753,6 +753,10 @@ impl<'a> ComputedValuesView<'a> {
             .expect("computed y lost its style value")
     }
 
+    pub(crate) fn overflow_wrap(self) -> u8 {
+        self.inherited_text().overflow_wrap
+    }
+
     pub(crate) fn text_indent(self) -> LengthPercentageRef<'a> {
         self.inherited_text_facts()
             .text_indent

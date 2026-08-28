@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap: break-word</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="5.5. Overflow Wrapping: the overflow-wrap/word-wrap property" href="https://drafts.csswg.org/css-text-3/#overflow-wrap-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-break-word">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-break-word-001-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<meta name="flags" content="Ahem">
+<meta name="assert" content="'overflow-wrap: break-word' applies correctly when there is styled text using 'span' elements.">
+<style>
+div {
+  position: relative;
+  font: 25px / 1 Ahem;
+}
+.ref {
+  position: absolute;
+  background: green;
+  color: red;
+  height: 100px;
+  z-index: -1;
+}
+.test {
+  color: transparent;
+  width: 4ch;
+  overflow-wrap: break-word;
+}
+</style>
+<body>
+  <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+  <div class="ref"><span style="color: green">XX</span>XX<br>XX</div>
+  <div class="test">XX<span style="color: green">XXXX</span>XX</div>
+</body>

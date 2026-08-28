@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: word-break: break-word and intrinsic sizing</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#word-break-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-word-break-break-word">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-break/../overflow-wrap/reference/overflow-wrap-min-content-size-003-ref.html">
+<meta name="assert" content="word-break: break-word should behave as overflow-wrap: anywhere, so breaks at edge of inline elements.">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+#wrapper {
+  width: 0px;
+  font: 16px / 1 Ahem;
+  word-break: break-word;
+  color: green;
+}
+#test {
+  float: left;
+}
+#reference {
+  position: absolute;
+  width: 16px;
+  height: 128px;
+  background: red;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a vertical green bar below.
+<div id="wrapper">
+  <div id="reference"></div>
+  <div id="test"><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span></div>
+</div>

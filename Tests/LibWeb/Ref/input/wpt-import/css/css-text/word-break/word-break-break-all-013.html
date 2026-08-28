@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: word-break: break-all</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-word-break-break-all">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-white-space-break-spaces">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-break/reference/word-break-break-all-010-ref.html">
+<meta name="assert" content="A single leading white-space should account as soft breaking opportunity, honoring the 'white-space: break-spaces', on top to the ones provided by 'word-break: break-all'.">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div {
+  position: relative;
+  font-size: 20px;
+  font-family: Ahem;
+  line-height: 1em;
+}
+.red {
+  position: absolute;
+  background: green;
+  color: red;
+  width: 100px;
+  height: 100px;
+  z-index: -1;
+  white-space: pre;
+}
+.test {
+  color: green;
+  width: 1ch;
+  white-space: break-spaces;
+  word-break: break-all;
+}
+</style>
+<body>
+  <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+  <div class="red"> <br>X<br>X</div>
+  <div class="test"> XX</div>
+</body>

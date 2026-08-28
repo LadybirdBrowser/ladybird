@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Text Test: A combination of `overflow-wrap: break-word` and `white-space` should not crash</title>
+<link rel="help" href="https://crbug.com/988832">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  width: 10ch;
+  border: 1px blue solid;
+  overflow-wrap: break-word;
+}
+inline-block {
+  display: inline-block;
+  position: relative;
+  width: 3ch;
+  height: 1em;
+  background: orange;
+}
+</style>
+<body>
+<div>
+  123 56 <span style="white-space: pre"><inline-block></inline-block> <span style="white-space: normal">Flash</span></span> and
+</div>
+<script>
+test(() => { });
+</script>
+</body>

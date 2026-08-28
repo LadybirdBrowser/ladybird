@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text level 3 Test: overflow-wrap:break-word and grapheme clusters</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net/">
+<link rel="help" href="https://www.w3.org/TR/css-text-3/#overflow-wrap-property">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-cluster-001-ref.html">
+<meta name="assert" content="grapheme clusters must stay together as one unit when a line is broken by overflow-wrap:break-word">
+<style>
+  div {
+    font-size: 4em;
+    width: 4em;
+  }
+  #test {
+    overflow-wrap: break-word;
+    width: 0;
+  }
+</style>
+
+<p>Test passes if there are four identical lines of text below.
+<div lang=hi id=ref>&#x0937;&#x093F;<br>&#x0937;&#x093F;</div>
+<div lang=hi id=test>&#x0937;&#x093F;&#x0937;&#x093F;</div>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>overlfow-wrap: anywhere on inline element</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="5.5. Overflow Wrapping: the overflow-wrap/word-wrap property " href="https://drafts.csswg.org/css-text-3/#overflow-wrap-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-anywhere">
+<meta name="flags" content="Ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-break-word-001-ref.html">
+<meta name="assert" content="'overflow-wrap: anywhere' works when specified on inline element">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div, span {
+    font: 10px / 1 Ahem;
+    color: green;
+}
+.fail {
+    position: absolute;
+    background: green;
+    color: red;
+    height: 100px;
+    z-index: -1;
+}
+.testdiv {
+    width: 5ch;
+}
+.test {
+    overflow-wrap: anywhere;
+}
+</style>
+
+<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+<div class="fail">XXXXXXXXXX<br>XXXXX<br>XXXX<br>XXX</div>
+<div class="testdiv">XXXXXXXXXX<span class="test">XXXXXXXXX</span>XXX</div>

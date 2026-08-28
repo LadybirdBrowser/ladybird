@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test Reference File</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+  #ref {
+    border: 5px solid orange;
+    font: 20px/1 Ahem;
+    width: 200px;
+  }
+  #test {
+    border: 5px solid blue;
+    font: 20px/1 Ahem;
+    width: 200px;
+  }
+</style>
+<body>
+  <p class="instructions">Test passes if the black box overflows the blue border box, but fits within the orange border box.</p>
+  <p id="ref">FillerText<br>FillerText<br>FillerText<br>FillerText</p>
+  <p id="test">FillerTextFillerTextFillerTextFillerText</p>
+</body>

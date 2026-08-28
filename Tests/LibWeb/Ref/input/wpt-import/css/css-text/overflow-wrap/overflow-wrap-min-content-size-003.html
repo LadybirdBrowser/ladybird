@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap: anywhere and intrinsic sizing</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org/">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#overflow-wrap-property">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-min-content-size-003-ref.html">
+<meta name="assert" content="overflow-wrap:anywhere breaks at edge of inline elements.">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+#wrapper {
+  width: 0px;
+  font: 16px / 1 Ahem;
+  overflow-wrap: anywhere;
+  color: green;
+}
+#test {
+  float: left;
+}
+#reference {
+  position: absolute;
+  width: 16px;
+  height: 128px;
+  background: red;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a vertical green bar below.
+<div id="wrapper">
+  <div id="reference"></div>
+  <div id="test"><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span><span>X</span></div>
+</div>
