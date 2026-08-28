@@ -58,6 +58,15 @@ pub const EFFECTIVE_LONGHAND_SOURCE_TABLE: u8 = 0;
 pub const EFFECTIVE_LONGHAND_SOURCE_OVERLAY: u8 = 1;
 pub const EFFECTIVE_LONGHAND_SOURCE_SPECIFIED: u8 = 2;
 
+struct PostComputeRestoreValues {
+    values: [Option<(u16, RetainedStyleValueData)>; 7],
+}
+
+pub(crate) struct RestoredPostComputeValues {
+    pub properties: [u16; 7],
+    pub count: usize,
+}
+
 fn bitmap_bit(bits: &[u8; LONGHAND_BITMAP_BYTES], index: usize) -> bool {
     bits[index / 8] & (1 << (index % 8)) != 0
 }
@@ -97,6 +106,9 @@ pub struct ComputedLonghandTable {
     inheritance_dependent_view: Vec<FfiTableInheritanceDependentValue>,
     /// Viewport dependency flags accumulated by the longhand drive.
     dependency_flags: u8,
+    /// Values before automatic post-compute adjustments, retained only while
+    /// animation processing may need to restore them.
+    post_compute_restore_values: Option<Box<PostComputeRestoreValues>>,
     frozen: bool,
 }
 
@@ -112,6 +124,7 @@ impl ComputedLonghandTable {
             inheritance_dependent: Vec::new(),
             inheritance_dependent_view: Vec::new(),
             dependency_flags: 0,
+            post_compute_restore_values: None,
             frozen: false,
         }
     }
@@ -214,6 +227,7 @@ impl ComputedLonghandTable {
         self.dependency_flags = source.dependency_flags;
         self.inheritance_dependent.clone_from(&source.inheritance_dependent);
         self.rebuild_inheritance_dependent_view();
+        self.post_compute_restore_values = None;
     }
 
     pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
@@ -242,6 +256,7 @@ impl ComputedLonghandTable {
         self.dependency_flags = 0;
         self.inheritance_dependent.clear();
         self.inheritance_dependent_view.clear();
+        self.post_compute_restore_values = None;
     }
 
     fn rebuild_inheritance_dependent_view(&mut self) {
@@ -266,6 +281,7 @@ impl ComputedLonghandTable {
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inheritance_dependent.clear();
         self.inheritance_dependent_view.clear();
+        self.post_compute_restore_values = None;
     }
 
     pub(crate) fn add_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
@@ -415,7 +431,48 @@ impl ComputedLonghandTable {
         count
     }
 
+    pub(crate) fn set_post_compute_restore_values(&mut self, values: [(u16, RetainedStyleValueData); 7]) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        self.post_compute_restore_values = Some(Box::new(PostComputeRestoreValues {
+            values: values.map(Some),
+        }));
+    }
+
+    pub(crate) fn restore_post_compute_values(&mut self, only_property: Option<u16>) -> RestoredPostComputeValues {
+        let mut restored = RestoredPostComputeValues {
+            properties: [0; 7],
+            count: 0,
+        };
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        let Some(mut restore_values) = self.post_compute_restore_values.take() else {
+            return restored;
+        };
+        for entry in &mut restore_values.values {
+            let Some((property_id, _)) = entry.as_ref() else {
+                continue;
+            };
+            if only_property.is_some_and(|only_property| *property_id != only_property) {
+                continue;
+            }
+            let (property_id, value) = entry.take().unwrap();
+            self.set(property_id, value, -1);
+            restored.properties[restored.count] = property_id;
+            restored.count += 1;
+        }
+        if restore_values.values.iter().any(Option::is_some) {
+            self.post_compute_restore_values = Some(restore_values);
+        }
+        restored
+    }
+
     fn freeze(&mut self) {
+        self.post_compute_restore_values = None;
         self.frozen = true;
     }
 

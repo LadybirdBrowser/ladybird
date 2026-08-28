@@ -2969,23 +2969,20 @@ pub struct FfiLonghandDriverResults {
     /// The used color scheme produced by the color-scheme stage, or -1 until
     /// that stage has run.
     pub effective_color_scheme: i16,
-    /// Inputs for the post-compute continuation. C++ captures the facade state
-    /// that can only be observed between the longhand drive and adjustments,
-    /// then resumes Rust with the requested line-height metrics.
-    pub post_compute_adjustment: FfiPostComputeAdjustment,
+    pub display_before_box_type_transformation: FfiDisplay,
+    pub post_adjusted_longhands: u8,
 }
 
-#[repr(C)]
 #[derive(Clone, Copy)]
-pub struct FfiPostComputeAdjustment {
-    pub display_before: FfiDisplay,
-    pub float_before: u16,
-    pub overflow_x_before: u16,
-    pub overflow_y_before: u16,
-    pub text_align_before: u16,
-    pub position_before: u16,
-    pub box_type_transformation: FfiBoxTypeTransformation,
-    pub element_style_adjustment: FfiElementStyleAdjustment,
+struct PostComputeAdjustment {
+    display_before: FfiDisplay,
+    float_before: u16,
+    overflow_x_before: u16,
+    overflow_y_before: u16,
+    text_align_before: u16,
+    position_before: u16,
+    box_type_transformation: FfiBoxTypeTransformation,
+    element_style_adjustment: FfiElementStyleAdjustment,
 }
 
 fn empty_longhand_driver_results() -> FfiLonghandDriverResults {
@@ -2997,28 +2994,8 @@ fn empty_longhand_driver_results() -> FfiLonghandDriverResults {
         explicitly_inherited_non_inherited_property: false,
         uses_tree_counting_function: false,
         effective_color_scheme: -1,
-        post_compute_adjustment: FfiPostComputeAdjustment {
-            display_before: FfiDisplay::inline(),
-            float_before: keyword::NONE,
-            overflow_x_before: keyword::VISIBLE,
-            overflow_y_before: keyword::VISIBLE,
-            text_align_before: keyword::START,
-            position_before: keyword::STATIC,
-            box_type_transformation: FfiBoxTypeTransformation {
-                set_float_none: false,
-                changed_display: false,
-                display: FfiDisplay::inline(),
-            },
-            element_style_adjustment: FfiElementStyleAdjustment {
-                changed_display: false,
-                display: FfiDisplay::inline(),
-                set_line_height_normal: false,
-                check_input_line_height: false,
-                set_position_static: false,
-                changed_text_align: false,
-                text_align: keyword::START,
-            },
-        },
+        display_before_box_type_transformation: FfiDisplay::inline(),
+        post_adjusted_longhands: 0,
     }
 }
 
@@ -3223,7 +3200,10 @@ fn publish_longhand_store_batch(
 /// valid snapshot or null,
 /// `environment` at valid element and document facts,
 /// `length_resolution_context` at the context for this stage or null for the
-/// color-scheme stage, and `results` at a valid results block.
+/// color-scheme stage, `input_line_height_metrics` at the metrics for the
+/// remaining stage or null when post-compute adjustments are not wanted,
+/// `line_height_before_adjustments` at its effective value for that stage or
+/// null with the metrics, and `results` at a valid results block.
 #[allow(clippy::too_many_arguments)]
 unsafe fn drive_property_computation(
     longhand_table: *mut ComputedLonghandTable,
@@ -3234,6 +3214,8 @@ unsafe fn drive_property_computation(
     computed_property_words: *const u64,
     phase: u8,
     length_resolution_context: *const FfiLengthResolutionContext,
+    input_line_height_metrics: *const FfiInputLineHeightMetrics,
+    line_height_before_adjustments: *const c_void,
     results: *mut FfiLonghandDriverResults,
     coordinate_overflow_keywords: bool,
 ) -> FfiLonghandStoreBatch {
@@ -4424,7 +4406,7 @@ unsafe fn drive_property_computation(
         let adjustments = compute_element_style_adjustments(&box_type_input, text_align);
         let transformation = adjustments.box_type;
         let element_adjustment = adjustments.element_style;
-        results.post_compute_adjustment = FfiPostComputeAdjustment {
+        let post_compute_adjustment = PostComputeAdjustment {
             display_before,
             float_before,
             overflow_x_before: computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
@@ -4435,6 +4417,58 @@ unsafe fn drive_property_computation(
             box_type_transformation: transformation,
             element_style_adjustment: element_adjustment,
         };
+        results.display_before_box_type_transformation = display_before;
+        if !input_line_height_metrics.is_null() {
+            assert!(!line_height_before_adjustments.is_null());
+            let line_height_before = unsafe {
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                    line_height_before_adjustments.cast(),
+                ))
+            };
+            longhand_table.set_post_compute_restore_values([
+                (
+                    prop::DISPLAY,
+                    retained_new(StyleValueData::Display {
+                        raw: post_compute_adjustment.display_before.encoded(),
+                    }),
+                ),
+                (
+                    prop::FLOAT,
+                    retained_new(StyleValueData::Keyword {
+                        keyword: post_compute_adjustment.float_before,
+                    }),
+                ),
+                (
+                    prop::OVERFLOW_X,
+                    retained_new(StyleValueData::Keyword {
+                        keyword: post_compute_adjustment.overflow_x_before,
+                    }),
+                ),
+                (
+                    prop::OVERFLOW_Y,
+                    retained_new(StyleValueData::Keyword {
+                        keyword: post_compute_adjustment.overflow_y_before,
+                    }),
+                ),
+                (
+                    prop::TEXT_ALIGN,
+                    retained_new(StyleValueData::Keyword {
+                        keyword: post_compute_adjustment.text_align_before,
+                    }),
+                ),
+                (
+                    prop::POSITION,
+                    retained_new(StyleValueData::Keyword {
+                        keyword: post_compute_adjustment.position_before,
+                    }),
+                ),
+                (prop::LINE_HEIGHT, line_height_before),
+            ]);
+            results.post_adjusted_longhands =
+                apply_post_compute_adjustments(longhand_table, &post_compute_adjustment, unsafe {
+                    &*input_line_height_metrics
+                });
+        }
         publish_longhand_store_batch(cpp_store_side_effects, pending_effective_color_scheme)
     })
 }
@@ -4453,6 +4487,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     computed_property_words: *const u64,
     phase: u8,
     length_resolution_context: *const FfiLengthResolutionContext,
+    input_line_height_metrics: *const FfiInputLineHeightMetrics,
+    line_height_before_adjustments: *const c_void,
     results: *mut FfiLonghandDriverResults,
 ) -> FfiLonghandStoreBatch {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
@@ -4466,6 +4502,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             computed_property_words,
             phase,
             length_resolution_context,
+            input_line_height_metrics,
+            line_height_before_adjustments,
             results,
             true,
         )
@@ -4551,6 +4589,8 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
                     std::ptr::null(),
                     phase,
                     length_resolution_context,
+                    std::ptr::null(),
+                    std::ptr::null(),
                     &raw mut results,
                     true,
                 )
@@ -4677,6 +4717,8 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                         selected_longhands.as_ptr(),
                         phase,
                         length_resolution_context,
+                        std::ptr::null(),
+                        std::ptr::null(),
                         &raw mut results,
                         false,
                     )
@@ -4721,123 +4763,110 @@ pub unsafe extern "C" fn rust_longhand_store_batch_destroy(storage: *mut c_void)
     abort_on_panic(|| drop(unsafe { Box::from_raw(storage.cast::<Vec<FfiComputedStoreEntry>>()) }));
 }
 
-/// Applies the post-compute box and element adjustments after C++ has captured
-/// the facade state that precedes them.
-///
-/// # Safety
-/// `longhand_table`, `adjustment`, and `input_line_height_metrics` must point at
-/// the live objects for the longhand drive that immediately preceded this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_apply_post_compute_adjustments(
-    longhand_table: *mut ComputedLonghandTable,
-    adjustment: *const FfiPostComputeAdjustment,
-    input_line_height_metrics: *const FfiInputLineHeightMetrics,
+fn apply_post_compute_adjustments(
+    longhand_table: &mut ComputedLonghandTable,
+    adjustment: &PostComputeAdjustment,
+    input_line_height_metrics: &FfiInputLineHeightMetrics,
 ) -> u8 {
-    abort_on_panic(|| {
-        use crate::css::property_metadata::property_id as prop;
+    use crate::css::property_metadata::property_id as prop;
 
-        let adjustment = unsafe { &*adjustment };
-        let transformation = adjustment.box_type_transformation;
-        let element_adjustment = adjustment.element_style_adjustment;
-        let input_line_height_metrics = unsafe { &*input_line_height_metrics };
-        let clamp_input_line_height = should_clamp_input_line_height(&element_adjustment, input_line_height_metrics);
-        let display_after_box_type_transformation = if transformation.changed_display {
-            transformation.display
-        } else {
-            adjustment.display_before
-        };
-        let adjusted_display = if element_adjustment.changed_display {
-            element_adjustment.display
-        } else {
-            display_after_box_type_transformation
-        };
-        let adjusted_entry = |property_id, computed_kind, value| FfiComputedStoreEntry {
-            property_id,
-            inherited_property_id: property_id,
-            data: initial_value_data(property_id).cast(),
-            source_slot: -1,
-            has_style_sheet_context: false,
-            inheritance_dependent: false,
-            inherited: false,
-            computed_data: std::ptr::null(),
-            computed_kind,
-            value,
-        };
-        let mut post_adjusted_longhands = 0;
-        let mut adjustments = Vec::new();
-        if transformation.set_float_none {
-            post_adjusted_longhands |= POST_ADJUSTED_FLOAT;
-            adjustments.push(adjusted_entry(prop::FLOAT, COMPUTED_KIND_KEYWORD, keyword::NONE as f64));
-        }
-        if adjusted_display != adjustment.display_before {
-            post_adjusted_longhands |= POST_ADJUSTED_DISPLAY;
-            adjustments.push(adjusted_entry(
-                prop::DISPLAY,
-                COMPUTED_KIND_DISPLAY,
-                adjusted_display.encoded() as f64,
-            ));
-        }
-        let line_height_changed = element_adjustment.set_line_height_normal || clamp_input_line_height;
-        if line_height_changed {
-            post_adjusted_longhands |= POST_ADJUSTED_LINE_HEIGHT;
-            adjustments.push(adjusted_entry(
-                prop::LINE_HEIGHT,
-                COMPUTED_KIND_KEYWORD,
-                keyword::NORMAL as f64,
-            ));
-        }
-        if element_adjustment.set_position_static {
-            post_adjusted_longhands |= POST_ADJUSTED_POSITION;
-            adjustments.push(adjusted_entry(
-                prop::POSITION,
-                COMPUTED_KIND_KEYWORD,
-                keyword::STATIC as f64,
-            ));
-        }
-        if element_adjustment.changed_text_align {
-            post_adjusted_longhands |= POST_ADJUSTED_TEXT_ALIGN;
-            adjustments.push(adjusted_entry(
-                prop::TEXT_ALIGN,
-                COMPUTED_KIND_KEYWORD,
-                element_adjustment.text_align as f64,
-            ));
-        }
-        if !adjustments.is_empty() {
-            let longhand_table = unsafe { &mut *longhand_table };
-            for entry in &adjustments {
-                store_computed_value(longhand_table, entry);
-            }
-            longhand_table.finish_drive_inheritance_dependent_values();
-        }
-        if matches!(
-            adjustment.text_align_before,
-            keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER
-        ) {
-            unsafe { &mut *longhand_table }.add_inheritance_dependent_value(
-                prop::TEXT_ALIGN,
-                retained_new(StyleValueData::Keyword {
-                    keyword: adjustment.text_align_before,
-                }),
-            );
-        }
-
-        let longhand_table = unsafe { &mut *longhand_table };
-        let mut clear_adjusted_flags = |changed, property_id| {
-            if changed {
-                longhand_table.set_important(property_id, false);
-                longhand_table.set_inherited(property_id, false);
-            }
-        };
-        clear_adjusted_flags(transformation.set_float_none, prop::FLOAT);
-        clear_adjusted_flags(
-            transformation.changed_display || element_adjustment.changed_display,
+    let transformation = adjustment.box_type_transformation;
+    let element_adjustment = adjustment.element_style_adjustment;
+    let clamp_input_line_height = should_clamp_input_line_height(&element_adjustment, input_line_height_metrics);
+    let display_after_box_type_transformation = if transformation.changed_display {
+        transformation.display
+    } else {
+        adjustment.display_before
+    };
+    let adjusted_display = if element_adjustment.changed_display {
+        element_adjustment.display
+    } else {
+        display_after_box_type_transformation
+    };
+    let adjusted_entry = |property_id, computed_kind, value| FfiComputedStoreEntry {
+        property_id,
+        inherited_property_id: property_id,
+        data: initial_value_data(property_id).cast(),
+        source_slot: -1,
+        has_style_sheet_context: false,
+        inheritance_dependent: false,
+        inherited: false,
+        computed_data: std::ptr::null(),
+        computed_kind,
+        value,
+    };
+    let mut post_adjusted_longhands = 0;
+    let mut adjustments = Vec::new();
+    if transformation.set_float_none {
+        post_adjusted_longhands |= POST_ADJUSTED_FLOAT;
+        adjustments.push(adjusted_entry(prop::FLOAT, COMPUTED_KIND_KEYWORD, keyword::NONE as f64));
+    }
+    if adjusted_display != adjustment.display_before {
+        post_adjusted_longhands |= POST_ADJUSTED_DISPLAY;
+        adjustments.push(adjusted_entry(
             prop::DISPLAY,
+            COMPUTED_KIND_DISPLAY,
+            adjusted_display.encoded() as f64,
+        ));
+    }
+    let line_height_changed = element_adjustment.set_line_height_normal || clamp_input_line_height;
+    if line_height_changed {
+        post_adjusted_longhands |= POST_ADJUSTED_LINE_HEIGHT;
+        adjustments.push(adjusted_entry(
+            prop::LINE_HEIGHT,
+            COMPUTED_KIND_KEYWORD,
+            keyword::NORMAL as f64,
+        ));
+    }
+    if element_adjustment.set_position_static {
+        post_adjusted_longhands |= POST_ADJUSTED_POSITION;
+        adjustments.push(adjusted_entry(
+            prop::POSITION,
+            COMPUTED_KIND_KEYWORD,
+            keyword::STATIC as f64,
+        ));
+    }
+    if element_adjustment.changed_text_align {
+        post_adjusted_longhands |= POST_ADJUSTED_TEXT_ALIGN;
+        adjustments.push(adjusted_entry(
+            prop::TEXT_ALIGN,
+            COMPUTED_KIND_KEYWORD,
+            element_adjustment.text_align as f64,
+        ));
+    }
+    if !adjustments.is_empty() {
+        for entry in &adjustments {
+            store_computed_value(longhand_table, entry);
+        }
+        longhand_table.finish_drive_inheritance_dependent_values();
+    }
+    if matches!(
+        adjustment.text_align_before,
+        keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER
+    ) {
+        longhand_table.add_inheritance_dependent_value(
+            prop::TEXT_ALIGN,
+            retained_new(StyleValueData::Keyword {
+                keyword: adjustment.text_align_before,
+            }),
         );
-        clear_adjusted_flags(line_height_changed, prop::LINE_HEIGHT);
-        clear_adjusted_flags(element_adjustment.set_position_static, prop::POSITION);
-        clear_adjusted_flags(element_adjustment.changed_text_align, prop::TEXT_ALIGN);
-        post_adjusted_longhands
-    })
+    }
+
+    let mut clear_adjusted_flags = |changed, property_id| {
+        if changed {
+            longhand_table.set_important(property_id, false);
+            longhand_table.set_inherited(property_id, false);
+        }
+    };
+    clear_adjusted_flags(transformation.set_float_none, prop::FLOAT);
+    clear_adjusted_flags(
+        transformation.changed_display || element_adjustment.changed_display,
+        prop::DISPLAY,
+    );
+    clear_adjusted_flags(line_height_changed, prop::LINE_HEIGHT);
+    clear_adjusted_flags(element_adjustment.set_position_static, prop::POSITION);
+    clear_adjusted_flags(element_adjustment.changed_text_align, prop::TEXT_ALIGN);
+    post_adjusted_longhands
 }
 
 fn property_affects_font_metrics(property_id: u16) -> bool {
@@ -5091,6 +5120,8 @@ pub enum FfiStyleFinalizationMode {
     TextAlign,
     All,
     Overflow,
+    RestorePostCompute,
+    RestorePostComputeTextAlign,
 }
 
 #[repr(C)]
@@ -5479,7 +5510,7 @@ fn compute_text_align_adjustment(
 /// `input` must point at a live `FfiStyleFinalizationInput`. `longhand_table`
 /// may be null for a decision-only query; otherwise it must be a live mutable
 /// table, `animated_overlay` null or a live mutable overlay, and
-/// `input_line_height_metrics` a live metrics snapshot.
+/// `input_line_height_metrics` a live metrics snapshot when adjustments use it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_finalize_style(
     input: *const FfiStyleFinalizationInput,
@@ -5559,6 +5590,27 @@ pub unsafe extern "C" fn rust_finalize_style(
         }
 
         let longhand_table = unsafe { &mut *longhand_table };
+        if matches!(
+            input.mode,
+            FfiStyleFinalizationMode::RestorePostCompute | FfiStyleFinalizationMode::RestorePostComputeTextAlign
+        ) {
+            let only_property =
+                (input.mode == FfiStyleFinalizationMode::RestorePostComputeTextAlign).then_some(prop::TEXT_ALIGN);
+            let restored = longhand_table.restore_post_compute_values(only_property);
+            for &property_id in &restored.properties[..restored.count] {
+                finalization.invalidated_longhands |= match property_id {
+                    prop::FLOAT => FINALIZED_FLOAT,
+                    prop::DISPLAY => FINALIZED_DISPLAY,
+                    prop::LINE_HEIGHT => FINALIZED_LINE_HEIGHT,
+                    prop::POSITION => FINALIZED_POSITION,
+                    prop::TEXT_ALIGN => FINALIZED_TEXT_ALIGN,
+                    prop::OVERFLOW_X => FINALIZED_OVERFLOW_X,
+                    prop::OVERFLOW_Y => FINALIZED_OVERFLOW_Y,
+                    _ => unreachable!("only post-compute inputs are restorable"),
+                };
+            }
+            return finalization;
+        }
         let mut animated_overlay = unsafe { animated_overlay.as_mut() };
         let animated_box_type = input.mode == FfiStyleFinalizationMode::AnimatedBoxType;
         let animated_display_missing = animated_box_type
