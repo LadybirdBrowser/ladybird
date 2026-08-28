@@ -751,7 +751,7 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
             parent->add_children_explicitly_inherited_non_inherited_style_groups(m_keyframes_inherited_non_inherited_style_groups);
         m_keyframes_inherited_non_inherited_style_groups = 0;
     }
-    adjust_animated_element_style_if_needed(computed_properties, abstract_element);
+    finalize_style(computed_properties, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType);
 }
 
 void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
@@ -3451,49 +3451,50 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
     }
 }
 
-void StyleComputer::resolve_effective_overflow_values(ComputedStyleWorkingSet& style) const
+static void prepare_overflow_finalization(ComputedStyleWorkingSet const& style, ComputedValuesFFI::FfiStyleFinalizationInput& input)
 {
-    // The css-overflow-3 rule pairing the two axes lives in the Rust style computation core.
-    auto effective_overflow = ComputedValuesFFI::rust_resolve_effective_overflow_keywords(
-        to_underlying(style.property(PropertyID::OverflowX).to_keyword()),
-        to_underlying(style.property(PropertyID::OverflowY).to_keyword()));
+    input.overflow_x = to_underlying(style.property(PropertyID::OverflowX).to_keyword());
+    input.overflow_y = to_underlying(style.property(PropertyID::OverflowY).to_keyword());
+}
+
+static void apply_overflow_finalization(ComputedStyleWorkingSet& style, ComputedValuesFFI::FfiEffectiveOverflow const& effective_overflow)
+{
     if (effective_overflow.changed_x)
         style.set_property(PropertyID::OverflowX, KeywordStyleValue::create(static_cast<Keyword>(effective_overflow.x_keyword)));
     if (effective_overflow.changed_y)
         style.set_property(PropertyID::OverflowY, KeywordStyleValue::create(static_cast<Keyword>(effective_overflow.y_keyword)));
 }
 
-static void compute_text_align(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element)
+static bool prepare_text_align_finalization(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationInput& input)
 {
     auto text_align_keyword = style.property(PropertyID::TextAlign).to_keyword();
 
     // NB: Only these two keywords trigger an adjustment in the Rust decision below; the early
     //     return avoids fetching the parent's computed values for every element.
     if (text_align_keyword != Keyword::MatchParent && text_align_keyword != Keyword::LibwebInheritOrCenter)
-        return;
+        return false;
+
+    input.text_align = to_underlying(text_align_keyword);
+    input.is_th_element = abstract_element.element().local_name() == HTML::TagNames::th;
 
     // The resolved value does not remember that it read the parent's direction and text alignment.
     // Keep the specified keyword so inherited-style refresh can resolve it again when either moves.
     style.add_inheritance_dependent_specified_value(PropertyID::TextAlign, style.property(PropertyID::TextAlign));
 
     auto const parent = abstract_element.element_to_inherit_style_from();
-    bool has_parent_with_computed_values = parent.has_value() && parent->has_style();
-    u16 parent_text_align = 0;
-    bool parent_direction_is_ltr = true;
-    if (has_parent_with_computed_values) {
+    input.has_parent_with_computed_values = parent.has_value() && parent->has_style();
+    input.parent_direction_is_ltr = true;
+    if (input.has_parent_with_computed_values) {
         auto parent_style = parent->computed_style();
         auto const& parent_values = *parent_style;
-        parent_text_align = to_underlying(to_keyword(parent_values.text_align()));
-        parent_direction_is_ltr = parent_values.direction() == Direction::Ltr;
+        input.parent_text_align = to_underlying(to_keyword(parent_values.text_align()));
+        input.parent_direction_is_ltr = parent_values.direction() == Direction::Ltr;
     }
+    return true;
+}
 
-    // The adjustment decision lives in the Rust style computation core.
-    auto adjustment = ComputedValuesFFI::rust_compute_text_align(
-        to_underlying(text_align_keyword),
-        abstract_element.element().local_name() == HTML::TagNames::th,
-        has_parent_with_computed_values,
-        parent_text_align,
-        parent_direction_is_ltr);
+static void apply_text_align_finalization(ComputedStyleWorkingSet& style, ComputedValuesFFI::FfiTextAlignAdjustment const& adjustment)
+{
     if (adjustment.changed) {
         style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.keyword)),
             adjustment.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
@@ -3627,69 +3628,60 @@ static void apply_element_style_adjustments(ComputedStyleWorkingSet const& style
 }
 
 // https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::adjust_element_style_if_needed(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element) const
+void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode mode) const
 {
-    auto input = make_box_type_transformation_input(
-        abstract_element,
-        style.display(),
-        style.property(PropertyID::Position).to_keyword(),
-        style.property(PropertyID::Float).to_keyword());
-    auto adjustments = ComputedValuesFFI::rust_adjust_element_style(
-        &input, to_underlying(style.property(PropertyID::TextAlign).to_keyword()));
+    bool const animated_box_type = mode == ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType;
+    bool const finalize_box_type = mode != ComputedValuesFFI::FfiStyleFinalizationMode::TextAlign
+        && mode != ComputedValuesFFI::FfiStyleFinalizationMode::Overflow;
+    ComputedValuesFFI::FfiStyleFinalizationInput input {};
+    input.mode = mode;
+    input.text_align = to_underlying(style.property(PropertyID::TextAlign).to_keyword());
+    if (finalize_box_type) {
+        auto display = animated_box_type && !style.has_animated_property(PropertyID::Display)
+            ? style.display_before_box_type_transformation()
+            : style.display();
+        input.box_type = make_box_type_transformation_input(
+            abstract_element,
+            display,
+            style.property(PropertyID::Position).to_keyword(),
+            style.property(PropertyID::Float).to_keyword());
+    }
+    if (mode == ComputedValuesFFI::FfiStyleFinalizationMode::All) {
+        prepare_overflow_finalization(style, input);
+        prepare_text_align_finalization(style, abstract_element, input);
+    } else if (mode == ComputedValuesFFI::FfiStyleFinalizationMode::TextAlign && !prepare_text_align_finalization(style, abstract_element, input)) {
+        return;
+    }
 
-    auto set_adjusted_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> value) {
-        // Animated values are stored separately from the builder's base values, so post-compute
-        // adjustments must replace the sampled value as well.
-        if (style.has_animated_property(property_id)) {
-            auto is_result_of_transition = style.is_animated_property_result_of_transition(property_id)
+    auto finalization = ComputedValuesFFI::rust_finalize_style(&input);
+    if (finalize_box_type) {
+        auto set_adjusted_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> value) {
+            if (animated_box_type) {
+                if (style.property(property_id).equals(*value))
+                    return;
+            } else if (!style.has_animated_property(property_id)) {
+                style.set_property(property_id, move(value));
+                return;
+            }
+            auto is_result_of_transition = style.has_animated_property(property_id) && style.is_animated_property_result_of_transition(property_id)
                 ? AnimatedPropertyResultOfTransition::Yes
                 : AnimatedPropertyResultOfTransition::No;
-            auto inherited = style.is_animated_property_inherited(property_id)
+            auto inherited = style.has_animated_property(property_id) && style.is_animated_property_inherited(property_id)
                 ? ComputedStyleWorkingSet::Inherited::Yes
                 : ComputedStyleWorkingSet::Inherited::No;
             style.set_animated_property(Badge<StyleComputer> {}, property_id, value, is_result_of_transition, inherited);
-        }
-        style.set_property(property_id, move(value));
-    };
+            if (!animated_box_type)
+                style.set_property(property_id, move(value));
+        };
 
-    style.set_display_before_box_type_transformation(display_from_ffi_display(input.display));
-    apply_element_style_adjustments(style, abstract_element, adjustments, set_adjusted_property);
-}
-
-void StyleComputer::adjust_animated_element_style_if_needed(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element) const
-{
-    auto display = style.has_animated_property(PropertyID::Display)
-        ? style.display()
-        : style.display_before_box_type_transformation();
-    auto input = make_box_type_transformation_input(
-        abstract_element,
-        display,
-        style.property(PropertyID::Position).to_keyword(),
-        style.property(PropertyID::Float).to_keyword());
-    auto adjustments = ComputedValuesFFI::rust_adjust_element_style(
-        &input, to_underlying(style.property(PropertyID::TextAlign).to_keyword()));
-
-    auto set_adjusted_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> value) {
-        if (style.property(property_id).equals(*value))
-            return;
-        auto is_result_of_transition = style.has_animated_property(property_id) && style.is_animated_property_result_of_transition(property_id)
-            ? AnimatedPropertyResultOfTransition::Yes
-            : AnimatedPropertyResultOfTransition::No;
-        auto inherited = style.has_animated_property(property_id) && style.is_animated_property_inherited(property_id)
-            ? ComputedStyleWorkingSet::Inherited::Yes
-            : ComputedStyleWorkingSet::Inherited::No;
-        style.set_animated_property(Badge<StyleComputer> {}, property_id, move(value), is_result_of_transition, inherited);
-    };
-    if (!style.has_animated_property(PropertyID::Display))
-        set_adjusted_property(PropertyID::Display, DisplayStyleValue::create(display));
-    apply_element_style_adjustments(style, abstract_element, adjustments, set_adjusted_property);
-}
-
-void StyleComputer::apply_post_compute_adjustments(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element) const
-{
-    adjust_element_style_if_needed(style, abstract_element);
-    resolve_effective_overflow_values(style);
-    compute_text_align(style, abstract_element);
+        if (animated_box_type && !style.has_animated_property(PropertyID::Display))
+            set_adjusted_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(input.box_type.display)));
+        if (!animated_box_type)
+            style.set_display_before_box_type_transformation(display_from_ffi_display(input.box_type.display));
+        apply_element_style_adjustments(style, abstract_element, finalization.element_style, set_adjusted_property);
+    }
+    apply_overflow_finalization(style, finalization.overflow);
+    apply_text_align_finalization(style, finalization.text_align);
 }
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
@@ -4319,9 +4311,11 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
     auto base_values = ComputedValues::Builder { previous_values.base_values() }.build();
     auto animated_values = ComputedValues::create_over_base(computed_properties, document(), style_scope, move(color_resolution_context), *base_values, groups_to_apply);
     ComputedValues::Builder builder { *animated_values };
-    auto effective_overflow = ComputedValuesFFI::rust_resolve_effective_overflow_keywords(
-        to_underlying(to_keyword(animated_values->overflow_x())),
-        to_underlying(to_keyword(animated_values->overflow_y())));
+    ComputedValuesFFI::FfiStyleFinalizationInput finalization_input {};
+    finalization_input.mode = ComputedValuesFFI::FfiStyleFinalizationMode::Overflow;
+    finalization_input.overflow_x = to_underlying(to_keyword(animated_values->overflow_x()));
+    finalization_input.overflow_y = to_underlying(to_keyword(animated_values->overflow_y()));
+    auto effective_overflow = ComputedValuesFFI::rust_finalize_style(&finalization_input).overflow;
     if (effective_overflow.changed_x)
         builder->set_overflow_x(keyword_to_overflow(static_cast<Keyword>(effective_overflow.x_keyword)).value());
     if (effective_overflow.changed_y)
@@ -4563,7 +4557,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         VERIFY(inherited_pseudo_element_style);
         auto style = ComputedStyleWorkingSet::create_with_base_values_from(*inherited_pseudo_element_style);
 
-        adjust_element_style_if_needed(*style, abstract_element);
+        finalize_style(*style, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::BoxType);
         style->freeze_computed_longhand_table();
         return style;
     }
@@ -5934,9 +5928,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
 
     // Run automatic box type transformations again after animations have been applied.
     if (animation_values_applied)
-        apply_post_compute_adjustments(computed_style, abstract_element);
+        finalize_style(computed_style, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::All);
     else if (parent_text_align_input_is_animated)
-        compute_text_align(computed_style, abstract_element);
+        finalize_style(computed_style, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::TextAlign);
 
     bool parent_style_in_display_none_subtree = false;
     if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
