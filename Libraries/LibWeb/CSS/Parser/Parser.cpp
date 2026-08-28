@@ -12,7 +12,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSFunctionDeclarations.h>
@@ -36,11 +35,6 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
-
-static void log_parse_error(SourceLocation const& location = SourceLocation::current())
-{
-    dbgln_if(CSS_PARSER_DEBUG, "Parse error (CSS) {}", location);
-}
 
 namespace Web::CSS::Parser {
 
@@ -88,54 +82,11 @@ Parser::Parser(ParsingParams const& context, Utf16String source)
 
 GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_rules)
 {
-    bool import_rules_valid = true;
-    bool namespace_rules_valid = true;
-
-    // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<GC::Ref<CSSRule>> rules;
     for (auto const& raw_rule : raw_rules) {
-        auto rule = convert_to_rule<CSSNestedDeclarations>(raw_rule, Nested::No);
-        // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
-        // Discard that rule.
-        if (!rule) {
-            log_parse_error();
-            continue;
-        }
-
-        // "Any @import rules must precede all other valid at-rules and style rules in a style sheet
-        // (ignoring @charset and @layer statement rules) and must not have any other valid at-rules
-        // or style rules between it and previous @import rules, or else the @import rule is invalid."
-        // https://drafts.csswg.org/css-cascade-5/#at-import
-        //
-        // "Any @namespace rules must follow all @charset and @import rules and precede all other
-        // non-ignored at-rules and style rules in a style sheet.
-        // ...
-        // A syntactically invalid @namespace rule (whether malformed or misplaced) must be ignored."
-        // https://drafts.csswg.org/css-namespaces/#syntax
-        switch (rule->type()) {
-        case CSSRule::Type::LayerStatement:
-            break;
-        case CSSRule::Type::Import:
-            if (!import_rules_valid)
-                continue;
-            break;
-        case CSSRule::Type::Namespace:
-            import_rules_valid = false;
-
-            if (!namespace_rules_valid)
-                continue;
-
-            m_declared_namespaces.set(as<CSSNamespaceRule>(*rule).prefix());
-            break;
-        default:
-            import_rules_valid = false;
-            namespace_rules_valid = false;
-            break;
-        }
-
-        rules.append(*rule);
+        if (auto rule = convert_to_rule<CSSNestedDeclarations>(raw_rule, Nested::No))
+            rules.append(*rule);
     }
-
     return rules;
 }
 
@@ -179,7 +130,11 @@ GC::Ptr<CSSKeyframeRule> Parser::parse_as_keyframe_rule()
     auto const& rule = items.first().get<Rule>();
     if (!rule.has<QualifiedRule>())
         return {};
-    return convert_to_keyframe_rule(rule.get<QualifiedRule>());
+    auto const& qualified_rule = rule.get<QualifiedRule>();
+    if (qualified_rule.kind == ValueParserFFI::FfiRuleKind::Invalid)
+        return {};
+    VERIFY(qualified_rule.kind == ValueParserFFI::FfiRuleKind::Qualified);
+    return convert_to_keyframe_rule(qualified_rule);
 }
 
 Vector<Percentage> Parser::parse_as_keyframe_selectors()

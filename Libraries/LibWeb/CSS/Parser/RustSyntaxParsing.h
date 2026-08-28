@@ -88,27 +88,25 @@ struct ParsedRulePrelude {
 struct AtRule {
     ValueParserFFI::FfiRuleKind kind;
     Utf16FlyString name;
-    Utf16String prelude_text;
     ParsedRulePrelude parsed_prelude;
     Vector<Descriptor> descriptors;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
 
-    void for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const;
     void for_each_as_declaration_list(DeclarationVisitor&& visit) const;
     void for_each_as_qualified_rule_list(QualifiedRuleVisitor&& visit) const;
     void for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, DeclarationVisitor&& visit_declaration) const;
 };
 
 struct QualifiedRule {
-    Utf16String prelude_text;
+    ValueParserFFI::FfiRuleKind kind;
     Optional<SelectorList> selectors;
     ParsedRulePrelude parsed_prelude;
     Vector<Declaration> declarations;
     Vector<RuleOrListOfDeclarations> child_rules;
     Optional<SourcePosition> source_position = {};
 
-    void for_each_as_declaration_list(Utf16FlyString const& rule_name, DeclarationVisitor&& visit) const;
+    void for_each_as_declaration_list(DeclarationVisitor&& visit) const;
 };
 
 struct Declaration {

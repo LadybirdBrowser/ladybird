@@ -144,19 +144,6 @@ SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList* parsed
     return selectors;
 }
 
-bool selector_list_has_undeclared_namespace(SelectorList const& selectors, HashTable<Utf16FlyString> const& namespaces)
-{
-    Vector<uintptr_t> namespace_identities;
-    namespace_identities.ensure_capacity(namespaces.size());
-    for (auto const& namespace_ : namespaces)
-        namespace_identities.unchecked_append(namespace_.raw_identity());
-
-    return any_of(selectors, [&](auto const& selector) {
-        return SelectorFFI::rust_selector_has_undeclared_namespace(
-            &selector->rust_selector(), namespace_identities.data(), namespace_identities.size());
-    });
-}
-
 static Vector<SelectorFFI::StringView> namespace_prefixes_mapping_to_default(CSSStyleSheet const& style_sheet, Vector<Vector<u16>>& storage)
 {
     Vector<SelectorFFI::StringView> prefixes;

@@ -66,5 +66,11 @@
 
         const invalidDoesNotCloseRules = parseRules("@font-face invalid {} @import url(\"data:text/css,\"); @namespace known \"urn:known\"; known|element {}");
         println(`invalid rule does not close ordering windows: ${invalidDoesNotCloseRules.length === 3 ? "PASS" : "FAIL"}`);
+
+        const strayFeatureValueRules = parseRules("@styleset {} @import url(\"data:text/css,\"); @namespace known \"urn:known\"; known|element {}");
+        println(`stray feature value rule does not close ordering windows: ${strayFeatureValueRules.length === 3 ? "PASS" : "FAIL"}`);
+
+        const featureValueParentRules = parseRules("@font-feature-values Family { @styleset { double-W: 14; } }");
+        println(`feature value rule inside its parent: ${featureValueParentRules.length === 1 && featureValueParentRules[0].styleset.size === 1 ? "PASS" : "FAIL"}`);
     });
 </script>
