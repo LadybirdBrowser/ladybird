@@ -14,10 +14,3 @@ updates:
     groups:
       actions:
         group-by: dependency-name
-
-  - package-ecosystem: "rust-toolchain"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "CI:"
