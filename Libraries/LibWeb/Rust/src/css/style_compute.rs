@@ -718,117 +718,156 @@ pub unsafe extern "C" fn rust_compute_font_size(
     })
 }
 
-/// What one step of the monospace font-size time travel decided.
+/// Why a monospace font-size recascade batch stopped.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum FontSizeRecascadeAction {
-    /// Keep the current size and viewport-dependency flag.
-    Unchanged,
-    /// Replace the current size and viewport-dependency flag.
-    Set,
-    /// The value is a calc, which the traversal does not support yet; skip it.
-    CalcSkipped,
-    /// The value is a length the core cannot resolve, either because no
-    /// resolution context was supplied or because the unit is unsupported;
-    /// the caller resolves it.
+pub enum FontSizeRecascadeStatus {
+    Complete,
+    /// The caller must provide the font and DOM-dependent resolution context
+    /// for `next_index`, then resume there.
     NeedsLengthResolution,
+    /// Rust could not resolve the length at `next_index` with the supplied
+    /// context, so the caller must resolve it and resume at the next value.
+    NeedsCppLengthResolution,
 }
 
 #[repr(C)]
-pub struct FfiFontSizeRecascadeStep {
-    pub action: FontSizeRecascadeAction,
-    pub new_size_raw: i32,
+pub struct FfiFontSizeRecascadeBatch {
+    pub status: FontSizeRecascadeStatus,
+    pub next_index: usize,
+    pub current_size_raw: i32,
     pub depends_on_viewport_metrics: bool,
+    pub skipped_calculated_value: bool,
 }
 
-/// One ancestor step of the time-traveling font-size inheritance applied when
-/// the cascade ends up with `font-family: monospace`: interprets the
-/// ancestor's raw cascaded font-size against the running size, with keyword
-/// sizes mapped against the default monospace font size.
+/// Drives the time-traveling font-size inheritance applied when the cascade
+/// ends up with `font-family: monospace` through as many ancestors as Rust can
+/// resolve without another DOM-dependent length context.
 ///
-/// `length_resolution_context` may be null; a length value then reports
-/// `NeedsLengthResolution` so the caller can build the context lazily and call
-/// again, since building it involves font work the other value types never
-/// need.
+/// A non-null `length_resolution_context` applies only to `values[start_index]`.
+/// Building it involves font work, so the caller does so lazily after a batch
+/// reports `NeedsLengthResolution` and resumes at the reported index.
 ///
 /// # Safety
-/// `value` must point at a valid StyleValueData, and
+/// `values` must contain `value_count` valid StyleValueData pointers, and
 /// `length_resolution_context` must be null or valid.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_recascade_font_size_step(
-    value: *const c_void,
+pub unsafe extern "C" fn rust_recascade_font_size_batch(
+    values: *const *const c_void,
+    value_count: usize,
+    start_index: usize,
     current_size_raw: i32,
     current_depends_on_viewport_metrics: bool,
     default_size_raw: i32,
     length_resolution_context: *const FfiLengthResolutionContext,
-) -> FfiFontSizeRecascadeStep {
+) -> FfiFontSizeRecascadeBatch {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
-        let value = unsafe { &*(value as *const StyleValueData) };
-        let current_size = CssPixels::from_raw(current_size_raw);
+        let values = if value_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(values, value_count) }
+        };
+        assert!(start_index <= values.len());
+        let mut current_size = CssPixels::from_raw(current_size_raw);
+        let mut depends_on_viewport_metrics = current_depends_on_viewport_metrics;
         let default_size = CssPixels::from_raw(default_size_raw);
-        let unchanged = FfiFontSizeRecascadeStep {
-            action: FontSizeRecascadeAction::Unchanged,
-            new_size_raw: current_size_raw,
-            depends_on_viewport_metrics: current_depends_on_viewport_metrics,
-        };
-        let set = |size: CssPixels, depends_on_viewport_metrics: bool| FfiFontSizeRecascadeStep {
-            action: FontSizeRecascadeAction::Set,
-            new_size_raw: size.raw_value(),
-            depends_on_viewport_metrics,
-        };
-        let needs_length_resolution = FfiFontSizeRecascadeStep {
-            action: FontSizeRecascadeAction::NeedsLengthResolution,
-            new_size_raw: current_size_raw,
-            depends_on_viewport_metrics: current_depends_on_viewport_metrics,
-        };
+        let supplied_length_resolution_context = unsafe { length_resolution_context.as_ref() };
+        let mut skipped_calculated_value = false;
+        let stopped =
+            |status, next_index, current_size: CssPixels, depends_on_viewport_metrics, skipped_calculated_value| {
+                FfiFontSizeRecascadeBatch {
+                    status,
+                    next_index,
+                    current_size_raw: current_size.raw_value(),
+                    depends_on_viewport_metrics,
+                    skipped_calculated_value,
+                }
+            };
 
-        match value {
-            StyleValueData::Keyword { keyword } => {
-                if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
-                    return set(default_size, false);
+        for (index, value) in values.iter().enumerate().skip(start_index) {
+            let value = unsafe { &*value.cast::<StyleValueData>() };
+            match value {
+                StyleValueData::Keyword { keyword } => {
+                    if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
+                        current_size = default_size;
+                        depends_on_viewport_metrics = false;
+                        continue;
+                    }
+                    if *keyword == keyword::INHERIT {
+                        continue;
+                    }
+                    if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
+                        current_size = px;
+                        depends_on_viewport_metrics = false;
+                        continue;
+                    }
+                    if let Some(px) = relative_size_font_mapping(*keyword, current_size) {
+                        current_size = px;
+                        continue;
+                    }
+                    // FIXME: Resolve `font-size: math`
+                    if *keyword == keyword::MATH {
+                        continue;
+                    }
                 }
-                if *keyword == keyword::INHERIT {
-                    // Do nothing.
-                    return unchanged;
+                StyleValueData::Percentage { value } => {
+                    current_size = CssPixels::nearest_value_for(value / 100.0 * current_size.to_double());
+                    continue;
                 }
-                if let Some(px) = absolute_size_font_mapping(*keyword, default_size) {
-                    return set(px, false);
+                StyleValueData::Length { value, unit } => {
+                    let Some(length_resolution_context) = (index == start_index)
+                        .then_some(supplied_length_resolution_context)
+                        .flatten()
+                    else {
+                        return stopped(
+                            FontSizeRecascadeStatus::NeedsLengthResolution,
+                            index,
+                            current_size,
+                            depends_on_viewport_metrics,
+                            skipped_calculated_value,
+                        );
+                    };
+                    let result = absolutize_length(*value, *unit as usize, length_resolution_context);
+                    if !result.handled {
+                        return stopped(
+                            FontSizeRecascadeStatus::NeedsCppLengthResolution,
+                            index,
+                            current_size,
+                            depends_on_viewport_metrics,
+                            skipped_calculated_value,
+                        );
+                    }
+                    current_size = CssPixels::nearest_value_for(result.px);
+                    depends_on_viewport_metrics = result.resolved_viewport_relative_length;
+                    continue;
                 }
-                if let Some(px) = relative_size_font_mapping(*keyword, current_size) {
-                    return set(px, current_depends_on_viewport_metrics);
+                StyleValueData::Calculated { .. } => {
+                    skipped_calculated_value = true;
+                    continue;
                 }
-                // FIXME: Resolve `font-size: math`
-                if *keyword == keyword::MATH {
-                    return unchanged;
-                }
-                // Unknown keywords fall through to the caller, which rejects them.
-                needs_length_resolution
+                _ => {}
             }
-            StyleValueData::Percentage { value } => set(
-                CssPixels::nearest_value_for(value / 100.0 * current_size.to_double()),
-                current_depends_on_viewport_metrics,
-            ),
-            StyleValueData::Length { value, unit } => {
-                if length_resolution_context.is_null() {
-                    return needs_length_resolution;
-                }
-                let result = absolutize_length(*value, *unit as usize, unsafe { &*length_resolution_context });
-                if !result.handled {
-                    return needs_length_resolution;
-                }
-                set(
-                    CssPixels::nearest_value_for(result.px),
-                    result.resolved_viewport_relative_length,
-                )
-            }
-            StyleValueData::Calculated { .. } => FfiFontSizeRecascadeStep {
-                action: FontSizeRecascadeAction::CalcSkipped,
-                new_size_raw: current_size_raw,
-                depends_on_viewport_metrics: current_depends_on_viewport_metrics,
-            },
-            _ => needs_length_resolution,
+            let status = if index == start_index && supplied_length_resolution_context.is_some() {
+                FontSizeRecascadeStatus::NeedsCppLengthResolution
+            } else {
+                FontSizeRecascadeStatus::NeedsLengthResolution
+            };
+            return stopped(
+                status,
+                index,
+                current_size,
+                depends_on_viewport_metrics,
+                skipped_calculated_value,
+            );
         }
+        stopped(
+            FontSizeRecascadeStatus::Complete,
+            values.len(),
+            current_size,
+            depends_on_viewport_metrics,
+            skipped_calculated_value,
+        )
     })
 }
 
@@ -5515,6 +5554,54 @@ mod tests {
 
         assert_eq!(absolutize_length(1.0, unit_code("lh"), &context).px, 19.0);
         assert_eq!(absolutize_length(1.0, unit_code("rch"), &context).px, 9.0);
+    }
+
+    #[test]
+    fn font_size_recascade_batches_until_length_context_is_needed() {
+        let percentage = StyleValueData::Percentage { value: 200.0 };
+        let em = StyleValueData::Length {
+            value: 2.0,
+            unit: unit_code("em") as u8,
+        };
+        let final_percentage = StyleValueData::Percentage { value: 50.0 };
+        let values: [*const std::ffi::c_void; 3] = [
+            (&percentage as *const StyleValueData).cast(),
+            (&em as *const StyleValueData).cast(),
+            (&final_percentage as *const StyleValueData).cast(),
+        ];
+        let default_size = CssPixels::from_integer(13);
+
+        let first_batch = unsafe {
+            rust_recascade_font_size_batch(
+                values.as_ptr(),
+                values.len(),
+                0,
+                default_size.raw_value(),
+                false,
+                default_size.raw_value(),
+                std::ptr::null(),
+            )
+        };
+        assert!(first_batch.status == FontSizeRecascadeStatus::NeedsLengthResolution);
+        assert_eq!(first_batch.next_index, 1);
+        assert_eq!(first_batch.current_size_raw, CssPixels::from_integer(26).raw_value());
+
+        let mut context = test_context();
+        context.font_metrics.font_size = 26.0;
+        let resumed_batch = unsafe {
+            rust_recascade_font_size_batch(
+                values.as_ptr(),
+                values.len(),
+                first_batch.next_index,
+                first_batch.current_size_raw,
+                first_batch.depends_on_viewport_metrics,
+                default_size.raw_value(),
+                &context,
+            )
+        };
+        assert!(resumed_batch.status == FontSizeRecascadeStatus::Complete);
+        assert_eq!(resumed_batch.next_index, values.len());
+        assert_eq!(resumed_batch.current_size_raw, CssPixels::from_integer(26).raw_value());
     }
 
     #[test]
