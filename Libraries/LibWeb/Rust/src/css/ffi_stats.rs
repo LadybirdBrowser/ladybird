@@ -75,7 +75,7 @@ define_ffi_ops! {
     FontTechIsSupportedCallback => "fontTechIsSupportedCallbacks",
     ResolveDescriptorIntegerCallback => "resolveDescriptorIntegerCallbacks",
     ResolvePropertyIdCallback => "resolvePropertyIdCallbacks",
-    ResolveQueryFeatureCallback => "resolveQueryFeatureCallbacks",
+    QueryFeatureResolutionCallback => "resolveQueryFeatureCallbacks",
     EvaluateSupportsFeatureCallback => "evaluateSupportsFeatureCallbacks",
     EvaluateConditionCallback => "evaluateConditionCallbacks",
 }

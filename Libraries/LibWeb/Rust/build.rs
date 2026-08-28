@@ -74,6 +74,7 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
          pub(crate) const MEDIA_FEATURE_VALUE_RESOLUTION: u8 = 1 << 4;\n\n\
          pub(crate) struct MediaFeatureMetadata {\n\
              pub name: &'static str,\n\
+             pub allows_range: bool,\n\
              pub accepted_value_types: u8,\n\
              pub accepted_keywords: &'static [u16],\n\
              pub false_keywords: &'static [u16],\n\
@@ -81,6 +82,11 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
          pub(crate) const MEDIA_FEATURES: &[MediaFeatureMetadata] = &[\n",
     );
     for (name, feature) in features {
+        let allows_range = match feature["type"].as_str() {
+            Some("discrete") => false,
+            Some("range") => true,
+            _ => return Err(format!("unknown media feature type for {name}").into()),
+        };
         let values = feature["values"]
             .as_array()
             .ok_or("media feature values is not an array")?;
@@ -126,7 +132,7 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
             .join(", ");
         writeln!(
             output,
-            "    MediaFeatureMetadata {{ name: \"{name}\", accepted_value_types: {value_types}, accepted_keywords: &[{accepted_keywords}], false_keywords: &[{false_keywords}] }},"
+            "    MediaFeatureMetadata {{ name: \"{name}\", allows_range: {allows_range}, accepted_value_types: {value_types}, accepted_keywords: &[{accepted_keywords}], false_keywords: &[{false_keywords}] }},"
         )?;
     }
     output.push_str("];\n");

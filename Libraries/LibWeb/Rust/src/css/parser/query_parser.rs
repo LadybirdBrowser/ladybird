@@ -27,6 +27,70 @@ use std::sync::Arc;
 include!(concat!(env!("OUT_DIR"), "/media_features_generated.rs"));
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct QueryFeatureMetadata {
+    name: &'static str,
+    allows_range: bool,
+}
+
+// NB: Mirrors the SizeFeatureID order and range support from commit 3950fac294c in
+//     Libraries/LibWeb/CSS/ContainerQuery.h:22 and Libraries/LibWeb/CSS/ContainerQuery.cpp:81.
+const SIZE_FEATURES: &[QueryFeatureMetadata] = &[
+    QueryFeatureMetadata {
+        name: "aspect-ratio",
+        allows_range: true,
+    },
+    QueryFeatureMetadata {
+        name: "block-size",
+        allows_range: true,
+    },
+    QueryFeatureMetadata {
+        name: "height",
+        allows_range: true,
+    },
+    QueryFeatureMetadata {
+        name: "inline-size",
+        allows_range: true,
+    },
+    QueryFeatureMetadata {
+        name: "orientation",
+        allows_range: false,
+    },
+    QueryFeatureMetadata {
+        name: "width",
+        allows_range: true,
+    },
+];
+
+// NB: Media feature IDs follow MediaFeatures.json iteration order, as did the C++ resolver at
+//     commit 3950fac294c in Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp:46.
+pub(crate) fn media_feature_from_name(name: &[u16]) -> Option<(u8, bool)> {
+    MEDIA_FEATURES.iter().enumerate().find_map(|(id, metadata)| {
+        if !equals_ascii_case_insensitive(name, metadata.name.as_bytes()) {
+            return None;
+        }
+        Some((u8::try_from(id).ok()?, metadata.allows_range))
+    })
+}
+
+fn size_feature_from_name(name: &[u16]) -> Option<(u8, bool)> {
+    SIZE_FEATURES.iter().enumerate().find_map(|(id, metadata)| {
+        if !equals_ascii_case_insensitive(name, metadata.name.as_bytes()) {
+            return None;
+        }
+        Some((u8::try_from(id).ok()?, metadata.allows_range))
+    })
+}
+
+pub(crate) fn resolve_query_feature(kind: QueryKind, name: &[u16]) -> Option<(u8, bool)> {
+    match kind {
+        QueryKind::Media => media_feature_from_name(name),
+        QueryKind::Size => size_feature_from_name(name),
+        QueryKind::Style => property_id_from_name(name).map(|_| (0, false)),
+        QueryKind::Supports => None,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum QueryKind {
     Media,
@@ -1325,14 +1389,7 @@ fn serialize_query_feature(sink: &mut TextSink, feature: &QueryFeature, kind: Qu
     };
     let name = match kind {
         QueryKind::Media => MEDIA_FEATURES[usize::from(id)].name,
-        QueryKind::Size => [
-            "aspect-ratio",
-            "block-size",
-            "height",
-            "inline-size",
-            "orientation",
-            "width",
-        ][usize::from(id)],
+        QueryKind::Size => SIZE_FEATURES[usize::from(id)].name,
         QueryKind::Supports | QueryKind::Style => unreachable!("this query kind does not use query features"),
     };
 
@@ -2347,8 +2404,6 @@ fn evaluate_media_query(
     result
 }
 
-pub(crate) type ResolveQueryFeature = unsafe extern "C" fn(u8, *const u16, usize) -> u16;
-
 type EvaluateSupportsFeature = unsafe extern "C" fn(*mut c_void, FfiSupportsFeatureKind, FfiUtf16View) -> bool;
 
 type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
@@ -2388,21 +2443,6 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
         }
         true
     })
-}
-
-pub(crate) fn ffi_resolver(callback: ResolveQueryFeature) -> impl Fn(QueryKind, &[u16]) -> Option<(u8, bool)> {
-    move |kind, name| {
-        if kind == QueryKind::Style {
-            return property_id_from_name(name).map(|_| (0, false));
-        }
-        // SAFETY: The name slice remains live for the duration of the callback.
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolveQueryFeatureCallback);
-        let result = unsafe { callback(kind as u8, name.as_ptr(), name.len()) };
-        if result == u16::MAX {
-            return None;
-        }
-        Some(((result & 0xff) as u8, result & 0x100 != 0))
-    }
 }
 
 fn ffi_supports_evaluator(
@@ -2474,7 +2514,6 @@ where
 #[allow(clippy::arc_with_non_send_sync)]
 pub unsafe extern "C" fn rust_visit_media_query_list(
     source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
     context: *mut c_void,
     visit: VisitQueryHandle,
 ) -> bool {
@@ -2482,7 +2521,7 @@ pub unsafe extern "C" fn rust_visit_media_query_list(
         let Some(source) = (unsafe { source.units() }) else {
             return false;
         };
-        let Some(queries) = parse_media_query_list(source, &ffi_resolver(resolve_feature)) else {
+        let Some(queries) = parse_media_query_list(source, &resolve_query_feature) else {
             return false;
         };
         for query in queries {
@@ -2505,10 +2544,7 @@ fn create_expression_handle(expression: Expression, kind: QueryKind) -> *const F
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_media_condition(
-    source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
-) -> *const FfiQueryHandle {
+pub unsafe extern "C" fn rust_parse_media_condition(source: FfiUtf16View) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null();
@@ -2516,7 +2552,7 @@ pub unsafe extern "C" fn rust_parse_media_condition(
         let Some(values) = components_from_source(source) else {
             return std::ptr::null();
         };
-        let Some(expression) = parse_media_condition(&values, &ffi_resolver(resolve_feature)) else {
+        let Some(expression) = parse_media_condition(&values, &resolve_query_feature) else {
             return std::ptr::null();
         };
         create_expression_handle(expression, QueryKind::Media)
@@ -2526,15 +2562,12 @@ pub unsafe extern "C" fn rust_parse_media_condition(
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_media_feature(
-    source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
-) -> *const FfiQueryHandle {
+pub unsafe extern "C" fn rust_parse_media_feature(source: FfiUtf16View) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null();
         };
-        let Some(expression) = parse_media_feature_from_source(source, &ffi_resolver(resolve_feature)) else {
+        let Some(expression) = parse_media_feature_from_source(source, &resolve_query_feature) else {
             return std::ptr::null();
         };
         create_expression_handle(expression, QueryKind::Media)
@@ -2613,15 +2646,12 @@ pub unsafe extern "C" fn rust_parse_supports_declaration(
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_style_query(
-    source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
-) -> *const FfiQueryHandle {
+pub unsafe extern "C" fn rust_parse_style_query(source: FfiUtf16View) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null();
         };
-        let Some(expression) = parse_style_query_from_source(source, &ffi_resolver(resolve_feature)) else {
+        let Some(expression) = parse_style_query_from_source(source, &resolve_query_feature) else {
             return std::ptr::null();
         };
         create_expression_handle(expression, QueryKind::Style)
@@ -2637,7 +2667,6 @@ pub unsafe extern "C" fn rust_parse_style_query(
 #[allow(clippy::arc_with_non_send_sync)]
 pub unsafe extern "C" fn rust_visit_container_condition_list(
     source: FfiUtf16View,
-    resolve_feature: ResolveQueryFeature,
     context: *mut c_void,
     visit: VisitContainerCondition,
 ) -> bool {
@@ -2645,7 +2674,7 @@ pub unsafe extern "C" fn rust_visit_container_condition_list(
         let Some(source) = (unsafe { source.units() }) else {
             return false;
         };
-        let Some(conditions) = parse_container_condition_list(source, &ffi_resolver(resolve_feature)) else {
+        let Some(conditions) = parse_container_condition_list(source, &resolve_query_feature) else {
             return false;
         };
         for condition in conditions {
@@ -2911,24 +2940,8 @@ pub unsafe extern "C" fn css_query_serialize_condition(
 mod tests {
     use super::*;
 
-    fn resolver(kind: QueryKind, name: &[u16]) -> Option<(u8, bool)> {
-        if kind == QueryKind::Style && name.starts_with(&[u16::from(b'-'), u16::from(b'-')]) {
-            return Some((5, false));
-        }
-        let names: &[(&[u8], u8, bool)] = match kind {
-            QueryKind::Media => &[(b"width", 1, true), (b"orientation", 2, false)],
-            QueryKind::Supports => &[],
-            QueryKind::Size => &[(b"width", 3, true), (b"orientation", 4, false)],
-            QueryKind::Style => &[],
-        };
-        names
-            .iter()
-            .find(|(expected, _, _)| equals_ascii_case_insensitive(name, expected))
-            .map(|(_, id, range)| (*id, *range))
-    }
-
     fn parse_single_container_query(source: &[u8]) -> Option<Expression> {
-        let mut conditions = parse_container_condition_list(source, &resolver)?;
+        let mut conditions = parse_container_condition_list(source, &resolve_query_feature)?;
         if conditions.len() != 1 || conditions[0].name.is_some() {
             return None;
         }
@@ -2936,10 +2949,57 @@ mod tests {
     }
 
     #[test]
+    fn resolves_media_and_size_feature_names() {
+        for (id, metadata) in MEDIA_FEATURES.iter().enumerate() {
+            let name = metadata.name.encode_utf16().collect::<Vec<_>>();
+            assert_eq!(
+                media_feature_from_name(&name),
+                Some((u8::try_from(id).unwrap(), metadata.allows_range))
+            );
+            let uppercase_name = metadata.name.to_ascii_uppercase().encode_utf16().collect::<Vec<_>>();
+            assert_eq!(
+                media_feature_from_name(&uppercase_name),
+                Some((u8::try_from(id).unwrap(), metadata.allows_range))
+            );
+        }
+        assert_eq!(
+            media_feature_from_name(&"unknown".encode_utf16().collect::<Vec<_>>()),
+            None
+        );
+
+        let expected_size_features = [
+            ("aspect-ratio", true),
+            ("block-size", true),
+            ("height", true),
+            ("inline-size", true),
+            ("orientation", false),
+            ("width", true),
+        ];
+        assert_eq!(
+            SIZE_FEATURES
+                .iter()
+                .map(|metadata| (metadata.name, metadata.allows_range))
+                .collect::<Vec<_>>(),
+            expected_size_features
+        );
+        for (id, (name, allows_range)) in expected_size_features.into_iter().enumerate() {
+            let name = name.to_ascii_uppercase().encode_utf16().collect::<Vec<_>>();
+            assert_eq!(
+                size_feature_from_name(&name),
+                Some((u8::try_from(id).unwrap(), allows_range))
+            );
+        }
+        assert_eq!(
+            size_feature_from_name(&"unknown".encode_utf16().collect::<Vec<_>>()),
+            None
+        );
+    }
+
+    #[test]
     fn parses_media_query_lists_and_replaces_invalid_queries() {
         let queries = parse_media_query_list(
             b"screen and (width >= 600px), (orientation: landscape), not or".as_slice(),
-            &resolver,
+            &resolve_query_feature,
         )
         .unwrap();
         assert_eq!(queries.len(), 3);
@@ -2952,12 +3012,15 @@ mod tests {
     fn parses_media_boolean_operators_and_ranges() {
         let values = components_from_source(b"(400px < width <= 800px) and (not (orientation))".as_slice()).unwrap();
         assert!(matches!(
-            parse_media_condition(&values, &resolver),
+            parse_media_condition(&values, &resolve_query_feature),
             Some(Expression::And(_))
         ));
         let values = components_from_source(b"(width) and (orientation) or (width)".as_slice()).unwrap();
-        assert!(parse_media_condition(&values, &resolver).is_none());
-        assert!(!parse_media_query_list(b"(not (width) and (orientation))".as_slice(), &resolver).unwrap()[0].valid);
+        assert!(parse_media_condition(&values, &resolve_query_feature).is_none());
+        assert!(
+            !parse_media_query_list(b"(not (width) and (orientation))".as_slice(), &resolve_query_feature).unwrap()[0]
+                .valid
+        );
     }
 
     #[test]
@@ -3000,8 +3063,11 @@ mod tests {
             parse_single_container_query(b"(width > 10px) and style(--theme: dark)"),
             Some(Expression::And(_))
         ));
-        let conditions =
-            parse_container_condition_list(b"card (width > 10px), style(--theme: dark)".as_slice(), &resolver).unwrap();
+        let conditions = parse_container_condition_list(
+            b"card (width > 10px), style(--theme: dark)".as_slice(),
+            &resolve_query_feature,
+        )
+        .unwrap();
         assert_eq!(conditions.len(), 2);
         assert_eq!(
             conditions[0].name.as_ref().map(AsRef::as_ref),

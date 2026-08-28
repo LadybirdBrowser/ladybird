@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/FontFace.h>
-#include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
@@ -41,22 +40,6 @@ Optional<Vector<RustQueryParser::SizesAttributeEntry>> RustQueryParser::split_si
     if (!rust_visit_sizes_attribute_entries(ffi_utf16_view(source), &entries, visit))
         return {};
     return entries;
-}
-
-u16 RustQueryParser::resolve_query_feature(u8 kind, u16 const* code_units, size_t length)
-{
-    auto name = Utf16View { reinterpret_cast<char16_t const*>(code_units), length };
-    if (kind == 0) {
-        auto id = media_feature_id_from_string(name);
-        if (!id.has_value())
-            return NumericLimits<u16>::max();
-        return to_underlying(*id) | (media_feature_type_is_range(*id) ? 0x100 : 0);
-    }
-    VERIFY(kind == 1);
-    auto id = size_feature_id_from_string(name);
-    if (!id.has_value())
-        return NumericLimits<u16>::max();
-    return to_underlying(*id) | (size_feature_type_is_range(*id) ? 0x100 : 0);
 }
 
 static bool at_rule_is_supported(Utf16View name)
@@ -91,7 +74,7 @@ Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser
         auto& queries = *static_cast<Vector<NonnullRefPtr<MediaQuery>>*>(context);
         queries.append(MediaQuery::create(RustQueryHandle::retained(handle)));
     };
-    if (!rust_visit_media_query_list(ffi_utf16_view(source), RustQueryParser::resolve_query_feature, &queries, visit))
+    if (!rust_visit_media_query_list(ffi_utf16_view(source), &queries, visit))
         return { MediaQuery::create_not_all() };
     return queries;
 }
@@ -113,7 +96,7 @@ RefPtr<MediaQuery> Parser::parse_as_media_query()
 
 Optional<RustQueryHandle> RustQueryParser::parse_media_condition(Parser&, Utf16View source)
 {
-    auto* handle = rust_parse_media_condition(ffi_utf16_view(source), RustQueryParser::resolve_query_feature);
+    auto* handle = rust_parse_media_condition(ffi_utf16_view(source));
     if (!handle)
         return {};
     return RustQueryHandle { handle };
@@ -121,7 +104,7 @@ Optional<RustQueryHandle> RustQueryParser::parse_media_condition(Parser&, Utf16V
 
 Optional<RustQueryHandle> RustQueryParser::parse_media_feature(Parser&, Utf16View source)
 {
-    auto* handle = rust_parse_media_feature(ffi_utf16_view(source), RustQueryParser::resolve_query_feature);
+    auto* handle = rust_parse_media_feature(ffi_utf16_view(source));
     if (!handle)
         return {};
     return RustQueryHandle { handle };
@@ -158,7 +141,7 @@ Optional<RustQueryHandle> RustQueryParser::parse_supports_declaration(Parser& pa
 
 Optional<RustQueryHandle> RustQueryParser::parse_style_query(Parser&, Utf16View source)
 {
-    auto* handle = rust_parse_style_query(ffi_utf16_view(source), RustQueryParser::resolve_query_feature);
+    auto* handle = rust_parse_style_query(ffi_utf16_view(source));
     if (!handle)
         return {};
     return RustQueryHandle { handle };
@@ -177,7 +160,7 @@ Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_con
             query = ContainerQuery::create(RustQueryHandle::retained(handle));
         conditions.append({ .name = move(condition_name), .query = move(query) });
     };
-    if (!rust_visit_container_condition_list(ffi_utf16_view(source), RustQueryParser::resolve_query_feature, &conditions, visit))
+    if (!rust_visit_container_condition_list(ffi_utf16_view(source), &conditions, visit))
         return {};
     return conditions;
 }
