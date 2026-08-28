@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function evaluateIfCondition(name, condition) {
+        const target = document.createElement("div");
+        target.style.cssText = `
+            --flag: 2px;
+            --result: if(${condition}: 1px; else: 2px);
+            width: var(--result);
+        `;
+        document.body.appendChild(target);
+
+        internals.resetStyleFfiCounters();
+        println(`${name} result: ${getComputedStyle(target).width}`);
+        println(`${name} callbacks: ${internals.styleFfiCounters().evaluateConditionCallbacks}`);
+        target.remove();
+    }
+
+    test(() => {
+        evaluateIfCondition("media", "media((width >= 0px))");
+        evaluateIfCondition("supports", "supports((display: grid))");
+        evaluateIfCondition("style", "style(--flag > 1px)");
+    });
+</script>
