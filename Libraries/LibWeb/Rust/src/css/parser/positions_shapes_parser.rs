@@ -986,76 +986,6 @@ fn parse_polygon(context: &ParseContext, property: u16, arguments: &[ComponentVa
     ))
 }
 
-fn svg_number(input: &[u16], position: &mut usize) -> bool {
-    while input
-        .get(*position)
-        .is_some_and(|value| matches!(*value, 0x09 | 0x0a | 0x0d | 0x20))
-    {
-        *position += 1;
-    }
-    if input.get(*position).is_some_and(|value| matches!(*value, 0x2b | 0x2d)) {
-        *position += 1;
-    }
-    let integer_start = *position;
-    while input.get(*position).is_some_and(|value| matches!(*value, 0x30..=0x39)) {
-        *position += 1;
-    }
-    let mut has_digits = *position > integer_start;
-    if input.get(*position) == Some(&u16::from(b'.')) {
-        *position += 1;
-        let fraction_start = *position;
-        while input.get(*position).is_some_and(|value| matches!(*value, 0x30..=0x39)) {
-            *position += 1;
-        }
-        has_digits |= *position > fraction_start;
-    }
-    if !has_digits {
-        return false;
-    }
-    if input.get(*position).is_some_and(|value| matches!(*value, 0x45 | 0x65)) {
-        let exponent = *position;
-        *position += 1;
-        if input.get(*position).is_some_and(|value| matches!(*value, 0x2b | 0x2d)) {
-            *position += 1;
-        }
-        let digits = *position;
-        while input.get(*position).is_some_and(|value| matches!(*value, 0x30..=0x39)) {
-            *position += 1;
-        }
-        if *position == digits {
-            *position = exponent;
-        }
-    }
-    true
-}
-
-fn has_initial_svg_moveto(path: &[u16]) -> bool {
-    let mut position = 0;
-    while path
-        .get(position)
-        .is_some_and(|value| matches!(*value, 0x09 | 0x0a | 0x0d | 0x20))
-    {
-        position += 1;
-    }
-    if !path.get(position).is_some_and(|value| matches!(*value, 0x4d | 0x6d)) {
-        return false;
-    }
-    position += 1;
-    if !svg_number(path, &mut position) {
-        return false;
-    }
-    while path
-        .get(position)
-        .is_some_and(|value| matches!(*value, 0x09 | 0x0a | 0x0d | 0x20))
-    {
-        position += 1;
-    }
-    if path.get(position) == Some(&u16::from(b',')) {
-        position += 1;
-    }
-    svg_number(path, &mut position)
-}
-
 fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<StyleValueData> {
     let arguments = arguments.split(ComponentValue::is_comma).collect::<Vec<_>>();
     if arguments.is_empty() || arguments.len() > 2 {
@@ -1073,21 +1003,13 @@ fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<St
     if tokens.has_next_token() {
         return None;
     }
-    let path_string = if let Some(normalize) = context.normalize_svg_path_data {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::NormalizeSvgPathDataCallback);
-        let raw = unsafe { normalize(path.as_ptr(), path.len()) };
-        if raw == 0 {
-            return None;
-        }
-        unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) }
-    } else if let Some(normalized) = context.precomputed_svg_path(&path) {
-        retain_fly_string(context, normalized?)?
-    } else {
-        if !has_initial_svg_moveto(&path) {
-            return None;
-        }
-        retain_fly_string(context, &path)?
-    };
+    let normalize = context.normalize_svg_path_data?;
+    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::NormalizeSvgPathDataCallback);
+    let raw = unsafe { normalize(path.as_ptr(), path.len(), context.is_svg_presentation_attribute) };
+    if raw == 0 {
+        return None;
+    }
+    let path_string = unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) };
     Some(basic_shape(6, vec![], fill_rule, vec![], path_string))
 }
 
@@ -1716,6 +1638,10 @@ mod tests {
         0
     }
 
+    unsafe extern "C" fn retain_normalized_path(_: *const u16, _: usize, _: bool) -> usize {
+        ak::utf16_short_string_raw("M0 0").unwrap()
+    }
+
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -1730,9 +1656,7 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
-            normalize_svg_path_data: None,
-            precomputed_svg_paths: std::ptr::null(),
-            precomputed_svg_path_count: 0,
+            normalize_svg_path_data: Some(retain_normalized_path),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

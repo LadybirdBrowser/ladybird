@@ -137,15 +137,6 @@ pub struct FfiValueParsingContext {
     pub name: FfiUtf16View,
 }
 
-/// Main-thread-normalized SVG path data available to a callback-free worker parse.
-#[repr(C)]
-pub struct FfiPrecomputedSvgPath {
-    pub source: *const u16,
-    pub source_length: usize,
-    pub normalized: *const u16,
-    pub normalized_length: usize,
-}
-
 /// Parser state required by CSS value parsing.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -162,32 +153,9 @@ pub struct ParseContext {
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
-    pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
-    pub precomputed_svg_paths: *const FfiPrecomputedSvgPath,
-    pub precomputed_svg_path_count: usize,
+    pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize, bool) -> usize>,
     pub length_resolution_context: *const c_void,
     pub random_function_index: *mut usize,
-}
-
-impl ParseContext {
-    pub(crate) fn precomputed_svg_path(&self, source: &[u16]) -> Option<Option<&[u16]>> {
-        if self.precomputed_svg_path_count == 0 {
-            return None;
-        }
-        let paths = unsafe { std::slice::from_raw_parts(self.precomputed_svg_paths, self.precomputed_svg_path_count) };
-        paths.iter().find_map(|path| {
-            let candidate = unsafe { std::slice::from_raw_parts(path.source, path.source_length) };
-            if candidate != source {
-                return None;
-            }
-            if path.normalized.is_null() {
-                return Some(None);
-            }
-            Some(Some(unsafe {
-                std::slice::from_raw_parts(path.normalized, path.normalized_length)
-            }))
-        })
-    }
 }
 
 pub(crate) enum ParseOutcome {
@@ -5575,34 +5543,6 @@ fn component_values_from_source<'a>(
     consume_a_small_list_of_component_values(tokenize_for_parser_without_source(source))
 }
 
-pub(crate) fn svg_path_strings_from_source(source: &[u16]) -> Vec<Vec<u16>> {
-    fn collect(values: &[ComponentValue], paths: &mut Vec<Vec<u16>>) {
-        for value in values {
-            match &value.kind {
-                ComponentKind::Function { name, values } => {
-                    if equals_ascii_case_insensitive(name, b"path") {
-                        for path in values.iter().filter_map(ComponentValue::string) {
-                            if !paths.iter().any(|candidate| candidate == path) {
-                                paths.push(path.to_vec());
-                            }
-                        }
-                    }
-                    collect(values, paths);
-                }
-                ComponentKind::SimpleBlock { values, .. } => collect(values, paths),
-                ComponentKind::Token(_) => {}
-            }
-        }
-    }
-
-    let Ok(values) = component_values_from_source(source) else {
-        return Vec::new();
-    };
-    let mut paths = Vec::new();
-    collect(&values, &mut paths);
-    paths
-}
-
 /// Parses a UTF-16 property value whose component-value source is already serialized.
 pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
     match component_values_from_source(source) {
@@ -5994,6 +5934,10 @@ mod tests {
         0
     }
 
+    unsafe extern "C" fn retain_normalized_path(_: *const u16, _: usize, _: bool) -> usize {
+        ak::utf16_short_string_raw("M0 0").unwrap()
+    }
+
     fn utf16(source: &str) -> Vec<u16> {
         source.encode_utf16().collect()
     }
@@ -6018,9 +5962,7 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
-            normalize_svg_path_data: None,
-            precomputed_svg_paths: std::ptr::null(),
-            precomputed_svg_path_count: 0,
+            normalize_svg_path_data: Some(retain_normalized_path),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

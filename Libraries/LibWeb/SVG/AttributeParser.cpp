@@ -28,16 +28,29 @@ Optional<Vector<Transform>> AttributeParser::parse_transform(Utf16View input)
 
 Path AttributeParser::parse_path_data(Utf16View input)
 {
+    return parse_path_data(input, PathParsingMode::AllowErrorRecovery).value_or(Path { {} });
+}
+
+Optional<Path> AttributeParser::parse_path_data_without_error_recovery(Utf16View input)
+{
+    return parse_path_data(input, PathParsingMode::DisallowErrorRecovery);
+}
+
+Optional<Path> AttributeParser::parse_path_data(Utf16View input, PathParsingMode mode)
+{
     AttributeParser parser { input };
     parser.parse_whitespace();
     while (!parser.done()) {
         auto maybe_error = parser.parse_drawto();
-        if (maybe_error.is_error())
+        if (maybe_error.is_error()) {
+            if (mode == PathParsingMode::DisallowErrorRecovery)
+                return {};
             break;
+        }
     }
     if (!parser.m_instructions.is_empty() && !parser.m_instructions[0].has<MoveToInstruction>()) {
         // Invalid. "A path data segment (if there is one) must begin with a "moveto" command."
-        return Path { {} };
+        return {};
     }
     return Path { move(parser.m_instructions) };
 }

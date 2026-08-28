@@ -24,12 +24,15 @@ static size_t retain_utf16_fly_string(u16 const* code_units, size_t length)
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
 }
 
-static size_t normalize_svg_path_data(u16 const* code_units, size_t length)
+static size_t normalize_svg_path_data(u16 const* code_units, size_t length, bool allow_error_recovery)
 {
-    auto path = SVG::AttributeParser::parse_path_data(Utf16View { reinterpret_cast<char16_t const*>(code_units), length });
-    if (path.instructions().is_empty())
+    auto input = Utf16View { reinterpret_cast<char16_t const*>(code_units), length };
+    auto path = allow_error_recovery
+        ? Optional<SVG::Path> { SVG::AttributeParser::parse_path_data(input) }
+        : SVG::AttributeParser::parse_path_data_without_error_recovery(input);
+    if (!path.has_value() || path->instructions().is_empty())
         return 0;
-    return Utf16String::from_utf8(path.serialize()).to_raw_leaked();
+    return Utf16String::from_utf8(path->serialize()).to_raw_leaked();
 }
 
 Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMode mode, Optional<PropertyID> direct_property_context)
@@ -106,8 +109,6 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         .document_base_url_length = document_base_url.size(),
         .intern_utf16_fly_string = retain_utf16_fly_string,
         .normalize_svg_path_data = provide_value_callbacks ? normalize_svg_path_data : nullptr,
-        .precomputed_svg_paths = nullptr,
-        .precomputed_svg_path_count = 0,
         .length_resolution_context = length_resolution_context.has_value() ? &*length_resolution_context : nullptr,
         .random_function_index = &parser.m_random_function_index,
     };
