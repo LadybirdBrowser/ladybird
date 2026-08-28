@@ -83,6 +83,24 @@ TEST_CASE(invalid_filter_bytes_keep_previous_rules)
     EXPECT(blocker.is_filtered(url("https://ads.example.com/script.js"sv), source_url, ContentBlocker::ResourceType::Script));
 }
 
+TEST_CASE(empty_rules_clear_previous_rules)
+{
+    Vector<String> rules = {
+        { "||ads.example.com^"_string },
+    };
+
+    auto& blocker = make_blocker(move(rules));
+    auto source_url = url("https://example.com/"sv);
+
+    EXPECT(blocker.has_rules());
+    EXPECT(blocker.is_filtered(url("https://ads.example.com/script.js"sv), source_url, ContentBlocker::ResourceType::Script));
+
+    MUST(blocker.set_rules_from_bytes({}));
+
+    EXPECT(!blocker.has_rules());
+    EXPECT(!blocker.is_filtered(url("https://ads.example.com/script.js"sv), source_url, ContentBlocker::ResourceType::Script));
+}
+
 TEST_CASE(disable_filtering)
 {
     Vector<String> rules = {
