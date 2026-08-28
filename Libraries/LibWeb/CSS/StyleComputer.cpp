@@ -5664,14 +5664,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         }
     };
 
-    Optional<ComputedValuesFFI::FfiDisplay> display_before_adjustments;
-    Optional<Keyword> float_before_adjustments;
-    Optional<Keyword> overflow_x_before_adjustments;
-    Optional<Keyword> overflow_y_before_adjustments;
-    Optional<Keyword> text_align_before_adjustments;
-    Optional<Keyword> position_before_adjustments;
-    RefPtr<StyleValue const> line_height_before_adjustments;
-
     auto execute_computation_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme) {
         for (size_t i = 0; i < count; ++i) {
             auto const& entry = entries[i];
@@ -5718,7 +5710,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .explicitly_inherited_non_inherited_property = false,
         .uses_tree_counting_function = false,
         .effective_color_scheme = -1,
-        .post_compute_adjustment = {},
+        .display_before_box_type_transformation = {},
+        .post_adjusted_longhands = 0,
     };
     auto box_type_input = make_box_type_transformation_input(
         abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
@@ -5795,13 +5788,13 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = default_user_font_size().raw_value(),
     };
-    auto drive_longhand_phase = [&](u8 phase, Optional<PropertyID> context_property) {
+    auto drive_longhand_phase = [&](u8 phase, Optional<PropertyID> context_property, ComputedValuesFFI::FfiInputLineHeightMetrics const* input_line_height_metrics = nullptr, void const* line_height_before_adjustments = nullptr) {
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         if (context_property.has_value()) {
             auto const& computation_context = get_computation_context_for_property(*context_property, computed_style, abstract_element);
             length_resolution_context = to_ffi_length_resolution_context_with_container_bases(computation_context.length_resolution_context, computation_requirements.container_relative_length_unit_mask);
         }
-        auto store_batch = ComputedValuesFFI::rust_drive_property_computation(computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, &driver_results);
+        auto store_batch = ComputedValuesFFI::rust_drive_property_computation(computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, input_line_height_metrics, line_height_before_adjustments, &driver_results);
         ScopeGuard destroy_store_batch = [&] {
             ComputedValuesFFI::rust_longhand_store_batch_destroy(store_batch.storage);
         };
@@ -5817,25 +5810,17 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     apply_font_metric_dependencies();
     drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_LINE_HEIGHT, PropertyID::LineHeight);
     apply_font_metric_dependencies();
+    auto line_height_metrics = input_line_height_metrics(computed_style, abstract_element, box_type_input.check_input_line_height);
+    auto const* line_height_before_adjustments = computed_style.effective_property_data(PropertyID::LineHeight);
     drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_COLOR_SCHEME, {});
-    drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_REMAINING, PropertyID::Color);
-    auto const& post_compute_adjustment = driver_results.post_compute_adjustment;
-    display_before_adjustments = post_compute_adjustment.display_before;
-    float_before_adjustments = static_cast<Keyword>(post_compute_adjustment.float_before);
-    overflow_x_before_adjustments = static_cast<Keyword>(post_compute_adjustment.overflow_x_before);
-    overflow_y_before_adjustments = static_cast<Keyword>(post_compute_adjustment.overflow_y_before);
-    text_align_before_adjustments = static_cast<Keyword>(post_compute_adjustment.text_align_before);
-    position_before_adjustments = static_cast<Keyword>(post_compute_adjustment.position_before);
-    line_height_before_adjustments = computed_style.property(PropertyID::LineHeight);
-    computed_style.set_display_before_box_type_transformation(display_from_ffi_display(post_compute_adjustment.display_before));
-    auto line_height_metrics = input_line_height_metrics(computed_style, abstract_element, post_compute_adjustment.element_style_adjustment.check_input_line_height);
-    auto post_adjusted_longhands = ComputedValuesFFI::rust_apply_post_compute_adjustments(computed_style.mutable_computed_longhand_table(), &post_compute_adjustment, &line_height_metrics);
+    drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_REMAINING, PropertyID::Color, &line_height_metrics, line_height_before_adjustments);
+    computed_style.set_display_before_box_type_transformation(display_from_ffi_display(driver_results.display_before_box_type_transformation));
     document().style_invalidation_counters().computed_longhand_evaluations += driver_results.longhand_evaluations;
     if (driver_results.uses_tree_counting_function)
         abstract_element.element().set_style_uses_tree_counting_function();
 
     auto invalidate_post_adjusted_longhand = [&](u8 flag, PropertyID property_id) {
-        if (post_adjusted_longhands & flag)
+        if (driver_results.post_adjusted_longhands & flag)
             computed_style.did_store_property_data_from_drive(property_id, nullptr);
     };
     invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_FLOAT, PropertyID::Float);
@@ -5892,24 +5877,15 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     // Add or modify CSS-defined animations
     process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
-    auto restore_values_before_post_compute_adjustments = [&] {
-        VERIFY(display_before_adjustments.has_value());
-        VERIFY(float_before_adjustments.has_value());
-        VERIFY(overflow_x_before_adjustments.has_value());
-        VERIFY(overflow_y_before_adjustments.has_value());
-        VERIFY(text_align_before_adjustments.has_value());
-        VERIFY(position_before_adjustments.has_value());
-        VERIFY(line_height_before_adjustments);
-        computed_style.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(*display_before_adjustments)));
-        computed_style.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*float_before_adjustments));
-        computed_style.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*overflow_x_before_adjustments));
-        computed_style.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*overflow_y_before_adjustments));
-        computed_style.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*text_align_before_adjustments));
-        computed_style.set_property_without_modifying_flags(PropertyID::Position, KeywordStyleValue::create(*position_before_adjustments));
-        computed_style.set_property_without_modifying_flags(PropertyID::LineHeight, *line_height_before_adjustments);
+    auto restore_values_before_post_compute_adjustments = [&](ComputedValuesFFI::FfiStyleFinalizationMode mode) {
+        ComputedValuesFFI::FfiStyleFinalizationInput input {};
+        input.mode = mode;
+        auto finalization = ComputedValuesFFI::rust_finalize_style(
+            &input, computed_style.mutable_computed_longhand_table(), nullptr, nullptr);
+        computed_style.did_apply_style_finalization_from_rust(finalization.invalidated_longhands);
     };
     if (animation_values_applied)
-        restore_values_before_post_compute_adjustments();
+        restore_values_before_post_compute_adjustments(ComputedValuesFFI::FfiStyleFinalizationMode::RestorePostCompute);
 
     m_keyframes_inherited_non_inherited_style_groups = 0;
     auto animations = abstract_element.element().get_animations_internal(
@@ -5929,7 +5905,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         }
         if (!effects.is_empty()) {
             if (!animation_values_applied)
-                restore_values_before_post_compute_adjustments();
+                restore_values_before_post_compute_adjustments(ComputedValuesFFI::FfiStyleFinalizationMode::RestorePostCompute);
             animation_values_applied = true;
             collect_animations_into(abstract_element, effects.span(), computed_style, AnimationRefresh::No);
         }
@@ -5943,8 +5919,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         }
     }
     if (parent_text_align_input_is_animated && !animation_values_applied) {
-        VERIFY(text_align_before_adjustments.has_value());
-        computed_style.set_property_without_modifying_flags(PropertyID::TextAlign, KeywordStyleValue::create(*text_align_before_adjustments));
+        restore_values_before_post_compute_adjustments(ComputedValuesFFI::FfiStyleFinalizationMode::RestorePostComputeTextAlign);
     }
 
     // Run automatic box type transformations again after animations have been applied.
