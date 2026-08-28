@@ -2133,8 +2133,8 @@ pub(crate) unsafe fn build_group_payload_with_rust_fill(
 /// Builds an inherited box group payload from the five computed keyword
 /// values, sharing instead of allocating whenever it can: the parent's
 /// payload when every field matches it, or the immortal default payload when
-/// every field holds its initial value. Returns null when any value is not a
-/// mappable keyword, in which case the C++ population path applies.
+/// every field holds its initial value. Every input is a canonical computed
+/// keyword.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
@@ -2156,43 +2156,44 @@ pub unsafe extern "C" fn rust_build_inherited_box_group(
     use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
-        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
+        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
             match unsafe { (data as *const StyleValueData).as_ref() } {
-                Some(StyleValueData::Keyword { keyword }) => map(*keyword),
-                _ => None,
+                Some(StyleValueData::Keyword { keyword }) => {
+                    map(*keyword).expect("computed keyword has a supported value")
+                }
+                _ => panic!("computed inherited box value is not a keyword"),
             }
         };
         let built = InheritedBoxValues {
-            visibility: keyword_code(visibility, crate::css::style_compute::keyword_to_visibility)?,
-            direction: keyword_code(direction, crate::css::style_compute::keyword_to_direction)?,
-            writing_mode: keyword_code(writing_mode, crate::css::style_compute::keyword_to_writing_mode)?,
+            visibility: keyword_code(visibility, crate::css::style_compute::keyword_to_visibility),
+            direction: keyword_code(direction, crate::css::style_compute::keyword_to_direction),
+            writing_mode: keyword_code(writing_mode, crate::css::style_compute::keyword_to_writing_mode),
             content_visibility: keyword_code(
                 content_visibility,
                 crate::css::style_compute::keyword_to_content_visibility,
-            )?,
-            image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering)?,
+            ),
+            image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
         };
 
         if !parent_payload.is_null() {
             // SAFETY: The caller guarantees a valid inherited box payload.
             if built == unsafe { *(parent_payload as *const InheritedBoxValues) } {
                 retain_group_payload(group_index, parent_payload);
-                return Some(parent_payload);
+                return parent_payload;
             }
         }
 
         let default_payload = default_group_payload(group_index);
         // SAFETY: The default payload is a valid inherited box payload.
         if built == unsafe { *(default_payload as *const InheritedBoxValues) } {
-            return Some(default_payload);
+            return default_payload;
         }
 
         let payload = allocate_payload(vtable(group_index), 1);
         // SAFETY: The payload was allocated for this group's layout.
         unsafe { *(payload as *mut InheritedBoxValues) = built };
-        Some(payload as *const c_void)
+        payload as *const c_void
     })
-    .unwrap_or(std::ptr::null())
 }
 
 impl ComputedSize {
@@ -2348,7 +2349,7 @@ impl ComputedLengthPercentageOrAuto {
         }
     }
 
-    fn from_data(data: *const c_void) -> Self {
+    pub(crate) fn from_data(data: *const c_void) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
@@ -3103,74 +3104,33 @@ pub unsafe extern "C" fn rust_build_alignment_group(
     .unwrap_or(std::ptr::null())
 }
 
-/// Builds the complete non-inherited SVG geometry and painting group from its
-/// computed property values.
+/// Interns a complete non-inherited SVG geometry and painting group.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
 /// start at one, shared payloads are retained, and default payloads are
 /// intentionally leaked and never counted.
 ///
 /// # Safety
-/// The value pointers must identify valid StyleValueData, and
 /// `parent_payload` must identify an SVG reset payload or be null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_svg_reset_group(
+pub(crate) unsafe fn build_svg_reset_group_payload(
     group_index: usize,
-    cx: *const c_void,
-    cy: *const c_void,
-    d: *const c_void,
-    r: *const c_void,
-    rx: *const c_void,
-    ry: *const c_void,
-    x: *const c_void,
-    y: *const c_void,
-    stop_color: u32,
-    stop_opacity: f32,
-    flood_color: u32,
-    flood_opacity: f32,
-    vector_effect: *const c_void,
+    built: SVGResetValues,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::css::style_value::StyleValueData;
-
     abort_on_panic(|| {
-        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
-            match unsafe { data.cast::<StyleValueData>().as_ref() } {
-                Some(StyleValueData::Keyword { keyword }) => map(*keyword),
-                _ => None,
-            }
-        };
-        let retained = |data: *const c_void| ComputedStyleValueHandle::retained(data.cast());
-        let built = SVGResetValues {
-            cx: retained(cx),
-            cy: retained(cy),
-            d: retained(d),
-            r: retained(r),
-            rx: ComputedLengthPercentageOrAuto::from_data(rx),
-            ry: ComputedLengthPercentageOrAuto::from_data(ry),
-            x: retained(x),
-            y: retained(y),
-            stop_color,
-            stop_opacity,
-            flood_color,
-            flood_opacity,
-            vector_effect: keyword_code(vector_effect, crate::css::css_enums::keyword_to_vector_effect)?,
-        };
-
         if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<SVGResetValues>() }) {
             retain_group_payload(group_index, parent_payload);
-            return Some(parent_payload);
+            return parent_payload;
         }
         let default_payload = default_group_payload(group_index);
         if built.eq(unsafe { &*default_payload.cast::<SVGResetValues>() }) {
-            return Some(default_payload);
+            return default_payload;
         }
 
         let payload = allocate_payload(vtable(group_index), 1);
         unsafe { payload.cast::<SVGResetValues>().write(built) };
-        Some(payload.cast_const())
+        payload.cast_const()
     })
-    .unwrap_or(std::ptr::null())
 }
 
 /// Builds the complete text-decoration reset group from its lowered values.
@@ -3605,9 +3565,8 @@ pub unsafe extern "C" fn rust_build_sizing_group(
 }
 
 /// Builds an inherited table group payload from the computed values, with the
-/// same sharing rules as the inherited box builder. Border-spacing must be a
-/// pair of absolute pixel lengths; anything else falls back to the C++
-/// population path by returning null.
+/// same sharing rules as the inherited box builder. Computed border-spacing
+/// is a pair of absolute pixel lengths.
 ///
 /// # Safety
 /// The value pointers must be valid StyleValueData or null, and
@@ -3624,59 +3583,53 @@ pub unsafe extern "C" fn rust_build_inherited_table_group(
     use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
-        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
+        let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> u8 {
             match unsafe { (data as *const StyleValueData).as_ref() } {
-                Some(StyleValueData::Keyword { keyword }) => map(*keyword),
-                _ => None,
+                Some(StyleValueData::Keyword { keyword }) => {
+                    map(*keyword).expect("computed keyword has a supported value")
+                }
+                _ => panic!("computed inherited table value is not a keyword"),
             }
         };
-        let spacing_component = |data: &StyleValueData| -> Option<i32> {
+        let spacing_component = |data: &StyleValueData| -> i32 {
             match data {
                 StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
-                    Some(crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value())
+                    crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
                 }
-                _ => None,
+                _ => panic!("computed border-spacing component is not an absolute pixel length"),
             }
         };
-        let (horizontal_spacing, vertical_spacing) = match unsafe { (border_spacing as *const StyleValueData).as_ref() }
-        {
-            Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => {
-                let components = values.as_slice();
-                (
-                    spacing_component(components[0].data())?,
-                    spacing_component(components[1].data())?,
-                )
-            }
-            _ => return None,
+        let components = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
+            Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => values.as_slice(),
+            _ => panic!("computed border-spacing is not a pair"),
         };
         let built = InheritedTableValues {
-            border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse)?,
-            caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side)?,
-            empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells)?,
-            border_spacing_horizontal: horizontal_spacing,
-            border_spacing_vertical: vertical_spacing,
+            border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse),
+            caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side),
+            empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells),
+            border_spacing_horizontal: spacing_component(components[0].data()),
+            border_spacing_vertical: spacing_component(components[1].data()),
         };
 
         if !parent_payload.is_null() {
             // SAFETY: The caller guarantees a valid inherited table payload.
             if built == unsafe { *(parent_payload as *const InheritedTableValues) } {
                 retain_group_payload(group_index, parent_payload);
-                return Some(parent_payload);
+                return parent_payload;
             }
         }
 
         let default_payload = default_group_payload(group_index);
         // SAFETY: The default payload is a valid inherited table payload.
         if built == unsafe { *(default_payload as *const InheritedTableValues) } {
-            return Some(default_payload);
+            return default_payload;
         }
 
         let payload = allocate_payload(vtable(group_index), 1);
         // SAFETY: The payload was allocated for this group's layout.
         unsafe { *(payload as *mut InheritedTableValues) = built };
-        Some(payload as *const c_void)
+        payload as *const c_void
     })
-    .unwrap_or(std::ptr::null())
 }
 
 /// Layout of the inherited table style value group.

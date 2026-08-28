@@ -2216,48 +2216,17 @@ public:
     }
     void set_animated_properties(AnimatedProperties const*);
 
-    // Adopts Rust-built group payloads, which arrive already carrying this
-    // reference.
-    void adopt_inherited_box_group(void* payload) { m_values.m_inherited.box.adopt(payload); }
-    void adopt_inherited_table_group(void* payload) { m_values.m_inherited.table.adopt(payload); }
-    void adopt_alignment_group(void* payload) { m_values.m_noninherited.alignment.adopt(payload); }
-    void adopt_text_reset_group(void* payload) { m_values.m_noninherited.text_reset.adopt(payload); }
-    void adopt_effects_group(void* payload) { m_values.m_noninherited.effects.adopt(payload); }
-    void adopt_misc_reset_group(void* payload) { m_values.m_noninherited.misc.adopt(payload); }
-    void adopt_inherited_text_group(void* payload) { m_values.m_inherited.text.adopt(payload); }
-    void adopt_inherited_ui_group(void* payload) { m_values.m_inherited.ui.adopt(payload); }
-    void adopt_sizing_group(void* payload) { m_values.m_noninherited.sizing.adopt(payload); }
-    void adopt_transform_group(void* payload) { m_values.m_noninherited.transform.adopt(payload); }
-    void adopt_mask_group(void* payload) { m_values.m_noninherited.mask_data.adopt(payload); }
-    void adopt_grid_group(void* payload) { m_values.m_noninherited.grid.adopt(payload); }
-    void adopt_animation_group(void* payload) { m_values.m_noninherited.animation.adopt(payload); }
-    void adopt_svg_reset_group(void* payload) { m_values.m_noninherited.svg_reset.adopt(payload); }
-    void adopt_inherited_svg_group(void* payload) { m_values.m_inherited.svg.adopt(payload); }
-    void adopt_inherited_list_group(void* payload) { m_values.m_inherited.list.adopt(payload); }
-    void adopt_content_group(void* payload) { m_values.m_noninherited.content_data.adopt(payload); }
-    void adopt_anchor_group(void* payload) { m_values.m_noninherited.anchor.adopt(payload); }
-    void adopt_box_group(void* payload) { m_values.m_noninherited.box.adopt(payload); }
-    void adopt_surround_group(void* payload) { m_values.m_noninherited.surround.adopt(payload); }
-    void adopt_border_group(void* payload) { m_values.m_noninherited.border.adopt(payload); }
-    void adopt_background_group(void* payload) { m_values.m_noninherited.background.adopt(payload); }
-    void adopt_font_group(void* payload) { m_values.m_inherited.font.adopt(payload); }
-    void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal)
+    // Rust-built payloads arrive in StyleGroupIndex order carrying this reference.
+    void adopt_style_group_payloads(ReadonlySpan<void const*> payloads)
     {
-        if (m_values.m_inherited.table->border_spacing_horizontal == border_spacing_horizontal.raw_value())
-            return;
-        m_values.m_inherited.table.access().border_spacing_horizontal = border_spacing_horizontal.raw_value();
-    }
-    void set_border_spacing_vertical(CSSPixels border_spacing_vertical)
-    {
-        if (m_values.m_inherited.table->border_spacing_vertical == border_spacing_vertical.raw_value())
-            return;
-        m_values.m_inherited.table.access().border_spacing_vertical = border_spacing_vertical.raw_value();
-    }
-    void set_caption_side(CaptionSide caption_side)
-    {
-        if (m_values.m_inherited.table->caption_side == to_underlying(caption_side))
-            return;
-        m_values.m_inherited.table.access().caption_side = to_underlying(caption_side);
+        VERIFY(payloads.size() == to_underlying(StyleGroupIndex::Count));
+        size_t index = 0;
+#define LIBWEB_ADOPT_STYLE_GROUP(name, path, sharing_name, affects_layout) \
+    if (payloads[index])                                                   \
+        m_values.path.adopt(const_cast<void*>(payloads[index]));           \
+    ++index;
+        LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_ADOPT_STYLE_GROUP)
+#undef LIBWEB_ADOPT_STYLE_GROUP
     }
     void set_color(Color color)
     {
@@ -2289,18 +2258,6 @@ public:
         set_edge(effects.clip_edges[1], rect.right_edge);
         set_edge(effects.clip_edges[2], rect.bottom_edge);
         set_edge(effects.clip_edges[3], rect.left_edge);
-    }
-    void set_content_visibility(ContentVisibility content_visibility)
-    {
-        if (m_values.m_inherited.box->content_visibility == to_underlying(content_visibility))
-            return;
-        m_values.m_inherited.box.access().content_visibility = to_underlying(content_visibility);
-    }
-    void set_image_rendering(ImageRendering value)
-    {
-        if (m_values.m_inherited.box->image_rendering == to_underlying(value))
-            return;
-        m_values.m_inherited.box.access().image_rendering = to_underlying(value);
     }
     void set_background_color(Color color)
     {
@@ -2518,12 +2475,6 @@ public:
         StyleValueFFI::rust_style_value_release(static_cast<StyleValueFFI::StyleValueData const*>(slot.value.pointer));
         slot = to_ffi_vertical_align(value);
     }
-    void set_visibility(Visibility value)
-    {
-        if (m_values.m_inherited.box->visibility == to_underlying(value))
-            return;
-        m_values.m_inherited.box.access().visibility = to_underlying(value);
-    }
     void copy_grid_placements_from(ComputedValues const& source)
     {
         copy_grid_placements_from(*source.m_noninherited.grid);
@@ -2550,18 +2501,6 @@ public:
             && placement_is_auto(grid.row_start) && placement_is_auto(grid.row_end))
             return;
         ComputedValuesFFI::rust_grid_values_reset_placements_to_auto(&m_values.m_noninherited.grid.access());
-    }
-    void set_border_collapse(BorderCollapse const border_collapse)
-    {
-        if (m_values.m_inherited.table->border_collapse == to_underlying(border_collapse))
-            return;
-        m_values.m_inherited.table.access().border_collapse = to_underlying(border_collapse);
-    }
-    void set_empty_cells(EmptyCells const empty_cells)
-    {
-        if (m_values.m_inherited.table->empty_cells == to_underlying(empty_cells))
-            return;
-        m_values.m_inherited.table.access().empty_cells = to_underlying(empty_cells);
     }
     void set_direction(Direction value)
     {
