@@ -2549,8 +2549,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiValueParsingContextKind".to_string(),
         "FfiUtf16View".to_string(),
         "FfiQueryHandle".to_string(),
-        "EvaluateSupportsFeature".to_string(),
-        "FfiSupportsFeatureKind".to_string(),
         "EvaluateContainerStyleFeature".to_string(),
         "FfiContainerFacts".to_string(),
         "FfiContainerStyleFeature".to_string(),

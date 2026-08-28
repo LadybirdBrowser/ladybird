@@ -78,6 +78,12 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         }
     }
 
+    if (mode == ParseContextMode::Syntax) {
+        declared_namespaces.ensure_capacity(parser.m_declared_namespaces.size());
+        for (auto const& namespace_ : parser.m_declared_namespaces)
+            declared_namespaces.unchecked_append(ffi_utf16_view(namespace_));
+    }
+
     ReadonlyBytes document_url;
     ReadonlyBytes document_base_url;
     if (parser.m_document) {
@@ -103,6 +109,8 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         .is_ua_style_sheet = mode == ParseContextMode::Syntax && parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes,
         .value_contexts = context.value_contexts,
         .value_context_count = context.value_context_count,
+        .declared_namespaces = declared_namespaces.data(),
+        .declared_namespace_count = declared_namespaces.size(),
         .document_url = document_url.data(),
         .document_url_length = document_url.size(),
         .document_base_url = document_base_url.data(),

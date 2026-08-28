@@ -691,6 +691,8 @@ fn parse_substituted_without_callbacks(
         is_ua_style_sheet: input.is_ua_style_sheet,
         value_contexts: &raw const value_context,
         value_context_count: 1,
+        declared_namespaces: std::ptr::null(),
+        declared_namespace_count: 0,
         document_url: input.document_url.as_ptr(),
         document_url_length: input.document_url.len(),
         document_base_url: input.document_base_url.as_ptr(),
