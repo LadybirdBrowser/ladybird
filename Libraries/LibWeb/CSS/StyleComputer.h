@@ -14,6 +14,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
@@ -180,7 +181,7 @@ public:
     // see, which decides whether its answer can be offered to another element.
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, ComputedValues const* previous_values = nullptr, LonghandComputationPlan const* = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr) const;
 
-    void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
+    void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions) const;
 
     NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name) const;
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, PropertyNameAndID const&, UnresolvedStyleValue const&) const;

@@ -440,6 +440,10 @@ pub struct FfiAnimationValueInput {
 pub struct FfiAnimationBatch {
     pub declarations: *const FfiAnimationDeclaration,
     pub declaration_count: usize,
+    pub effects: *const FfiAnimationEffect,
+    pub effect_count: usize,
+    pub keyframes: *const FfiAnimationKeyframe,
+    pub keyframe_count: usize,
     pub writing_mode: u8,
     pub direction: u8,
     pub important_property_bitmap: *const u8,
@@ -449,9 +453,25 @@ pub struct FfiAnimationBatch {
 #[repr(C)]
 pub struct FfiComputedAnimationBatch {
     pub context: FfiAnimationContext,
-    pub values: *const FfiAnimationValueInput,
-    pub value_count: usize,
+    pub resolved_animation_storage: *mut std::ffi::c_void,
+    pub computed_keyframe_storage: *mut std::ffi::c_void,
+    pub underlying_longhand_table: *const std::ffi::c_void,
     pub overlay: *mut std::ffi::c_void,
+}
+
+#[repr(C)]
+pub struct FfiAnimationEffect {
+    pub first_keyframe_index: usize,
+    pub keyframe_count: usize,
+    pub current_key: f64,
+    pub result_of_transition: bool,
+}
+
+#[repr(C)]
+pub struct FfiAnimationKeyframe {
+    pub key: i64,
+    pub easing: FfiEasingDescriptor,
+    pub composite: FfiCompositeOperation,
 }
 
 #[repr(C)]
@@ -621,6 +641,7 @@ pub struct FfiResolvedAnimationProperty {
 pub struct FfiResolvedAnimationProperties {
     pub properties: *const FfiResolvedAnimationProperty,
     pub count: usize,
+    pub animation_value_count: usize,
     pub uses_tree_counting_function: bool,
     pub container_relative_length_unit_mask: u8,
     pub needs_document_base_url: bool,
@@ -638,6 +659,8 @@ pub struct FfiAnimationUnfixedRandomSharing {
 
 fn resolve_animation_declarations(
     declarations: &[FfiAnimationDeclaration],
+    effects: &[FfiAnimationEffect],
+    keyframes: &[FfiAnimationKeyframe],
     writing_mode: u8,
     direction: u8,
     important_property_bitmap: &[u8],
@@ -700,6 +723,40 @@ fn resolve_animation_declarations(
             retained_values.push(candidate.value);
         }
     }
+    let mut value_plans = Vec::new();
+    for effect in effects {
+        let keyframe_end = effect
+            .first_keyframe_index
+            .checked_add(effect.keyframe_count)
+            .expect("animation keyframe range must not overflow");
+        assert!(keyframe_end <= keyframes.len());
+        let mut properties_by_id = std::collections::BTreeMap::<u16, Vec<usize>>::new();
+        for (index, property) in properties.iter().enumerate() {
+            if (effect.first_keyframe_index..keyframe_end).contains(&property.keyframe_index) {
+                properties_by_id
+                    .entry(property.physical_property_id)
+                    .or_default()
+                    .push(index);
+            }
+        }
+        for (property_id, mut property_indices) in properties_by_id {
+            if property_indices.len() < 2
+                || !(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                    ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+                    .contains(&property_id)
+            {
+                continue;
+            }
+            property_indices.sort_by_key(|index| properties[*index].keyframe_index);
+            value_plans.push(AnimationValuePlan {
+                property_id,
+                result_of_transition: effect.result_of_transition,
+                current_key: effect.current_key,
+                property_indices,
+            });
+        }
+    }
+
     let mut uses_tree_counting_function = false;
     let mut container_relative_length_unit_mask = 0;
     let mut needs_document_base_url = false;
@@ -745,6 +802,8 @@ fn resolve_animation_declarations(
     ResolvedAnimationDeclarations {
         properties,
         _retained_values: retained_values,
+        keyframes: keyframes.iter().map(AnimationKeyframePlan::from_ffi).collect(),
+        value_plans,
         uses_tree_counting_function,
         container_relative_length_unit_mask,
         needs_document_base_url,
@@ -755,10 +814,70 @@ fn resolve_animation_declarations(
 struct ResolvedAnimationDeclarations {
     properties: Vec<FfiResolvedAnimationProperty>,
     _retained_values: Vec<RetainedStyleValueData>,
+    keyframes: Vec<AnimationKeyframePlan>,
+    value_plans: Vec<AnimationValuePlan>,
     uses_tree_counting_function: bool,
     container_relative_length_unit_mask: u8,
     needs_document_base_url: bool,
     unfixed_random_sharings: Vec<FfiAnimationUnfixedRandomSharing>,
+}
+
+struct AnimationValuePlan {
+    property_id: u16,
+    result_of_transition: bool,
+    current_key: f64,
+    property_indices: Vec<usize>,
+}
+
+struct AnimationKeyframePlan {
+    key: i64,
+    easing_kind: FfiEasingKind,
+    linear_points: Vec<FfiLinearEasingPoint>,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    interval_count: i32,
+    step_position: u8,
+    composite: FfiCompositeOperation,
+}
+
+impl AnimationKeyframePlan {
+    fn from_ffi(keyframe: &FfiAnimationKeyframe) -> Self {
+        let easing = &keyframe.easing;
+        let linear_points = if easing.linear_point_count == 0 {
+            Vec::new()
+        } else {
+            assert!(!easing.linear_points.is_null());
+            unsafe { std::slice::from_raw_parts(easing.linear_points, easing.linear_point_count) }.to_vec()
+        };
+        Self {
+            key: keyframe.key,
+            easing_kind: easing.kind,
+            linear_points,
+            x1: easing.x1,
+            y1: easing.y1,
+            x2: easing.x2,
+            y2: easing.y2,
+            interval_count: easing.interval_count,
+            step_position: easing.step_position,
+            composite: keyframe.composite,
+        }
+    }
+
+    fn easing_descriptor(&self) -> FfiEasingDescriptor {
+        FfiEasingDescriptor {
+            kind: self.easing_kind,
+            linear_points: self.linear_points.as_ptr(),
+            linear_point_count: self.linear_points.len(),
+            x1: self.x1,
+            y1: self.y1,
+            x2: self.x2,
+            y2: self.y2,
+            interval_count: self.interval_count,
+            step_position: self.step_position,
+        }
+    }
 }
 
 #[repr(u8)]
@@ -6899,11 +7018,15 @@ pub unsafe extern "C" fn rust_resolve_animation_declarations(
     crate::abort_on_panic(|| {
         let batch = unsafe { &*batch };
         let declarations = unsafe { std::slice::from_raw_parts(batch.declarations, batch.declaration_count) };
+        let effects = unsafe { std::slice::from_raw_parts(batch.effects, batch.effect_count) };
+        let keyframes = unsafe { std::slice::from_raw_parts(batch.keyframes, batch.keyframe_count) };
         let important_property_bitmap = unsafe {
             std::slice::from_raw_parts(batch.important_property_bitmap, batch.important_property_bitmap_length)
         };
         let resolved = resolve_animation_declarations(
             declarations,
+            effects,
+            keyframes,
             batch.writing_mode,
             batch.direction,
             important_property_bitmap,
@@ -6912,6 +7035,7 @@ pub unsafe extern "C" fn rust_resolve_animation_declarations(
             return FfiResolvedAnimationProperties {
                 properties: std::ptr::null(),
                 count: 0,
+                animation_value_count: 0,
                 uses_tree_counting_function: false,
                 container_relative_length_unit_mask: 0,
                 needs_document_base_url: false,
@@ -6923,9 +7047,11 @@ pub unsafe extern "C" fn rust_resolve_animation_declarations(
         let resolved = Box::new(resolved);
         let properties = resolved.properties.as_ptr();
         let count = resolved.properties.len();
+        let animation_value_count = resolved.value_plans.len();
         FfiResolvedAnimationProperties {
             properties,
             count,
+            animation_value_count,
             uses_tree_counting_function: resolved.uses_tree_counting_function,
             container_relative_length_unit_mask: resolved.container_relative_length_unit_mask,
             needs_document_base_url: resolved.needs_document_base_url,
@@ -6936,37 +7062,77 @@ pub unsafe extern "C" fn rust_resolve_animation_declarations(
     })
 }
 
-/// # Safety
-/// `storage` must be null or a live pointer returned by `rust_resolve_animation_declarations`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolved_animation_properties_destroy(storage: *mut std::ffi::c_void) {
-    if !storage.is_null() {
-        drop(unsafe { Box::from_raw(storage.cast::<ResolvedAnimationDeclarations>()) });
-    }
-}
-
-/// Evaluate and compose every prepared animation interval without consulting C++ or the DOM.
-/// Applied results are stored directly in the Rust-owned animated overlay.
+/// Complete the Rust-owned animation plan and compose every interval without
+/// consulting C++ or the DOM. This consumes both Rust allocations produced by
+/// declaration resolution and keyframe longhand computation.
 ///
 /// # Safety
-/// `computed` must point to a live batch whose input style values remain live for the call. Its
-/// `overlay` must point at a live, uniquely owned animated overlay.
+/// `computed` must point to a live batch. Both storage pointers must be live,
+/// unconsumed results from their producing calls. `underlying_longhand_table`
+/// and `overlay` must point at live values, and the overlay must be uniquely
+/// owned for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
     crate::abort_on_panic(|| {
         crate::css::ffi_stats::rust_style_ffi_note_animation_evaluation();
         let computed = unsafe { &*computed };
-        if computed.value_count == 0 {
-            return 0;
+        assert!(!computed.resolved_animation_storage.is_null());
+        assert!(!computed.computed_keyframe_storage.is_null());
+        assert!(!computed.underlying_longhand_table.is_null());
+        let resolved = unsafe {
+            Box::from_raw(
+                computed
+                    .resolved_animation_storage
+                    .cast::<ResolvedAnimationDeclarations>(),
+            )
+        };
+        let computed_keyframe_values = unsafe {
+            crate::css::style_compute::take_animation_keyframe_longhand_values(computed.computed_keyframe_storage)
+        };
+        assert_eq!(computed_keyframe_values.len(), resolved.properties.len());
+        let underlying_longhand_table = unsafe {
+            &*computed
+                .underlying_longhand_table
+                .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
+        };
+
+        let mut keyframes_by_value = Vec::with_capacity(resolved.value_plans.len());
+        for plan in &resolved.value_plans {
+            let mut keyframes = Vec::with_capacity(plan.property_indices.len());
+            for &property_index in &plan.property_indices {
+                let property = &resolved.properties[property_index];
+                let keyframe = &resolved.keyframes[property.keyframe_index];
+                keyframes.push(FfiAnimationKeyframeValue {
+                    key: keyframe.key,
+                    value: computed_keyframe_values[property_index].pointer(),
+                    easing: keyframe.easing_descriptor(),
+                    composite: keyframe.composite,
+                });
+            }
+            keyframes_by_value.push(keyframes);
         }
-        let inputs = unsafe { std::slice::from_raw_parts(computed.values, computed.value_count) };
+        let mut inputs = Vec::with_capacity(resolved.value_plans.len());
+        for (plan, keyframes) in resolved.value_plans.iter().zip(&keyframes_by_value) {
+            let underlying = underlying_longhand_table
+                .get(plan.property_id)
+                .expect("an animated longhand must have an underlying computed value");
+            inputs.push(FfiAnimationValueInput {
+                property_id: plan.property_id,
+                result_of_transition: plan.result_of_transition,
+                underlying: underlying.pointer(),
+                initial: crate::css::style_compute::initial_value_data(plan.property_id),
+                current_key: plan.current_key,
+                keyframes: keyframes.as_ptr(),
+                keyframe_count: keyframes.len(),
+            });
+        }
         let overlay = unsafe { &mut *computed.overlay.cast::<crate::css::animated_overlay::AnimatedOverlay>() };
 
         // https://www.w3.org/TR/web-animations-1/#effect-stacks
         // NB: Inputs arrive in composite order. Keep each result as the underlying value for the
         //     next effect affecting the same property.
         let mut previous_values = Vec::<(u16, *const StyleValueData)>::new();
-        for input in inputs {
+        for input in &inputs {
             let previous_value = previous_values
                 .iter()
                 .rev()
@@ -7143,6 +7309,73 @@ mod tests {
     }
 
     #[test]
+    fn builds_property_specific_animation_plans() {
+        use crate::css::property_metadata::property_id;
+
+        let values = [
+            Arc::new(StyleValueData::Number { value: 0.0 }),
+            Arc::new(StyleValueData::Number { value: 0.5 }),
+            Arc::new(StyleValueData::Number { value: 1.0 }),
+        ];
+        let declarations = [
+            FfiAnimationDeclaration {
+                keyframe_index: 0,
+                property_id: property_id::OPACITY,
+                value: Arc::as_ptr(&values[0]),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
+                use_initial: false,
+                is_transition: false,
+            },
+            FfiAnimationDeclaration {
+                keyframe_index: 1,
+                property_id: property_id::COLOR,
+                value: Arc::as_ptr(&values[1]),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
+                use_initial: false,
+                is_transition: false,
+            },
+            FfiAnimationDeclaration {
+                keyframe_index: 2,
+                property_id: property_id::OPACITY,
+                value: Arc::as_ptr(&values[2]),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
+                use_initial: false,
+                is_transition: false,
+            },
+        ];
+        let easing = || FfiEasingDescriptor {
+            kind: FfiEasingKind::Linear,
+            linear_points: std::ptr::null(),
+            linear_point_count: 0,
+            x1: 0.0,
+            y1: 0.0,
+            x2: 0.0,
+            y2: 0.0,
+            interval_count: 0,
+            step_position: 0,
+        };
+        let keyframes = [0, 50, 100].map(|key| FfiAnimationKeyframe {
+            key,
+            easing: easing(),
+            composite: FfiCompositeOperation::Replace,
+        });
+        let effects = [FfiAnimationEffect {
+            first_keyframe_index: 0,
+            keyframe_count: keyframes.len(),
+            current_key: 50.0,
+            result_of_transition: false,
+        }];
+
+        let resolved = resolve_animation_declarations(&declarations, &effects, &keyframes, 0, 0, &[]);
+        assert_eq!(resolved.value_plans.len(), 1);
+        let plan = &resolved.value_plans[0];
+        assert_eq!(plan.property_id, property_id::OPACITY);
+        assert_eq!(plan.property_indices.len(), 2);
+        assert_eq!(resolved.properties[plan.property_indices[0]].keyframe_index, 0);
+        assert_eq!(resolved.properties[plan.property_indices[1]].keyframe_index, 2);
+    }
+
+    #[test]
     fn retains_synthesized_pending_substitution_values() {
         let original = Arc::into_raw(Arc::new(StyleValueData::Number { value: 1.0 }));
         let pending = Arc::new(StyleValueData::PendingSubstitution {
@@ -7156,7 +7389,7 @@ mod tests {
             use_initial: false,
             is_transition: false,
         };
-        let resolved = resolve_animation_declarations(&[declaration], 0, 0, &[]);
+        let resolved = resolve_animation_declarations(&[declaration], &[], &[], 0, 0, &[]);
         assert!(!resolved.properties.is_empty());
         let mut found_synthesized = false;
         for property in &resolved.properties {

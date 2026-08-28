@@ -764,86 +764,75 @@ unsafe fn plan_style_computation(
     )
 }
 
-/// Collects the external inputs needed to compute the winning declarations.
-///
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_computation_requirements(
+pub(crate) unsafe fn collect_style_computation_requirements(
     store: *const CascadedPropertyStore,
     plan_input: *const FfiStyleComputationPlanInput,
 ) -> FfiStyleComputationRequirements {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| {
-        let store = unsafe { &*store };
-        let mut uses_tree_counting_function = false;
-        let mut container_relative_length_unit_mask = 0;
-        let mut environment_requirements = 0;
-        let mut sharings = Vec::new();
-        for (_, entry) in store.winning_entries() {
-            let dependencies = entry.dependencies();
-            uses_tree_counting_function |= dependencies.uses_tree_counting_function;
-            container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
-            if dependencies.needs_document_base_url {
-                environment_requirements |= CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL;
-            }
-            if entry.has_style_sheet_context {
-                environment_requirements |= CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT;
-            }
-            if dependencies.has_unfixed_random_sharing {
-                crate::css::style_compute::collect_unfixed_random_sharings_in_value(entry.value.data(), &mut sharings);
-            }
+    let store = unsafe { &*store };
+    let mut uses_tree_counting_function = false;
+    let mut container_relative_length_unit_mask = 0;
+    let mut environment_requirements = 0;
+    let mut sharings = Vec::new();
+    for (_, entry) in store.winning_entries() {
+        let dependencies = entry.dependencies();
+        uses_tree_counting_function |= dependencies.uses_tree_counting_function;
+        container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
+        if dependencies.needs_document_base_url {
+            environment_requirements |= CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL;
         }
-        let unfixed_random_sharings = sharings
-            .into_iter()
-            .map(|source| {
-                let StyleValueData::RandomValueSharing {
-                    has_name,
-                    name,
-                    element_shared,
-                    ..
-                } = (unsafe { &*source })
-                else {
-                    unreachable!();
-                };
-                FfiUnfixedRandomSharing {
-                    source: source.cast(),
-                    name: if *has_name { name.raw() } else { 0 },
-                    element_shared: *element_shared,
-                }
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        let (has_monospace_font_family, computed_group_mask, has_computed_property_selection, computed_property_words) =
-            unsafe { plan_style_computation(store, plan_input.as_ref()) };
-        let storage = Box::new(StyleComputationRequirementsStorage {
-            computed_property_words,
-            unfixed_random_sharings,
-        });
-        let unfixed_random_sharings = storage.unfixed_random_sharings.as_ptr();
-        let unfixed_random_sharing_count = storage.unfixed_random_sharings.len();
-        let computed_property_words = storage.computed_property_words.as_ptr();
-        let storage = Box::into_raw(storage);
-        FfiStyleComputationRequirements {
-            uses_tree_counting_function,
-            container_relative_length_unit_mask,
-            environment_requirements,
-            has_monospace_font_family,
-            computed_group_mask,
-            has_computed_property_selection,
-            computed_property_words,
-            computed_property_word_count: LONGHAND_WORD_COUNT,
-            unfixed_random_sharings: unfixed_random_sharings.cast(),
-            unfixed_random_sharing_count,
-            storage: storage.cast(),
+        if entry.has_style_sheet_context {
+            environment_requirements |= CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT;
         }
-    })
+        if dependencies.has_unfixed_random_sharing {
+            crate::css::style_compute::collect_unfixed_random_sharings_in_value(entry.value.data(), &mut sharings);
+        }
+    }
+    let unfixed_random_sharings = sharings
+        .into_iter()
+        .map(|source| {
+            let StyleValueData::RandomValueSharing {
+                has_name,
+                name,
+                element_shared,
+                ..
+            } = (unsafe { &*source })
+            else {
+                unreachable!();
+            };
+            FfiUnfixedRandomSharing {
+                source: source.cast(),
+                name: if *has_name { name.raw() } else { 0 },
+                element_shared: *element_shared,
+            }
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let (has_monospace_font_family, computed_group_mask, has_computed_property_selection, computed_property_words) =
+        unsafe { plan_style_computation(store, plan_input.as_ref()) };
+    let storage = Box::new(StyleComputationRequirementsStorage {
+        computed_property_words,
+        unfixed_random_sharings,
+    });
+    let unfixed_random_sharings = storage.unfixed_random_sharings.as_ptr();
+    let unfixed_random_sharing_count = storage.unfixed_random_sharings.len();
+    let computed_property_words = storage.computed_property_words.as_ptr();
+    let storage = Box::into_raw(storage);
+    FfiStyleComputationRequirements {
+        uses_tree_counting_function,
+        container_relative_length_unit_mask,
+        environment_requirements,
+        has_monospace_font_family,
+        computed_group_mask,
+        has_computed_property_selection,
+        computed_property_words,
+        computed_property_word_count: LONGHAND_WORD_COUNT,
+        unfixed_random_sharings: unfixed_random_sharings.cast(),
+        unfixed_random_sharing_count,
+        storage: storage.cast(),
+    }
 }
 
-/// # Safety
-/// `storage` must be returned by `rust_cascaded_properties_computation_requirements`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_computation_requirements_destroy(storage: *mut c_void) {
+pub(crate) unsafe fn destroy_style_computation_requirements(storage: *mut c_void) {
     drop(unsafe { Box::from_raw(storage.cast::<StyleComputationRequirementsStorage>()) });
 }
 
@@ -2209,7 +2198,7 @@ mod tests {
             },
         ));
 
-        let requirements = unsafe { rust_cascaded_properties_computation_requirements(&store, std::ptr::null()) };
+        let requirements = unsafe { collect_style_computation_requirements(&store, std::ptr::null()) };
         assert!(requirements.uses_tree_counting_function);
         assert_eq!(requirements.container_relative_length_unit_mask, 0b1111);
         assert_eq!(
@@ -2218,7 +2207,7 @@ mod tests {
         );
         assert_eq!(requirements.unfixed_random_sharing_count, 0);
         unsafe {
-            rust_style_computation_requirements_destroy(requirements.storage);
+            destroy_style_computation_requirements(requirements.storage);
         }
     }
 

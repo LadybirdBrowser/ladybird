@@ -9,9 +9,6 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/WeakInlines.h>
-#include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -72,13 +69,7 @@ ComputedStyleWorkingSet::ComputedStyleWorkingSet()
 ComputedStyleWorkingSet::ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const& other)
     : m_computed_longhand_table(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(other.m_computed_longhand_table)))
     , m_mint_cache(other.m_mint_cache)
-    , m_display_before_box_type_transformation(other.m_display_before_box_type_transformation)
-    , m_pseudo_element_styles(other.m_pseudo_element_styles)
-    , m_effective_color_scheme(other.m_effective_color_scheme)
     , m_raw_cascaded_font_size(other.m_raw_cascaded_font_size)
-    , m_depends_on_viewport_metrics(other.m_depends_on_viewport_metrics)
-    , m_font_metrics_depend_on_viewport_metrics(other.m_font_metrics_depend_on_viewport_metrics)
-    , m_in_display_none_subtree(other.m_in_display_none_subtree)
 {
 }
 
@@ -100,13 +91,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     // The table copy carries the importance, inheritance and evaluation flags and the recorded
     // inheritance-dependent specified values along with the value slots.
     ComputedValuesFFI::rust_computed_longhand_table_copy_from(working_set->m_computed_longhand_table, style.m_computed_longhand_table);
-    working_set->m_display_before_box_type_transformation = style.m_display_before_box_type_transformation;
-    working_set->m_pseudo_element_styles = style.m_pseudo_element_styles;
-    working_set->m_effective_color_scheme = style.m_effective_color_scheme;
     working_set->m_raw_cascaded_font_size = style.m_raw_cascaded_font_size;
-    working_set->m_depends_on_viewport_metrics = style.m_depends_on_viewport_metrics;
-    working_set->m_font_metrics_depend_on_viewport_metrics = style.m_font_metrics_depend_on_viewport_metrics;
-    working_set->m_in_display_none_subtree = style.m_in_display_none_subtree;
     if (style.m_animated_properties)
         working_set->m_animated_properties = adopt_ref(*new AnimatedProperties(*style.m_animated_properties));
     return working_set;
@@ -138,21 +123,20 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
         ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(working_set->m_computed_longhand_table, to_underlying(property_id), value->rust_style_value_data());
     for (auto const& entry : base.borrowed_inheritance_dependent_values())
         ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(working_set->m_computed_longhand_table, entry.property, entry.value);
-    working_set->m_display_before_box_type_transformation = base.display_before_box_type_transformation();
-    working_set->m_pseudo_element_styles = base.pseudo_element_style_mask();
+    working_set->set_display_before_box_type_transformation(base.display_before_box_type_transformation());
+    working_set->set_has_pseudo_element_styles(base.pseudo_element_style_mask());
     working_set->m_raw_cascaded_font_size = base.raw_cascaded_font_size();
-    working_set->m_depends_on_viewport_metrics = base.depends_on_viewport_metrics();
-    working_set->m_font_metrics_depend_on_viewport_metrics = base.font_metrics_depend_on_viewport_metrics();
-    working_set->m_in_display_none_subtree = base.in_display_none_subtree();
+    if (base.depends_on_viewport_metrics())
+        working_set->set_depends_on_viewport_metrics();
+    if (base.font_metrics_depend_on_viewport_metrics())
+        working_set->set_font_metrics_depend_on_viewport_metrics();
+    if (base.in_display_none_subtree())
+        working_set->set_in_display_none_subtree();
     return working_set;
 }
 
 void ComputedStyleWorkingSet::freeze_computed_longhand_table()
 {
-    if (m_depends_on_viewport_metrics)
-        ComputedValuesFFI::rust_computed_longhand_table_set_dependency_flag(m_computed_longhand_table, 0);
-    if (m_font_metrics_depend_on_viewport_metrics)
-        ComputedValuesFFI::rust_computed_longhand_table_set_dependency_flag(m_computed_longhand_table, 1);
     ComputedValuesFFI::rust_computed_longhand_table_freeze(m_computed_longhand_table);
 }
 
@@ -322,7 +306,7 @@ bool ComputedStyleWorkingSet::is_animated_property_result_of_transition(Property
 bool ComputedStyleWorkingSet::has_pseudo_element_style(PseudoElement pseudo_element) const
 {
     VERIFY(to_underlying(pseudo_element) < to_underlying(PseudoElement::KnownPseudoElementCount));
-    return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element));
+    return metadata().pseudo_element_styles & (1ull << to_underlying(pseudo_element));
 }
 
 void ComputedStyleWorkingSet::set_has_pseudo_element_styles(u64 pseudo_element_styles)
@@ -330,7 +314,7 @@ void ComputedStyleWorkingSet::set_has_pseudo_element_styles(u64 pseudo_element_s
     constexpr auto known_pseudo_element_count = to_underlying(PseudoElement::KnownPseudoElementCount);
     if constexpr (known_pseudo_element_count < sizeof(u64) * 8)
         VERIFY((pseudo_element_styles >> known_pseudo_element_count) == 0);
-    m_pseudo_element_styles |= pseudo_element_styles;
+    metadata().pseudo_element_styles |= pseudo_element_styles;
 }
 
 void ComputedStyleWorkingSet::set_property_inherited(PropertyID property_id, Inherited inherited)
@@ -340,22 +324,22 @@ void ComputedStyleWorkingSet::set_property_inherited(PropertyID property_id, Inh
 
 void ComputedStyleWorkingSet::set_depends_on_viewport_metrics()
 {
-    m_depends_on_viewport_metrics = true;
+    metadata().dependency_flags |= 1;
 }
 
 void ComputedStyleWorkingSet::set_font_metrics_depend_on_viewport_metrics()
 {
-    m_font_metrics_depend_on_viewport_metrics = true;
+    metadata().dependency_flags |= 2;
 }
 
 void ComputedStyleWorkingSet::set_in_display_none_subtree()
 {
-    m_in_display_none_subtree = true;
+    metadata().in_display_none_subtree = true;
 }
 
 void ComputedStyleWorkingSet::clear_in_display_none_subtree()
 {
-    m_in_display_none_subtree = false;
+    metadata().in_display_none_subtree = false;
 }
 
 void ComputedStyleWorkingSet::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, Inherited inherited, Important important)
@@ -424,12 +408,12 @@ void ComputedStyleWorkingSet::cache_property_wrapper_from_drive(PropertyID id, N
 
 Display ComputedStyleWorkingSet::display_before_box_type_transformation() const
 {
-    return m_display_before_box_type_transformation;
+    return bit_cast<Display>(metadata().display_before_box_type_transformation);
 }
 
 void ComputedStyleWorkingSet::set_display_before_box_type_transformation(Display value)
 {
-    m_display_before_box_type_transformation = value;
+    metadata().display_before_box_type_transformation = bit_cast<u32>(value);
 }
 
 void ComputedStyleWorkingSet::set_animated_property_internal(PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, Inherited inherited)
@@ -607,40 +591,11 @@ Color ComputedStyleWorkingSet::color(PropertyID id, ColorResolutionContext color
     return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
 }
 
-// https://drafts.csswg.org/css-values-4/#linked-properties
-static HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(ComputedStyleWorkingSet const& style, PropertyID base_property_id, Vector<PropertyID> const& property_ids)
-{
-    // A coordinating list property group creates a coordinated value list, which has, for each entry, a value from each
-    // property in the group; these are used together to define a single effect, such as a background image layer or an
-    // animation. The coordinated value list is assembled as follows:
-    // - The length of the coordinated value list is determined by the number of items specified in one particular
-    //   coordinating list property, the coordinating list base property. (In the case of backgrounds, this is the
-    //   background-image property.)
-    // - The Nth value of the coordinated value list is constructed by collecting the Nth use value of each coordinating
-    //   list property
-    // - If a coordinating list property has too many values specified, excess values at the end of its list are not
-    //   used.
-    // - If a coordinating list property has too few values specified, its value list is repeated to add more used
-    //   values.
-    // - The computed values of the coordinating list properties are not affected by such truncation or repetition.
-    HashMap<PropertyID, StyleValueVector> coordinated_value_list;
-
-    for (size_t i = 0; i < style.property(base_property_id).as_value_list().size(); i++) {
-        for (auto property_id : property_ids) {
-            auto const& list = style.property(property_id).as_value_list().values();
-
-            coordinated_value_list.ensure(property_id).append(list[i % list.size()]);
-        }
-    }
-
-    return coordinated_value_list;
-}
-
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
 PreferredColorScheme ComputedStyleWorkingSet::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const
 {
-    if (!has_animated_property(PropertyID::ColorScheme) && m_effective_color_scheme.has_value())
-        return *m_effective_color_scheme;
+    if (!has_animated_property(PropertyID::ColorScheme) && has_effective_color_scheme())
+        return static_cast<PreferredColorScheme>(metadata().effective_color_scheme);
 
     Vector<u8> document_supported_scheme_codes;
     if (document_supported_schemes.has_value()) {
@@ -1077,214 +1032,6 @@ WritingMode ComputedStyleWorkingSet::writing_mode() const
 {
     auto const& value = property(PropertyID::WritingMode);
     return keyword_to_writing_mode(value.to_keyword()).release_value();
-}
-
-Vector<AnimationProperties> ComputedStyleWorkingSet::animations(DOM::AbstractElement const& abstract_element) const
-{
-    auto const& animation_name_values = property(PropertyID::AnimationName).as_value_list().values();
-
-    // OPTIMIZATION: If all animation names are 'none', there are no animations to process
-    if (all_of(animation_name_values, [](auto const& value) { return value->to_keyword() == Keyword::None; }))
-        return {};
-
-    // CSS Animations are defined by binding keyframes to an element using the animation-* properties. These list-valued
-    // properties, which are all longhands of the animation shorthand, form a coordinating list property group with
-    // animation-name as the coordinating list base property and each item in the coordinated value list defining the
-    // properties of a single animation effect.
-    auto const& coordinated_properties = assemble_coordinated_value_list(
-        *this,
-        PropertyID::AnimationName,
-        { PropertyID::AnimationDuration,
-            PropertyID::AnimationTimingFunction,
-            PropertyID::AnimationIterationCount,
-            PropertyID::AnimationDirection,
-            PropertyID::AnimationPlayState,
-            PropertyID::AnimationDelay,
-            PropertyID::AnimationFillMode,
-            PropertyID::AnimationComposition,
-            PropertyID::AnimationName,
-            PropertyID::AnimationTimeline });
-
-    Vector<AnimationProperties> animations;
-
-    for (size_t i = 0; i < coordinated_properties.get(PropertyID::AnimationName)->size(); i++) {
-        // https://drafts.csswg.org/css-animations-1/#propdef-animation-name
-        // none: No keyframes are specified at all, so there will be no animation. Any other animations properties
-        //       specified for this animation have no effect.
-        if (coordinated_properties.get(PropertyID::AnimationName).value()[i]->to_keyword() == Keyword::None)
-            continue;
-
-        auto animation_name_style_value = coordinated_properties.get(PropertyID::AnimationName).value()[i];
-        auto animation_duration_style_value = coordinated_properties.get(PropertyID::AnimationDuration).value()[i];
-        auto animation_timing_function_style_value = coordinated_properties.get(PropertyID::AnimationTimingFunction).value()[i];
-        auto animation_iteration_count_style_value = coordinated_properties.get(PropertyID::AnimationIterationCount).value()[i];
-        auto animation_direction_style_value = coordinated_properties.get(PropertyID::AnimationDirection).value()[i];
-        auto animation_play_state_style_value = coordinated_properties.get(PropertyID::AnimationPlayState).value()[i];
-        auto animation_delay_style_value = coordinated_properties.get(PropertyID::AnimationDelay).value()[i];
-        auto animation_fill_mode_style_value = coordinated_properties.get(PropertyID::AnimationFillMode).value()[i];
-        auto animation_composition_style_value = coordinated_properties.get(PropertyID::AnimationComposition).value()[i];
-        auto animation_timeline_style_value = coordinated_properties.get(PropertyID::AnimationTimeline).value()[i];
-
-        // https://drafts.csswg.org/css-animations-2/#animation-duration
-        auto duration = [&] -> Variant<double, Utf16String> {
-            // auto
-            if (animation_duration_style_value->to_keyword() == Keyword::Auto) {
-                // Preserve auto until the animation effect is associated with its timeline. Time-driven animations
-                // will resolve this to 0s, while scroll-driven animations fill the progress-based timeline.
-                return "auto"_utf16;
-            }
-
-            // <time [0s,∞]>
-
-            // FIXME: For scroll-driven animations, treated as auto.
-
-            // For time-driven animations, specifies the length of time that an animation takes to complete one cycle.
-            // A negative <time> is invalid.
-            return Time::from_style_value(animation_duration_style_value, {}).to_milliseconds();
-        }();
-
-        auto timing_function = EasingFunction::from_style_value(animation_timing_function_style_value);
-
-        auto iteration_count = [&] {
-            if (animation_iteration_count_style_value->to_keyword() == Keyword::Infinite)
-                return AK::Infinity<double>;
-
-            return number_from_style_value(animation_iteration_count_style_value, {});
-        }();
-
-        auto direction = keyword_to_animation_direction(animation_direction_style_value->to_keyword()).value();
-        auto play_state = keyword_to_animation_play_state(animation_play_state_style_value->to_keyword()).value();
-        auto delay = Time::from_style_value(animation_delay_style_value, {}).to_milliseconds();
-        auto fill_mode = keyword_to_animation_fill_mode(animation_fill_mode_style_value->to_keyword()).value();
-        auto composition = keyword_to_animation_composition(animation_composition_style_value->to_keyword()).value();
-        auto const& name = string_from_style_value(animation_name_style_value);
-
-        // https://drafts.csswg.org/css-animations-2/#animation-timeline
-        auto const& timeline = [&]() -> GC::Ptr<Animations::AnimationTimeline> {
-            // auto
-            // The animation’s timeline is a DocumentTimeline, more specifically the default document timeline.
-            if (animation_timeline_style_value->to_keyword() == Keyword::Auto)
-                return abstract_element.document().timeline();
-
-            // none
-            // The animation is not associated with a timeline.
-            if (animation_timeline_style_value->to_keyword() == Keyword::None)
-                return nullptr;
-
-            // <dashed-ident>
-            // FIXME: If a named scroll progress timeline or view progress timeline is in scope on this element, use the
-            //        referenced timeline as defined in Scroll-driven Animations §  Declaring a Named Timeline’s Scope:
-            //        the timeline-scope property. Otherwise the animation is not associated with a timeline.
-
-            // <scroll()>
-            // Use the scroll progress timeline indicated by the given scroll() function. See Scroll-driven Animations
-            // § 2.2.1 The scroll() notation.
-            if (animation_timeline_style_value->is_function() && animation_timeline_style_value->as_function().name() == "scroll"_utf16_fly_string) {
-                auto const& arguments = animation_timeline_style_value->as_function().value()->as_tuple().tuple();
-
-                auto const& scroller = arguments[TupleStyleValue::Indices::ScrollFunction::Scroller]
-                    ? keyword_to_scroller(arguments[TupleStyleValue::Indices::ScrollFunction::Scroller]->to_keyword()).value()
-                    : Scroller::Nearest;
-
-                auto const& axis = arguments[TupleStyleValue::Indices::ScrollFunction::Axis]
-                    ? Animations::scroll_axis_from_css_axis(keyword_to_axis(arguments[TupleStyleValue::Indices::ScrollFunction::Axis]->to_keyword()).value())
-                    : Animations::ScrollAxis::Block;
-
-                Animations::ScrollTimeline::AnonymousSource source {
-                    .scroller = scroller,
-                    .target = abstract_element,
-                };
-
-                return Animations::ScrollTimeline::create(abstract_element.document(), source, axis);
-            }
-
-            //<view()>
-            // FIXME: Use the view progress timeline indicated by the given view() function. See Scroll-driven
-            //        Animations § 3.3.1 The view() notation.
-
-            // FIXME: We fall back to document timeline for now as though we don't support the `animation-timeline`
-            //        property at all
-            return abstract_element.document().timeline();
-        }();
-
-        animations.append(AnimationProperties {
-            .duration = duration,
-            .timing_function = timing_function,
-            .iteration_count = iteration_count,
-            .direction = direction,
-            .play_state = play_state,
-            .delay = delay,
-            .fill_mode = fill_mode,
-            .composition = composition,
-            .name = name,
-            .timeline = timeline,
-        });
-    }
-
-    return animations;
-}
-
-Vector<TransitionProperties> ComputedStyleWorkingSet::transitions() const
-{
-    auto const& coordinated_properties = assemble_coordinated_value_list(
-        *this,
-        PropertyID::TransitionProperty,
-        { PropertyID::TransitionProperty, PropertyID::TransitionDuration, PropertyID::TransitionTimingFunction, PropertyID::TransitionDelay, PropertyID::TransitionBehavior });
-
-    auto const& property_values = coordinated_properties.get(PropertyID::TransitionProperty).value();
-    auto const& duration_values = coordinated_properties.get(PropertyID::TransitionDuration).value();
-    auto const& timing_function_values = coordinated_properties.get(PropertyID::TransitionTimingFunction).value();
-    auto const& delay_values = coordinated_properties.get(PropertyID::TransitionDelay).value();
-    auto const& behavior_values = coordinated_properties.get(PropertyID::TransitionBehavior).value();
-
-    Vector<TransitionProperties> transitions;
-    transitions.ensure_capacity(property_values.size());
-
-    for (size_t i = 0; i < property_values.size(); i++) {
-        auto properties = [&]() -> Vector<PropertyID> {
-            auto const& property_value = property_values[i];
-
-            if (property_value->is_keyword() && property_value->to_keyword() == Keyword::None)
-                return {};
-
-            auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
-            if (!maybe_property.has_value())
-                return {};
-
-            Vector<PropertyID> properties;
-
-            auto const append_property_mapping_logical_aliases = [&](PropertyID property_id) {
-                if (property_is_logical_alias(property_id))
-                    properties.append(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { writing_mode(), direction() }));
-                else if (property_id != PropertyID::Custom)
-                    properties.append(property_id);
-            };
-
-            auto transition_property = maybe_property.release_value();
-            if (property_is_shorthand(transition_property)) {
-                auto expanded_longhands = expanded_longhands_for_shorthand(transition_property);
-
-                properties.ensure_capacity(expanded_longhands.size());
-
-                for (auto const& prop : expanded_longhands_for_shorthand(transition_property))
-                    append_property_mapping_logical_aliases(prop);
-            } else {
-                append_property_mapping_logical_aliases(transition_property);
-            }
-
-            return properties;
-        }();
-
-        transitions.append(TransitionProperties {
-            .properties = properties,
-            .duration = Time::from_style_value(duration_values[i], {}).to_milliseconds(),
-            .timing_function = EasingFunction::from_style_value(timing_function_values[i]),
-            .delay = Time::from_style_value(delay_values[i], {}).to_milliseconds(),
-            .transition_behavior = keyword_to_transition_behavior(behavior_values[i]->to_keyword()).value(),
-        });
-    }
-
-    return transitions;
 }
 
 ScrollbarColorData ComputedStyleWorkingSet::scrollbar_color(ColorResolutionContext const& color_resolution_context) const

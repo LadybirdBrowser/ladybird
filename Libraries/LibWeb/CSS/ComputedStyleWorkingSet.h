@@ -15,7 +15,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -106,9 +105,9 @@ public:
     void cache_property_wrapper_from_drive(PropertyID, NonnullRefPtr<StyleValue const>);
     void set_display_before_box_type_transformation(Display);
 
-    bool has_effective_color_scheme() const { return m_effective_color_scheme.has_value(); }
-    void set_effective_color_scheme(PreferredColorScheme color_scheme) { m_effective_color_scheme = color_scheme; }
-    void clear_effective_color_scheme() { m_effective_color_scheme.clear(); }
+    bool has_effective_color_scheme() const { return metadata().effective_color_scheme >= 0; }
+    void set_effective_color_scheme(PreferredColorScheme color_scheme) { metadata().effective_color_scheme = to_underlying(color_scheme); }
+    void clear_effective_color_scheme() { metadata().effective_color_scheme = -1; }
 
     void add_inheritance_dependent_specified_value(PropertyID, NonnullRefPtr<StyleValue const> value);
     void remove_inheritance_dependent_specified_value(PropertyID);
@@ -124,10 +123,10 @@ public:
     bool is_property_inherited(PropertyID property_id) const;
     bool is_animated_property_inherited(PropertyID property_id) const;
     bool is_animated_property_result_of_transition(PropertyID property_id) const;
-    bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
-    bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
+    bool depends_on_viewport_metrics() const { return metadata().dependency_flags & 1; }
+    bool font_metrics_depend_on_viewport_metrics() const { return metadata().dependency_flags & 2; }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
-    bool in_display_none_subtree() const { return m_in_display_none_subtree; }
+    bool in_display_none_subtree() const { return metadata().in_display_none_subtree; }
     bool has_pseudo_element_style(PseudoElement) const;
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
@@ -170,9 +169,6 @@ public:
     CSS::EmptyCells empty_cells() const;
     Direction direction() const;
     WritingMode writing_mode() const;
-    Vector<AnimationProperties> animations(DOM::AbstractElement const&) const;
-    Vector<TransitionProperties> transitions() const;
-
     Display display_before_box_type_transformation() const;
 
     float stop_opacity() const;
@@ -236,6 +232,8 @@ private:
 
     AnimatedProperties const& animated_properties() const;
     AnimatedProperties& mutable_animated_properties();
+    ComputedValuesFFI::FfiComputedStyleMetadata& metadata() { return *ComputedValuesFFI::rust_computed_longhand_table_metadata(m_computed_longhand_table); }
+    ComputedValuesFFI::FfiComputedStyleMetadata const& metadata() const { return *ComputedValuesFFI::rust_computed_longhand_table_metadata(m_computed_longhand_table); }
     void set_animated_property_internal(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, Inherited);
     void clear_computed_font_list_cache()
     {
@@ -250,14 +248,7 @@ private:
     NonnullRefPtr<WrapperMintCache> m_mint_cache;
     RefPtr<AnimatedProperties> m_animated_properties;
 
-    Display m_display_before_box_type_transformation { InitialValues::display() };
-    u64 m_pseudo_element_styles { 0 };
-    Optional<PreferredColorScheme> m_effective_color_scheme;
     RefPtr<StyleValue const> m_raw_cascaded_font_size;
-
-    bool m_depends_on_viewport_metrics { false };
-    bool m_font_metrics_depend_on_viewport_metrics { false };
-    bool m_in_display_none_subtree { false };
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     mutable RefPtr<Gfx::Font const> m_cached_first_available_computed_font;
