@@ -170,7 +170,7 @@ AnimatedProperties::AnimatedProperties()
 AnimatedProperties::AnimatedProperties(AnimatedProperties const& other)
     : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_overlay(ComputedValuesFFI::rust_animated_overlay_clone(other.m_overlay))
-    , m_values(other.m_values)
+    , m_wrapper_cache(other.m_wrapper_cache)
 {
 }
 
@@ -206,29 +206,33 @@ AnimatedProperties& ComputedStyleWorkingSet::mutable_animated_properties()
     return *m_animated_properties;
 }
 
-bool AnimatedProperties::has_property(PropertyID property_id) const
+ReadonlySpan<ComputedValuesFFI::FfiAnimatedOverlayEntry> AnimatedProperties::entries() const
 {
-    return ComputedValuesFFI::rust_animated_overlay_has(m_overlay, to_underlying(property_id));
+    size_t count = 0;
+    auto const* entries = ComputedValuesFFI::rust_animated_overlay_entries(m_overlay, &count);
+    return { entries, count };
 }
 
-bool AnimatedProperties::is_property_inherited(PropertyID property_id) const
+ComputedValuesFFI::FfiAnimatedOverlayEntry const* AnimatedProperties::entry(PropertyID property_id) const
 {
-    return ComputedValuesFFI::rust_animated_overlay_is_inherited(m_overlay, to_underlying(property_id));
-}
-
-bool AnimatedProperties::is_property_result_of_transition(PropertyID property_id) const
-{
-    return ComputedValuesFFI::rust_animated_overlay_is_result_of_transition(m_overlay, to_underlying(property_id));
+    for (auto const& entry : entries()) {
+        if (entry.property == to_underlying(property_id))
+            return &entry;
+    }
+    return nullptr;
 }
 
 StyleValue const& AnimatedProperties::property(PropertyID property_id) const
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-    VERIFY(has_property(property_id));
+    auto const* animated_entry = entry(property_id);
+    VERIFY(animated_entry);
 
-    auto animated_value = m_values.get(property_id);
-    VERIFY(animated_value.has_value());
-    return *animated_value.value();
+    if (auto wrapper = m_wrapper_cache.get(property_id); wrapper.has_value())
+        return *wrapper.value();
+    auto wrapper = wrap_computed_longhand_slot(animated_entry->value, nullptr);
+    m_wrapper_cache.set(property_id, wrapper);
+    return *wrapper;
 }
 
 void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition animated_property_result_of_transition, ComputedStyleWorkingSet::Inherited inherited)
@@ -238,23 +242,13 @@ void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
     ComputedValuesFFI::rust_animated_overlay_set(m_overlay, to_underlying(id), value->rust_style_value_data(),
         inherited == ComputedStyleWorkingSet::Inherited::Yes,
         animated_property_result_of_transition == AnimatedPropertyResultOfTransition::Yes);
-    m_values.set(id, move(value));
-}
-
-void AnimatedProperties::remove_property(PropertyID id)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-
-    m_values.remove(id);
-    ComputedValuesFFI::rust_animated_overlay_remove(m_overlay, to_underlying(id));
+    m_wrapper_cache.set(id, move(value));
 }
 
 void AnimatedProperties::reset_non_inherited_properties()
 {
-    for (auto property_id : m_values.keys()) {
-        if (!is_property_inherited(property_id))
-            remove_property(property_id);
-    }
+    ComputedValuesFFI::rust_animated_overlay_reset_non_inherited(m_overlay);
+    m_wrapper_cache.clear();
 }
 
 bool ComputedStyleWorkingSet::is_property_important(PropertyID property_id) const
@@ -453,6 +447,20 @@ void ComputedStyleWorkingSet::set_animated_property(Badge<StyleComputer>, Proper
     set_animated_property_internal(id, move(value), animated_property_result_of_transition, inherited);
 }
 
+ComputedValuesFFI::AnimatedOverlay* ComputedStyleWorkingSet::prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>)
+{
+    auto& animated_properties = mutable_animated_properties();
+    animated_properties.clear_wrapper_cache();
+    clear_computed_font_list_cache();
+    return const_cast<ComputedValuesFFI::AnimatedOverlay*>(animated_properties.overlay());
+}
+
+void ComputedStyleWorkingSet::finish_animated_overlay_rust_mutation(Badge<StyleComputer>)
+{
+    if (m_animated_properties && m_animated_properties->is_empty())
+        m_animated_properties = nullptr;
+}
+
 void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
 {
     if (!m_animated_properties)
@@ -466,11 +474,11 @@ void ComputedStyleWorkingSet::reset_non_inherited_animated_properties(Badge<Anim
 {
     bool has_non_inherited_property = false;
     bool should_clear_computed_font_list_cache = false;
-    for (auto const& property : animated_properties().values()) {
-        if (is_animated_property_inherited(property.key))
+    for (auto const& property : animated_properties().entries()) {
+        if (property.inherited)
             continue;
         has_non_inherited_property = true;
-        if (property_affects_computed_font_list(property.key)) {
+        if (property_affects_computed_font_list(static_cast<PropertyID>(property.property))) {
             should_clear_computed_font_list_cache = true;
             break;
         }

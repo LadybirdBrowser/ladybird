@@ -125,6 +125,8 @@ public:
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
     bool has_pseudo_element_style(PseudoElement) const;
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
+    ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
+    void finish_animated_overlay_rust_mutation(Badge<StyleComputer>);
     void clear_animated_properties(Badge<StyleComputer>);
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     void const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
@@ -256,33 +258,41 @@ private:
 
 class AnimatedProperties final : public RefCounted<AnimatedProperties> {
 public:
-    using PropertyMap = HashMap<PropertyID, NonnullRefPtr<StyleValue const>>;
-
     AnimatedProperties();
     AnimatedProperties(AnimatedProperties const&);
     ~AnimatedProperties();
 
     u64 identity() const { return m_identity; }
-    bool is_empty() const { return m_values.is_empty(); }
-    PropertyMap const& values() const { return m_values; }
+    bool is_empty() const { return entries().is_empty(); }
+    ReadonlySpan<ComputedValuesFFI::FfiAnimatedOverlayEntry> entries() const;
 
-    // The Rust overlay carrying the sampled values and their flags; the map above is only the
-    // wrapper identity cache for property().
+    // The Rust overlay is the authoritative store. C++ wrappers are minted lazily and cached
+    // only for native readers that ask for property().
     ComputedValuesFFI::AnimatedOverlay const* overlay() const { return m_overlay; }
 
-    bool has_property(PropertyID) const;
-    bool is_property_inherited(PropertyID) const;
-    bool is_property_result_of_transition(PropertyID) const;
+    bool has_property(PropertyID property_id) const { return entry(property_id); }
+    bool is_property_inherited(PropertyID property_id) const
+    {
+        auto const* animated_entry = entry(property_id);
+        return animated_entry && animated_entry->inherited;
+    }
+    bool is_property_result_of_transition(PropertyID property_id) const
+    {
+        auto const* animated_entry = entry(property_id);
+        return animated_entry && animated_entry->result_of_transition;
+    }
     StyleValue const& property(PropertyID) const;
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, ComputedStyleWorkingSet::Inherited);
-    void remove_property(PropertyID);
     void reset_non_inherited_properties();
+    void clear_wrapper_cache() { m_wrapper_cache.clear(); }
 
 private:
+    ComputedValuesFFI::FfiAnimatedOverlayEntry const* entry(PropertyID) const;
+
     u64 m_identity;
     ComputedValuesFFI::AnimatedOverlay* m_overlay { nullptr };
-    PropertyMap m_values;
+    mutable HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_wrapper_cache;
 };
 
 // Mints a C++ StyleValue wrapper for a record or table slot's value data, stamping it with the
