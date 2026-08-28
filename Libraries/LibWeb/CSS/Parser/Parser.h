@@ -179,7 +179,6 @@ private:
         ValueParserFFI::ParseContext context {};
     };
 
-    static PageSelectorList page_selector_list_from_parsed_prelude(ParsedRulePrelude const&);
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     template<typename NestedDeclarationsRule>

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/SelectorRustFFI.h>
@@ -39,39 +40,14 @@ Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_select
     return Selector::PseudoElementSelector { pseudo_element.release_value(), selector->serialize() };
 }
 
-PageSelectorList Parser::page_selector_list_from_parsed_prelude(ParsedRulePrelude const& prelude)
-{
-    VERIFY(prelude.kind == ParsedRulePreludeKind::PageSelectors);
-    PageSelectorList selectors;
-    Optional<Utf16FlyString> name;
-    Vector<PagePseudoClass> pseudo_classes;
-    for (auto const& item : prelude.items) {
-        auto item_kind = static_cast<ValueParserFFI::FfiPageSelectorItemKind>(item.kind);
-        if (item_kind != ValueParserFFI::FfiPageSelectorItemKind::Name) {
-            VERIFY(item_kind <= ValueParserFFI::FfiPageSelectorItemKind::Blank);
-            pseudo_classes.append(static_cast<PagePseudoClass>(item.kind));
-            continue;
-        }
-        if (name.has_value() || !pseudo_classes.is_empty())
-            selectors.empend(move(name), move(pseudo_classes));
-        name = item.value;
-    }
-    if (name.has_value() || !pseudo_classes.is_empty())
-        selectors.empend(move(name), move(pseudo_classes));
-    return selectors;
-}
-
 Optional<PageSelectorList> Parser::parse_as_page_selector_list()
 {
-    auto source = Utf16String::formatted("@page {} {{}}", m_source);
-    auto parser = Parser::create(ParsingParams {}, source);
-    auto rule = RustSyntaxParser::parse_rule(parser, {}, RuleNesting::No);
-    if (!rule.has_value() || !rule->has<AtRule>())
+    auto* list = ValueParserFFI::rust_parse_page_selector_list(ffi_utf16_view(m_source));
+    if (!list)
         return {};
-    auto const& prelude = rule->get<AtRule>().parsed_prelude;
-    if (prelude.kind != ParsedRulePreludeKind::PageSelectors)
-        return {};
-    return page_selector_list_from_parsed_prelude(prelude);
+    ScopeGuard free_list = [&] { ValueParserFFI::rust_page_selector_list_free(list); };
+    auto data = ValueParserFFI::rust_page_selector_list_data(list);
+    return page_selector_list_from_rust(data);
 }
 
 }

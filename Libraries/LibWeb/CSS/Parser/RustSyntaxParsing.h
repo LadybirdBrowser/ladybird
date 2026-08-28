@@ -14,6 +14,7 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Descriptor.h>
 #include <LibWeb/CSS/DescriptorNameAndID.h>
+#include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
@@ -34,6 +35,8 @@ inline ValueParserFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
         .length = view.length_in_code_units(),
     };
 }
+
+PageSelectorList page_selector_list_from_rust(ValueParserFFI::FfiPageSelectorListData const&);
 
 using Rule = Variant<AtRule, QualifiedRule>;
 using RuleOrListOfDeclarations = Variant<Rule, Vector<Declaration, 0>>;
@@ -79,6 +82,7 @@ struct ParsedRulePrelude {
     Optional<Utf16FlyString> secondary;
     Optional<RustSyntaxHandle> syntax;
     Vector<ParsedRulePreludeItem> items;
+    PageSelectorList page_selectors;
 };
 
 struct AtRule {

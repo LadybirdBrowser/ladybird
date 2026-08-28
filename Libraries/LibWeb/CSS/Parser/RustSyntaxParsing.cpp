@@ -109,6 +109,28 @@ static Utf16View utf16_value(FfiSyntaxParseData const& data, size_t offset, size
     return { reinterpret_cast<char16_t const*>(data.values + offset), length };
 }
 
+PageSelectorList page_selector_list_from_rust(FfiPageSelectorListData const& data)
+{
+    PageSelectorList result;
+    for (size_t index = 0; index < data.selector_count; ++index) {
+        auto const& selector = data.selectors[index];
+        Optional<Utf16FlyString> name;
+        if (selector.name_offset != NumericLimits<size_t>::max()) {
+            VERIFY(selector.name_offset <= data.value_count && selector.name_length <= data.value_count - selector.name_offset);
+            name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(data.values + selector.name_offset), selector.name_length });
+        }
+        VERIFY(selector.pseudo_classes_start <= data.pseudo_class_count && selector.pseudo_class_count <= data.pseudo_class_count - selector.pseudo_classes_start);
+        Vector<PagePseudoClass> pseudo_classes;
+        for (size_t pseudo_class_index = 0; pseudo_class_index < selector.pseudo_class_count; ++pseudo_class_index) {
+            auto pseudo_class = data.pseudo_classes[selector.pseudo_classes_start + pseudo_class_index];
+            VERIFY(pseudo_class <= FfiPageSelectorItemKind::Blank);
+            pseudo_classes.append(static_cast<PagePseudoClass>(pseudo_class));
+        }
+        result.empend(move(name), move(pseudo_classes));
+    }
+    return result;
+}
+
 static SourcePosition source_position(size_t line, size_t column)
 {
     VERIFY(line <= NumericLimits<u32>::max());
@@ -225,8 +247,10 @@ static Vector<Declaration> declarations(FfiSyntaxParseData const& data, size_t s
 static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, FfiSyntaxRule const& rule)
 {
     VERIFY(rule.parsed_prelude_kind <= to_underlying(ParsedRulePreludeKind::FontFeatureValuesRule));
+    auto kind = static_cast<ParsedRulePreludeKind>(rule.parsed_prelude_kind);
     VERIFY(rule.parsed_prelude_items_start <= data.prelude_item_count);
     VERIFY(rule.parsed_prelude_item_count <= data.prelude_item_count - rule.parsed_prelude_items_start);
+    VERIFY((kind == ParsedRulePreludeKind::PageSelectors) == (rule.page_selector_list != nullptr));
     auto optional_string = [&](size_t offset, size_t length) -> Optional<Utf16FlyString> {
         if (offset == NumericLimits<size_t>::max())
             return {};
@@ -259,11 +283,12 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
         });
     }
     return {
-        .kind = static_cast<ParsedRulePreludeKind>(rule.parsed_prelude_kind),
+        .kind = kind,
         .name = optional_string(rule.parsed_prelude_name_offset, rule.parsed_prelude_name_length),
         .secondary = optional_string(rule.parsed_prelude_secondary_offset, rule.parsed_prelude_secondary_length),
         .syntax = rule.parsed_prelude_syntax ? Optional<RustSyntaxHandle> { RustSyntaxHandle { rule.parsed_prelude_syntax } } : OptionalNone {},
         .items = move(items),
+        .page_selectors = rule.page_selector_list ? page_selector_list_from_rust(rust_page_selector_list_data(rule.page_selector_list)) : PageSelectorList {},
     };
 }
 
