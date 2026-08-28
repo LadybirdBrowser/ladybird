@@ -1,9 +1,9 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(108,108) (PaintableWithLines(BlockContainer<DIV>.outer))
-          [s3] transform=[0.5,0,0,0.5,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>.inner))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(108,108) (BlockContainer<DIV>.outer)
+          [s3] transform=[0.5,0,0,0.5,0,0] origin=(58,58) (BlockContainer<DIV>.inner)
   frames:
     [f0 in s0] effects=[]
 

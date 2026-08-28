@@ -1,14 +1,14 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
-          [s3] transform=[1,0,0,1,1,0] origin=(0,0) (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGBox<svg>)
+          [s3] transform=[1,0,0,1,1,0] origin=(0,0) (SVGForeignObjectBox<foreignObject>#fo)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 100x100] (SVGSVGPaintable(SVGSVGBox<svg>))
-        [f2 in s3] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
-          [f3 in s3] clip=[0,0 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+      [f1 in s1] clip=[8,8 100x100] (SVGSVGBox<svg>)
+        [f2 in s3] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectBox<foreignObject>#fo)
+          [f3 in s3] clip=[0,0 100x100] (SVGForeignObjectBox<foreignObject>#fo)
 
 DisplayList:
 FillRect@s3/f3 rect=[0,0 100x100] color=rgb(0, 0, 0)

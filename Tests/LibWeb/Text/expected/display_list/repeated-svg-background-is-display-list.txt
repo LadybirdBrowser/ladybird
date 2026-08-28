@@ -1,10 +1,10 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 120x80] (PaintableWithLines(BlockContainer<DIV>#target))
+      [f1 in s1] clip=[8,8 120x80] (BlockContainer<DIV>#target)
 
 DisplayList:
 DrawRepeatedDisplayList@s1/f1 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor clip_to_bounds=[8,8 120x80]

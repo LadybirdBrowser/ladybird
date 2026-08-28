@@ -1,10 +1,10 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[28,23 80x70] (PaintableWithLines(BlockContainer<DIV>.clipped))
+      [f1 in s1] clip=[28,23 80x70] (BlockContainer<DIV>.clipped)
 
 DisplayList:
 FillRect@s1/f1 rect=[8,13 150x150] color=rgb(128, 0, 128)

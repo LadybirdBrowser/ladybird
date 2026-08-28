@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] scroll (PaintableWithLines(BlockContainer<DIV>.scroll-box))
-        [s3] scroll (PaintableWithLines(BlockContainer<DIV>.scroll-box))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] scroll (BlockContainer<DIV>.scroll-box)
+        [s3] scroll (BlockContainer<DIV>.scroll-box)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[9,9 100x80] (PaintableWithLines(BlockContainer<DIV>.scroll-box))
-      [f2 in s1] clip=[131,9 100x80] (PaintableWithLines(BlockContainer<DIV>.scroll-box))
+      [f1 in s1] clip=[9,9 100x80] (BlockContainer<DIV>.scroll-box)
+      [f2 in s1] clip=[131,9 100x80] (BlockContainer<DIV>.scroll-box)
 
 DisplayList:
 FillPath@s1/f0 path_bounding_rect=[8,8 102x82]

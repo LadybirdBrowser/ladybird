@@ -436,15 +436,15 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         auto caret_position = document->caret_position_from_point(visual_viewport_position);
         if (caret_position.has_value()) {
             document->set_caret_hit_test_debug_rect(caret_position->debug_rect);
-            auto box_description = "(gone)"_string;
+            auto layout_node_description = "(gone)"_string;
             if (auto const* layout_node = caret_position->layout_node())
-                box_description = Painting::debug_description(*layout_node);
-            dbgln("Caret hit test: point=({}, {}) boundary=({}, {}) paintable={} debug_rect={}",
+                layout_node_description = layout_node->debug_description();
+            dbgln("Caret hit test: point=({}, {}) boundary=({}, {}) layout_node={} debug_rect={}",
                 visual_viewport_position.x(),
                 visual_viewport_position.y(),
                 caret_position->boundary.node->debug_description(),
                 caret_position->boundary.offset,
-                box_description,
+                layout_node_description,
                 caret_position->debug_rect);
         } else {
             document->set_caret_hit_test_debug_rect({});

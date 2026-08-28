@@ -1,13 +1,13 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[9,9 204x18] (PaintableWithLines(TextInputBox<INPUT>#foo))
-        [f2 in s1] clip=[11,10 200x16] (PaintableWithLines(BlockContainer<DIV>))
-      [f3 in s1] clip=[223,9 204x18] (PaintableWithLines(TextInputBox<INPUT>#bar))
-        [f4 in s1] clip=[225,10 200x16] (PaintableWithLines(BlockContainer<DIV>))
+      [f1 in s1] clip=[9,9 204x18] (TextInputBox<INPUT>#foo)
+        [f2 in s1] clip=[11,10 200x16] (BlockContainer<DIV>)
+      [f3 in s1] clip=[223,9 204x18] (TextInputBox<INPUT>#bar)
+        [f4 in s1] clip=[225,10 200x16] (BlockContainer<DIV>)
 
 DisplayList:
 FillRect@s1/f0 rect=[8,8 206x20] color=rgb(255, 255, 255)

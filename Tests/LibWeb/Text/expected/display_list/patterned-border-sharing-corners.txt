@@ -1,19 +1,19 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip_path=[bounds: 8,8 140x20, path: M8 8L8 8L28 28L128 28L148 8L148 8] (PaintableWithLines(BlockContainer<DIV>))
-      [f2 in s1] clip_path=[bounds: 8,28 140x20, path: M8 28L8 28L28 48L128 48L148 28L148 28] (PaintableWithLines(BlockContainer<DIV>.dotted))
-      [f4 in s1] clip_path=[bounds: 128,48 20x100, path: M148 48L148 48L128 68L128 128L148 148L148 148] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f5 in s1] clip_path=[bounds: 8,128 140x20, path: M148 148L148 148L128 128L28 128L8 148L8 148] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f6 in s1] clip_path=[bounds: 8,48 20x100, path: M8 148L8 148L28 128L28 68L8 48L8 48] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f3 in s1] clip_path=[bounds: 8,48 140x20, path: M8 48L8 48L28 68L128 68L148 48L148 48] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f8 in s1] clip_path=[bounds: 128,148 20x100, path: M148 148L148 148L128 168L128 228L148 248L148 248] (PaintableWithLines(BlockContainer<DIV>.mixed-colors.dotted))
-      [f9 in s1] clip_path=[bounds: 8,228 140x20, path: M148 248L148 248L128 228L28 228L8 248L8 248] (PaintableWithLines(BlockContainer<DIV>.mixed-colors.dotted))
-      [f10 in s1] clip_path=[bounds: 8,148 20x100, path: M8 248L8 248L28 228L28 168L8 148L8 148] (PaintableWithLines(BlockContainer<DIV>.mixed-colors.dotted))
-      [f7 in s1] clip_path=[bounds: 8,148 140x20, path: M8 148L8 148L28 168L128 168L148 148L148 148] (PaintableWithLines(BlockContainer<DIV>.mixed-colors.dotted))
+      [f1 in s1] clip_path=[bounds: 8,8 140x20, path: M8 8L8 8L28 28L128 28L148 8L148 8] (BlockContainer<DIV>)
+      [f2 in s1] clip_path=[bounds: 8,28 140x20, path: M8 28L8 28L28 48L128 48L148 28L148 28] (BlockContainer<DIV>.dotted)
+      [f4 in s1] clip_path=[bounds: 128,48 20x100, path: M148 48L148 48L128 68L128 128L148 148L148 148] (BlockContainer<DIV>.mixed-colors)
+      [f5 in s1] clip_path=[bounds: 8,128 140x20, path: M148 148L148 148L128 128L28 128L8 148L8 148] (BlockContainer<DIV>.mixed-colors)
+      [f6 in s1] clip_path=[bounds: 8,48 20x100, path: M8 148L8 148L28 128L28 68L8 48L8 48] (BlockContainer<DIV>.mixed-colors)
+      [f3 in s1] clip_path=[bounds: 8,48 140x20, path: M8 48L8 48L28 68L128 68L148 48L148 48] (BlockContainer<DIV>.mixed-colors)
+      [f8 in s1] clip_path=[bounds: 128,148 20x100, path: M148 148L148 148L128 168L128 228L148 248L148 248] (BlockContainer<DIV>.mixed-colors.dotted)
+      [f9 in s1] clip_path=[bounds: 8,228 140x20, path: M148 248L148 248L128 228L28 228L8 248L8 248] (BlockContainer<DIV>.mixed-colors.dotted)
+      [f10 in s1] clip_path=[bounds: 8,148 20x100, path: M8 248L8 248L28 228L28 168L8 148L8 148] (BlockContainer<DIV>.mixed-colors.dotted)
+      [f7 in s1] clip_path=[bounds: 8,148 140x20, path: M8 148L8 148L28 168L128 168L148 148L148 148] (BlockContainer<DIV>.mixed-colors.dotted)
 
 DisplayList:
 StrokePath@s1/f1 path_bounding_rect=[-2,8 160x20] thickness=20 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=17.50

@@ -1,11 +1,11 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
-      [s2] scroll (PaintableWithLines(BlockContainer<DIV>.scroll-container))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+      [s2] scroll (BlockContainer<DIV>.scroll-container)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s0] clip=[33,33 180x100] (PaintableWithLines(BlockContainer<DIV>.scroll-container))
+      [f1 in s0] clip=[33,33 180x100] (BlockContainer<DIV>.scroll-container)
 
 DisplayList:
 CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s0 rect=[0,0 800x600]

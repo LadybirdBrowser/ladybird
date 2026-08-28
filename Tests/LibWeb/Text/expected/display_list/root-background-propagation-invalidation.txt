@@ -1,11 +1,11 @@
 Propagated to the root:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f3 in s1] effects=[blend_mode=2] (PaintableWithLines(BlockContainer<HTML>))
+      [f3 in s1] effects=[blend_mode=2] (BlockContainer<HTML>)
 
 DisplayList:
 FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0)
@@ -24,12 +24,12 @@ PaintLinearGradient@s1/f3 rect=[0,567 800x63]
 Painted by the body:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f4 in s1] clip=[0,13 800x50] (PaintableWithLines(BlockContainer<BODY>))
-        [f5 in s1] effects=[blend_mode=2] (PaintableWithLines(BlockContainer<BODY>))
+      [f4 in s1] clip=[0,13 800x50] (BlockContainer<BODY>)
+        [f5 in s1] effects=[blend_mode=2] (BlockContainer<BODY>)
 
 DisplayList:
 FillRect@s0 rect=[0,0 800x600] color=rgb(255, 255, 255)
@@ -40,11 +40,11 @@ PaintLinearGradient@s1/f5 rect=[0,13 800x50]
 Propagated to the root again:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f3 in s1] effects=[blend_mode=2] (PaintableWithLines(BlockContainer<HTML>))
+      [f3 in s1] effects=[blend_mode=2] (BlockContainer<HTML>)
 
 DisplayList:
 FillRect@s0 rect=[0,0 800x600] color=rgb(0, 128, 0)

@@ -321,60 +321,6 @@ CSS::StyleRecordID style_record_identity(Layout::Node const& node)
     return as<Layout::NodeWithStyle>(node).style_record_identity();
 }
 
-static StringView class_name_for_kind(Layout::RustFFI::PaintableKind kind)
-{
-    switch (kind) {
-    case Layout::RustFFI::PaintableKind::None:
-    case Layout::RustFFI::PaintableKind::Paintable:
-        return "Paintable"sv;
-    case Layout::RustFFI::PaintableKind::PaintableWithLines:
-        return "PaintableWithLines"sv;
-    case Layout::RustFFI::PaintableKind::InlinePaintable:
-        return "InlinePaintable"sv;
-    case Layout::RustFFI::PaintableKind::ViewportPaintable:
-        return "ViewportPaintable"sv;
-    case Layout::RustFFI::PaintableKind::ImagePaintable:
-        return "ImagePaintable"sv;
-    case Layout::RustFFI::PaintableKind::CanvasPaintable:
-        return "CanvasPaintable"sv;
-    case Layout::RustFFI::PaintableKind::VideoPaintable:
-        return "VideoPaintable"sv;
-    case Layout::RustFFI::PaintableKind::CheckBoxPaintable:
-        return "CheckBoxPaintable"sv;
-    case Layout::RustFFI::PaintableKind::RadioButtonPaintable:
-        return "RadioButtonPaintable"sv;
-    case Layout::RustFFI::PaintableKind::FieldSetPaintable:
-        return "FieldSetPaintable"sv;
-    case Layout::RustFFI::PaintableKind::NavigableContainerViewportPaintable:
-        return "NavigableContainerViewportPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGSVGPaintable:
-        return "SVGSVGPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGPathPaintable:
-        return "SVGPathPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGGraphicsPaintable:
-        return "SVGGraphicsPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGImagePaintable:
-        return "SVGImagePaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGMaskPaintable:
-        return "SVGMaskPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGClipPaintable:
-        return "SVGClipPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGPatternPaintable:
-        return "SVGPatternPaintable"sv;
-    case Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable:
-        return "SVGForeignObjectPaintable"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-String debug_description(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    return MUST(String::formatted("{}({})", class_name_for_kind(row->kind), node.debug_description()));
-}
-
 bool is_navigable_container_viewport_paintable(Layout::Node const& node)
 {
     return has_committed_box(node) && node.kind() == Layout::RustFFI::NodeKind::NavigableContainerViewport;

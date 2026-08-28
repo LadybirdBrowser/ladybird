@@ -68,7 +68,6 @@ WEB_API bool has_css_transform(Layout::Node const&);
 WEB_API bool uses_collapsing_borders_model(Layout::Node const&);
 WEB_API SelectionState selection_state(Layout::Node const&);
 WEB_API CSS::StyleRecordID style_record_identity(Layout::Node const&);
-WEB_API String debug_description(Layout::Node const&);
 WEB_API bool is_navigable_container_viewport_paintable(Layout::Node const&);
 WEB_API bool is_viewport_paintable(Layout::Node const&);
 WEB_API bool is_paintable_with_lines(Layout::Node const&);
