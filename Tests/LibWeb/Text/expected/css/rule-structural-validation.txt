@@ -1,0 +1,36 @@
+invalid selector: PASS
+empty selector: PASS
+block import: PASS
+invalid block layer name: PASS
+invalid statement layer name: PASS
+statement keyframes: PASS
+invalid keyframes name: PASS
+block namespace: PASS
+invalid namespace prelude: PASS
+statement media: PASS
+statement supports: PASS
+invalid supports prelude: PASS
+statement scope: PASS
+invalid scope prelude: PASS
+scope pseudo-element: PASS
+scope undeclared namespace: PASS
+statement container: PASS
+invalid container prelude: PASS
+statement counter style: PASS
+invalid counter style name: PASS
+statement font face: PASS
+font face prelude: PASS
+statement font feature values: PASS
+invalid font feature values prelude: PASS
+statement function: PASS
+invalid function prelude: PASS
+statement page: PASS
+invalid page prelude: PASS
+statement property: PASS
+import scope undeclared namespace: PASS
+page child grammar: PASS
+keyframes child grammar: PASS
+nested style child grammar: PASS
+valid top-level ordering: PASS
+late import and namespace: PASS
+invalid rule does not close ordering windows: PASS

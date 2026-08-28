@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function parseRules(source) {
+        const style = document.createElement("style");
+        style.textContent = source;
+        document.head.append(style);
+        const rules = [...style.sheet.cssRules];
+        style.remove();
+        return rules;
+    }
+
+    test(() => {
+        const invalidRules = [
+            ["invalid selector", "undeclared|element {}"],
+            ["empty selector", "{}"],
+            ["block import", "@import url(\"data:text/css,\") {}"],
+            ["invalid block layer name", "@layer first, second {}"],
+            ["invalid statement layer name", "@layer first second;"],
+            ["statement keyframes", "@keyframes fade;"],
+            ["invalid keyframes name", "@keyframes none {}"],
+            ["block namespace", "@namespace prefix \"urn:test\" {}"],
+            ["invalid namespace prelude", "@namespace prefix;"],
+            ["statement media", "@media all;"],
+            ["statement supports", "@supports (display: block);"],
+            ["invalid supports prelude", "@supports display: block {}"],
+            ["statement scope", "@scope (.scope);"],
+            ["invalid scope prelude", "@scope .scope {}"],
+            ["scope pseudo-element", "@scope (.scope::before) {}"],
+            ["scope undeclared namespace", "@scope (undeclared|element) {}"],
+            ["statement container", "@container (width > 1px);"],
+            ["invalid container prelude", "@container name other {}"],
+            ["statement counter style", "@counter-style custom;"],
+            ["invalid counter style name", "@counter-style none {}"],
+            ["statement font face", "@font-face;"],
+            ["font face prelude", "@font-face serif {}"],
+            ["statement font feature values", "@font-feature-values Serif;"],
+            ["invalid font feature values prelude", "@font-feature-values {}"],
+            ["statement function", "@function --double(--value <number>);"],
+            ["invalid function prelude", "@function invalid {}"],
+            ["statement page", "@page;"],
+            ["invalid page prelude", "@page :unknown {}"],
+            ["statement property", "@property --custom;"],
+            ["import scope undeclared namespace", "@import url(\"data:text/css,\") scope((undeclared|element));"],
+        ];
+
+        for (const [description, source] of invalidRules) {
+            const rules = parseRules(`${source} .sentinel { color: green; }`);
+            println(`${description}: ${rules.length === 1 && rules[0].selectorText === ".sentinel" ? "PASS" : "FAIL"}`);
+        }
+
+        const pageRules = parseRules("@page { @media all {} @top-left; @top-right invalid {} @bottom-center {} }");
+        println(`page child grammar: ${pageRules.length === 1 && pageRules[0].cssRules.length === 1 ? "PASS" : "FAIL"}`);
+
+        const keyframesRules = parseRules("@keyframes fade { @media all {} from { opacity: 0; @supports (display: block) {} } }");
+        println(`keyframes child grammar: ${keyframesRules.length === 1 && keyframesRules[0].length === 1 ? "PASS" : "FAIL"}`);
+
+        const nestedStyleRules = parseRules(".outer { @font-face {} @media all { .inner {} } }");
+        println(`nested style child grammar: ${nestedStyleRules.length === 1 && nestedStyleRules[0].cssRules.length === 1 ? "PASS" : "FAIL"}`);
+
+        const orderedRules = parseRules("@layer reset; @import url(\"data:text/css,\"); @namespace known \"urn:known\"; known|element {}");
+        println(`valid top-level ordering: ${orderedRules.length === 4 ? "PASS" : "FAIL"}`);
+
+        const lateRules = parseRules("element {} @import url(\"data:text/css,\"); @namespace late \"urn:late\";");
+        println(`late import and namespace: ${lateRules.length === 1 && lateRules[0].selectorText === "element" ? "PASS" : "FAIL"}`);
+
+        const invalidDoesNotCloseRules = parseRules("@font-face invalid {} @import url(\"data:text/css,\"); @namespace known \"urn:known\"; known|element {}");
+        println(`invalid rule does not close ordering windows: ${invalidDoesNotCloseRules.length === 3 ? "PASS" : "FAIL"}`);
+    });
+</script>
