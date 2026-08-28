@@ -4764,6 +4764,38 @@ pub struct FfiElementStyleAdjustments {
     pub element_style: FfiElementStyleAdjustment,
 }
 
+/// Everything Rust can decide while finalizing a computed style once C++ has
+/// marshalled the DOM-dependent inputs.
+#[repr(C)]
+pub struct FfiStyleFinalizationInput {
+    pub mode: FfiStyleFinalizationMode,
+    pub box_type: FfiBoxTypeTransformationInput,
+    pub overflow_x: u16,
+    pub overflow_y: u16,
+    pub text_align: u16,
+    pub is_th_element: bool,
+    pub has_parent_with_computed_values: bool,
+    pub parent_text_align: u16,
+    pub parent_direction_is_ltr: bool,
+}
+
+#[repr(C)]
+pub struct FfiStyleFinalization {
+    pub element_style: FfiElementStyleAdjustments,
+    pub overflow: FfiEffectiveOverflow,
+    pub text_align: FfiTextAlignAdjustment,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FfiStyleFinalizationMode {
+    BoxType,
+    AnimatedBoxType,
+    TextAlign,
+    All,
+    Overflow,
+}
+
 #[repr(C)]
 pub struct FfiInputLineHeightMetrics {
     pub current_line_height: f64,
@@ -4973,17 +5005,6 @@ fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBoxTypeTransf
     }
 }
 
-/// # Safety
-/// `input` must be a valid pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_adjust_element_style(
-    input: *const FfiBoxTypeTransformationInput,
-    text_align: u16,
-) -> FfiElementStyleAdjustments {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| compute_element_style_adjustments(unsafe { &*input }, text_align))
-}
-
 /// Result of resolving the effective overflow pair: each axis' possibly
 /// replaced computed keyword.
 #[repr(C)]
@@ -5024,12 +5045,6 @@ fn resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u16) -> FfiE
         }
     }
     result
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u16) -> FfiEffectiveOverflow {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| resolve_effective_overflow_keywords(overflow_x, overflow_y))
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
@@ -5160,23 +5175,77 @@ fn compute_text_align_adjustment(
     unchanged
 }
 
+/// Runs the independent finalization decisions that remain after property
+/// computation. Callers select the decisions whose results they need.
+///
+/// # Safety
+/// `input` must point at a live `FfiStyleFinalizationInput`.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_compute_text_align(
-    text_align: u16,
-    is_th_element: bool,
-    has_parent_with_computed_values: bool,
-    parent_text_align: u16,
-    parent_direction_is_ltr: bool,
-) -> FfiTextAlignAdjustment {
+pub unsafe extern "C" fn rust_finalize_style(input: *const FfiStyleFinalizationInput) -> FfiStyleFinalization {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
-        compute_text_align_adjustment(
+        let input = unsafe { &*input };
+        let element_style = if matches!(
+            input.mode,
+            FfiStyleFinalizationMode::BoxType
+                | FfiStyleFinalizationMode::AnimatedBoxType
+                | FfiStyleFinalizationMode::All
+        ) {
+            compute_element_style_adjustments(&input.box_type, input.text_align)
+        } else {
+            FfiElementStyleAdjustments {
+                box_type: FfiBoxTypeTransformation {
+                    set_float_none: false,
+                    changed_display: false,
+                    display: input.box_type.display,
+                },
+                element_style: FfiElementStyleAdjustment {
+                    changed_display: false,
+                    display: input.box_type.display,
+                    set_line_height_normal: false,
+                    check_input_line_height: false,
+                    set_position_static: false,
+                    changed_text_align: false,
+                    text_align: input.text_align,
+                },
+            }
+        };
+        let overflow = if matches!(
+            input.mode,
+            FfiStyleFinalizationMode::All | FfiStyleFinalizationMode::Overflow
+        ) {
+            resolve_effective_overflow_keywords(input.overflow_x, input.overflow_y)
+        } else {
+            FfiEffectiveOverflow {
+                changed_x: false,
+                x_keyword: input.overflow_x,
+                changed_y: false,
+                y_keyword: input.overflow_y,
+            }
+        };
+        let text_align = if matches!(
+            input.mode,
+            FfiStyleFinalizationMode::TextAlign | FfiStyleFinalizationMode::All
+        ) {
+            compute_text_align_adjustment(
+                input.text_align,
+                input.is_th_element,
+                input.has_parent_with_computed_values,
+                input.parent_text_align,
+                input.parent_direction_is_ltr,
+            )
+        } else {
+            FfiTextAlignAdjustment {
+                changed: false,
+                keyword: input.text_align,
+                inherited: false,
+            }
+        };
+        FfiStyleFinalization {
+            element_style,
+            overflow,
             text_align,
-            is_th_element,
-            has_parent_with_computed_values,
-            parent_text_align,
-            parent_direction_is_ltr,
-        )
+        }
     })
 }
 
@@ -5360,6 +5429,34 @@ mod tests {
         assert!(adjustments.box_type.display.is_block_outside());
         assert!(adjustments.element_style.changed_display);
         assert!(adjustments.element_style.display.is_flow_root_inside());
+    }
+
+    #[test]
+    fn style_finalization_batches_selected_decisions() {
+        let mut box_type = element_adjustment_input();
+        box_type.is_button_element = true;
+        box_type.position = keyword::ABSOLUTE;
+        let input = FfiStyleFinalizationInput {
+            mode: FfiStyleFinalizationMode::All,
+            box_type,
+            overflow_x: keyword::VISIBLE,
+            overflow_y: keyword::AUTO,
+            text_align: keyword::MATCH_PARENT,
+            is_th_element: false,
+            has_parent_with_computed_values: true,
+            parent_text_align: keyword::END,
+            parent_direction_is_ltr: true,
+        };
+
+        let finalization = unsafe { rust_finalize_style(&input) };
+        assert!(finalization.element_style.box_type.changed_display);
+        assert!(finalization.element_style.box_type.display.is_block_outside());
+        assert!(finalization.element_style.element_style.changed_display);
+        assert!(finalization.element_style.element_style.display.is_flow_root_inside());
+        assert!(finalization.overflow.changed_x);
+        assert_eq!(finalization.overflow.x_keyword, keyword::AUTO);
+        assert!(finalization.text_align.changed);
+        assert_eq!(finalization.text_align.keyword, keyword::RIGHT);
     }
 
     fn test_context() -> FfiLengthResolutionContext {
