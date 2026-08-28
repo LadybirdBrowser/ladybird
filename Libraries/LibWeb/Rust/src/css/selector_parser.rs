@@ -302,13 +302,13 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
 }
 
 struct SelectorParser<'a> {
-    declared_namespaces: Option<&'a [&'a [u16]]>,
+    declared_namespaces: Option<&'a [TokenizerInput<'a>]>,
     pseudo_class_context: Vec<PseudoClassType>,
     nesting_limit_exceeded: bool,
 }
 
 impl<'a> SelectorParser<'a> {
-    fn new(declared_namespaces: Option<&'a [&'a [u16]]>) -> Self {
+    fn new(declared_namespaces: Option<&'a [TokenizerInput<'a>]>) -> Self {
         Self {
             declared_namespaces,
             pseudo_class_context: Vec::new(),
@@ -491,9 +491,13 @@ impl<'a> SelectorParser<'a> {
             };
             if namespace_type == NamespaceType::Named
                 && self.declared_namespaces.is_some_and(|declared_namespaces| {
-                    !declared_namespaces
-                        .iter()
-                        .any(|namespace| *namespace == first_name.as_ref())
+                    !declared_namespaces.iter().any(|namespace| {
+                        namespace.len() == first_name.len()
+                            && first_name
+                                .iter()
+                                .enumerate()
+                                .all(|(index, code_unit)| namespace.code_unit_at(index) == *code_unit)
+                    })
                 })
             {
                 stream.position = original;
@@ -1054,7 +1058,7 @@ fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec
 
 pub(crate) fn parse_selector_list<'a>(
     input: impl Into<TokenizerInput<'a>>,
-    declared_namespaces: &[&[u16]],
+    declared_namespaces: &[TokenizerInput<'_>],
     selector_type: SelectorType,
     parsing_mode: SelectorParsingMode,
 ) -> Result<SelectorList, ()> {
@@ -1281,10 +1285,10 @@ pub unsafe extern "C" fn rust_selector_parse(
                 .iter()
                 .map(|namespace| {
                     if namespace.length == 0 {
-                        &[][..]
+                        TokenizerInput::Utf16(&[])
                     } else {
                         assert!(!namespace.data.is_null());
-                        std::slice::from_raw_parts(namespace.data, namespace.length)
+                        TokenizerInput::Utf16(std::slice::from_raw_parts(namespace.data, namespace.length))
                     }
                 })
                 .collect::<Vec<_>>();

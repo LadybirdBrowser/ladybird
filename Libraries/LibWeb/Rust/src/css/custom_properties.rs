@@ -225,6 +225,8 @@ impl CustomPropertyRegistry {
             is_ua_style_sheet: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
+            declared_namespaces: std::ptr::null(),
+            declared_namespace_count: 0,
             document_url: self.document_url.as_ptr(),
             document_url_length: self.document_url.len(),
             document_base_url: self.document_base_url.as_ptr(),

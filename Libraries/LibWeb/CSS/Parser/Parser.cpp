@@ -155,11 +155,6 @@ GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL>
     return CSSStyleSheet::create(rule_list, *media_list, move(location));
 }
 
-Optional<RustQueryHandle> Parser::parse_as_supports()
-{
-    return RustQueryParser::parse_supports_condition(*this, m_source);
-}
-
 CSSRule* Parser::parse_as_css_rule(bool nested)
 {
     auto nested_mode = nested ? Nested::Yes : Nested::No;

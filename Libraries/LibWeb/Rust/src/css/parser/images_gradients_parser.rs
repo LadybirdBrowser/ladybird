@@ -737,6 +737,8 @@ mod tests {
             is_ua_style_sheet: false,
             value_contexts: std::ptr::null(),
             value_context_count: 0,
+            declared_namespaces: std::ptr::null(),
+            declared_namespace_count: 0,
             document_url: std::ptr::null(),
             document_url_length: 0,
             document_base_url: std::ptr::null(),

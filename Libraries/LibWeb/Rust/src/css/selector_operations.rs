@@ -75,7 +75,7 @@ fn any_simple(selector: &CompiledSelector, predicate: &impl Fn(&SimpleSelector) 
         .any(|compound| compound.simple_selectors.iter().any(predicate))
 }
 
-fn contains_unknown_webkit(selector: &CompiledSelector) -> bool {
+pub(crate) fn contains_unknown_webkit(selector: &CompiledSelector) -> bool {
     any_simple(selector, &|simple| match simple {
         SimpleSelector::PseudoElement(pseudo_element) => {
             pseudo_element.pseudo_element == PseudoElementType::UnknownWebKit
@@ -280,18 +280,6 @@ pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const Ru
         crate::abort_on_panic(|| {
             assert!(!selector.is_null());
             contains_pseudo_class((*selector).compiled(), pseudo_class_from_ffi(value))
-        })
-    }
-}
-
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_contains_unknown_webkit(selector: *const RustSelector) -> bool {
-    unsafe {
-        crate::abort_on_panic(|| {
-            assert!(!selector.is_null());
-            contains_unknown_webkit((*selector).compiled())
         })
     }
 }

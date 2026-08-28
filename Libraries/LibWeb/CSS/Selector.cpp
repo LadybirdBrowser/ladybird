@@ -70,11 +70,6 @@ bool Selector::contains_pseudo_class(PseudoClass pseudo_class) const
     return SelectorFFI::rust_selector_contains_pseudo_class(m_rust_selector, to_underlying(pseudo_class));
 }
 
-bool Selector::contains_unknown_webkit_pseudo_element() const
-{
-    return SelectorFFI::rust_selector_contains_unknown_webkit(m_rust_selector);
-}
-
 bool Selector::contains_named_namespace() const
 {
     return SelectorFFI::rust_selector_contains_named_namespace(m_rust_selector);

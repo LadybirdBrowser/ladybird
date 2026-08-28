@@ -6,7 +6,7 @@ fontTechIsSupportedCallbacks: 0
 resolveDescriptorIntegerCallbacks: 0
 resolvePropertyIdCallbacks: 0
 resolveQueryFeatureCallbacks: 0
-evaluateSupportsFeatureCallbacks: 2
+evaluateSupportsFeatureCallbacks: 0
 evaluateConditionCallbacks: 2
 rustHasIgnoredVendorPrefixEntries: 64
-rustReevaluateSupportsConditionEntries: 2
+rustReevaluateSupportsConditionEntries: 0

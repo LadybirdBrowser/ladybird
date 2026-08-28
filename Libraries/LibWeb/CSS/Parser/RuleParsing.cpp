@@ -248,7 +248,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
             break;
         case ValueParserFFI::FfiImportPreludeItemKind::Supports:
             VERIFY(item.query.has_value());
-            supports = RustQueryParser::reevaluate_supports_condition(*this, *item.query);
+            supports = *item.query;
             break;
         case ValueParserFFI::FfiImportPreludeItemKind::Media:
             VERIFY(item.query.has_value());
@@ -484,7 +484,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         });
         return {};
     }
-    auto supports = RustQueryParser::reevaluate_supports_condition(*this, *rule.parsed_prelude.items.first().query);
+    auto supports = *rule.parsed_prelude.items.first().query;
 
     return CSSSupportsRule::create(move(supports), convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
 }

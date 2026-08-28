@@ -13,7 +13,7 @@ use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
 };
 use crate::css::parser::fonts_parser::{font_format_is_supported, font_tech_name_is_supported};
-use crate::css::parser::syntax_parser::at_rule_is_supported;
+use crate::css::parser::syntax_parser::{at_rule_is_supported, supports_declaration_matches};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, NumericRange, ParseContext, equals_ascii_case_insensitive,
@@ -21,6 +21,8 @@ use crate::css::parser::value_parser::{
     parse_ratio_value_with_context, parse_resolution_from_stream,
 };
 use crate::css::property_metadata::property_id_from_name;
+use crate::css::selector_operations::contains_unknown_webkit;
+use crate::css::selector_parser::{SelectorParsingMode, SelectorType, parse_selector_list};
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier, serialize_component_values_to_utf16};
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::StyleValueData;
@@ -121,13 +123,6 @@ pub enum FfiMediaFeatureValueKind {
     Length,
     Ratio,
     Resolution,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiSupportsFeatureKind {
-    Declaration,
-    Selector,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -938,6 +933,34 @@ fn supports_components_source(components: &[ComponentValue]) -> Vec<u16> {
         .collect()
 }
 
+pub(crate) fn supports_feature_matches(
+    context: &ParseContext,
+    declared_namespaces: &[TokenizerInput<'_>],
+    kind: SupportsFeatureKind,
+    value: &[u16],
+) -> bool {
+    match kind {
+        SupportsFeatureKind::Declaration => supports_declaration_matches(context, value),
+        SupportsFeatureKind::Selector => {
+            // NB: Mirrors the selector acceptance from commit 7c54a530cc2 in
+            //     Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp:172.
+            let Ok(selectors) = parse_selector_list(
+                value,
+                declared_namespaces,
+                SelectorType::Standalone,
+                SelectorParsingMode::Standard,
+            ) else {
+                return false;
+            };
+            selectors.len() == 1 && !contains_unknown_webkit(&selectors[0])
+        }
+        SupportsFeatureKind::FontTech => font_tech_name_is_supported(value),
+        SupportsFeatureKind::FontFormat => font_format_is_supported(value),
+        SupportsFeatureKind::AtRule => at_rule_is_supported(value),
+        SupportsFeatureKind::Env => environment_variable_is_known(value),
+    }
+}
+
 fn parse_supports_feature<E>(stream: &mut TokenStream<'_>, evaluate_feature: &E) -> Option<Expression>
 where
     E: Fn(SupportsFeatureKind, &[u16]) -> bool,
@@ -1624,6 +1647,8 @@ fn media_value_parse_context(value_context: &FfiValueParsingContext) -> ParseCon
         is_ua_style_sheet: false,
         value_contexts: value_context,
         value_context_count: 1,
+        declared_namespaces: std::ptr::null(),
+        declared_namespace_count: 0,
         document_url: std::ptr::null(),
         document_url_length: 0,
         document_base_url: std::ptr::null(),
@@ -2402,8 +2427,6 @@ fn evaluate_media_query(
     result
 }
 
-type EvaluateSupportsFeature = unsafe extern "C" fn(*mut c_void, FfiSupportsFeatureKind, FfiUtf16View) -> bool;
-
 type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
 
 type VisitQueryHandle = unsafe extern "C" fn(*mut c_void, *const FfiQueryHandle);
@@ -2443,70 +2466,16 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
     })
 }
 
-fn ffi_supports_evaluator(
-    context: *mut c_void,
-    callback: EvaluateSupportsFeature,
-) -> impl Fn(SupportsFeatureKind, &[u16]) -> bool {
-    move |kind, value| {
-        let ffi_kind = match kind {
-            SupportsFeatureKind::Declaration => FfiSupportsFeatureKind::Declaration,
-            SupportsFeatureKind::Selector => FfiSupportsFeatureKind::Selector,
-            SupportsFeatureKind::FontTech => return font_tech_name_is_supported(value),
-            SupportsFeatureKind::FontFormat => return font_format_is_supported(value),
-            SupportsFeatureKind::AtRule => return at_rule_is_supported(value),
-            SupportsFeatureKind::Env => return environment_variable_is_known(value),
-        };
-        let ffi_value = FfiUtf16View {
-            ascii: std::ptr::null(),
-            utf16: value.as_ptr(),
-            length: value.len(),
-        };
-        // SAFETY: The UTF-16 slice remains live for the duration of the callback.
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateSupportsFeatureCallback);
-        unsafe { callback(context, ffi_kind, ffi_value) }
-    }
-}
-
-fn reevaluate_supports_features<E>(expression: &mut Expression, evaluate_feature: &E)
-where
-    E: Fn(SupportsFeatureKind, &[u16]) -> bool,
-{
-    match expression {
-        Expression::Not(child) | Expression::InParens(child) => {
-            reevaluate_supports_features(child, evaluate_feature);
-        }
-        Expression::And(children) | Expression::Or(children) => {
-            for child in children {
-                reevaluate_supports_features(child, evaluate_feature);
-            }
-        }
-        Expression::SupportsFeature(feature) => {
-            let (kind, value, matches) = match feature {
-                SupportsFeature::Declaration { components, matches } => (
-                    SupportsFeatureKind::Declaration,
-                    supports_components_source(components),
-                    matches,
-                ),
-                SupportsFeature::Selector { components, matches } => (
-                    SupportsFeatureKind::Selector,
-                    supports_components_source(components),
-                    matches,
-                ),
-                SupportsFeature::FontTech { name, matches } => {
-                    (SupportsFeatureKind::FontTech, name.as_ref().to_vec(), matches)
-                }
-                SupportsFeature::FontFormat { name, matches } => {
-                    (SupportsFeatureKind::FontFormat, name.as_ref().to_vec(), matches)
-                }
-                SupportsFeature::AtRule { name, matches } => {
-                    (SupportsFeatureKind::AtRule, name.as_ref().to_vec(), matches)
-                }
-                SupportsFeature::Env { name, matches } => (SupportsFeatureKind::Env, name.as_ref().to_vec(), matches),
-            };
-            *matches = evaluate_feature(kind, &value);
-        }
-        _ => {}
-    }
+pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) -> Option<Vec<TokenizerInput<'_>>> {
+    let namespaces = if context.declared_namespace_count == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(context.declared_namespaces, context.declared_namespace_count) }
+    };
+    namespaces
+        .iter()
+        .map(|namespace| unsafe { namespace.units() })
+        .collect()
 }
 
 /// Parses a media-query list and visits each resulting retained query tree.
@@ -2583,45 +2552,23 @@ pub unsafe extern "C" fn rust_parse_media_feature(source: FfiUtf16View) -> *cons
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_supports_condition(
     source: FfiUtf16View,
-    context: *mut c_void,
-    evaluate_feature: EvaluateSupportsFeature,
+    context: *const ParseContext,
 ) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null();
         };
-        let Some(expression) = parse_supports_condition(source, &ffi_supports_evaluator(context, evaluate_feature))
-        else {
+        let Some(context) = (unsafe { context.as_ref() }) else {
             return std::ptr::null();
         };
-        create_expression_handle(expression, QueryKind::Supports)
-    })
-}
-
-/// Re-evaluates the features in an already parsed supports condition and returns an owned handle.
-///
-/// This keeps feature evaluation at the C++ rule-conversion point, after preceding namespace rules
-/// have been installed, without tokenizing and parsing the supports condition again.
-///
-/// # Safety
-/// `handle` must point to a live supports-query handle and the callback must be valid.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_reevaluate_supports_condition(
-    handle: *const FfiQueryHandle,
-    context: *mut c_void,
-    evaluate_feature: EvaluateSupportsFeature,
-) -> *const FfiQueryHandle {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::RustReevaluateSupportsConditionEntry);
-    crate::abort_on_panic(|| {
-        let QueryTree::Expression {
-            expression,
-            kind: QueryKind::Supports,
-        } = &unsafe { &*handle }.tree
-        else {
+        let Some(declared_namespaces) = (unsafe { declared_namespaces_from_context(context) }) else {
             return std::ptr::null();
         };
-        let mut expression = expression.clone();
-        reevaluate_supports_features(&mut expression, &ffi_supports_evaluator(context, evaluate_feature));
+        let Some(expression) = parse_supports_condition(source, &|kind, value| {
+            supports_feature_matches(context, &declared_namespaces, kind, value)
+        }) else {
+            return std::ptr::null();
+        };
         create_expression_handle(expression, QueryKind::Supports)
     })
 }
@@ -2631,16 +2578,21 @@ pub unsafe extern "C" fn rust_reevaluate_supports_condition(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_supports_declaration(
     source: FfiUtf16View,
-    context: *mut c_void,
-    evaluate_feature: EvaluateSupportsFeature,
+    context: *const ParseContext,
 ) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
             return std::ptr::null();
         };
-        let Some(expression) =
-            parse_supports_declaration_from_source(source, &ffi_supports_evaluator(context, evaluate_feature))
-        else {
+        let Some(context) = (unsafe { context.as_ref() }) else {
+            return std::ptr::null();
+        };
+        let Some(declared_namespaces) = (unsafe { declared_namespaces_from_context(context) }) else {
+            return std::ptr::null();
+        };
+        let Some(expression) = parse_supports_declaration_from_source(source, &|kind, value| {
+            supports_feature_matches(context, &declared_namespaces, kind, value)
+        }) else {
             return std::ptr::null();
         };
         create_expression_handle(expression, QueryKind::Supports)
@@ -2943,14 +2895,6 @@ pub unsafe extern "C" fn css_query_serialize_condition(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    static SUPPORTS_CALLBACK_CALLS: AtomicUsize = AtomicUsize::new(0);
-
-    unsafe extern "C" fn count_supports_callback(_: *mut c_void, _: FfiSupportsFeatureKind, _: FfiUtf16View) -> bool {
-        SUPPORTS_CALLBACK_CALLS.fetch_add(1, Ordering::Relaxed);
-        true
-    }
 
     fn parse_single_container_query(source: &[u8]) -> Option<Expression> {
         let mut conditions = parse_container_condition_list(source, &resolve_query_feature)?;
@@ -3056,19 +3000,19 @@ mod tests {
         assert!(parse_supports_condition(b"(--: a)".as_slice(), &supported).is_some());
         assert!(parse_supports_condition(b"(display : grid)".as_slice(), &supported).is_some());
         assert!(parse_supports_declaration_from_source(b"display : grid".as_slice(), &supported).is_some());
-
-        let mut condition =
-            parse_supports_condition(b"(display: grid) and selector(:has(*))".as_slice(), &|_, _| false).unwrap();
-        assert_eq!(evaluate_supports_expression(&condition), MatchResult::False);
-        reevaluate_supports_features(&mut condition, &supported);
-        assert_eq!(evaluate_supports_expression(&condition), MatchResult::True);
     }
 
     #[test]
-    fn evaluates_static_supports_features_without_cpp() {
-        SUPPORTS_CALLBACK_CALLS.store(0, Ordering::Relaxed);
-        let evaluate = ffi_supports_evaluator(std::ptr::null_mut(), count_supports_callback);
+    fn evaluates_supports_features_without_cpp() {
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: 0,
+            secondary_value: 0,
+            name: Default::default(),
+        };
+        let context = media_value_parse_context(&value_context);
         let utf16 = |value: &str| value.encode_utf16().collect::<Vec<_>>();
+        let evaluate = |kind, value: &[u16]| supports_feature_matches(&context, &[], kind, value);
 
         for (kind, name) in [
             (SupportsFeatureKind::FontFormat, "WOFF2"),
@@ -3086,11 +3030,24 @@ mod tests {
         ] {
             assert!(!evaluate(kind, &utf16(name)), "{name}");
         }
-        assert_eq!(SUPPORTS_CALLBACK_CALLS.load(Ordering::Relaxed), 0);
-
         assert!(evaluate(SupportsFeatureKind::Declaration, &utf16("display: grid")));
         assert!(evaluate(SupportsFeatureKind::Selector, &utf16(":has(*)")));
-        assert_eq!(SUPPORTS_CALLBACK_CALLS.load(Ordering::Relaxed), 2);
+        assert!(!evaluate(SupportsFeatureKind::Selector, &utf16("a, b")));
+        assert!(!evaluate(SupportsFeatureKind::Selector, &utf16("::-webkit-unknown")));
+
+        let namespace = utf16("known");
+        assert!(supports_feature_matches(
+            &context,
+            &[TokenizerInput::Utf16(namespace.as_slice())],
+            SupportsFeatureKind::Selector,
+            &utf16("known|a")
+        ));
+        assert!(!supports_feature_matches(
+            &context,
+            &[TokenizerInput::Utf16(namespace.as_slice())],
+            SupportsFeatureKind::Selector,
+            &utf16("missing|a")
+        ));
     }
 
     #[test]

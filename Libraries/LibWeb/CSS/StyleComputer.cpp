@@ -190,6 +190,8 @@ struct SubstitutionData {
             .is_ua_style_sheet = false,
             .value_contexts = nullptr,
             .value_context_count = 0,
+            .declared_namespaces = nullptr,
+            .declared_namespace_count = 0,
             .document_url = document_url.bytes().data(),
             .document_url_length = document_url.bytes().size(),
             .document_base_url = document_base_url.bytes().data(),
@@ -300,9 +302,9 @@ static u8 evaluate_condition_for_substitution(AbstractOrHypotheticalElement elem
         if (!query.has_value())
             query = Parser::RustQueryParser::parse_media_condition(parser, source_view);
     } else if (kind == 1) {
-        query = Parser::RustQueryParser::parse_supports_declaration(parser, source_view);
+        query = parser.parse_as_supports_declaration();
         if (!query.has_value())
-            query = Parser::RustQueryParser::parse_supports_condition(parser, source_view);
+            query = parser.parse_as_supports();
     } else {
         VERIFY(kind == 2);
         query = Parser::RustQueryParser::parse_style_query(parser, source_view);

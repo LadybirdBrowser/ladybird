@@ -76,7 +76,6 @@ public:
     Optional<PseudoElement> target_pseudo_element() const;
     bool contains_the_nesting_selector() const;
     bool contains_pseudo_class(PseudoClass) const;
-    bool contains_unknown_webkit_pseudo_element() const;
     bool contains_named_namespace() const;
     Combinator first_combinator() const;
     u32 specificity() const;
