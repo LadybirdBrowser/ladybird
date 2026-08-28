@@ -305,6 +305,7 @@ impl OverflowAssignment {
             layout_arena.mark_paint_cache_self_dirty(self.box_paintable);
         }
         if scrollability_flipped {
+            layout_arena.mark_all_descendant_subtree_caches_dirty();
             layout_arena.note_visual_context_box_dirty(
                 self.box_paintable,
                 VisualContextBoxDirtyKind::ScrollableOverflowFlipped,
