@@ -2123,6 +2123,56 @@ fn evaluate_supports_expression(expression: &Expression) -> MatchResult {
     }
 }
 
+unsafe fn ffi_media_environment(
+    environment: &FfiMediaEnvironment,
+) -> Option<(&[FfiMediaFeatureValue], Option<&FfiLengthResolutionContext>)> {
+    let values = if environment.value_count == 0 {
+        &[]
+    } else {
+        if environment.values.is_null() {
+            return None;
+        }
+        unsafe { std::slice::from_raw_parts(environment.values, environment.value_count) }
+    };
+    let length_context = unsafe {
+        environment
+            .length_resolution_context
+            .cast::<FfiLengthResolutionContext>()
+            .as_ref()
+    };
+    Some((values, length_context))
+}
+
+pub(crate) unsafe fn parse_and_evaluate_media_if_condition(
+    source: &[u16],
+    environment: &FfiMediaEnvironment,
+) -> Option<MatchResult> {
+    // NB: Mirrors evaluate_condition_for_substitution from commit 805cbee8b6c in
+    //     Libraries/LibWeb/CSS/StyleComputer.cpp:292. Try a standalone media feature first,
+    //     then fall back to a full media condition.
+    let expression = parse_media_feature_from_source(source, &resolve_query_feature).or_else(|| {
+        let values = components_from_source(source)?;
+        parse_media_condition(&values, &resolve_query_feature)
+    })?;
+    let (values, length_context) = unsafe { ffi_media_environment(environment) }?;
+    Some(evaluate_media_expression(&expression, values, length_context))
+}
+
+pub(crate) unsafe fn parse_and_evaluate_supports_if_condition(
+    source: &[u16],
+    context: &ParseContext,
+) -> Option<MatchResult> {
+    let declared_namespaces = unsafe { declared_namespaces_from_context(context) }?;
+    let evaluate_feature =
+        |kind: SupportsFeatureKind, value: &[u16]| supports_feature_matches(context, &declared_namespaces, kind, value);
+    // NB: Mirrors evaluate_condition_for_substitution from commit 805cbee8b6c in
+    //     Libraries/LibWeb/CSS/StyleComputer.cpp:292. Try a supports declaration first,
+    //     then fall back to a full supports condition.
+    let expression = parse_supports_declaration_from_source(source, &evaluate_feature)
+        .or_else(|| parse_supports_condition(source, &evaluate_feature))?;
+    Some(evaluate_supports_expression(&expression))
+}
+
 pub const CONTAINER_QUERY_REQUIRES_WIDTH: u8 = 1 << 0;
 pub const CONTAINER_QUERY_REQUIRES_HEIGHT: u8 = 1 << 1;
 pub const CONTAINER_QUERY_REQUIRES_INLINE_SIZE: u8 = 1 << 2;
@@ -2869,19 +2919,8 @@ pub unsafe extern "C" fn css_query_evaluate_media(
         let QueryTree::MediaQuery(query) = &handle.tree else {
             return false;
         };
-        let values = if environment.value_count == 0 {
-            &[]
-        } else {
-            if environment.values.is_null() {
-                return false;
-            }
-            unsafe { std::slice::from_raw_parts(environment.values, environment.value_count) }
-        };
-        let length_context = unsafe {
-            environment
-                .length_resolution_context
-                .cast::<FfiLengthResolutionContext>()
-                .as_ref()
+        let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
+            return false;
         };
         evaluate_media_query(query, values, length_context) == MatchResult::True
     })
@@ -2909,19 +2948,8 @@ pub unsafe extern "C" fn css_query_evaluate_media_condition(
         else {
             return 3;
         };
-        let values = if environment.value_count == 0 {
-            &[]
-        } else {
-            if environment.values.is_null() {
-                return MatchResult::False as u8;
-            }
-            unsafe { std::slice::from_raw_parts(environment.values, environment.value_count) }
-        };
-        let length_context = unsafe {
-            environment
-                .length_resolution_context
-                .cast::<FfiLengthResolutionContext>()
-                .as_ref()
+        let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
+            return MatchResult::False as u8;
         };
         evaluate_media_expression(expression, values, length_context) as u8
     })

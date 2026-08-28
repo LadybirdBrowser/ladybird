@@ -80,6 +80,7 @@ define_ffi_ops! {
     QueryFeatureResolutionCallback => "resolveQueryFeatureCallbacks",
     EvaluateSupportsFeatureCallback => "evaluateSupportsFeatureCallbacks",
     EvaluateConditionCallback => "evaluateConditionCallbacks",
+    MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];

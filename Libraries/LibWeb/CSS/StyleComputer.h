@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleGroupPayloadPins.h>
@@ -103,6 +104,9 @@ public:
     // Drop caches whose keys contain inputs that are stable only within one engine transaction.
     // Style sharing has a self-validating key and survives ordinary transaction boundaries.
     void prepare_for_style_engine_transaction() const;
+
+    void begin_style_update() const;
+    void end_style_update() const;
 
     // Forget every style one element computed on another's behalf. See m_style_sharing_cache.
     void drop_style_sharing_cache() const;
@@ -194,6 +198,8 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     [[nodiscard]] StyleEngine::StyleRecordDelta record_computed_style_inputs(Optional<DOM::AbstractElement>, ComputedValues const&, StyleNodeID style_node_id) const;
+    [[nodiscard]] Parser::ValueParserFFI::FfiMediaEnvironment const* cached_media_environment_for_style_update() const;
+    [[nodiscard]] Parser::ValueParserFFI::FfiMediaEnvironment const* ensure_media_environment_for_style_update() const;
 
     enum class ComputeStyleMode {
         Normal,
@@ -352,6 +358,9 @@ private:
     mutable Optional<ComputationContext> m_cached_font_computation_context;
     mutable Optional<ComputationContext> m_cached_line_height_computation_context;
     mutable Optional<ComputationContext> m_cached_generic_computation_context;
+    mutable u64 m_style_update_depth { 0 };
+    mutable Optional<MediaEnvironmentSnapshot> m_style_update_media_environment;
+    mutable Optional<Parser::ValueParserFFI::FfiMediaEnvironment> m_style_update_ffi_media_environment;
     // The style most recently built, kept as a payload donor: a run of elements computing the same
     // style shares group payloads through it, which no parent or previous-style adoption can do.
     mutable RefPtr<ComputedValues const> m_last_built_computed_values;
