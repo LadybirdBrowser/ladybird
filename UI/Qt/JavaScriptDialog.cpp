@@ -40,6 +40,7 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
 #if defined(AK_OS_MACOS) || defined(USE_DIRECTX) || defined(USE_VULKAN_DMABUF_IMAGES)
     // Native rendering surfaces stack above ordinary child widgets. Match their native stacking level so the dialog
     // remains above the page.
+    setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
 #endif
     setFocusPolicy(Qt::NoFocus);
