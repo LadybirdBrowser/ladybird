@@ -36,6 +36,7 @@ JavaScriptDialog::JavaScriptDialog(QWidget* parent)
     : QWidget(parent)
 {
     setObjectName("LadybirdJavaScriptDialogOverlay");
+    setCursor(Qt::ArrowCursor);
     setAttribute(Qt::WA_StyledBackground);
 #if defined(AK_OS_MACOS) || defined(USE_DIRECTX) || defined(USE_VULKAN_DMABUF_IMAGES)
     // Native rendering surfaces stack above ordinary child widgets. Match their native stacking level so the dialog

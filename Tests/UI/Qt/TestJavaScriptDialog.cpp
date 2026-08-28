@@ -89,10 +89,12 @@ void send_key(QWidget& widget, int key)
 TEST_CASE(alert_and_confirm_report_the_expected_results)
 {
     QWidget web_view;
+    web_view.setCursor(Qt::PointingHandCursor);
     web_view.resize(800, 600);
     web_view.show();
 
     Ladybird::JavaScriptDialog dialog(&web_view);
+    EXPECT_EQ(dialog.cursor().shape(), Qt::ArrowCursor);
     Completion completion;
     record_completions(dialog, completion);
 
