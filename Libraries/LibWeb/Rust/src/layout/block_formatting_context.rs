@@ -123,6 +123,13 @@ impl BlockMarginState {
         self.pending_top_margin_groups.last().is_some_and(|group| group.open)
     }
 
+    pub(crate) fn pending_margin_for_next_box(&self) -> CssPixels {
+        if self.has_open_top_margin_group() {
+            return CssPixels::default();
+        }
+        self.current_collapsed_margin()
+    }
+
     pub(crate) fn update_open_top_margin_group(&mut self) {
         if self.has_open_top_margin_group() {
             let collapsed = self.current_collapsed_margin();
@@ -1598,14 +1605,19 @@ impl BlockFormattingContext {
 
         if facts.is_absolutely_positioned() {
             if self.layout_mode == LayoutMode::Normal {
+                // The static position sits where the next in-flow box would be placed, so the
+                // collapsed margin pending from preceding siblings applies to it as well.
+                let pending_margin = self.margin_state.borrow().pending_margin_for_next_box();
                 // NB: An originally-inline absolutely positioned box never reaches this path; the tree
                 //     builder keeps out-of-flow boxes in inline context, where static position markers
                 //     pin them at their exact flow position.
                 self.register_contained_abspos_child(
                     node,
-                    self.block_offset_of_current_block_container
-                        .get()
-                        .expect("a block container flow cursor is active"),
+                    pending_margin
+                        + self
+                            .block_offset_of_current_block_container
+                            .get()
+                            .expect("a block container flow cursor is active"),
                     block_container,
                 );
             }
@@ -1638,14 +1650,7 @@ impl BlockFormattingContext {
                 .block_offset_of_current_block_container
                 .get()
                 .expect("a block container flow cursor is active");
-            let margin_top = {
-                let margin_state = self.margin_state.borrow();
-                if margin_state.has_open_top_margin_group() {
-                    CssPixels::default()
-                } else {
-                    margin_state.current_collapsed_margin()
-                }
-            };
+            let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
             self.layout_floating_box(run, node, input, margin_top + block_offset, None);
             if let Some(floating_box) = self.floats.borrow().last() {
                 *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(floating_box.bottom_margin_edge);
@@ -1697,11 +1702,8 @@ impl BlockFormattingContext {
             return;
         }
 
-        let mut margin_top = self.margin_state.borrow().current_collapsed_margin();
-        if self.margin_state.borrow().has_open_top_margin_group() {
-            // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
-            margin_top = CssPixels::default();
-        }
+        // If first child margin top will collapse with margin-top of containing block then margin-top of child is 0
+        let margin_top = self.margin_state.borrow().pending_margin_for_next_box();
 
         let box_opens_top_margin_group = !has_independent_formatting_context
             && self.used(node).border_top.get() == CssPixels::default()
