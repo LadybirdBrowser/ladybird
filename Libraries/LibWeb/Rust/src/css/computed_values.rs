@@ -2760,8 +2760,7 @@ impl InheritedTextValues {
                 is_auto: true,
                 value: ComputedStyleValueHandle::empty(),
             },
-            // OverflowWrap::Normal.
-            overflow_wrap: 0,
+            overflow_wrap: enum_value(css_enums::keyword_to_overflow_wrap(css_enums::keyword::NORMAL)),
             word_spacing_style_value: ComputedStyleValueHandle::empty(),
             letter_spacing_style_value: ComputedStyleValueHandle::empty(),
             orphans: 2,

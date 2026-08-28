@@ -120,22 +120,6 @@ static Optional<Appearance> appearance_without_compat_from_keyword(Keyword keywo
     }
 }
 
-// overflow-wrap has no generated keyword converter; the mapping matches the
-// switch in create().
-static Optional<OverflowWrap> overflow_wrap_from_keyword(Keyword keyword)
-{
-    switch (keyword) {
-    case Keyword::Normal:
-        return OverflowWrap::Normal;
-    case Keyword::BreakWord:
-        return OverflowWrap::BreakWord;
-    case Keyword::Anywhere:
-        return OverflowWrap::Anywhere;
-    default:
-        return {};
-    }
-}
-
 // The properties the core's bespoke grid group build consumes from the
 // longhand table.
 static constexpr Array grid_group_properties {
@@ -291,7 +275,7 @@ static void register_style_group_field_descriptors()
     add(inherited_text, PropertyID::TabSize, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(inherited_text, PropertyID::WhiteSpaceCollapse, offsetof(InheritedText, white_space_collapse), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_white_space_collapse>());
     add(inherited_text, PropertyID::WordBreak, offsetof(InheritedText, word_break), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_word_break>());
-    add(inherited_text, PropertyID::OverflowWrap, offsetof(InheritedText, overflow_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<overflow_wrap_from_keyword>());
+    add(inherited_text, PropertyID::OverflowWrap, offsetof(InheritedText, overflow_wrap), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_overflow_wrap>());
     add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
     add(inherited_text, PropertyID::WordSpacing, offsetof(InheritedText, word_spacing_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::LetterSpacing, offsetof(InheritedText, letter_spacing), GROUP_FIELD_CSS_PIXELS, 0, nullptr);
