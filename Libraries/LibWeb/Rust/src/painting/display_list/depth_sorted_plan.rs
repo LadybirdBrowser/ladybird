@@ -448,7 +448,8 @@ mod tests {
     use crate::painting::visual_context::resolve_sorting_contexts_over_nodes;
 
     fn sorting_contexts(parents: &[u32], sorting_context_roots: &[Option<u32>]) -> SortingContexts {
-        resolve_sorting_contexts_over_nodes(parents.len(), |index| {
+        let index_order: Vec<u32> = (0..parents.len() as u32).collect();
+        resolve_sorting_contexts_over_nodes(parents.len(), &index_order, |index| {
             (
                 SpatialNodeIndex(parents[index]),
                 sorting_context_roots[index].map(SpatialNodeIndex),
