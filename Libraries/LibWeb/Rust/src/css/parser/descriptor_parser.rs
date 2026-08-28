@@ -25,6 +25,7 @@ use crate::css::parser::value_parser::{
     retain_fly_string, string_style_value, unresolved_value, value_list,
 };
 use crate::css::property_metadata::property_id;
+use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::{RetainedStyleValueData, RetainedUtf16FlyString, StyleValueData};
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -116,22 +117,17 @@ fn parse_integer_component(
     }
     let resolved = match &parsed {
         StyleValueData::Integer { value } => *value,
-        StyleValueData::Calculated { .. } => {
-            let callback = context.resolve_descriptor_integer?;
-            let parsed = Arc::new(parsed);
-            let mut resolved = 0;
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolveDescriptorIntegerCallback);
-            if !(unsafe {
-                callback(
-                    context.descriptor_integer_resolution_context,
-                    Arc::as_ptr(&parsed).cast::<c_void>(),
-                    &raw mut resolved,
-                )
-            }) {
-                return None;
-            }
-            return Some((resolved, Arc::into_inner(parsed)?));
+        // NB: This matches CalculatedStyleValue::resolve_integer() at
+        //     Libraries/LibWeb/CSS/StyleValues/CalculatedStyleValue.cpp:378 in
+        //     commit 0e1fee55852, before descriptor integer resolution moved to Rust.
+        StyleValueData::Calculated { .. } => unsafe {
+            context
+                .length_resolution_context
+                .cast::<FfiLengthResolutionContext>()
+                .as_ref()
         }
+        .and_then(|length_context| crate::css::calc::resolve_calculated_integer_with_context(&parsed, length_context))
+        .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(&parsed))?,
         _ => return None,
     };
     Some((resolved, parsed))
@@ -571,8 +567,7 @@ mod tests {
             normalize_svg_path_data: None,
             precomputed_svg_paths: std::ptr::null(),
             precomputed_svg_path_count: 0,
-            descriptor_integer_resolution_context: std::ptr::null(),
-            resolve_descriptor_integer: None,
+            length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }
     }
@@ -631,6 +626,15 @@ mod tests {
             Some(StyleValueData::ValueList { .. })
         ));
         assert!(parse(3, "additive-symbols", "1 a, 2 b").is_none());
+        assert!(matches!(
+            parse(3, "pad", "calc(1 + 2) '0'"),
+            Some(StyleValueData::ValueList { .. })
+        ));
+        assert!(matches!(
+            parse(3, "range", "calc(calc(2 + 1) * 2) infinite"),
+            Some(StyleValueData::ValueList { .. })
+        ));
+        assert!(parse(3, "pad", "calc(1px + 2px) '0'").is_none());
         assert!(parse(0, "font-display", "var(--display)").is_none());
         assert!(parse(0, "font-weight", "calc(max(0 * sibling-index(), 400))").is_none());
     }

@@ -738,8 +738,7 @@ fn parse_substituted_without_callbacks(
         normalize_svg_path_data: None,
         precomputed_svg_paths: ffi_svg_paths.as_ptr(),
         precomputed_svg_path_count: ffi_svg_paths.len(),
-        descriptor_integer_resolution_context: std::ptr::null(),
-        resolve_descriptor_integer: None,
+        length_resolution_context: std::ptr::null(),
         random_function_index: &raw mut random_function_index,
     };
     let outcome = match parse_css_value_from_source(&context, input.property_id, &input.source) {

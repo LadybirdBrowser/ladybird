@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/CSS/URL.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -164,7 +165,7 @@ private:
         Value,
         RegisteredSyntax,
     };
-    // Self-referential: `context.value_contexts` points into this object.
+    // Self-referential: `context` points into this object's storage.
     struct ParseContextStorage {
         AK_MAKE_NONCOPYABLE(ParseContextStorage);
         AK_MAKE_NONMOVABLE(ParseContextStorage);
@@ -174,6 +175,7 @@ private:
 
         Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
         ValueParserFFI::FfiValueParsingContext single_property_context {};
+        Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         ValueParserFFI::ParseContext context {};
     };
 

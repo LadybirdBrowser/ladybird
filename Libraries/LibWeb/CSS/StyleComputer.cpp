@@ -195,8 +195,7 @@ struct SubstitutionData {
             .normalize_svg_path_data = normalize_svg_path_data_for_substitution,
             .precomputed_svg_paths = nullptr,
             .precomputed_svg_path_count = 0,
-            .descriptor_integer_resolution_context = nullptr,
-            .resolve_descriptor_integer = nullptr,
+            .length_resolution_context = nullptr,
             .random_function_index = nullptr,
         };
 
