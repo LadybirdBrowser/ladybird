@@ -21,6 +21,7 @@ use std::hash::Hasher;
 
 use crate::abort_on_panic;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::parser::query_parser::FfiMediaEnvironment;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
 };
@@ -946,6 +947,8 @@ pub struct FfiCascadedCustomProperties {
 #[derive(Clone, Copy)]
 pub struct FfiCascadeResolutionContext {
     pub parse_context: *const c_void,
+    pub media_environment: *const c_void,
+    pub load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
     pub custom_property_store: *const c_void,
     pub inheritance_custom_property_store: *const c_void,
     pub custom_property_registry: *const c_void,
@@ -958,7 +961,7 @@ pub struct FfiCascadeResolutionContext {
     pub custom_function_scope_identity: usize,
     pub callback_context: *mut c_void,
     pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
-    pub evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
+    pub evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
     pub cache_parsed_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16, *const c_void)>,
@@ -1193,17 +1196,25 @@ fn resolve_cascade_value(
 ) -> ResolvedStyleValue {
     let native_resolution = match resolution_environment {
         Some(resolution_environment) => unsafe {
+            let parse_context = resolution_context.parse_context.cast::<ParseContext>().as_ref();
+            let media_environment = resolution_context
+                .media_environment
+                .cast::<FfiMediaEnvironment>()
+                .as_ref();
             crate::css::custom_properties::resolve_vars(
                 resolution_context.custom_property_store,
                 resolution_context.inheritance_custom_property_store,
                 resolution_context.custom_property_registry,
+                parse_context,
+                media_environment,
+                resolution_context.load_media_environment,
                 resolution_context.root_custom_property_name,
                 unresolved_data,
                 resolution_environment,
                 resolution_context.attribute_names_are_ascii_case_insensitive,
                 resolution_context.resolve_custom_function,
                 resolution_context.callback_context,
-                resolution_context.evaluate_condition,
+                resolution_context.evaluate_style_query,
                 final_custom_properties,
             )
         },

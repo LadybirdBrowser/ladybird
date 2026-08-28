@@ -18,6 +18,9 @@ use crate::css::css_tokenizer::OwnedTokenKind;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::parser::query_parser::{
+    FfiMediaEnvironment, MatchResult, parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition,
+};
 use crate::css::parser::syntax::{SyntaxNode, clone_syntax_handle, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{FfiValueParsingContext, FfiValueParsingContextKind, ParseContext};
 use crate::css::style_value::RetainedStyleValueData;
@@ -293,14 +296,33 @@ struct VarResolutionContext<'a> {
     contains_attr_tainted_values: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
-    condition_context: *mut c_void,
-    evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
+    parse_context: Option<&'a ParseContext>,
+    media_environment: Option<&'a FfiMediaEnvironment>,
+    load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
+    callback_context: *mut c_void,
+    evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     final_custom_properties: Option<&'a HashMap<Vec<u16>, *const c_void>>,
     active_functions: Vec<usize>,
     cyclic_functions: HashSet<usize>,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
     resolution_stats: Option<&'a VarResolutionStats>,
+}
+
+impl VarResolutionContext<'_> {
+    fn media_environment(&mut self) -> Option<&FfiMediaEnvironment> {
+        if self.media_environment.is_none()
+            && let Some(load_media_environment) = self.load_media_environment
+        {
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::MediaEnvironmentCallback);
+            self.media_environment = unsafe {
+                load_media_environment(self.callback_context)
+                    .cast::<FfiMediaEnvironment>()
+                    .as_ref()
+            };
+        }
+        self.media_environment
+    }
 }
 
 type CustomPropertyTokenCache = HashMap<*const StyleValueData, (Arc<[OwnedToken]>, bool, bool)>;
@@ -1378,15 +1400,14 @@ fn evaluate_style_feature(
     if tokens.iter().any(|token| {
         token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
     }) {
-        let Some(evaluate) = context.evaluate_condition else {
+        let Some(evaluate) = context.evaluate_style_query else {
             return ConditionEvaluation::NotHandled;
         };
         let source = serialize_tokens(tokens);
         crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
         return match unsafe {
             evaluate(
-                context.condition_context,
-                2,
+                context.callback_context,
                 FfiUtf16View {
                     ascii: std::ptr::null(),
                     utf16: source.as_ptr(),
@@ -1443,14 +1464,13 @@ fn evaluate_style_feature(
     };
     if registration.is_some()
         && !context.active_names.iter().any(|active_name| active_name == name)
-        && let Some(evaluate) = context.evaluate_condition
+        && let Some(evaluate) = context.evaluate_style_query
     {
         let source = serialize_tokens(tokens);
         crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
         return match unsafe {
             evaluate(
-                context.condition_context,
-                2,
+                context.callback_context,
                 FfiUtf16View {
                     ascii: std::ptr::null(),
                     utf16: source.as_ptr(),
@@ -1604,28 +1624,26 @@ fn evaluate_if_condition(
         if name.eq_ignore_ascii_case("style") {
             return evaluate_style_query(store, registry, &test[1..close], context, recursion_depth + 1);
         }
-        if name.eq_ignore_ascii_case("media") || name.eq_ignore_ascii_case("supports") {
-            let Some(evaluate) = context.evaluate_condition else {
+        if name.eq_ignore_ascii_case("media") {
+            let Some(environment) = context.media_environment() else {
                 return ConditionEvaluation::NotHandled;
             };
             let source = serialize_tokens(&test[1..close]);
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
-            return match unsafe {
-                evaluate(
-                    context.condition_context,
-                    u8::from(name.eq_ignore_ascii_case("supports")),
-                    FfiUtf16View {
-                        ascii: std::ptr::null(),
-                        utf16: source.as_ptr(),
-                        length: source.len(),
-                    },
-                )
-            } {
-                0 => ConditionEvaluation::Match(false),
-                1 => ConditionEvaluation::Match(true),
-                2 => ConditionEvaluation::Invalid,
-                3 => ConditionEvaluation::Cyclic,
-                _ => ConditionEvaluation::NotHandled,
+            return match unsafe { parse_and_evaluate_media_if_condition(&source, environment) } {
+                Some(MatchResult::True) => ConditionEvaluation::Match(true),
+                Some(MatchResult::False | MatchResult::Unknown) => ConditionEvaluation::Match(false),
+                None => ConditionEvaluation::Invalid,
+            };
+        }
+        if name.eq_ignore_ascii_case("supports") {
+            let Some(parse_context) = context.parse_context else {
+                return ConditionEvaluation::NotHandled;
+            };
+            let source = serialize_tokens(&test[1..close]);
+            return match unsafe { parse_and_evaluate_supports_if_condition(&source, parse_context) } {
+                Some(MatchResult::True) => ConditionEvaluation::Match(true),
+                Some(MatchResult::False | MatchResult::Unknown) => ConditionEvaluation::Match(false),
+                None => ConditionEvaluation::Invalid,
             };
         }
         ConditionEvaluation::Match(false)
@@ -2266,13 +2284,16 @@ pub(crate) unsafe fn resolve_vars(
     store: *const c_void,
     inheritance_store: *const c_void,
     registry: *const c_void,
+    parse_context: Option<&ParseContext>,
+    media_environment: Option<&FfiMediaEnvironment>,
+    load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
     root_custom_property_name: FfiUtf16View,
     value_data: *const c_void,
     environment: &mut VarResolutionEnvironment,
     attribute_names_are_ascii_case_insensitive: bool,
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
-    condition_context: *mut c_void,
-    evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
+    callback_context: *mut c_void,
+    evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     final_custom_properties: Option<&HashMap<Vec<u16>, *const c_void>>,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
@@ -2309,8 +2330,11 @@ pub(crate) unsafe fn resolve_vars(
         contains_attr_tainted_values: false,
         custom_functions: Some(custom_functions),
         resolve_custom_function,
-        condition_context,
-        evaluate_condition,
+        parse_context,
+        media_environment,
+        load_media_environment,
+        callback_context,
+        evaluate_style_query,
         final_custom_properties,
         token_cache: Some(token_cache),
         resolution_stats: Some(resolution_stats),

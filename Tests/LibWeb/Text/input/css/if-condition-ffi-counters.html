@@ -13,12 +13,34 @@
         internals.resetStyleFfiCounters();
         println(`${name} result: ${getComputedStyle(target).width}`);
         println(`${name} callbacks: ${internals.styleFfiCounters().evaluateConditionCallbacks}`);
+        println(`${name} media environment callbacks: ${internals.styleFfiCounters().mediaEnvironmentCallbacks}`);
         target.remove();
+    }
+
+    function evaluateSharedMediaEnvironment(condition) {
+        const targets = [];
+        for (let i = 0; i < 2; ++i) {
+            const target = document.createElement("div");
+            target.style.cssText = `
+                --result: ${condition};
+                width: var(--result);
+            `;
+            targets.push(target);
+            document.body.appendChild(target);
+        }
+
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        println(`shared results: ${targets.map(target => getComputedStyle(target).width).join(", ")}`);
+        println(`shared media environment callbacks: ${internals.styleFfiCounters().mediaEnvironmentCallbacks}`);
+        targets.forEach(target => target.remove());
     }
 
     test(() => {
         evaluateIfCondition("media", "media((width >= 0px))");
         evaluateIfCondition("supports", "supports((display: grid))");
         evaluateIfCondition("style", "style(--flag > 1px)");
+        evaluateSharedMediaEnvironment("1px");
+        evaluateSharedMediaEnvironment("if(media((width >= 0px)): 1px; else: 2px)");
     });
 </script>

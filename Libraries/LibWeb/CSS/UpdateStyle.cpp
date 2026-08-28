@@ -408,6 +408,11 @@ static void update_style(DOM::Document& document)
     if (document.created_for_appropriate_template_contents())
         return;
 
+    document.style_computer().begin_style_update();
+    ScopeGuard end_style_update = [&] {
+        document.style_computer().end_style_update();
+    };
+
     document.style_computer().begin_style_record_view_epoch();
     ScopeGuard end_style_record_view_epoch = [&] {
         document.style_computer().end_style_record_view_epoch();
@@ -721,6 +726,11 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
         if (inheritance_chain_has_style)
             return true;
     }
+
+    document.style_computer().begin_style_update();
+    ScopeGuard end_style_update = [&] {
+        document.style_computer().end_style_update();
+    };
 
     document.style_computer().begin_style_record_view_epoch();
     ScopeGuard end_style_record_view_epoch = [&] {

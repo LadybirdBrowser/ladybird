@@ -1,6 +1,13 @@
 media result: 1px
-media callbacks: 2
+media callbacks: 0
+media media environment callbacks: 1
 supports result: 1px
-supports callbacks: 2
+supports callbacks: 0
+supports media environment callbacks: 0
 style result: 1px
 style callbacks: 2
+style media environment callbacks: 0
+shared results: 1px, 1px
+shared media environment callbacks: 0
+shared results: 1px, 1px
+shared media environment callbacks: 1
