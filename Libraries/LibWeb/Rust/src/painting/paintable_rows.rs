@@ -353,8 +353,6 @@ where
             data.offset = used_values::FfiCssPixelPoint::default();
             data.content_size = used_values::FfiCssPixelSize::default();
             data.overflow_measured_this_commit = false;
-            data.sticky_insets = FfiStickyInsets::default();
-            data.has_sticky_insets = false;
             data.local_padding_box_union = used_values::FfiCssPixelRect::default();
             data.local_border_box_union = used_values::FfiCssPixelRect::default();
             data.stacking_context = crate::painting::stacking_context::NO_STACKING_CONTEXT;

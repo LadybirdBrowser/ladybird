@@ -2677,41 +2677,6 @@ void Document::set_needs_animated_style_update()
     page().client().request_frame();
 }
 
-static void rebuild_sticky_insets(Layout::Node const& root)
-{
-    root.for_each_in_inclusive_subtree([&](auto& layout_node) {
-        auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node);
-        if (!node_with_style || !node_with_style->is_sticky_position())
-            return TraversalDecision::Continue;
-
-        if (!Painting::has_committed_box(layout_node))
-            return TraversalDecision::Continue;
-
-        // https://drafts.csswg.org/css-position/#insets
-        // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size.
-        // Negative values are allowed.
-
-        auto sticky_insets = make<Painting::StickyInsets>();
-        auto inset = node_with_style->inset();
-
-        auto nearest_scrollable_ancestor = Painting::nearest_scrollable_ancestor(layout_node);
-        CSSPixelSize scrollport_size;
-        if (nearest_scrollable_ancestor)
-            scrollport_size = Painting::absolute_rect(*nearest_scrollable_ancestor).size();
-
-        if (!inset.top().is_auto())
-            sticky_insets->top = inset.top().to_px_or_zero(scrollport_size.height());
-        if (!inset.right().is_auto())
-            sticky_insets->right = inset.right().to_px_or_zero(scrollport_size.width());
-        if (!inset.bottom().is_auto())
-            sticky_insets->bottom = inset.bottom().to_px_or_zero(scrollport_size.height());
-        if (!inset.left().is_auto())
-            sticky_insets->left = inset.left().to_px_or_zero(scrollport_size.width());
-        Painting::set_sticky_insets(layout_node, move(sticky_insets));
-        return TraversalDecision::Continue;
-    });
-}
-
 void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
 {
     // For every box that will be re-measured, the overflow data it had before, so the diff below
@@ -2866,10 +2831,8 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         m_boxes_needing_visual_context_value_update.clear_with_capacity();
-        if (has_committed_viewport_box()) {
-            rebuild_sticky_insets(*m_layout_root);
+        if (has_committed_viewport_box())
             paint_state().assign_accumulated_visual_contexts(*this);
-        }
     } else if (!m_boxes_needing_visual_context_value_update.is_empty()) {
         auto boxes = move(m_boxes_needing_visual_context_value_update);
         if (has_committed_viewport_box()) {

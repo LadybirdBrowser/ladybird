@@ -417,27 +417,6 @@ pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewpo
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_sticky_insets(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    insets: FfiStickyInsets,
-    has_insets: bool,
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle_mut(arena) };
-        let mut paintable_rows = arena.paintable_rows_mut();
-        if paintable_rows.paintable_row_is_populated(slot) {
-            let data = paintable_rows.paintable_data_mut(slot);
-            data.sticky_insets = insets;
-            data.has_sticky_insets = has_insets;
-        }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut c_void, slot: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle_mut(arena) };
@@ -1021,7 +1000,7 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
                 &paintable_rows,
                 &state.scroll_state,
                 tree,
-                callbacks.tree_inputs().device_pixels_per_css_pixel,
+                &callbacks.tree_inputs(),
             );
         }
         state.needs_to_refresh_scroll_state = true;

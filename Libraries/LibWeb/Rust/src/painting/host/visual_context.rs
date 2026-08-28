@@ -32,6 +32,8 @@ pub struct FfiVisualContextTreeInputs {
     pub visual_viewport_offset_y: f64,
     pub visual_viewport_scale: f64,
     pub may_have_default_scroll_shift_anchor: bool,
+    pub viewport_wheel_overflow_x: u8,
+    pub viewport_wheel_overflow_y: u8,
 }
 
 #[derive(Clone, Copy, Debug)]
