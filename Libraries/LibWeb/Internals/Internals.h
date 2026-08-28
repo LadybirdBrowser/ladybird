@@ -147,7 +147,6 @@ public:
     Utf16String dump_display_list();
     Utf16String dump_accessibility_tree();
     Utf16String dump_layout_tree(GC::Ref<DOM::Node>);
-    Utf16String dump_paintable_tree(GC::Ref<DOM::Node>);
     Utf16String dump_stacking_context_tree();
     Utf16String dump_gc_graph();
     Utf16String dump_session_history();

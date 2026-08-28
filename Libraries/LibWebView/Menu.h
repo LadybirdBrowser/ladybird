@@ -105,7 +105,6 @@ enum class ActionID {
     DumpSessionHistoryTree,
     DumpDOMTree,
     DumpLayoutTree,
-    DumpPaintTree,
     DumpStackingContextTree,
     DumpSiteIsolationProcessTree,
     DumpDisplayList,

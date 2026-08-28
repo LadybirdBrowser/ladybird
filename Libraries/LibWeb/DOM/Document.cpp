@@ -9801,24 +9801,16 @@ Utf16String Document::dump_display_list()
     HashMap<Painting::FrameNodeIndex, Layout::Node const*> frame_node_owners;
     spatial_node_owners.set(Painting::VISUAL_VIEWPORT_NODE_INDEX, m_layout_root.ptr());
     spatial_node_owners.set(Painting::own_scroll_node_index(*m_layout_root), m_layout_root.ptr());
-    auto viewport_slot = Painting::committed_row_slot(*m_layout_root);
-    auto* arena = m_layout_root->arena_handle();
-    auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(arena, viewport_slot);
-    Vector<Layout::RustFFI::FfiPaintTreeDumpEntry> entries;
-    entries.resize(entry_count);
-    Layout::RustFFI::layout_arena_export_paint_tree_dump_entries(arena, viewport_slot, entries.data(), entries.size());
-    for (auto const& entry : entries) {
-        if (!entry.layout_node_shell)
-            continue;
-        auto& layout_node = *static_cast<Layout::Node*>(entry.layout_node_shell);
+    m_layout_root->for_each_in_inclusive_subtree([&](Layout::Node const& layout_node) {
         auto const* row = Painting::committed_row(layout_node);
         if (!row)
-            continue;
+            return TraversalDecision::Continue;
         for (auto spatial = row->spatial_nodes_begin; spatial < row->spatial_nodes_end; ++spatial)
             spatial_node_owners.set(Painting::SpatialNodeIndex { spatial }, &layout_node);
         for (auto frame = row->frame_nodes_begin; frame < row->frame_nodes_end; ++frame)
             frame_node_owners.set(Painting::FrameNodeIndex { frame }, &layout_node);
-    }
+        return TraversalDecision::Continue;
+    });
 
     StringBuilder builder;
     builder.append("AccumulatedVisualContext Tree:\n"sv);

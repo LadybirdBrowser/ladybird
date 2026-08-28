@@ -123,7 +123,6 @@ interface Internals {
     Utf16DOMString dumpDisplayList();
     Utf16DOMString dumpAccessibilityTree();
     Utf16DOMString dumpLayoutTree(Node node);
-    Utf16DOMString dumpPaintableTree(Node node);
     Utf16DOMString dumpStackingContextTree();
     Utf16DOMString dumpGCGraph();
     Utf16DOMString dumpSessionHistory();
