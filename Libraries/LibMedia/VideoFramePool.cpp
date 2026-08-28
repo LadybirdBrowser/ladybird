@@ -276,9 +276,17 @@ RefPtr<VideoFrame> VideoFrameSlotDirectory::resolve_frame(VideoFrameHandle const
     if (!slot_buffer.has_value())
         return nullptr;
 
-    auto frame_or_error = resolve_frame_from_slot_buffer(*slot_buffer, handle, move(on_release));
-    if (frame_or_error.is_error())
+    // A frame's handle reaches us through the frame ring while the buffer it was written into is announced by
+    // message, so a handle can arrive before the buffer it belongs to. Acquisition IDs count up per slot across
+    // every buffer it is given, so one running ahead of the announced buffer's is that wait rather than a loss.
+    if (slot_header(*slot_buffer).slot_acquisition_id.load(AK::MemoryOrder::memory_order_acquire) < handle.slot_acquisition_id)
         return nullptr;
+
+    auto frame_or_error = resolve_frame_from_slot_buffer(*slot_buffer, handle, move(on_release));
+    if (frame_or_error.is_error()) {
+        dbgln("VideoFrameSlotDirectory: Slot {} of pool {} was announced but did not resolve: {}", handle.slot_index, handle.pool_id, frame_or_error.error());
+        return nullptr;
+    }
     return frame_or_error.release_value();
 }
 
