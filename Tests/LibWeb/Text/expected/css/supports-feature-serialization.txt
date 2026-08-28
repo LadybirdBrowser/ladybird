@@ -1,0 +1,21 @@
+input: selector(.item)
+conditionText: selector(.item)
+cssText: "@supports selector(.item) {\n\n}"
+input: font-tech(color-COLRv1)
+conditionText: font-tech(color-COLRv1)
+cssText: "@supports font-tech(color-COLRv1) {\n\n}"
+input: font-format(woff2)
+conditionText: font-format(woff2)
+cssText: "@supports font-format(woff2) {\n\n}"
+input: at-rule(@media)
+conditionText: at-rule(@media)
+cssText: "@supports at-rule(@media) {\n\n}"
+input: env(preferred-text-scale)
+conditionText: env(preferred-text-scale)
+cssText: "@supports env(preferred-text-scale) {\n\n}"
+input: (display: grid)
+conditionText: (display: grid)
+cssText: "@supports (display: grid) {\n\n}"
+input: not ((display: grid) and ((color: red) or (width: 1px)))
+conditionText: not ((display: grid) and ((color: red) or (width: 1px)))
+cssText: "@supports not ((display: grid) and ((color: red) or (width: 1px))) {\n\n}"
