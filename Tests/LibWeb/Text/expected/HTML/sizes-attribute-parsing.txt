@@ -1,0 +1,9 @@
+direct length: 60
+true condition: 40
+false condition: 60
+invalid source size: 60
+bare non-final length: 40
+math function: 40
+non-finite math: 60
+non-math function: 60
+sizes attribute splitter observed: true

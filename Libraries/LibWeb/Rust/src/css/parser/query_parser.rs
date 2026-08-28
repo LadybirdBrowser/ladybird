@@ -2446,6 +2446,7 @@ pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
     visit: VisitSizesAttributeEntry,
 ) -> bool {
     crate::abort_on_panic(|| {
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeSplitEntry);
         let Some(source) = (unsafe { source.units() }) else {
             return false;
         };
