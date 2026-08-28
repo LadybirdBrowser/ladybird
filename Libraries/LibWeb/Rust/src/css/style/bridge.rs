@@ -366,13 +366,6 @@ impl FfiStyleRecordView {
 #[repr(C)]
 pub struct FfiExactCascadePublication {
     pub computed_group_mask: u32,
-    pub computed_property_word_0: u64,
-    pub computed_property_word_1: u64,
-    pub computed_property_word_2: u64,
-    pub computed_property_word_3: u64,
-    pub computed_property_word_4: u64,
-    pub computed_property_word_5: u64,
-    pub computed_property_closure_is_exact: bool,
     pub unchanged: bool,
 }
 
@@ -380,13 +373,6 @@ impl FfiExactCascadePublication {
     fn missing() -> Self {
         Self {
             computed_group_mask: u32::MAX,
-            computed_property_word_0: u64::MAX,
-            computed_property_word_1: u64::MAX,
-            computed_property_word_2: u64::MAX,
-            computed_property_word_3: u64::MAX,
-            computed_property_word_4: u64::MAX,
-            computed_property_word_5: u64::MAX,
-            computed_property_closure_is_exact: false,
             unchanged: false,
         }
     }
@@ -721,13 +707,6 @@ fn write_exact_cascade_publication(
     payload: &mut super::record_replay::PayloadWriter,
 ) {
     payload.write_u32(publication.computed_group_mask);
-    payload.write_u64(publication.computed_property_word_0);
-    payload.write_u64(publication.computed_property_word_1);
-    payload.write_u64(publication.computed_property_word_2);
-    payload.write_u64(publication.computed_property_word_3);
-    payload.write_u64(publication.computed_property_word_4);
-    payload.write_u64(publication.computed_property_word_5);
-    payload.write_bool(publication.computed_property_closure_is_exact);
     payload.write_bool(publication.unchanged);
 }
 

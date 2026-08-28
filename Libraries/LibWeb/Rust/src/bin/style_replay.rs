@@ -2077,13 +2077,6 @@ fn read_exact_cascade_publication(
 ) -> Result<FfiExactCascadePublication, Box<dyn std::error::Error>> {
     Ok(FfiExactCascadePublication {
         computed_group_mask: payload.read_u32()?,
-        computed_property_word_0: payload.read_u64()?,
-        computed_property_word_1: payload.read_u64()?,
-        computed_property_word_2: payload.read_u64()?,
-        computed_property_word_3: payload.read_u64()?,
-        computed_property_word_4: payload.read_u64()?,
-        computed_property_word_5: payload.read_u64()?,
-        computed_property_closure_is_exact: payload.read_bool()?,
         unchanged: payload.read_bool()?,
     })
 }
@@ -2472,19 +2465,12 @@ mod tests {
     fn presence_degraded_publications_compare_every_non_mask_field() {
         let expected = FfiExactCascadePublication {
             computed_group_mask: 1,
-            computed_property_word_0: 2,
-            computed_property_word_1: 3,
-            computed_property_word_2: 4,
-            computed_property_word_3: 5,
-            computed_property_word_4: 6,
-            computed_property_word_5: 7,
-            computed_property_closure_is_exact: true,
             unchanged: false,
         };
         let mut actual = expected;
         actual.computed_group_mask = 8;
         assert!(exact_cascade_publications_match(expected, actual, false));
-        actual.computed_property_word_3 = 9;
+        actual.unchanged = true;
         assert!(!exact_cascade_publications_match(expected, actual, false));
     }
 

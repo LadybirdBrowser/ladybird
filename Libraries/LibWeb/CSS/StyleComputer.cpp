@@ -939,47 +939,10 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
 
     auto compute_animation_values = [&](ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> resolved_properties, StyleValueFFI::FfiResolvedAnimationProperties const& resolved_batch) -> StyleValueFFI::FfiComputedAnimationBatch {
         VERIFY(computation_context_cache_is_empty());
-        Vector<ComputedValuesFFI::FfiAnimationKeyframeLonghand> keyframe_longhands;
-        Vector<NonnullRefPtr<StyleValue const>> retained_specified_values;
         for (auto const& property : resolved_properties) {
             auto source_longhand_id = static_cast<PropertyID>(property.source_longhand_id);
-            void const* specified_value = property.value;
-            switch (property.value_source) {
-            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Inherited: {
-                // Keyframe-borne `inherit` reads the non-inherited half of the
-                // parent's style just like an explicitly inherited declaration.
-                if (!is_inherited_property(source_longhand_id))
-                    m_keyframes_inherited_non_inherited_style_groups |= ComputedValues::style_group_bit_of_property(source_longhand_id);
-                auto inherited_value = get_animated_inherit_value(source_longhand_id, abstract_element)
-                                           .map([](auto const& value) { return value.value; })
-                                           .value_or_lazy_evaluated([&] { return get_non_animated_inherit_value(source_longhand_id, abstract_element); });
-                specified_value = inherited_value->rust_style_value_data();
-                retained_specified_values.append(move(inherited_value));
-                break;
-            }
-            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Initial:
-                specified_value = property_initial_value(source_longhand_id)->rust_style_value_data();
-                break;
-            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Underlying:
-                specified_value = computed_properties.property(source_longhand_id).rust_style_value_data();
-                break;
-            case StyleValueFFI::FfiAnimationSpecifiedValueSource::Value:
-                break;
-            }
-            keyframe_longhands.append({
-                .keyframe_index = property.keyframe_index,
-                .property_id = property.physical_property_id,
-                .value = specified_value,
-                .style_sheet_resource_context = property.value_source == StyleValueFFI::FfiAnimationSpecifiedValueSource::Value
-                    ? ComputedValuesFFI::FfiStyleSheetResourceContext {
-                          .base_url = property.style_sheet_resource_context.base_url,
-                          .base_url_length = property.style_sheet_resource_context.base_url_length,
-                          .has_value = property.style_sheet_resource_context.has_value,
-                          .origin_clean = property.style_sheet_resource_context.origin_clean,
-                          }
-                    : ComputedValuesFFI::FfiStyleSheetResourceContext {},
-                .is_transition = property.is_transition,
-            });
+            if (property.value_source == StyleValueFFI::FfiAnimationSpecifiedValueSource::Inherited && !is_inherited_property(source_longhand_id))
+                m_keyframes_inherited_non_inherited_style_groups |= ComputedValues::style_group_bit_of_property(source_longhand_id);
         }
 
         Optional<DOM::AbstractElement::TreeCountingFunctionResolutionContext> tree_counting_context;
@@ -1084,15 +1047,15 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         ComputedValuesFFI::FfiAnimationKeyframeLonghandInput const keyframe_input {
             .underlying_longhand_table = computed_properties.computed_longhand_table(),
             .parent_snapshot = parent_snapshot.has_value() ? &*parent_snapshot : nullptr,
-            .longhands = keyframe_longhands.data(),
-            .longhand_count = keyframe_longhands.size(),
+            .resolved_properties = resolved_properties.data(),
+            .property_count = resolved_properties.size(),
             .environment = &computation_environment,
             .font_length_resolution_context = &font_length_resolution_context,
             .line_height_length_resolution_context = &line_height_length_resolution_context,
             .remaining_length_resolution_context = &remaining_length_resolution_context,
         };
         auto computed_keyframe_batch = ComputedValuesFFI::rust_compute_animation_keyframe_longhands(&keyframe_input);
-        VERIFY(computed_keyframe_batch.value_count == keyframe_longhands.size());
+        VERIFY(computed_keyframe_batch.value_count == resolved_properties.size());
         if (computed_keyframe_batch.depends_on_viewport_metrics)
             computed_properties.set_depends_on_viewport_metrics();
         if (computed_keyframe_batch.font_metrics_depend_on_viewport_metrics)
@@ -4951,6 +4914,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     // arriving mid-load changes which declarations most elements match and which of them win for
     // very few, and this is the case the record's declaration half cannot tell apart on its own.
     bool exact_cascade_is_unchanged = false;
+    bool use_retained_style_computation_selection = false;
     if (auto node = abstract_element.element().style_node_id(); sharing && node != 0) {
         auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_exact_cascade_state(
             node,
@@ -4966,15 +4930,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && !previous_computation->style_uses_inherit_css_function
             && previous_computation->explicitly_inherited_non_inherited_style_groups == 0) {
             sharing->computed_groups_to_rebuild = publication.computed_group_mask & ComputedValues::all_style_groups;
-            sharing->computed_properties_to_evaluate = Array<u64, (number_of_longhand_properties + 63) / 64> {
-                publication.computed_property_word_0,
-                publication.computed_property_word_1,
-                publication.computed_property_word_2,
-                publication.computed_property_word_3,
-                publication.computed_property_word_4,
-                publication.computed_property_word_5,
-            };
-            sharing->computed_property_closure_is_exact = publication.computed_property_closure_is_exact;
+            use_retained_style_computation_selection = true;
         }
     }
     if (previous_computation.has_value()
@@ -5073,39 +5029,13 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             && new_style_input_record->computed_style_record == previous_style_record_identity
         ? previous_values
         : nullptr;
-    auto& element = abstract_element.element();
-    Vector<PropertyID> retained_transition_candidates;
-    if (previous_computed_values)
-        retained_transition_candidates = active_transition_properties_from_computed_values(*previous_computed_values);
-    LonghandComputationPlan longhand_plan {
-        .initial_computed_group_mask = sharing && sharing->is_candidate
-            ? sharing->computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups)
-            : ComputedValues::all_style_groups,
-        .computed_property_words = sharing ? sharing->computed_properties_to_evaluate : OptionalNone {},
-        .selected_transition_properties = {},
-        .computed_property_closure_is_exact = sharing && sharing->computed_property_closure_is_exact,
-        .has_retained_transition_candidates = !retained_transition_candidates.is_empty(),
-        .has_relevant_animations = element.has_relevant_animations(),
-        .has_css_defined_animations = element.has_css_defined_animations(),
-    };
-    auto font_family = cascaded_properties->property(PropertyID::FontFamily);
-    bool has_monospace_font_size_recascade = font_family && ComputedValuesFFI::rust_font_family_is_monospace(font_family->rust_style_value_data());
-    if (sharing)
-        sharing->cascade_font_family_is_monospace = has_monospace_font_size_recascade;
-    if (longhand_plan.computed_property_words.has_value()) {
-        auto append_transition_property = [&](PropertyID property_id) {
-            longhand_plan.selected_transition_properties.append(to_underlying(property_id));
-        };
-        for (auto property_id : element.property_ids_with_matching_transition_property_entry(abstract_element.pseudo_element()))
-            append_transition_property(property_id);
-        for (auto property_id : element.property_ids_with_existing_transitions(abstract_element.pseudo_element()))
-            append_transition_property(property_id);
-        for (auto property_id : retained_transition_candidates)
-            append_transition_property(property_id);
-    }
     u32 computed_group_mask = ComputedValues::all_style_groups;
     auto computed_properties = compute_properties(abstract_element, cascaded_properties, cascade_input.matching_pseudo_element_styles,
-        sharing ? &sharing->explicitly_inherited_non_inherited_style_groups : nullptr, previous_computed_values, &longhand_plan, inheritance_parent_values, false, &computed_group_mask);
+        sharing ? &sharing->explicitly_inherited_non_inherited_style_groups : nullptr, previous_computed_values,
+        previous_computed_values ? previous_style_record_identity : StyleRecordID {},
+        sharing && sharing->is_candidate ? sharing->computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups) : ComputedValues::all_style_groups,
+        use_retained_style_computation_selection, inheritance_parent_values, false, &computed_group_mask,
+        sharing ? &sharing->cascade_font_family_is_monospace : nullptr);
     if (new_style_input_record)
         new_style_input_record->bind_next_published_style = true;
     static bool const verify_computed_closure = getenv("LIBWEB_VERIFY_COMPUTED_CLOSURE") != nullptr;
@@ -5114,7 +5044,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         auto counters = document().style_invalidation_counters();
         auto fully_computed_properties = compute_properties(
             abstract_element, cascaded_properties, cascade_input.matching_pseudo_element_styles,
-            nullptr, nullptr, nullptr, inheritance_parent_values, true);
+            nullptr, nullptr, {}, ComputedValues::all_style_groups, false, inheritance_parent_values, true);
         auto partially_computed_values = build_computed_values(*computed_properties, abstract_element, style_scope);
         auto fully_computed_values = build_computed_values(*fully_computed_properties, abstract_element, style_scope);
         document().style_invalidation_counters() = counters;
@@ -5275,7 +5205,7 @@ void StyleComputer::ensure_style_metadata_tables_installed()
     (void)installed;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, ComputedValues const* previous_values, LonghandComputationPlan const* plan, ComputedValues const* inheritance_parent_values, bool stop_after_longhand_drive, u32* selected_computed_group_mask) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::AbstractElement abstract_element, CascadedProperties& cascaded_properties, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups, ComputedValues const* previous_values, StyleRecordID previous_style_record, u32 initial_computed_group_mask, bool use_retained_style_computation_selection, ComputedValues const* inheritance_parent_values, bool stop_after_longhand_drive, u32* selected_computed_group_mask, bool* cascade_font_family_is_monospace) const
 {
     begin_style_update();
     ScopeGuard end_style_update = [&] { this->end_style_update(); };
@@ -5283,26 +5213,21 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     ensure_style_metadata_tables_installed();
     VERIFY(computation_context_cache_is_empty());
 
-    auto previous_longhand_values = previous_values
-        ? previous_values->base_values().computed_longhand_values()
-        : ReadonlySpan<void const*> {};
-    auto const* computed_property_words = plan && plan->computed_property_words.has_value()
-        ? plan->computed_property_words->data()
-        : nullptr;
-    ComputedValuesFFI::FfiStyleComputationPlanInput const ffi_plan {
-        .initial_computed_group_mask = plan ? plan->initial_computed_group_mask : ComputedValues::all_style_groups,
-        .all_computed_groups = ComputedValues::all_style_groups,
-        .previous_longhand_values = previous_longhand_values.data(),
-        .previous_longhand_value_count = previous_longhand_values.size(),
-        .computed_property_words = computed_property_words,
-        .computed_property_word_count = computed_property_words ? (number_of_longhand_properties + 63) / 64 : 0,
-        .computed_property_closure_is_exact = plan && plan->computed_property_closure_is_exact,
-        .selected_transition_properties = plan ? plan->selected_transition_properties.data() : nullptr,
-        .selected_transition_property_count = plan ? plan->selected_transition_properties.size() : 0,
-        .has_retained_transition_candidates = plan && plan->has_retained_transition_candidates,
-        .has_relevant_animations = plan && plan->has_relevant_animations,
-        .has_css_defined_animations = plan && plan->has_css_defined_animations,
-    };
+    auto retained_transition_candidates = previous_values
+        ? active_transition_properties_from_computed_values(*previous_values)
+        : Vector<PropertyID> {};
+    Vector<u16> selected_transition_properties;
+    if (use_retained_style_computation_selection) {
+        auto append_transition_property = [&](PropertyID property_id) {
+            selected_transition_properties.append(to_underlying(property_id));
+        };
+        for (auto property_id : abstract_element.element().property_ids_with_matching_transition_property_entry(abstract_element.pseudo_element()))
+            append_transition_property(property_id);
+        for (auto property_id : abstract_element.element().property_ids_with_existing_transitions(abstract_element.pseudo_element()))
+            append_transition_property(property_id);
+        for (auto property_id : retained_transition_candidates)
+            append_transition_property(property_id);
+    }
     auto inheritance_parent = abstract_element.element_to_inherit_style_from();
     auto computed_values_to_inherit_from_view = !inheritance_parent_values && inheritance_parent.has_value() ? inheritance_parent->computed_style() : ComputedStyleRecordView {};
     auto const* default_inheritance_parent_values = computed_values_to_inherit_from_view ? &*computed_values_to_inherit_from_view : nullptr;
@@ -5334,9 +5259,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         ComputedValues const* inheritance_parent_values { nullptr };
         Vector<u8> document_supported_color_scheme_codes;
         ComputedValuesFFI::FfiEffectiveColorSchemeInput effective_color_scheme_input {};
-        Vector<u16, 8> parent_override_properties;
-        Vector<void const*, 8> parent_override_values;
-        Optional<ComputedValuesFFI::FfiParentSnapshot> parent_snapshot;
         ComputedValuesFFI::FfiBoxTypeTransformationInput box_type_input {};
         Optional<DOM::AbstractElement::TreeCountingFunctionResolutionContext> tree_counting_context;
         Vector<ComputedValuesFFI::FfiRandomBaseValue> random_base_values;
@@ -5366,6 +5288,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         ComputedValues const* inheritance_parent_values;
         bool stop_after_longhand_drive;
         u32* selected_computed_group_mask;
+        bool* cascade_font_family_is_monospace;
         PreparePhaseContext prepare_phase_context;
         bool animation_values_applied { false };
         OwnPtr<NativeLonghandState> state;
@@ -5470,12 +5393,25 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .inheritance_parent_values = inheritance_parent_values ? inheritance_parent_values : default_inheritance_parent_values,
         .stop_after_longhand_drive = stop_after_longhand_drive,
         .selected_computed_group_mask = selected_computed_group_mask,
+        .cascade_font_family_is_monospace = cascade_font_family_is_monospace,
         .prepare_phase_context = prepare_phase_context,
         .state = nullptr,
     };
     ComputedValuesFFI::FfiComputePropertiesInput const input {
         .store = cascaded_properties.rust_store(),
-        .plan = &ffi_plan,
+        .style_engine = m_style_engine.rust_handle(),
+        .style_node = abstract_element.element().style_node_id().value(),
+        .pseudo_kind = pseudo_element_to_ffi(abstract_element.pseudo_element()),
+        .previous_style_record = previous_style_record.value(),
+        .inheritance_parent_style_record = inheritance_parent.has_value() ? inheritance_parent->style_record_identity().value() : 0,
+        .initial_computed_group_mask = initial_computed_group_mask,
+        .all_computed_groups = ComputedValues::all_style_groups,
+        .use_retained_style_computation_selection = use_retained_style_computation_selection,
+        .selected_transition_properties = selected_transition_properties.data(),
+        .selected_transition_property_count = selected_transition_properties.size(),
+        .has_retained_transition_candidates = !retained_transition_candidates.is_empty(),
+        .has_relevant_animations = abstract_element.element().has_relevant_animations(),
+        .has_css_defined_animations = abstract_element.element().has_css_defined_animations(),
         .stop_after_longhand_drive = stop_after_longhand_drive,
         .callback_context = &native_context,
         .prepare_longhand_drive = [](void* context_pointer, ComputedValuesFFI::FfiStyleComputationRequirements const* computation_requirements, ComputedValuesFFI::FfiLonghandDriveInput* output) {
@@ -5485,6 +5421,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             auto computed_group_mask = computation_requirements->computed_group_mask;
             if (context.selected_computed_group_mask)
                 *context.selected_computed_group_mask = computed_group_mask;
+            if (context.cascade_font_family_is_monospace)
+                *context.cascade_font_family_is_monospace = computation_requirements->has_monospace_font_family;
             auto const* computed_properties_to_evaluate = computation_requirements->has_computed_property_selection
                 ? computation_requirements->computed_property_words
                 : nullptr;
@@ -5525,32 +5463,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 .document_supported_scheme_count = state.document_supported_color_scheme_codes.size(),
             };
             computed_style.clear_effective_color_scheme();
-
-            if (state.inheritance_parent_values) {
-                auto const& parent_base = state.inheritance_parent_values->base_values();
-                auto parent_longhand_values = parent_base.computed_longhand_values();
-                VERIFY(!parent_longhand_values.is_empty());
-                for (auto const& entry : parent_base.inheritance_dependent_specified_values()) {
-                    if (!entry.value->depends_on_current_color())
-                        continue;
-                    state.parent_override_properties.append(to_underlying(entry.key));
-                    state.parent_override_values.append(entry.value->rust_style_value_data());
-                }
-                for (auto const& entry : parent_base.borrowed_inheritance_dependent_values()) {
-                    if (!StyleValueFFI::rust_style_value_depends_on_current_color(static_cast<StyleValueFFI::StyleValueData const*>(entry.value)))
-                        continue;
-                    state.parent_override_properties.append(entry.property);
-                    state.parent_override_values.append(entry.value);
-                }
-                state.parent_snapshot = ComputedValuesFFI::FfiParentSnapshot {
-                    .table_values = parent_longhand_values.data(),
-                    .table_value_count = parent_longhand_values.size(),
-                    .override_properties = state.parent_override_properties.data(),
-                    .override_values = state.parent_override_values.data(),
-                    .override_count = state.parent_override_properties.size(),
-                    .font_metrics_depend_on_viewport_metrics = state.inheritance_parent_values->font_metrics_depend_on_viewport_metrics(),
-                };
-            }
 
             state.box_type_input = make_box_type_transformation_input(
                 abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
@@ -5676,7 +5588,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             *output = {
                 .longhand_table = computed_style.mutable_computed_longhand_table(),
                 .store = context.cascaded_properties.rust_store(),
-                .parent_snapshot = state.parent_snapshot.has_value() ? &*state.parent_snapshot : nullptr,
+                .parent_snapshot = nullptr,
                 .environment = &state.computation_environment,
                 .computed_group_mask = computed_group_mask,
                 .computed_property_words = computed_properties_to_evaluate,
