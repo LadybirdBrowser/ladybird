@@ -712,7 +712,8 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
             at_rule.for_each_as_declaration_list([&](Declaration const& declaration) {
                 if (!declaration.font_feature_values.has_value())
                     return;
-                MUST(feature_values_map->set(declaration.name.to_utf16_string(), declaration.font_feature_values.value()));
+                VERIFY(declaration.name.has_value());
+                MUST(feature_values_map->set(declaration.name->to_utf16_string(), declaration.font_feature_values.value()));
             });
         },
         [&](Declaration const&) {

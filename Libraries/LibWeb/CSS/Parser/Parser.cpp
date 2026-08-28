@@ -28,7 +28,6 @@
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/PropertyName.h>
-#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -243,21 +242,22 @@ Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_bloc
 
 Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_block()
 {
-    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
+    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context, PreservePropertySourceText::Yes);
 
     Vector<DevToolsStyleDeclaration> parsed_declarations;
     for (auto const& rule_or_list : declarations_and_at_rules) {
         if (auto* rule_declarations = rule_or_list.get_pointer<Vector<Declaration>>()) {
             for (auto const& declaration : *rule_declarations) {
-                auto property = PropertyNameAndID::from_name(declaration.name);
+                VERIFY(declaration.name.has_value());
+                VERIFY(declaration.value_text.has_value());
 
                 parsed_declarations.append(DevToolsStyleDeclaration {
-                    .name = declaration.name,
-                    .value = declaration.value_text,
+                    .name = *declaration.name,
+                    .value = *declaration.value_text,
                     .important = declaration.important,
-                    .is_custom_property = property.has_value() && property->is_custom_property(),
-                    .is_name_valid = property.has_value(),
-                    .is_valid = property.has_value() && convert_to_style_property(declaration).has_value(),
+                    .is_custom_property = declaration.parsed_property_id == PropertyID::Custom,
+                    .is_name_valid = declaration.rejection == ValueParserFFI::FfiDeclarationRejection::None || declaration.rejection == ValueParserFFI::FfiDeclarationRejection::InvalidValue,
+                    .is_valid = declaration.property.has_value(),
                 });
             }
         }
@@ -337,14 +337,13 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
 
 void Parser::extract_property(Declaration const& declaration, PropertiesAndCustomProperties& dest)
 {
-    if (auto maybe_property_and_name = convert_to_style_property(declaration); maybe_property_and_name.has_value()) {
-        auto property = maybe_property_and_name->property;
-        if (property.property_id == PropertyID::Custom) {
-            dest.custom_properties.set(maybe_property_and_name->name, property);
-        } else {
-            dest.properties.append(move(property));
-        }
-    }
+    if (!declaration.property.has_value())
+        return;
+    auto property = declaration.property->property;
+    if (property.property_id == PropertyID::Custom)
+        dest.custom_properties.set(declaration.property->name, property);
+    else
+        dest.properties.append(move(property));
 }
 
 GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
@@ -355,54 +354,6 @@ GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declarat
         extract_property(declaration, dest);
     }
     return CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
-}
-
-Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration const& declaration)
-{
-    auto property = PropertyNameAndID::from_name(declaration.name);
-
-    if (!property.has_value()) {
-        if (has_ignored_vendor_prefix(declaration.name)) {
-            return {};
-        }
-        ErrorReporter::the().report(UnknownPropertyError { .property_name = declaration.name });
-        return {};
-    }
-
-    RefPtr<StyleValue const> legacy_value;
-    if (declaration.name.equals_ignoring_ascii_case("-webkit-box-orient"sv)) {
-        // INTEROP: -webkit-box-orient predates flex-direction and uses horizontal and vertical
-        //          for the values now represented by row and column, respectively.
-        auto value = declaration.value_text.trim_ascii_whitespace();
-        if (value.equals_ignoring_ascii_case("horizontal"sv))
-            legacy_value = KeywordStyleValue::create(Keyword::Row);
-        else if (value.equals_ignoring_ascii_case("vertical"sv))
-            legacy_value = KeywordStyleValue::create(Keyword::Column);
-    }
-
-    if (declaration.parsed_property_id.has_value()) {
-        auto value = legacy_value ? legacy_value : declaration.parsed_value;
-        if (!value) {
-            ErrorReporter::the().report(InvalidPropertyError {
-                .property_name = property->name(),
-                .value_string = declaration.value_text.to_utf8(),
-                .description = "Failed to parse."_string,
-            });
-            return {};
-        }
-        return property->is_custom_property()
-            ? StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_nonnull() }, property->name() }
-            : StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_nonnull() } };
-    }
-
-    auto value = legacy_value
-        ? ParseErrorOr<NonnullRefPtr<StyleValue const>> { legacy_value.release_nonnull() }
-        : parse_css_value_from_source(property->id(), declaration.original_value_text.value_or(declaration.value_text));
-    if (value.is_error())
-        return {};
-    return property->is_custom_property()
-        ? StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_value() }, property->name() }
-        : StylePropertyAndName { StyleProperty { declaration.important, property->id(), value.release_value() } };
 }
 
 RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)

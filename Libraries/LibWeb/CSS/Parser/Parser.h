@@ -211,8 +211,6 @@ private:
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSScopeRule> convert_to_scope_rule(AtRule const&, Nested);
 
-    Optional<StylePropertyAndName> convert_to_style_property(Declaration const&);
-
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Optional<PropertyID> direct_property_context = {});
     ParseContextStorage make_parse_context(ParseContextMode, Optional<PropertyID> direct_property_context = {});
@@ -272,6 +270,5 @@ Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::Parsi
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 WEB_API ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_animation_name_custom_ident(Utf16View);
-bool has_ignored_vendor_prefix(Utf16View);
 
 }

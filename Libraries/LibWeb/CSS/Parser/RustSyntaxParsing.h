@@ -112,13 +112,15 @@ struct QualifiedRule {
 };
 
 struct Declaration {
-    Utf16FlyString name;
+    Optional<Utf16FlyString> name;
     Important important = Important::No;
     Optional<Utf16String> original_value_text = {};
     Optional<Utf16String> original_full_text = {};
     Optional<SourcePosition> source_position = {};
-    Utf16String value_text;
+    Optional<Utf16String> value_text;
     Optional<PropertyID> parsed_property_id;
+    Optional<StylePropertyAndName> property;
+    ValueParserFFI::FfiDeclarationRejection rejection { ValueParserFFI::FfiDeclarationRejection::None };
     Optional<DescriptorNameAndID> descriptor_name_and_id;
     RefPtr<StyleValue const> parsed_value;
     Optional<Vector<u32>> font_feature_values;
