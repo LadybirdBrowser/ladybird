@@ -5,6 +5,7 @@
  */
 
 pub mod basic_shapes;
+pub mod box_build;
 pub mod build;
 pub mod dump;
 pub mod local_frames;
@@ -19,6 +20,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::BorderEdge;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect,
@@ -132,6 +134,8 @@ pub struct MaskData {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ScrollData {
     pub state_slot: ScrollStateSlot,
+    pub owner_paintable: NodeSlotId,
+    pub registry_parent_node: SpatialNodeIndex,
 }
 
 // A sticky box's shift is derived when the scroll state snapshot is resolved, from the scroller's
@@ -152,6 +156,8 @@ pub struct StickyData {
     pub inset_bottom: Option<f32>,
     pub inset_left: Option<f32>,
     pub state_slot: ScrollStateSlot,
+    pub owner_paintable: NodeSlotId,
+    pub registry_parent_node: SpatialNodeIndex,
 }
 
 impl StickyData {
@@ -159,6 +165,8 @@ impl StickyData {
         scroller: SpatialNodeIndex,
         parent_sticky: Option<SpatialNodeIndex>,
         state_slot: ScrollStateSlot,
+        owner_paintable: NodeSlotId,
+        registry_parent_node: SpatialNodeIndex,
     ) -> Self {
         Self {
             scroller,
@@ -173,6 +181,8 @@ impl StickyData {
             inset_bottom: None,
             inset_left: None,
             state_slot,
+            owner_paintable,
+            registry_parent_node,
         }
     }
 }
@@ -793,6 +803,129 @@ impl VisualContextTree {
     }
 }
 
+pub trait VisualContextNodeSink {
+    fn append_spatial_node(&mut self, data: SpatialData, parent: SpatialNodeIndex) -> SpatialNodeIndex;
+    fn append_frame_node(
+        &mut self,
+        data: FrameData,
+        parent: FrameNodeIndex,
+        spatial: SpatialNodeIndex,
+        role: FrameRole,
+    ) -> FrameNodeIndex;
+    fn spatial_node_at(&self, index: SpatialNodeIndex) -> &SpatialNode;
+    fn next_spatial_node_index(&self) -> SpatialNodeIndex;
+    fn next_frame_node_index(&self) -> FrameNodeIndex;
+
+    fn append_spatial_node_under(&mut self, context: ContextRef, data: SpatialData) -> ContextRef {
+        ContextRef {
+            spatial: self.append_spatial_node(data, context.spatial),
+            ..context
+        }
+    }
+
+    fn append_frame_node_under(&mut self, context: ContextRef, data: FrameData) -> ContextRef {
+        ContextRef {
+            frame: self.append_frame_node(data, context.frame, context.spatial, FrameRole::Structural),
+            ..context
+        }
+    }
+}
+
+impl VisualContextNodeSink for VisualContextTree {
+    fn append_spatial_node(&mut self, data: SpatialData, parent: SpatialNodeIndex) -> SpatialNodeIndex {
+        self.append_spatial(data, parent)
+    }
+
+    fn append_frame_node(
+        &mut self,
+        data: FrameData,
+        parent: FrameNodeIndex,
+        spatial: SpatialNodeIndex,
+        role: FrameRole,
+    ) -> FrameNodeIndex {
+        self.append_frame_with_role(data, parent, spatial, role)
+    }
+
+    fn spatial_node_at(&self, index: SpatialNodeIndex) -> &SpatialNode {
+        &self.spatial_nodes[index.0 as usize]
+    }
+
+    fn next_spatial_node_index(&self) -> SpatialNodeIndex {
+        SpatialNodeIndex(self.spatial_nodes.len() as u32)
+    }
+
+    fn next_frame_node_index(&self) -> FrameNodeIndex {
+        FrameNodeIndex(self.frame_nodes.len() as u32)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BoxVisualContextNodeHandles {
+    pub spatial: Vec<SpatialNodeIndex>,
+    pub chain_frames: Vec<FrameNodeIndex>,
+    pub local_frames: Vec<FrameNodeIndex>,
+    pub descendant_frames: Vec<FrameNodeIndex>,
+}
+
+pub static EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES: BoxVisualContextNodeHandles = BoxVisualContextNodeHandles {
+    spatial: Vec::new(),
+    chain_frames: Vec::new(),
+    local_frames: Vec::new(),
+    descendant_frames: Vec::new(),
+};
+
+impl BoxVisualContextNodeHandles {
+    pub fn frame_handles(&self) -> impl Iterator<Item = FrameNodeIndex> + '_ {
+        self.chain_frames
+            .iter()
+            .chain(&self.local_frames)
+            .chain(&self.descendant_frames)
+            .copied()
+    }
+
+    pub fn contains_frame(&self, frame: FrameNodeIndex) -> bool {
+        self.frame_handles().any(|handle| handle == frame)
+    }
+
+    pub fn local_frame_handles(&self) -> &[FrameNodeIndex] {
+        &self.local_frames
+    }
+}
+
+// Nearest ancestor scroll node resolved along the containing block chain, drilled down alongside
+// the visual context indices. A fixed-position ancestor decouples its subtree from all outer
+// scrollers, but sticky boxes must still reference a scrollport through fixed-position ancestors
+// for their sticky offset computation, so both resolutions are carried.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct NearestScrollNodeIndices {
+    pub stopping_at_fixed_position_ancestors: SpatialNodeIndex,
+    pub continuing_through_fixed_position_ancestors: SpatialNodeIndex,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DescendantVisualContexts {
+    pub normal: ContextRef,
+    pub absolute_position: ContextRef,
+    pub fixed_position: ContextRef,
+    pub normal_nearest_scroll_nodes: NearestScrollNodeIndices,
+    pub absolute_position_nearest_scroll_nodes: NearestScrollNodeIndices,
+    pub fixed_position_nearest_scroll_nodes: NearestScrollNodeIndices,
+    pub normal_plane_root: SpatialNodeIndex,
+    pub absolute_position_plane_root: SpatialNodeIndex,
+    pub fixed_position_plane_root: SpatialNodeIndex,
+    pub flattens_inherited_transform: bool,
+    pub sorting_context_root: Option<SpatialNodeIndex>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PaintableVisualContextRecord {
+    pub inherited_input: DescendantVisualContexts,
+    pub output_for_descendants: DescendantVisualContexts,
+    pub node_handles: BoxVisualContextNodeHandles,
+    pub has_mask_nodes: bool,
+    pub may_be_root_element: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -948,6 +1081,8 @@ mod tests {
         let scroll = tree.append_spatial(
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );

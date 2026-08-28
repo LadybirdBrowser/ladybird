@@ -360,12 +360,15 @@ impl<'a> PaintRecorder<'a> {
         let Some(tree) = self.paint_state.visual_context.tree.as_deref() else {
             return HashMap::new();
         };
-        let (begin, end) = self.data(paintable).local_frame_range();
-        (begin..end)
-            .map(FrameNodeIndex)
-            .map(|frame| (tree.frame_nodes[frame.0 as usize].role, frame))
-            .filter(|(role, _)| *role != FrameRole::Structural)
-            .collect()
+        self.layout_arena
+            .with_paintable_visual_context_node_handles(paintable, |handles| {
+                handles
+                    .local_frame_handles()
+                    .iter()
+                    .map(|frame| (tree.frame_nodes[frame.0 as usize].role, *frame))
+                    .filter(|(role, _)| *role != FrameRole::Structural)
+                    .collect()
+            })
     }
 
     pub(crate) fn local_context(&self, paintable: NodeSlotId, role: FrameRole) -> Option<ContextRef> {

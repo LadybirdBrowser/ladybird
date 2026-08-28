@@ -130,12 +130,14 @@ impl PaintRecorder<'_> {
                 }
             }
         } else if let Some(tree) = self.paint_state.visual_context.tree.as_deref() {
-            let data = self.data(paintable);
-            for index in data.frame_nodes_begin..data.frame_nodes_end {
-                if let FrameData::Mask(mask) = &tree.frame_nodes[index as usize].data {
-                    mask_frames.push((FrameNodeIndex(index), mask.origin));
-                }
-            }
+            self.layout_arena
+                .with_paintable_visual_context_node_handles(paintable, |handles| {
+                    for index in handles.frame_handles() {
+                        if let FrameData::Mask(mask) = &tree.frame_nodes[index.0 as usize].data {
+                            mask_frames.push((index, mask.origin));
+                        }
+                    }
+                });
         }
         let mut any_svg_mask_layer_area_is_empty = false;
         for layer in layers {

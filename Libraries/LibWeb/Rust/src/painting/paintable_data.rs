@@ -63,11 +63,6 @@ pub struct PaintableData {
     pub fixed_background_visual_context: ContextRef,
     pub has_fixed_background_visual_context: bool,
     pub has_scroll_offset_dependent_background: bool,
-    /// Ranges of spatial and frame nodes this box appended during the last tree build.
-    pub spatial_nodes_begin: u32,
-    pub spatial_nodes_end: u32,
-    pub frame_nodes_begin: u32,
-    pub frame_nodes_end: u32,
 }
 
 impl Default for PaintableData {
@@ -93,19 +88,11 @@ impl Default for PaintableData {
             fixed_background_visual_context: ContextRef::default(),
             has_fixed_background_visual_context: false,
             has_scroll_offset_dependent_background: false,
-            spatial_nodes_begin: 0,
-            spatial_nodes_end: 0,
-            frame_nodes_begin: 0,
-            frame_nodes_end: 0,
         }
     }
 }
 
 impl PaintableData {
-    pub fn local_frame_range(&self) -> (u32, u32) {
-        (self.frame_nodes_begin, self.frame_nodes_end)
-    }
-
     pub fn has_flag(&self, flag: PaintableFlag) -> bool {
         self.flags & flag as u32 != 0
     }

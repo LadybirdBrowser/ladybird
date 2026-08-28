@@ -856,7 +856,18 @@ impl PaintRecorder<'_> {
     }
 
     fn local_frame_range(&self, paintable: NodeSlotId) -> (u32, u32) {
-        self.data(paintable).local_frame_range()
+        self.layout_arena
+            .with_paintable_visual_context_node_handles(paintable, |handles| {
+                let local_frames = handles.local_frame_handles();
+                debug_assert!(
+                    local_frames.windows(2).all(|pair| pair[1].0 == pair[0].0 + 1),
+                    "a box's local frames are appended consecutively"
+                );
+                match (local_frames.first(), local_frames.last()) {
+                    (Some(first), Some(last)) => (first.0, last.0 + 1),
+                    _ => (0, 0),
+                }
+            })
     }
 
     #[cfg(debug_assertions)]

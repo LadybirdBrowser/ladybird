@@ -853,6 +853,52 @@ pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_visual_context_node_count(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    list: crate::painting::host::FfiVisualContextBoxNodeList,
+) -> usize {
+    abort_on_panic(|| {
+        use crate::painting::host::FfiVisualContextBoxNodeList;
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.with_paintable_visual_context_node_handles(slot, |handles| match list {
+            FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.len(),
+            FfiVisualContextBoxNodeList::FrameNodes => handles.frame_handles().count(),
+        })
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread; `out`
+/// must have room for `capacity` indices.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_visual_context_copy_node_indices(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    list: crate::painting::host::FfiVisualContextBoxNodeList,
+    out: *mut u32,
+    capacity: usize,
+) {
+    abort_on_panic(|| {
+        use crate::painting::host::FfiVisualContextBoxNodeList;
+        let arena = unsafe { arena_from_handle(arena) };
+        arena.with_paintable_visual_context_node_handles(slot, |handles| {
+            let indices: Vec<u32> = match list {
+                FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.iter().map(|index| index.0).collect(),
+                FfiVisualContextBoxNodeList::FrameNodes => handles.frame_handles().map(|index| index.0).collect(),
+            };
+            assert!(indices.len() <= capacity);
+            // SAFETY: the caller warrants `capacity` writable indices behind `out`.
+            unsafe { std::ptr::copy_nonoverlapping(indices.as_ptr(), out, indices.len()) };
+        });
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_void, root: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle_mut(arena) };
@@ -2757,6 +2803,8 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_scroll(builder:
         tree.append_spatial(
             crate::painting::visual_context::SpatialData::Scroll(crate::painting::visual_context::ScrollData {
                 state_slot: crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: SpatialNodeIndex(parent),
             }),
             SpatialNodeIndex(parent),
         )
@@ -2793,6 +2841,12 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_sticky(
                 inset_bottom: inset(constraints.inset_bottom),
                 inset_left: inset(constraints.inset_left),
                 state_slot: crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: if constraints.has_parent_sticky {
+                    SpatialNodeIndex(constraints.parent_sticky)
+                } else {
+                    SpatialNodeIndex(constraints.scroller)
+                },
             }),
             SpatialNodeIndex(parent),
         )
