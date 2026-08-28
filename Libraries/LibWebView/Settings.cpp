@@ -70,6 +70,7 @@ static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 
 static constexpr auto GEOLOCATION_ENABLED_KEY = "geolocationEnabled"sv;
+static constexpr auto FORCE_DARK_ENABLED_KEY = "forceDarkEnabled"sv;
 
 static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
@@ -311,6 +312,9 @@ Settings Settings::create(ByteString settings_path)
     if (auto geolocation_enabled = settings_json.value().get_bool(GEOLOCATION_ENABLED_KEY); geolocation_enabled.has_value())
         settings.m_geolocation_enabled = *geolocation_enabled && Core::GeolocationProvider::is_available();
 
+    if (auto force_dark_enabled = settings_json.value().get_bool(FORCE_DARK_ENABLED_KEY); force_dark_enabled.has_value())
+        settings.m_force_dark_enabled = *force_dark_enabled;
+
     if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
@@ -430,6 +434,7 @@ JsonValue Settings::serialize_json() const
     settings.set(GLOBAL_PRIVACY_CONTROL_KEY, m_global_privacy_control == GlobalPrivacyControl::Yes);
 
     settings.set(GEOLOCATION_ENABLED_KEY, m_geolocation_enabled);
+    settings.set(FORCE_DARK_ENABLED_KEY, m_force_dark_enabled);
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
     JsonObject dns_settings;
@@ -815,6 +820,15 @@ DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)
 
     dbgln("Invalid DNS settings in parse_dns_settings, falling back to system DNS");
     return SystemDNS {};
+}
+
+void Settings::set_force_dark_enabled(bool enabled)
+{
+    m_force_dark_enabled = enabled;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.force_dark_settings_changed();
 }
 
 void Settings::set_geolocation_enabled(bool enabled)

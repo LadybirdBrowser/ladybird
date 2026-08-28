@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #808080; }
+    /* rgb(18, 18, 18) is what white inverts to: the lift lands it inside the gray band, which snaps it here. */
+    #box { width: 100px; height: 100px; background: rgb(18, 18, 18); border: 20px solid #ff0000; }
+</style>
+<div id="box"></div>
+<script>
+    // Force-dark rides the navigable, so it survives the harness navigating this view from the test to the reference.
+    // Turn it off rather than assuming a fresh default.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

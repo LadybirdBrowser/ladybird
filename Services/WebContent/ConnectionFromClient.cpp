@@ -823,6 +823,16 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
+    if (request == "set-force-dark") {
+        bool state = argument == "on";
+        auto traversable = page->page().top_level_traversable();
+        traversable->set_force_dark_enabled(state);
+        // This request means the whole default force-dark state, thresholds included: only tests move them (through
+        // internals), and one test's thresholds must not leak into the next test sharing the view.
+        traversable->set_force_dark_thresholds(Web::HTML::default_force_dark_foreground_threshold, Web::HTML::default_force_dark_background_threshold);
+        return;
+    }
+
     if (request == "set-line-box-borders") {
         bool state = argument == "on";
         auto traversable = page->page().top_level_traversable();

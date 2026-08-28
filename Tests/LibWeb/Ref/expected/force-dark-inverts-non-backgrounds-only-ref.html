@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #808080; }
+    /* Black inverts to white: lightness 0 lifts past the top of the range and clamps there. */
+    #box { width: 100px; height: 100px; background: #ffffff; border: 20px solid #ffffff; }
+</style>
+<div id="box"></div>
+<script>
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

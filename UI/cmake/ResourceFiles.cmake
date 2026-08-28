@@ -53,6 +53,7 @@ set(ABOUT_SETTINGS_RESOURCES
     browsing-behavior.js
     default-zoom-level.js
     dialog-deep-link.js
+    force-dark.js
     geolocation.js
     languages.js
     network.js

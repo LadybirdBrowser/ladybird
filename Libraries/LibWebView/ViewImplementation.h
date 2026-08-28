@@ -587,6 +587,7 @@ protected:
     virtual void browsing_behavior_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void global_privacy_control_changed() override;
+    virtual void force_dark_settings_changed() override;
     virtual void geolocation_settings_changed() override;
 
     virtual void bookmarks_changed() override;

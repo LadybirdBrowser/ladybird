@@ -284,6 +284,7 @@ public:
 
     void set_should_show_line_box_borders(bool);
     void set_force_dark_enabled(bool);
+    void set_force_dark_thresholds(i32 foreground, i32 background);
     bool active_document_opts_out_of_force_dark() const;
     bool force_dark_applies_to_active_document() const;
     bool force_dark_enabled() const { return m_force_dark_enabled; }
@@ -516,9 +517,13 @@ private:
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
     bool m_force_dark_enabled { false };
+    i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
+    i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
     // What the live paint-command cache was recorded under; the recording funnel drops the cache when these move.
     struct ForceDarkPaintInputs {
         bool enabled { false };
+        i32 foreground_threshold { 0 };
+        i32 background_threshold { 0 };
         bool operator==(ForceDarkPaintInputs const&) const = default;
     };
     Optional<ForceDarkPaintInputs> m_force_dark_inputs_of_cached_paint;

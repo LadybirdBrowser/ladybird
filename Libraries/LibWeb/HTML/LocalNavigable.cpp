@@ -830,6 +830,8 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
     if (parent) {
         m_should_show_line_box_borders = parent->m_should_show_line_box_borders;
         m_force_dark_enabled = parent->m_force_dark_enabled;
+        m_force_dark_foreground_threshold = parent->m_force_dark_foreground_threshold;
+        m_force_dark_background_threshold = parent->m_force_dark_background_threshold;
         m_should_show_caret_hit_test_debug_overlay = parent->m_should_show_caret_hit_test_debug_overlay;
     }
     if (parent && !m_is_svg_page && has_compositor_context() && parent->has_compositor_context()) {
@@ -5119,6 +5121,19 @@ void LocalNavigable::set_force_dark_enabled(bool value)
         child_navigable->set_force_dark_enabled(value);
 }
 
+void LocalNavigable::set_force_dark_thresholds(i32 foreground, i32 background)
+{
+    if (m_force_dark_foreground_threshold == foreground && m_force_dark_background_threshold == background)
+        return;
+
+    m_force_dark_foreground_threshold = foreground;
+    m_force_dark_background_threshold = background;
+    set_needs_repaint();
+
+    for (auto const& child_navigable : child_navigables())
+        child_navigable->set_force_dark_thresholds(foreground, background);
+}
+
 void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
 {
     m_should_show_caret_hit_test_debug_overlay = value;
@@ -5202,6 +5217,8 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     // built can leave it behind. It stays part of the config so toggling it compares unequal below, and the cached
     // display list is rebuilt.
     paint_config.force_dark_enabled = force_dark_applies_to_active_document();
+    paint_config.force_dark_foreground_threshold = m_force_dark_foreground_threshold;
+    paint_config.force_dark_background_threshold = m_force_dark_background_threshold;
 
     if (!has_compositor_context())
         return false;
@@ -5212,7 +5229,11 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
 
     // Cached captures splice in below the recorder's color resolution, so any effective-state change must drop them.
     // Caught here, not at the producers: the page can flip the state itself via a color-scheme meta or root restyle.
-    ForceDarkPaintInputs force_dark_paint_inputs { paint_config.force_dark_enabled };
+    ForceDarkPaintInputs force_dark_paint_inputs {
+        paint_config.force_dark_enabled,
+        paint_config.force_dark_foreground_threshold,
+        paint_config.force_dark_background_threshold,
+    };
     if (m_force_dark_inputs_of_cached_paint != force_dark_paint_inputs) {
         if (document->has_committed_viewport_box())
             document->paint_state().invalidate_all_cached_paint(*document);
