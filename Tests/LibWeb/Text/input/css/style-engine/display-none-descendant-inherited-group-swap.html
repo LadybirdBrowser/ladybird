@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="outer"><div id="inner">x</div></div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const inner = document.getElementById("inner");
+        document.body.offsetWidth;
+
+        outer.style.display = "none";
+        outer.style.setProperty("list-style-type", "square");
+        document.body.offsetWidth;
+
+        println(`hidden inherited style: ${getComputedStyle(inner).listStyleType}`);
+
+        outer.style.display = "block";
+        document.body.offsetWidth;
+
+        println(`visible inherited style: ${getComputedStyle(inner).listStyleType}`);
+    });
+</script>

@@ -222,6 +222,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         if (!element)
             continue;
 
+        if (reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Materialize && !element->has_style())
+            continue;
+
         bool const has_published_style_reaction = reaction.reaction & StyleEngine::PublishedStyle;
         if (has_published_style_reaction) {
             ++document.style_invalidation_counters().style_engine_published_reactions;
