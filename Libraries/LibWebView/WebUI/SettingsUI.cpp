@@ -123,6 +123,10 @@ void SettingsUI::register_interfaces()
     register_interface("setGeolocationEnabled"sv, [this](auto const& data) {
         set_geolocation_enabled(data);
     });
+
+    register_interface("setForceDarkEnabled"sv, [this](auto const& data) {
+        set_force_dark_enabled(data);
+    });
 }
 
 void SettingsUI::load_features()
@@ -480,6 +484,14 @@ void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
 {
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
     load_current_settings();
+}
+
+void SettingsUI::set_force_dark_enabled(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    Application::settings().set_force_dark_enabled(enabled.as_bool());
 }
 
 void SettingsUI::set_geolocation_enabled(JsonValue const& enabled)

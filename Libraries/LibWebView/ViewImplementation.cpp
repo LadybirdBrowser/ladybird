@@ -2184,6 +2184,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     browsing_behavior_changed();
     autoplay_settings_changed();
     global_privacy_control_changed();
+    force_dark_settings_changed();
     geolocation_settings_changed();
 
     using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
@@ -3137,6 +3138,13 @@ void ViewImplementation::autoplay_settings_changed()
         allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
 
     client().async_set_autoplay_settings(page_id(), policy, move(allowlist));
+}
+
+void ViewImplementation::force_dark_settings_changed()
+{
+    // Called on a live toggle, and again for each new client — so a tab opened while the setting is on starts out
+    // darkened, rather than waiting for the next change.
+    debug_request("set-force-dark"sv, Application::settings().force_dark_enabled() ? "on"sv : "off"sv);
 }
 
 void ViewImplementation::global_privacy_control_changed()

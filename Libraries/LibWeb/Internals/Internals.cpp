@@ -249,6 +249,13 @@ void Internals::set_force_dark_enabled(bool enabled)
         navigable->set_force_dark_enabled(enabled);
 }
 
+void Internals::set_force_dark_thresholds(i32 foreground, i32 background)
+{
+    auto& document = window().associated_document();
+    if (auto navigable = document.navigable())
+        navigable->set_force_dark_thresholds(foreground, background);
+}
+
 void Internals::send_mismatched_visual_context_tree_update_to_compositor()
 {
     auto& document = window().associated_document();

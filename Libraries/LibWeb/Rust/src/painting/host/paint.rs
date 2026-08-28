@@ -18,6 +18,8 @@ pub struct FfiRecordingInputs {
     pub css_viewport_rect: used_values::FfiCssPixelRect,
     pub should_show_line_box_borders: bool,
     pub force_dark_enabled: bool,
+    pub force_dark_foreground_threshold: i32,
+    pub force_dark_background_threshold: i32,
     pub should_paint_overlay: bool,
     pub is_recording_async_scrolling_metadata: bool,
     pub document_id: i64,

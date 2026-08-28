@@ -39,6 +39,12 @@ void TestWebView::reset_force_dark()
     debug_request("set-force-dark"sv, "off"sv);
 }
 
+// Tests reach force-dark through internals, never through the browser's own setting: initialize_client() re-applies
+// that setting to every new WebContent (process swaps and crash respawns included), at moments no test controls.
+void TestWebView::force_dark_settings_changed()
+{
+}
+
 NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_session_history()
 {
     return WebView::ViewImplementation::reset_session_history_for_testing();

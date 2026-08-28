@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-inverts-non-backgrounds-only-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    #box { width: 100px; height: 100px; background: #ffffff; border: 20px solid #000000; }
+</style>
+<div id="box"></div>
+<script>
+    // The mirror of the backgrounds-only test: foreground threshold 255 inverts every foreground, background threshold
+    // 255 inverts none. So the border should flip to white and the box fill should stay exactly white.
+    if (window.internals) {
+        internals.setForceDarkEnabled(true);
+        internals.setForceDarkThresholds(255, 255);
+    }
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

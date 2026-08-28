@@ -84,7 +84,10 @@ pub(crate) fn record_display_list(
         .per_recording_memo_tables
         .borrow_mut()
         .begin_recording(layout_arena.paintable_row_count());
-    let force_dark_settings = inputs.force_dark_enabled.then_some(ForceDarkSettings::default());
+    let force_dark_settings = inputs.force_dark_enabled.then_some(ForceDarkSettings {
+        foreground_brightness_threshold: inputs.force_dark_foreground_threshold,
+        background_brightness_threshold: inputs.force_dark_background_threshold,
+    });
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
         paint_state,
