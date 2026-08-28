@@ -269,6 +269,7 @@ pub extern "C" fn rust_animation_property_is_preferred(a: u16, b: u16) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
     use crate::css::css_enums::keyword;

@@ -281,6 +281,7 @@ pub unsafe extern "C" fn rust_decide_transitions(input: *const FfiTransitionInpu
 }
 
 #[cfg(test)]
+#[allow(clippy::arc_with_non_send_sync)]
 mod tests {
     use super::*;
 

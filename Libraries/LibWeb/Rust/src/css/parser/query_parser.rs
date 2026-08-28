@@ -3081,6 +3081,6 @@ mod tests {
         };
 
         assert_eq!(unsafe { css_query_evaluate_supports(std::ptr::null()) }, 3);
-        assert_eq!(unsafe { css_query_evaluate_supports(&handle) }, 3);
+        assert_eq!(unsafe { css_query_evaluate_supports(&raw const handle) }, 3);
     }
 }

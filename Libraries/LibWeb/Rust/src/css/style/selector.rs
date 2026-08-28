@@ -7787,7 +7787,7 @@ mod tests {
             assert_eq!(
                 shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
                 expected_bytes
-            )
+            );
         });
 
         drop(first);
@@ -7795,7 +7795,7 @@ mod tests {
             assert_eq!(
                 shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
                 expected_bytes
-            )
+            );
         });
         drop(second);
         SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {

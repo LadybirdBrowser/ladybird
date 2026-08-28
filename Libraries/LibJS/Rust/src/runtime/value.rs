@@ -81,7 +81,7 @@ mod tests {
             EncodedValueKind::Boolean(true)
         );
         assert_eq!(
-            EncodedValue::from_encoded((EncodedValue::BOOLEAN_TAG << EncodedValue::TAG_SHIFT) | 0).kind(),
+            EncodedValue::from_encoded(EncodedValue::BOOLEAN_TAG << EncodedValue::TAG_SHIFT).kind(),
             EncodedValueKind::Boolean(false)
         );
         assert_eq!(

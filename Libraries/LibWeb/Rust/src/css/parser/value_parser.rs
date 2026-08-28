@@ -6678,9 +6678,9 @@ mod tests {
             secondary_value: 0,
             name: FfiUtf16View::default(),
         };
-        random_context.value_contexts = &value_context;
+        random_context.value_contexts = &raw const value_context;
         random_context.value_context_count = 1;
-        random_context.random_function_index = &mut random_function_index;
+        random_context.random_function_index = &raw mut random_function_index;
         assert!(matches!(
             parse_with_context(
                 &random_context,
@@ -7008,9 +7008,9 @@ mod tests {
             secondary_value: 0,
             name: FfiUtf16View::default(),
         };
-        random_context.value_contexts = &property_context;
+        random_context.value_contexts = &raw const property_context;
         random_context.value_context_count = 1;
-        random_context.random_function_index = &mut random_function_index;
+        random_context.random_function_index = &raw mut random_function_index;
         let ParseOutcome::Parsed(value) = parse_with_context(&random_context, property_id::OPACITY, "random(0, 1)")
         else {
             panic!("random should parse with property parser state");
@@ -7076,7 +7076,7 @@ mod tests {
         let mut canvas_context = context();
         canvas_context.value_contexts = value_contexts.as_ptr();
         canvas_context.value_context_count = value_contexts.len();
-        canvas_context.random_function_index = &mut random_function_index;
+        canvas_context.random_function_index = &raw mut random_function_index;
 
         assert!(matches!(
             parse_with_context(

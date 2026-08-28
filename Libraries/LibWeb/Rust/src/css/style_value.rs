@@ -2728,12 +2728,7 @@ impl StyleValueData {
                 write_value(hasher, color_interpolation_method);
                 hasher.write_u8(*color_syntax);
             }
-            Self::Image {
-                url,
-                url_type,
-                url_modifiers: _,
-                ..
-            } => {
+            Self::Image { url, url_type, .. } => {
                 hasher.write(url.as_bytes());
                 hasher.write_u8(*url_type);
             }
@@ -4393,7 +4388,7 @@ mod substitution_clone_tests {
     fn shorthand_clone_preserves_repeated_child_aliases() {
         let child = Arc::new(StyleValueData::Keyword { keyword: 1 });
         let properties = [1, 2];
-        let children = [Arc::into_raw(child.clone()), Arc::into_raw(child.clone())];
+        let children = [Arc::into_raw(child.clone()), Arc::into_raw(child)];
         let shorthand = unsafe {
             rust_style_value_create_shorthand(
                 3,
