@@ -2772,11 +2772,27 @@ pub struct FfiLonghandStoreBatch {
 /// Document-level inputs to used color-scheme resolution. Scheme values use
 /// the C++ PreferredColorScheme discriminants: auto, dark, and light.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiEffectiveColorSchemeInput {
     pub preferred_color_scheme: u8,
     pub has_document_supported_schemes: bool,
     pub document_supported_scheme_codes: *const u8,
     pub document_supported_scheme_count: usize,
+}
+
+#[repr(C)]
+pub struct FfiDocumentLonghandInput {
+    pub color_scheme_input: FfiEffectiveColorSchemeInput,
+    pub length_resolution_context: FfiLengthResolutionContext,
+    pub device_pixels_per_css_pixel: f64,
+    pub initial_font_size_raw: i32,
+    pub default_font_size_raw: i32,
+}
+
+#[repr(C)]
+pub struct FfiDocumentLonghandResult {
+    pub depends_on_viewport_metrics: bool,
+    pub font_metrics_depend_on_viewport_metrics: bool,
 }
 
 impl FfiEffectiveColorSchemeInput {
@@ -3253,8 +3269,8 @@ fn publish_longhand_store_batch(
 /// `environment` at valid element and document facts,
 /// `length_resolution_context` at the context for this stage or null for the
 /// color-scheme stage, and `results` at a valid results block.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_drive_property_computation(
+#[allow(clippy::too_many_arguments)]
+unsafe fn drive_property_computation(
     longhand_table: *mut ComputedLonghandTable,
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
@@ -3265,7 +3281,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     length_resolution_context: *const FfiLengthResolutionContext,
     results: *mut FfiLonghandDriverResults,
 ) -> FfiLonghandStoreBatch {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     abort_on_panic(|| {
         use crate::css::property_metadata::{
             NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS, REQUIRES_COMPUTATION_CASCADED,
@@ -4462,6 +4477,160 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             element_style_adjustment: element_adjustment,
         };
         publish_longhand_store_batch(cpp_store_side_effects, pending_effective_color_scheme)
+    })
+}
+
+/// FFI entry for the native longhand driver.
+///
+/// # Safety
+/// All pointers must satisfy `drive_property_computation`'s contract.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_drive_property_computation(
+    longhand_table: *mut ComputedLonghandTable,
+    store: *const CascadedPropertyStore,
+    parent_snapshot: *const FfiParentSnapshot,
+    environment: *const FfiStyleComputationEnvironment,
+    computed_group_mask: u32,
+    computed_property_words: *const u64,
+    phase: u8,
+    length_resolution_context: *const FfiLengthResolutionContext,
+    results: *mut FfiLonghandDriverResults,
+) -> FfiLonghandStoreBatch {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
+    unsafe {
+        drive_property_computation(
+            longhand_table,
+            store,
+            parent_snapshot,
+            environment,
+            computed_group_mask,
+            computed_property_words,
+            phase,
+            length_resolution_context,
+            results,
+        )
+    }
+}
+
+/// Computes every initial document longhand in the native driver. Unlike a
+/// normal element drive, no cascade, inheritance, or element-specific
+/// adjustment participates.
+///
+/// # Safety
+/// `longhand_table` must point at a live, empty, mutable table and `input`
+/// must point at a valid input block for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_document_longhands(
+    longhand_table: *mut ComputedLonghandTable,
+    input: *const FfiDocumentLonghandInput,
+) -> FfiDocumentLonghandResult {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
+    abort_on_panic(|| {
+        let input = unsafe { &*input };
+        let store = CascadedPropertyStore::new();
+        let environment = FfiStyleComputationEnvironment {
+            box_type_input: FfiBoxTypeTransformationInput {
+                display: FfiDisplay::inline(),
+                position: keyword::STATIC,
+                float_value: keyword::NONE,
+                is_br_element: false,
+                is_document_element: false,
+                is_mathml_element: false,
+                is_mathml_mtable: false,
+                is_mathml_mtr: false,
+                is_mathml_mtd: false,
+                has_parent_display: false,
+                parent_display: FfiDisplay::block(),
+                is_wbr_element: false,
+                disallow_display_contents: false,
+                rewrite_inline_flow: false,
+                is_button_element: false,
+                force_line_height_normal: false,
+                check_input_line_height: false,
+                hide_audio_without_controls: false,
+                is_table_element: false,
+                force_position_static: false,
+                force_symbol_display_inline: false,
+            },
+            color_scheme_input: input.color_scheme_input,
+            is_th_element: false,
+            has_new_font_size: false,
+            has_animated_inheritance_parent: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: input.device_pixels_per_css_pixel,
+            initial_font_size_raw: input.initial_font_size_raw,
+            default_font_size_raw: input.default_font_size_raw,
+        };
+        let mut results = FfiLonghandDriverResults {
+            longhand_evaluations: 0,
+            raw_cascaded_font_size_data: std::ptr::null(),
+            depends_on_viewport_metrics: false,
+            font_metrics_depend_on_viewport_metrics: false,
+            explicitly_inherited_non_inherited_property: false,
+            uses_tree_counting_function: false,
+            effective_color_scheme: -1,
+            post_compute_adjustment: FfiPostComputeAdjustment {
+                display_before: FfiDisplay::inline(),
+                float_before: keyword::NONE,
+                overflow_x_before: keyword::VISIBLE,
+                overflow_y_before: keyword::VISIBLE,
+                text_align_before: keyword::START,
+                position_before: keyword::STATIC,
+                box_type_transformation: FfiBoxTypeTransformation {
+                    set_float_none: false,
+                    changed_display: false,
+                    display: FfiDisplay::inline(),
+                },
+                element_style_adjustment: FfiElementStyleAdjustment {
+                    changed_display: false,
+                    display: FfiDisplay::inline(),
+                    set_line_height_normal: false,
+                    check_input_line_height: false,
+                    set_position_static: false,
+                    changed_text_align: false,
+                    text_align: keyword::START,
+                },
+            },
+        };
+        for phase in [
+            LONGHAND_DRIVE_PHASE_FONT,
+            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            LONGHAND_DRIVE_PHASE_REMAINING,
+        ] {
+            let length_resolution_context = if phase == LONGHAND_DRIVE_PHASE_COLOR_SCHEME {
+                std::ptr::null()
+            } else {
+                &raw const input.length_resolution_context
+            };
+            let batch = unsafe {
+                drive_property_computation(
+                    longhand_table,
+                    &raw const store,
+                    std::ptr::null(),
+                    &raw const environment,
+                    u32::MAX,
+                    std::ptr::null(),
+                    phase,
+                    length_resolution_context,
+                    &raw mut results,
+                )
+            };
+            assert_eq!(batch.count, 0, "document initialization has no C++ store side effects");
+            unsafe { rust_longhand_store_batch_destroy(batch.storage) };
+        }
+        FfiDocumentLonghandResult {
+            depends_on_viewport_metrics: results.depends_on_viewport_metrics,
+            font_metrics_depend_on_viewport_metrics: results.font_metrics_depend_on_viewport_metrics,
+        }
     })
 }
 

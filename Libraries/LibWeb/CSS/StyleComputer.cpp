@@ -3278,40 +3278,6 @@ CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-void StyleComputer::compute_property_values(ComputedStyleWorkingSet& style, Optional<DOM::AbstractElement> abstract_element) const
-{
-    VERIFY(computation_context_cache_is_empty());
-    // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that
-    //       doesn't matter as a computed value is always valid as a specified value.
-    Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
-        return style.property(property_id);
-    };
-
-    auto device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
-    for (auto const& property_id : property_computation_order()) {
-        auto const& computation_context = get_computation_context_for_property(property_id, style, abstract_element);
-
-        auto const& specified_value = style.property(property_id, ComputedStyleWorkingSet::WithAnimationsApplied::No);
-
-        computation_context.reset_viewport_metric_dependency_tracking();
-        auto const& computed_value = compute_value_of_property(property_id, specified_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
-        if (computation_context.depends_on_viewport_metrics()) {
-            style.set_depends_on_viewport_metrics();
-            if (property_affects_font_metrics(property_id))
-                style.set_font_metrics_depend_on_viewport_metrics();
-        }
-
-        style.set_property_without_modifying_flags(property_id, computed_value);
-    }
-
-    clear_computation_context_caches();
-
-    if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element())) {
-        m_root_element_font_metrics = calculate_root_element_font_metrics(style);
-        m_root_element_font_metrics_depend_on_viewport_metrics = style.font_metrics_depend_on_viewport_metrics();
-    }
-}
-
 ComputationContext StyleComputer::make_computation_context_for_property(PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     auto subject_inline_axis_is_horizontal = [&]() {
@@ -3332,9 +3298,9 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
     }();
 
     switch (property_id) {
-    // FIXME: While `color-scheme` doesn't actually require a computation context (since it only takes keyword values)
-    //        we still try to generate one in `compute_property_values()` and since we need `color-scheme` to be
-    //        computed before creating a generic computation context we use the font one instead.
+    // FIXME: While `color-scheme` doesn't actually require a computation context (since it only takes keyword values),
+    //        callers request one uniformly. Since `color-scheme` must be computed before creating a generic computation
+    //        context, use the font context instead.
     case PropertyID::ColorScheme:
     case PropertyID::FontFamily:
     case PropertyID::FontFeatureSettings:
@@ -3686,13 +3652,34 @@ void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::Abstract
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
 {
+    ensure_style_metadata_tables_installed();
     auto computed_properties = CSS::ComputedStyleWorkingSet::create();
-    for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-        auto property_id = static_cast<PropertyID>(i);
-        computed_properties->set_property(property_id, property_initial_value(property_id));
-    }
 
-    compute_property_values(*computed_properties, {});
+    Vector<u8> document_supported_color_scheme_codes;
+    auto document_supported_color_schemes = document().supported_color_schemes();
+    if (document_supported_color_schemes.has_value()) {
+        document_supported_color_scheme_codes.ensure_capacity(document_supported_color_schemes->size());
+        for (auto const& scheme : *document_supported_color_schemes)
+            document_supported_color_scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
+    }
+    auto length_resolution_context = CSS::Length::ResolutionContext::for_document(document());
+    ComputedValuesFFI::FfiDocumentLonghandInput const input {
+        .color_scheme_input = {
+            .preferred_color_scheme = static_cast<u8>(to_underlying(document().page().preferred_color_scheme())),
+            .has_document_supported_schemes = document_supported_color_schemes.has_value(),
+            .document_supported_scheme_codes = document_supported_color_scheme_codes.data(),
+            .document_supported_scheme_count = document_supported_color_scheme_codes.size(),
+        },
+        .length_resolution_context = to_ffi_length_resolution_context(length_resolution_context),
+        .device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel(),
+        .initial_font_size_raw = InitialValues::font_size().raw_value(),
+        .default_font_size_raw = default_user_font_size().raw_value(),
+    };
+    auto result = ComputedValuesFFI::rust_compute_document_longhands(computed_properties->mutable_computed_longhand_table(), &input);
+    if (result.depends_on_viewport_metrics)
+        computed_properties->set_depends_on_viewport_metrics();
+    if (result.font_metrics_depend_on_viewport_metrics)
+        computed_properties->set_font_metrics_depend_on_viewport_metrics();
     computed_properties->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
     computed_properties->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
     computed_properties->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
