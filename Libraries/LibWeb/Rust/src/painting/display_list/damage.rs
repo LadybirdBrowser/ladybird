@@ -206,9 +206,12 @@ fn frame_data_is_equal(a: &FrameData, b: &FrameData) -> bool {
 }
 
 fn spatial_depths(tree: &VisualContextTree) -> Vec<u32> {
-    let mut depths: Vec<u32> = Vec::with_capacity(tree.spatial_nodes.len());
-    for (i, node) in tree.spatial_nodes.iter().enumerate() {
-        depths.push(if i == 0 { 0 } else { depths[node.parent.0 as usize] + 1 });
+    let mut depths: Vec<u32> = vec![0; tree.spatial_nodes.len()];
+    for index in tree.spatial_dependency_order() {
+        if index == VISUAL_VIEWPORT_NODE_INDEX.0 {
+            continue;
+        }
+        depths[index as usize] = depths[tree.spatial_nodes[index as usize].parent.0 as usize] + 1;
     }
     depths
 }
@@ -572,13 +575,15 @@ pub fn compute_display_list_damage(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::commands::{
         CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph, DrawCanvas, FillRect,
         FontResourceId, FrameNodeIndex, ImageFrameResourceId,
     };
     use crate::painting::display_list::ffi_bytes::FfiBytes;
+    use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
     use crate::painting::visual_context::{
-        ClipData, ClipMode, EffectsData, FrameData, MaskData, MaskLayerOrigin, SpatialData, TransformData,
+        ClipData, ClipMode, EffectsData, FrameData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData,
         TransformDataRole,
     };
     use libgfx_rust::{
@@ -728,6 +733,54 @@ mod tests {
 
     fn context_in(spatial: SpatialNodeIndex, frame: FrameNodeIndex) -> ContextRef {
         ContextRef { spatial, frame }
+    }
+
+    #[test]
+    fn a_child_stored_below_its_parent_damages_like_the_in_order_tree() {
+        let mut in_order = identity_tree();
+        let in_order_scroll = in_order.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let in_order_transform = in_order.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            in_order_scroll,
+        );
+
+        let mut permuted = identity_tree();
+        let permuted_transform = permuted.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let permuted_scroll = permuted.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+                owner_paintable: NodeSlotId::INVALID,
+                registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        permuted.spatial_nodes[permuted_transform.0 as usize].parent = permuted_scroll;
+
+        let rect = IntRect::new(10, 10, 20, 20);
+        let old_commands = command_bytes(
+            &FillRect { rect, color: RED },
+            Some(rect),
+            context_in(in_order_transform, FrameNodeIndex::NONE),
+        );
+        let new_commands = command_bytes(
+            &FillRect { rect, color: RED },
+            Some(rect),
+            context_in(permuted_transform, FrameNodeIndex::NONE),
+        );
+        assert_eq!(
+            damage(&old_commands, &in_order, &new_commands, &permuted),
+            Some(IntRect::default())
+        );
     }
 
     #[test]

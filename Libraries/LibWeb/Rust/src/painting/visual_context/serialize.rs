@@ -442,31 +442,57 @@ fn spatial_node_has_ancestor(nodes: &[SpatialNode], mut node: usize, ancestor: S
     false
 }
 
-fn spatial_node_references_are_consistent(nodes: &[SpatialNode], index: usize) -> bool {
-    let node = &nodes[index];
-    if node.parent.0 as usize >= index.max(1) {
-        return false;
-    }
-    match &node.data {
-        SpatialData::Transform(transform) => transform
-            .sorting_context_root_index
-            .is_none_or(|root| (root.0 as usize) < index),
-        // The hit-test walk looks the plane root up on the marker's root path, so a preceding node
-        // on another branch must be rejected here rather than fail that lookup.
-        SpatialData::BackfaceVisibility(backface) => spatial_node_has_ancestor(nodes, index, backface.plane_root_index),
-        SpatialData::Sticky(sticky) => {
-            // resolve_sticky_offsets() reads the referenced nodes by kind, so a hostile tree must not
-            // get past this point with references of the wrong kind or order.
-            let scroller_is_valid = (sticky.scroller.0 as usize) < index
-                && (sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX
-                    || matches!(nodes[sticky.scroller.0 as usize].data, SpatialData::Scroll(_)));
-            let parent_sticky_is_valid = sticky.parent_sticky.is_none_or(|parent| {
-                (parent.0 as usize) < index && matches!(nodes[parent.0 as usize].data, SpatialData::Sticky(_))
-            });
-            scroller_is_valid && parent_sticky_is_valid
+impl VisualContextTree {
+    fn decoded_references_are_consistent(&self) -> bool {
+        let spatial_nodes = &self.spatial_nodes;
+        let root = &spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize];
+        if root.parent != VISUAL_VIEWPORT_NODE_INDEX || !matches!(root.data, SpatialData::Transform(_)) {
+            return false;
         }
-        SpatialData::AnchorScrollShift(shift) => (shift.scroll_node_index.0 as usize) < index,
-        SpatialData::Scroll(_) | SpatialData::Perspective(_) => true,
+        let spatial_order = self.spatial_dependency_order_with_back_edges();
+        if !spatial_order.back_edges.is_empty() || !spatial_order.dangling_references.is_empty() {
+            return false;
+        }
+        for (index, node) in spatial_nodes.iter().enumerate() {
+            match &node.data {
+                // The hit-test walk looks the plane root up on the marker's root path, so a node on
+                // another branch must be rejected here rather than fail that lookup.
+                SpatialData::BackfaceVisibility(backface) => {
+                    if !spatial_node_has_ancestor(spatial_nodes, index, backface.plane_root_index) {
+                        return false;
+                    }
+                }
+                // resolve_sticky_offsets() reads the referenced nodes by kind, so a hostile tree must not
+                // get past this point with references of the wrong kind.
+                SpatialData::Sticky(sticky) => {
+                    let scroller_is_valid = sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX
+                        || matches!(spatial_nodes[sticky.scroller.0 as usize].data, SpatialData::Scroll(_));
+                    let parent_sticky_is_valid = sticky
+                        .parent_sticky
+                        .is_none_or(|parent| matches!(spatial_nodes[parent.0 as usize].data, SpatialData::Sticky(_)));
+                    if !scroller_is_valid || !parent_sticky_is_valid {
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for node in &self.frame_nodes {
+            if node.spatial.0 as usize >= spatial_nodes.len() {
+                return false;
+            }
+        }
+        let frame_order = self.frame_dependency_order_with_back_edges();
+        if !frame_order.back_edges.is_empty() || !frame_order.dangling_references.is_empty() {
+            return false;
+        }
+        if let Some(root_isolation_frame) = self.root_isolation_frame {
+            let index = root_isolation_frame.0 as usize;
+            if index >= self.frame_nodes.len() || !matches!(self.frame_nodes[index].data, FrameData::Effects(_)) {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -510,51 +536,33 @@ impl VisualContextTree {
         }
 
         let mut spatial_nodes = Vec::with_capacity(spatial_count);
-        for index in 0..spatial_count {
+        for _ in 0..spatial_count {
             let parent = reader.spatial_index()?;
             let data = read_spatial_data(&mut reader)?;
             spatial_nodes.push(SpatialNode { data, parent });
-            if !spatial_node_references_are_consistent(&spatial_nodes, index) {
-                return None;
-            }
-        }
-        if !matches!(spatial_nodes[0].data, SpatialData::Transform(_)) {
-            return None;
         }
 
         let mut frame_nodes = Vec::with_capacity(frame_count);
-        for index in 0..frame_count {
+        for _ in 0..frame_count {
             let parent = reader.frame_index()?;
             let spatial = reader.spatial_index()?;
             let data = read_frame_data(&mut reader)?;
-            if (!parent.is_none() && parent.0 as usize >= index) || spatial.0 as usize >= spatial_count {
-                return None;
-            }
             frame_nodes.push(FrameNode::new(data, parent, spatial, FrameRole::Structural));
         }
-
-        let root_isolation_frame = if root_isolation_frame.is_none() {
-            None
-        } else {
-            let index = root_isolation_frame.0 as usize;
-            if index >= frame_nodes.len() || !matches!(frame_nodes[index].data, FrameData::Effects(_)) {
-                return None;
-            }
-            Some(root_isolation_frame)
-        };
 
         if reader.remaining() != 0 {
             return None;
         }
 
-        Some(Self {
+        let tree = Self {
             spatial_nodes,
             frame_nodes,
             root_is_visual_viewport,
-            root_isolation_frame,
+            root_isolation_frame: (!root_isolation_frame.is_none()).then_some(root_isolation_frame),
             version,
             reused_previous_version: false,
-        })
+        };
+        tree.decoded_references_are_consistent().then_some(tree)
     }
 }
 
@@ -885,14 +893,77 @@ mod tests {
     }
 
     #[test]
-    fn references_to_nodes_that_do_not_precede_the_node_are_rejected() {
-        let mut spatial_parent_after_node = hostile_tree();
-        spatial_parent_after_node.spatial_nodes[1].parent = SpatialNodeIndex(2);
-        assert!(VisualContextTree::from_bytes(&encode_tree(&spatial_parent_after_node)).is_none());
+    fn references_to_nodes_stored_after_the_node_are_accepted() {
+        let mut child_stored_below_its_parent = hostile_tree();
+        child_stored_below_its_parent.spatial_nodes[1].parent = SpatialNodeIndex(2);
+        child_stored_below_its_parent.spatial_nodes[2] = SpatialNode {
+            data: SpatialData::Transform(transform(translation_matrix(5.0, 5.0, 0.0))),
+            parent: VISUAL_VIEWPORT_NODE_INDEX,
+        };
+        child_stored_below_its_parent.frame_nodes[0].parent = FrameNodeIndex(1);
+        child_stored_below_its_parent.frame_nodes[1].parent = FrameNodeIndex::NONE;
+        let decoded = VisualContextTree::from_bytes(&encode_tree(&child_stored_below_its_parent))
+            .expect("acyclic forward references decode");
+        assert_eq!(decoded.spatial_dependency_order(), vec![0, 2, 1]);
+        assert_eq!(decoded.frame_dependency_order(), vec![1, 0]);
+        assert_eq!(
+            decoded.transform_rect_to_viewport(
+                SpatialNodeIndex(1),
+                FloatRect::new(0.0, 0.0, 10.0, 10.0),
+                &[],
+                super::super::IncludeVisualViewportTransform::Yes
+            ),
+            FloatRect::new(5.0, 5.0, 10.0, 10.0)
+        );
+    }
+
+    #[test]
+    fn reference_cycles_self_references_and_wrong_kinds_are_rejected() {
+        let mut parent_cycle = hostile_tree();
+        parent_cycle.spatial_nodes[1].parent = SpatialNodeIndex(2);
+        assert!(VisualContextTree::from_bytes(&encode_tree(&parent_cycle)).is_none());
+
+        let mut self_parented = hostile_tree();
+        self_parented.spatial_nodes[1].parent = SpatialNodeIndex(1);
+        assert!(VisualContextTree::from_bytes(&encode_tree(&self_parented)).is_none());
 
         let mut root_with_a_parent = hostile_tree();
         root_with_a_parent.spatial_nodes[0].parent = SpatialNodeIndex(1);
         assert!(VisualContextTree::from_bytes(&encode_tree(&root_with_a_parent)).is_none());
+
+        let mut sticky_parent_cycle = hostile_tree();
+        sticky_parent_cycle.spatial_nodes[1] = SpatialNode {
+            data: SpatialData::Sticky(StickyData::unconstrained(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                Some(SpatialNodeIndex(2)),
+                NO_SCROLL_STATE_SLOT,
+                NodeSlotId::INVALID,
+                VISUAL_VIEWPORT_NODE_INDEX,
+            )),
+            parent: VISUAL_VIEWPORT_NODE_INDEX,
+        };
+        sticky_parent_cycle.spatial_nodes[2] = SpatialNode {
+            data: SpatialData::Sticky(StickyData::unconstrained(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                Some(SpatialNodeIndex(1)),
+                NO_SCROLL_STATE_SLOT,
+                NodeSlotId::INVALID,
+                VISUAL_VIEWPORT_NODE_INDEX,
+            )),
+            parent: VISUAL_VIEWPORT_NODE_INDEX,
+        };
+        assert!(VisualContextTree::from_bytes(&encode_tree(&sticky_parent_cycle)).is_none());
+
+        let mut parent_out_of_range = hostile_tree();
+        parent_out_of_range.spatial_nodes[1].parent = SpatialNodeIndex(7);
+        assert!(VisualContextTree::from_bytes(&encode_tree(&parent_out_of_range)).is_none());
+
+        let mut plane_root_out_of_range = hostile_tree();
+        plane_root_out_of_range.spatial_nodes[1].data = SpatialData::BackfaceVisibility(BackfaceVisibilityData {
+            plane_root_index: SpatialNodeIndex(9),
+            flattens_inherited_transform: false,
+        });
+        assert!(VisualContextTree::from_bytes(&encode_tree(&plane_root_out_of_range)).is_none());
 
         let mut root_is_not_a_transform = hostile_tree();
         root_is_not_a_transform.spatial_nodes[0].data = SpatialData::Scroll(ScrollData {
@@ -902,12 +973,12 @@ mod tests {
         });
         assert!(VisualContextTree::from_bytes(&encode_tree(&root_is_not_a_transform)).is_none());
 
-        let mut sorting_root_after_node = hostile_tree();
-        sorting_root_after_node.spatial_nodes[0].data = SpatialData::Transform(TransformData {
+        let mut sorting_root_cycle = hostile_tree();
+        sorting_root_cycle.spatial_nodes[0].data = SpatialData::Transform(TransformData {
             sorting_context_root_index: Some(SpatialNodeIndex(1)),
             ..transform(FloatMatrix4x4::identity())
         });
-        assert!(VisualContextTree::from_bytes(&encode_tree(&sorting_root_after_node)).is_none());
+        assert!(VisualContextTree::from_bytes(&encode_tree(&sorting_root_cycle)).is_none());
 
         let mut sticky_scroller_is_not_a_scroll_node = hostile_tree();
         sticky_scroller_is_not_a_scroll_node.spatial_nodes[1].data = SpatialData::Perspective(PerspectiveData {
@@ -926,12 +997,12 @@ mod tests {
         ));
         assert!(VisualContextTree::from_bytes(&encode_tree(&sticky_parent_is_not_sticky)).is_none());
 
-        let mut plane_root_after_node = hostile_tree();
-        plane_root_after_node.spatial_nodes[1].data = SpatialData::BackfaceVisibility(BackfaceVisibilityData {
+        let mut plane_root_cycle = hostile_tree();
+        plane_root_cycle.spatial_nodes[1].data = SpatialData::BackfaceVisibility(BackfaceVisibilityData {
             plane_root_index: SpatialNodeIndex(2),
             flattens_inherited_transform: false,
         });
-        assert!(VisualContextTree::from_bytes(&encode_tree(&plane_root_after_node)).is_none());
+        assert!(VisualContextTree::from_bytes(&encode_tree(&plane_root_cycle)).is_none());
 
         let mut plane_root_on_another_branch = hostile_tree();
         plane_root_on_another_branch.spatial_nodes[2].parent = VISUAL_VIEWPORT_NODE_INDEX;
@@ -948,21 +1019,25 @@ mod tests {
         });
         assert!(VisualContextTree::from_bytes(&encode_tree(&plane_root_on_the_root_path)).is_some());
 
-        let mut anchor_node_after_node = hostile_tree();
-        anchor_node_after_node.spatial_nodes[1].data = SpatialData::AnchorScrollShift(AnchorScrollShift {
+        let mut anchor_node_names_itself = hostile_tree();
+        anchor_node_names_itself.spatial_nodes[1].data = SpatialData::AnchorScrollShift(AnchorScrollShift {
             scroll_node_index: SpatialNodeIndex(1),
             negate: false,
             compensate_horizontal_scroll: true,
             compensate_vertical_scroll: true,
         });
-        assert!(VisualContextTree::from_bytes(&encode_tree(&anchor_node_after_node)).is_none());
+        assert!(VisualContextTree::from_bytes(&encode_tree(&anchor_node_names_itself)).is_none());
     }
 
     #[test]
-    fn frame_references_out_of_order_or_range_are_rejected() {
-        let mut frame_parent_after_frame = hostile_tree();
-        frame_parent_after_frame.frame_nodes[0].parent = FrameNodeIndex(1);
-        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_parent_after_frame)).is_none());
+    fn frame_reference_cycles_and_ranges_are_rejected() {
+        let mut frame_parent_cycle = hostile_tree();
+        frame_parent_cycle.frame_nodes[0].parent = FrameNodeIndex(1);
+        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_parent_cycle)).is_none());
+
+        let mut frame_parent_out_of_range = hostile_tree();
+        frame_parent_out_of_range.frame_nodes[1].parent = FrameNodeIndex(4);
+        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_parent_out_of_range)).is_none());
 
         let mut frame_spatial_out_of_range = hostile_tree();
         frame_spatial_out_of_range.frame_nodes[1].spatial = SpatialNodeIndex(3);
