@@ -4518,6 +4518,8 @@ pub unsafe extern "C" fn rust_compute_longhands(input: *const FfiLonghandDriveIn
             FfiResolvedCustomProperties {
                 properties: std::ptr::null(),
                 count: 0,
+                did_resolve: false,
+                rust_store: std::ptr::null(),
                 stats: FfiCustomPropertyResolutionStats {
                     final_value_hits: 0,
                     final_value_misses: 0,

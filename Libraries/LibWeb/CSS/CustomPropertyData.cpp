@@ -26,13 +26,16 @@ static ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
-CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count)
+CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count, void const* prebuilt_rust_store)
     : m_own_values(move(own_values))
     , m_parent(move(parent))
     , m_ancestor_count(ancestor_count)
     , m_declared_count(declared_count)
     , m_identity(s_next_custom_property_data_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    , m_rust_store(prebuilt_rust_store)
 {
+    if (m_rust_store)
+        return;
     Vector<ComputedValuesFFI::FfiCustomPropertyStoreEntry> entries;
     entries.ensure_capacity(m_own_values.size());
     for (auto const& [name, property] : m_own_values) {
@@ -56,35 +59,33 @@ CustomPropertyData::~CustomPropertyData()
 NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
     OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
     RefPtr<CustomPropertyData const> parent,
-    CustomPropertyData::AllowParentOwnValueAbsorption allow_parent_own_value_absorption)
+    void const* prebuilt_rust_store)
 {
     auto declared_count = own_values.size();
     if (!parent)
-        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, nullptr, 0, declared_count));
+        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, nullptr, 0, declared_count, prebuilt_rust_store));
 
     auto inheritance_parent = parent;
 
-    if (allow_parent_own_value_absorption == AllowParentOwnValueAbsorption::Yes) {
-        // If parent chain is too deep, flatten by copying all ancestor values into own.
-        if (parent->m_ancestor_count >= max_ancestor_count - 1) {
-            parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
-                own_values.ensure(name, [&] { return property; });
-            });
-            return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, move(inheritance_parent), 0, declared_count));
-        }
+    // If parent chain is too deep, flatten by copying all ancestor values into own.
+    if (parent->m_ancestor_count >= max_ancestor_count - 1) {
+        parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
+            own_values.ensure(name, [&] { return property; });
+        });
+        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, move(inheritance_parent), 0, declared_count, prebuilt_rust_store));
+    }
 
-        // If parent has few own values, absorb them to shorten the chain.
-        if (parent->m_own_values.size() <= absorb_threshold) {
-            for (auto const& [name, property] : parent->m_own_values)
-                own_values.ensure(name, [&] { return property; });
-            auto grandparent = parent->m_parent;
-            u8 ancestor_count = grandparent ? grandparent->m_ancestor_count + 1 : 0;
-            return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), move(inheritance_parent), ancestor_count, declared_count));
-        }
+    // If parent has few own values, absorb them to shorten the chain.
+    if (parent->m_own_values.size() <= absorb_threshold) {
+        for (auto const& [name, property] : parent->m_own_values)
+            own_values.ensure(name, [&] { return property; });
+        auto grandparent = parent->m_parent;
+        u8 ancestor_count = grandparent ? grandparent->m_ancestor_count + 1 : 0;
+        return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), move(inheritance_parent), ancestor_count, declared_count, prebuilt_rust_store));
     }
 
     u8 ancestor_count = parent->m_ancestor_count + 1;
-    return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), move(inheritance_parent), ancestor_count, declared_count));
+    return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), move(inheritance_parent), ancestor_count, declared_count, prebuilt_rust_store));
 }
 
 StyleProperty const* CustomPropertyData::get(Utf16FlyString const& name) const

@@ -51,6 +51,17 @@ impl RetainedUtf16FlyString {
             _not_send_or_sync: std::marker::PhantomData,
         }
     }
+
+    /// Retains a borrowed raw fly-string reference.
+    ///
+    /// # Safety
+    /// `raw` must be zero or a live AK::Utf16FlyString raw representation.
+    pub(crate) unsafe fn from_borrowed_raw(raw: usize) -> Self {
+        if raw != 0 {
+            unsafe { ak::reference_utf16_string(raw) };
+        }
+        unsafe { Self::from_leaked_raw(raw) }
+    }
 }
 
 impl Clone for RetainedUtf16FlyString {

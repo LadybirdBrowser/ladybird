@@ -862,6 +862,7 @@ pub struct FfiCascadeDeclaration {
 #[repr(C)]
 pub struct FfiCustomPropertyDeclaration {
     pub name_raw: usize,
+    pub name: FfiUtf16View,
     pub important: bool,
     pub is_revert_layer: bool,
     pub data: *const c_void,
@@ -1173,6 +1174,8 @@ pub struct FfiCascadedCustomProperties {
     pub applies: bool,
     pub properties: *const FfiCascadedCustomProperty,
     pub count: usize,
+    /// Transfers one strong custom-property store reference to C++.
+    pub rust_store: *const c_void,
     pub storage: *mut c_void,
 }
 
@@ -1227,6 +1230,8 @@ pub struct FfiCustomPropertyResolutionStats {
 #[derive(Clone, Copy)]
 pub struct FfiCustomPropertyDriveInput {
     pub store: *const c_void,
+    pub resolved_parent_store: *const c_void,
+    pub reuse_resolved_parent_if_empty: bool,
     pub resolution_context: *const FfiCascadeResolutionContext,
     pub finalizer_context: *mut c_void,
     pub finalize_component:
@@ -1245,6 +1250,9 @@ pub struct FfiResolvedCustomProperty {
 pub struct FfiResolvedCustomProperties {
     pub properties: *const FfiResolvedCustomProperty,
     pub count: usize,
+    pub did_resolve: bool,
+    /// Transfers one strong custom-property store reference to C++.
+    pub rust_store: *const c_void,
     pub stats: FfiCustomPropertyResolutionStats,
     pub storage: *mut c_void,
 }
@@ -1337,27 +1345,46 @@ pub(crate) unsafe fn drive_custom_property_resolution(
             Some(finalize_custom_property_component),
         )
     };
+    let resolved_parent = if input.resolved_parent_store.is_null() {
+        None
+    } else {
+        Some(unsafe { &*input.resolved_parent_store.cast::<CustomPropertyStore>() })
+    };
+    let mut resolved_values = Vec::with_capacity(names.len());
     let properties: Vec<FfiResolvedCustomProperty> = names
         .iter()
         .zip(outputs)
-        .map(|(name_raw, output)| {
+        .filter_map(|(name_raw, output)| {
             let entry = store
                 .own_values
                 .get(name_raw)
                 .expect("declared custom property must be an own value");
-            FfiResolvedCustomProperty {
+            let value = unsafe { RetainedStyleValueData::from_retained_pointer(output.data.cast()) };
+            if resolved_parent.is_some_and(|parent| parent.value_matches(*name_raw, value.data())) {
+                return None;
+            }
+            let property = FfiResolvedCustomProperty {
                 name_raw: *name_raw,
                 important: entry.important,
-                data: output.data,
-            }
+                data: unsafe { crate::css::style_value::retain_style_value(value.pointer()) }.cast(),
+            };
+            resolved_values.push((*name_raw, value));
+            Some(property)
         })
         .collect();
+    let rust_store = if properties.is_empty() && input.reuse_resolved_parent_if_empty {
+        std::ptr::null()
+    } else {
+        unsafe { store.resolved_child(input.resolved_parent_store, resolved_values) }
+    };
     let properties = properties.into_boxed_slice();
     let count = properties.len();
     let storage = Box::into_raw(properties);
     FfiResolvedCustomProperties {
         properties: storage.cast::<FfiResolvedCustomProperty>(),
         count,
+        did_resolve: true,
+        rust_store,
         stats,
         storage: storage.cast(),
     }
@@ -1480,6 +1507,7 @@ pub unsafe extern "C" fn rust_cascade_custom_properties(
     block_count: usize,
     author_context_count: u32,
     pseudo_element: u8,
+    parent_store: *const c_void,
 ) -> FfiCascadedCustomProperties {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyEntry);
     abort_on_panic(|| {
@@ -1498,12 +1526,13 @@ pub unsafe extern "C" fn rust_cascade_custom_properties(
                 applies,
                 properties: std::ptr::null(),
                 count: 0,
+                rust_store: std::ptr::null(),
                 storage: std::ptr::null_mut(),
             };
         }
 
         let mut property_indices = HashMap::new();
-        let mut properties: Vec<FfiCascadedCustomProperty> = Vec::new();
+        let mut properties: Vec<(FfiCascadedCustomProperty, FfiUtf16View)> = Vec::new();
         for (block_index, important, _) in cascade_application_order(blocks, author_context_count) {
             let block = &blocks[block_index];
             let declarations = if block.custom_property_declaration_count == 0 {
@@ -1526,14 +1555,34 @@ pub unsafe extern "C" fn rust_cascade_custom_properties(
                     data: declaration.data,
                 };
                 if let Some(index) = property_indices.get(&declaration.name_raw) {
-                    properties[*index] = property;
+                    properties[*index] = (property, declaration.name);
                 } else {
                     property_indices.insert(declaration.name_raw, properties.len());
-                    properties.push(property);
+                    properties.push((property, declaration.name));
                 }
             }
         }
 
+        let parent = if parent_store.is_null() {
+            None
+        } else {
+            Some(unsafe { &*parent_store.cast::<CustomPropertyStore>() })
+        };
+        let mut store_values = Vec::with_capacity(properties.len());
+        let properties: Vec<FfiCascadedCustomProperty> = properties
+            .into_iter()
+            .map(|(property, name)| {
+                if !parent.is_some_and(|parent| parent.value_is_identical(property.name_raw, property.data)) {
+                    store_values.push((
+                        property.name_raw,
+                        unsafe { name.to_utf16() }.expect("invalid custom property name"),
+                        property.important,
+                        property.data,
+                    ));
+                }
+                property
+            })
+            .collect();
         let properties = properties.into_boxed_slice();
         let count = properties.len();
         if count == 0 {
@@ -1541,24 +1590,35 @@ pub unsafe extern "C" fn rust_cascade_custom_properties(
                 applies,
                 properties: std::ptr::null(),
                 count,
+                rust_store: std::ptr::null(),
                 storage: std::ptr::null_mut(),
             };
         }
+        let rust_store = if store_values.is_empty() {
+            std::ptr::null()
+        } else {
+            unsafe { CustomPropertyStore::cascaded_child(parent_store, store_values) }
+        };
         let storage = Box::into_raw(properties);
         FfiCascadedCustomProperties {
             applies,
             properties: storage.cast::<FfiCascadedCustomProperty>(),
             count,
+            rust_store,
             storage: storage.cast(),
         }
     })
 }
 
 /// # Safety
-/// `storage` and `count` must come from `rust_cascade_custom_properties` and
-/// must not already have been released.
+/// `storage` and `count` must come from `rust_cascade_custom_properties` and must not already have
+/// been released. `unadopted_store` must be null or the store reference from the same result.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(storage: *mut c_void, count: usize) {
+pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(
+    storage: *mut c_void,
+    count: usize,
+    unadopted_store: *const c_void,
+) {
     if !storage.is_null() {
         drop(unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
@@ -1566,6 +1626,9 @@ pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(storage: *mut c
                 count,
             ))
         });
+    }
+    if !unadopted_store.is_null() {
+        drop(unsafe { std::sync::Arc::from_raw(unadopted_store.cast::<CustomPropertyStore>()) });
     }
 }
 
