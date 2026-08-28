@@ -8,13 +8,13 @@
 //! style, held as shared style value data with the inheritance and
 //! transition flags the overlay read rule needs.
 //!
-//! The C++ `AnimatedProperties` object owns exactly one overlay and writes
-//! every mutation through it; the wrapper map it keeps besides this is only
-//! the identity cache for handing out `StyleValue&`. The overlay read rule -
-//! important base values override animated but not transitioned properties -
-//! is implemented once here, in [`overlay_wins`], and consumed through the
-//! per-longhand effective-value queries on both the overlay itself and the
-//! computed longhand table.
+//! The C++ `AnimatedProperties` object owns exactly one overlay and only keeps
+//! a lazy identity cache for handing out `StyleValue&`. Animation evaluation
+//! writes sampled values here directly. The overlay read rule - important base
+//! values override animated but not transitioned properties - is implemented
+//! once here, in [`overlay_wins`], and consumed through the per-longhand
+//! effective-value queries on both the overlay itself and the computed
+//! longhand table.
 
 use std::ffi::c_void;
 
@@ -23,6 +23,7 @@ use crate::css::style_value::RetainedStyleValueData;
 
 pub struct AnimatedOverlay {
     entries: Vec<AnimatedOverlayEntry>,
+    ffi_entries: Vec<FfiAnimatedOverlayEntry>,
 }
 
 pub(crate) struct AnimatedOverlayEntry {
@@ -32,6 +33,14 @@ pub(crate) struct AnimatedOverlayEntry {
     pub(crate) result_of_transition: bool,
 }
 
+#[repr(C)]
+pub struct FfiAnimatedOverlayEntry {
+    pub property: u16,
+    pub value: *const c_void,
+    pub inherited: bool,
+    pub result_of_transition: bool,
+}
+
 impl AnimatedOverlay {
     pub(crate) fn get(&self, property: u16) -> Option<&AnimatedOverlayEntry> {
         self.entries.iter().find(|entry| entry.property == property)
@@ -39,6 +48,38 @@ impl AnimatedOverlay {
 
     pub(crate) fn entries(&self) -> &[AnimatedOverlayEntry] {
         &self.entries
+    }
+
+    pub(crate) fn set_owned(
+        &mut self,
+        property: u16,
+        value: RetainedStyleValueData,
+        inherited: bool,
+        result_of_transition: bool,
+    ) {
+        let entry = AnimatedOverlayEntry {
+            property,
+            value,
+            inherited,
+            result_of_transition,
+        };
+        match self.entries.iter_mut().find(|entry| entry.property == property) {
+            Some(existing) => *existing = entry,
+            None => self.entries.push(entry),
+        }
+    }
+
+    pub(crate) fn refresh_ffi_entries(&mut self) {
+        self.ffi_entries = self
+            .entries
+            .iter()
+            .map(|entry| FfiAnimatedOverlayEntry {
+                property: entry.property,
+                value: entry.value.pointer().cast(),
+                inherited: entry.inherited,
+                result_of_transition: entry.result_of_transition,
+            })
+            .collect();
     }
 }
 
@@ -50,7 +91,12 @@ pub(crate) fn overlay_wins(entry: &AnimatedOverlayEntry, base_value_is_important
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
-    abort_on_panic(|| Box::into_raw(Box::new(AnimatedOverlay { entries: Vec::new() })))
+    abort_on_panic(|| {
+        Box::into_raw(Box::new(AnimatedOverlay {
+            entries: Vec::new(),
+            ffi_entries: Vec::new(),
+        }))
+    })
 }
 
 /// Returns a new overlay holding retained copies of `overlay`'s entries.
@@ -70,7 +116,12 @@ pub unsafe extern "C" fn rust_animated_overlay_clone(overlay: *const AnimatedOve
                 result_of_transition: entry.result_of_transition,
             })
             .collect();
-        Box::into_raw(Box::new(AnimatedOverlay { entries }))
+        let mut overlay = AnimatedOverlay {
+            entries,
+            ffi_entries: Vec::new(),
+        };
+        overlay.refresh_ffi_entries();
+        Box::into_raw(Box::new(overlay))
     })
 }
 
@@ -98,61 +149,39 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
         let retained = unsafe {
             RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
         };
-        let entry = AnimatedOverlayEntry {
-            property,
-            value: retained,
-            inherited,
-            result_of_transition,
-        };
         let overlay = unsafe { &mut *overlay };
-        match overlay.entries.iter_mut().find(|entry| entry.property == property) {
-            Some(existing) => *existing = entry,
-            None => overlay.entries.push(entry),
-        }
+        overlay.set_owned(property, retained, inherited, result_of_transition);
+        overlay.refresh_ffi_entries();
     });
 }
 
+/// Removes every non-inherited entry from the overlay.
+///
 /// # Safety
 /// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_remove(overlay: *mut AnimatedOverlay, property: u16) {
+pub unsafe extern "C" fn rust_animated_overlay_reset_non_inherited(overlay: *mut AnimatedOverlay) {
     abort_on_panic(|| {
-        unsafe { &mut *overlay }
-            .entries
-            .retain(|entry| entry.property != property);
+        let overlay = unsafe { &mut *overlay };
+        overlay.entries.retain(|entry| entry.inherited);
+        overlay.refresh_ffi_entries();
     });
 }
 
-/// # Safety
-/// `overlay` must be a valid overlay.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_has(overlay: *const AnimatedOverlay, property: u16) -> bool {
-    abort_on_panic(|| unsafe { &*overlay }.get(property).is_some())
-}
-
-/// Whether the overlay entry for a longhand is inherited; false when absent.
+/// Returns the overlay's borrowed entries, valid until its next mutation.
 ///
 /// # Safety
-/// `overlay` must be a valid overlay.
+/// `overlay` and `count` must be valid. The returned entries must not outlive
+/// the overlay or a subsequent mutation.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_is_inherited(overlay: *const AnimatedOverlay, property: u16) -> bool {
-    abort_on_panic(|| unsafe { &*overlay }.get(property).is_some_and(|entry| entry.inherited))
-}
-
-/// Whether the overlay entry for a longhand is the result of a transition;
-/// false when absent.
-///
-/// # Safety
-/// `overlay` must be a valid overlay.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animated_overlay_is_result_of_transition(
+pub unsafe extern "C" fn rust_animated_overlay_entries(
     overlay: *const AnimatedOverlay,
-    property: u16,
-) -> bool {
+    count: *mut usize,
+) -> *const FfiAnimatedOverlayEntry {
     abort_on_panic(|| {
-        unsafe { &*overlay }
-            .get(property)
-            .is_some_and(|entry| entry.result_of_transition)
+        let entries = &unsafe { &*overlay }.ffi_entries;
+        unsafe { *count = entries.len() };
+        entries.as_ptr()
     })
 }
 

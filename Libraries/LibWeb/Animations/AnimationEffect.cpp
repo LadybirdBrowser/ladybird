@@ -811,12 +811,9 @@ void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
 
 static CSS::StyleValue const* animated_property_value(CSS::AnimatedProperties const* properties, CSS::PropertyID property_id)
 {
-    if (!properties)
+    if (!properties || !properties->has_property(property_id))
         return nullptr;
-    auto value = properties->values().get(property_id);
-    if (!value.has_value())
-        return nullptr;
-    return value.value();
+    return &properties->property(property_id);
 }
 
 struct AnimatedPropertyInvalidation {
@@ -832,12 +829,12 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
     auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
     bool text_decoration_line_animated = false;
     if (old_properties) {
-        for (auto const& [property_id, _] : old_properties->values())
-            old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
+        for (auto const& entry : old_properties->entries())
+            old_and_new_properties.set(entry.property - to_underlying(CSS::first_longhand_property_id), 1);
     }
     if (new_properties) {
-        for (auto const& [property_id, _] : new_properties->values())
-            old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
+        for (auto const& entry : new_properties->entries())
+            old_and_new_properties.set(entry.property - to_underlying(CSS::first_longhand_property_id), 1);
     }
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         if (!old_and_new_properties.get(i - to_underlying(CSS::first_longhand_property_id)))
@@ -932,7 +929,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 return target->document().style_computer().build_animated_computed_values(*style, element, element.style_scope(), *previous_values);
             return target->document().style_computer().build_computed_values(*style, element, element.style_scope());
         }();
-        if (animated_properties_after_update && !animated_properties_after_update->values().is_empty()
+        if (animated_properties_after_update && !animated_properties_after_update->is_empty()
             && target->document().is_in_style_stabilization_epoch()
             && (target->document().style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation)) {
             target->document().style_computer().record_transition_stabilization_baseline(element);

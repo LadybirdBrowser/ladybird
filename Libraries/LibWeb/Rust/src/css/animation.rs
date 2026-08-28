@@ -428,6 +428,7 @@ pub struct FfiAnimationKeyframeValue {
 #[repr(C)]
 pub struct FfiAnimationValueInput {
     pub property_id: u16,
+    pub result_of_transition: bool,
     pub underlying: *const StyleValueData,
     pub initial: *const StyleValueData,
     pub current_key: f64,
@@ -450,8 +451,7 @@ pub struct FfiComputedAnimationBatch {
     pub context: FfiAnimationContext,
     pub values: *const FfiAnimationValueInput,
     pub value_count: usize,
-    pub results: *mut FfiAnimatedProperty,
-    pub result_capacity: usize,
+    pub overlay: *mut std::ffi::c_void,
 }
 
 #[repr(C)]
@@ -6942,11 +6942,11 @@ pub unsafe extern "C" fn rust_resolved_animation_properties_destroy(storage: *mu
 }
 
 /// Evaluate and compose every prepared animation interval without consulting C++ or the DOM.
-/// Results are written into caller-owned storage, transferring every non-null result value.
+/// Applied results are stored directly in the Rust-owned animated overlay.
 ///
 /// # Safety
 /// `computed` must point to a live batch whose input style values remain live for the call. Its
-/// result storage must have room for every input value, and C++ must adopt every non-null result.
+/// `overlay` must point at a live, uniquely owned animated overlay.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
     crate::abort_on_panic(|| {
@@ -6956,25 +6956,40 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
             return 0;
         }
         let inputs = unsafe { std::slice::from_raw_parts(computed.values, computed.value_count) };
-        assert!(computed.result_capacity >= inputs.len());
-        assert!(!computed.results.is_null());
+        let overlay = unsafe { &mut *computed.overlay.cast::<crate::css::animated_overlay::AnimatedOverlay>() };
 
         // https://www.w3.org/TR/web-animations-1/#effect-stacks
         // NB: Inputs arrive in composite order. Keep each result as the underlying value for the
         //     next effect affecting the same property.
         let mut previous_values = Vec::<(u16, *const StyleValueData)>::new();
-        for (index, input) in inputs.iter().enumerate() {
+        for input in inputs {
             let previous_value = previous_values
                 .iter()
                 .rev()
                 .find(|(property_id, _)| *property_id == input.property_id)
                 .map(|(_, value)| unsafe { &**value });
             let result = evaluate_animation_value(&computed.context, input, previous_value);
-            if result.apply && !result.value.is_null() {
-                previous_values.push((input.property_id, result.value));
+            if !result.apply {
+                assert!(result.value.is_null());
+                continue;
             }
-            unsafe { computed.results.add(index).write(result) };
+            if !result.value.is_null() {
+                previous_values.push((input.property_id, result.value));
+                let value = unsafe { RetainedStyleValueData::from_retained_pointer(result.value) };
+                overlay.set_owned(input.property_id, value, false, input.result_of_transition);
+            } else {
+                let value = RetainedStyleValueData::from_owned(StyleValueData::Keyword {
+                    keyword: crate::css::css_enums::keyword::HIDDEN,
+                });
+                overlay.set_owned(
+                    crate::css::property_metadata::property_id::VISIBILITY,
+                    value,
+                    false,
+                    input.result_of_transition,
+                );
+            }
         }
+        overlay.refresh_ffi_entries();
         inputs.len()
     })
 }

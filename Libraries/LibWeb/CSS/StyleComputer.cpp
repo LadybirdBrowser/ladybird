@@ -861,7 +861,6 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     important_property_bitmap.append(computed_properties.property_importance_bitmap().data(), computed_properties.property_importance_bitmap().size());
 
     Vector<StyleValueFFI::FfiAnimationValueInput> ffi_values;
-    Vector<StyleValueFFI::FfiAnimatedProperty> ffi_results;
     Vector<Vector<StyleValueFFI::FfiAnimationKeyframeValue>> ffi_keyframes;
     Vector<Vector<Vector<StyleValueFFI::FfiLinearEasingPoint>>> linear_easing_points;
     auto compute_animation_values = [&](ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> resolved_properties, StyleValueFFI::FfiResolvedAnimationProperties const& resolved_batch) -> StyleValueFFI::FfiComputedAnimationBatch {
@@ -1264,6 +1263,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             }
             ffi_values.unchecked_append({
                 .property_id = to_underlying(value.property_id),
+                .result_of_transition = value.is_result_of_transition == AnimatedPropertyResultOfTransition::Yes,
                 .underlying = value.underlying->rust_style_value_data(),
                 .initial = value.initial->rust_style_value_data(),
                 .current_key = value.current_key,
@@ -1304,13 +1304,11 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             animation_context.transform_reference_box_width = reference_box.width().to_double();
             animation_context.transform_reference_box_height = reference_box.height().to_double();
         }
-        ffi_results.resize(ffi_values.size());
         return StyleValueFFI::FfiComputedAnimationBatch {
             .context = animation_context,
             .values = ffi_values.data(),
             .value_count = ffi_values.size(),
-            .results = ffi_results.data(),
-            .result_capacity = ffi_results.size(),
+            .overlay = computed_properties.prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer> {}),
         };
     };
 
@@ -1334,22 +1332,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     }
     auto result_count = StyleValueFFI::rust_evaluate_animations(&computed_batch);
     VERIFY(result_count == prepared_values.size());
-    VERIFY(result_count == ffi_results.size());
-    for (size_t index = 0; index < result_count; ++index) {
-        auto const& value = ffi_results[index];
-        auto& prepared_value = prepared_values[index];
-        VERIFY(value.property_id == to_underlying(prepared_value.property_id));
-        VERIFY(value.handled);
-        if (!value.apply)
-            continue;
-        if (value.value) {
-            auto style_value = StyleValue::adopt_rust_style_value_data(value.value);
-            computed_properties.set_animated_property(Badge<StyleComputer> {}, prepared_value.property_id, style_value, prepared_value.is_result_of_transition);
-        } else {
-            // NB: If interpolation fails, the element should not be rendered.
-            computed_properties.set_animated_property(Badge<StyleComputer> {}, PropertyID::Visibility, KeywordStyleValue::create(Keyword::Hidden), prepared_value.is_result_of_transition);
-        }
-    }
+    computed_properties.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
 
     clear_computation_context_caches();
 }
@@ -3346,16 +3329,12 @@ Optional<StyleComputer::AnimatedInheritValue> StyleComputer::get_animated_inheri
     if (!animated_properties || !animated_properties->has_property(property_id))
         return {};
 
-    if (auto animated_value = animated_properties->values().get(property_id); animated_value.has_value()) {
-        return AnimatedInheritValue {
-            .value = *animated_value.value(),
-            .is_result_of_transition = animated_properties->is_property_result_of_transition(property_id)
-                ? AnimatedPropertyResultOfTransition::Yes
-                : AnimatedPropertyResultOfTransition::No
-        };
-    }
-
-    return {};
+    return AnimatedInheritValue {
+        .value = animated_properties->property(property_id),
+        .is_result_of_transition = animated_properties->is_property_result_of_transition(property_id)
+            ? AnimatedPropertyResultOfTransition::Yes
+            : AnimatedPropertyResultOfTransition::No
+    };
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedStyleWorkingSet const& style) const
@@ -4395,9 +4374,10 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
     u32 groups_to_apply = 0;
     bool touched_groups_known = animated_properties && !animated_properties->is_empty();
     if (touched_groups_known) {
-        for (auto const& entry : animated_properties->values()) {
-            auto group = ComputedValues::style_group_of_property(entry.key);
-            if (!group.has_value() || entry.key == PropertyID::Color) {
+        for (auto const& entry : animated_properties->entries()) {
+            auto property_id = static_cast<PropertyID>(entry.property);
+            auto group = ComputedValues::style_group_of_property(property_id);
+            if (!group.has_value() || property_id == PropertyID::Color) {
                 touched_groups_known = false;
                 break;
             }
@@ -4457,11 +4437,12 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
     auto const* animated_properties = computed_values.animated_properties();
     if (!animated_properties)
         return;
-    for (auto const& [property_id, value] : animated_properties->values()) {
+    for (auto const& entry : animated_properties->entries()) {
+        auto property_id = static_cast<PropertyID>(entry.property);
         style.set_animated_property(
-            Badge<StyleComputer> {}, property_id, value,
-            animated_properties->is_property_result_of_transition(property_id) ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
-            animated_properties->is_property_inherited(property_id) ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
+            Badge<StyleComputer> {}, property_id, animated_properties->property(property_id),
+            entry.result_of_transition ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
+            entry.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
     }
 }
 
@@ -5737,12 +5718,10 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     // FIXME: Do we need to recompute animated inherited values?
     auto copy_animated_inherited_value = [&](PropertyID property_id, PropertyID inherited_property_id) {
         if (auto const* animated_properties = computed_values_to_inherit_from->animated_properties(); animated_properties && animated_properties->has_property(inherited_property_id)) {
-            auto animated_value = animated_properties->values().get(inherited_property_id);
-            VERIFY(animated_value.has_value());
             computed_style.set_animated_property(
                 Badge<StyleComputer> {},
                 property_id,
-                *animated_value.value(),
+                animated_properties->property(inherited_property_id),
                 animated_properties->is_property_result_of_transition(inherited_property_id)
                     ? AnimatedPropertyResultOfTransition::Yes
                     : AnimatedPropertyResultOfTransition::No,
