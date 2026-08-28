@@ -24,7 +24,7 @@ use crate::css::property_metadata::property_id_from_name;
 use crate::css::selector_operations::contains_unknown_webkit;
 use crate::css::selector_parser::{SelectorParsingMode, SelectorType, parse_selector_list};
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier, serialize_component_values_to_utf16};
-use crate::css::style_compute::FfiLengthResolutionContext;
+use crate::css::style_compute::{FfiLengthResolutionContext, LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::StyleValueData;
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -2426,43 +2426,177 @@ fn evaluate_media_query(
     result
 }
 
-type VisitSizesAttributeEntry = unsafe extern "C" fn(*mut c_void, *const u16, usize, *const u16, usize);
-
 type VisitQueryHandle = unsafe extern "C" fn(*mut c_void, *const FfiQueryHandle);
 
 type VisitContainerCondition = unsafe extern "C" fn(*mut c_void, *const u16, usize, bool, *const FfiQueryHandle);
 
 type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
 
-/// Splits a sizes attribute into its top-level condition and source-size value components.
+enum SourceSizeValue {
+    Auto,
+    Length(StyleValueData),
+}
+
+fn parse_sizes_attribute_source_size_value(context: &ParseContext, value: &ComponentValue) -> Option<SourceSizeValue> {
+    if is_ident(value, b"auto") {
+        return Some(SourceSizeValue::Auto);
+    }
+
+    let mut stream = TokenStream::new(std::slice::from_ref(value));
+    let value = parse_length_from_stream(
+        context,
+        crate::css::property_metadata::property_id::WIDTH,
+        &mut stream,
+        NumericRange::NON_NEGATIVE,
+    )?;
+    stream.discard_whitespace();
+    if stream.has_next_token() {
+        return None;
+    }
+    if matches!(&value, StyleValueData::Calculated { .. })
+        && crate::css::calc::resolve_calculated_raw_length_without_context(&value)
+            .is_some_and(|value| !value.is_finite())
+    {
+        return None;
+    }
+    Some(SourceSizeValue::Length(value))
+}
+
+fn default_source_size() -> StyleValueData {
+    let unit = LENGTH_UNIT_NAMES.iter().position(|&unit| unit == "vw").unwrap();
+    StyleValueData::Length {
+        value: 100.0,
+        unit: u8::try_from(unit).unwrap(),
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
+// NB: Mirrors the C++ oracle from commit 88cc873e781 at
+//     Libraries/LibWeb/CSS/Parser/Parser.cpp:434.
+fn parse_sizes_attribute(
+    context: &ParseContext,
+    source: TokenizerInput<'_>,
+    media_environment: Option<(&[FfiMediaFeatureValue], Option<&FfiLengthResolutionContext>)>,
+    img_auto_width: Option<f64>,
+) -> StyleValueData {
+    // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
+    //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
+    let Some(values) = components_from_source(source) else {
+        return default_source_size();
+    };
+
+    // 2. Let size be null.
+
+    // 3. For each unparsed size in unparsed sizes list:
+    for unparsed_size in values.split(ComponentValue::is_comma) {
+        // 1. Remove all consecutive <whitespace-token>s from the end of unparsed size.
+        //    If unparsed size is now empty, then that is a parse error; continue.
+        let unparsed_size = trim_whitespace(unparsed_size);
+        let Some((source_size_value, remaining)) = unparsed_size.split_last() else {
+            continue;
+        };
+
+        // 2. If the last component value in unparsed size is a valid non-negative <source-size-value>,
+        //    then set size to its value and remove the component value from unparsed size.
+        //    Any CSS function other than the math functions is invalid.
+        //    Otherwise, there is a parse error; continue.
+        let Some(mut size) = parse_sizes_attribute_source_size_value(context, source_size_value) else {
+            continue;
+        };
+
+        // 3. If size is auto, and img is not null, and img is being rendered, and img allows auto-sizes,
+        //    then set size to the concrete object size width of img, in CSS pixels.
+        if matches!(&size, SourceSizeValue::Auto)
+            && let Some(width) = img_auto_width
+        {
+            size = SourceSizeValue::Length(StyleValueData::Length {
+                value: width,
+                unit: px_length_unit(),
+            });
+        }
+
+        // 4. Remove all consecutive <whitespace-token>s from the end of unparsed size.
+        //    If unparsed size is now empty:
+        let remaining = trim_whitespace(remaining);
+        if remaining.is_empty() {
+            // 1. If this was not the last item in unparsed sizes list, that is a parse error.
+
+            // 2. If size is not auto, then return size. Otherwise, continue.
+            if let SourceSizeValue::Length(size) = size {
+                return size;
+            }
+            continue;
+        }
+
+        // 5. Parse the remaining component values in unparsed size as a <media-condition>.
+        //    If it does not parse correctly, or it does parse correctly but the <media-condition>
+        //    evaluates to false, continue.
+        let Some(condition) = parse_media_condition(remaining, &resolve_query_feature) else {
+            continue;
+        };
+        let matches = media_environment.is_some_and(|(values, length_context)| {
+            evaluate_media_expression(&condition, values, length_context) == MatchResult::True
+        });
+        if !matches {
+            continue;
+        }
+
+        // 6. If size is not auto, then return size. Otherwise, continue.
+        if let SourceSizeValue::Length(size) = size {
+            return size;
+        }
+    }
+
+    // 4. Return 100vw.
+    default_source_size()
+}
+
+/// Parses a sizes attribute and returns its selected source-size value.
 ///
 /// # Safety
-/// The source must remain readable during the call. The callback must be valid and may only
-/// retain copies of the borrowed source slices.
+/// The source, context, media environment, and optional auto width must remain readable for the
+/// duration of the call. The media environment's nested pointers must be valid for their lengths.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_visit_sizes_attribute_entries(
+#[allow(clippy::arc_with_non_send_sync)]
+pub unsafe extern "C" fn rust_parse_sizes_attribute(
     source: FfiUtf16View,
-    context: *mut c_void,
-    visit: VisitSizesAttributeEntry,
-) -> bool {
+    context: *const ParseContext,
+    media_environment: *const FfiMediaEnvironment,
+    img_auto_width: *const f64,
+) -> *const c_void {
     crate::abort_on_panic(|| {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeSplitEntry);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
         let Some(source) = (unsafe { source.units() }) else {
-            return false;
+            return std::ptr::null();
         };
-        let Some(values) = components_from_source(source) else {
-            return false;
+        let Some(context) = (unsafe { context.as_ref() }) else {
+            return std::ptr::null();
         };
-        for entry in values.split(ComponentValue::is_comma) {
-            let entry = trim_whitespace(entry);
-            let (condition, size) = entry.split_last().map_or((&[][..], &[][..]), |(size, condition)| {
-                (trim_whitespace(condition), std::slice::from_ref(size))
-            });
-            let condition = original_source(condition);
-            let size = original_source(size);
-            unsafe { visit(context, condition.as_ptr(), condition.len(), size.as_ptr(), size.len()) };
-        }
-        true
+        let media_environment = unsafe { media_environment.as_ref() }.and_then(|environment| {
+            let values = if environment.value_count == 0 {
+                &[]
+            } else {
+                if environment.values.is_null() {
+                    return None;
+                }
+                unsafe { std::slice::from_raw_parts(environment.values, environment.value_count) }
+            };
+            let length_context = unsafe {
+                environment
+                    .length_resolution_context
+                    .cast::<FfiLengthResolutionContext>()
+                    .as_ref()
+            };
+            Some((values, length_context))
+        });
+        let img_auto_width = unsafe { img_auto_width.as_ref() }.copied();
+        Arc::into_raw(Arc::new(parse_sizes_attribute(
+            context,
+            source,
+            media_environment,
+            img_auto_width,
+        )))
+        .cast()
     })
 }
 
@@ -2977,6 +3111,60 @@ mod tests {
             !parse_media_query_list(b"(not (width) and (orientation))".as_slice(), &resolve_query_feature).unwrap()[0]
                 .valid
         );
+    }
+
+    #[test]
+    fn parses_sizes_attributes() {
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: crate::css::property_metadata::property_id::WIDTH,
+            secondary_value: 0,
+            name: Default::default(),
+        };
+        let context = media_value_parse_context(&value_context);
+        let absent = FfiMediaFeatureValue {
+            kind: FfiMediaFeatureValueKind::Absent,
+            keyword: 0,
+            value: 0.0,
+            second_value: 0.0,
+        };
+        let mut environment = vec![absent; MEDIA_FEATURES.len()];
+        let width_id = MEDIA_FEATURES
+            .iter()
+            .position(|feature| feature.name == "width")
+            .unwrap();
+        environment[width_id] = FfiMediaFeatureValue {
+            kind: FfiMediaFeatureValueKind::Length,
+            value: 800.0,
+            ..absent
+        };
+        let parse = |source: &str, auto_width| {
+            parse_sizes_attribute(
+                &context,
+                source.as_bytes().into(),
+                Some((environment.as_slice(), None)),
+                auto_width,
+            )
+        };
+        let unit = |name| u8::try_from(LENGTH_UNIT_NAMES.iter().position(|&unit| unit == name).unwrap()).unwrap();
+        let assert_length = |source, expected_value, expected_unit, auto_width| {
+            let StyleValueData::Length { value, unit } = parse(source, auto_width) else {
+                panic!("sizes attribute did not produce a length: {source}")
+            };
+            assert_eq!(value, expected_value, "{source}");
+            assert_eq!(unit, expected_unit, "{source}");
+        };
+
+        assert_length("60px", 60.0, unit("px"), None);
+        assert_length("(min-width: 0px) 40px, 60px", 40.0, unit("px"), None);
+        assert_length("(width < 0px) 40px, 60px", 60.0, unit("px"), None);
+        assert_length("10%, 60px", 60.0, unit("px"), None);
+        assert_length("40px, 60px", 40.0, unit("px"), None);
+        assert_length("calc(1px / 0), 60px", 60.0, unit("px"), None);
+        assert_length("foo(40px), 60px", 60.0, unit("px"), None);
+        assert_length("auto, 60px", 35.0, unit("px"), Some(35.0));
+        assert_length("auto, 60px", 60.0, unit("px"), None);
+        assert_length("", 100.0, unit("vw"), None);
     }
 
     #[test]

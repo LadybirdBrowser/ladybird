@@ -26,6 +26,8 @@
         println(`math function: ${await parsedSourceSize("calc(20px + 20px), 60px")}`);
         println(`non-finite math: ${await parsedSourceSize("calc(1px / 0), 60px")}`);
         println(`non-math function: ${await parsedSourceSize("foo(40px), 60px")}`);
-        println(`sizes attribute splitter observed: ${internals.styleFfiCounters().sizesAttributeSplitEntries > 0}`);
+        const counters = internals.styleFfiCounters();
+        println(`sizes attribute parser observed: ${counters.sizesAttributeParseEntries > 0}`);
+        println(`sizes attribute splitter observed: ${counters.sizesAttributeSplitEntries > 0}`);
     });
 </script>

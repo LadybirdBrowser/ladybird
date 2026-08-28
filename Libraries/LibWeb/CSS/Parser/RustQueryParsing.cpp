@@ -7,33 +7,11 @@
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
-#include <LibWeb/CSS/QueryValueType.h>
-#include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
 
 using namespace ValueParserFFI;
-
-Optional<Vector<RustQueryParser::SizesAttributeEntry>> RustQueryParser::split_sizes_attribute(Utf16View source)
-{
-    Vector<SizesAttributeEntry> entries;
-    auto visit = [](void* context, u16 const* condition, size_t condition_length, u16 const* size, size_t size_length) {
-        auto& entries = *static_cast<Vector<SizesAttributeEntry>*>(context);
-        entries.append({
-            .condition = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(condition), condition_length }),
-            .size = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(size), size_length }),
-        });
-    };
-    if (!rust_visit_sizes_attribute_entries(ffi_utf16_view(source), &entries, visit))
-        return {};
-    return entries;
-}
 
 Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Parser&, Utf16View source)
 {
@@ -120,23 +98,6 @@ Optional<Vector<RustQueryParser::ContainerCondition>> RustQueryParser::parse_con
     if (!rust_visit_container_condition_list(ffi_utf16_view(source), &conditions, visit))
         return {};
     return conditions;
-}
-
-RefPtr<StyleValue const> RustQueryParser::parse_source_size_value(Parser& parser, Utf16View source)
-{
-    auto keyword = ValueParserFFI::rust_parse_css_keyword_from_source(ffi_utf16_view(source));
-    if (keyword == to_underlying(Keyword::Auto))
-        return KeywordStyleValue::create(Keyword::Auto);
-
-    auto parsed = parser.parse_primitive_value_from_source(ValueType::Length, source, non_negative_range);
-    if (!parsed)
-        return nullptr;
-    if (parsed->is_calculated()) {
-        auto raw_length = parsed->as_calculated().resolve_raw_length({});
-        if (raw_length.has_value() && !isfinite(*raw_length))
-            return nullptr;
-    }
-    return parsed;
 }
 
 }
