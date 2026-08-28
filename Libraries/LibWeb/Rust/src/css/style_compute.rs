@@ -2673,7 +2673,19 @@ pub struct FfiComputedAnimationList {
 #[repr(C)]
 pub struct FfiComputePropertiesInput {
     pub store: *const CascadedPropertyStore,
-    pub plan: *const crate::css::cascaded_properties::FfiStyleComputationPlanInput,
+    pub style_engine: *const c_void,
+    pub style_node: u32,
+    pub pseudo_kind: u8,
+    pub previous_style_record: u64,
+    pub inheritance_parent_style_record: u64,
+    pub initial_computed_group_mask: u32,
+    pub all_computed_groups: u32,
+    pub use_retained_style_computation_selection: bool,
+    pub selected_transition_properties: *const u16,
+    pub selected_transition_property_count: usize,
+    pub has_retained_transition_candidates: bool,
+    pub has_relevant_animations: bool,
+    pub has_css_defined_animations: bool,
     pub stop_after_longhand_drive: bool,
     pub callback_context: *mut c_void,
     pub prepare_longhand_drive: unsafe extern "C" fn(
@@ -2718,20 +2730,11 @@ pub struct FfiDocumentLonghandResult {
 }
 
 #[repr(C)]
-pub struct FfiAnimationKeyframeLonghand {
-    pub keyframe_index: usize,
-    pub property_id: u16,
-    pub value: *const c_void,
-    pub style_sheet_resource_context: FfiStyleSheetResourceContext,
-    pub is_transition: bool,
-}
-
-#[repr(C)]
 pub struct FfiAnimationKeyframeLonghandInput {
     pub underlying_longhand_table: *const ComputedLonghandTable,
     pub parent_snapshot: *const FfiParentSnapshot,
-    pub longhands: *const FfiAnimationKeyframeLonghand,
-    pub longhand_count: usize,
+    pub resolved_properties: *const c_void,
+    pub property_count: usize,
     pub environment: *const FfiStyleComputationEnvironment,
     pub font_length_resolution_context: *const FfiLengthResolutionContext,
     pub line_height_length_resolution_context: *const FfiLengthResolutionContext,
@@ -4839,8 +4842,42 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     abort_on_panic(|| {
         let input = unsafe { &*input };
-        let requirements =
-            unsafe { crate::css::cascaded_properties::collect_style_computation_requirements(input.store, input.plan) };
+        let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+        let previous_longhand_values = (input.previous_style_record != 0).then(|| {
+            style_engine
+                .style_record_view(input.previous_style_record)
+                .expect("the previous style record must remain live during computation")
+                .longhand_values
+        });
+        let retained_selection = if input.use_retained_style_computation_selection {
+            crate::css::style::tree::StyleNodeID::from_raw(input.style_node)
+                .and_then(|node| style_engine.pending_style_computation_selection(node, input.pseudo_kind))
+        } else {
+            None
+        };
+        let selected_transition_properties = if input.selected_transition_property_count == 0 {
+            &[]
+        } else {
+            unsafe {
+                std::slice::from_raw_parts(
+                    input.selected_transition_properties,
+                    input.selected_transition_property_count,
+                )
+            }
+        };
+        let plan = crate::css::cascaded_properties::StyleComputationPlanInput {
+            initial_computed_group_mask: input.initial_computed_group_mask,
+            all_computed_groups: input.all_computed_groups,
+            previous_longhand_values,
+            retained_selection,
+            selected_transition_properties,
+            has_retained_transition_candidates: input.has_retained_transition_candidates,
+            has_relevant_animations: input.has_relevant_animations,
+            has_css_defined_animations: input.has_css_defined_animations,
+        };
+        let requirements = unsafe {
+            crate::css::cascaded_properties::collect_style_computation_requirements(input.store, Some(&plan))
+        };
         let mut drive_input = std::mem::MaybeUninit::<FfiLonghandDriveInput>::uninit();
         unsafe {
             (input.prepare_longhand_drive)(
@@ -4849,7 +4886,32 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
                 drive_input.as_mut_ptr(),
             );
         }
-        let drive_input = unsafe { drive_input.assume_init() };
+        let mut drive_input = unsafe { drive_input.assume_init() };
+        let mut parent_override_properties = Vec::new();
+        let mut parent_override_values = Vec::new();
+        let parent_snapshot = if input.inheritance_parent_style_record != 0 {
+            let view = style_engine
+                .style_record_view(input.inheritance_parent_style_record)
+                .expect("the inheritance parent style record must remain live during computation");
+            for entry in view.inheritance_dependent_values {
+                if crate::css::style_value::style_value_dependency_flags(entry.value.cast()) & 1 == 0 {
+                    continue;
+                }
+                parent_override_properties.push(entry.property);
+                parent_override_values.push(entry.value);
+            }
+            Some(FfiParentSnapshot {
+                table_values: view.longhand_values.as_ptr(),
+                table_value_count: view.longhand_values.len(),
+                override_properties: parent_override_properties.as_ptr(),
+                override_values: parent_override_values.as_ptr(),
+                override_count: parent_override_properties.len(),
+                font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
+            })
+        } else {
+            None
+        };
+        drive_input.parent_snapshot = parent_snapshot.as_ref().map_or(std::ptr::null(), std::ptr::from_ref);
         let mut result = unsafe { compute_longhands(&drive_input) };
         if !input.stop_after_longhand_drive {
             result.transitions = build_computed_transition_list(unsafe { &*drive_input.longhand_table });
@@ -4987,10 +5049,10 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
     })
 }
 
-/// Computes every selected keyframe longhand through the native longhand
-/// driver. Each keyframe gets a temporary table and the driver's coordination
-/// inputs from the underlying style, then all of that keyframe's specified
-/// values are cascaded together before its selected properties are evaluated.
+/// Computes every selected keyframe longhand through the Rust longhand driver.
+/// Each keyframe gets a temporary table and the driver's coordination inputs
+/// from the underlying style, then all of that keyframe's specified values are
+/// cascaded together before its selected properties are evaluated.
 ///
 /// # Safety
 /// `input` and every range and pointer it contains must remain valid for the
@@ -5008,12 +5070,19 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         };
 
         let input = unsafe { &*input };
-        let longhands = if input.longhand_count == 0 {
+        let properties = if input.property_count == 0 {
             &[][..]
         } else {
-            unsafe { std::slice::from_raw_parts(input.longhands, input.longhand_count) }
+            unsafe {
+                std::slice::from_raw_parts(
+                    input
+                        .resolved_properties
+                        .cast::<crate::css::animation::FfiResolvedAnimationProperty>(),
+                    input.property_count,
+                )
+            }
         };
-        if longhands.is_empty() {
+        if properties.is_empty() {
             return FfiAnimationKeyframeLonghandResult {
                 value_count: 0,
                 depends_on_viewport_metrics: false,
@@ -5028,18 +5097,18 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
         assert!(!input.remaining_length_resolution_context.is_null());
         let underlying_longhand_table = unsafe { &*input.underlying_longhand_table };
         let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
-        for (index, longhand) in longhands.iter().enumerate() {
-            assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&longhand.property_id));
-            assert!(!longhand.value.is_null());
+        for (index, property) in properties.iter().enumerate() {
+            assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property.physical_property_id));
+            assert!(!property.value.is_null());
             longhands_by_keyframe
-                .entry(longhand.keyframe_index)
+                .entry(property.keyframe_index)
                 .or_default()
                 .push(index);
         }
 
         const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
         let mut values = std::iter::repeat_with(|| None)
-            .take(longhands.len())
+            .take(properties.len())
             .collect::<Vec<_>>();
         let mut depends_on_viewport_metrics = false;
         let mut font_metrics_depend_on_viewport_metrics = false;
@@ -5057,27 +5126,72 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
             let mut selected_longhands = [0; LONGHAND_WORD_COUNT];
             let mut style_sheet_resource_contexts = Vec::new();
             for &index in indices {
-                let longhand = &longhands[index];
-                let value = unsafe {
-                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                        longhand.value.cast(),
-                    ))
+                use crate::css::animation::FfiAnimationSpecifiedValueSource;
+
+                let property = &properties[index];
+                let value = match property.value_source {
+                    FfiAnimationSpecifiedValueSource::Value => unsafe {
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                            property.value.cast(),
+                        ))
+                    },
+                    FfiAnimationSpecifiedValueSource::Initial => unsafe {
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                            initial_value_data(property.source_longhand_id).cast(),
+                        ))
+                    },
+                    FfiAnimationSpecifiedValueSource::Underlying => underlying_longhand_table
+                        .get(property.source_longhand_id)
+                        .expect("an animated longhand must have an underlying value")
+                        .clone_retained(),
+                    FfiAnimationSpecifiedValueSource::Inherited => {
+                        let inherited = unsafe { input.parent_snapshot.as_ref() }.and_then(|snapshot| {
+                            for index in 0..snapshot.override_count {
+                                if unsafe { *snapshot.override_properties.add(index) } == property.source_longhand_id {
+                                    return unsafe {
+                                        (*snapshot.override_values.add(index)).cast::<StyleValueData>().as_ref()
+                                    };
+                                }
+                            }
+                            let index = usize::from(property.source_longhand_id - FIRST_LONGHAND_PROPERTY_ID);
+                            assert!(index < snapshot.table_value_count);
+                            unsafe { (*snapshot.table_values.add(index)).cast::<StyleValueData>().as_ref() }
+                        });
+                        let inherited =
+                            inherited.unwrap_or_else(|| unsafe { &*initial_value_data(property.source_longhand_id) });
+                        unsafe {
+                            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                                std::ptr::from_ref(inherited).cast(),
+                            ))
+                        }
+                    }
                 };
-                if longhand.is_transition {
+                if property.is_transition {
                     values[index] = Some(value);
                     continue;
                 }
-                let has_style_sheet_context = longhand.style_sheet_resource_context.has_value;
+                let style_sheet_resource_context =
+                    if matches!(property.value_source, FfiAnimationSpecifiedValueSource::Value) {
+                        FfiStyleSheetResourceContext {
+                            base_url: property.style_sheet_resource_context.base_url,
+                            base_url_length: property.style_sheet_resource_context.base_url_length,
+                            has_value: property.style_sheet_resource_context.has_value,
+                            origin_clean: property.style_sheet_resource_context.origin_clean,
+                        }
+                    } else {
+                        FfiStyleSheetResourceContext::empty()
+                    };
+                let has_style_sheet_context = style_sheet_resource_context.has_value;
                 let source_slot =
-                    store.seed_retained_property(longhand.property_id, value, false, has_style_sheet_context);
+                    store.seed_retained_property(property.physical_property_id, value, false, has_style_sheet_context);
                 if has_style_sheet_context {
                     let source_slot = source_slot as usize;
                     if style_sheet_resource_contexts.len() <= source_slot {
                         style_sheet_resource_contexts.resize(source_slot + 1, FfiStyleSheetResourceContext::empty());
                     }
-                    style_sheet_resource_contexts[source_slot] = longhand.style_sheet_resource_context;
+                    style_sheet_resource_contexts[source_slot] = style_sheet_resource_context;
                 }
-                set_longhand_bit(&mut selected_longhands, longhand.property_id);
+                set_longhand_bit(&mut selected_longhands, property.physical_property_id);
             }
             if selected_longhands.iter().all(|word| *word == 0) {
                 continue;
@@ -5123,11 +5237,11 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
             depends_on_viewport_metrics |= results.depends_on_viewport_metrics;
             font_metrics_depend_on_viewport_metrics |= results.font_metrics_depend_on_viewport_metrics;
             for &index in indices {
-                if longhands[index].is_transition {
+                if properties[index].is_transition {
                     continue;
                 }
                 let value = table
-                    .get(longhands[index].property_id)
+                    .get(properties[index].physical_property_id)
                     .expect("the keyframe longhand drive must store every selected property");
                 values[index] = Some(value.clone_retained());
             }

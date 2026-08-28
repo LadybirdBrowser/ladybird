@@ -18,6 +18,7 @@ include!(concat!(env!("OUT_DIR"), "/property_metadata_generated.rs"));
 
 pub(crate) const NUMBER_OF_LONGHAND_PROPERTIES: usize =
     (LAST_LONGHAND_PROPERTY_ID - FIRST_LONGHAND_PROPERTY_ID + 1) as usize;
+pub(crate) const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
 
 pub(crate) fn property_name(property_id: u16) -> &'static str {
     if property_id == 0 {

@@ -27,8 +27,8 @@ use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
 };
 use crate::css::property_metadata::{
-    FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES, property_is_in_logical_group,
-    property_logical_group,
+    FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT, NUMBER_OF_LONGHAND_PROPERTIES,
+    property_is_in_logical_group, property_logical_group,
 };
 use crate::css::style_compute::{expand_shorthands_with, font_family_is_monospace, initial_value_data};
 use crate::css::style_value::RetainedStyleValueData;
@@ -520,8 +520,6 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
 
 pub const CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL: u8 = 1 << 0;
 pub const CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT: u8 = 1 << 1;
-const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
-
 #[repr(C)]
 pub struct FfiUnfixedRandomSharing {
     pub source: *const c_void,
@@ -529,17 +527,12 @@ pub struct FfiUnfixedRandomSharing {
     pub element_shared: bool,
 }
 
-#[repr(C)]
-pub struct FfiStyleComputationPlanInput {
+pub(crate) struct StyleComputationPlanInput<'a> {
     pub initial_computed_group_mask: u32,
     pub all_computed_groups: u32,
-    pub previous_longhand_values: *const *const c_void,
-    pub previous_longhand_value_count: usize,
-    pub computed_property_words: *const u64,
-    pub computed_property_word_count: usize,
-    pub computed_property_closure_is_exact: bool,
-    pub selected_transition_properties: *const u16,
-    pub selected_transition_property_count: usize,
+    pub previous_longhand_values: Option<&'a [*const c_void]>,
+    pub retained_selection: Option<crate::css::style::StyleComputationSelection>,
+    pub selected_transition_properties: &'a [u16],
     pub has_retained_transition_candidates: bool,
     pub has_relevant_animations: bool,
     pub has_css_defined_animations: bool,
@@ -661,7 +654,7 @@ fn property_has_independent_computed_closure(property_id: u16) -> bool {
 
 unsafe fn plan_style_computation(
     store: &CascadedPropertyStore,
-    input: Option<&FfiStyleComputationPlanInput>,
+    input: Option<&StyleComputationPlanInput<'_>>,
 ) -> (bool, u32, bool, [u64; LONGHAND_WORD_COUNT]) {
     use crate::css::property_metadata::property_id as prop;
 
@@ -671,12 +664,10 @@ unsafe fn plan_style_computation(
     let Some(input) = input else {
         return (has_monospace_font_family, 0, false, [0; LONGHAND_WORD_COUNT]);
     };
-    let previous_values = if input.previous_longhand_value_count == 0 {
-        None
-    } else {
-        assert_eq!(input.previous_longhand_value_count, NUMBER_OF_LONGHAND_PROPERTIES);
-        Some(unsafe { std::slice::from_raw_parts(input.previous_longhand_values, input.previous_longhand_value_count) })
-    };
+    let previous_values = input.previous_longhand_values;
+    if let Some(previous_values) = previous_values {
+        assert_eq!(previous_values.len(), NUMBER_OF_LONGHAND_PROPERTIES);
+    }
     let retained_transition_candidates = input.has_retained_transition_candidates;
     let transition_properties = [
         prop::TRANSITION_PROPERTY,
@@ -726,24 +717,11 @@ unsafe fn plan_style_computation(
     let mut computed_property_words = [0; LONGHAND_WORD_COUNT];
     let mut has_computed_property_selection = false;
     if !must_compute_all_properties
-        && !input.computed_property_words.is_null()
         && (computed_group_mask != input.all_computed_groups || retained_transition_candidates)
+        && let Some(retained_selection) = input.retained_selection
     {
-        assert_eq!(input.computed_property_word_count, LONGHAND_WORD_COUNT);
-        computed_property_words.copy_from_slice(unsafe {
-            std::slice::from_raw_parts(input.computed_property_words, input.computed_property_word_count)
-        });
-        let selected_transition_properties = if input.selected_transition_property_count == 0 {
-            &[]
-        } else {
-            unsafe {
-                std::slice::from_raw_parts(
-                    input.selected_transition_properties,
-                    input.selected_transition_property_count,
-                )
-            }
-        };
-        for &property_id in selected_transition_properties {
+        computed_property_words.copy_from_slice(&retained_selection.computed_property_words);
+        for &property_id in input.selected_transition_properties {
             select_longhand(&mut computed_property_words, property_id);
         }
         expand_logical_property_closure(&mut computed_property_words);
@@ -754,7 +732,7 @@ unsafe fn plan_style_computation(
                     || property_has_independent_computed_closure(property_id)
             });
         has_computed_property_selection =
-            input.computed_property_closure_is_exact || only_independent_properties_changed;
+            retained_selection.computed_property_closure_is_exact || only_independent_properties_changed;
     }
     (
         has_monospace_font_family,
@@ -766,7 +744,7 @@ unsafe fn plan_style_computation(
 
 pub(crate) unsafe fn collect_style_computation_requirements(
     store: *const CascadedPropertyStore,
-    plan_input: *const FfiStyleComputationPlanInput,
+    plan_input: Option<&StyleComputationPlanInput<'_>>,
 ) -> FfiStyleComputationRequirements {
     let store = unsafe { &*store };
     let mut uses_tree_counting_function = false;
@@ -808,7 +786,7 @@ pub(crate) unsafe fn collect_style_computation_requirements(
         .collect::<Vec<_>>()
         .into_boxed_slice();
     let (has_monospace_font_family, computed_group_mask, has_computed_property_selection, computed_property_words) =
-        unsafe { plan_style_computation(store, plan_input.as_ref()) };
+        unsafe { plan_style_computation(store, plan_input) };
     let storage = Box::new(StyleComputationRequirementsStorage {
         computed_property_words,
         unfixed_random_sharings,
@@ -2198,7 +2176,7 @@ mod tests {
             },
         ));
 
-        let requirements = unsafe { collect_style_computation_requirements(&store, std::ptr::null()) };
+        let requirements = unsafe { collect_style_computation_requirements(&store, None) };
         assert!(requirements.uses_tree_counting_function);
         assert_eq!(requirements.container_relative_length_unit_mask, 0b1111);
         assert_eq!(

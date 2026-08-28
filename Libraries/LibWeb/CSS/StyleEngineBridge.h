@@ -255,6 +255,8 @@ public:
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(size_t index, StringView& out_name, u64& out_value) const;
 
+    [[nodiscard]] void const* rust_handle() const { return m_impl; }
+
 private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
 

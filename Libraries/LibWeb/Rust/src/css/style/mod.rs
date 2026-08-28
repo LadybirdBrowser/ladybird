@@ -821,6 +821,7 @@ pub struct StyleEngine {
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
     computed_group_sets: ComputedGroupSets,
+    pending_style_computation_selections: HashMap<computed::ComputedStyleTarget, StyleComputationSelection>,
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,
@@ -956,6 +957,12 @@ pub struct StyleEngine {
     fold_id_and_class_name_case: bool,
     #[cfg(test)]
     diagnostic_plan_capture: Option<DiagnosticPlanCapture>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct StyleComputationSelection {
+    pub computed_property_words: [u64; crate::css::property_metadata::LONGHAND_WORD_COUNT],
+    pub computed_property_closure_is_exact: bool,
 }
 
 #[cfg(test)]

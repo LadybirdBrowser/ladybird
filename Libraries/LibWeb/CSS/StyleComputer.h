@@ -166,20 +166,10 @@ public:
     };
     void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
 
-    struct LonghandComputationPlan {
-        u32 initial_computed_group_mask { ComputedValues::all_style_groups };
-        Optional<Array<u64, (number_of_longhand_properties + 63) / 64>> computed_property_words;
-        Vector<u16> selected_transition_properties;
-        bool computed_property_closure_is_exact { false };
-        bool has_retained_transition_candidates { false };
-        bool has_relevant_animations { false };
-        bool has_css_defined_animations { false };
-    };
-
     // `explicitly_inherited_non_inherited_style_groups` reports the style groups whose values the
     // computation read from the half of the style it inherits from that a child normally cannot
     // see, which decides whether its answer can be offered to another element.
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, ComputedValues const* previous_values = nullptr, LonghandComputationPlan const* = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, ComputedValues const* previous_values = nullptr, StyleRecordID previous_style_record = {}, u32 initial_computed_group_mask = ComputedValues::all_style_groups, bool use_retained_style_computation_selection = false, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr, bool* cascade_font_family_is_monospace = nullptr) const;
 
     void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions) const;
 
@@ -293,8 +283,6 @@ public:
         // The exact cascade winner delta's conservative computed dependency closure. Present only
         // when a preceding base style is available to supply every group outside the closure.
         Optional<u32> computed_groups_to_rebuild;
-        Optional<Array<u64, (number_of_longhand_properties + 63) / 64>> computed_properties_to_evaluate;
-        bool computed_property_closure_is_exact { false };
         u8 inherited_style_groups { 0 };
     };
 
