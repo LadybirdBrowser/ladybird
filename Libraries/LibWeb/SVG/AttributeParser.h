@@ -136,6 +136,7 @@ public:
     static Optional<NumberPercentage> parse_number_percentage(Utf16View input);
     static Vector<Gfx::FloatPoint> parse_points(Utf16View input);
     static Path parse_path_data(Utf16View input);
+    static Optional<Path> parse_path_data_without_error_recovery(Utf16View input);
     static Optional<Vector<Transform>> parse_transform(Utf16View input);
     static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(Utf16View input);
     static Optional<SVGUnits> parse_units(Utf16View input);
@@ -144,7 +145,14 @@ public:
     static Optional<ViewBox> parse_viewbox(Utf16View input);
 
 private:
+    enum class PathParsingMode {
+        AllowErrorRecovery,
+        DisallowErrorRecovery,
+    };
+
     AttributeParser(Utf16View source);
+
+    static Optional<Path> parse_path_data(Utf16View input, PathParsingMode);
 
     ErrorOr<void> parse_drawto();
     ErrorOr<void> parse_moveto();

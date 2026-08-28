@@ -705,8 +705,6 @@ mod tests {
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
             normalize_svg_path_data: None,
-            precomputed_svg_paths: std::ptr::null(),
-            precomputed_svg_path_count: 0,
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }
