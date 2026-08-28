@@ -1,11 +1,11 @@
 Before clip-path change:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip_path=[bounds: 8,8 100x100, path: M8 8L108 8L108 108L8 108L8 8Z] (PaintableWithLines(BlockContainer<DIV>#box.box))
+      [f1 in s1] clip_path=[bounds: 8,8 100x100, path: M8 8L108 8L108 108L8 108L8 8Z] (BlockContainer<DIV>#box.box)
 
 DisplayList:
 FillRect@s1/f1 rect=[8,8 100x100] color=rgb(173, 216, 230)
@@ -14,11 +14,11 @@ DrawGlyphRun@s1/f1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 After clip-path change:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip_path=[bounds: 8,8 100x100, path: M58 8L108 58L58 108L8 58L58 8Z] (PaintableWithLines(BlockContainer<DIV>#box.box))
+      [f1 in s1] clip_path=[bounds: 8,8 100x100, path: M58 8L108 58L58 108L8 58L58 8Z] (BlockContainer<DIV>#box.box)
 
 DisplayList:
 FillRect@s1/f1 rect=[8,8 100x100] color=rgb(173, 216, 230)

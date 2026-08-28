@@ -1347,7 +1347,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
                 auto border_rect = absolute_border_box_rect(layout_node);
                 Utf16StringBuilder builder;
-                builder.appendff("{}", debug_description(layout_node));
+                builder.appendff("{}", layout_node.debug_description());
                 builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
                 text = builder.to_string();
             } else if (utf16_fly_string_raw) {

@@ -1,11 +1,11 @@
 -- focused --
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
+      [f1 in s1] clip=[1,1 84x20] (TextAreaBox<TEXTAREA>#ta)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
@@ -26,11 +26,11 @@ DrawGlyphRun@s1/f0 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 -- unfocused --
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
+      [f1 in s1] clip=[1,1 84x20] (TextAreaBox<TEXTAREA>#ta)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
@@ -50,11 +50,11 @@ DrawGlyphRun@s1/f0 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 -- focused again --
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
+      [f1 in s1] clip=[1,1 84x20] (TextAreaBox<TEXTAREA>#ta)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
@@ -75,11 +75,11 @@ DrawGlyphRun@s1/f0 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 -- caret, focused --
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
+      [f1 in s1] clip=[1,1 84x20] (TextAreaBox<TEXTAREA>#ta)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
@@ -98,11 +98,11 @@ DrawGlyphRun@s1/f0 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 -- caret, unfocused --
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
+      [f1 in s1] clip=[1,1 84x20] (TextAreaBox<TEXTAREA>#ta)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)
@@ -119,11 +119,11 @@ DrawGlyphRun@s1/f0 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 -- caret, focused again --
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[1,1 84x20] (PaintableWithLines(TextAreaBox<TEXTAREA>#ta))
+      [f1 in s1] clip=[1,1 84x20] (TextAreaBox<TEXTAREA>#ta)
 
 DisplayList:
 FillRect@s1/f0 rect=[0,0 86x22] color=rgb(255, 255, 255)

@@ -12,32 +12,6 @@ use std::cell::Cell;
 
 pub const NO_STACKING_CONTEXT: u32 = u32::MAX;
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[repr(u8)]
-pub enum PaintableKind {
-    #[default]
-    None = 0,
-    Paintable,
-    PaintableWithLines,
-    InlinePaintable,
-    ViewportPaintable,
-    ImagePaintable,
-    CanvasPaintable,
-    VideoPaintable,
-    CheckBoxPaintable,
-    RadioButtonPaintable,
-    FieldSetPaintable,
-    NavigableContainerViewportPaintable,
-    SVGSVGPaintable,
-    SVGPathPaintable,
-    SVGGraphicsPaintable,
-    SVGImagePaintable,
-    SVGMaskPaintable,
-    SVGClipPaintable,
-    SVGPatternPaintable,
-    SVGForeignObjectPaintable,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum PaintableFlag {
@@ -79,7 +53,6 @@ pub struct FfiOverflowData {
 #[repr(C)]
 pub struct PaintableData {
     pub containing_block: NodeSlotId,
-    pub kind: PaintableKind,
     pub selection_state: u8,
     pub slot_generation: u8,
     pub flags: u32,
@@ -116,7 +89,6 @@ impl Default for PaintableData {
     fn default() -> Self {
         Self {
             containing_block: NodeSlotId::INVALID,
-            kind: PaintableKind::None,
             selection_state: 0,
             slot_generation: 0,
             flags: 0,

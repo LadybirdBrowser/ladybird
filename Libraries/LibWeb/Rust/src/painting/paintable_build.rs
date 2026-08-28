@@ -25,50 +25,6 @@ pub(crate) struct ReplacedCommittedFragmentLink {
     pub(crate) committed_fragment_identity_changed: bool,
 }
 
-fn diagnostic_paintable_kind_for_node(facts: &node_facts::NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
-    match kind {
-        NodeKind::Viewport => PaintableKind::ViewportPaintable,
-        NodeKind::BlockContainer
-        | NodeKind::LegendBox
-        | NodeKind::TableWrapper
-        | NodeKind::TextAreaBox
-        | NodeKind::TextInputBox
-        | NodeKind::RangeInputBox
-        | NodeKind::ListItemMarkerBox => PaintableKind::PaintableWithLines,
-        NodeKind::ListItemBox => {
-            if facts.is_fragmented_inline() {
-                PaintableKind::InlinePaintable
-            } else {
-                PaintableKind::PaintableWithLines
-            }
-        }
-        NodeKind::InlineNode => PaintableKind::InlinePaintable,
-        NodeKind::Box | NodeKind::ReplacedBox | NodeKind::AudioBox | NodeKind::SVGBox => PaintableKind::Paintable,
-        NodeKind::ImageBox => PaintableKind::ImagePaintable,
-        NodeKind::CanvasBox => PaintableKind::CanvasPaintable,
-        NodeKind::VideoBox => PaintableKind::VideoPaintable,
-        NodeKind::CheckBox => PaintableKind::CheckBoxPaintable,
-        NodeKind::RadioButton => PaintableKind::RadioButtonPaintable,
-        NodeKind::FieldSetBox => PaintableKind::FieldSetPaintable,
-        NodeKind::NavigableContainerViewport => PaintableKind::NavigableContainerViewportPaintable,
-        NodeKind::SVGSVGBox => PaintableKind::SVGSVGPaintable,
-        NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox => PaintableKind::SVGPathPaintable,
-        NodeKind::SVGGraphicsBox => PaintableKind::SVGGraphicsPaintable,
-        NodeKind::SVGImageBox => PaintableKind::SVGImagePaintable,
-        NodeKind::SVGMaskBox => PaintableKind::SVGMaskPaintable,
-        NodeKind::SVGClipBox => PaintableKind::SVGClipPaintable,
-        NodeKind::SVGPatternBox => PaintableKind::SVGPatternPaintable,
-        NodeKind::SVGForeignObjectBox => PaintableKind::SVGForeignObjectPaintable,
-        NodeKind::Unset
-        | NodeKind::BreakNode
-        | NodeKind::GeneratedTextNode
-        | NodeKind::Node
-        | NodeKind::NodeWithStyle
-        | NodeKind::TextNode
-        | NodeKind::TextSliceNode => PaintableKind::None,
-    }
-}
-
 pub(crate) struct PaintableCommit<'a> {
     callbacks: &'a formatting_context::FfiLayoutFcCallbacks,
     committed_offsets_before_recommit_reset: std::collections::HashMap<NodeSlotId, used_values::FfiCssPixelPoint>,
@@ -110,12 +66,10 @@ impl<'a> PaintableCommit<'a> {
         reuses_committed_subtree: bool,
         enclosing_line_root_content_changed: bool,
     ) -> PreparedPaintable {
-        let (diagnostic_kind, wants_paintable, node_kind) = {
+        let (wants_paintable, node_kind) = {
             let facts = node_facts::NodeFacts::new(self.callbacks, node);
             let data = self.callbacks.node_data(node);
-            let diagnostic_kind = diagnostic_paintable_kind_for_node(&facts, data.kind);
             (
-                diagnostic_kind,
                 (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
                     && node_painting::has_paintable(data.kind),
                 data.kind,
@@ -182,7 +136,6 @@ impl<'a> PaintableCommit<'a> {
             if node_kind == NodeKind::Viewport {
                 arena.paint_state().borrow_mut().reset_visual_context_state();
             }
-            arena.paintable_rows_mut().paintable_data_mut(node).kind = diagnostic_kind;
         }
         PreparedPaintable {
             has_paintable_row: true,

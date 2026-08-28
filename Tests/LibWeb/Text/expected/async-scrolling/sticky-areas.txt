@@ -8,10 +8,10 @@ inner insets: top=20
 display list:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x2016] needs_parent_offset_adjustment=true insets=[top=0] (PaintableWithLines(BlockContainer<DIV>#outer))
-          [s3] sticky scroller=s1 parent_sticky=s2 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true insets=[top=20] (PaintableWithLines(BlockContainer<DIV>#inner))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] sticky scroller=s1 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x2016] needs_parent_offset_adjustment=true insets=[top=0] (BlockContainer<DIV>#outer)
+          [s3] sticky scroller=s1 parent_sticky=s2 position_relative_to_scroller=[0,0] border_box_size=[800x16] scrollport_size=[800x600] containing_block_region=[0,0 800x16] needs_parent_offset_adjustment=true insets=[top=20] (BlockContainer<DIV>#inner)
   frames:
     [f0 in s0] effects=[]
 

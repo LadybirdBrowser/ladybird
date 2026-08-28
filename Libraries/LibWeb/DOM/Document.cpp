@@ -9843,7 +9843,7 @@ Utf16String Document::dump_display_list()
 
     auto append_owner = [&](auto const& owners, auto node_index) {
         if (auto it = owners.find(node_index); it != owners.end())
-            builder.appendff(" ({})", Painting::debug_description(*it->value));
+            builder.appendff(" ({})", it->value->debug_description());
         builder.append('\n');
     };
 

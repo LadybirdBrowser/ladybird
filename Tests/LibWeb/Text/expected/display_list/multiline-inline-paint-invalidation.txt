@@ -1,8 +1,8 @@
 Before:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
 
@@ -19,8 +19,8 @@ DrawLine@s1/f0 from=[8,72] to=[44,72] color=rgb(0, 0, 255) thickness=2 style=Sol
 After:
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
 

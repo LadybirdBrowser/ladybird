@@ -1,11 +1,11 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f2 in s1] clip_path=[bounds: 0,0 200x200, path: M50 50L150 50L150 150L50 150L50 50Z] (PaintableWithLines(BlockContainer<DIV>.clip-path-ancestor))
-      [f5 in s0] clip=[220,0 100x100] (PaintableWithLines(BlockContainer<DIV>.clip-ancestor))
+      [f2 in s1] clip_path=[bounds: 0,0 200x200, path: M50 50L150 50L150 150L50 150L50 50Z] (BlockContainer<DIV>.clip-path-ancestor)
+      [f5 in s0] clip=[220,0 100x100] (BlockContainer<DIV>.clip-ancestor)
 
 DisplayList:
 FillRect@s1/f2 rect=[0,0 200x200] color=rgb(255, 0, 0)

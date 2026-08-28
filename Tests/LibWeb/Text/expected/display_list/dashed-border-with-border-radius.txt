@@ -1,17 +1,17 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f6 in s1] clip_path=[bounds: 112,96 16x64, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f7 in s1] clip_path=[bounds: 16,152 104x17, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f8 in s1] clip_path=[bounds: 7,96 17x64, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f5 in s1] clip_path=[bounds: 16,88 104x16, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.mixed-colors))
-      [f18 in s1] clip_path=[bounds: 112,336 16x64, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.dotted.mixed-colors))
-      [f19 in s1] clip_path=[bounds: 16,392 104x16, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.dotted.mixed-colors))
-      [f20 in s1] clip_path=[bounds: 7,336 17x64, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.dotted.mixed-colors))
-      [f17 in s1] clip_path=[bounds: 16,328 104x16, curved path: 68 commands] (PaintableWithLines(BlockContainer<DIV>.dotted.mixed-colors))
+      [f6 in s1] clip_path=[bounds: 112,96 16x64, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
+      [f7 in s1] clip_path=[bounds: 16,152 104x17, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
+      [f8 in s1] clip_path=[bounds: 7,96 17x64, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
+      [f5 in s1] clip_path=[bounds: 16,88 104x16, curved path: 68 commands] (BlockContainer<DIV>.mixed-colors)
+      [f18 in s1] clip_path=[bounds: 112,336 16x64, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
+      [f19 in s1] clip_path=[bounds: 16,392 104x16, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
+      [f20 in s1] clip_path=[bounds: 7,336 17x64, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
+      [f17 in s1] clip_path=[bounds: 16,328 104x16, curved path: 68 commands] (BlockContainer<DIV>.dotted.mixed-colors)
 
 DisplayList:
 StrokePath@s1/f0 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.63

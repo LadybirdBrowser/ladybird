@@ -1,10 +1,10 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[0,0 40x40] (ImagePaintable(ImageBox<IMG>))
+      [f1 in s1] clip=[0,0 40x40] (ImageBox<IMG>)
 
 DisplayList:
 DrawScaledDecodedImageFrame@s1/f1 dst_rect=[0,-20 40x80]

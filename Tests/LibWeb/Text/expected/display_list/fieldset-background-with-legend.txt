@@ -1,12 +1,12 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[10,15 780x43] (FieldSetPaintable(FieldSetBox<FIELDSET>))
-      [f2 in s1] clip=[10,15 780x2] (FieldSetPaintable(FieldSetBox<FIELDSET>))
-        [f3 in s1] clip=[24,15 57x2] mode=difference (FieldSetPaintable(FieldSetBox<FIELDSET>))
+      [f1 in s1] clip=[10,15 780x43] (FieldSetBox<FIELDSET>)
+      [f2 in s1] clip=[10,15 780x2] (FieldSetBox<FIELDSET>)
+        [f3 in s1] clip=[24,15 57x2] mode=difference (FieldSetBox<FIELDSET>)
 
 DisplayList:
 FillRect@s1/f1 rect=[10,8 780x50] color=rgb(0, 0, 255)

@@ -1,11 +1,11 @@
 AccumulatedVisualContext Tree:
   spatial:
-    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
-      [s1] scroll (ViewportPaintable(Viewport<#document>))
-        [s2] svg-viewport-transform=[1,0,0,1,0,0] origin=(0,0) (SVGSVGPaintable(SVGSVGBox<svg>))
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] svg-viewport-transform=[1,0,0,1,0,0] origin=(0,0) (SVGSVGBox<svg>)
   frames:
     [f0 in s0] effects=[]
-      [f1 in s1] clip=[0,0 200x200] (SVGSVGPaintable(SVGSVGBox<svg>))
+      [f1 in s1] clip=[0,0 200x200] (SVGSVGBox<svg>)
 
 DisplayList:
 FillPath@s2/f1 path_bounding_rect=[10,10 100x100]
