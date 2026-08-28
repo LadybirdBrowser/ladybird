@@ -9,7 +9,7 @@ use super::refresh::compute_sticky_data;
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
-use crate::painting::host::FfiVisualContextHostCallbacks;
+use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
@@ -282,6 +282,7 @@ struct Builder<'a, Arena> {
     paintables_with_mask_nodes: Vec<NodeSlotId>,
     assignments: Vec<Option<PaintableVisualContextAssignment>>,
     pixel_ratio: f64,
+    tree_inputs: FfiVisualContextTreeInputs,
     root_background_source: crate::painting::host::FfiRootBackgroundSource,
     may_have_default_scroll_shift_anchor: bool,
 }
@@ -351,7 +352,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             self.layout_arena,
             &self.scroll_state,
             slot,
-            self.pixel_ratio,
+            &self.tree_inputs,
         ));
     }
 
@@ -374,7 +375,6 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         let is_fixed = position == crate::css::css_enums::positioning::FIXED;
         let is_absolute = position == crate::css::css_enums::positioning::ABSOLUTE;
         let is_sticky = position == crate::css::css_enums::positioning::STICKY;
-        let has_sticky_insets = self.layout_arena.paintable_data(slot).has_sticky_insets;
         let layout_node = slot;
         {
             let assignment = self.assignment_mut(slot);
@@ -406,7 +406,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
             self.assignment_mut(slot).enclosing_scroll_node_index = nearest_ancestor_scroll_node_index;
         }
 
-        let creates_sticky_scroll_node = is_sticky && has_sticky_insets;
+        let creates_sticky_scroll_node = is_sticky;
 
         let inherited_state = if is_fixed {
             inherited.fixed_position
@@ -828,6 +828,7 @@ pub(crate) fn build_visual_context_tree(
         paintables_with_mask_nodes: Vec::new(),
         assignments: vec![None; layout_arena.paintable_row_count()],
         pixel_ratio: inputs.device_pixels_per_css_pixel,
+        tree_inputs: inputs,
         root_background_source: callbacks.root_background_source(),
         may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
     };

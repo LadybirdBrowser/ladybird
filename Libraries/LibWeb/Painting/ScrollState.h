@@ -18,13 +18,6 @@
 
 namespace Web::Painting {
 
-struct StickyInsets {
-    Optional<CSSPixels> top;
-    Optional<CSSPixels> right;
-    Optional<CSSPixels> bottom;
-    Optional<CSSPixels> left;
-};
-
 // Device-pixel offsets keyed by SpatialNodeIndex: the scroll containers' offsets as produced by
 // the document, plus the sticky nodes' offsets that resolve_sticky_offsets() derives from them
 // and the tree. Stored dense in process so display list replay and hit testing index it directly;

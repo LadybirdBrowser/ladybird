@@ -6,12 +6,75 @@
 
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::{SpatialData, StickyData, VisualContextTree};
+use crate::css::computed_value_types::ComputedLengthPercentageOrAuto;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::host::FfiVisualContextHostCallbacks;
+use crate::painting::chrome_geometry;
+use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::style_queries;
 use libgfx_rust::{FloatPoint, FloatRect, FloatSize};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ResolvedStickyInsets {
+    pub top: Option<CssPixels>,
+    pub right: Option<CssPixels>,
+    pub bottom: Option<CssPixels>,
+    pub left: Option<CssPixels>,
+}
+
+fn nearest_wheel_scrollable_ancestor_along_containing_blocks(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    tree_inputs: &FfiVisualContextTreeInputs,
+) -> Option<NodeSlotId> {
+    let mut block = layout_arena.paintable_data(slot).containing_block;
+    while !block.is_invalid() {
+        if !layout_arena.paintable_row_is_populated(block) {
+            return None;
+        }
+        let axes = chrome_geometry::wheel_scrollable_axes(
+            layout_arena,
+            block,
+            tree_inputs.viewport_wheel_overflow_x,
+            tree_inputs.viewport_wheel_overflow_y,
+        );
+        if axes.horizontal || axes.vertical {
+            return Some(block);
+        }
+        if style_queries::is_fixed_position(layout_arena, block) {
+            return None;
+        }
+        block = layout_arena.paintable_data(block).containing_block;
+    }
+    None
+}
+
+// https://drafts.csswg.org/css-position/#insets
+pub(crate) fn resolve_sticky_insets_in_css_pixels(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    tree_inputs: &FfiVisualContextTreeInputs,
+) -> ResolvedStickyInsets {
+    let Some(style) = layout_arena.node_style_if_live(slot) else {
+        return ResolvedStickyInsets::default();
+    };
+    let scrollport_size = nearest_wheel_scrollable_ancestor_along_containing_blocks(layout_arena, slot, tree_inputs)
+        .map_or(CssPixelSize::default(), |scroller| {
+            paintable_geometry::absolute_rect(layout_arena, scroller).size()
+        });
+    let resolve_side = |side: &ComputedLengthPercentageOrAuto, scrollport_extent: CssPixels| {
+        (!side.is_auto()).then(|| side.to_px(scrollport_extent))
+    };
+    let inset = &style.surround().inset;
+    ResolvedStickyInsets {
+        top: resolve_side(&inset.top, scrollport_size.height),
+        right: resolve_side(&inset.right, scrollport_size.width),
+        bottom: resolve_side(&inset.bottom, scrollport_size.height),
+        left: resolve_side(&inset.left, scrollport_size.width),
+    }
+}
 
 // The geometry stays zero while either row has been replaced by a subtree relayout: the pending
 // tree rebuild recreates the node before anything reads it.
@@ -19,8 +82,9 @@ pub(crate) fn compute_sticky_data(
     layout_arena: &impl PaintableRowsRead,
     scroll_state: &ScrollState,
     sticky_slot: ScrollStateSlot,
-    device_pixels_per_css_pixel: f64,
+    tree_inputs: &FfiVisualContextTreeInputs,
 ) -> StickyData {
+    let device_pixels_per_css_pixel = tree_inputs.device_pixels_per_css_pixel;
     let sticky_state = scroll_state.state_at_slot(sticky_slot);
     let scroller_slot = scroll_state.nearest_scrolling_ancestor_slot(sticky_slot);
     let parent_sticky = (sticky_state.parent_slot != NO_SCROLL_STATE_SLOT
@@ -66,8 +130,8 @@ pub(crate) fn compute_sticky_data(
         width: size.width.to_float() * scale,
         height: size.height.to_float() * scale,
     };
-    let device_inset = |inset: CssPixels, present: bool| present.then_some(inset.to_float() * scale);
-    let insets = layout_arena.paintable_data(paintable).sticky_insets;
+    let device_inset = |inset: Option<CssPixels>| inset.map(|inset| inset.to_float() * scale);
+    let insets = resolve_sticky_insets_in_css_pixels(layout_arena, paintable, tree_inputs);
     let region_location = device_point(containing_block_region.location());
     let region_size = device_size(containing_block_region.size());
 
@@ -84,10 +148,10 @@ pub(crate) fn compute_sticky_data(
         height: region_size.height,
     };
     data.needs_parent_offset_adjustment = needs_parent_offset_adjustment;
-    data.inset_top = device_inset(insets.top, insets.has_top);
-    data.inset_right = device_inset(insets.right, insets.has_right);
-    data.inset_bottom = device_inset(insets.bottom, insets.has_bottom);
-    data.inset_left = device_inset(insets.left, insets.has_left);
+    data.inset_top = device_inset(insets.top);
+    data.inset_right = device_inset(insets.right);
+    data.inset_bottom = device_inset(insets.bottom);
+    data.inset_left = device_inset(insets.left);
     data
 }
 
@@ -95,19 +159,15 @@ pub(crate) fn refresh_sticky_constraints(
     layout_arena: &impl PaintableRowsRead,
     scroll_state: &ScrollState,
     tree: &mut VisualContextTree,
-    device_pixels_per_css_pixel: f64,
+    tree_inputs: &FfiVisualContextTreeInputs,
 ) {
     for slot in 0..scroll_state.slot_count() {
         let state = scroll_state.state_at_slot(slot);
         if !state.is_sticky {
             continue;
         }
-        tree.spatial_nodes[state.node_index.0 as usize].data = SpatialData::Sticky(compute_sticky_data(
-            layout_arena,
-            scroll_state,
-            slot,
-            device_pixels_per_css_pixel,
-        ));
+        tree.spatial_nodes[state.node_index.0 as usize].data =
+            SpatialData::Sticky(compute_sticky_data(layout_arena, scroll_state, slot, tree_inputs));
     }
 }
 

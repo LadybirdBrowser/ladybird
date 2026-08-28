@@ -500,27 +500,6 @@ SelectionStyle selection_style(Layout::Node const& node)
     return selection_style_for_node(node, node.dom_node());
 }
 
-bool has_sticky_insets(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row && row->has_sticky_insets;
-}
-
-StickyInsets sticky_insets(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    VERIFY(row->has_sticky_insets);
-    auto const& insets = row->sticky_insets;
-    auto side = [](CSSPixels value, bool present) -> Optional<CSSPixels> {
-        if (!present)
-            return {};
-        return value;
-    };
-    return { side(insets.top, insets.has_top), side(insets.right, insets.has_right), side(insets.bottom, insets.has_bottom), side(insets.left, insets.has_left) };
-}
-
 bool should_paint_cursor(Layout::Node const& node)
 {
     if (!has_committed_box(node))
@@ -992,22 +971,6 @@ void clear_overflow_data(Layout::Node const& node)
 void clear_cached_overflow_data(Layout::Node const& node)
 {
     Layout::RustFFI::layout_arena_paintable_clear_cached_overflow_data(node.arena_handle(), committed_row_slot(node));
-}
-
-void set_sticky_insets(Layout::Node const& node, OwnPtr<StickyInsets> sticky_insets)
-{
-    Layout::RustFFI::FfiStickyInsets ffi_insets {};
-    if (sticky_insets) {
-        auto pack = [](Optional<CSSPixels> const& value, CSSPixels& output, bool& present) {
-            present = value.has_value();
-            output = value.value_or({});
-        };
-        pack(sticky_insets->top, ffi_insets.top, ffi_insets.has_top);
-        pack(sticky_insets->right, ffi_insets.right, ffi_insets.has_right);
-        pack(sticky_insets->bottom, ffi_insets.bottom, ffi_insets.has_bottom);
-        pack(sticky_insets->left, ffi_insets.left, ffi_insets.has_left);
-    }
-    Layout::RustFFI::layout_arena_paintable_set_sticky_insets(node.arena_handle(), committed_row_slot(node), ffi_insets, !!sticky_insets);
 }
 
 void inline_piece_border_box_rects(Layout::Node const& node, Vector<CSSPixelRect>& rects)

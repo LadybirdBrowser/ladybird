@@ -31,19 +31,6 @@ pub struct FfiPixelBox {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
-pub struct FfiStickyInsets {
-    pub top: CssPixels,
-    pub right: CssPixels,
-    pub bottom: CssPixels,
-    pub left: CssPixels,
-    pub has_top: bool,
-    pub has_right: bool,
-    pub has_bottom: bool,
-    pub has_left: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
 pub struct FfiOverflowData {
     pub rect: used_values::FfiCssPixelRect,
     pub has_scrollable_overflow: bool,
@@ -65,8 +52,6 @@ pub struct PaintableData {
     pub overflow_relative_to_padding_box: FfiOverflowData,
     pub overflow_measured_this_commit: bool,
     pub overflow_valid_across_recommits: bool,
-    pub sticky_insets: FfiStickyInsets,
-    pub has_sticky_insets: bool,
 
     pub stacking_context: u32,
 
@@ -99,8 +84,6 @@ impl Default for PaintableData {
             overflow_relative_to_padding_box: FfiOverflowData::default(),
             overflow_measured_this_commit: false,
             overflow_valid_across_recommits: false,
-            sticky_insets: FfiStickyInsets::default(),
-            has_sticky_insets: false,
             stacking_context: u32::MAX,
             enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),
