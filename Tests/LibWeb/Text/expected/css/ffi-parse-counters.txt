@@ -1,0 +1,12 @@
+computed width: 1px
+internUtf16FlyStringCallbacks: 68
+normalizeSvgPathDataCallbacks: 1
+fontFormatIsSupportedCallbacks: 1
+fontTechIsSupportedCallbacks: 1
+resolveDescriptorIntegerCallbacks: 1
+resolvePropertyIdCallbacks: 389
+resolveQueryFeatureCallbacks: 12
+evaluateSupportsFeatureCallbacks: 4
+evaluateConditionCallbacks: 2
+rustHasIgnoredVendorPrefixEntries: 64
+rustReevaluateSupportsConditionEntries: 2

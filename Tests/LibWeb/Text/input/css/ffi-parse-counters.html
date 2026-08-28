@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rules = [];
+        for (let index = 0; index < 64; ++index) {
+            rules.push(`
+                .ffi-rule-${index}:is(.enabled, [data-index="${index}"]) {
+                    color: rgb(${index}, ${index + 1}, ${index + 2});
+                    margin: ${index}px;
+                    font-family: "FFI Family ${index}", sans-serif;
+                    --ffi-size: if(media((width >= 0px)): ${index + 1}px; else: 1px);
+                    width: var(--ffi-size);
+                    -webkit-ffi-baseline: ignored;
+                }
+            `);
+        }
+
+        const source = `
+            @font-face {
+                font-family: "FFI Baseline";
+                src: url("data:font/woff2;base64,d09GMg==") format("woff2") tech(variations);
+            }
+            @counter-style ffi-counter {
+                system: cyclic;
+                symbols: "a" "b";
+                pad: calc(sign(1em - 1px) + 1) "0";
+            }
+            @media screen and (min-width: 0px) {
+                .ffi-media { display: grid; }
+            }
+            @supports (display: grid) and selector(.ffi-supports:is(div, span)) {
+                .ffi-supports { padding: 1px; }
+            }
+            @supports font-format(woff2) and font-tech(variations) {
+                .ffi-font-support { border-width: 1px; }
+            }
+            @container (width > 0px) {
+                .ffi-container { height: 2px; }
+            }
+            .ffi-path {
+                clip-path: path("M 0 0 L 10 10 Z");
+            }
+            ${rules.join("\n")}
+        `;
+
+        internals.updateStyle();
+        internals.resetStyleFfiCounters();
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(source);
+        document.adoptedStyleSheets = [sheet];
+
+        const target = document.createElement("div");
+        target.className = "ffi-rule-0 enabled ffi-path ffi-media ffi-supports ffi-font-support ffi-container";
+        target.dataset.index = "0";
+        document.body.appendChild(target);
+        println(`computed width: ${getComputedStyle(target).width}`);
+
+        const counters = internals.styleFfiCounters();
+        const names = [
+            "internUtf16FlyStringCallbacks",
+            "normalizeSvgPathDataCallbacks",
+            "fontFormatIsSupportedCallbacks",
+            "fontTechIsSupportedCallbacks",
+            "resolveDescriptorIntegerCallbacks",
+            "resolvePropertyIdCallbacks",
+            "resolveQueryFeatureCallbacks",
+            "evaluateSupportsFeatureCallbacks",
+            "evaluateConditionCallbacks",
+            "rustHasIgnoredVendorPrefixEntries",
+            "rustReevaluateSupportsConditionEntries",
+        ];
+        for (const name of names)
+            println(`${name}: ${counters[name]}`);
+    });
+</script>
