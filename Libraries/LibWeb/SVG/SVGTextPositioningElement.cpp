@@ -10,7 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedLengthList.h>
 #include <LibWeb/SVG/SVGAnimatedNumberList.h>
 #include <LibWeb/SVG/SVGLength.h>
@@ -103,7 +103,7 @@ GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::ensure_length_list(GC:
     if (!list) {
         // FIXME: This only handles single values, not lists.
         float value = 0.f;
-        auto maybe_number_percentage = AttributeParser::parse_number_percentage(get_attribute_value(attribute_name));
+        auto maybe_number_percentage = parse_number_percentage(get_attribute_value(attribute_name));
         if (maybe_number_percentage.has_value())
             value = maybe_number_percentage.release_value().value();
 
@@ -144,7 +144,7 @@ GC::Ref<SVGAnimatedNumberList> SVGTextPositioningElement::rotate()
     if (!m_rotate) {
         // FIXME: This only handles single values, not lists.
         float value = 0.f;
-        auto maybe_number_percentage = AttributeParser::parse_number_percentage(get_attribute_value(AttributeNames::rotate));
+        auto maybe_number_percentage = parse_number_percentage(get_attribute_value(AttributeNames::rotate));
         if (maybe_number_percentage.has_value() && !maybe_number_percentage.value().is_percentage())
             value = maybe_number_percentage.release_value().value();
 

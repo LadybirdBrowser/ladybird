@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::CSS {
@@ -90,7 +89,7 @@ BasicShapeStyleValue::BasicShapeStyleValue(StyleValueFFI::StyleValueData const* 
         }
         case 6: {
             auto path_string = Utf16String::from_raw(shape.path_string.raw);
-            return Path { static_cast<Gfx::WindingRule>(shape.fill_rule), SVG::AttributeParser::parse_path_data(path_string) };
+            return Path { static_cast<Gfx::WindingRule>(shape.fill_rule), SVG::parse_path_data(path_string) };
         }
         default:
             VERIFY_NOT_REACHED();

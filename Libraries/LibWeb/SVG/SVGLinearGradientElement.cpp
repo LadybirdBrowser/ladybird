@@ -7,7 +7,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGLinearGradientElement.h>
 #include <LibWeb/SVG/SVGStopElement.h>
 
@@ -26,13 +26,13 @@ void SVGLinearGradientElement::attribute_changed(Utf16FlyString const& name, Opt
 
     // FIXME: Should allow for `<number-percentage> | <length>` for x1, x2, y1, y2
     if (name == SVG::AttributeNames::x1) {
-        m_x1 = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_x1 = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::y1) {
-        m_y1 = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_y1 = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::x2) {
-        m_x2 = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_x2 = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::y2) {
-        m_y2 = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_y2 = parse_number_percentage(value.value_or({}));
     }
 }
 

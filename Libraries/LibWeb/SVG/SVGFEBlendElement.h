@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibGfx/CompositingAndBlendingOperator.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFilterPrimitiveStandardAttributes.h>

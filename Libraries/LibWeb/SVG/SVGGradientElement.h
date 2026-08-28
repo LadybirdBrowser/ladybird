@@ -9,7 +9,7 @@
 #include <AK/IterationDecision.h>
 #include <LibGC/RootHashTable.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGStopElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>

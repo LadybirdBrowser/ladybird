@@ -24,17 +24,17 @@ void SVGRadialGradientElement::attribute_changed(Utf16FlyString const& name, Opt
     // FIXME: These are <length> or <coordinate> in the spec, but all examples seem to allow percentages
     // and unitless values.
     if (name == SVG::AttributeNames::cx) {
-        m_cx = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_cx = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::cy) {
-        m_cy = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_cy = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::fx) {
-        m_fx = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_fx = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::fy) {
-        m_fy = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_fy = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::fr) {
-        m_fr = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_fr = parse_number_percentage(value.value_or({}));
     } else if (name == SVG::AttributeNames::r) {
-        m_r = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_r = parse_number_percentage(value.value_or({}));
     }
 }
 

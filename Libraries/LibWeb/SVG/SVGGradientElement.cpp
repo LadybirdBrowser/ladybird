@@ -24,11 +24,11 @@ void SVGGradientElement::attribute_changed(Utf16FlyString const& name, Optional<
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == AttributeNames::gradientUnits) {
-        m_gradient_units = AttributeParser::parse_units(value.value_or({}));
+        m_gradient_units = parse_units(value.value_or({}));
     } else if (name == AttributeNames::spreadMethod) {
-        m_spread_method = AttributeParser::parse_spread_method(value.value_or({}));
+        m_spread_method = parse_spread_method(value.value_or({}));
     } else if (name == AttributeNames::gradientTransform) {
-        if (auto transform_list = AttributeParser::parse_transform(value.value_or({})); transform_list.has_value()) {
+        if (auto transform_list = parse_transform(value.value_or({})); transform_list.has_value()) {
             m_gradient_transform = transform_from_transform_list(*transform_list);
         } else {
             m_gradient_transform = {};

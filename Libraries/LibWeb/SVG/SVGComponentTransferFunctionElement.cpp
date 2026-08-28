@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGComponentTransferFunctionElement.h>
 #include <LibWeb/SVG/SVGNumber.h>
 #include <LibWeb/SVG/SVGNumberList.h>
@@ -77,7 +77,7 @@ GC::Ref<SVGAnimatedEnumeration> SVGComponentTransferFunctionElement::type()
 GC::Ref<SVGAnimatedNumberList> SVGComponentTransferFunctionElement::table_values()
 {
     if (!m_table_values) {
-        auto numbers = AttributeParser::parse_table_values(get_attribute_value(AttributeNames::tableValues));
+        auto numbers = parse_table_values(get_attribute_value(AttributeNames::tableValues));
 
         Vector<GC::Ref<SVGNumber>> items;
         items.ensure_capacity(numbers.size());

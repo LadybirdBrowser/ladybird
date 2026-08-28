@@ -7,7 +7,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGPolygonElement.h>
 
 namespace Web::SVG {
@@ -24,7 +24,7 @@ void SVGPolygonElement::attribute_changed(Utf16FlyString const& name, Optional<U
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::points) {
-        m_points = AttributeParser::parse_points(value.value_or({}));
+        m_points = parse_points(value.value_or({}));
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
 }

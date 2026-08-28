@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGCircleElement.h>
 
 namespace Web::SVG {

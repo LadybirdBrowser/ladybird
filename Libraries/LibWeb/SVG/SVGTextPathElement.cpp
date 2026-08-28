@@ -24,7 +24,7 @@ void SVGTextPathElement::attribute_changed(Utf16FlyString const& name, Optional<
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::startOffset)
-        m_start_offset = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_start_offset = parse_number_percentage(value.value_or({}));
 }
 
 GC::Ptr<SVGGeometryElement const> SVGTextPathElement::path_or_shape() const

@@ -56,9 +56,9 @@ void SVGFilterElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == AttributeNames::filterUnits)
-        m_filter_units = AttributeParser::parse_units(value.value_or({}));
+        m_filter_units = parse_units(value.value_or({}));
     else if (name == AttributeNames::primitiveUnits)
-        m_primitive_units = AttributeParser::parse_units(value.value_or({}));
+        m_primitive_units = parse_units(value.value_or({}));
 }
 
 // https://drafts.fxtf.org/filter-effects-1/#ColorInterpolationFiltersProperty

@@ -2,18 +2,17 @@
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/GenericLexer.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/SVG/Path.h>
 
 namespace Web::SVG {
 
@@ -128,56 +127,14 @@ enum class TextAnchor {
     End
 };
 
-class WEB_API AttributeParser final {
-public:
-    ~AttributeParser() = default;
-
-    static Optional<i32> parse_integer(Utf16View input);
-    static Optional<NumberPercentage> parse_number_percentage(Utf16View input);
-    static Vector<Gfx::FloatPoint> parse_points(Utf16View input);
-    static Path parse_path_data(Utf16View input);
-    static Optional<Vector<Transform>> parse_transform(Utf16View input);
-    static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(Utf16View input);
-    static Optional<SVGUnits> parse_units(Utf16View input);
-    static Vector<float> parse_table_values(Utf16View);
-    static Optional<SpreadMethod> parse_spread_method(Utf16View input);
-    static Optional<ViewBox> parse_viewbox(Utf16View input);
-
-private:
-    AttributeParser(Utf16View source);
-
-    Optional<Vector<Transform>> parse_transform();
-
-    ErrorOr<float> parse_length();
-    ErrorOr<float> parse_coordinate();
-    ErrorOr<i32> parse_integer();
-    ErrorOr<Gfx::FloatPoint> parse_coordinate_pair();
-    ErrorOr<void> parse_coordinate_pair_sequence(Function<void(Gfx::FloatPoint)> const& callback);
-    void parse_whitespace(bool must_match_once = false);
-    void parse_comma_whitespace();
-    ErrorOr<float> parse_number();
-    ErrorOr<float> parse_nonnegative_number();
-    // -1 if negative, +1 otherwise
-    int parse_sign();
-
-    enum class AllowDot {
-        No,
-        Yes,
-    };
-
-    bool match_whitespace() const;
-    bool match_comma_whitespace() const;
-    bool match_coordinate() const;
-    bool match_length(AllowDot allow_dot) const;
-    bool match_number() const;
-    bool match_integer() const;
-    bool match(char c) const { return !done() && ch() == c; }
-
-    bool done() const { return m_lexer.is_eof(); }
-    char16_t ch(size_t offset = 0) const { return m_lexer.peek(offset); }
-    char16_t consume() { return m_lexer.consume(); }
-
-    Utf16GenericLexer m_lexer;
-};
+WEB_API Optional<i32> parse_integer(Utf16View);
+WEB_API Optional<NumberPercentage> parse_number_percentage(Utf16View);
+WEB_API Vector<Gfx::FloatPoint> parse_points(Utf16View);
+WEB_API Optional<Vector<Transform>> parse_transform(Utf16View);
+WEB_API Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(Utf16View);
+WEB_API Optional<SVGUnits> parse_units(Utf16View);
+WEB_API Vector<float> parse_table_values(Utf16View);
+WEB_API Optional<SpreadMethod> parse_spread_method(Utf16View);
+WEB_API Optional<ViewBox> parse_viewbox(Utf16View);
 
 }

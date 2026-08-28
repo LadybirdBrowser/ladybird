@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/Filter.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 #include <LibWeb/SVG/SVGURIReference.h>

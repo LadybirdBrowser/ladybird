@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Geometry/DOMPoint.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
