@@ -769,7 +769,18 @@ void AccumulatedVisualContextTree::dump_frame_node(FrameNodeIndex index, StringB
         },
         [&](ClipPathData const& clip_path) {
             auto const& rect = clip_path.bounding_rect;
-            builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x(), rect.y(), rect.width(), rect.height(), clip_path.path.to_svg_string());
+            auto svg_path = clip_path.path.to_svg_string();
+            bool const has_curves_with_host_dependent_control_points = svg_path.contains('Q') || svg_path.contains('C');
+            if (has_curves_with_host_dependent_control_points) {
+                size_t command_count = 0;
+                for (auto code_point : svg_path.code_points()) {
+                    if (code_point == 'M' || code_point == 'L' || code_point == 'Q' || code_point == 'C' || code_point == 'Z')
+                        ++command_count;
+                }
+                builder.appendff("clip_path=[bounds: {},{} {}x{}, curved path: {} commands]", rect.x(), rect.y(), rect.width(), rect.height(), command_count);
+            } else {
+                builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x(), rect.y(), rect.width(), rect.height(), svg_path);
+            }
         },
         [&](EffectsData const& effects) {
             builder.append("effects=["sv);
