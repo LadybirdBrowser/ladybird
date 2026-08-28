@@ -64,6 +64,7 @@ define_ffi_ops! {
     SubstitutionCallbackParseRequest => "substitutionCallbackParseRequests",
     RustHasIgnoredVendorPrefixEntry => "rustHasIgnoredVendorPrefixEntries",
     RustReevaluateSupportsConditionEntry => "rustReevaluateSupportsConditionEntries",
+    SizesAttributeParseEntry => "sizesAttributeParseEntries",
     SizesAttributeSplitEntry => "sizesAttributeSplitEntries",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",

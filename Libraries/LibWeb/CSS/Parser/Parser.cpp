@@ -35,6 +35,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/StyleValueRustFFI.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 static void log_parse_error(SourceLocation const& location = SourceLocation::current())
 {
@@ -431,108 +433,37 @@ RefPtr<StyleValue const> Parser::parse_as_type(ValueType value_type)
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
+static Optional<double> sizes_attribute_auto_width(Utf16View source, HTML::HTMLImageElement const* img)
+{
+    // FIXME: "img is being rendered" - we just see if it has image data for now.
+    if (!source.find_code_unit_offset_ignoring_case("auto"sv).has_value() || !img || !img->is_image_available() || !img->allows_auto_sizes())
+        return {};
+
+    // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
+    //        Should this use some of the methods from FormattingContext?
+    auto concrete_size = run_default_sizing_algorithm(
+        img->width(), img->height(),
+        { img->natural_width(), img->natural_height(), img->intrinsic_aspect_ratio() },
+        // NOTE: https://html.spec.whatwg.org/multipage/rendering.html#img-contain-size
+        CSSPixelSize { 300, 150 });
+    return concrete_size.width().to_double();
+}
+
+// AD-HOC: If element has no sizes attribute, this algorithm always logs a parse error and then returns 100vw.
+//         The attribute is optional, so avoid spamming the debug log with false positives by just returning early.
 NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img)
 {
-    // When asked to parse a sizes attribute from an element element, with an img element or null img:
-
-    // AD-HOC: If element has no sizes attribute, this algorithm always logs a parse error and then returns 100vw.
-    //         The attribute is optional, so avoid spamming the debug log with false positives by just returning early.
     if (!element.has_attribute(HTML::AttributeNames::sizes))
         return LengthStyleValue::create(Length(100, LengthUnit::Vw));
-
-    // 1. Let unparsed sizes list be the result of parsing a comma-separated list of component values
-    //    from the value of element's sizes attribute (or the empty string, if the attribute is absent).
-    auto entries = RustQueryParser::split_sizes_attribute(m_source);
-    if (!entries.has_value())
-        return LengthStyleValue::create(Length(100, LengthUnit::Vw));
-
-    // 2. Let size be null.
-
-    // 3. For each unparsed size in unparsed sizes list:
-    for (size_t index = 0; index < entries->size(); ++index) {
-        auto const& entry = (*entries)[index];
-
-        // 1. Remove all consecutive <whitespace-token>s from the end of unparsed size.
-        //    If unparsed size is now empty, that is a parse error; continue.
-        if (entry.size.is_empty()) {
-            log_parse_error();
-            ErrorReporter::the().report(InvalidValueError {
-                .value_type = "sizes attribute"_utf16_fly_string,
-                .value_string = m_source.to_utf8(),
-                .description = "Failed in step 3.1; all whitespace"_string,
-            });
-            continue;
-        }
-
-        // 2. If the last component value in unparsed size is a valid non-negative <source-size-value>,
-        //    then set size to its value and remove the component value from unparsed size.
-        //    Any CSS function other than the math functions is invalid.
-        //    Otherwise, there is a parse error; continue.
-        auto size = RustQueryParser::parse_source_size_value(*this, entry.size);
-        if (!size) {
-            log_parse_error();
-            ErrorReporter::the().report(InvalidValueError {
-                .value_type = "sizes attribute"_utf16_fly_string,
-                .value_string = m_source.to_utf8(),
-                .description = MUST(String::formatted("Failed in step 3.2; couldn't parse {} as a <source-size-value>", entry.size)),
-            });
-            continue;
-        }
-
-        // 3. If size is auto, and img is not null, and img is being rendered, and img allows auto-sizes,
-        //    then set size to the concrete object size width of img, in CSS pixels.
-        // FIXME: "img is being rendered" - we just see if it has image data for now
-        if (size->has_auto() && img && img->is_image_available() && img->allows_auto_sizes()) {
-            // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
-            //        Should this use some of the methods from FormattingContext?
-            auto concrete_size = run_default_sizing_algorithm(
-                img->width(), img->height(),
-                { img->natural_width(), img->natural_height(), img->intrinsic_aspect_ratio() },
-                // NOTE: https://html.spec.whatwg.org/multipage/rendering.html#img-contain-size
-                CSSPixelSize { 300, 150 });
-            size = LengthStyleValue::create(Length::make_px(concrete_size.width()));
-        }
-
-        // 4. Remove all consecutive <whitespace-token>s from the end of unparsed size.
-        //    If unparsed size is now empty:
-        if (entry.condition.is_empty()) {
-            // 1. If this was not the last item in unparsed sizes list, that is a parse error.
-            if (index != entries->size() - 1) {
-                log_parse_error();
-                ErrorReporter::the().report(InvalidValueError {
-                    .value_type = "sizes attribute"_utf16_fly_string,
-                    .value_string = m_source.to_utf8(),
-                    .description = MUST(String::formatted("Failed in step 3.4.1; is unparsed size #{}, count {}", index, entries->size())),
-                });
-            }
-            // 2. If size is not auto, then return size. Otherwise, continue.
-            if (!size->has_auto())
-                return size.release_nonnull();
-            continue;
-        }
-
-        // 5. Parse the remaining component values in unparsed size as a <media-condition>.
-        //    If it does not parse correctly, or it does parse correctly but the <media-condition> evaluates to false, continue.
-        auto media_condition = RustQueryParser::parse_media_condition(*this, entry.condition);
-        if (!media_condition.has_value())
-            continue;
-
-        // https://drafts.csswg.org/mediaqueries-5/#evaluating
-        // "If the result of any of the above productions is used in any
-        // context that expects a two-valued boolean, 'unknown' must be
-        // converted to 'false'."
-        if (!m_document)
-            continue;
-        if (evaluate_media_condition(*media_condition, MediaEnvironmentSnapshot { *m_document }) != MatchResult::True)
-            continue;
-
-        // 5. If size is not auto, then return size. Otherwise, continue.
-        if (!size->has_auto())
-            return size.release_nonnull();
-    }
-
-    // 4. Return 100vw.
-    return LengthStyleValue::create(Length(100, LengthUnit::Vw));
+    auto auto_width = sizes_attribute_auto_width(m_source, img);
+    auto context = make_parse_context(ParseContextMode::Value);
+    Optional<MediaEnvironmentSnapshot> media_environment;
+    if (m_document)
+        media_environment.emplace(*m_document);
+    auto ffi_environment = media_environment.map([](auto const& environment) { return environment.ffi_environment(); });
+    auto const* parsed = ValueParserFFI::rust_parse_sizes_attribute(ffi_utf16_view(m_source), &context.context, ffi_environment.has_value() ? &*ffi_environment : nullptr, auto_width.has_value() ? &*auto_width : nullptr);
+    VERIFY(parsed);
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
 }
 
 DOM::Document const* Parser::document() const

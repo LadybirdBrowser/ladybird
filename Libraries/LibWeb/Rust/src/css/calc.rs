@@ -3055,6 +3055,16 @@ fn resolve_calculated_with_channels(
     length_resolution: LengthResolution,
     channels: Option<&crate::css::color_resolution::RelativeColorContext>,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
+    resolve_calculated_with_channels_options(calculated, percentage_basis, length_resolution, channels, true)
+}
+
+fn resolve_calculated_with_channels_options(
+    calculated: &crate::css::style_value::StyleValueData,
+    percentage_basis: Option<CalcNumericValue>,
+    length_resolution: LengthResolution,
+    channels: Option<&crate::css::color_resolution::RelativeColorContext>,
+    apply_censoring_and_clamping: bool,
+) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
     use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
         rust_calculation,
@@ -3099,7 +3109,7 @@ fn resolve_calculated_with_channels(
         resolve_as,
         *resolve_numbers_as_integers,
         accepted_ranges.as_slice(),
-        true,
+        apply_censoring_and_clamping,
     )?;
     Some((value, numeric_type.expect("canonical result has a type"), resolve_as))
 }
@@ -3377,6 +3387,16 @@ pub(crate) fn resolve_calculated_length_without_context(
     };
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
     (numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage()).then_some(value)
+}
+
+/// Resolves a calculated value that must produce a raw length without applying top-level
+/// censoring or range clamping; the equivalent of C++ `resolve_raw_length` with an empty context.
+pub(crate) fn resolve_calculated_raw_length_without_context(
+    calculated: &crate::css::style_value::StyleValueData,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) =
+        resolve_calculated_with_channels_options(calculated, None, LengthResolution::default(), None, false)?;
+    numeric_type.matches_dimension(0, resolve_as).then_some(value)
 }
 
 /// Resolves a calculated value that must produce a length using the immutable
