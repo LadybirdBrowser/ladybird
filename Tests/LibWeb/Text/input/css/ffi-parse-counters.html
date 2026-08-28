@@ -61,16 +61,8 @@
         const names = [
             "internUtf16FlyStringCallbacks",
             "normalizeSvgPathDataCallbacks",
-            "fontFormatIsSupportedCallbacks",
-            "fontTechIsSupportedCallbacks",
-            "resolveDescriptorIntegerCallbacks",
-            "resolvePropertyIdCallbacks",
-            "resolveQueryFeatureCallbacks",
-            "evaluateSupportsFeatureCallbacks",
             "evaluateConditionCallbacks",
             "mediaEnvironmentCallbacks",
-            "rustHasIgnoredVendorPrefixEntries",
-            "rustReevaluateSupportsConditionEntries",
         ];
         for (const name of names)
             println(`${name}: ${counters[name]}`);

@@ -218,12 +218,6 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     VERIFY(index < data.declaration_count);
     auto const& declaration = data.declarations[index];
     VERIFY(declaration.rejection <= FfiDeclarationRejection::InvalidValue);
-    auto optional_text = [&](size_t offset, size_t length) -> Optional<Utf16String> {
-        if (offset == NumericLimits<size_t>::max())
-            return {};
-        return Utf16String::from_utf16(utf16_value(data, offset, length));
-    };
-
     auto name_view = utf16_value(data, declaration.name_offset, declaration.name_length);
     auto value_view = utf16_value(data, declaration.value_source_offset, declaration.value_source_length);
     Optional<PropertyID> parsed_property_id;
@@ -290,8 +284,6 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     return Declaration {
         .name = move(name),
         .important = declaration.important ? Important::Yes : Important::No,
-        .original_value_text = optional_text(declaration.original_value_offset, declaration.original_value_length),
-        .original_full_text = optional_text(declaration.original_full_text_offset, declaration.original_full_text_length),
         .source_position = source_position(declaration.start_line, declaration.start_column),
         .value_text = declaration.preserve_source_text ? Optional<Utf16String> { Utf16String::from_utf16(value_view) } : OptionalNone {},
         .parsed_property_id = parsed_property_id,

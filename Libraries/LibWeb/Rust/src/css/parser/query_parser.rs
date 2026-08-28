@@ -37,8 +37,8 @@ struct QueryFeatureMetadata {
     allows_range: bool,
 }
 
-// NB: Mirrors the SizeFeatureID order and range support from commit 3950fac294c in
-//     Libraries/LibWeb/CSS/ContainerQuery.h:22 and Libraries/LibWeb/CSS/ContainerQuery.cpp:81.
+// NB: Mirrors the SizeFeatureID order and range support that Libraries/LibWeb/CSS/ContainerQuery.h
+//     and .cpp carried before this series removed them.
 const SIZE_FEATURES: &[QueryFeatureMetadata] = &[
     QueryFeatureMetadata {
         name: "aspect-ratio",
@@ -66,30 +66,40 @@ const SIZE_FEATURES: &[QueryFeatureMetadata] = &[
     },
 ];
 
-// NB: Media feature IDs follow MediaFeatures.json iteration order, as did the C++ resolver at
-//     commit 3950fac294c in Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp:46.
-pub(crate) fn media_feature_from_name(name: &[u16]) -> Option<(u8, bool)> {
-    MEDIA_FEATURES.iter().enumerate().find_map(|(id, metadata)| {
-        if !equals_ascii_case_insensitive(name, metadata.name.as_bytes()) {
-            return None;
-        }
-        Some((u8::try_from(id).ok()?, metadata.allows_range))
-    })
+// NB: Media feature IDs follow MediaFeatures.json iteration order, as did the C++ resolver that
+//     this series removed from Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp.
+/// Looks up a query feature by name over a table of `(name, allows_range)` entries. The media and
+/// size tables come from different generators, so they are matched through this shared accessor.
+fn feature_from_name<'a>(table: impl IntoIterator<Item = (&'a str, bool)>, name: &[u16]) -> Option<(u8, bool)> {
+    table
+        .into_iter()
+        .enumerate()
+        .find_map(|(id, (candidate, allows_range))| {
+            if !equals_ascii_case_insensitive(name, candidate.as_bytes()) {
+                return None;
+            }
+            Some((u8::try_from(id).ok()?, allows_range))
+        })
 }
 
-fn size_feature_from_name(name: &[u16]) -> Option<(u8, bool)> {
-    SIZE_FEATURES.iter().enumerate().find_map(|(id, metadata)| {
-        if !equals_ascii_case_insensitive(name, metadata.name.as_bytes()) {
-            return None;
-        }
-        Some((u8::try_from(id).ok()?, metadata.allows_range))
-    })
+pub(crate) fn media_feature_from_name(name: &[u16]) -> Option<(u8, bool)> {
+    feature_from_name(
+        MEDIA_FEATURES
+            .iter()
+            .map(|metadata| (metadata.name, metadata.allows_range)),
+        name,
+    )
 }
 
 pub(crate) fn resolve_query_feature(kind: QueryKind, name: &[u16]) -> Option<(u8, bool)> {
     match kind {
         QueryKind::Media => media_feature_from_name(name),
-        QueryKind::Size => size_feature_from_name(name),
+        QueryKind::Size => feature_from_name(
+            SIZE_FEATURES
+                .iter()
+                .map(|metadata| (metadata.name, metadata.allows_range)),
+            name,
+        ),
         QueryKind::Style => property_id_from_name(name).map(|_| (0, false)),
         QueryKind::Supports => None,
     }
@@ -942,8 +952,8 @@ pub(crate) fn supports_feature_matches(
     match kind {
         SupportsFeatureKind::Declaration => supports_declaration_matches(context, value),
         SupportsFeatureKind::Selector => {
-            // NB: Mirrors the selector acceptance from commit 7c54a530cc2 in
-            //     Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp:172.
+            // NB: Mirrors the selector acceptance of the C++ supports evaluator that this series
+            //     removed from Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp.
             let Ok(selectors) = parse_selector_list(
                 value,
                 declared_namespaces,
@@ -1305,7 +1315,8 @@ where
     Some(result)
 }
 
-pub(crate) fn parse_container_condition_list<'a, R>(
+#[cfg(test)]
+fn parse_container_condition_list<'a, R>(
     source: impl Into<TokenizerInput<'a>>,
     resolve_feature: &R,
 ) -> Option<Vec<ContainerCondition>>
@@ -2147,9 +2158,9 @@ pub(crate) unsafe fn parse_and_evaluate_media_if_condition(
     source: &[u16],
     environment: &FfiMediaEnvironment,
 ) -> Option<MatchResult> {
-    // NB: Mirrors evaluate_condition_for_substitution from commit 805cbee8b6c in
-    //     Libraries/LibWeb/CSS/StyleComputer.cpp:292. Try a standalone media feature first,
-    //     then fall back to a full media condition.
+    // NB: Mirrors the media arm of evaluate_condition_for_substitution, which this series removed
+    //     from Libraries/LibWeb/CSS/StyleComputer.cpp. Try a standalone media feature first, then
+    //     fall back to a full media condition.
     let expression = parse_media_feature_from_source(source, &resolve_query_feature).or_else(|| {
         let values = components_from_source(source)?;
         parse_media_condition(&values, &resolve_query_feature)
@@ -2165,8 +2176,8 @@ pub(crate) unsafe fn parse_and_evaluate_supports_if_condition(
     let declared_namespaces = unsafe { declared_namespaces_from_context(context) }?;
     let evaluate_feature =
         |kind: SupportsFeatureKind, value: &[u16]| supports_feature_matches(context, &declared_namespaces, kind, value);
-    // NB: Mirrors evaluate_condition_for_substitution from commit 805cbee8b6c in
-    //     Libraries/LibWeb/CSS/StyleComputer.cpp:292. Try a supports declaration first,
+    // NB: Mirrors the supports arm of evaluate_condition_for_substitution, which this series
+    //     removed from Libraries/LibWeb/CSS/StyleComputer.cpp. Try a supports declaration first,
     //     then fall back to a full supports condition.
     let expression = parse_supports_declaration_from_source(source, &evaluate_feature)
         .or_else(|| parse_supports_condition(source, &evaluate_feature))?;
@@ -2478,8 +2489,6 @@ fn evaluate_media_query(
 
 type VisitQueryHandle = unsafe extern "C" fn(*mut c_void, *const FfiQueryHandle);
 
-type VisitContainerCondition = unsafe extern "C" fn(*mut c_void, *const u16, usize, bool, *const FfiQueryHandle);
-
 type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
 
 enum SourceSizeValue {
@@ -2521,8 +2530,8 @@ fn default_source_size() -> StyleValueData {
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
-// NB: Mirrors the C++ oracle from commit 88cc873e781 at
-//     Libraries/LibWeb/CSS/Parser/Parser.cpp:434.
+// NB: Mirrors the C++ implementation of this algorithm that this series replaced in
+//     Libraries/LibWeb/CSS/Parser/Parser.cpp.
 fn parse_sizes_attribute(
     context: &ParseContext,
     source: TokenizerInput<'_>,
@@ -2622,23 +2631,8 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
         let Some(context) = (unsafe { context.as_ref() }) else {
             return std::ptr::null();
         };
-        let media_environment = unsafe { media_environment.as_ref() }.and_then(|environment| {
-            let values = if environment.value_count == 0 {
-                &[]
-            } else {
-                if environment.values.is_null() {
-                    return None;
-                }
-                unsafe { std::slice::from_raw_parts(environment.values, environment.value_count) }
-            };
-            let length_context = unsafe {
-                environment
-                    .length_resolution_context
-                    .cast::<FfiLengthResolutionContext>()
-                    .as_ref()
-            };
-            Some((values, length_context))
-        });
+        let media_environment =
+            unsafe { media_environment.as_ref() }.and_then(|environment| unsafe { ffi_media_environment(environment) });
         let img_auto_width = unsafe { img_auto_width.as_ref() }.copied();
         Arc::into_raw(Arc::new(parse_sizes_attribute(
             context,
@@ -2701,39 +2695,6 @@ fn create_expression_handle(expression: Expression, kind: QueryKind) -> *const F
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_media_condition(source: FfiUtf16View) -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(values) = components_from_source(source) else {
-            return std::ptr::null();
-        };
-        let Some(expression) = parse_media_condition(&values, &resolve_query_feature) else {
-            return std::ptr::null();
-        };
-        create_expression_handle(expression, QueryKind::Media)
-    })
-}
-
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_media_feature(source: FfiUtf16View) -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(expression) = parse_media_feature_from_source(source, &resolve_query_feature) else {
-            return std::ptr::null();
-        };
-        create_expression_handle(expression, QueryKind::Media)
-    })
-}
-
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_supports_condition(
     source: FfiUtf16View,
     context: *const ParseContext,
@@ -2760,32 +2721,6 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
 /// # Safety
 /// The source pointers must identify readable storage for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_supports_declaration(
-    source: FfiUtf16View,
-    context: *const ParseContext,
-) -> *const FfiQueryHandle {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return std::ptr::null();
-        };
-        let Some(context) = (unsafe { context.as_ref() }) else {
-            return std::ptr::null();
-        };
-        let Some(declared_namespaces) = (unsafe { declared_namespaces_from_context(context) }) else {
-            return std::ptr::null();
-        };
-        let Some(expression) = parse_supports_declaration_from_source(source, &|kind, value| {
-            supports_feature_matches(context, &declared_namespaces, kind, value)
-        }) else {
-            return std::ptr::null();
-        };
-        create_expression_handle(expression, QueryKind::Supports)
-    })
-}
-
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_style_query(source: FfiUtf16View) -> *const FfiQueryHandle {
     crate::abort_on_panic(|| {
         let Some(source) = (unsafe { source.units() }) else {
@@ -2795,49 +2730,6 @@ pub unsafe extern "C" fn rust_parse_style_query(source: FfiUtf16View) -> *const 
             return std::ptr::null();
         };
         create_expression_handle(expression, QueryKind::Style)
-    })
-}
-
-/// Parses a container-condition list and visits each condition name and optional retained tree.
-///
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call. The callback
-/// must be valid and may retain a query handle with `css_query_ref`.
-#[unsafe(no_mangle)]
-#[allow(clippy::arc_with_non_send_sync)]
-pub unsafe extern "C" fn rust_visit_container_condition_list(
-    source: FfiUtf16View,
-    context: *mut c_void,
-    visit: VisitContainerCondition,
-) -> bool {
-    crate::abort_on_panic(|| {
-        let Some(source) = (unsafe { source.units() }) else {
-            return false;
-        };
-        let Some(conditions) = parse_container_condition_list(source, &resolve_query_feature) else {
-            return false;
-        };
-        for condition in conditions {
-            let query_handle = condition.query.map(|expression| {
-                Arc::new(FfiQueryHandle {
-                    tree: QueryTree::Expression {
-                        expression,
-                        kind: QueryKind::Size,
-                    },
-                })
-            });
-            let (name, has_name) = condition.name.as_deref().map_or((&[][..], false), |name| (name, true));
-            unsafe {
-                visit(
-                    context,
-                    name.as_ptr(),
-                    name.len(),
-                    has_name,
-                    query_handle.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
-                );
-            };
-        }
-        true
     })
 }
 
@@ -3103,12 +2995,18 @@ mod tests {
         for (id, (name, allows_range)) in expected_size_features.into_iter().enumerate() {
             let name = name.to_ascii_uppercase().encode_utf16().collect::<Vec<_>>();
             assert_eq!(
-                size_feature_from_name(&name),
+                feature_from_name(
+                    SIZE_FEATURES.iter().map(|entry| (entry.name, entry.allows_range)),
+                    &name
+                ),
                 Some((u8::try_from(id).unwrap(), allows_range))
             );
         }
         assert_eq!(
-            size_feature_from_name(&"unknown".encode_utf16().collect::<Vec<_>>()),
+            feature_from_name(
+                SIZE_FEATURES.iter().map(|entry| (entry.name, entry.allows_range)),
+                &"unknown".encode_utf16().collect::<Vec<_>>()
+            ),
             None
         );
     }

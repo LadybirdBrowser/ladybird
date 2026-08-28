@@ -128,7 +128,6 @@ public:
     RefPtr<MediaQuery> parse_as_media_query();
 
     Optional<RustQueryHandle> parse_as_supports();
-    Optional<RustQueryHandle> parse_as_supports_declaration();
 
     RefPtr<StyleValue const> parse_as_css_value(PropertyID);
     RefPtr<StyleValue const> parse_as_descriptor_value(AtRuleID, DescriptorNameAndID const&);

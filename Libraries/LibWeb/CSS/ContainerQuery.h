@@ -19,15 +19,6 @@ class RustQueryParser;
 
 }
 
-enum class SizeFeatureID : u8 {
-    AspectRatio,
-    BlockSize,
-    Height,
-    InlineSize,
-    Orientation,
-    Width,
-};
-
 struct ContainerQueryFeatureRequirements {
     bool requires_width_container : 1 { false };
     bool requires_height_container : 1 { false };

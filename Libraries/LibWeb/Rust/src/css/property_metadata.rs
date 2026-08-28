@@ -30,13 +30,10 @@ pub(crate) fn property_name(property_id: u16) -> &'static str {
 }
 
 fn compare_property_name(candidate: &str, name: &[u16]) -> std::cmp::Ordering {
-    candidate.bytes().map(u16::from).cmp(name.iter().map(|&code_unit| {
-        if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
-            code_unit + u16::from(b'a' - b'A')
-        } else {
-            code_unit
-        }
-    }))
+    candidate
+        .bytes()
+        .map(u16::from)
+        .cmp(name.iter().copied().map(crate::css::ffi_support::ascii_lowercase))
 }
 
 pub(crate) fn is_custom_property_name(name: &[u16]) -> bool {

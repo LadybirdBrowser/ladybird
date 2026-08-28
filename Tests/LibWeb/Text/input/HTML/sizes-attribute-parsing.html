@@ -28,6 +28,5 @@
         println(`non-math function: ${await parsedSourceSize("foo(40px), 60px")}`);
         const counters = internals.styleFfiCounters();
         println(`sizes attribute parser observed: ${counters.sizesAttributeParseEntries > 0}`);
-        println(`sizes attribute splitter observed: ${counters.sizesAttributeSplitEntries > 0}`);
     });
 </script>

@@ -339,10 +339,10 @@ RefPtr<StyleValue const> Parser::parse_as_type(ValueType value_type)
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute
-static Optional<double> sizes_attribute_auto_width(Utf16View source, HTML::HTMLImageElement const* img)
+static Optional<double> sizes_attribute_auto_width(HTML::HTMLImageElement const* img)
 {
     // FIXME: "img is being rendered" - we just see if it has image data for now.
-    if (!source.find_code_unit_offset_ignoring_case("auto"sv).has_value() || !img || !img->is_image_available() || !img->allows_auto_sizes())
+    if (!img || !img->is_image_available() || !img->allows_auto_sizes())
         return {};
 
     // FIXME: The spec doesn't seem to tell us how to determine the concrete size of an <img>, so use the default sizing algorithm.
@@ -361,7 +361,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
 {
     if (!element.has_attribute(HTML::AttributeNames::sizes))
         return LengthStyleValue::create(Length(100, LengthUnit::Vw));
-    auto auto_width = sizes_attribute_auto_width(m_source, img);
+    auto auto_width = sizes_attribute_auto_width(img);
     auto context = make_parse_context(ParseContextMode::Value);
     Optional<MediaEnvironmentSnapshot> media_environment;
     if (m_document)

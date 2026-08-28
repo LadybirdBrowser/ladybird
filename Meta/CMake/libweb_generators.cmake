@@ -20,21 +20,11 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
     )
 
-    invoke_py_generator(
-        "EnvironmentVariable.cpp"
-        "generate_libweb_css_environment_variables.py"
-        "${LIBWEB_INPUT_FOLDER}/CSS/EnvironmentVariables.json"
-        "CSS/EnvironmentVariable.h"
-        "CSS/EnvironmentVariable.cpp"
-        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/EnvironmentVariables.json"
-    )
-
-    invoke_py_generator(
-        "MediaFeatureID.cpp"
+    invoke_py_header_generator(
+        "MediaFeatureID.h"
         "generate_libweb_css_media_feature_id.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
         "CSS/MediaFeatureID.h"
-        "CSS/MediaFeatureID.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/MediaFeatures.json"
     )
 
@@ -152,7 +142,6 @@ function (generate_css_implementation)
 
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
-       "CSS/EnvironmentVariable.h"
        "CSS/GeneratedCSSStyleProperties.h"
        "CSS/GeneratedCSSNumericFactoryMethods.h"
        "CSS/Keyword.h"

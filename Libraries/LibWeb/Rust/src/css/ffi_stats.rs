@@ -62,10 +62,7 @@ define_ffi_ops! {
     TransitionDecisionEntry => "transitionDecisionEntries",
     SubstitutionCallbackFreeParse => "substitutionCallbackFreeParses",
     SubstitutionCallbackParseRequest => "substitutionCallbackParseRequests",
-    RustHasIgnoredVendorPrefixEntry => "rustHasIgnoredVendorPrefixEntries",
-    RustReevaluateSupportsConditionEntry => "rustReevaluateSupportsConditionEntries",
     SizesAttributeParseEntry => "sizesAttributeParseEntries",
-    SizesAttributeSplitEntry => "sizesAttributeSplitEntries",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
@@ -73,12 +70,6 @@ define_ffi_ops! {
     // CSS parser callbacks: Rust -> C++.
     InternUtf16FlyStringCallback => "internUtf16FlyStringCallbacks",
     NormalizeSvgPathDataCallback => "normalizeSvgPathDataCallbacks",
-    FontFormatIsSupportedCallback => "fontFormatIsSupportedCallbacks",
-    FontTechIsSupportedCallback => "fontTechIsSupportedCallbacks",
-    ResolveDescriptorIntegerCallback => "resolveDescriptorIntegerCallbacks",
-    ResolvePropertyIdCallback => "resolvePropertyIdCallbacks",
-    QueryFeatureResolutionCallback => "resolveQueryFeatureCallbacks",
-    EvaluateSupportsFeatureCallback => "evaluateSupportsFeatureCallbacks",
     EvaluateConditionCallback => "evaluateConditionCallbacks",
     MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }

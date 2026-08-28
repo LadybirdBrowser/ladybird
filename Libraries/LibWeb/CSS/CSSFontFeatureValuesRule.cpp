@@ -22,17 +22,6 @@ GC::Ref<CSSFontFeatureValuesRule> CSSFontFeatureValuesRule::create(Vector<Utf16F
     return GC::Heap::the().allocate<CSSFontFeatureValuesRule>(move(font_families));
 }
 
-bool CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(Utf16View keyword)
-{
-    return keyword.equals_ignoring_ascii_case("stylistic"sv)
-        || keyword.equals_ignoring_ascii_case("historical-forms"sv)
-        || keyword.equals_ignoring_ascii_case("styleset"sv)
-        || keyword.equals_ignoring_ascii_case("character-variant"sv)
-        || keyword.equals_ignoring_ascii_case("swash"sv)
-        || keyword.equals_ignoring_ascii_case("ornaments"sv)
-        || keyword.equals_ignoring_ascii_case("annotation"sv);
-}
-
 CSSFontFeatureValuesRule::CSSFontFeatureValuesRule(Vector<Utf16FlyString> font_families)
     : CSSRule(CSSRule::Type::FontFeatureValues)
     , m_font_families(move(font_families))

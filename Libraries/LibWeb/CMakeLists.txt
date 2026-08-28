@@ -1215,13 +1215,12 @@ set(GENERATED_SOURCES
     CSS/DefaultStyleSheetSource.cpp
     CSS/DescriptorID.cpp
     CSS/Enums.cpp
-    CSS/EnvironmentVariable.cpp
     CSS/GeneratedCSSNumericFactoryMethods.cpp
     CSS/GeneratedCSSNumericFactoryMethods.idl
     CSS/GeneratedCSSStyleProperties.cpp
     CSS/GeneratedCSSStyleProperties.idl
     CSS/Keyword.cpp
-    CSS/MediaFeatureID.cpp
+    CSS/MediaFeatureID.h
     CSS/PropertyID.cpp
     CSS/PseudoClass.h
     CSS/PseudoElement.cpp
