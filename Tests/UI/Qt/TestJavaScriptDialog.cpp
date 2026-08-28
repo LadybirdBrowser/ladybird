@@ -195,6 +195,7 @@ TEST_CASE(beforeunload_uses_fixed_copy_and_navigation_button_roles)
     record_completions(dialog, completion);
 
     dialog.show_before_unload("https://example.com");
+    EXPECT(dialog.type() == Ladybird::JavaScriptDialog::Type::BeforeUnload);
     QApplication::processEvents();
     auto* title_label = dialog.findChild<QLabel*>("LadybirdJavaScriptDialogTitle");
     auto* message_label = dialog.findChild<QLabel*>("LadybirdJavaScriptDialogMessage");
@@ -218,11 +219,13 @@ TEST_CASE(beforeunload_uses_fixed_copy_and_navigation_button_roles)
     EXPECT(message_area->viewport()->height() >= message_label->heightForWidth(message_area->viewport()->width()));
 
     send_key(*leave_button, Qt::Key_Return);
+    EXPECT(!dialog.type().has_value());
     EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::BeforeUnload);
     EXPECT(completion.accepted);
 
     completion = {};
     dialog.show_before_unload("https://example.com");
+    EXPECT(dialog.type() == Ladybird::JavaScriptDialog::Type::BeforeUnload);
     trigger_shortcut(dialog, Qt::Key_Escape);
     EXPECT(completion.type == Ladybird::JavaScriptDialog::Type::BeforeUnload);
     EXPECT(!completion.accepted);
