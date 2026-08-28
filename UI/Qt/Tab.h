@@ -133,6 +133,7 @@ private:
     void position_downloads_popover();
     void show_private_session_popover();
     void position_private_session_popover();
+    void hide_hover_label();
     void set_loading(bool);
     void update_tab_icon();
     int tab_index();

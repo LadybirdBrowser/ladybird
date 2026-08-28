@@ -849,10 +849,12 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             view().alert_closed();
             return;
         }
+        hide_hover_label();
         m_javascript_dialog->show_alert(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
     view().on_request_before_unload = [this](auto const& source, auto on_complete) {
+        hide_hover_label();
         m_before_unload_completion = AK::move(on_complete);
         m_javascript_dialog->show_before_unload(qstring_from_ak_string(source));
     };
@@ -862,6 +864,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             view().confirm_closed(false);
             return;
         }
+        hide_hover_label();
         m_javascript_dialog->show_confirm(javascript_dialog_title(), qstring_from_utf16_string(message));
     };
 
@@ -870,6 +873,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             view().prompt_closed({});
             return;
         }
+        hide_hover_label();
         m_javascript_dialog->show_prompt(javascript_dialog_title(), qstring_from_utf16_string(message), qstring_from_utf16_string(default_));
     };
 
@@ -919,6 +923,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             on_complete(false);
             return;
         }
+
+        hide_hover_label();
 
         auto initiator = initiator_origin.is_opaque() ? "This page"_string : initiator_origin.serialize();
         auto application_name = handler.application_name().is_empty() ? "another application"sv : handler.application_name().bytes_as_string_view();
@@ -1412,6 +1418,11 @@ void Tab::update_hover_label()
         m_hover_label->move(left_position);
 
     m_hover_label->raise();
+}
+
+void Tab::hide_hover_label()
+{
+    m_hover_label->hide();
 }
 
 bool Tab::event(QEvent* event)
