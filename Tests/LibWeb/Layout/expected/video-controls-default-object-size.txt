@@ -38,35 +38,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     SVGGeometryBox <path.fullscreen-maximize-path> at [3,3] [0+0+0 18 0+0+0] [0+0+0 18 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x169.203125]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x153.203125]
-      VideoPaintable (VideoBox<VIDEO>) [8,8 300x150]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 300x150]
-          PaintableWithLines (BlockContainer<DIV>.container.video) [8,8 300x150]
-            Paintable (Box<DIV>.video-overlay) [8,8 300x150]
-              Paintable (Box<DIV>.placeholder-circle) [118,43 80x80]
-                SVGSVGPaintable (SVGSVGBox<svg>.placeholder-icon) [142,65 36x36]
-                  SVGPathPaintable (SVGGeometryBox<path>.play-path) [6,5 13x14]
-            Paintable (Box<DIV>.controls.visible) [8,115 300x43]
-              PaintableWithLines (BlockContainer<DIV>.timeline) [8,110 300x15]
-                PaintableWithLines (BlockContainer<DIV>.timeline-track) [8,115 300x5]
-                  PaintableWithLines (BlockContainer<DIV>.timeline-fill) [8,115 0x5]
-              Paintable (Box<DIV>.button-bar) [8,120 300x38]
-                Paintable (Box<BUTTON>.control-button.play-pause-button) [16,127 24x24]
-                  SVGSVGPaintable (SVGSVGBox<svg>.icon.play-pause-icon) [16,127 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.play-path) [6,5 13x14]
-                PaintableWithLines (BlockContainer<SPAN>.timestamp) [48,133 80.84375x12]
-                Paintable (Box<BUTTON>.control-button.mute-button.high.muted) [244,127 24x24]
-                  SVGSVGPaintable (SVGSVGBox<svg>.icon) [244,127 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.muted-line) [3.5,5 15.5x15.5]
-                    SVGPathPaintable (SVGGeometryBox<path>.volume-high) [14,4.078125 6x15.84375]
-                    SVGPathPaintable (SVGGeometryBox<path>.volume-low) [14,7.671875 2.03125x8.65625]
-                    SVGPathPaintable (SVGGeometryBox<path>.speaker) [4,4 8x16]
-                Paintable (Box<DIV>.control-button.fullscreen-button) [276,127 24x24]
-                  SVGSVGPaintable (SVGSVGBox<svg>.icon.fullscreen-icon) [276,127 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.fullscreen-maximize-path) [3,3 18x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x169.203125] (z-index: auto)
   SC for Box<DIV>.placeholder-circle [118,43 80x80] (z-index: auto)

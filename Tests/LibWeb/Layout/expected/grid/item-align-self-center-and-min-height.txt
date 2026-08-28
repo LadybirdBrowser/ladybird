@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "Item with Min-Height"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x324]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x306]
-      Paintable (Box<DIV>.grid-container) [10,10 780x304]
-        PaintableWithLines (BlockContainer<DIV>#min-height-item.grid-item) [11,11 778x302]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x322] (z-index: auto)

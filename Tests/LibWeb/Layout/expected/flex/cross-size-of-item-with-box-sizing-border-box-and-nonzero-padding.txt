@@ -19,11 +19,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "Pellentesque eget justo nulla. Duis consectetur imperdiet nisi, ac tincidunt urna blandit quis."
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x236]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x218]
-      Paintable (Box<DIV>.outer.flex.flex-wrap) [10,10 780x216]
-        PaintableWithLines (BlockContainer<DIV>.inner) [11,11 778x214]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x234] (z-index: auto)

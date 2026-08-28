@@ -10,14 +10,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     "DaTa DisplaYiNg CSS WeBpaGE ScReEn"
                 TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
-      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x16]
-        PaintableWithLines (TableWrapper(anonymous)) [235.265625,8 329.46875x16]
-          Paintable (Box<DIV>.box) [235.265625,8 329.46875x16]
-            Paintable (Box(anonymous)) [235.265625,8 329.46875x16]
-              PaintableWithLines (BlockContainer<DIV>.cell) [235.265625,8 329.46875x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

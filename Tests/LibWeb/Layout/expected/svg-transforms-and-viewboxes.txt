@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x700]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 700 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [50,50] [50+0+0 700 0+0+50] [50+0+0 600 0+0+50] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [50,150 200x100] baseline: 100
@@ -91,38 +91,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         SVGGeometryBox <rect> at [5,5] [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] children: not-inline
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x700]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x700]
-    PaintableWithLines (BlockContainer<BODY>) [50,50 700x600]
-      SVGSVGPaintable (SVGSVGBox<svg>) [50,150 200x100]
-        SVGGraphicsPaintable (SVGGraphicsBox<g>) [10,10 80x80]
-          SVGPathPaintable (SVGGeometryBox<path>) [10,10 80x80]
-        SVGGraphicsPaintable (SVGGraphicsBox<g>) [9.5,9.5 81x81]
-          SVGPathPaintable (SVGGeometryBox<path>) [9.5,9.5 81x81]
-      SVGSVGPaintable (SVGSVGBox<svg>) [258,50 200x200]
-        SVGPathPaintable (SVGGeometryBox<rect>) [10,10 30x20]
-        SVGPathPaintable (SVGGeometryBox<rect>) [10,10 30x20]
-      SVGSVGPaintable (SVGSVGBox<svg>) [466,50 200x200]
-        SVGPathPaintable (SVGGeometryBox<rect>) [-3,-3 6x6]
-        SVGPathPaintable (SVGGeometryBox<rect>) [-3,-3 6x6]
-      SVGSVGPaintable (SVGSVGBox<svg>) [50,250 200x200]
-        SVGPathPaintable (SVGGeometryBox<rect>) [0,0 10x10]
-        SVGPathPaintable (SVGGeometryBox<rect>) [0,0 10x10]
-        SVGPathPaintable (SVGGeometryBox<rect>) [0,0 10x10]
-      SVGSVGPaintable (SVGSVGBox<svg>) [258,250 200x200]
-        SVGPathPaintable (SVGGeometryBox<circle>) [-10,-10 20x20]
-        SVGPathPaintable (SVGGeometryBox<circle>) [-10,-10 20x20]
-        SVGPathPaintable (SVGGeometryBox<circle>) [-10,-10 20x20]
-        SVGPathPaintable (SVGGeometryBox<circle>) [-10,-10 20x20]
-      SVGSVGPaintable (SVGSVGBox<svg>) [466,250 200x200]
-        SVGPathPaintable (SVGGeometryBox<rect>) [-3,-3 6x6]
-        SVGPathPaintable (SVGGeometryBox<rect>) [-3,-3 6x6]
-      SVGSVGPaintable (SVGSVGBox<svg>) [50,450 200x200]
-        SVGPathPaintable (SVGGeometryBox<rect>) [5,5 40x40]
-        SVGPathPaintable (SVGGeometryBox<rect>) [5,5 40x40]
-        SVGPathPaintable (SVGGeometryBox<rect>) [5,5 40x40]
-        SVGPathPaintable (SVGGeometryBox<rect>) [5,5 40x40]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x700] (z-index: auto)

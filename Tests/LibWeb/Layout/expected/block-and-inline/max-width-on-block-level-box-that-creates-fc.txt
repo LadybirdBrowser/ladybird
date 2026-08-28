@@ -16,13 +16,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "consectetuer"
             TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>.a) [8,8 100x80]
-        Paintable (Box<DIV>.b) [8,8 100x80]
-          PaintableWithLines (BlockContainer(anonymous)) [8,8 105.5625x80]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
   SC for BlockContainer<DIV>.a [8,8 100x80] (z-index: auto)

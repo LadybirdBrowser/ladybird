@@ -35,21 +35,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "End2"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x260]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x242]
-      PaintableWithLines (BlockContainer(anonymous)) [10,10 780x0]
-      Paintable (Box<DIV>.grid) [10,10 780x80]
-        PaintableWithLines (BlockContainer<DIV>.start) [31,31 357.765625x18]
-        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,31 380.234375x38]
-      PaintableWithLines (BlockContainer(anonymous)) [10,90 780x0]
-      Paintable (Box<DIV>.grid) [10,90 780x80]
-        PaintableWithLines (BlockContainer<DIV>.center) [31,121 357.765625x18]
-        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,111 380.234375x38]
-      PaintableWithLines (BlockContainer(anonymous)) [10,170 780x0]
-      Paintable (Box<DIV>.grid) [10,170 780x80]
-        PaintableWithLines (BlockContainer<DIV>.end) [31,211 357.765625x18]
-        PaintableWithLines (BlockContainer<DIV>.item-padding) [388.765625,191 380.234375x38]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x258] (z-index: auto)

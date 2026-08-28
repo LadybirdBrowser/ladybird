@@ -14,12 +14,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "left"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x232]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x22]
-      PaintableWithLines (BlockContainer<DIV>.Layout-sidebar) [10,10 222x20]
-        PaintableWithLines (BlockContainer<DIV>.d-inline-block) [11,11 102x18]
-        PaintableWithLines (BlockContainer<DIV>.float-left) [11,29 234.734375x202]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x230] (z-index: auto)

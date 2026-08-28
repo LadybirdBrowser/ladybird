@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "whee"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 43.953125x22]
-      Paintable (Box<DIV>.grid) [10,10 41.953125x20]
-        PaintableWithLines (BlockContainer<DIV>.whee) [11,11 39.953125x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x38] (z-index: auto)

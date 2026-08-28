@@ -6,10 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Null publishes fine indie games"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x96.875]
-    Paintable (Box<BODY>) [9,9 782x78.875]
-      PaintableWithLines (BlockContainer<H1>) [54.5,31.4375 691x34]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x94.875] (z-index: auto)

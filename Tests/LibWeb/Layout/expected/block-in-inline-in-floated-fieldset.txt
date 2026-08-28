@@ -35,24 +35,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,16] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
-    PaintableWithLines (BlockContainer<BODY>) [8,16 784x0]
-      PaintableWithLines (BlockContainer<UL>) [8,16 784x0]
-        PaintableWithLines (ListItemBox<LI>) [728.265625,16 63.734375x24]
-          PaintableWithLines (ListItemMarkerBox(anonymous)) [714.265625,20 13.84375x16]
-          PaintableWithLines (BlockContainer(anonymous)) [728.265625,16 63.734375x0]
-          PaintableWithLines (BlockContainer<FORM>) [728.265625,16 63.734375x24]
-            FieldSetPaintable (FieldSetBox<FIELDSET>) [728.265625,16 63.734375x24]
-              PaintableWithLines (BlockContainer(anonymous)) [730.265625,18 59.734375x20]
-                InlinePaintable (InlineNode<P>) [730.265625,20 59.734375x16]
-                  InlinePaintable (InlineNode<SPAN>.actions) [730.265625,20 59.734375x16]
-                    PaintableWithLines (BlockContainer<INPUT>) [730.265625,18 59.734375x20]
-                      PaintableWithLines (BlockContainer(anonymous)) [735.265625,20 49.734375x16]
-                        PaintableWithLines (BlockContainer(anonymous)) [735.265625,20 49.734375x16]
-                          PaintableWithLines (BlockContainer<SPAN>) [735.265625,20 49.734375x16]
-          PaintableWithLines (BlockContainer(anonymous)) [728.265625,40 63.734375x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,16 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x40] (z-index: auto)

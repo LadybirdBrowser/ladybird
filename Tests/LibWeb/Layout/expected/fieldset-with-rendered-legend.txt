@@ -10,13 +10,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,41.59375] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x49.59375]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x33.59375]
-      FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x33.59375]
-        PaintableWithLines (LegendBox<LEGEND>) [24,8 40.328125x16]
-        PaintableWithLines (BlockContainer(anonymous)) [24,29.59375 752x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,41.59375 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x49.59375] (z-index: auto)

@@ -97,35 +97,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x112]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x96]
-      Paintable (Box<DIV>.grid) [8,8 784x96]
-        Paintable (Box<DIV>.item) [8,8 100x48]
-          PaintableWithLines (BlockContainer<DIV>) [8,8 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [8,24 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [8,40 100x16]
-        Paintable (Box<DIV>.item) [108,8 100x48]
-          PaintableWithLines (BlockContainer<DIV>) [108,8 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [108,24 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [108,40 100x16]
-        Paintable (Box<DIV>.item) [208,8 100x48]
-          PaintableWithLines (BlockContainer<DIV>) [208,8 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [208,24 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [208,40 100x16]
-        Paintable (Box<DIV>.item) [8,56 100x48]
-          PaintableWithLines (BlockContainer<DIV>) [8,56 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [8,72 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [8,88 100x16]
-        Paintable (Box<DIV>.item) [108,56 100x48]
-          PaintableWithLines (BlockContainer<DIV>) [108,56 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [108,72 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [108,88 100x16]
-        Paintable (Box<DIV>.item) [208,56 100x48]
-          PaintableWithLines (BlockContainer<DIV>) [208,56 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [208,72 100x16]
-          PaintableWithLines (BlockContainer<DIV>) [208,88 100x16]
-      PaintableWithLines (BlockContainer(anonymous)) [8,104 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x112] (z-index: auto)

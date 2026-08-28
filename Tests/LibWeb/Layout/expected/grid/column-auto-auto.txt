@@ -5,12 +5,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.test> at [8,8] [0+0+0 500 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
           BlockContainer <div.big-child> at [8,8] [0+0+0 500 0+0+0] [0+0+0 100 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
-      Paintable (Box<DIV>.grid) [8,8 100x100]
-        PaintableWithLines (BlockContainer<DIV>.test) [8,8 500x100]
-          PaintableWithLines (BlockContainer<DIV>.big-child) [8,8 500x100]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)

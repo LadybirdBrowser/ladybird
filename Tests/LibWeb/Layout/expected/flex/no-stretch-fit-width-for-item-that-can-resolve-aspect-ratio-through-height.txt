@@ -6,12 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [28,8] flex-item [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
-    Paintable (Box<BODY>) [8,8 200x20]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 20x20]
-        SVGPathPaintable (SVGGeometryBox<rect>) [0,0 12x12]
-      PaintableWithLines (BlockContainer<DIV>) [28,8 100x20]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

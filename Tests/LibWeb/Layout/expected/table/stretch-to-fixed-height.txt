@@ -6,13 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Box <tbody> at [21,21] table-row-group [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
             Box <tr> at [21,21] table-row [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 24x100]
-        Paintable (Box<TABLE>) [8,8 24x100]
-          Paintable (Box<TBODY>) [21,21 0x0]
-            Paintable (Box<TR>) [21,21 0x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)

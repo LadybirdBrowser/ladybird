@@ -17,18 +17,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                       "bar"
                   TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x122]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x106]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 137.15625x106]
-        Paintable (Box<TABLE>) [8,8 137.15625x106]
-          Paintable (Box<TBODY>) [10,10 133.15625x102]
-            Paintable (Box<TR>) [10,10 133.15625x102]
-              PaintableWithLines (BlockContainer(anonymous)) [10,10 29.15625x102]
-                Paintable (Box<TD>.flex) [10,10 29.15625x18]
-                  PaintableWithLines (BlockContainer(anonymous)) [11,11 27.15625x16]
-              PaintableWithLines (BlockContainer<TD>) [41.15625,10 102x102]
-                PaintableWithLines (BlockContainer<DIV>.tall) [42.15625,11 100x100]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x122] (z-index: auto)

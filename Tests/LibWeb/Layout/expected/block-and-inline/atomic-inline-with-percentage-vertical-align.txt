@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BreakNode <br> (not painted)
       BlockContainer <div.clump> at [3,35] inline-block [0+1+0 30 0+1+0] [0+1+0 30 0+1+0] [BFC] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64.8125]
-    PaintableWithLines (BlockContainer<BODY>) [1,1 798x62.8125]
-      PaintableWithLines (BlockContainer<DIV>.clump) [2,2 32x32]
-      PaintableWithLines (BlockContainer<DIV>.clump) [2,34 32x32]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x62.8125] (z-index: auto)

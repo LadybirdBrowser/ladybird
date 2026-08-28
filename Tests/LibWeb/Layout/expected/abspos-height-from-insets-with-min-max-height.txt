@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1000]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1000 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1000 0+0+0] children: not-inline
       BlockContainer <div.container> at [0,0] positioned [0+0+0 200 0+0+600] [0+0+0 200 0+0+0] children: inline
@@ -35,25 +35,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [0,1000] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1000]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1000]
-    PaintableWithLines (BlockContainer<BODY>) [0,0 800x1000]
-      PaintableWithLines (BlockContainer<DIV>.container) [0,0 200x200]
-        PaintableWithLines (BlockContainer<DIV>.abspos) [0,37 200x163]
-      PaintableWithLines (BlockContainer(anonymous)) [0,200 800x0]
-      PaintableWithLines (BlockContainer<DIV>.container) [0,200 200x200]
-        PaintableWithLines (BlockContainer<DIV>.abspos) [0,350 200x100]
-      PaintableWithLines (BlockContainer(anonymous)) [0,400 800x0]
-      PaintableWithLines (BlockContainer<DIV>.container) [0,400 200x200]
-        PaintableWithLines (BlockContainer<DIV>.abspos) [0,400 200x100]
-      PaintableWithLines (BlockContainer(anonymous)) [0,600 800x0]
-      PaintableWithLines (BlockContainer<DIV>.container) [0,600 200x200]
-        PaintableWithLines (BlockContainer<DIV>.abspos) [0,650 200x100]
-      PaintableWithLines (BlockContainer(anonymous)) [0,800 800x0]
-      PaintableWithLines (BlockContainer<DIV>.container) [0,800 200x200]
-        PaintableWithLines (BlockContainer<DIV>.abspos) [0,810 200x150]
-      PaintableWithLines (BlockContainer(anonymous)) [0,1000 800x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x1000] (z-index: auto)

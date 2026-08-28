@@ -9,11 +9,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <div.item2> at [79.109375,8] flex-item [0+0+0 8.890625 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
-    Paintable (Box<BODY>) [8,8 80x32]
-      PaintableWithLines (BlockContainer<DIV>.item1) [8,8 71.109375x32]
-      PaintableWithLines (BlockContainer<DIV>.item2) [79.109375,8 8.890625x10]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

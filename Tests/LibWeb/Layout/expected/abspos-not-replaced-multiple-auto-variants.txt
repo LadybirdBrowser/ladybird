@@ -9,12 +9,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.both> at [11,11] positioned [5+1+0 10 0+1+5] [5+1+0 10 0+1+5] [BFC] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
-      PaintableWithLines (BlockContainer<DIV>.only-t-l) [5,5 12x12]
-      PaintableWithLines (BlockContainer<DIV>.only-mt-ml) [15,15 12x12]
-      PaintableWithLines (BlockContainer<DIV>.both) [10,10 12x12]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x18] (z-index: auto)

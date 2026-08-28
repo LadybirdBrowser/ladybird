@@ -7,12 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from ImageBox start: 0, length: 0, rect: [8,10 10x10] baseline: 10
           ImageBox <img> at [8,10] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
-      Paintable (Box<DIV>.inline-flex.aspect-ratio) [8,8 10x10.3125]
-        PaintableWithLines (BlockContainer<DIV>.img-wrapper) [8,8 10x10.3125]
-          ImagePaintable (ImageBox<IMG>) [8,10 10x10]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

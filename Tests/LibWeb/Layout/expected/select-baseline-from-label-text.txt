@@ -44,26 +44,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x56]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x40]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x20]
-        PaintableWithLines (BlockContainer<SELECT>) [37.265625,8 86.46875x20]
-          Paintable (Box<DIV>) [42.265625,10 76.46875x16]
-            PaintableWithLines (BlockContainer<DIV>) [42.265625,10 56.46875x16]
-            PaintableWithLines (BlockContainer<DIV>) [102.734375,10 16x16]
-              SVGSVGPaintable (SVGSVGBox<svg>) [102.734375,10 16x16]
-                SVGPathPaintable (SVGGeometryBox<path>) [6,8.578125 12x7.421875]
-        PaintableWithLines (BlockContainer<INPUT>) [131.734375,8 33.59375x20]
-          PaintableWithLines (BlockContainer(anonymous)) [136.734375,10 23.59375x16]
-            PaintableWithLines (BlockContainer(anonymous)) [136.734375,10 23.59375x16]
-              PaintableWithLines (BlockContainer<SPAN>) [136.734375,10 23.59375x16]
-      PaintableWithLines (BlockContainer(anonymous)) [8,28 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,28 784x20]
-        PaintableWithLines (BlockContainer<SELECT>) [37.265625,28 66.46875x20]
-          Paintable (Box<DIV>) [42.265625,30 56.46875x16]
-            PaintableWithLines (BlockContainer<DIV>) [42.265625,30 56.46875x16]
-      PaintableWithLines (BlockContainer(anonymous)) [8,48 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x56] (z-index: auto)

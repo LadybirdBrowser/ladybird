@@ -13,13 +13,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
         BlockContainer <slot> at [68,84] [0+0+0 664 0+0+0] [0+0+0 0 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x152]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x136]
-      PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x136]
-        PaintableWithLines (ListItemBox<SUMMARY>) [68,68 664x16]
-          PaintableWithLines (ListItemMarkerBox(anonymous)) [68,68 13.84375x16]
-        PaintableWithLines (BlockContainer<SLOT>) [68,84 664x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x152] (z-index: auto)

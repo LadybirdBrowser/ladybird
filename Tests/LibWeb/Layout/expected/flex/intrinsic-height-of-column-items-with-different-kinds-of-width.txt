@@ -46,24 +46,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x136]
-    Paintable (Box<BODY>) [9,9 782x118]
-      PaintableWithLines (BlockContainer<DIV>.px) [10,10 202x20]
-        Paintable (Box<DIV>.inner) [11,11 200x18]
-          PaintableWithLines (BlockContainer(anonymous)) [12,12 19.125x16]
-      PaintableWithLines (BlockContainer<DIV>.percentage) [10,30 52x20]
-        Paintable (Box<DIV>.inner) [11,31 50x18]
-          PaintableWithLines (BlockContainer(anonymous)) [12,32 86.671875x16]
-      PaintableWithLines (BlockContainer<DIV>.fit-content) [10,50 90.765625x20]
-        Paintable (Box<DIV>.inner) [11,51 88.765625x18]
-          PaintableWithLines (BlockContainer(anonymous)) [12,52 86.765625x16]
-      PaintableWithLines (BlockContainer<DIV>.max-content) [10,70 104.15625x20]
-        Paintable (Box<DIV>.inner) [11,71 102.15625x18]
-          PaintableWithLines (BlockContainer(anonymous)) [12,72 100.15625x16]
-      PaintableWithLines (BlockContainer<DIV>.min-content) [10,90 64.90625x36]
-        Paintable (Box<DIV>.inner) [11,91 62.90625x34]
-          PaintableWithLines (BlockContainer(anonymous)) [12,92 60.90625x32]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x134] (z-index: auto)

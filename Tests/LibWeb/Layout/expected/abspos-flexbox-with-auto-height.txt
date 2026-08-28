@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "This should have a green background."
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
-      Paintable (Box<NAV>) [10,10 312.453125x20]
-        PaintableWithLines (BlockContainer<DIV>.item) [11,11 310.453125x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x18] (z-index: auto)

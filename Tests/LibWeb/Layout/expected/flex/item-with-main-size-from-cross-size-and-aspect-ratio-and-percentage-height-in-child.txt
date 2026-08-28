@@ -4,11 +4,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <main> at [8,8] flex-item [0+0+0 300 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
         BlockContainer <article> at [8,8] [0+0+0 300 0+0+0] [0+0+0 200 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 400x400]
-    Paintable (Box<BODY>) [8,8 400x200]
-      PaintableWithLines (BlockContainer<MAIN>) [8,8 300x200]
-        PaintableWithLines (BlockContainer<ARTICLE>) [8,8 300x200]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 400x400] (z-index: auto)

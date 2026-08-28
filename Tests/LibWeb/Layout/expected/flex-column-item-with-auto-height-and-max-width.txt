@@ -14,10 +14,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Software Engineer at"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x86]
-    Paintable (Box<BODY>) [1,1 798x84]
-      PaintableWithLines (BlockContainer<MAIN>) [2,2 402x82]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x84] (z-index: auto)

@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "Autocorrect"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x418]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x402]
-      PaintableWithLines (BlockContainer<DIV>.features-list) [8,8 402x402]
-        PaintableWithLines (BlockContainer<DIV>.feature) [108,9 202x202]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x418] (z-index: auto)

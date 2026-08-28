@@ -21,13 +21,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "snab"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x154]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x136]
-      PaintableWithLines (BlockContainer<DIV>.px-indent) [10,10 780x68]
-        PaintableWithLines (BlockContainer(anonymous)) [11,11 778x16]
-        PaintableWithLines (BlockContainer<P>) [11,43 778x18]
-      PaintableWithLines (BlockContainer<DIV>.pct-indent) [10,78 102x66]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x152] (z-index: auto)

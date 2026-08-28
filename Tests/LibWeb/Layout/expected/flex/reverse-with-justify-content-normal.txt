@@ -6,13 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <div.flex.column> at [8,208] flex-container(column-reverse) [0+0+0 200 0+0+584] [0+0+0 200 0+0+0] [FFC] children: not-inline
         BlockContainer <div.item> at [8,308] flex-item [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x416]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x400]
-      Paintable (Box<DIV>.flex.row) [8,8 200x200]
-        PaintableWithLines (BlockContainer<DIV>.item) [108,8 100x100]
-      Paintable (Box<DIV>.flex.column) [8,208 200x200]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,308 100x100]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x416] (z-index: auto)

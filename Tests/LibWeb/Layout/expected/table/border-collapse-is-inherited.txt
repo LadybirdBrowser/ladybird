@@ -113,38 +113,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,202] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x210]
-    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x194]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>.horizontal) [8,8 784x194]
-        PaintableWithLines (BlockContainer<TABLE>) [8,8 165.90625x194]
-          PaintableWithLines (BlockContainer(anonymous)) [9,9 163.90625x0]
-          PaintableWithLines (TableWrapper(anonymous)) [9,9 163.90625x192]
-            Paintable (Box(anonymous)) [9,9 163.90625x192]
-              Paintable (Box<TBODY>) [10,10 161.90625x190]
-                Paintable (Box<TR>) [10,10 161.90625x38]
-                  PaintableWithLines (BlockContainer<TD>) [10,10 56.265625x38]
-                  PaintableWithLines (BlockContainer<TD>) [66.265625,10 54.546875x38]
-                  PaintableWithLines (BlockContainer<TD>) [120.8125,10 51.09375x38]
-                Paintable (Box<TR>) [10,48 161.90625x38]
-                  PaintableWithLines (BlockContainer<TD>) [10,48 56.265625x38]
-                  PaintableWithLines (BlockContainer<TD>) [66.265625,48 54.546875x38]
-                  PaintableWithLines (BlockContainer<TD>) [120.8125,48 51.09375x38]
-                Paintable (Box<TR>) [10,86 161.90625x38]
-                  PaintableWithLines (BlockContainer<TD>) [10,86 56.265625x38]
-                  PaintableWithLines (BlockContainer<TD>) [66.265625,86 54.546875x38]
-                  PaintableWithLines (BlockContainer<TD>) [120.8125,86 51.09375x38]
-                Paintable (Box<TR>) [10,124 161.90625x38]
-                  PaintableWithLines (BlockContainer<TD>) [10,124 56.265625x38]
-                  PaintableWithLines (BlockContainer<TD>) [66.265625,124 54.546875x38]
-                  PaintableWithLines (BlockContainer<TD>) [120.8125,124 51.09375x38]
-                Paintable (Box<TR>) [10,162 161.90625x38]
-                  PaintableWithLines (BlockContainer<TD>) [10,162 56.265625x38]
-                  PaintableWithLines (BlockContainer<TD>) [66.265625,162 54.546875x38]
-                  PaintableWithLines (BlockContainer<TD>) [120.8125,162 51.09375x38]
-      PaintableWithLines (BlockContainer(anonymous)) [8,202 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x210] (z-index: auto)

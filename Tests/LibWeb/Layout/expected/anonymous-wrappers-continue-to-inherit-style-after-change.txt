@@ -10,11 +10,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "anonymously wrapped text"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x98.875]
-    PaintableWithLines (BlockContainer<BODY>) [8,21.4375 784x69.4375]
-      PaintableWithLines (BlockContainer<H1>) [8,21.4375 784x32]
-      PaintableWithLines (BlockContainer(anonymous)) [8,74.875 784x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x98.875] (z-index: auto)

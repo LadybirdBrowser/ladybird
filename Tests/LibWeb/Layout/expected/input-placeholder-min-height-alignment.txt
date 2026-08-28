@@ -26,17 +26,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x44]
-      PaintableWithLines (TextInputBox<INPUT>.minimum) [8,8 341x44]
-        Paintable (Box<DIV>) [25,10 307x40]
-          PaintableWithLines (BlockContainer<DIV>) [25,20 307x20]
-          PaintableWithLines (BlockContainer<DIV>) [25,20 307x20]
-      PaintableWithLines (TextInputBox<INPUT>.maximum) [357,21 341x18]
-        Paintable (Box<DIV>) [374,23 307x14]
-          PaintableWithLines (BlockContainer<DIV>) [374,20 307x20]
-          PaintableWithLines (BlockContainer<DIV>) [374,20 307x20]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x60] (z-index: auto)

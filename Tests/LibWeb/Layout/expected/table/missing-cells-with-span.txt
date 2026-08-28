@@ -29,24 +29,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 BlockContainer <(anonymous)> at [62.5625,103.5] table-cell [0+1+0 21.71875 0+0+0] [0+0+18.5 0 18.5+1+0] [BFC] children: not-inline
                 BlockContainer <(anonymous)> at [84.28125,103.5] table-cell [0+0+0 21.71875 0+1+0] [0+0+18.5 0 18.5+1+0] [BFC] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x132]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x116]
-      Paintable (Box<DIV>) [8,8 784x116]
-        PaintableWithLines (TableWrapper(anonymous)) [8,8 100x116]
-          Paintable (Box<TABLE>) [8,8 100x116]
-            Paintable (Box<TBODY>) [9,9 98x114]
-              Paintable (Box<TR>) [9,9 98x38]
-                PaintableWithLines (BlockContainer<TD>) [9,9 52.5625x38]
-                PaintableWithLines (BlockContainer<TD>) [61.5625,9 45.4375x38]
-              Paintable (Box<TR>) [9,47 98x38]
-                PaintableWithLines (BlockContainer<TD>) [9,47 52.5625x38]
-                PaintableWithLines (BlockContainer(anonymous)) [61.5625,47 22.71875x38]
-                PaintableWithLines (BlockContainer(anonymous)) [84.28125,47 22.71875x38]
-              Paintable (Box<TR>) [9,85 98x38]
-                PaintableWithLines (BlockContainer<TD>) [9,85 52.5625x38]
-                PaintableWithLines (BlockContainer(anonymous)) [61.5625,85 22.71875x38]
-                PaintableWithLines (BlockContainer(anonymous)) [84.28125,85 22.71875x38]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x132] (z-index: auto)

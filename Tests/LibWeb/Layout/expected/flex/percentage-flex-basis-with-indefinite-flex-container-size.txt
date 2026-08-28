@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "percentages are hard"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    Paintable (Box<BODY>.outer) [8,8 200x16]
-      PaintableWithLines (BlockContainer<DIV>.middle) [8,8 200x16]
-        PaintableWithLines (BlockContainer<DIV>.inner) [8,8 200x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

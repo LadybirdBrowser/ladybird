@@ -6,11 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         SVGGeometryBox <rect> at [16,16] [0+0+0 21.109375 0+0+0] [0+0+0 21.109375 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x200]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x200]
-        SVGPathPaintable (SVGGeometryBox<rect>) [16,16 21.109375x21.109375]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x216] (z-index: auto)

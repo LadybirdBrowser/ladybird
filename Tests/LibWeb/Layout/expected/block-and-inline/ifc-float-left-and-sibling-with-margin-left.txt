@@ -7,11 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Chrono Trigger"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x63]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x20]
-      PaintableWithLines (BlockContainer<DIV>.thumbnail) [10,10 52x52]
-      PaintableWithLines (BlockContainer<DIV>.title) [90,10 700x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x61] (z-index: auto)

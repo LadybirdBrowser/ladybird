@@ -20,14 +20,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           GeneratedTextNode <(anonymous)> (not painted)
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x48]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x32]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (ListItemBox<LI>) [8,8 784x16]
-        PaintableWithLines (ListItemMarkerBox(anonymous)) [-6,8 13.84375x16]
-      PaintableWithLines (ListItemBox<LI>) [8,24 784x16]
-        PaintableWithLines (ListItemMarkerBox(anonymous)) [-6,24 13.84375x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

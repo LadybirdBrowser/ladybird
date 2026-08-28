@@ -31,28 +31,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                         SVGGeometryBox <path> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x62.203125]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x46.203125]
-      Paintable (AudioBox<AUDIO>) [8,8 300x43]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 300x43]
-          PaintableWithLines (BlockContainer<DIV>.container.audio) [8,8 300x43]
-            Paintable (Box<DIV>.controls.visible) [8,8 300x43]
-              PaintableWithLines (BlockContainer<DIV>.timeline) [8,3 300x15]
-                PaintableWithLines (BlockContainer<DIV>.timeline-track) [8,8 300x5]
-                  PaintableWithLines (BlockContainer<DIV>.timeline-fill) [8,8 0x5]
-              Paintable (Box<DIV>.button-bar) [8,13 300x38]
-                Paintable (Box<BUTTON>.control-button.play-pause-button) [16,20 24x24]
-                  SVGSVGPaintable (SVGSVGBox<svg>.icon.play-pause-icon) [16,20 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.play-path) [6,5 13x14]
-                PaintableWithLines (BlockContainer<SPAN>.timestamp) [48,26 80.84375x12]
-                Paintable (Box<BUTTON>.control-button.mute-button.high.muted) [276,20 24x24]
-                  SVGSVGPaintable (SVGSVGBox<svg>.icon) [276,20 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.muted-line) [3.5,5 15.5x15.5]
-                    SVGPathPaintable (SVGGeometryBox<path>.volume-high) [14,4.078125 6x15.84375]
-                    SVGPathPaintable (SVGGeometryBox<path>.volume-low) [14,7.671875 2.03125x8.65625]
-                    SVGPathPaintable (SVGGeometryBox<path>.speaker) [4,4 8x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x62.203125] (z-index: auto)
   SC for BlockContainer<DIV>.timeline [8,8 300x5] (z-index: 1)

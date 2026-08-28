@@ -4,11 +4,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.hello> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,8] positioned [0+0+0 500 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>.hello) [8,8 784x0]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 500x100]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)

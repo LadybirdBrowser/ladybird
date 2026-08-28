@@ -4,10 +4,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,20 0x0] baseline: 0
       SVGSVGBox <svg> at [8,20] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 0x16]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,20 0x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)
