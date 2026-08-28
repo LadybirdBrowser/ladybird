@@ -598,14 +598,6 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
-    if (request == "dump-paint-tree") {
-        if (auto* doc = page->page().top_level_browsing_context().active_document()) {
-            if (doc->has_committed_viewport_box())
-                Web::dump_paint_tree(*doc->layout_node());
-        }
-        return;
-    }
-
     if (request == "dump-stacking-context-tree") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             if (doc->layout_node()) {
@@ -1981,29 +1973,6 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
     Web::dump_tree(builder, *layout_root);
 }
 
-static void append_paint_tree(Web::Page& page, StringBuilder& builder)
-{
-    auto* document = page.top_level_browsing_context().active_document();
-    if (!document) {
-        builder.append("(no DOM tree)"sv);
-        return;
-    }
-
-    document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
-
-    auto* layout_root = document->layout_node();
-    if (!layout_root) {
-        builder.append("(no layout tree)"sv);
-        return;
-    }
-    if (!document->has_committed_viewport_box()) {
-        builder.append("(no paint tree)"sv);
-        return;
-    }
-
-    Web::dump_paint_tree(builder, *layout_root);
-}
-
 static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder)
 {
     auto* document = page.top_level_browsing_context().active_document();
@@ -2052,12 +2021,6 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_layout_tree(page->page(), builder);
-    }
-
-    if (has_flag(type, WebView::PageInfoType::PaintTree)) {
-        if (!builder.is_empty())
-            builder.append("\n"sv);
-        append_paint_tree(page->page(), builder);
     }
 
     if (has_flag(type, WebView::PageInfoType::StackingContextTree)) {

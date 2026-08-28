@@ -2496,69 +2496,6 @@ pub unsafe extern "C" fn layout_arena_export_hit_test_items(
     });
 }
 
-fn paint_tree_dump_entries(
-    arena: &impl PaintableRowsRead,
-    root: NodeSlotId,
-) -> Vec<crate::painting::host::FfiPaintTreeDumpEntry> {
-    fn visit(
-        arena: &impl PaintableRowsRead,
-        slot: NodeSlotId,
-        depth: u32,
-        entries: &mut Vec<crate::painting::host::FfiPaintTreeDumpEntry>,
-    ) {
-        entries.push(crate::painting::host::FfiPaintTreeDumpEntry {
-            layout_node_shell: arena.shell_if_live(slot),
-            depth,
-        });
-        crate::painting::paint_order::for_each_paint_child(arena, slot, |current| {
-            visit(arena, current, depth + 1, entries);
-        });
-    }
-
-    if !arena.paintable_row_is_populated(root) {
-        return Vec::new();
-    }
-    let mut entries = Vec::new();
-    visit(arena, root, 0, &mut entries);
-    entries
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_tree_dump_entry_count(arena: *mut c_void, root: NodeSlotId) -> usize {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        paint_tree_dump_entries(&arena.paintable_rows(), root).len()
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`; `output` must point to writable
-/// storage for exactly `output_length` items, matching the current paint-tree dump entry count.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_export_paint_tree_dump_entries(
-    arena: *mut c_void,
-    root: NodeSlotId,
-    output: *mut crate::painting::host::FfiPaintTreeDumpEntry,
-    output_length: usize,
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let entries = paint_tree_dump_entries(&arena.paintable_rows(), root);
-        assert_eq!(entries.len(), output_length);
-        if entries.is_empty() {
-            return;
-        }
-        assert!(!output.is_null());
-        // SAFETY: The caller provides writable storage for exactly `output_length` exports.
-        let output = unsafe { std::slice::from_raw_parts_mut(output, output_length) };
-        output.copy_from_slice(&entries);
-    });
-}
-
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

@@ -367,12 +367,6 @@ static StringView class_name_for_kind(Layout::RustFFI::PaintableKind kind)
     VERIFY_NOT_REACHED();
 }
 
-StringView class_name(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    return row ? class_name_for_kind(row->kind) : StringView {};
-}
-
 String debug_description(Layout::Node const& node)
 {
     auto const* row = committed_row(node);

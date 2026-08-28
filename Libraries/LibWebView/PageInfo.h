@@ -13,7 +13,6 @@ namespace WebView {
 enum class PageInfoType {
     Text = 1 << 0,
     LayoutTree = 1 << 2,
-    PaintTree = 1 << 3,
     GCGraph = 1 << 4,
     StackingContextTree = 1 << 5,
 };
