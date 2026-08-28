@@ -30,8 +30,8 @@ def write_header_file(out: TextIO, media_feature_data: dict) -> None:
     underlying_type = underlying_type_for_enum(len(media_feature_data))
     out.write(f"""#pragma once
 
+#include <AK/StringView.h>
 #include <AK/Traits.h>
-#include <AK/Utf16View.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/QueryValueType.h>
 
@@ -52,10 +52,8 @@ inline constexpr size_t media_feature_count = """)
     out.write(str(len(media_feature_data)))
     out.write(""";
 
-Optional<MediaFeatureID> media_feature_id_from_string(Utf16View);
 StringView string_from_media_feature_id(MediaFeatureID);
 
-bool media_feature_type_is_range(MediaFeatureID);
 bool media_feature_accepts_type(MediaFeatureID, QueryValueType);
 bool media_feature_accepts_keyword(MediaFeatureID, Keyword);
 
@@ -72,21 +70,6 @@ def write_implementation_file(out: TextIO, media_feature_data: dict) -> None:
 
 namespace Web::CSS {
 
-Optional<MediaFeatureID> media_feature_id_from_string(Utf16View string)
-{""")
-
-    out.writelines(
-        f"""
-    if (string.equals_ignoring_ascii_case("{name}"sv))
-        return MediaFeatureID::{title_casify(name)};
-"""
-        for name in media_feature_data
-    )
-
-    out.write("""
-    return {};
-}
-
 StringView string_from_media_feature_id(MediaFeatureID media_feature_id)
 {
     switch (media_feature_id) {""")
@@ -97,21 +80,6 @@ StringView string_from_media_feature_id(MediaFeatureID media_feature_id)
         return "{name}"sv;"""
         for name in media_feature_data
     )
-
-    out.write("""
-    }
-    VERIFY_NOT_REACHED();
-}
-
-bool media_feature_type_is_range(MediaFeatureID media_feature_id)
-{
-    switch (media_feature_id) {""")
-
-    for name, feature in media_feature_data.items():
-        is_range = "true" if feature["type"] == "range" else "false"
-        out.write(f"""
-    case MediaFeatureID::{title_casify(name)}:
-        return {is_range};""")
 
     out.write("""
     }

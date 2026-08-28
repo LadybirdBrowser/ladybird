@@ -78,38 +78,6 @@ bool style_query_cycle_detected()
     return s_style_query_cycle_detected;
 }
 
-Optional<SizeFeatureID> size_feature_id_from_string(Utf16View name)
-{
-    if (name.equals_ignoring_ascii_case("aspect-ratio"sv))
-        return SizeFeatureID::AspectRatio;
-    if (name.equals_ignoring_ascii_case("block-size"sv))
-        return SizeFeatureID::BlockSize;
-    if (name.equals_ignoring_ascii_case("height"sv))
-        return SizeFeatureID::Height;
-    if (name.equals_ignoring_ascii_case("inline-size"sv))
-        return SizeFeatureID::InlineSize;
-    if (name.equals_ignoring_ascii_case("orientation"sv))
-        return SizeFeatureID::Orientation;
-    if (name.equals_ignoring_ascii_case("width"sv))
-        return SizeFeatureID::Width;
-    return {};
-}
-
-bool size_feature_type_is_range(SizeFeatureID id)
-{
-    switch (id) {
-    case SizeFeatureID::AspectRatio:
-    case SizeFeatureID::BlockSize:
-    case SizeFeatureID::Height:
-    case SizeFeatureID::InlineSize:
-    case SizeFeatureID::Width:
-        return true;
-    case SizeFeatureID::Orientation:
-        return false;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 enum class StyleFeatureComparison : u8 {
     Equal,
     LessThan,
