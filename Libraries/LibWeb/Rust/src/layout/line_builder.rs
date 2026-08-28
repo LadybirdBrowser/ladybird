@@ -237,12 +237,56 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
     }
 
+    pub(crate) fn current_line_is_empty(&mut self) -> bool {
+        self.line_count() == 0 || self.line(self.line_count() - 1).is_empty()
+    }
+
+    fn remaining_inline_size_on_current_line(&mut self) -> Option<CssPixels> {
+        let AvailableSize::Definite(available) = self.available_inline_size_for_current_line else {
+            return None;
+        };
+        let line_index = self.ensure_last_line_index();
+        Some(available - self.line(line_index).physical_horizontal_extent())
+    }
+
+    pub(crate) fn remaining_inline_size_for_overflow_break(&mut self) -> Option<CssPixels> {
+        match self.available_inline_size_for_current_line {
+            AvailableSize::Definite(_) => self.remaining_inline_size_on_current_line(),
+            AvailableSize::MinContent => Some(CssPixels::default()),
+            AvailableSize::MaxContent | AvailableSize::Indefinite => None,
+        }
+    }
+
     pub(crate) fn break_if_needed(&mut self, next_item_inline_size: CssPixels) -> bool {
         if !self.should_break(next_item_inline_size) {
             return false;
         }
         self.break_line(ForcedBreak::No, Some(next_item_inline_size));
         true
+    }
+
+    pub(crate) fn break_if_needed_before_overflow_breakable_item(&mut self, next_item_inline_size: CssPixels) -> bool {
+        if self.current_line_is_empty() {
+            return false;
+        }
+        if !self.should_break(next_item_inline_size) {
+            return false;
+        }
+        self.break_line(ForcedBreak::No, None);
+        true
+    }
+
+    pub(crate) fn current_line_has_no_space_left_by_floats(&mut self) -> bool {
+        let Some(remaining) = self.remaining_inline_size_on_current_line() else {
+            return false;
+        };
+        if remaining > CssPixels::default() {
+            return false;
+        }
+        let line_height = self.containing_style().line_height();
+        let block_start = self.current_block_offset;
+        let block_end = block_start + self.max_block_size_on_current_line.max(line_height);
+        self.context().any_floats_intrude_in_block_range(block_start, block_end)
     }
 
     pub(crate) fn append_box(
@@ -285,6 +329,22 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         );
         self.line_mut(line_index).fragments[fragment_index].content_baselines = Some(content_baselines);
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
+    }
+
+    pub(crate) fn append_text_item(&mut self, item: &mut inline_level_iterator::Item, content_block_size: CssPixels) {
+        self.append_text_chunk(
+            item.node,
+            item.offset_in_node,
+            item.length_in_node,
+            item.border_start + item.padding_start,
+            item.padding_end + item.border_end,
+            item.margin_start,
+            item.margin_end,
+            item.inline_size,
+            content_block_size,
+            item.glyphs.take().unwrap(),
+            item.trailing_whitespace,
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -479,7 +539,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if self.available_inline_size_for_current_line == AvailableSize::MaxContent {
             return false;
         }
-        if self.line_count() == 0 || self.line(self.line_count() - 1).is_empty() {
+        if self.current_line_is_empty() {
             let line_height = self.containing_style().line_height();
             if !self
                 .context()

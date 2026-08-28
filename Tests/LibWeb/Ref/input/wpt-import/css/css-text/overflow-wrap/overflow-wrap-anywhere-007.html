@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap - anywhere (basic)</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="5.5. Overflow Wrapping: the overflow-wrap/word-wrap property " href="https://drafts.csswg.org/css-text-3/#overflow-wrap-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-anywhere">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/overflow-wrap-001-ref.html">
+<meta name="flags" content="ahem">
+<meta name="assert" content="The 'overflow-wrap' property set 'anywhere' breaks the word at an arbitrary point">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+  #test {
+    border: 5px solid orange;
+    font: 20px/1 Ahem;
+    overflow-wrap: anywhere;
+    width: 200px;
+  }
+</style>
+<body>
+  <p class="instructions">Test passes if the black box is within the orange box.</p>
+  <p id="test">FillerTextFillerTextFillerTextFillerText</p>
+</body>

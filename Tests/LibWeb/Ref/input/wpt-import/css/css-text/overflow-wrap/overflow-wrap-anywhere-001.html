@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap: anywhere</title>
+<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-anywhere">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-break-word-001-ref.html">
+<meta name="assert" content="sequences of nbsp characters that would cause overflow are expected to be broken when overflow-wrap is anywhere">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  font-family: Ahem;
+  color: red;
+  overflow-wrap: anywhere;
+  font-size: 25px;
+  line-height: 27px;
+}
+div::after{
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: green;
+}
+</style>
+<body>
+  <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+  <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X</div>
+</body>

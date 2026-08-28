@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset="utf-8">
+<title>overlfow-wrap: anywhere on inline element</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" title="5.5. Overflow Wrapping: the overflow-wrap/word-wrap property " href="https://drafts.csswg.org/css-text-3/#overflow-wrap-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-anywhere">
+<meta name="flags" content="Ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-break-word-001-ref.html">
+<meta name="assert" content="'overflow-wrap: anywhwre' allows breaking before punctuation characters">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div {
+    font: 50px / 1 Ahem;
+}
+.fail {
+    position: absolute;
+    background: green;
+    color: red;
+    width: 100px;
+    z-index: -1;
+}
+.test {
+    color: green;
+    width: 1em;
+
+    overflow-wrap: anywhere;
+}
+</style>
+
+<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+<div class="fail">X<br>X</div>
+<div class="test"><span>X</span><span>.</span></div>

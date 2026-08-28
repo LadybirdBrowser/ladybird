@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Text Test: very long line with `overflow-wrap: break-word` should not crash</title>
+<link rel="help" href="https://crbug.com/961987">
+<link rel="author" title="Koji Ishii" href="kojii@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+html, body {
+  margin: 0;
+}
+body {
+  overflow-wrap: break-word;
+  width: 2147483648px;
+}
+div {
+  /* Double the width in case CSS parser clamps the body width. */
+  width: 200%;
+}
+span {
+  border-left: 2147483648px solid;
+}
+</style>
+<body>
+  <div><span>x</span></div>
+<script>
+test(() => { document.body.offsetTop; });
+</script>
+</body>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: overflow-wrap: anywhere</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-overflow-wrap-anywhere">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-white-space-pre-wrap">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/overflow-wrap/reference/overflow-wrap-break-word-001-ref.html">
+<meta name="assert" content="A Single leading white-space constitutes a soft breaking opportunity, honoring the 'white-space: pre-wrap' property, that must prevent the word to be broken.">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div {
+  position: relative;
+  font-size: 20px;
+  font-family: Ahem;
+  line-height: 1em;
+}
+.fail {
+  position: absolute;
+  color: red;
+  z-index: -1;
+}
+span { color: green; }
+.test {
+  color: green;
+  width: 5ch;
+
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>
+<body>
+  <p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+  <div class="fail">XXX<span>XX<br></span><span>XXXXX<br></span>XXXXX<br>XXXX<span>X<br></span><span>XXXXX</span></div>
+  <div class="test">XXX
+ XXXXXXXXX</div>
+</body>

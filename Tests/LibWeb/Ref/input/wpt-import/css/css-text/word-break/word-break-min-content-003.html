@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Test: word-break: break-word and intrinsic sizing</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#word-break-property">
+<link rel="help" href="https://drafts.csswg.org/css-text-3/#valdef-word-break-break-word">
+<meta name="flags" content="ahem">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-break/reference/word-break-break-all-010-ref.html">
+<meta name="assert" content="word-break: break-all shouldn't allow breaking before punctuation characters.">
+<link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+<style>
+div {
+    font: 50px / 1 Ahem;
+}
+.fail {
+    background: red;
+    position: absolute;
+    color: green;
+    z-index: -1;
+}
+.test {
+    color: green;
+    width: min-content;
+    word-break: break-all;
+}
+</style>
+
+<p>Test passes if there is a <strong>filled green square</strong> and <strong>no red</strong>.</p>
+<div class="fail"><br>XX</div>
+<div class="test"><span>X</span><span>.</span></div>
