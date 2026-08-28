@@ -21,7 +21,7 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
-    m_visual_context_tree_version.clear();
+    m_visual_context_tree_structural_epoch.clear();
 }
 
 AsyncScrollNode const* AsyncScrollTree::scroll_node_for_id(AsyncScrollNodeID node_id) const
@@ -194,13 +194,13 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
-    m_visual_context_tree_version.clear();
+    m_visual_context_tree_structural_epoch.clear();
     m_scroll_state_snapshot = scroll_state_snapshot;
     if (!display_list || !visual_context_tree)
         return;
 
-    VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree->version());
-    m_visual_context_tree_version = visual_context_tree->version();
+    VERIFY(display_list->compatible_visual_context_tree_structural_epoch() == visual_context_tree->structural_epoch());
+    m_visual_context_tree_structural_epoch = visual_context_tree->structural_epoch();
 
     auto context_is_valid = [&](Painting::ContextRef context) {
         return context.spatial.value() < visual_context_tree->spatial_node_count()
@@ -261,7 +261,7 @@ void AsyncScrollTree::clear_wheel_hit_test_targets()
     m_cached_wheel_hit_test_targets.clear();
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_blocking_wheel_event_targets.clear();
-    m_visual_context_tree_version.clear();
+    m_visual_context_tree_structural_epoch.clear();
 }
 
 static bool wheel_hit_test_target_contains_point(CachedWheelHitTestTarget const& target, Gfx::FloatPoint position_in_context)
@@ -314,7 +314,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Painting::Acc
         return result;
     };
 
-    if (m_visual_context_tree_version != visual_context_tree.version())
+    if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
         return {};
 
     auto context_is_valid = [&](Painting::ContextRef context) {

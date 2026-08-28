@@ -164,6 +164,14 @@ u64 Internals::visual_context_tree_node_count()
     return visual_context_tree.live_spatial_node_count() + visual_context_tree.live_frame_node_count();
 }
 
+u64 Internals::visual_context_tree_structural_epoch()
+{
+    auto& document = window().associated_document();
+    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
+        return 0;
+    return document.paint_state().visual_context_tree(document).structural_epoch();
+}
+
 u64 Internals::visual_context_tree_node_capacity()
 {
     auto& document = window().associated_document();
@@ -183,13 +191,13 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
         return;
     auto& document_paint_state = document.paint_state();
 
-    // Force a fresh, incompatible rebuild — so the tree is minted with a new version that the Compositor's installed
+    // Force a fresh, incompatible rebuild — so the tree is minted with a new structural epoch that the Compositor's installed
     // display list was never recorded against.
     document_paint_state.set_force_incompatible_visual_context_tree_rebuild_for_testing();
     document.set_needs_accumulated_visual_contexts_update(true);
     document.update_paint_and_hit_testing_properties_if_needed();
 
-    // Send a bare visual-context-tree update carrying that new version *without* re-recording the display list —
+    // Send a bare visual-context-tree update carrying that new structural epoch *without* re-recording the display list —
     // deliberately reproducing the peer inconsistency behind issue #10368.
     navigable->compositor_context().update_visual_context_tree(document_paint_state.visual_context_tree(document), {});
 }

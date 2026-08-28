@@ -102,7 +102,7 @@ TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes
     Queue<IPC::Attachment> attachments;
     IPC::Decoder decoder { stream, attachments };
     auto decoded_tree = MUST(decoder.decode<Web::Painting::AccumulatedVisualContextTree>());
-    EXPECT_EQ(decoded_tree.version(), visual_context_tree.version());
+    EXPECT_EQ(decoded_tree.structural_epoch(), visual_context_tree.structural_epoch());
     EXPECT_EQ(decoded_tree.spatial_node_count(), 2u);
     EXPECT_EQ(decoded_tree.frame_node_count(), 1u);
     EXPECT_EQ(decoded_tree.serialize_to_bytes(), visual_context_tree.serialize_to_bytes());
@@ -718,12 +718,12 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_fills_display_list(Web::Pa
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color, async_scrolling_metadata);
 }
 
-static Web::Painting::AccumulatedVisualContextTree make_translated_visual_context_tree(Gfx::FloatPoint translation, Optional<u64> version = {})
+static Web::Painting::AccumulatedVisualContextTree make_translated_visual_context_tree(Gfx::FloatPoint translation, Optional<u64> structural_epoch = {})
 {
     Web::Painting::VisualContextTreeTestBuilder builder;
     builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::translation_matrix(Gfx::FloatVector3 { translation.x(), translation.y(), 0 }));
-    if (version.has_value())
-        return builder.finish_with_version(*version);
+    if (structural_epoch.has_value())
+        return builder.finish_with_structural_epoch(*structural_epoch);
     return builder.finish();
 }
 
@@ -904,7 +904,7 @@ TEST_CASE(tree_only_update_damages_transformed_commands)
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red, in_spatial_node(1) } }), visual_context_tree);
     fixture.present();
 
-    auto translated_tree = make_translated_visual_context_tree({ 4, 0 }, visual_context_tree.version());
+    auto translated_tree = make_translated_visual_context_tree({ 4, 0 }, visual_context_tree.structural_epoch());
     fixture.compositor_state->update_visual_context_tree(fixture.context_id, translated_tree, {});
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 10, 6 }));
 
@@ -1234,7 +1234,7 @@ TEST_CASE(visual_animation_samples_derive_a_tree_and_leave_the_source_untouched)
 
     auto include_viewport = Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes;
     auto sampled_tree = tree.with_visual_animation_samples(0);
-    EXPECT_EQ(sampled_tree.version(), tree.version());
+    EXPECT_EQ(sampled_tree.structural_epoch(), tree.structural_epoch());
     auto sampled_translation = sampled_tree.accumulated_matrix(spatial, {}, include_viewport)[0, 3];
     EXPECT_EQ(sampled_translation, 4.0f);
     EXPECT_EQ(sampled_tree.effects_opacity(frame), Optional<float> { 0.5f });

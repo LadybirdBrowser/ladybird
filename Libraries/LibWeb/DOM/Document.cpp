@@ -7260,9 +7260,9 @@ Painting::AccumulatedVisualContextTree Document::visual_context_tree() const
     return paint_state().visual_context_tree(*this);
 }
 
-u64 Document::visual_context_tree_version() const
+u64 Document::visual_context_tree_structural_epoch() const
 {
-    return paint_state().visual_context_tree_version(*this);
+    return paint_state().visual_context_tree_structural_epoch(*this);
 }
 
 Painting::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
@@ -10514,7 +10514,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     auto display_list = Painting::record_rust_display_list(*this, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
     if (!display_list)
         return nullptr;
-    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), layout_node_arena(), *m_chrome_widget_registry);
+    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
 
     if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite) {
         document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
@@ -10553,7 +10553,7 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
-    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_version() != visual_context_tree_version())
+    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_structural_epoch() != visual_context_tree_structural_epoch())
         rebuild_hit_test_display_list();
 
     return m_hit_test_display_list.ptr();

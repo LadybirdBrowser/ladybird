@@ -36,7 +36,7 @@ use std::rc::Rc;
 #[derive(Default)]
 pub struct RecordingOutput {
     pub id: u64,
-    pub compatible_visual_context_tree_version: u64,
+    pub recorded_structural_epoch: u64,
     // A default-constructed output's 0.0 never matches a real recording scale.
     pub recorded_device_pixels_per_css_pixel: f64,
     pub hit_test_list: HitTestList,

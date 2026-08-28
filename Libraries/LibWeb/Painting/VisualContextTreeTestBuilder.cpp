@@ -65,10 +65,10 @@ FrameNodeIndex VisualContextTreeTestBuilder::append_effects_frame(FrameNodeIndex
     return FrameNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_effects_frame(m_builder, parent.value(), spatial.value(), opacity, blend_mode) };
 }
 
-AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish_with_version(u64 version)
+AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish_with_structural_epoch(u64 structural_epoch)
 {
     VERIFY(m_builder);
-    Layout::RustFFI::visual_context_tree_test_builder_set_version(m_builder, version);
+    Layout::RustFFI::visual_context_tree_test_builder_set_structural_epoch(m_builder, structural_epoch);
     return finish();
 }
 

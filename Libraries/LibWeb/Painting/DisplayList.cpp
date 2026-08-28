@@ -19,14 +19,14 @@ namespace Web::Painting {
 
 static Atomic<u64> s_next_id { 1 };
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
-    : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch)
+    : m_compatible_visual_context_tree_structural_epoch(compatible_visual_context_tree_structural_epoch)
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
 }
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists)
-    : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists)
+    : m_compatible_visual_context_tree_structural_epoch(compatible_visual_context_tree_structural_epoch)
     , m_id(id)
     , m_command_bytes(move(command_bytes))
     , m_command_runs(move(command_runs))
@@ -107,10 +107,10 @@ void DisplayListPlayer::execute(
     RefPtr<Gfx::PaintingSurface> surface,
     CanvasSurfaceRegistry const* canvas_surface_registry)
 {
-    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
-    if (m_layer_filter_cache_tree_version != visual_context_tree.version()) {
-        m_layer_filters_by_tree_version_and_frame.clear();
-        m_layer_filter_cache_tree_version = visual_context_tree.version();
+    VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
+    if (m_layer_filter_cache_tree_structural_epoch != visual_context_tree.structural_epoch()) {
+        m_layer_filters_by_tree_structural_epoch_and_frame.clear();
+        m_layer_filter_cache_tree_structural_epoch = visual_context_tree.structural_epoch();
     }
     m_surface = surface;
     m_active_display_list = &display_list;
@@ -127,7 +127,7 @@ void DisplayListPlayer::execute(
 
 void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree, Gfx::PaintingSurface& target_surface)
 {
-    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
+    VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
     TemporaryChange display_list_change { m_active_display_list, &display_list };
     TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
@@ -141,7 +141,7 @@ void DisplayListPlayer::execute_nested_display_list(
     AccumulatedVisualContextTree const& visual_context_tree,
     ScrollStateSnapshot const& scroll_state_snapshot)
 {
-    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
+    VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     TemporaryChange display_list_change { m_active_display_list, &display_list };
     TemporaryChange visual_context_tree_change { m_active_visual_context_tree, &visual_context_tree };
     VERIFY(m_resource_storage);
@@ -151,7 +151,7 @@ void DisplayListPlayer::execute_nested_display_list(
 Gfx::Filter const& DisplayListPlayer::layer_filter(ReplayLayer const& layer)
 {
     ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
-    auto& filters_by_frame = m_layer_filters_by_tree_version_and_frame.ensure(active_visual_context_tree().version());
+    auto& filters_by_frame = m_layer_filters_by_tree_structural_epoch_and_frame.ensure(active_visual_context_tree().structural_epoch());
     if (auto cached = filters_by_frame.get(layer.frame.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
         return cached->filter;
     auto filter = Gfx::deserialize_filter(filter_bytes, [&](u64 image_id) {
@@ -207,7 +207,7 @@ void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, S
 void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
 {
     auto const& visual_context_tree = active_visual_context_tree();
-    VERIFY(display_list.compatible_visual_context_tree_version() == visual_context_tree.version());
+    VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     VERIFY(m_surface);
 
     struct ReplayContext {
@@ -281,7 +281,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
 {
     TRY(encoder.encode(display_list.m_id));
     TRY(encoder.encode(display_list.m_command_bytes));
-    TRY(encoder.encode(display_list.m_compatible_visual_context_tree_version));
+    TRY(encoder.encode(display_list.m_compatible_visual_context_tree_structural_epoch));
     TRY(encoder.encode(display_list.m_surface_clear_color));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
     TRY(encoder.encode(display_list.m_mask_display_lists));
@@ -304,7 +304,7 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
 {
     auto id = TRY(decoder.decode<u64>());
     auto command_bytes = TRY(decoder.decode<ByteBuffer>());
-    auto compatible_visual_context_tree_version = TRY(decoder.decode<u64>());
+    auto compatible_visual_context_tree_structural_epoch = TRY(decoder.decode<u64>());
     auto surface_clear_color = TRY(decoder.decode<Optional<Gfx::Color>>());
     auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
     auto mask_display_lists = TRY(decoder.decode<HashMap<Web::Painting::FrameNodeIndex, Web::Painting::DisplayListResourceId>>());
@@ -314,7 +314,7 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
     if (!command_runs.is_empty())
         TRY(decoder.decode_into(Bytes { reinterpret_cast<u8*>(command_runs.data()), command_runs.size() * sizeof(Web::Painting::DisplayListCommandRun) }));
     TRY(Web::Painting::validate_display_list_command_runs(command_bytes, command_runs));
-    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_version, id, move(command_bytes), move(command_runs), surface_clear_color, move(async_scrolling_metadata), move(mask_display_lists)));
+    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_structural_epoch, id, move(command_bytes), move(command_runs), surface_clear_color, move(async_scrolling_metadata), move(mask_display_lists)));
 }
 
 }

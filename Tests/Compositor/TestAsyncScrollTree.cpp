@@ -45,7 +45,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_empty_display_list(Web::Pa
     return Web::Painting::DisplayList::create_from_command_bytes(visual_context_tree, ByteBuffer {}, {});
 }
 
-TEST_CASE(wheel_hit_testing_rejects_a_different_visual_context_tree_version)
+TEST_CASE(wheel_hit_testing_rejects_a_different_visual_context_tree_structural_epoch)
 {
     auto visual_context_tree = make_visual_context_tree();
     Web::Compositor::AsyncScrollingState state;
@@ -86,10 +86,10 @@ TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
 
 TEST_CASE(wheel_hit_testing_prefilters_static_targets_but_tracks_animated_targets)
 {
-    auto make_tree_and_spatial = [](Gfx::FloatMatrix4x4 const& matrix = Gfx::FloatMatrix4x4::identity(), Optional<u64> version = {}) {
+    auto make_tree_and_spatial = [](Gfx::FloatMatrix4x4 const& matrix = Gfx::FloatMatrix4x4::identity(), Optional<u64> structural_epoch = {}) {
         Web::Painting::VisualContextTreeTestBuilder builder;
         auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, matrix);
-        return Tuple { version.has_value() ? builder.finish_with_version(*version) : builder.finish(), spatial };
+        return Tuple { structural_epoch.has_value() ? builder.finish_with_structural_epoch(*structural_epoch) : builder.finish(), spatial };
     };
     auto make_scroll_tree = [](Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::SpatialNodeIndex spatial) {
         Web::Compositor::AsyncScrollingState state;
@@ -113,7 +113,7 @@ TEST_CASE(wheel_hit_testing_prefilters_static_targets_but_tracks_animated_target
     auto static_scroll_tree = make_scroll_tree(static_tree, static_spatial);
     auto moved_matrix = Gfx::FloatMatrix4x4::identity();
     moved_matrix[0, 3] = 10;
-    auto moved_static_tree = move(make_tree_and_spatial(moved_matrix, static_tree.version()).get<0>());
+    auto moved_static_tree = move(make_tree_and_spatial(moved_matrix, static_tree.structural_epoch()).get<0>());
     EXPECT(!hit_test(static_scroll_tree, moved_static_tree).blocked_by_main_thread_region);
 
     auto animated_tree_and_spatial = make_tree_and_spatial();

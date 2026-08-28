@@ -65,7 +65,7 @@ public:
     WEB_API AccumulatedVisualContextTree& operator=(AccumulatedVisualContextTree&&);
     WEB_API ~AccumulatedVisualContextTree();
 
-    WEB_API u64 version() const;
+    WEB_API u64 structural_epoch() const;
     WEB_API ByteBuffer serialize_to_bytes() const;
     void const* rust_handle() const { return m_rust_tree; }
 

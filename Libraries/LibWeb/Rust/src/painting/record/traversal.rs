@@ -72,16 +72,9 @@ pub(crate) fn record_display_list(
         .stacking_context_tree
         .as_ref()
         .expect("recording needs a built stacking context tree");
-    let visual_context_tree_version = paint_state.visual_context.tree_version();
-    // NB: Some commands embed visual context indices in their payloads. Those indices can change
-    //     when the visual context tree is rebuilt, so commands from an incompatible tree must be
-    //     recorded and cached against the new tree.
-    let command_cache_source = command_cache_source.filter(|source| {
-        source.compatible_visual_context_tree_version == visual_context_tree_version
-            && source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel
-    });
-    let item_cache_source =
-        item_cache_source.filter(|source| source.visual_context_tree_version == visual_context_tree_version);
+    let structural_epoch = paint_state.visual_context.structural_epoch();
+    let command_cache_source = command_cache_source
+        .filter(|source| source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel);
     let paintable_rows = layout_arena.paintable_rows();
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
@@ -151,7 +144,7 @@ pub(crate) fn record_display_list(
     hit_test_list.generation = hit_test_list_generation;
     RecordingOutput {
         id: inputs.display_list_id,
-        compatible_visual_context_tree_version: visual_context_tree_version,
+        recorded_structural_epoch: structural_epoch,
         recorded_device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
         hit_test_list,
         display_list: recorder.recorder.into_builder().finish(),

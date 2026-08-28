@@ -22,10 +22,10 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
+NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
 {
     auto* arena_handle = arena.handle();
-    auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_version, arena, chrome_widget_registry, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
+    auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_structural_epoch, arena, chrome_widget_registry, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
     struct VisitContext {
         HitTestDisplayList& list;
         Layout::NodeArena& arena;
@@ -56,8 +56,8 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     return list;
 }
 
-HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry, u64 rust_generation)
-    : m_visual_context_tree_version(visual_context_tree_version)
+HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry, u64 rust_generation)
+    : m_visual_context_tree_structural_epoch(visual_context_tree_structural_epoch)
     , m_arena(arena)
     , m_chrome_widget_registry(chrome_widget_registry)
     , m_rust_generation(rust_generation)
@@ -459,7 +459,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(size_t line_
 
 Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
 {
-    if (m_visual_context_tree_version != document.visual_context_tree_version() || !is_current())
+    if (m_visual_context_tree_structural_epoch != document.visual_context_tree_structural_epoch() || !is_current())
         return {};
     // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
     // Non-caret items are still needed to keep later line fallback scoped to the hit content.
@@ -554,7 +554,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
 Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics) const
 {
-    if (m_visual_context_tree_version != document.visual_context_tree_version() || !is_current())
+    if (m_visual_context_tree_structural_epoch != document.visual_context_tree_structural_epoch() || !is_current())
         return {};
 
     auto topmost_item = find_topmost_item(point, document, device_pixels_per_css_pixel, chrome_metrics);
@@ -565,7 +565,7 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, DOM::D
 
 TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (m_visual_context_tree_version != document.visual_context_tree_version() || !is_current())
+    if (m_visual_context_tree_structural_epoch != document.visual_context_tree_structural_epoch() || !is_current())
         return TraversalDecision::Continue;
 
     for (auto item_index : hit_item_indices_topmost_first(point, document, device_pixels_per_css_pixel, chrome_metrics)) {

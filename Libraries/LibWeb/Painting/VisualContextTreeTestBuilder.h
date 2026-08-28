@@ -54,7 +54,7 @@ public:
     FrameNodeIndex append_effects_frame(FrameNodeIndex parent, SpatialNodeIndex spatial, float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal);
 
     AccumulatedVisualContextTree finish();
-    AccumulatedVisualContextTree finish_with_version(u64 version);
+    AccumulatedVisualContextTree finish_with_structural_epoch(u64 structural_epoch);
 
 private:
     void* m_builder { nullptr };

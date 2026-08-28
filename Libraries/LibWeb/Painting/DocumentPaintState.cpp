@@ -47,10 +47,10 @@ AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Docume
     return visual_context_tree_without_update(document);
 }
 
-u64 DocumentPaintState::visual_context_tree_version(DOM::Document const& document) const
+u64 DocumentPaintState::visual_context_tree_structural_epoch(DOM::Document const& document) const
 {
     ensure_visual_context_tree(document);
-    return Layout::RustFFI::layout_arena_visual_context_tree_version(m_layout_node_arena->handle());
+    return Layout::RustFFI::layout_arena_visual_context_tree_structural_epoch(m_layout_node_arena->handle());
 }
 
 BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_event_regions(DOM::Document& document)

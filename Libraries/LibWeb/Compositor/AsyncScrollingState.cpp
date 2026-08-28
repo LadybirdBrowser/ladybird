@@ -203,7 +203,7 @@ bool blocks_wheel_event_at_position(AsyncScrollingState const& async_scrolling_s
     if (!display_list || !visual_context_tree)
         return async_scrolling_state.has_blocking_wheel_event_listeners;
 
-    VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree->version());
+    VERIFY(display_list->compatible_visual_context_tree_structural_epoch() == visual_context_tree->structural_epoch());
     for (auto const& region : async_scrolling_state.blocking_wheel_event_regions) {
         if (region.context.spatial.value() >= visual_context_tree->spatial_node_count()
             || (region.context.frame != Painting::NO_FRAME_NODE && region.context.frame.value() >= visual_context_tree->frame_node_count()))
