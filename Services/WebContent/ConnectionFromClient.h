@@ -334,6 +334,8 @@ private:
     virtual void did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
     virtual void request_close(Web::PageId page_id) override;
+    virtual void request_close_preflight(Web::PageId page_id, u64 request_id) override;
+    virtual void request_close_without_prompting(Web::PageId page_id) override;
     virtual void force_close(Web::PageId page_id) override;
 
     virtual void exit_fullscreen(Web::PageId page_id) override;

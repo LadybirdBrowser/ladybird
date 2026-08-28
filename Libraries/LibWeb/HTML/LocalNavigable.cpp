@@ -3815,7 +3815,7 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
     // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
     // NB: This page checks the documents it hosts, last: the UI process, which requested the check, ran it in the
     //     pages hosting the others first, and whether one of them showed the prompt comes with the request.
-    check_if_unloading_is_canceled(hosted_inclusive_descendant_navigables(), {}, {}, {}, unload_prompt_shown,
+    check_if_unloading_is_canceled(hosted_inclusive_descendant_navigables(), as_if<LocalTraversableNavigable>(this), {}, {}, {}, unload_prompt_shown,
         GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled, UnloadPromptShown) {
             if (has_been_destroyed() || !active_window()) {
                 completion_steps->function()(false);
@@ -4298,6 +4298,7 @@ bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& docu
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
 void check_if_unloading_is_canceled(
     Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload,
+    GC::Ptr<LocalTraversableNavigable> owner,
     GC::Ptr<LocalTraversableNavigable> traversable,
     RefPtr<SessionHistoryEntry> target_entry,
     Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
@@ -4305,11 +4306,41 @@ void check_if_unloading_is_canceled(
     GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult, UnloadPromptShown)>> callback)
 {
     auto state = GC::Heap::the().allocate<CheckUnloadingCanceledState>(
+        owner,
         traversable,
         user_involvement_for_navigate_events,
         unload_prompt_shown,
         callback);
     state->start(navigables_that_need_before_unload, move(target_entry));
+}
+
+void LocalTraversableNavigable::request_close_preflight(GC::Ref<GC::Function<void(bool)>> callback)
+{
+    if (page().pending_dialog() != Page::PendingDialog::None) {
+        if (page().pending_dialog() == Page::PendingDialog::BeforeUnload && m_active_beforeunload_check) {
+            m_active_beforeunload_check->adopt_for_close(callback);
+            return;
+        }
+        callback->function()(false);
+        return;
+    }
+
+    auto document = active_document();
+    if (!document) {
+        callback->function()(true);
+        return;
+    }
+
+    auto state_callback = GC::create_function(heap(), [callback](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown) {
+        callback->function()(result == CheckIfUnloadingIsCanceledResult::Continue);
+    });
+    auto state = heap().allocate<CheckUnloadingCanceledState>(GC::Ptr<LocalTraversableNavigable> { this }, GC::Ptr<LocalTraversableNavigable> {}, Optional<UserNavigationInvolvement> {}, UnloadPromptShown::No, state_callback);
+    Vector<GC::Root<LocalNavigable>> local_navigables;
+    for (auto& navigable : document->inclusive_descendant_navigables()) {
+        if (auto* local_navigable = as_if<LocalNavigable>(navigable.ptr()))
+            local_navigables.append(*local_navigable);
+    }
+    state->start(local_navigables, {});
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation

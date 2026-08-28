@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Utf16String.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
+#include <LibWeb/HTML/CheckUnloadingCanceledState.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
@@ -48,6 +50,9 @@ public:
         Yes,
     };
     void close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
+    void request_close_preflight(GC::Ref<GC::Function<void(bool)>> callback);
+    GC::Ptr<CheckUnloadingCanceledState> active_beforeunload_check(Badge<CheckUnloadingCanceledState>) const { return m_active_beforeunload_check; }
+    void set_active_beforeunload_check(Badge<CheckUnloadingCanceledState>, GC::Ptr<CheckUnloadingCanceledState> check) { m_active_beforeunload_check = check; }
     void close_top_level_traversable_from_script(Navigable const& source);
     void definitely_close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void run_ui_traversable_close_unload_task();
@@ -62,12 +67,15 @@ private:
     LocalTraversableNavigable(GC::Ref<Page>);
 
     virtual bool is_traversable() const override { return true; }
+    virtual void visit_edges(Visitor&) override;
 
     // WebContent needs the canonical top-level entry count synchronously for is_script_closable().
     u64 m_session_history_entry_count { 1 };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-created-by-web-content
     bool m_is_created_by_web_content { false };
+
+    GC::Ptr<CheckUnloadingCanceledState> m_active_beforeunload_check;
 
     // AD-HOC: A forced close may supersede a prompted close while its beforeunload check is still pending.
     bool m_close_steps_have_been_appended { false };

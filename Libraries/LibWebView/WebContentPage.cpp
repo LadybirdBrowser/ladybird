@@ -2573,6 +2573,12 @@ void WebContentPage::did_close_browsing_context()
     }
 }
 
+void WebContentPage::did_complete_close_preflight(u64 request_id, bool approved)
+{
+    if (displays_tab())
+        view().did_complete_close_preflight({}, request_id, approved);
+}
+
 void WebContentPage::did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     if (auto target = view_position(local_root_id, content_position); target.has_value())

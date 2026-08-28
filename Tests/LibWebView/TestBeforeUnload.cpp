@@ -112,10 +112,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     size_t prompt_count = 0;
     bool accept_prompt = false;
+    bool adopt_navigation_prompt_for_close = false;
+    Optional<bool> adopted_close_preflight_result;
     Optional<String> prompt_source;
     view->on_request_before_unload = [&](auto const& source, auto on_complete) {
         ++prompt_count;
         prompt_source = source;
+        if (adopt_navigation_prompt_for_close) {
+            view->request_close_preflight([&](bool approved) {
+                adopted_close_preflight_result = approved;
+            });
+        }
         on_complete(accept_prompt);
     };
 
@@ -138,6 +145,53 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     accept_prompt = true;
     load_and_wait(destination_url);
     VERIFY(prompt_count == 2);
+
+    auto request_close_preflight = [&] {
+        Optional<bool> result;
+        view->request_close_preflight([&](bool approved) {
+            result = approved;
+        });
+        Core::EventLoop::current().spin_until([&] { return result.has_value(); });
+        return *result;
+    };
+
+    // A close preflight asks without closing the page.
+    load_and_wait(source_url);
+    activate_page();
+    accept_prompt = false;
+    VERIFY(!request_close_preflight());
+    VERIFY(view_is_at(source_url));
+    VERIFY(prompt_count == 3);
+
+    accept_prompt = true;
+    VERIFY(request_close_preflight());
+    VERIFY(view_is_at(source_url));
+    VERIFY(prompt_count == 4);
+
+    // A close preflight adopts an already-open navigation prompt instead of showing another one.
+    adopt_navigation_prompt_for_close = true;
+    accept_prompt = false;
+    auto prompt_count_before_adoption = prompt_count;
+    view->load(destination_url);
+    Core::EventLoop::current().spin_until([&] { return adopted_close_preflight_result.has_value(); });
+    VERIFY(!*adopted_close_preflight_result);
+    VERIFY(view_is_at(source_url));
+    VERIFY(prompt_count == prompt_count_before_adoption + 1);
+
+    adopted_close_preflight_result.clear();
+    accept_prompt = true;
+    prompt_count_before_adoption = prompt_count;
+    view->load(destination_url);
+    Core::EventLoop::current().spin_until([&] { return adopted_close_preflight_result.has_value(); });
+    VERIFY(*adopted_close_preflight_result);
+    VERIFY(view_is_at(source_url));
+    VERIFY(prompt_count == prompt_count_before_adoption + 1);
+
+    bool closed = false;
+    view->on_close = [&] { closed = true; };
+    auto close_without_prompting = view->prepare_for_close_without_prompting();
+    close_without_prompting();
+    Core::EventLoop::current().spin_until([&] { return closed; });
 
     outln("PASS: beforeunload prompt handling");
     return 0;

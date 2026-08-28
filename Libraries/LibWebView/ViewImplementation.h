@@ -423,6 +423,9 @@ public:
     void set_user_style_sheet(String const& source);
 
     void request_close();
+    void request_close_preflight(Function<void(bool)> on_complete);
+    void did_complete_close_preflight(Badge<WebContentPage>, u64 request_id, bool approved);
+    Function<void()> prepare_for_close_without_prompting();
     void force_close();
     Function<void()> prepare_for_immediate_close();
     bool needs_beforeunload_check() const;
@@ -848,6 +851,12 @@ protected:
 
     u64 m_next_webdriver_user_prompt_request_id { 0 };
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_user_prompt_requests;
+    u64 m_next_close_preflight_request_id { 0 };
+    struct PendingClosePreflightRequest {
+        Web::PageId page_id;
+        Function<void(bool)> on_complete;
+    };
+    HashMap<u64, PendingClosePreflightRequest> m_pending_close_preflight_requests;
     struct PendingWebDriverCommand {
         NonnullRefPtr<WebContentPage> page;
         String name;
