@@ -1788,4 +1788,39 @@ void Tab::request_close()
     m_window->definitely_close_tab(tab_index());
 }
 
+void Tab::request_window_close_preflight(Function<void(bool)> on_complete)
+{
+    m_suppress_javascript_dialogs_until_navigation = true;
+
+    if (m_javascript_dialog->type() != JavaScriptDialog::Type::BeforeUnload)
+        m_javascript_dialog->dismiss();
+
+    if (!view().needs_beforeunload_check()) {
+        on_complete(true);
+        return;
+    }
+
+    auto weak_this = QPointer<Tab>(this);
+    view().request_close_preflight([weak_this, on_complete = AK::move(on_complete)](bool approved) mutable {
+        if (!weak_this) {
+            on_complete(true);
+            return;
+        }
+        on_complete(approved);
+    });
+}
+
+void Tab::cancel_window_close_preflight()
+{
+    m_already_requested_close = false;
+    m_suppress_javascript_dialogs_until_navigation = false;
+}
+
+Function<void()> Tab::prepare_for_window_close()
+{
+    m_suppress_javascript_dialogs_until_navigation = true;
+    m_javascript_dialog->dismiss();
+    return view().prepare_for_close_without_prompting();
+}
+
 }

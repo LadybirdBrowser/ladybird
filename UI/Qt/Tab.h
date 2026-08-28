@@ -96,6 +96,9 @@ public:
     BookmarksBar& bookmarks_bar() { return *m_bookmarks_bar; }
 
     void request_close();
+    void request_window_close_preflight(Function<void(bool)> on_complete);
+    void cancel_window_close_preflight();
+    Function<void()> prepare_for_window_close();
 
     QIcon const& favicon() const { return m_favicon; }
     QIcon tab_icon() const;

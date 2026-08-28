@@ -35,6 +35,7 @@ public:
     explicit JavaScriptDialog(QWidget* parent);
 
     bool is_open() const { return m_type.has_value(); }
+    Optional<Type> type() const { return m_type; }
 
     void show_alert(QString const& title, QString const& message);
     void show_before_unload(QString const& title);
