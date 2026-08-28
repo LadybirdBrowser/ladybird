@@ -6,7 +6,6 @@
 
 #include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
-#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
@@ -32,16 +31,6 @@ static size_t normalize_svg_path_data(u16 const* code_units, size_t length)
     if (path.instructions().is_empty())
         return 0;
     return Utf16String::from_utf8(path.serialize()).to_raw_leaked();
-}
-
-static bool rust_font_format_is_supported(u16 const* code_units, size_t length)
-{
-    return font_format_is_supported(Utf16View { reinterpret_cast<char16_t const*>(code_units), length });
-}
-
-static bool rust_font_tech_is_supported(u8 tech)
-{
-    return font_tech_is_supported(static_cast<FontTech>(tech));
 }
 
 static bool resolve_descriptor_integer(void const* document_pointer, void const* value_pointer, i32* result)
@@ -143,8 +132,6 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         .normalize_svg_path_data = provide_value_callbacks ? normalize_svg_path_data : nullptr,
         .precomputed_svg_paths = nullptr,
         .precomputed_svg_path_count = 0,
-        .font_format_is_supported = provide_value_callbacks ? rust_font_format_is_supported : nullptr,
-        .font_tech_is_supported = provide_value_callbacks ? rust_font_tech_is_supported : nullptr,
         .descriptor_integer_resolution_context = provide_descriptor_resolution ? parser.m_document.ptr() : nullptr,
         .resolve_descriptor_integer = provide_descriptor_resolution ? resolve_descriptor_integer : nullptr,
         .random_function_index = &parser.m_random_function_index,

@@ -163,7 +163,4 @@ private:
 
 bool font_format_is_supported(Utf16View name);
 
-bool font_tech_is_supported(FontTech);
-bool font_tech_is_supported(Utf16View name);
-
 }
