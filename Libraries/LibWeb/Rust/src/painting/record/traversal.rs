@@ -472,7 +472,7 @@ impl PaintRecorder<'_> {
         let Some(command_source) = self.command_cache_source.as_ref() else {
             return false;
         };
-        let Some(item_source) = self.item_cache_source.as_ref() else {
+        let Some(item_source) = self.item_cache_source.clone() else {
             return false;
         };
         let cache = self.layout_arena.paintable_paint_cache(paintable);
@@ -503,7 +503,7 @@ impl PaintRecorder<'_> {
         let source_start = cached.hit_test_start as usize;
         let source_end = source_start + cached.hit_test_count as usize;
         for item in &item_source.items[source_start..source_end] {
-            self.list.append(item.clone());
+            self.append_spliced_hit_test_item(item);
         }
         if self.inputs.paint_command_cache_read_write {
             self.set_cached_descendant_subtree(
@@ -705,8 +705,8 @@ impl PaintRecorder<'_> {
                 // Paintable rows may hold dangling fragment pointers, but only ranges whose owners kept a valid cache
                 // entry (and therefore were not relaid out) are ever passed here.
                 let destination_start = self.list.items.len();
-                for index in start..start + count {
-                    self.list.append(source[index].clone());
+                for item in &source[start..start + count] {
+                    self.append_spliced_hit_test_item(item);
                 }
                 if cache_writes_enabled {
                     self.set_cached_hit_test_items(
@@ -793,6 +793,17 @@ impl PaintRecorder<'_> {
             return None;
         }
         Some((source.clone(), entry))
+    }
+
+    fn append_spliced_hit_test_item(&mut self, spliced: &HitTestItem) {
+        let mut item = spliced.clone();
+        if !item.block_container.is_invalid() {
+            item.block_container_margin_rect = self.containing_block_margin_rect(item.block_container);
+        }
+        if item.kind == HitTestItemKind::Box {
+            (item.caret_line_index, item.caret_line_rect) = self.containing_line_of_box(item.paintable);
+        }
+        self.list.append(item);
     }
 
     fn valid_cached_hit_test_items(
