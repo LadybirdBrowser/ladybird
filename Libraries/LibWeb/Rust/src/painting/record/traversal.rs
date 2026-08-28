@@ -751,8 +751,6 @@ impl PaintRecorder<'_> {
                 &source.display_list.bytes,
                 cached.range,
                 cached.recorded_context,
-                cached.recorded_local_frame_range,
-                self.local_frame_range(paintable),
             );
             if cache_writes_enabled {
                 self.set_cached_commands(paintable, phase, destination_range, phase_context);
@@ -830,10 +828,17 @@ impl PaintRecorder<'_> {
         range: CommandRange,
         recorded_context: ContextRef,
     ) {
-        let recorded_local_frame_range = self.local_frame_range(paintable);
         debug_assert!(
             self.captured_range_embeds_no_scroll_node_index_payload(range),
             "a per-phase paint capture must not embed scroll node indices"
+        );
+        debug_assert!(
+            self.captured_range_references_only_the_phase_context_and_own_local_frames(
+                paintable,
+                range,
+                recorded_context
+            ),
+            "a per-phase paint capture records under its phase context and its own local frames"
         );
         let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.register_capture_position(self.current_absolute_position(paintable));
@@ -843,24 +848,45 @@ impl PaintRecorder<'_> {
                 source_display_list_id: self.display_list_id,
                 range,
                 recorded_context,
-                recorded_local_frame_range,
             },
         );
     }
 
-    fn local_frame_range(&self, paintable: NodeSlotId) -> (u32, u32) {
+    #[cfg(debug_assertions)]
+    fn captured_range_references_only_the_phase_context_and_own_local_frames(
+        &self,
+        paintable: NodeSlotId,
+        range: CommandRange,
+        recorded_context: ContextRef,
+    ) -> bool {
+        use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
+        let bytes = &self.recorder.bytes()[range.offset as usize..(range.offset + range.size) as usize];
         self.layout_arena
             .with_paintable_visual_context_node_handles(paintable, |handles| {
-                let local_frames = handles.local_frame_handles();
-                debug_assert!(
-                    local_frames.windows(2).all(|pair| pair[1].0 == pair[0].0 + 1),
-                    "a box's local frames are appended consecutively"
-                );
-                match (local_frames.first(), local_frames.last()) {
-                    (Some(first), Some(last)) => (first.0, last.0 + 1),
-                    _ => (0, 0),
+                let mut offset = 0;
+                while offset < bytes.len() {
+                    let header = read_header(&bytes[offset..]);
+                    let frame = header.context.frame;
+                    let frame_belongs_to_the_capture = frame.is_none()
+                        || frame == recorded_context.frame
+                        || handles.local_frame_handles().contains(&frame);
+                    if header.context.spatial != recorded_context.spatial || !frame_belongs_to_the_capture {
+                        return false;
+                    }
+                    offset += HEADER_SIZE + header.payload_size as usize;
                 }
+                true
             })
+    }
+
+    #[cfg(not(debug_assertions))]
+    fn captured_range_references_only_the_phase_context_and_own_local_frames(
+        &self,
+        _paintable: NodeSlotId,
+        _range: CommandRange,
+        _recorded_context: ContextRef,
+    ) -> bool {
+        true
     }
 
     #[cfg(debug_assertions)]

@@ -20,7 +20,6 @@ pub struct CachedCommands {
     pub source_display_list_id: u64,
     pub range: CommandRange,
     pub recorded_context: ContextRef,
-    pub recorded_local_frame_range: (u32, u32),
 }
 
 #[derive(Clone, Copy, Debug, Default)]
