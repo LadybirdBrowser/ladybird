@@ -245,6 +245,7 @@ impl VisualContextTree {
                 };
                 true
             }
+            SpatialData::Dead => true,
         }
     }
 
@@ -297,7 +298,7 @@ impl VisualContextTree {
                 }
                 clip_path.path.contains(point.x, point.y, clip_path.fill_rule as i32)
             }
-            FrameData::Effects(_) | FrameData::Mask(_) => true,
+            FrameData::Effects(_) | FrameData::Mask(_) | FrameData::Dead => true,
         }
     }
 
@@ -463,7 +464,7 @@ impl VisualContextTree {
                         let offset = shift.masked_offset(scroll_offsets);
                         rect = rect.translated(offset.x, offset.y);
                     }
-                    SpatialData::BackfaceVisibility(_) => {}
+                    SpatialData::BackfaceVisibility(_) | SpatialData::Dead => {}
                 }
             }
             if current == VISUAL_VIEWPORT_NODE_INDEX {
@@ -676,6 +677,20 @@ impl VisualContextTree {
             Some(FrameData::Effects(effects)) => Some(effects.opacity),
             _ => None,
         }
+    }
+
+    pub fn display_list_references_only_live_nodes(
+        &self,
+        command_runs: &[crate::painting::display_list::commands::DisplayListCommandRun],
+        mask_frames: &[FrameNodeIndex],
+    ) -> bool {
+        let context_is_live = |context: ContextRef| {
+            self.spatial_is_live(context.spatial) && (context.frame.is_none() || self.frame_is_live(context.frame))
+        };
+        command_runs.iter().all(|run| context_is_live(run.context))
+            && mask_frames.iter().all(|frame| {
+                self.frame_is_live(*frame) && matches!(self.frame_nodes[frame.0 as usize].data, FrameData::Mask(_))
+            })
     }
 
     pub fn spatial_nodes_in_subtrees_of(&self, roots: &[SpatialNodeIndex]) -> Vec<bool> {
@@ -1373,6 +1388,77 @@ mod tests {
             in_order.frames_with_empty_effective_clip()
         );
         assert_eq!(in_order.frames_with_empty_effective_clip(), vec![true, true]);
+    }
+
+    #[test]
+    fn a_display_list_naming_a_dead_node_is_rejected() {
+        use crate::painting::display_list::commands::DisplayListCommandRun;
+        let mut tree = identity_tree();
+        let live_spatial = tree.append_spatial(
+            SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let dead_spatial = tree.append_spatial(
+            SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let live_frame = tree.append_frame(
+            effects(1.0, CompositingAndBlendingOperator::Normal),
+            FrameNodeIndex::NONE,
+            live_spatial,
+        );
+        let dead_frame = tree.append_frame(
+            effects(1.0, CompositingAndBlendingOperator::Normal),
+            FrameNodeIndex::NONE,
+            live_spatial,
+        );
+        let mask_frame = tree.append_frame(
+            FrameData::Mask(crate::painting::visual_context::MaskData {
+                rect: IntRect::new(0, 0, 4, 4),
+                kind: libgfx_rust::MaskKind::Alpha,
+                origin: crate::painting::visual_context::MaskLayerOrigin::CssMaskLayers,
+            }),
+            FrameNodeIndex::NONE,
+            live_spatial,
+        );
+        assert!(tree.tombstone_spatial_slot(dead_spatial));
+        assert!(tree.tombstone_frame_slot(dead_frame));
+        let run = |context: ContextRef| DisplayListCommandRun {
+            context,
+            ..DisplayListCommandRun::default()
+        };
+        assert!(tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_frame))], &[]));
+        assert!(
+            !tree.display_list_references_only_live_nodes(&[run(context_of(dead_spatial, FrameNodeIndex::NONE))], &[])
+        );
+        assert!(!tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, dead_frame))], &[]));
+        assert!(
+            tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_frame))], &[mask_frame])
+        );
+        assert!(!tree.display_list_references_only_live_nodes(&[], &[dead_frame]));
+        assert!(!tree.display_list_references_only_live_nodes(&[], &[live_frame]));
+    }
+
+    #[test]
+    fn sticky_resolution_and_subtree_marks_leave_tombstones_out() {
+        let mut tree = identity_tree();
+        let scroll_node = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let stale = tree.append_spatial(
+            SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),
+            scroll_node,
+        );
+        let sticky_node = tree.append_spatial(sticky(scroll_node, None, 100.0), scroll_node);
+        assert!(tree.tombstone_spatial_slot(stale));
+        let mut scroll_offsets = vec![FloatPoint::default(); 4];
+        scroll_offsets[scroll_node.0 as usize] = point(0.0, -150.0);
+        assert_eq!(
+            tree.resolve_sticky_offsets(&scroll_offsets),
+            vec![(sticky_node, point(0.0, 50.0))]
+        );
+        assert_eq!(
+            tree.spatial_nodes_in_subtrees_of(&[scroll_node]),
+            vec![false, true, false, true]
+        );
     }
 
     #[test]

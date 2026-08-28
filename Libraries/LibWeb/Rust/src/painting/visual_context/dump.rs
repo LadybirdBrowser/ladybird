@@ -123,6 +123,7 @@ impl VisualContextTree {
                     if shift.compensate_vertical_scroll { "" } else { ", no-y" }
                 );
             }
+            SpatialData::Dead => text.push_str("tombstone"),
         }
         text
     }
@@ -211,6 +212,7 @@ impl VisualContextTree {
                     origin
                 );
             }
+            FrameData::Dead => text.push_str("tombstone"),
         }
         text
     }

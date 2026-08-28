@@ -103,6 +103,16 @@ size_t AccumulatedVisualContextTree::frame_node_count() const
     return Layout::RustFFI::visual_context_tree_frame_node_count(m_rust_tree);
 }
 
+size_t AccumulatedVisualContextTree::live_spatial_node_count() const
+{
+    return Layout::RustFFI::visual_context_tree_live_spatial_node_count(m_rust_tree);
+}
+
+size_t AccumulatedVisualContextTree::live_frame_node_count() const
+{
+    return Layout::RustFFI::visual_context_tree_live_frame_node_count(m_rust_tree);
+}
+
 TransformWithOrigin AccumulatedVisualContextTree::visual_viewport_transform() const
 {
     return Layout::RustFFI::visual_context_tree_visual_viewport_transform(m_rust_tree);

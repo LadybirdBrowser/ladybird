@@ -76,6 +76,8 @@ public:
 
     WEB_API size_t spatial_node_count() const;
     WEB_API size_t frame_node_count() const;
+    WEB_API size_t live_spatial_node_count() const;
+    WEB_API size_t live_frame_node_count() const;
     WEB_API TransformWithOrigin visual_viewport_transform() const;
     WEB_API AccumulatedVisualContextTree with_visual_viewport_transform(TransformWithOrigin const&) const;
     WEB_API AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;

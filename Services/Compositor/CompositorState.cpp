@@ -145,6 +145,10 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
             visual_context_tree.version());
         return;
     }
+    if (auto validation = Web::Painting::validate_display_list_references_live_visual_context_nodes(*display_list, visual_context_tree); validation.is_error()) {
+        dbgln("Compositor: Dropping display list update: {}", validation.error());
+        return;
+    }
 
     context->apply_display_list_resource_transaction(move(resource_transaction));
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));

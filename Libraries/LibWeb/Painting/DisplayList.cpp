@@ -70,6 +70,18 @@ Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes co
     return runs;
 }
 
+ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
+{
+    Vector<FrameNodeIndex> mask_frames;
+    mask_frames.ensure_capacity(display_list.mask_display_lists().size());
+    for (auto const& mask_display_list : display_list.mask_display_lists())
+        mask_frames.unchecked_append(mask_display_list.key);
+    auto command_runs = display_list.command_runs();
+    if (!Layout::RustFFI::display_list_references_only_live_visual_context_nodes(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), mask_frames.data(), mask_frames.size()))
+        return Error::from_string_literal("Display list references a visual context node that is not live");
+    return {};
+}
+
 ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun> runs)
 {
     size_t next_offset = 0;
