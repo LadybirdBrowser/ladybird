@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent {
+        width: 200px;
+        height: 200px;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    #content {
+        width: 500px;
+        height: 500px;
+    }
+</style>
+<div id="parent"><div id="scroller"><div id="content"></div></div></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const scrollNodeIndex = () => internals.asyncScrollingState().scrollNodes.find(node => !node.isViewport).scrollNodeIndex;
+        settle();
+        const initialIndex = scrollNodeIndex();
+        const liveNodes = internals.visualContextTreeNodeCount();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+
+        document.getElementById("parent").style.transform = "translateX(5px)";
+        settle();
+
+        println(`scroll node index unchanged: ${scrollNodeIndex() === initialIndex}`);
+        println(`live nodes grew: ${internals.visualContextTreeNodeCount() > liveNodes}`);
+        println(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        println(`scroller x: ${document.getElementById("scroller").getBoundingClientRect().x}`);
+    });
+</script>

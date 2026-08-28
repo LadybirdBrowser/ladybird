@@ -228,7 +228,6 @@ struct PendingBox {
     cascade: ChildCascade,
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>(
     layout_arena: &Arena,
     callbacks: &FfiVisualContextHostCallbacks,
@@ -236,7 +235,6 @@ pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>
     tree_inputs: FfiVisualContextTreeInputs,
     root_background_source: FfiRootBackgroundSource,
     state: &mut VisualContextState,
-    allow_structural_changes: bool,
 ) -> IncrementalUpdateResult {
     let plan = match expand_dirty_entries(layout_arena, &state.dirty_boxes, root_background_source) {
         Ok(plan) => plan,
@@ -246,9 +244,6 @@ pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::FirstBuild);
     };
     let mut delta = VisualContextTreeDelta::default();
-    if !state.dirty_boxes.removed.is_empty() && !allow_structural_changes {
-        return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::StructuralDirtyBoxes);
-    }
     tombstone_removed_blocks(Rc::make_mut(tree), &state.dirty_boxes, &mut delta);
 
     let environment = BoxBuildEnvironment {
@@ -329,15 +324,12 @@ pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>
                 build_box_visual_context_nodes(&environment, &mut scratch, slot, input, may_be_root_element, None);
             let (scratch_spatial, scratch_frames) = scratch.into_nodes();
             let existing_handles = existing_record.as_ref().map(|record| &record.node_handles);
-            let Some(placement) = plan_box_node_placement(
+            let placement = plan_box_node_placement(
                 tree,
                 existing_handles,
                 &output.assignment.record.node_handles,
-                allow_structural_changes,
                 &mut delta,
-            ) else {
-                return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::StructuralDirtyBoxes);
-            };
+            );
             let reconcile = write_box_nodes(
                 tree,
                 scratch_spatial,

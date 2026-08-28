@@ -156,18 +156,9 @@ pub(crate) fn plan_box_node_placement(
     tree: &mut VisualContextTree,
     existing: Option<&BoxVisualContextNodeHandles>,
     provisional: &BoxVisualContextNodeHandles,
-    allow_structural_changes: bool,
     delta: &mut VisualContextTreeDelta,
-) -> Option<BoxNodePlacement> {
+) -> BoxNodePlacement {
     let existing = existing.unwrap_or(&EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES);
-    if !allow_structural_changes
-        && (existing.spatial.len() != provisional.spatial.len()
-            || existing.chain_frames.len() != provisional.chain_frames.len()
-            || existing.local_frames.len() != provisional.local_frames.len()
-            || existing.descendant_frames.len() != provisional.descendant_frames.len())
-    {
-        return None;
-    }
     let provisional_frames: Vec<FrameNodeIndex> = provisional.frame_handles().collect();
     debug_assert!(
         provisional.spatial.windows(2).all(|pair| pair[1].0 == pair[0].0 + 1)
@@ -191,14 +182,14 @@ pub(crate) fn plan_box_node_placement(
     let chain_frames = place_frames(&existing.chain_frames, provisional.chain_frames.len());
     let local_frames = place_frames(&existing.local_frames, provisional.local_frames.len());
     let descendant_frames = place_frames(&existing.descendant_frames, provisional.descendant_frames.len());
-    Some(BoxNodePlacement {
+    BoxNodePlacement {
         provisional_spatial_begin: provisional_begin(&provisional.spatial, |index| index.0),
         provisional_frames_begin: provisional_begin(&provisional_frames, |index| index.0),
         spatial,
         chain_frames,
         local_frames,
         descendant_frames,
-    })
+    }
 }
 
 fn remap_spatial_payload(placement: &BoxNodePlacement, data: SpatialData) -> SpatialData {
@@ -497,7 +488,7 @@ mod tests {
     }
 
     struct Planned {
-        placement: Option<BoxNodePlacement>,
+        placement: BoxNodePlacement,
         spatial: Vec<SpatialNode>,
         frames: Vec<FrameNode>,
         delta: VisualContextTreeDelta,
@@ -507,13 +498,12 @@ mod tests {
         tree: &mut VisualContextTree,
         existing: Option<&BoxVisualContextNodeHandles>,
         description: &ScratchBox,
-        allow_structural_changes: bool,
     ) -> Planned {
         let mut scratch = BoxNodeScratch::new(tree);
         let provisional = fill_scratch(&mut scratch, description);
         let (spatial, frames) = scratch.into_nodes();
         let mut delta = VisualContextTreeDelta::default();
-        let placement = plan_box_node_placement(tree, existing, &provisional, allow_structural_changes, &mut delta);
+        let placement = plan_box_node_placement(tree, existing, &provisional, &mut delta);
         Planned {
             placement,
             spatial,
@@ -527,8 +517,8 @@ mod tests {
         existing: Option<&BoxVisualContextNodeHandles>,
         description: &ScratchBox,
     ) -> (BoxNodePlacement, ReconcileOutcome, VisualContextTreeDelta) {
-        let planned = plan(tree, existing, description, true);
-        let placement = planned.placement.expect("structural changes are allowed");
+        let planned = plan(tree, existing, description);
+        let placement = planned.placement;
         let mut delta = planned.delta;
         let outcome = write_box_nodes(tree, planned.spatial, planned.frames, &placement, existing, &mut delta);
         (placement, outcome, delta)
@@ -538,8 +528,8 @@ mod tests {
     fn matching_units_keep_their_handles() {
         let mut tree = tree_with_box_a_followed_by_box_b();
         let existing = box_a_handles();
-        let planned = plan(&mut tree, Some(&existing), &ScratchBox::default(), false);
-        let placement = planned.placement.expect("nothing changes shape");
+        let planned = plan(&mut tree, Some(&existing), &ScratchBox::default());
+        let placement = planned.placement;
         assert_eq!(placement.clone().into_node_handles(), existing);
         assert_eq!(placement.remap_spatial(SpatialNodeIndex(4)), BOX_A_SPATIAL);
         assert_eq!(placement.remap_frame(FrameNodeIndex(5)), BOX_A_CHAIN_FRAME);
@@ -600,21 +590,6 @@ mod tests {
         assert!(delta.tombstoned_spatial_node_indices.is_empty());
         assert!(delta.structural_epoch_changed);
         assert_eq!(tree.spatial_nodes.len(), 4);
-    }
-
-    #[test]
-    fn restricted_placement_refuses_to_change_a_unit_length() {
-        let mut tree = tree_with_box_a_followed_by_box_b();
-        let existing = box_a_handles();
-        let description = ScratchBox {
-            spatial_count: 2,
-            ..ScratchBox::default()
-        };
-        let planned = plan(&mut tree, Some(&existing), &description, false);
-        assert!(planned.placement.is_none());
-        assert_eq!(planned.delta, VisualContextTreeDelta::default());
-        assert_eq!(tree.spatial_nodes.len(), 4);
-        assert_eq!(tree.frame_nodes.len(), 5);
     }
 
     #[test]

@@ -1,0 +1,5 @@
+hit while clipped away: HTML
+hit after the clip opened: child
+hit after the clip closed again: HTML
+full builds: 0
+incremental updates: 2

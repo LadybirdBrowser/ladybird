@@ -23,6 +23,8 @@
     test(() => {
         const initialState = internals.asyncScrollingState();
         const initialNode = initialState.scrollNodes.find(node => !node.isViewport);
+        const initialLiveNodes = internals.visualContextTreeNodeCount();
+        const initialBuildCount = internals.accumulatedVisualContextTreeBuildCount();
 
         document.getElementById("before").style.transform = "translateX(0)";
 
@@ -30,5 +32,7 @@
         const updatedNode = updatedState.scrollNodes.find(node => !node.isViewport);
 
         println(`scroll node index changed: ${initialNode.scrollNodeIndex !== updatedNode.scrollNodeIndex}`);
+        println(`live nodes grew: ${internals.visualContextTreeNodeCount() > initialLiveNodes}`);
+        println(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
     });
 </script>

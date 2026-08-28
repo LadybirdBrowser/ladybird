@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #box { width: 50px; height: 50px; transform: translateX(5px); }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const box = document.getElementById("box");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        const lines = [];
+
+        document.body.style.background = "orange";
+        lines.push(`rect x with propagated body background: ${box.getBoundingClientRect().x}`);
+        document.documentElement.style.background = "white";
+        lines.push(`rect x without propagation: ${box.getBoundingClientRect().x}`);
+        document.documentElement.style.background = "";
+        lines.push(`rect x with propagation restored: ${box.getBoundingClientRect().x}`);
+        settle();
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`incremental updates happened: ${internals.accumulatedVisualContextIncrementalUpdateCount() > incrementalUpdates}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

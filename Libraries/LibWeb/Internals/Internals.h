@@ -52,6 +52,7 @@ public:
     u64 visual_context_pending_dirty_box_count();
     u64 accumulated_visual_context_incremental_update_count();
     u64 visual_context_tree_node_capacity();
+    u64 visual_context_tree_dead_node_count();
     u64 visual_context_tree_structural_epoch();
     void send_mismatched_visual_context_tree_update_to_compositor();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();

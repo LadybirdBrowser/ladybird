@@ -8,6 +8,7 @@ interface Internals {
     unsigned long long visualContextPendingDirtyBoxCount();
     unsigned long long accumulatedVisualContextIncrementalUpdateCount();
     unsigned long long visualContextTreeNodeCapacity();
+    unsigned long long visualContextTreeDeadNodeCount();
     unsigned long long visualContextTreeStructuralEpoch();
     undefined sendMismatchedVisualContextTreeUpdateToCompositor();
     undefined loadReferenceTestMetadata();

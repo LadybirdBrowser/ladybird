@@ -11008,6 +11008,9 @@ Utf16String Document::dump_display_list()
     if (!has_committed_viewport_box())
         return "No paintable"_utf16;
 
+    if (paint_state().has_visual_context_tree())
+        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::CanonicalDumpRequested);
+
     auto& resource_storage = navigable()->display_list_resource_storage();
     auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);
     if (!display_list)

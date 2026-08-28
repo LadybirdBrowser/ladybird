@@ -1,0 +1,6 @@
+legend hit: legend
+legend grew: true
+grown legend hit: legend
+content hit: content
+full builds: 0
+incremental updates happened: true

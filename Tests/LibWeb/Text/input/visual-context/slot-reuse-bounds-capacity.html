@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const parent = document.getElementById("parent");
+        settle();
+        const initialCapacity = internals.visualContextTreeNodeCapacity();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const epoch = internals.visualContextTreeStructuralEpoch();
+        const iterations = 400;
+        for (let i = 0; i < iterations; ++i) {
+            const child = document.createElement("div");
+            child.style.cssText = "width: 10px; height: 10px; transform: translateX(1px)";
+            parent.appendChild(child);
+            settle();
+            child.remove();
+            settle();
+        }
+        const lines = [
+            `capacity bounded: ${internals.visualContextTreeNodeCapacity() < initialCapacity + iterations}`,
+            `dead nodes bounded: ${internals.visualContextTreeDeadNodeCount() < iterations}`,
+            `full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`,
+            `epoch advanced: ${internals.visualContextTreeStructuralEpoch() > epoch}`,
+        ];
+        for (const line of lines)
+            println(line);
+    });
+</script>

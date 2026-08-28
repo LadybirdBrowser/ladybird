@@ -1,0 +1,4 @@
+capacity bounded: true
+dead nodes bounded: true
+full builds: 0
+epoch advanced: true

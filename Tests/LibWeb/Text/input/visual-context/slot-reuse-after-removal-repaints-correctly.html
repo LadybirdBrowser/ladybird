@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent {
+        width: 200px;
+        height: 200px;
+    }
+
+    .clipped {
+        width: 50px;
+        height: 50px;
+        overflow: hidden;
+        transform: translateX(10px);
+        background: blue;
+    }
+</style>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const parent = document.getElementById("parent");
+        settle();
+        const first = document.createElement("div");
+        first.className = "clipped";
+        first.id = "first";
+        parent.appendChild(first);
+        settle();
+        const capacityWithFirst = internals.visualContextTreeNodeCapacity();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+
+        first.remove();
+        settle();
+        const second = document.createElement("div");
+        second.className = "clipped";
+        second.id = "second";
+        parent.appendChild(second);
+        settle();
+
+        println(`capacity reused: ${internals.visualContextTreeNodeCapacity() === capacityWithFirst}`);
+        println(`dead nodes: ${internals.visualContextTreeDeadNodeCount()}`);
+        println(`hit: ${document.elementFromPoint(30, 30).id}`);
+        println(`second x: ${second.getBoundingClientRect().x}`);
+        println(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+    });
+</script>

@@ -1,0 +1,6 @@
+inside the clip before the move: inner
+beside the clip before the move: wrapper
+old position after the move: BODY
+inside the moved clip: inner
+beyond the moved clip: wrapper
+full builds: 0

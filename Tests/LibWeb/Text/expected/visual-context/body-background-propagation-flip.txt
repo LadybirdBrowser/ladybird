@@ -1,0 +1,5 @@
+rect x with propagated body background: 13
+rect x without propagation: 13
+rect x with propagation restored: 13
+full builds: 0
+incremental updates happened: true

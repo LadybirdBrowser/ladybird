@@ -1,0 +1,3 @@
+capacity grew on the first toggle: true
+capacity stable afterwards: true
+full builds: 0
