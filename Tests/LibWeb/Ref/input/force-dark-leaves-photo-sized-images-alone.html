@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-leaves-photo-sized-images-alone-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    img { width: 200px; height: 200px; image-rendering: pixelated; }
+</style>
+<img src="../data/force-dark-flat-blue-square.png">
+<script>
+    // Drawn larger than an icon from a source too wide to be a separator, this image is photo-sized: it must
+    // never be classified or inverted, even though its flat color would read as line art.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

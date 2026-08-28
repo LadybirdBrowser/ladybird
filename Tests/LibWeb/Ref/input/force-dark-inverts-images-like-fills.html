@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-inverts-images-like-fills-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    img, div.fill { position: absolute; top: 0; width: 100px; height: 100px; image-rendering: pixelated; }
+    img { left: 0; }
+    div.fill { left: 100px; background: #ffffff; }
+</style>
+<img src="../data/force-dark-white-square.png">
+<div class="fill"></div>
+<script>
+    // A white image and a white fill must land on the same color. They take different paths — the image through a
+    // Skia color filter, the fill through resolve() at record time — so this is what keeps the two inversions honest.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

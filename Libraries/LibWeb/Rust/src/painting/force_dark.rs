@@ -351,6 +351,13 @@ const HIGH_LIGHTNESS: i32 = 96;
 /// Channel spread at or below which a pixel reads as gray rather than colored.
 const GRAY_CHANNEL_SPREAD: i32 = 8;
 
+/// Chroma at or above which a pixel reads as vividly saturated.
+const HIGH_SATURATION: i32 = 80;
+
+/// Chroma at or above which a pixel still carries hue, even muted. Set well below HIGH_SATURATION so that mid-tone
+/// art counts, while grayscale text and JPEG chroma noise don't.
+const CHROMATIC: i32 = 20;
+
 /// Below this share of the available buckets an image has too few colors to be a photo. Indexed by is_colorful.
 pub const LOW_COLOR_COUNT: [f32; 2] = [0.8125, 0.015137];
 
@@ -359,6 +366,9 @@ pub const HIGH_COLOR_COUNT: [f32; 2] = [1.0, 0.025635];
 
 const TRANSPARENCY_RATIO: f32 = 0.4;
 const HIGH_LUMINANCE_RATIO: f32 = 0.5;
+const HIGH_SATURATION_RATIO: f32 = 0.3;
+const LOW_SATURATION_RATIO: f32 = 0.1;
+const CHROMATIC_PIXEL_RATIO: f32 = 0.5;
 
 /// Four bits of illumination for gray, four bits per channel for color.
 const MAX_BUCKETS: [f32; 2] = [16.0, 4096.0];
@@ -369,12 +379,19 @@ pub struct ImageFeatures {
     pub color_buckets_ratio: f32,
     pub transparency_ratio: f32,
     pub high_luminance_ratio: f32,
+    pub saturated_pixel_ratio: f32,
+    pub chromatic_pixel_ratio: f32,
     pub is_colorful: bool,
 }
 
 fn is_gray(color: Color) -> bool {
     let (r, g, b) = (color.red() as i32, color.green() as i32, color.blue() as i32);
     (r - g).abs() + (g - b).abs() <= GRAY_CHANNEL_SPREAD
+}
+
+fn chroma(color: Color) -> i32 {
+    let (r, g, b) = (color.red() as i32, color.green() as i32, color.blue() as i32);
+    r.max(g).max(b) - r.min(g).min(b)
 }
 
 /// How much of the available bucket space the samples occupy. A photo spreads across many buckets; a logo sits in a
@@ -401,18 +418,29 @@ pub fn features_from_samples(samples: &[Color], transparency_ratio: f32) -> Imag
             color_buckets_ratio: 1.0,
             transparency_ratio,
             high_luminance_ratio: 0.0,
+            saturated_pixel_ratio: 0.0,
+            chromatic_pixel_ratio: 0.0,
             is_colorful: false,
         };
     }
 
     let mut color_pixels = 0usize;
     let mut light_pixels = 0usize;
+    let mut saturated_pixels = 0usize;
+    let mut chromatic_pixels = 0usize;
     for sample in samples {
         if !is_gray(*sample) {
             color_pixels += 1;
         }
         if brightness(*sample) >= HIGH_LIGHTNESS {
             light_pixels += 1;
+        }
+        let chroma = chroma(*sample);
+        if chroma >= HIGH_SATURATION {
+            saturated_pixels += 1;
+        }
+        if chroma >= CHROMATIC {
+            chromatic_pixels += 1;
         }
     }
 
@@ -422,6 +450,8 @@ pub fn features_from_samples(samples: &[Color], transparency_ratio: f32) -> Imag
         color_buckets_ratio: color_buckets_ratio(samples, is_colorful),
         transparency_ratio,
         high_luminance_ratio: light_pixels as f32 / count as f32,
+        saturated_pixel_ratio: saturated_pixels as f32 / count as f32,
+        chromatic_pixel_ratio: chromatic_pixels as f32 / count as f32,
         is_colorful,
     }
 }
@@ -431,6 +461,26 @@ pub fn should_filter(features: &ImageFeatures) -> bool {
     // would sink out of view rather than adapt.
     if features.transparency_ratio > TRANSPARENCY_RATIO && features.high_luminance_ratio > HIGH_LUMINANCE_RATIO {
         return false;
+    }
+
+    // A colorful limited palette carries its colors as meaning: inverted, a saturated red comes back teal. Judged off
+    // the upper bucket mark so compression artifacts inflating the count can't disqualify it.
+    let limited_palette =
+        features.is_colorful && features.color_buckets_ratio < HIGH_COLOR_COUNT[features.is_colorful as usize];
+    if limited_palette {
+        if features.saturated_pixel_ratio > HIGH_SATURATION_RATIO {
+            return false;
+        }
+        // A mostly-light field with a smaller vivid region. The light pixels dilute the ratio, so this needs its own
+        // lower mark rather than the one above.
+        if features.high_luminance_ratio > HIGH_LUMINANCE_RATIO && features.saturated_pixel_ratio > LOW_SATURATION_RATIO
+        {
+            return false;
+        }
+        // Muted mid-tones still carry hue. Grayscale text and JPEG chroma noise stay under this.
+        if features.chromatic_pixel_ratio > CHROMATIC_PIXEL_RATIO {
+            return false;
+        }
     }
 
     // Too few colors to be a photo: an icon, a logo, line art, text rendered to an image.
@@ -759,9 +809,46 @@ mod tests {
 
     #[test]
     fn a_flat_logo_is_inverted() {
-        // One color fills every bucket sample, which is nothing like a photo.
+        // One color fills every bucket sample, which is nothing like a photo. Near-neutral on purpose: a vivid logo
+        // is spared by the saturation guard below, so this has to stay under it to reach the low-color-count rule.
+        let samples = solid(200, Color::from_rgb(0x60, 0x70, 0x70));
+        let features = features_from_samples(&samples, 0.0);
+        assert!(features.is_colorful);
+        assert!(features.saturated_pixel_ratio <= HIGH_SATURATION_RATIO);
+        assert!(features.chromatic_pixel_ratio <= CHROMATIC_PIXEL_RATIO);
+        assert!(should_filter(&features));
+    }
+
+    #[test]
+    fn a_vivid_logo_keeps_its_colors() {
+        // Inverting a limited palette swaps each color for its complement, so a saturated red would come back teal.
         let samples = solid(200, Color::from_rgb(0xd0, 0x10, 0x10));
-        assert!(should_filter(&features_from_samples(&samples, 0.0)));
+        let features = features_from_samples(&samples, 0.0);
+        assert!(features.saturated_pixel_ratio > HIGH_SATURATION_RATIO);
+        assert!(!should_filter(&features));
+    }
+
+    #[test]
+    fn a_light_asset_with_a_vivid_accent_keeps_its_colors() {
+        // The light field dilutes the saturated ratio below the mark above, which is why that case has a lower one.
+        let mut samples = solid(170, Color::from_rgb(0xf0, 0xf0, 0xf0));
+        samples.extend(solid(30, Color::from_rgb(0xd0, 0x10, 0x10)));
+        let features = features_from_samples(&samples, 0.0);
+        assert!(features.high_luminance_ratio > HIGH_LUMINANCE_RATIO);
+        assert!(features.saturated_pixel_ratio <= HIGH_SATURATION_RATIO);
+        assert!(features.saturated_pixel_ratio > LOW_SATURATION_RATIO);
+        assert!(!should_filter(&features));
+    }
+
+    #[test]
+    fn a_muted_illustration_keeps_its_hue() {
+        // Mid-tone hues carry meaning too, even though no pixel is vivid enough to count as saturated.
+        let samples = solid(200, Color::from_rgb(0x50, 0x30, 0x40));
+        let features = features_from_samples(&samples, 0.0);
+        assert!(features.saturated_pixel_ratio <= LOW_SATURATION_RATIO);
+        assert!(features.high_luminance_ratio <= HIGH_LUMINANCE_RATIO);
+        assert!(features.chromatic_pixel_ratio > CHROMATIC_PIXEL_RATIO);
+        assert!(!should_filter(&features));
     }
 
     #[test]
@@ -799,6 +886,8 @@ mod tests {
             color_buckets_ratio: 0.02,
             transparency_ratio: 0.0,
             high_luminance_ratio: 0.0,
+            saturated_pixel_ratio: 0.0,
+            chromatic_pixel_ratio: 0.0,
             is_colorful: true,
         };
         assert!(features.color_buckets_ratio > LOW_COLOR_COUNT[1]);

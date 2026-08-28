@@ -12,6 +12,7 @@ set(TEST_SOURCES
     TestEventLoop.cpp
     TestFetchResponse.cpp
     TestFetchURL.cpp
+    TestForceDarkImageFilter.cpp
     TestHTMLTokenizer.cpp
     TestHighResolutionTime.cpp
     TestImageData.cpp
@@ -55,6 +56,10 @@ foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibWeb)
     if (source STREQUAL "TestSimpleRealm.cpp")
         list(APPEND test_libraries LibGC LibJS)
+    endif()
+    if (source STREQUAL "TestForceDarkImageFilter.cpp")
+        # The test drives Skia directly, and LibGfx keeps its Skia dependency private.
+        list(APPEND test_libraries LibGfx skia)
     endif()
     ladybird_test("${source}" LibWeb LIBS ${test_libraries})
 endforeach()
