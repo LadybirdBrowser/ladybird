@@ -14,7 +14,8 @@ unsafe extern "C" {
 
 fn release_shell(shell: *mut c_void) {
     if shell.is_null() {
-        debug_assert!(cfg!(test), "layout node has no C++ shell");
+        #[cfg(not(test))]
+        debug_assert!(!shell.is_null(), "layout node has no C++ shell");
         return;
     }
     // SAFETY: Node::unref() may destroy the shell and re-enter layout_arena_free; every caller

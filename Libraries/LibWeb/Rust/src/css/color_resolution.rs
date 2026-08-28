@@ -1675,6 +1675,7 @@ pub(crate) fn to_color(value: &StyleValueData, input: &ColorResolutionInput) -> 
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
     use crate::css::style_value::ColorBase;

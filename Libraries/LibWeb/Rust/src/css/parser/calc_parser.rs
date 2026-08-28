@@ -145,7 +145,7 @@ impl<'a> CalculationParser<'a> {
     }
 
     fn peek_operator(&self) -> Option<u8> {
-        [b'+', b'-', b'*', b'/'].into_iter().find(|operator| {
+        (*b"+-*/").into_iter().find(|operator| {
             self.values
                 .get(self.position)
                 .is_some_and(|value| value.is_delim(*operator))
@@ -779,7 +779,7 @@ mod tests {
         let context = CalcParserContext {
             percentages_resolve_as: None,
             property: 1,
-            random_function_index: &mut random_function_index,
+            random_function_index: &raw mut random_function_index,
             intern_utf16_fly_string: Some(discard_interned_string),
             allowed_color_channels: 0,
             allow_random_functions: true,

@@ -1238,8 +1238,8 @@ mod tests {
         let node = StyleNodeID::element(1);
         let parent = StyleNodeID::element(2);
         let final_first_child = StyleNodeID::element(4);
-        let before = Some(TreeRelations::detached(TreeScopeID::DOCUMENT));
-        let mut first_after = before.unwrap();
+        let mut first_after = TreeRelations::detached(TreeScopeID::DOCUMENT);
+        let before = Some(first_after);
         first_after.parent = Some(parent);
         let mut final_after = first_after;
         final_after.assigned_slot = Some(StyleNodeID::element(3));

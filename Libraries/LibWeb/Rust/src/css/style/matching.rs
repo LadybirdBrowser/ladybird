@@ -2860,10 +2860,7 @@ impl StyleEngine {
         truth_patch: SelectorTruthPatch<'_>,
     ) -> Option<RetainedAnswerPatchOutcome> {
         let old_identity = *self.retained_match_answers.lookup(node).sparse().ok()?;
-        let retained = match self.match_answers.retained_answer(old_identity) {
-            Some(answer) => Rc::clone(answer),
-            None => return None,
-        };
+        let retained = Rc::clone(self.match_answers.retained_answer(old_identity)?);
         let old_cascade_input = *self.retained_match_answers.cascade_input_lookup(node).sparse().ok()?;
         if !self.match_answer_is_comparable_across_elements(node) {
             return None;

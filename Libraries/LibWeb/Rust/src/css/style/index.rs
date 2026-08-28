@@ -6627,10 +6627,14 @@ mod tests {
         let first = StyleNodeID::element(1);
         let distant = StyleNodeID::element(64);
         let mut rows = FactStaging::default();
-        let mut before = StagedFactRow::default();
-        before.tag = StyleAtomID(1);
-        let mut after = StagedFactRow::default();
-        after.tag = StyleAtomID(2);
+        let before = StagedFactRow {
+            tag: StyleAtomID(1),
+            ..Default::default()
+        };
+        let after = StagedFactRow {
+            tag: StyleAtomID(2),
+            ..Default::default()
+        };
 
         rows.insert(distant, before, None);
         rows.insert(first, StagedFactRow::default(), None);

@@ -488,14 +488,13 @@ fn verify_step(
     }
     workload.engine.end_cold_matching_batch();
 
-    for index in 0..workload.nodes.len() {
-        let node = workload.nodes[index];
+    for (&node, incremental) in workload.nodes.iter().zip(incremental) {
         let exact = exact_matches(&mut workload.engine, node);
         compare_mode(
             &mut workload.engine,
             node,
             &exact,
-            incremental[index].clone(),
+            incremental,
             "incremental",
             seed,
             step,

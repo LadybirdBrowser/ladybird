@@ -845,7 +845,7 @@ impl Parser<'_> {
 
                     // Register synthesized identifiers with the scope collector so
                     // they get resolved as locals during analyze().
-                    let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
+                    let bound_names = std::mem::take(&mut self.pattern_bound_names);
                     for (name, _id) in &bound_names {
                         let name_str = self.arena.strings[*name].clone();
                         self.check_identifier_name_for_assignment_validity(name_str.as_slice(), false);

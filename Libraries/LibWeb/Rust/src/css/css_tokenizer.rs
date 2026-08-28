@@ -2201,8 +2201,10 @@ mod tests {
 
         let utf16le = include_bytes!("../../../../../Tests/LibWeb/CSSTokenizer/input/utf-16le-crlf.css");
         let utf16le = utf16le
-            .chunks_exact(2)
-            .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|bytes| u16::from_le_bytes(*bytes))
             .skip_while(|&unit| unit == 0xfeff)
             .collect();
         check_tokenizer_corpus(

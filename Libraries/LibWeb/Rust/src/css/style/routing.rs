@@ -1074,10 +1074,7 @@ impl StyleEngine {
         old_next_relocated: bool,
     ) -> Option<ImpactRegion> {
         let first = match path.first()? {
-            InverseStep::NextSibling => match relations.next_element_sibling {
-                Some(next) => ImpactRegion::Node(next),
-                None => return None,
-            },
+            InverseStep::NextSibling => ImpactRegion::Node(relations.next_element_sibling?),
             // Everything past the place the element had starts at its old next sibling. Anchor
             // the range at that node's live position: the old previous sibling may itself have
             // moved to another parent in this transaction. If the next sibling moved too, the

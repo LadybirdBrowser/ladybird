@@ -3506,7 +3506,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(
-            parse_test_rule_prelude(&subrules[1]),
+            parse_test_rule_prelude(subrules[1]),
             ParsedRulePrelude::FontFeatureValuesRule(FfiFontFeatureValuesRuleKind::HistoricalForms)
         );
         let Rule::At(styleset) = subrules[0] else {

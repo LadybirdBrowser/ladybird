@@ -1540,6 +1540,7 @@ pub unsafe extern "C" fn rust_cascade_result_destroy(storage: *mut c_void, count
 }
 
 #[cfg(test)]
+#[allow(clippy::arc_with_non_send_sync)]
 mod tests {
     use std::sync::Arc;
 

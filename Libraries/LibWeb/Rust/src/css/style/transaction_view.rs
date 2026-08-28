@@ -305,7 +305,7 @@ mod tests {
 
         for side in [TransactionFactSide::Before, TransactionFactSide::After] {
             let (facts, row) = view.row_of(side, &resident, node).unwrap();
-            assert!(std::ptr::eq(facts, &resident));
+            assert!(std::ptr::eq(facts, &raw const resident));
             assert_eq!(facts.tag_of(row), StyleAtomID(100));
         }
     }

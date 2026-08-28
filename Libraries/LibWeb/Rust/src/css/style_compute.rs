@@ -5699,7 +5699,7 @@ mod tests {
         context.has_container_width_basis = true;
         context.container_width_basis = 800.0;
         context.container_width_basis_depends_on_viewport_metrics = true;
-        context.resolved_viewport_relative_length = &mut dependency_was_recorded;
+        context.resolved_viewport_relative_length = &raw mut dependency_was_recorded;
 
         let result = absolutize_length(10.0, unit_code("cqw"), &context);
         assert_eq!(result.px, 80.0);

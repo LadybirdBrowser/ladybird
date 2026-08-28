@@ -964,7 +964,7 @@ specialize Copy() + Convert() + Use();
     fn parses_single_byte_mutations_without_panicking() {
         let seed = b"handler Add(value: Value, length: u32) { dispatch_next; }\n";
         for index in 0..seed.len() {
-            for replacement in [b' ', b'\n', b'<', b':', b'[', b']', b'0', b'a'] {
+            for replacement in *b" \n<:[]0a" {
                 let mut mutated = seed.to_vec();
                 mutated[index] = replacement;
                 let source = std::str::from_utf8(&mutated).unwrap();

@@ -1043,7 +1043,7 @@ impl Parser<'_> {
                 if Self::is_array_expression(&expression) || Self::is_object_expression(&expression) {
                     let pattern = self.synthesize_binding_pattern(init_start);
 
-                    let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
+                    let bound_names = std::mem::take(&mut self.pattern_bound_names);
                     for (name, _id) in &bound_names {
                         let name_str = self.arena.strings[*name].clone();
                         self.check_identifier_name_for_assignment_validity(name_str.as_slice(), false);

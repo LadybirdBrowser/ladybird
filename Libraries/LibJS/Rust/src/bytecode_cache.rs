@@ -379,8 +379,8 @@ impl Decode for ast::Utf16String {
         let length: usize = u32::decode(decoder)?.try_into().ok()?;
         let bytes = decoder.bytes(length.checked_mul(size_of::<u16>())?)?;
         let mut code_units = Vec::with_capacity(length);
-        for chunk in bytes.chunks_exact(size_of::<u16>()) {
-            code_units.push(u16::from_le_bytes(chunk.try_into().ok()?));
+        for chunk in bytes.as_chunks::<{ size_of::<u16>() }>().0 {
+            code_units.push(u16::from_le_bytes(*chunk));
         }
         Some(code_units.into())
     }
@@ -409,8 +409,8 @@ impl Decode for DecodedUtf16String {
         }
 
         let mut code_units = Vec::with_capacity(length);
-        for chunk in bytes.chunks_exact(size_of::<u16>()) {
-            code_units.push(u16::from_le_bytes(chunk.try_into().ok()?));
+        for chunk in bytes.as_chunks::<{ size_of::<u16>() }>().0 {
+            code_units.push(u16::from_le_bytes(*chunk));
         }
         Some(Self::Owned(code_units.into()))
     }

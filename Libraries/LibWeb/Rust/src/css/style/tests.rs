@@ -3357,7 +3357,7 @@ fn recycled_selector_entries_keep_delta_answers_canonical() {
     .to_vec();
     assert!(patched.is_sorted());
 
-    let mut cold = patched.clone();
+    let mut cold = patched;
     cold.sort_unstable();
     let cold_identity = engine.match_answers.intern_prepared(cold);
     assert_eq!(patched_identity, cold_identity);
@@ -8805,7 +8805,7 @@ fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
     }
     let reclaimable = engine.intern_atom(0x1000);
     let recorded = [reclaimable.0];
-    let engine_pointer = (&mut engine as *mut StyleEngine).cast();
+    let engine_pointer = (&raw mut engine).cast();
     unsafe {
         bridge::style_engine_set_replay_reclaimed_style_atoms(engine_pointer, recorded.as_ptr(), recorded.len());
     }
