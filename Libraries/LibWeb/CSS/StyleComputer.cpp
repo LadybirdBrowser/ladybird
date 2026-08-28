@@ -526,9 +526,6 @@ void StyleComputer::visit_edges(Visitor& visitor)
     for (auto const& entry : m_constructed_rule_ids)
         visitor.visit(entry.key);
 
-    if (m_active_custom_property_resolution.has_value())
-        m_active_custom_property_resolution->visit_edges(visitor);
-
     if (m_cached_font_computation_context.has_value())
         m_cached_font_computation_context->visit_edges(visitor);
     if (m_cached_line_height_computation_context.has_value())
@@ -3195,21 +3192,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         .evaluate_condition = [](void* context, u8 kind, ComputedValuesFFI::FfiUtf16View source) -> u8 {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             return evaluate_condition_for_substitution(bulk_context.abstract_element, kind, source);
-        },
-        .lookup_final_custom_property = [](void* context, ComputedValuesFFI::FfiUtf16View name) -> void const* {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            auto& document = bulk_context.abstract_element.document();
-            auto& style_computer = document.style_computer();
-            auto name_view = utf16_view(name);
-            if (style_computer.m_active_custom_property_resolution.has_value()
-                && style_computer.m_active_custom_property_resolution->element == bulk_context.abstract_element) {
-                if (auto finalized = style_computer.m_active_custom_property_resolution->finalized.get(Utf16FlyString::from_utf16(name_view)); finalized.has_value()) {
-                    document.style_invalidation_counters().custom_property_overlay_hits++;
-                    return finalized.value()->rust_style_value_data();
-                }
-                document.style_invalidation_counters().custom_property_value_computations++;
-            }
-            return nullptr;
         },
         .note_substitution = [](void* context, void const* unresolved_data) {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
@@ -6051,30 +6033,21 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
             auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
             return evaluate_condition_for_substitution(element, kind, source);
         },
-        .lookup_final_custom_property = [](void* context, ComputedValuesFFI::FfiUtf16View name) -> void const* {
-            auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
-            auto& document = element.document();
-            auto& style_computer = document.style_computer();
-            auto name_view = utf16_view(name);
-            if (style_computer.m_active_custom_property_resolution.has_value()
-                && element.has<DOM::AbstractElement>()
-                && style_computer.m_active_custom_property_resolution->element == element.get<DOM::AbstractElement>()) {
-                if (auto finalized = style_computer.m_active_custom_property_resolution->finalized.get(Utf16FlyString::from_utf16(name_view)); finalized.has_value()) {
-                    document.style_invalidation_counters().custom_property_overlay_hits++;
-                    return finalized.value()->rust_style_value_data();
-                }
-                document.style_invalidation_counters().custom_property_value_computations++;
-            }
-            return nullptr;
-        },
         .note_substitution = nullptr,
         .lookup_cached_substitution = nullptr,
         .cache_parsed_substitution = nullptr,
     };
-    auto* result = ComputedValuesFFI::rust_resolve_unresolved_style_value(
-        &resolution_context, to_underlying(property.id()), unresolved.rust_style_value_data());
-    VERIFY(result);
-    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(result));
+    ComputedValuesFFI::FfiUnresolvedStyleValue input {
+        .property_id = to_underlying(property.id()),
+        .root_custom_property_name = resolution_context.root_custom_property_name,
+        .data = unresolved.rust_style_value_data(),
+        .resolve_substitutions = true,
+    };
+    ComputedValuesFFI::FfiResolvedStyleValue output {};
+    ComputedValuesFFI::rust_resolve_unresolved_style_values(
+        &resolution_context, &input, 1, &output, nullptr, nullptr);
+    VERIFY(output.data);
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(output.data));
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name) const
@@ -6084,21 +6057,19 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
     // FIXME: These should probably be part of the computed style itself.
     auto& document = element.document();
 
-    // While this element's own properties resolve in dependency order, everything a value can name is final before
-    // the value resolves, so a nested lookup reads the finished answer instead of resolving its value again.
-    if (m_active_custom_property_resolution.has_value() && element.has<DOM::AbstractElement>()
-        && element.get<DOM::AbstractElement>() == m_active_custom_property_resolution->element) {
-        if (auto finalized = m_active_custom_property_resolution->finalized.get(name); finalized.has_value()) {
-            document.style_invalidation_counters().custom_property_overlay_hits++;
-            return *finalized.value();
-        }
-    }
-
     document.style_invalidation_counters().custom_property_value_computations++;
     auto registration = element.get_registered_custom_property(name);
 
     auto value = element.get_custom_property(name);
     auto resolved_value = value ? value.release_nonnull() : initial_custom_property_value(registration, document);
+
+    return finalize_custom_property_value(computed_style_for_custom_property_resolution, element, name, move(resolved_value));
+}
+
+NonnullRefPtr<StyleValue const> StyleComputer::finalize_custom_property_value(ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, NonnullRefPtr<StyleValue const> resolved_value) const
+{
+    auto& document = element.document();
+    auto registration = element.get_registered_custom_property(name);
 
     if (resolved_value->is_css_wide_keyword())
         resolved_value = resolve_css_wide_keyword_for_custom_property(registration, element, name, move(resolved_value), computed_style_for_custom_property_resolution);
@@ -6233,73 +6204,6 @@ StyleComputer::CustomPropertyReferenceScan const& StyleComputer::custom_property
     });
 }
 
-// Tarjan's strongly-connected-components algorithm, iterative because reference chains are as deep as a stylesheet
-// wants. Components come out in dependency order: every component a member references outside its own is emitted
-// before it.
-static Vector<Vector<u32>> strongly_connected_components_in_dependency_order(Vector<Vector<u32>> const& edges)
-{
-    auto const node_count = edges.size();
-    constexpr u32 unvisited = NumericLimits<u32>::max();
-    Vector<u32> discovery_index;
-    discovery_index.resize(node_count);
-    discovery_index.fill(unvisited);
-    Vector<u32> lowlink;
-    lowlink.resize(node_count);
-    Vector<bool> on_stack;
-    on_stack.resize(node_count);
-    Vector<u32> component_stack;
-    Vector<Vector<u32>> components;
-    u32 next_discovery_index = 0;
-
-    struct Frame {
-        u32 node;
-        u32 next_edge;
-    };
-    Vector<Frame> walk_stack;
-
-    for (u32 root = 0; root < node_count; ++root) {
-        if (discovery_index[root] != unvisited)
-            continue;
-        walk_stack.append({ root, 0 });
-        while (!walk_stack.is_empty()) {
-            auto& frame = walk_stack.last();
-            auto node = frame.node;
-            if (frame.next_edge == 0) {
-                discovery_index[node] = lowlink[node] = next_discovery_index++;
-                component_stack.append(node);
-                on_stack[node] = true;
-            }
-            bool descended = false;
-            while (frame.next_edge < edges[node].size()) {
-                auto target = edges[node][frame.next_edge++];
-                if (discovery_index[target] == unvisited) {
-                    walk_stack.append({ target, 0 });
-                    descended = true;
-                    break;
-                }
-                if (on_stack[target])
-                    lowlink[node] = min(lowlink[node], discovery_index[target]);
-            }
-            if (descended)
-                continue;
-            if (lowlink[node] == discovery_index[node]) {
-                Vector<u32> component;
-                u32 popped = 0;
-                do {
-                    popped = component_stack.take_last();
-                    on_stack[popped] = false;
-                    component.append(popped);
-                } while (popped != node);
-                components.append(move(component));
-            }
-            walk_stack.take_last();
-            if (!walk_stack.is_empty())
-                lowlink[walk_stack.last().node] = min(lowlink[walk_stack.last().node], lowlink[node]);
-        }
-    }
-    return components;
-}
-
 void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_style, DOM::AbstractElement abstract_element) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
@@ -6339,22 +6243,8 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
 
     document().style_invalidation_counters().custom_property_elements++;
     document().style_invalidation_counters().custom_property_resolutions += data->declared_count();
+    document().style_invalidation_counters().custom_property_value_computations += data->declared_count();
 
-    // Resolving a value that names another of this element's own properties walks into that value and resolves it,
-    // and the walk repeats for every value naming it. Deciding an order first makes each own value resolve once:
-    // Tarjan's algorithm over the scanned references emits every component after the components it depends on, so by
-    // the time a value resolves, everything it can name is final and a nested lookup reads the finished answer.
-    //
-    // A reference cycle is the one thing that must not read finished answers: a member handed one would take a var()
-    // fallback where the specification makes the whole cycle invalid. So a component's members resolve the
-    // independent way, with the substitution guards deciding what is cyclic, and their answers are published only
-    // once the whole component is done. A value whose references are not in its tokens - attr() substitutes
-    // attribute text that can name custom properties, if() reads them through style() queries, a custom function's
-    // body reads what it likes, and a var() name slot can itself be substituted - is given an edge to every own
-    // name, which puts it after everything it could read and in a component with everything that names it back.
-    // The order only matters when some own value names another own value that itself needs resolving; a value naming
-    // only inherited or plain own properties reads answers that are final before it resolves. That is most elements
-    // on most pages, so decide first, from the cached scans alone, whether there is anything here to order.
     auto const& own_values = data->own_values();
     auto for_each_declared_value = [&](auto callback) {
         size_t declared = 0;
@@ -6367,25 +6257,6 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
     auto needs_resolution = [](StyleValue const& value) {
         return value.is_unresolved() && value.as_unresolved().contains_arbitrary_substitution_function();
     };
-    bool has_own_reference = false;
-    for_each_declared_value([&](auto const&, auto const& style_property) {
-        auto const& value = *style_property.value;
-        if (!needs_resolution(value))
-            return;
-        auto const& unresolved = value.as_unresolved();
-        if (unresolved.includes_attr_function() || unresolved.includes_if_function() || unresolved.includes_dashed_function())
-            return;
-        auto const& scan = custom_property_reference_scan(style_property.value);
-        if (!scan.all_references_visible)
-            return;
-        for (auto const& referenced_name : scan.references) {
-            if (auto referenced = own_values.find(referenced_name); referenced != own_values.end() && needs_resolution(*referenced->value.value)) {
-                has_own_reference = true;
-                break;
-            }
-        }
-    });
-
     OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
     auto keep_resolved_value = [&](Utf16FlyString const& name, StyleProperty const& style_property, NonnullRefPtr<StyleValue const> resolved_value) {
         if (parent_data) {
@@ -6401,69 +6272,93 @@ void StyleComputer::compute_custom_properties(ComputedStyleWorkingSet& computed_
             });
     };
 
-    if (!has_own_reference) {
-        for_each_declared_value([&](auto const& name, auto const& style_property) {
-            keep_resolved_value(name, style_property, compute_value_of_custom_property(&computed_style, abstract_element, name));
+    struct CustomPropertyToResolve {
+        Utf16FlyString name;
+        StyleProperty const* property;
+        NonnullRefPtr<StyleValue const> resolved;
+    };
+    Vector<CustomPropertyToResolve> properties;
+    Vector<ComputedValuesFFI::FfiUnresolvedStyleValue> inputs;
+    Vector<ComputedValuesFFI::FfiResolvedStyleValue> outputs;
+    auto& dom_element = abstract_element.element();
+    for_each_declared_value([&](auto const& name, auto const& style_property) {
+        auto resolve_substitutions = needs_resolution(*style_property.value);
+        if (resolve_substitutions) {
+            auto const& unresolved = style_property.value->as_unresolved();
+            if (unresolved.includes_var_function())
+                dom_element.set_style_uses_var_css_function();
+            if (unresolved.includes_attr_function())
+                dom_element.set_style_uses_attr_css_function();
+            if (unresolved.includes_if_function())
+                dom_element.set_style_uses_if_css_function();
+            if (unresolved.includes_inherit_function())
+                dom_element.set_style_uses_inherit_css_function();
+            if (unresolved.includes_dashed_function())
+                dom_element.set_style_uses_custom_function();
+            for (auto const& reference : custom_property_reference_scan(style_property.value).references)
+                dom_element.record_style_custom_property_reference(reference);
+        }
+        properties.append({ name, &style_property, GuaranteedInvalidStyleValue::create() });
+        inputs.append({
+            .property_id = to_underlying(PropertyID::Custom),
+            .root_custom_property_name = ffi_utf16_view(properties.last().name),
+            .data = style_property.value->rust_style_value_data(),
+            .resolve_substitutions = resolve_substitutions,
         });
-    } else {
-        struct OwnCustomProperty {
-            Utf16FlyString name;
-            StyleProperty const* property;
+        outputs.empend();
+    });
+    for (size_t i = 0; i < inputs.size(); ++i)
+        inputs[i].root_custom_property_name = ffi_utf16_view(properties[i].name);
+
+    if (!inputs.is_empty()) {
+        AbstractOrHypotheticalElement resolution_element { abstract_element };
+        SubstitutionData substitution_data { resolution_element, true, true };
+        auto inheritance_data = inherit_from.map([](auto const& parent) { return parent.custom_property_data(); }).value_or(nullptr);
+        ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
+            .parse_context = &substitution_data.parse_context,
+            .custom_property_store = data->rust_store(),
+            .inheritance_custom_property_store = inheritance_data ? inheritance_data->rust_store() : nullptr,
+            .custom_property_registry = document().rust_custom_property_registry(),
+            .root_custom_property_name = {},
+            .attributes = substitution_data.ffi_attributes.data(),
+            .attribute_count = substitution_data.ffi_attributes.size(),
+            .attribute_names_are_ascii_case_insensitive = dom_element.namespace_uri() == Namespace::HTML && document().is_html_document(),
+            .custom_functions = substitution_data.ffi_functions.data(),
+            .custom_function_count = substitution_data.ffi_functions.size(),
+            .custom_function_scope_identity = bit_cast<FlatPtr>(&resolution_element.style_scope()),
+            .callback_context = &resolution_element,
+            .resolve_custom_function = resolve_custom_function_for_substitution,
+            .evaluate_condition = [](void* context, u8 kind, ComputedValuesFFI::FfiUtf16View source) -> u8 {
+                return evaluate_condition_for_substitution(*static_cast<AbstractOrHypotheticalElement*>(context), kind, source);
+            },
+            .note_substitution = nullptr,
+            .lookup_cached_substitution = nullptr,
+            .cache_parsed_substitution = nullptr,
         };
-        Vector<OwnCustomProperty> own;
-        own.ensure_capacity(data->declared_count());
-        HashMap<Utf16FlyString, u32> own_index;
-        for_each_declared_value([&](auto const& name, auto const& style_property) {
-            own_index.set(name, static_cast<u32>(own.size()));
-            own.append({ name, &style_property });
-        });
-
-        Vector<Vector<u32>> references;
-        references.resize(own.size());
-        for (size_t i = 0; i < own.size(); ++i) {
-            auto const& value = *own[i].property->value;
-            if (!value.is_unresolved())
-                continue;
-            auto const& unresolved = value.as_unresolved();
-            if (!unresolved.contains_arbitrary_substitution_function())
-                continue;
-            bool references_visible = !unresolved.includes_attr_function() && !unresolved.includes_if_function() && !unresolved.includes_dashed_function();
-            if (references_visible) {
-                auto const& scan = custom_property_reference_scan(own[i].property->value);
-                references_visible = scan.all_references_visible;
-                if (references_visible) {
-                    for (auto const& referenced_name : scan.references) {
-                        if (auto index = own_index.get(referenced_name); index.has_value())
-                            references[i].append(*index);
-                    }
+        struct FinalizationContext {
+            GC::Ref<StyleComputer const> style_computer;
+            ComputedStyleWorkingSet const& computed_style;
+            DOM::AbstractElement element;
+            Vector<CustomPropertyToResolve>& properties;
+        } finalization_context { *this, computed_style, abstract_element, properties };
+        auto resolution_stats = ComputedValuesFFI::rust_resolve_unresolved_style_values(
+            &resolution_context, inputs.data(), inputs.size(), outputs.data(), &finalization_context,
+            [](void* context, u32 const* members, size_t member_count, ComputedValuesFFI::FfiResolvedStyleValue* resolved) {
+                auto& finalization = *static_cast<FinalizationContext*>(context);
+                for (auto member : ReadonlySpan<u32> { members, member_count }) {
+                    auto substituted = StyleValue::adopt_rust_style_value_data(
+                        static_cast<StyleValueFFI::StyleValueData const*>(resolved[member].data));
+                    auto& property = finalization.properties[member];
+                    property.resolved = finalization.style_computer->finalize_custom_property_value(
+                        &finalization.computed_style, finalization.element, property.name, move(substituted));
+                    resolved[member].data = property.resolved->rust_style_value_data();
                 }
-            }
-            if (!references_visible) {
-                references[i].clear_with_capacity();
-                references[i].ensure_capacity(own.size());
-                for (u32 target = 0; target < own.size(); ++target)
-                    references[i].append(target);
-            }
-        }
-
-        auto previous_active_resolution = move(m_active_custom_property_resolution);
-        m_active_custom_property_resolution = ActiveCustomPropertyResolution { abstract_element, {} };
-        ScopeGuard restore_active_resolution { [&] { m_active_custom_property_resolution = move(previous_active_resolution); } };
-
-        Vector<RefPtr<StyleValue const>> resolved_values;
-        resolved_values.resize(own.size());
-        for (auto& component : strongly_connected_components_in_dependency_order(references)) {
-            if (component.size() > 1 || references[component[0]].contains_slow(component[0]))
-                document().style_invalidation_counters().custom_property_cycle_participants += component.size();
-            quick_sort(component);
-            for (auto member : component)
-                resolved_values[member] = compute_value_of_custom_property(&computed_style, abstract_element, own[member].name);
-            for (auto member : component)
-                m_active_custom_property_resolution->finalized.set(own[member].name, *resolved_values[member]);
-        }
-
-        for (size_t i = 0; i < own.size(); ++i)
-            keep_resolved_value(own[i].name, *own[i].property, resolved_values[i].release_nonnull());
+            });
+        document().style_invalidation_counters().custom_property_overlay_hits += resolution_stats.final_value_hits;
+        document().style_invalidation_counters().custom_property_value_computations += resolution_stats.final_value_misses;
+        document().style_invalidation_counters().custom_property_cycle_participants += resolution_stats.cycle_participants;
+        for (auto const& property : properties)
+            keep_resolved_value(property.name, *property.property, property.resolved);
     }
 
     // What a resolution is allowed to read beyond the environment says whether the answer belongs to
