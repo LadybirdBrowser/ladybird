@@ -34,3 +34,5 @@ nested style child grammar: PASS
 valid top-level ordering: PASS
 late import and namespace: PASS
 invalid rule does not close ordering windows: PASS
+stray feature value rule does not close ordering windows: PASS
+feature value rule inside its parent: PASS

@@ -123,6 +123,7 @@ pub enum FfiFontFeatureValuesRuleKind {
 #[repr(u8)]
 pub enum FfiRuleKind {
     Qualified,
+    Invalid,
     Unknown,
     IgnoredVendor,
     Container,
@@ -188,6 +189,8 @@ pub(crate) struct AtRule {
     pub children: Vec<RuleOrDeclarations>,
     pub has_block: bool,
     style_nested: bool,
+    valid_in_context: bool,
+    outer_rule_name: Option<ParserString>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -195,6 +198,8 @@ pub(crate) struct QualifiedRule {
     pub prelude: Vec<ComponentValue>,
     pub prelude_is_selector: bool,
     prelude_is_relative: bool,
+    valid_in_context: bool,
+    outer_rule_name: Option<ParserString>,
     pub declarations: Vec<Declaration>,
     pub children: Vec<RuleOrDeclarations>,
     pub source_position: Option<SourcePosition>,
@@ -221,7 +226,6 @@ enum Nested {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum QualifiedRuleResult {
     Invalid,
-    InvalidInContext,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -239,8 +243,8 @@ enum ParsedRulePrelude {
     PageSelectors(Vec<ParsedPageSelector>),
     FontFamilyNames(Vec<ParserString>),
     Scope {
-        has_start: bool,
-        has_end: bool,
+        start: Option<RustParsedSelectorList>,
+        end: Option<RustParsedSelectorList>,
     },
     Import(ParsedImportPrelude),
     Function {
@@ -637,14 +641,45 @@ fn scope_selector_components(values: &[ComponentValue]) -> Option<ScopeSelectorC
     Some((start, end))
 }
 
-fn parse_scope_prelude(values: &[ComponentValue]) -> ParsedRulePrelude {
+fn parse_scope_prelude(
+    values: &[ComponentValue],
+    declared_namespaces: &[TokenizerInput<'_>],
+    style_nested: bool,
+) -> ParsedRulePrelude {
     let Some((start, end)) = scope_selector_components(values) else {
         return ParsedRulePrelude::Invalid;
     };
-    ParsedRulePrelude::Scope {
-        has_start: start.is_some(),
-        has_end: end.is_some(),
-    }
+    let parse_selector = |values: &[ComponentValue], selector_type| {
+        let selectors = parse_selector_list_from_component_values(values, declared_namespaces, selector_type).ok()?;
+        if selectors.is_empty() || selectors.contains_pseudo_element() {
+            return None;
+        }
+        Some(selectors)
+    };
+    let start = match start {
+        Some(start) => {
+            let selector_type = if style_nested {
+                SelectorType::Relative
+            } else {
+                SelectorType::Standalone
+            };
+            let Some(start) = parse_selector(start, selector_type) else {
+                return ParsedRulePrelude::Invalid;
+            };
+            Some(start)
+        }
+        None => None,
+    };
+    let end = match end {
+        Some(end) => {
+            let Some(end) = parse_selector(end, SelectorType::Relative) else {
+                return ParsedRulePrelude::Invalid;
+            };
+            Some(end)
+        }
+        None => None,
+    };
+    ParsedRulePrelude::Scope { start, end }
 }
 
 fn skip_whitespace(values: &[ComponentValue], position: &mut usize) {
@@ -705,8 +740,12 @@ fn parse_import_scope(contents: &[ComponentValue]) -> Option<ScopeSelectorCompon
     (position == contents.len()).then_some((start, end))
 }
 
-fn parse_import_selector(values: &[ComponentValue], selector_type: SelectorType) -> Option<RustParsedSelectorList> {
-    let selectors = parse_selector_list_from_component_values(values, selector_type).ok()?;
+fn parse_import_selector(
+    values: &[ComponentValue],
+    declared_namespaces: &[TokenizerInput<'_>],
+    selector_type: SelectorType,
+) -> Option<RustParsedSelectorList> {
+    let selectors = parse_selector_list_from_component_values(values, declared_namespaces, selector_type).ok()?;
     if selectors.is_empty() || selectors.contains_pseudo_element() {
         return None;
     }
@@ -798,13 +837,14 @@ where
             && let Some((start, end)) = parse_import_scope(contents)
         {
             if let Some(start) = start {
-                let Some(selectors) = parse_import_selector(start, SelectorType::Standalone) else {
+                let Some(selectors) = parse_import_selector(start, declared_namespaces, SelectorType::Standalone)
+                else {
                     return ParsedRulePrelude::Invalid;
                 };
                 scope_start = Some(selectors);
             }
             if let Some(end) = end {
-                let Some(selectors) = parse_import_selector(end, SelectorType::Relative) else {
+                let Some(selectors) = parse_import_selector(end, declared_namespaces, SelectorType::Relative) else {
                     return ParsedRulePrelude::Invalid;
                 };
                 scope_end = Some(selectors);
@@ -1148,7 +1188,9 @@ where
             let (kind, _) = font_feature_values_rule(rule.name.as_ref()).unwrap();
             ParsedRulePrelude::FontFeatureValuesRule(kind)
         }
-        (Rule::At(rule), FfiRuleKind::Scope) => parse_scope_prelude(&rule.prelude),
+        (Rule::At(rule), FfiRuleKind::Scope) => {
+            parse_scope_prelude(&rule.prelude, declared_namespaces, rule.style_nested)
+        }
         (Rule::At(rule), FfiRuleKind::Import) => parse_context
             .map(|context| parse_import_prelude(&rule.prelude, context, declared_namespaces, resolve_feature))
             .unwrap_or(ParsedRulePrelude::Invalid),
@@ -1186,6 +1228,7 @@ struct Parser {
     tokens: Vec<ParserToken>,
     position: usize,
     rule_context: Vec<RuleContext>,
+    rule_names: Vec<Option<ParserString>>,
 }
 
 fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
@@ -1214,6 +1257,45 @@ fn trim_ascii_whitespace(value: &[u16]) -> &[u16] {
         .rposition(|code_unit| !matches!(*code_unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
         .map_or(start, |index| index + 1);
     &value[start..end]
+}
+
+fn utf16_from_ascii(value: &[u8]) -> ParserString {
+    value
+        .iter()
+        .map(|&code_unit| u16::from(code_unit))
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+        .into()
+}
+
+fn context_rule_name(context: RuleContext) -> Option<ParserString> {
+    let name = match context {
+        RuleContext::Unknown | RuleContext::SupportsCondition => return None,
+        RuleContext::Style => b"style".as_slice(),
+        RuleContext::AtContainer => b"@container",
+        RuleContext::AtCounterStyle => b"@counter-style",
+        RuleContext::AtMedia => b"@media",
+        RuleContext::AtFontFace => b"@font-face",
+        RuleContext::AtFontFeatureValues => b"@font-feature-values",
+        RuleContext::FontFeatureValue => b"@font-feature-value",
+        RuleContext::AtFunction => b"@function",
+        RuleContext::AtKeyframes => b"@keyframes",
+        RuleContext::Keyframe => b"keyframe",
+        RuleContext::AtSupports => b"@supports",
+        RuleContext::AtScope => b"@scope",
+        RuleContext::AtLayer => b"@layer",
+        RuleContext::AtProperty => b"@property",
+        RuleContext::AtPage => b"@page",
+        RuleContext::Margin => b"@margin",
+    };
+    Some(utf16_from_ascii(name))
+}
+
+fn at_rule_name(name: &[u16]) -> ParserString {
+    let mut result = Vec::with_capacity(name.len() + 1);
+    result.push(u16::from(b'@'));
+    result.extend_from_slice(name);
+    result.into_boxed_slice().into()
 }
 
 fn is_margin_rule_name(name: &[u16]) -> bool {
@@ -1308,7 +1390,7 @@ fn at_rule_kind(name: &[u16]) -> FfiRuleKind {
 pub(crate) fn at_rule_is_supported(name: &[u16]) -> bool {
     !matches!(
         at_rule_kind(name),
-        FfiRuleKind::Qualified | FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor
+        FfiRuleKind::Qualified | FfiRuleKind::Invalid | FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor
     )
 }
 
@@ -1374,10 +1456,12 @@ fn context_for_at_rule(name: &[u16]) -> RuleContext {
 
 impl Parser {
     fn new(tokens: Vec<ParserToken>, rule_context: Vec<RuleContext>) -> Self {
+        let rule_names = rule_context.iter().copied().map(context_rule_name).collect();
         Self {
             tokens,
             position: 0,
             rule_context,
+            rule_names,
         }
     }
 
@@ -1499,23 +1583,30 @@ impl Parser {
             children: Vec::new(),
             has_block: false,
             style_nested,
+            valid_in_context: false,
+            outer_rule_name: self.rule_names.last().cloned().flatten(),
         };
         loop {
             match self.next_kind() {
                 None | Some(ParserTokenKind::Semicolon) => {
                     self.position += usize::from(self.next_kind().is_some());
-                    return self.at_rule_is_valid(&rule).then_some(rule);
+                    rule.valid_in_context = self.at_rule_is_valid(&rule);
+                    return Some(rule);
                 }
                 Some(ParserTokenKind::CloseCurly) if nested == Nested::Yes => {
-                    return self.at_rule_is_valid(&rule).then_some(rule);
+                    rule.valid_in_context = self.at_rule_is_valid(&rule);
+                    return Some(rule);
                 }
                 Some(ParserTokenKind::OpenCurly) => {
                     let context = context_for_at_rule(rule.name.as_ref());
                     self.rule_context.push(context);
+                    self.rule_names.push(Some(at_rule_name(rule.name.as_ref())));
                     rule.children = self.consume_block();
+                    self.rule_names.pop();
                     self.rule_context.pop();
                     rule.has_block = true;
-                    return self.at_rule_is_valid(&rule).then_some(rule);
+                    rule.valid_in_context = self.at_rule_is_valid(&rule);
+                    return Some(rule);
                 }
                 _ => rule.prelude.push(self.consume_component_value().ok()?),
             }
@@ -1541,6 +1632,8 @@ impl Parser {
             prelude: Vec::with_capacity(8),
             prelude_is_selector: qualified_context == RuleContext::Style,
             prelude_is_relative: style_nested,
+            valid_in_context: false,
+            outer_rule_name: self.rule_names.last().cloned().flatten(),
             declarations: Vec::new(),
             children: Vec::new(),
             source_position: None,
@@ -1570,7 +1663,9 @@ impl Parser {
                         return Err(QualifiedRuleResult::Invalid);
                     }
                     self.rule_context.push(qualified_context);
+                    self.rule_names.push(context_rule_name(qualified_context));
                     rule.children = self.consume_block();
+                    self.rule_names.pop();
                     self.rule_context.pop();
                     if matches!(rule.children.first(), Some(RuleOrDeclarations::Declarations(_))) {
                         let RuleOrDeclarations::Declarations(declarations) = rule.children.remove(0) else {
@@ -1578,11 +1673,8 @@ impl Parser {
                         };
                         rule.declarations = declarations;
                     }
-                    return if self.qualified_rule_is_valid() {
-                        Ok(rule)
-                    } else {
-                        Err(QualifiedRuleResult::InvalidInContext)
-                    };
+                    rule.valid_in_context = self.qualified_rule_is_valid();
+                    return Ok(rule);
                 }
                 _ => {
                     let value = self
@@ -1647,11 +1739,6 @@ impl Parser {
                                 result.push(RuleOrDeclarations::Declarations(std::mem::take(&mut declarations)));
                             }
                             result.push(RuleOrDeclarations::Rule(Rule::Qualified(rule)));
-                        }
-                        Err(QualifiedRuleResult::InvalidInContext) => {
-                            if !declarations.is_empty() {
-                                result.push(RuleOrDeclarations::Declarations(std::mem::take(&mut declarations)));
-                            }
                         }
                         Err(QualifiedRuleResult::Invalid) => {
                             self.position += usize::from(matches!(self.next_kind(), Some(ParserTokenKind::Semicolon)));
@@ -1836,8 +1923,11 @@ impl Parser {
 
     fn at_rule_is_valid(&self, rule: &AtRule) -> bool {
         let name = rule.name.as_ref();
+        // NB: Margin and font feature value rules are only meaningful inside @page and
+        //     @font-feature-values. The C++ converter dropped them anywhere else, so they must not
+        //     count as valid rules for the top-level @import and @namespace ordering windows.
         if self.rule_context.is_empty() {
-            return !is_margin_rule_name(name);
+            return !is_margin_rule_name(name) && !is_font_feature_value_rule_name(name);
         }
         if self.rule_context.contains(&RuleContext::Style) {
             return [b"container".as_slice(), b"layer", b"media", b"scope", b"supports"]
@@ -1855,7 +1945,9 @@ impl Parser {
             | RuleContext::AtMedia
             | RuleContext::AtScope
             | RuleContext::AtSupports => {
-                !equals_ascii_case_insensitive(name, b"import") && !equals_ascii_case_insensitive(name, b"namespace")
+                !equals_ascii_case_insensitive(name, b"import")
+                    && !equals_ascii_case_insensitive(name, b"namespace")
+                    && !is_font_feature_value_rule_name(name)
             }
             RuleContext::AtPage => is_margin_rule_name(name),
             RuleContext::AtFontFeatureValues => is_font_feature_value_rule_name(name),
@@ -2032,8 +2124,6 @@ pub struct FfiSyntaxRule {
     pub name_length: usize,
     pub prelude_start: usize,
     pub prelude_count: usize,
-    pub prelude_source_offset: usize,
-    pub prelude_source_length: usize,
     pub declarations_start: usize,
     pub declaration_count: usize,
     pub children_start: usize,
@@ -2077,14 +2167,61 @@ pub struct FfiSyntaxItem {
     pub count: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub enum FfiSyntaxDiagnosticCode {
+    BadString,
+    BadUrl,
+    UnknownRule,
+    StyleSelectorsInvalid,
+    StyleEmptySelector,
+    LayerInvalidName,
+    LayerContainsInvalidName,
+    KeyframesMustBeBlock,
+    KeyframesInvalidName,
+    NamespaceMustBeStatement,
+    NamespaceInvalidPrelude,
+    MediaExpectedBlock,
+    SupportsMustBeBlock,
+    SupportsClauseInvalid,
+    ContainerMustBeBlock,
+    ContainerConditionsInvalid,
+    CounterStyleMustBeBlock,
+    CounterStyleMissingName,
+    FontFaceMustBeBlock,
+    FontFacePreludeNotAllowed,
+    FontFeatureValuesMustBeBlock,
+    FunctionMustBeBlock,
+    PageMustBeBlock,
+    MarginMustBeBlock,
+    MarginPreludeNotAllowed,
+    InvalidRuleLocation,
+    ImportInvalid,
+    KeyframeSelectorsInvalid,
+    FontFeatureValuesPreludeInvalid,
+    FunctionPreludeInvalid,
+    PagePreludeInvalid,
+    PropertyPreludeInvalid,
+    ScopeInvalid,
+    MisplacedImport,
+    MisplacedNamespace,
+    InvalidRuleContext,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiSyntaxDiagnostic {
-    pub code: u8,
+    pub code: FfiSyntaxDiagnosticCode,
     pub start_line: usize,
     pub start_column: usize,
     pub end_line: usize,
     pub end_column: usize,
+    pub primary_offset: usize,
+    pub primary_length: usize,
+    pub secondary_offset: usize,
+    pub secondary_length: usize,
+    pub prelude_offset: usize,
+    pub prelude_length: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -2265,6 +2402,188 @@ fn parse_font_feature_values(declaration: &Declaration, maximum_value_count: usi
     (!values.is_empty() && values.len() <= maximum_value_count).then_some(values)
 }
 
+// NB: Mirrors rule structural validation from Libraries/LibWeb/CSS/Parser/RuleParsing.cpp:148-827
+//     and top-level ordering from Libraries/LibWeb/CSS/Parser/Parser.cpp:89-137 at commit a14df7fab3f.
+fn structural_validation_code(
+    rule: &Rule,
+    rule_kind: FfiRuleKind,
+    parsed_prelude: &ParsedRulePrelude,
+    selector_list_is_valid: bool,
+) -> Option<FfiSyntaxDiagnosticCode> {
+    let valid_in_context = match rule {
+        Rule::At(rule) => rule.valid_in_context,
+        Rule::Qualified(rule) => rule.valid_in_context,
+    };
+    if !valid_in_context {
+        return Some(FfiSyntaxDiagnosticCode::InvalidRuleContext);
+    }
+
+    match (rule, rule_kind) {
+        (Rule::Qualified(rule), FfiRuleKind::Qualified) if rule.prelude_is_selector => {
+            if non_whitespace(&rule.prelude).is_empty() {
+                Some(FfiSyntaxDiagnosticCode::StyleEmptySelector)
+            } else if !selector_list_is_valid {
+                Some(FfiSyntaxDiagnosticCode::StyleSelectorsInvalid)
+            } else {
+                None
+            }
+        }
+        (Rule::Qualified(_), FfiRuleKind::Qualified) => {
+            (!matches!(parsed_prelude, ParsedRulePrelude::KeyframeSelectors(_)))
+                .then_some(FfiSyntaxDiagnosticCode::KeyframeSelectorsInvalid)
+        }
+        (Rule::At(_), FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor) => None,
+        (Rule::At(rule), FfiRuleKind::Import) => (rule.has_block
+            || !matches!(parsed_prelude, ParsedRulePrelude::Import(_)))
+        .then_some(FfiSyntaxDiagnosticCode::ImportInvalid),
+        (Rule::At(rule), FfiRuleKind::Layer) => {
+            if rule
+                .outer_rule_name
+                .as_deref()
+                .is_some_and(|name| equals_ascii_case_insensitive(name, b"style"))
+                && !rule.has_block
+            {
+                Some(FfiSyntaxDiagnosticCode::InvalidRuleContext)
+            } else if rule.has_block && !matches!(parsed_prelude, ParsedRulePrelude::Name(_)) {
+                Some(FfiSyntaxDiagnosticCode::LayerInvalidName)
+            } else if !rule.has_block && !matches!(parsed_prelude, ParsedRulePrelude::Names(_)) {
+                Some(FfiSyntaxDiagnosticCode::LayerContainsInvalidName)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Keyframes) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::KeyframesMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Name(_)) {
+                Some(FfiSyntaxDiagnosticCode::KeyframesInvalidName)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Namespace) => {
+            if rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::NamespaceMustBeStatement)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Namespace { .. }) {
+                Some(FfiSyntaxDiagnosticCode::NamespaceInvalidPrelude)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Media) => {
+            (!rule.has_block).then_some(FfiSyntaxDiagnosticCode::MediaExpectedBlock)
+        }
+        (Rule::At(rule), FfiRuleKind::Supports) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::SupportsMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::SupportsCondition(_)) {
+                Some(FfiSyntaxDiagnosticCode::SupportsClauseInvalid)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Container) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::ContainerMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::ContainerConditions(_)) {
+                Some(FfiSyntaxDiagnosticCode::ContainerConditionsInvalid)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::CounterStyle) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::CounterStyleMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Name(_)) {
+                Some(FfiSyntaxDiagnosticCode::CounterStyleMissingName)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::FontFace) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::FontFaceMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Empty) {
+                Some(FfiSyntaxDiagnosticCode::FontFacePreludeNotAllowed)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::FontFeatureValues) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::FontFeatureValuesMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::FontFamilyNames(_)) {
+                Some(FfiSyntaxDiagnosticCode::FontFeatureValuesPreludeInvalid)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Function) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::FunctionMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Function { .. }) {
+                Some(FfiSyntaxDiagnosticCode::FunctionPreludeInvalid)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Page) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::PageMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::PageSelectors(_)) {
+                Some(FfiSyntaxDiagnosticCode::PagePreludeInvalid)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Margin) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::MarginMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Empty) {
+                Some(FfiSyntaxDiagnosticCode::MarginPreludeNotAllowed)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), FfiRuleKind::Property) => (!rule.has_block
+            || !matches!(parsed_prelude, ParsedRulePrelude::Property { .. }))
+        .then_some(FfiSyntaxDiagnosticCode::PropertyPreludeInvalid),
+        (Rule::At(rule), FfiRuleKind::Scope) => (!rule.has_block
+            || !matches!(parsed_prelude, ParsedRulePrelude::Scope { .. }))
+        .then_some(FfiSyntaxDiagnosticCode::ScopeInvalid),
+        (Rule::At(_), FfiRuleKind::FontFeatureValuesRule) => None,
+        _ => unreachable!(),
+    }
+}
+
+fn rule_outer_name(rule: &Rule) -> Option<&ParserString> {
+    match rule {
+        Rule::At(rule) => rule.outer_rule_name.as_ref(),
+        Rule::Qualified(rule) => rule.outer_rule_name.as_ref(),
+    }
+}
+
+fn rule_diagnostic_name(rule: &Rule) -> ParserString {
+    match rule {
+        Rule::At(rule) => at_rule_name(rule.name.as_ref()),
+        Rule::Qualified(rule) if rule.prelude_is_selector => utf16_from_ascii(b"style"),
+        Rule::Qualified(_) => utf16_from_ascii(b"keyframe"),
+    }
+}
+
+fn invalid_location_inner_name(rule: &Rule, rule_kind: FfiRuleKind, outer_name: &[u16]) -> ParserString {
+    if equals_ascii_case_insensitive(outer_name, b"keyframe") {
+        return utf16_from_ascii(b"qualified-rule");
+    }
+    if matches!(rule, Rule::At(_)) && rule_kind == FfiRuleKind::Layer {
+        return utf16_from_ascii(b"CSSLayerStatementRule");
+    }
+    match rule {
+        Rule::At(rule) => at_rule_name(rule.name.as_ref()),
+        Rule::Qualified(_) => utf16_from_ascii(b"qualified-rule"),
+    }
+}
+
 impl FfiSyntaxParse {
     pub(crate) fn new(parse_context: *const ParseContext, preserve_property_source_text: bool) -> Self {
         let declared_namespaces = (unsafe { parse_context.as_ref() })
@@ -2304,6 +2623,54 @@ impl FfiSyntaxParse {
         let offset = self.values.len();
         self.values.extend_from_slice(value);
         (offset, value.len())
+    }
+
+    fn append_diagnostic(
+        &mut self,
+        code: FfiSyntaxDiagnosticCode,
+        primary: Option<&[u16]>,
+        secondary: Option<&[u16]>,
+        prelude: Option<&[u16]>,
+    ) {
+        let (primary_offset, primary_length) = self.append_optional_value(primary);
+        let (secondary_offset, secondary_length) = self.append_optional_value(secondary);
+        let (prelude_offset, prelude_length) = self.append_optional_value(prelude);
+        self.diagnostics.push(FfiSyntaxDiagnostic {
+            code,
+            start_line: 0,
+            start_column: 0,
+            end_line: 0,
+            end_column: 0,
+            primary_offset,
+            primary_length,
+            secondary_offset,
+            secondary_length,
+            prelude_offset,
+            prelude_length,
+        });
+    }
+
+    fn append_rule_validation_diagnostic(
+        &mut self,
+        rule: &Rule,
+        rule_kind: FfiRuleKind,
+        code: FfiSyntaxDiagnosticCode,
+        prelude: &[u16],
+    ) {
+        if code == FfiSyntaxDiagnosticCode::InvalidRuleContext
+            && let Some(outer_name) = rule_outer_name(rule)
+        {
+            let inner_name = invalid_location_inner_name(rule, rule_kind, outer_name.as_ref());
+            self.append_diagnostic(
+                FfiSyntaxDiagnosticCode::InvalidRuleLocation,
+                Some(outer_name.as_ref()),
+                Some(inner_name.as_ref()),
+                None,
+            );
+            return;
+        }
+        let rule_name = rule_diagnostic_name(rule);
+        self.append_diagnostic(code, Some(rule_name.as_ref()), None, Some(prelude));
     }
 
     fn append_optional_value(&mut self, value: Option<&[u16]>) -> (usize, usize) {
@@ -2657,7 +3024,13 @@ impl FfiSyntaxParse {
     }
 
     fn append_selector_list(&mut self, values: &[ComponentValue], selector_type: SelectorType) -> Option<*mut c_void> {
-        let selector_list = parse_selector_list_from_component_values(values, selector_type).ok()?;
+        let declared_namespaces = self
+            .declared_namespaces
+            .iter()
+            .map(|namespace| TokenizerInput::Utf16(namespace.as_ref()))
+            .collect::<Vec<_>>();
+        let selector_list =
+            parse_selector_list_from_component_values(values, &declared_namespaces, selector_type).ok()?;
         Some(self.retain_selector_list(selector_list))
     }
 
@@ -2700,7 +3073,7 @@ impl FfiSyntaxParse {
     }
 
     fn append_rule(&mut self, rule: &Rule) -> usize {
-        let rule_kind = rule_kind(rule);
+        let original_rule_kind = rule_kind(rule);
         let (rule_type, name, prelude, prelude_is_selector, declarations, children, has_block, source_position) =
             match rule {
                 Rule::At(rule) => (
@@ -2726,7 +3099,6 @@ impl FfiSyntaxParse {
             };
         let (name_offset, name_length) = self.append_value(name);
         let prelude_source = component_list_source(prelude);
-        let (prelude_source_offset, prelude_source_length) = self.append_value(prelude_source.as_ref());
         let (prelude_start, prelude_count) = if prelude_is_selector {
             (0, 0)
         } else {
@@ -2760,11 +3132,28 @@ impl FfiSyntaxParse {
             .collect::<Vec<_>>();
         let parsed_prelude = parse_rule_prelude(
             rule,
-            rule_kind,
+            original_rule_kind,
             parse_context,
             &declared_namespaces,
             &resolve_query_feature,
         );
+        let validation_code =
+            structural_validation_code(rule, original_rule_kind, &parsed_prelude, !selector_list.is_null());
+        let rule_kind = if let Some(code) = validation_code {
+            self.append_rule_validation_diagnostic(rule, original_rule_kind, code, prelude_source.as_ref());
+            FfiRuleKind::Invalid
+        } else {
+            if original_rule_kind == FfiRuleKind::Unknown {
+                let rule_name = rule_diagnostic_name(rule);
+                self.append_diagnostic(
+                    FfiSyntaxDiagnosticCode::UnknownRule,
+                    Some(rule_name.as_ref()),
+                    None,
+                    None,
+                );
+            }
+            original_rule_kind
+        };
         let mut parsed_prelude_name = None;
         let mut parsed_prelude_secondary = None;
         let mut parsed_prelude_syntax = std::ptr::null();
@@ -2813,55 +3202,24 @@ impl FfiSyntaxParse {
                 }));
                 8
             }
-            ParsedRulePrelude::Scope { has_start, has_end } => {
-                let Rule::At(at_rule) = rule else {
-                    unreachable!();
-                };
-                let Some((start_components, end_components)) = scope_selector_components(prelude) else {
-                    unreachable!();
-                };
-                let mut valid = true;
-                if has_start {
-                    let start_components = start_components.unwrap();
-                    let selector_list = self
-                        .append_selector_list(
-                            start_components,
-                            if at_rule.style_nested {
-                                SelectorType::Relative
-                            } else {
-                                SelectorType::Standalone
-                            },
-                        )
-                        .unwrap_or_else(|| {
-                            valid = false;
-                            std::ptr::null_mut()
-                        });
+            ParsedRulePrelude::Scope { start, end } => {
+                if let Some(start) = start {
+                    let selector_list = self.retain_selector_list(start);
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiScopePreludeItemKind::Start as u8,
                         selector_list,
                         ..Default::default()
                     });
                 }
-                if has_end {
-                    let end_components = end_components.unwrap();
-                    let selector_list = self
-                        .append_selector_list(end_components, SelectorType::Relative)
-                        .unwrap_or_else(|| {
-                            valid = false;
-                            std::ptr::null_mut()
-                        });
+                if let Some(end) = end {
+                    let selector_list = self.retain_selector_list(end);
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiScopePreludeItemKind::End as u8,
                         selector_list,
                         ..Default::default()
                     });
                 }
-                if valid {
-                    9
-                } else {
-                    parsed_items.clear();
-                    1
-                }
+                9
             }
             ParsedRulePrelude::Import(import) => {
                 parsed_items.push(ParsedPreludeItem {
@@ -3026,8 +3384,6 @@ impl FfiSyntaxParse {
             name_length,
             prelude_start,
             prelude_count,
-            prelude_source_offset,
-            prelude_source_length,
             declarations_start,
             declaration_count,
             children_start,
@@ -3052,63 +3408,70 @@ impl FfiSyntaxParse {
         index
     }
 
-    fn top_level_rule_is_valid_for_namespace_order(&self, index: usize) -> bool {
-        let rule = &self.rules[index];
-        match rule.rule_kind {
-            FfiRuleKind::Qualified => !rule.selector_list.is_null(),
-            FfiRuleKind::Unknown
-            | FfiRuleKind::IgnoredVendor
-            | FfiRuleKind::FontFeatureValuesRule
-            | FfiRuleKind::Margin => false,
-            FfiRuleKind::Container => rule.has_block && rule.parsed_prelude_kind == 14,
-            FfiRuleKind::CounterStyle => rule.has_block && rule.parsed_prelude_kind == 3,
-            FfiRuleKind::FontFace => rule.has_block && rule.parsed_prelude_kind == 2,
-            FfiRuleKind::FontFeatureValues => rule.has_block && rule.parsed_prelude_kind == 8,
-            FfiRuleKind::Function => rule.has_block && rule.parsed_prelude_kind == 11,
-            FfiRuleKind::Import => !rule.has_block && rule.parsed_prelude_kind == 10,
-            FfiRuleKind::Keyframes => rule.has_block && rule.parsed_prelude_kind == 3,
-            FfiRuleKind::Layer => rule.parsed_prelude_kind == if rule.has_block { 3 } else { 4 },
-            FfiRuleKind::Media => rule.has_block && rule.parsed_prelude_kind == 12,
-            FfiRuleKind::Namespace => !rule.has_block && rule.parsed_prelude_kind == 6,
-            FfiRuleKind::Page => rule.has_block && rule.parsed_prelude_kind == 7,
-            FfiRuleKind::Property => rule.has_block && rule.parsed_prelude_kind == 15,
-            FfiRuleKind::Scope => rule.has_block && rule.parsed_prelude_kind == 9,
-            FfiRuleKind::Supports => rule.has_block && rule.parsed_prelude_kind == 13,
-        }
-    }
-
     fn append_roots(&mut self, rules: &[Rule]) {
-        // NB: Mirrors the source-order namespace installation from commit 7c54a530cc2 in
-        //     Libraries/LibWeb/CSS/Parser/Parser.cpp:100. Invalid rules do not close the namespace
-        //     window, and statement @layer and valid @import rules may precede @namespace.
+        // NB: Mirrors Libraries/LibWeb/CSS/Parser/Parser.cpp:89-137 at commit a14df7fab3f.
+        //     Invalid rules do not close either ordering window, and statement @layer rules do not
+        //     close the import or namespace window.
+        let mut import_rules_valid = true;
         let mut namespace_rules_valid = true;
         for rule in rules {
             let index = self.append_rule(rule);
             self.roots.push(index);
-            if !self.top_level_rule_is_valid_for_namespace_order(index) {
-                continue;
-            }
-            let ffi_rule = &self.rules[index];
-            match ffi_rule.rule_kind {
-                FfiRuleKind::Import => {}
-                FfiRuleKind::Layer if !ffi_rule.has_block => {}
+            let rule_kind = self.rules[index].rule_kind;
+            match rule_kind {
+                FfiRuleKind::Invalid | FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor => {}
+                FfiRuleKind::Layer if !self.rules[index].has_block => {}
+                FfiRuleKind::Import if import_rules_valid => {}
+                FfiRuleKind::Import => {
+                    let prelude = component_list_source(match rule {
+                        Rule::At(rule) => &rule.prelude,
+                        Rule::Qualified(_) => unreachable!(),
+                    });
+                    self.append_rule_validation_diagnostic(
+                        rule,
+                        FfiRuleKind::Import,
+                        FfiSyntaxDiagnosticCode::MisplacedImport,
+                        prelude.as_ref(),
+                    );
+                    self.rules[index].rule_kind = FfiRuleKind::Invalid;
+                }
                 FfiRuleKind::Namespace if namespace_rules_valid => {
+                    import_rules_valid = false;
+                    let ffi_rule = &self.rules[index];
                     let prefix = if ffi_rule.parsed_prelude_name_offset == usize::MAX {
-                        &[][..]
+                        Vec::new()
                     } else {
-                        &self.values[ffi_rule.parsed_prelude_name_offset
+                        self.values[ffi_rule.parsed_prelude_name_offset
                             ..ffi_rule.parsed_prelude_name_offset + ffi_rule.parsed_prelude_name_length]
+                            .to_vec()
                     };
                     if !self
                         .declared_namespaces
                         .iter()
-                        .any(|namespace| namespace.as_ref() == prefix)
+                        .any(|namespace| namespace.as_ref() == prefix.as_slice())
                     {
                         self.declared_namespaces
-                            .push(ParserString::from(prefix.to_vec().into_boxed_slice()));
+                            .push(ParserString::from(prefix.into_boxed_slice()));
                     }
                 }
-                _ => namespace_rules_valid = false,
+                FfiRuleKind::Namespace => {
+                    import_rules_valid = false;
+                    let prelude = component_list_source(match rule {
+                        Rule::At(rule) => &rule.prelude,
+                        Rule::Qualified(_) => unreachable!(),
+                    });
+                    self.append_rule_validation_diagnostic(
+                        rule,
+                        FfiRuleKind::Namespace,
+                        FfiSyntaxDiagnosticCode::MisplacedNamespace,
+                        prelude.as_ref(),
+                    );
+                    self.rules[index].rule_kind = FfiRuleKind::Invalid;
+                }
+                _ => {
+                    import_rules_valid = false;
+                    namespace_rules_valid = false;
+                }
             }
         }
     }
@@ -3152,8 +3515,8 @@ fn token_diagnostics(tokens: &[ParserToken]) -> Vec<FfiSyntaxDiagnostic> {
         .iter()
         .filter_map(|token| {
             let code = match &token.kind {
-                ParserTokenKind::BadString => 0,
-                ParserTokenKind::BadUrl => 1,
+                ParserTokenKind::BadString => FfiSyntaxDiagnosticCode::BadString,
+                ParserTokenKind::BadUrl => FfiSyntaxDiagnosticCode::BadUrl,
                 _ => return None,
             };
             Some(FfiSyntaxDiagnostic {
@@ -3162,6 +3525,12 @@ fn token_diagnostics(tokens: &[ParserToken]) -> Vec<FfiSyntaxDiagnostic> {
                 start_column: token.start_position.column,
                 end_line: token.end_position.line,
                 end_column: token.end_position.column,
+                primary_offset: usize::MAX,
+                primary_length: 0,
+                secondary_offset: usize::MAX,
+                secondary_length: 0,
+                prelude_offset: usize::MAX,
+                prelude_length: 0,
             })
         })
         .collect()
@@ -3255,6 +3624,8 @@ pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
             prelude,
             prelude_is_selector: false,
             prelude_is_relative: false,
+            valid_in_context: true,
+            outer_rule_name: None,
             declarations: Vec::new(),
             children: Vec::new(),
             source_position: None,
@@ -3366,10 +3737,11 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 mod tests {
     use super::{
         Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiRuleKind,
-        FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode, at_rule_is_supported,
-        at_rule_kind, collect_descriptors, consume_a_list_of_component_values, has_ignored_vendor_prefix,
-        parse_block_contents, parse_font_feature_values, parse_keyframe_selectors, parse_page_selector_list,
-        parse_rule, parse_rule_prelude, parse_stylesheet, rule_kind, token_diagnostics, tokenize_for_parser,
+        FfiSyntaxDiagnosticCode, FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode,
+        at_rule_is_supported, at_rule_kind, collect_descriptors, consume_a_list_of_component_values,
+        has_ignored_vendor_prefix, parse_block_contents, parse_font_feature_values, parse_keyframe_selectors,
+        parse_page_selector_list, parse_rule, parse_rule_prelude, parse_stylesheet, rule_kind, token_diagnostics,
+        tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -3411,6 +3783,14 @@ mod tests {
         parse_rule_prelude(rule, rule_kind(rule), Some(&parse_context()), &[], &|_, _| None)
     }
 
+    fn ffi_parse_stylesheet(source: &[u8]) -> FfiSyntaxParse {
+        let rules = parse_stylesheet(source);
+        let context = parse_context();
+        let mut parse = FfiSyntaxParse::new(&raw const context, false);
+        parse.append_roots(&rules);
+        parse
+    }
+
     #[test]
     fn parses_exactly_one_rule() {
         assert!(parse_rule(b" a { color: red } ", Vec::new(), false).is_some());
@@ -3427,11 +3807,110 @@ mod tests {
             crate::css::css_tokenizer::tokenize_for_parser(&utf16("a { color: \"bad\n; background: url(foo\"bar) }"));
         parse.diagnostics = token_diagnostics(&tokens);
         assert_eq!(parse.diagnostics.len(), 2);
-        assert_eq!(parse.diagnostics[0].code, 0);
+        assert_eq!(parse.diagnostics[0].code, FfiSyntaxDiagnosticCode::BadString);
         assert_eq!(parse.diagnostics[0].start_line, 0);
         assert!(parse.diagnostics[0].end_column > parse.diagnostics[0].start_column);
-        assert_eq!(parse.diagnostics[1].code, 1);
+        assert_eq!(parse.diagnostics[1].code, FfiSyntaxDiagnosticCode::BadUrl);
         assert!(parse.diagnostics[1].end_column > parse.diagnostics[1].start_column);
+    }
+
+    #[test]
+    fn classifies_structurally_invalid_and_misplaced_rules() {
+        let parse = ffi_parse_stylesheet(
+            b"undeclared|element {} @font-face serif {} @import url('data:text/css,'); \
+              @namespace known 'urn:known'; known|element {}",
+        );
+        let root_kinds = parse
+            .roots
+            .iter()
+            .map(|&index| parse.rules[index].rule_kind)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            root_kinds,
+            vec![
+                FfiRuleKind::Invalid,
+                FfiRuleKind::Invalid,
+                FfiRuleKind::Import,
+                FfiRuleKind::Namespace,
+                FfiRuleKind::Qualified,
+            ]
+        );
+        assert!(
+            parse
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == FfiSyntaxDiagnosticCode::StyleSelectorsInvalid)
+        );
+        assert!(
+            parse
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == FfiSyntaxDiagnosticCode::FontFacePreludeNotAllowed)
+        );
+
+        let parse = ffi_parse_stylesheet(b"element {} @import url('data:text/css,'); @namespace late 'urn:late';");
+        assert_eq!(parse.rules[parse.roots[1]].rule_kind, FfiRuleKind::Invalid);
+        assert_eq!(parse.rules[parse.roots[2]].rule_kind, FfiRuleKind::Invalid);
+        assert!(
+            parse
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == FfiSyntaxDiagnosticCode::MisplacedImport)
+        );
+        assert!(
+            parse
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == FfiSyntaxDiagnosticCode::MisplacedNamespace)
+        );
+    }
+
+    #[test]
+    fn stray_feature_value_rules_do_not_close_ordering_windows() {
+        // A feature value rule is only valid inside @font-feature-values. Anywhere else it is
+        // dropped, so it must not count as a "valid at-rule" for @import and @namespace ordering.
+        let parse = ffi_parse_stylesheet(
+            b"@styleset {} @import url('data:text/css,'); @namespace known 'urn:known'; known|element {}",
+        );
+        let root_kinds = parse
+            .roots
+            .iter()
+            .map(|&index| parse.rules[index].rule_kind)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            root_kinds,
+            vec![
+                FfiRuleKind::Invalid,
+                FfiRuleKind::Import,
+                FfiRuleKind::Namespace,
+                FfiRuleKind::Qualified,
+            ]
+        );
+
+        let parse = ffi_parse_stylesheet(b"@media all { @styleset {} } @font-feature-values Family { @styleset {} }");
+        let media_child = parse.rules[parse.items[parse.rules[parse.roots[0]].children_start].start].rule_kind;
+        assert_eq!(media_child, FfiRuleKind::Invalid);
+        let font_feature_values_child =
+            parse.rules[parse.items[parse.rules[parse.roots[1]].children_start].start].rule_kind;
+        assert_eq!(font_feature_values_child, FfiRuleKind::FontFeatureValuesRule);
+    }
+
+    #[test]
+    fn validates_nested_rule_contexts_without_flattening_them() {
+        let parse = ffi_parse_stylesheet(b"a { @layer direct; } @scope { @layer scoped; }");
+        let layer_rules = parse
+            .rules
+            .iter()
+            .filter(|rule| matches!(rule.rule_kind, FfiRuleKind::Invalid | FfiRuleKind::Layer))
+            .map(|rule| rule.rule_kind)
+            .collect::<Vec<_>>();
+        assert_eq!(layer_rules, vec![FfiRuleKind::Invalid, FfiRuleKind::Layer]);
+        assert!(
+            parse
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == FfiSyntaxDiagnosticCode::InvalidRuleLocation)
+        );
     }
 
     fn declarations(input: &str) -> Vec<Declaration> {
@@ -3500,7 +3979,11 @@ mod tests {
         assert_eq!(declarations[1].name.as_ref(), utf16("width"));
 
         assert!(parse_block_contents(b"color: red", Vec::new()).is_empty());
-        assert!(parse_stylesheet(b"@top-left { color: red }").is_empty());
+        let rules = parse_stylesheet(b"@top-left { color: red }");
+        let [Rule::At(rule)] = rules.as_slice() else {
+            panic!("expected margin at-rule");
+        };
+        assert!(!rule.valid_in_context);
     }
 
     #[test]
@@ -3517,15 +4000,7 @@ mod tests {
     }
 
     #[test]
-    fn transfers_selector_preludes_verbatim() {
-        let rules = parse_stylesheet(b":heading(1.0) {}");
-        let mut parse = super::FfiSyntaxParse::new(std::ptr::null(), false);
-        parse.append_roots(&rules);
-        let rule = parse.rules[parse.roots[0]];
-        assert_eq!(
-            &parse.values[rule.prelude_source_offset..rule.prelude_source_offset + rule.prelude_source_length],
-            utf16(":heading(1.0) ")
-        );
+    fn rejects_invalid_selector_preludes() {
         assert!(
             crate::css::selector_parser::parse_selector_list(
                 b":heading(1.0) ",
@@ -3539,23 +4014,19 @@ mod tests {
 
     #[test]
     fn parses_selector_preludes_from_component_values() {
-        let rules = parse_stylesheet(b"svg|a {} :heading(1.0) {} a { > b {} @scope (> .start) to (> .end) {} }");
+        let rules = parse_stylesheet(b"a {} :heading(1.0) {} a { > b {} @scope (> .start) to (> .end) {} }");
         let mut parse = FfiSyntaxParse::new(std::ptr::null(), false);
         parse.append_roots(&rules);
 
         assert!(!parse.rules[parse.roots[0]].selector_list.is_null());
         assert!(parse.rules[parse.roots[1]].selector_list.is_null());
 
-        let nested_rule = parse
+        let valid_selector_count = parse
             .rules
             .iter()
-            .find(|rule| {
-                rule.rule_type == 1
-                    && parse.values[rule.prelude_source_offset..rule.prelude_source_offset + rule.prelude_source_length]
-                        == utf16("> b ")
-            })
-            .unwrap();
-        assert!(!nested_rule.selector_list.is_null());
+            .filter(|rule| rule.rule_type == 1 && !rule.selector_list.is_null())
+            .count();
+        assert_eq!(valid_selector_count, 3);
 
         let scope_rule = parse.rules.iter().find(|rule| rule.parsed_prelude_kind == 9).unwrap();
         assert_eq!(scope_rule.parsed_prelude_item_count, 2);
@@ -3705,13 +4176,11 @@ mod tests {
         );
         assert_eq!(selectors[1].name, None);
         assert_eq!(selectors[1].pseudo_classes, vec![FfiPageSelectorItemKind::Blank]);
-        assert_eq!(
-            parse_test_rule_prelude(&rules[5]),
-            ParsedRulePrelude::Scope {
-                has_start: true,
-                has_end: true,
-            }
-        );
+        let ParsedRulePrelude::Scope { start, end } = parse_test_rule_prelude(&rules[5]) else {
+            panic!("expected scope selectors");
+        };
+        assert!(start.is_some());
+        assert!(end.is_some());
     }
 
     #[test]

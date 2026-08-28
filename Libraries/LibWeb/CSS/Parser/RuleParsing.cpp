@@ -36,7 +36,6 @@
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
-#include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -45,11 +44,6 @@
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
-
-static bool selector_list_contains_pseudo_element(SelectorList const& selectors)
-{
-    return any_of(selectors, [](auto const& selector) { return selector->target_pseudo_element().has_value(); });
-}
 
 static Vector<Descriptor> copy_descriptors(ReadonlySpan<Descriptor> descriptors)
 {
@@ -68,7 +62,10 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             switch (at_rule.kind) {
             case ValueParserFFI::FfiRuleKind::Qualified:
                 VERIFY_NOT_REACHED();
+            case ValueParserFFI::FfiRuleKind::Invalid:
+                return {};
             case ValueParserFFI::FfiRuleKind::Unknown:
+                return {};
             case ValueParserFFI::FfiRuleKind::FontFeatureValuesRule:
                 break;
             case ValueParserFFI::FfiRuleKind::IgnoredVendor:
@@ -105,11 +102,12 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
                 return convert_to_supports_rule<NestedDeclarationsRule>(at_rule, nested);
             }
 
-            // FIXME: More at rules!
-            ErrorReporter::the().report(UnknownRuleError { .rule_name = Utf16String::formatted("@{}", at_rule.name) });
             return {};
         },
         [this, nested](QualifiedRule const& qualified_rule) -> GC::Ptr<CSSRule> {
+            if (qualified_rule.kind == ValueParserFFI::FfiRuleKind::Invalid)
+                return {};
+            VERIFY(qualified_rule.kind == ValueParserFFI::FfiRuleKind::Qualified);
             return convert_to_style_rule(qualified_rule, nested);
         });
 }
@@ -151,25 +149,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
         [[maybe_unused]] auto last = m_rule_context.take_last();
         VERIFY(last == RuleContext::Style);
     };
-    if (!qualified_rule.selectors.has_value()
-        || selector_list_has_undeclared_namespace(*qualified_rule.selectors, m_declared_namespaces)) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "style"_utf16_fly_string,
-            .prelude = qualified_rule.prelude_text.to_utf8(),
-            .description = "Selectors invalid."_string,
-        });
-        return {};
-    }
-
-    if (qualified_rule.selectors->is_empty()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "style"_utf16_fly_string,
-            .prelude = qualified_rule.prelude_text.to_utf8(),
-            .description = "Empty selector."_string,
-        });
-        return {};
-    }
-
+    VERIFY(qualified_rule.selectors.has_value());
     SelectorList selectors = *qualified_rule.selectors;
     if (nested == Nested::Yes)
         selectors = adapt_nested_relative_selector_list(selectors, nesting_parent);
@@ -184,14 +164,8 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                 // any at-rule whose body contains style rules can be nested inside of a style rule as well."
                 // https://drafts.csswg.org/css-nesting-1/#nested-group-rules
                 if (auto converted_rule = convert_to_rule<CSSNestedDeclarations>(rule, Nested::Yes)) {
-                    if (is<CSSGroupingRule>(*converted_rule)) {
-                        child_rules.append(*converted_rule);
-                    } else {
-                        ErrorReporter::the().report(InvalidRuleLocationError {
-                            .outer_rule_name = "style"_utf16_fly_string,
-                            .inner_rule_name = Utf16FlyString::from_utf8(converted_rule->class_name()),
-                        });
-                    }
+                    VERIFY(is<CSSGroupingRule>(*converted_rule));
+                    child_rules.append(*converted_rule);
                 }
             },
             [&](Vector<Declaration> const& declarations) {
@@ -206,10 +180,8 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
 
 GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 {
-    if (rule.is_block_rule)
-        return {};
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Import)
-        return {};
+    VERIFY(!rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Import);
 
     VERIFY(!rule.parsed_prelude.items.is_empty());
     auto const& url_item = rule.parsed_prelude.items.first();
@@ -236,14 +208,10 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
             break;
         case ValueParserFFI::FfiImportPreludeItemKind::ScopeStart:
             VERIFY(item.selectors.has_value());
-            if (selector_list_has_undeclared_namespace(*item.selectors, m_declared_namespaces))
-                return {};
             scope_start = *item.selectors;
             break;
         case ValueParserFFI::FfiImportPreludeItemKind::ScopeEnd:
             VERIFY(item.selectors.has_value());
-            if (selector_list_has_undeclared_namespace(*item.selectors, m_declared_namespaces))
-                return {};
             scope_end = *item.selectors;
             break;
         case ValueParserFFI::FfiImportPreludeItemKind::Supports:
@@ -269,44 +237,16 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
-    m_rule_context.append(RuleContext::AtLayer);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtLayer);
-    };
-
-    // https://drafts.csswg.org/css-cascade-5/#at-layer
     if (rule.is_block_rule) {
-        // CSSLayerBlockRule
-        // @layer <layer-name>? {
-        //   <rule-list>
-        // }
-
-        // First, the name
-        if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Name || !rule.parsed_prelude.name.has_value()) {
-            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-                .rule_name = "@layer"_utf16_fly_string,
-                .prelude = rule.prelude_text.to_utf8(),
-                .description = "Not a valid layer name."_string,
-            });
-            return {};
-        }
+        VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Name);
+        VERIFY(rule.parsed_prelude.name.has_value());
         auto layer_name = rule.parsed_prelude.name.value();
 
         return CSSLayerBlockRule::create(layer_name, convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
     }
 
-    // CSSLayerStatementRule
-    // @layer <layer-name>#;
     Vector<Utf16FlyString> layer_names;
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Names) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@layer"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Contains invalid layer name."_string,
-        });
-        return {};
-    }
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Names);
     for (auto const& item : rule.parsed_prelude.items) {
         VERIFY(item.value.has_value());
         layer_names.append(item.value.value());
@@ -317,32 +257,14 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
 
 GC::Ptr<CSSKeyframeRule> Parser::convert_to_keyframe_rule(QualifiedRule const& rule)
 {
-    if (!rule.child_rules.is_empty()) {
-        for (auto const& child_rule : rule.child_rules) {
-            ErrorReporter::the().report(InvalidRuleLocationError {
-                .outer_rule_name = "@keyframes"_utf16_fly_string,
-                .inner_rule_name = child_rule.visit(
-                    [](Rule const& rule) {
-                        return rule.visit(
-                            [](AtRule const& at_rule) { return Utf16String::formatted("@{}", at_rule.name); },
-                            [](QualifiedRule const&) { return Utf16String { "qualified-rule"_utf16_fly_string }; });
-                    },
-                    [](auto&) {
-                        return Utf16String { "list-of-declarations"_utf16_fly_string };
-                    }),
-            });
-        }
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::KeyframeSelectors)
-        return nullptr;
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::KeyframeSelectors);
     Vector<Percentage> selectors;
     selectors.ensure_capacity(rule.parsed_prelude.items.size());
     for (auto const& item : rule.parsed_prelude.items)
         selectors.unchecked_append(Percentage { item.number_value });
 
     PropertiesAndCustomProperties properties;
-    rule.for_each_as_declaration_list("keyframe"_utf16_fly_string, [&](auto const& declaration) {
+    rule.for_each_as_declaration_list([&](auto const& declaration) {
         // https://drafts.csswg.org/css-animations-1/#keyframes
         // None of the properties [in the <keyframe-block>'s <declaration-list>] interact with the cascade (so
         // using !important on them is invalid and will cause the property to be ignored).
@@ -357,34 +279,9 @@ GC::Ptr<CSSKeyframeRule> Parser::convert_to_keyframe_rule(QualifiedRule const& r
 
 GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 {
-    m_rule_context.append(RuleContext::AtKeyframes);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtKeyframes);
-    };
-
-    // https://drafts.csswg.org/css-animations/#keyframes
-    // @keyframes = @keyframes <keyframes-name> { <qualified-rule-list> }
-    // <keyframes-name> = <custom-ident> | <string>
-    // <keyframe-block> = <keyframe-selector># { <declaration-list> }
-    // <keyframe-selector> = from | to | <percentage [0,100]>
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Name || !rule.parsed_prelude.name.has_value()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@keyframes"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Invalid keyframes name."_string,
-        });
-        return {};
-    }
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Name);
+    VERIFY(rule.parsed_prelude.name.has_value());
 
     auto name = rule.parsed_prelude.name.value();
 
@@ -399,26 +296,9 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
 GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 {
-    // https://drafts.csswg.org/css-namespaces/#syntax
-    // @namespace <namespace-prefix>? [ <string> | <url> ] ;
-    // <namespace-prefix> = <ident>
-    if (rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@namespace"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a statement, not a block."_string,
-        });
-        return {};
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Namespace || !rule.parsed_prelude.secondary.has_value()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@namespace"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Invalid namespace prelude."_string,
-        });
-        return {};
-    }
+    VERIFY(!rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Namespace);
+    VERIFY(rule.parsed_prelude.secondary.has_value());
 
     return CSSNamespaceRule::create(rule.parsed_prelude.name, rule.parsed_prelude.secondary.value());
 }
@@ -426,21 +306,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested nested)
 {
-    m_rule_context.append(RuleContext::AtMedia);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtMedia);
-    };
-
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@media"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Expected a block."_string,
-        });
-        return nullptr;
-    }
-
+    VERIFY(rule.is_block_rule);
     VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::MediaQueries);
     Vector<NonnullRefPtr<MediaQuery>> media_queries;
     media_queries.ensure_capacity(rule.parsed_prelude.items.size());
@@ -455,35 +321,10 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
 {
-    m_rule_context.append(RuleContext::AtSupports);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtSupports);
-    };
-
-    // https://drafts.csswg.org/css-conditional-3/#at-supports
-    // @supports <supports-condition> {
-    //   <rule-list>
-    // }
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@supports"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return {};
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::SupportsCondition
-        || rule.parsed_prelude.items.size() != 1
-        || !rule.parsed_prelude.items.first().query.has_value()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@supports"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Supports clause invalid."_string,
-        });
-        return {};
-    }
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::SupportsCondition);
+    VERIFY(rule.parsed_prelude.items.size() == 1);
+    VERIFY(rule.parsed_prelude.items.first().query.has_value());
     auto supports = *rule.parsed_prelude.items.first().query;
 
     return CSSSupportsRule::create(move(supports), convert_child_rules<NestedDeclarationsRule>(rule.child_rules_and_lists_of_declarations, nested));
@@ -491,8 +332,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
 
 GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 {
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Property)
-        return {};
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Property);
     VERIFY(rule.parsed_prelude.name.has_value());
     VERIFY(rule.parsed_prelude.secondary.has_value());
     VERIFY(rule.parsed_prelude.syntax.has_value());
@@ -512,19 +352,14 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
         [[maybe_unused]] auto last = m_rule_context.take_last();
         VERIFY(last == RuleContext::AtScope);
     };
-    if (!rule.is_block_rule)
-        return nullptr;
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Scope)
-        return nullptr;
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Scope);
     Optional<SelectorList> start;
     Optional<SelectorList> end;
     for (auto const& item : rule.parsed_prelude.items) {
         VERIFY(item.selectors.has_value());
         bool is_end = static_cast<ValueParserFFI::FfiScopePreludeItemKind>(item.kind) == ValueParserFFI::FfiScopePreludeItemKind::End;
         auto const& selectors = *item.selectors;
-        if (selectors.is_empty() || selector_list_contains_pseudo_element(selectors)
-            || selector_list_has_undeclared_namespace(selectors, m_declared_namespaces))
-            return nullptr;
         if (is_end)
             end = selectors;
         else
@@ -539,35 +374,8 @@ GC::Ptr<CSSScopeRule> Parser::convert_to_scope_rule(AtRule const& rule, Nested n
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, Nested nested)
 {
-    m_rule_context.append(RuleContext::AtContainer);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtContainer);
-    };
-
-    // @container <container-condition># {
-    //   <rule-list>
-    // }
-    // <container-condition> = [ <container-name>? <container-query>? ]!
-    // <container-name> = <custom-ident>
-
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@container"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::ContainerConditions) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@container"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Invalid container condition list."_string,
-        });
-        return nullptr;
-    }
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::ContainerConditions);
 
     Vector<CSSContainerRule::Condition> conditions;
     conditions.ensure_capacity(rule.parsed_prelude.items.size());
@@ -583,30 +391,9 @@ GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, 
 
 GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const& rule)
 {
-    m_rule_context.append(RuleContext::AtCounterStyle);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtCounterStyle);
-    };
-
-    // https://drafts.csswg.org/css-counter-styles-3/#the-counter-style-rule
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Name || !rule.parsed_prelude.name.has_value()) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@counter-style"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Missing counter style name."_string,
-        });
-        return nullptr;
-    }
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Name);
+    VERIFY(rule.parsed_prelude.name.has_value());
     auto name = rule.parsed_prelude.name.value();
 
     auto descriptor_value = [&rule](DescriptorID id) -> RefPtr<StyleValue const> {
@@ -623,30 +410,9 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
-    m_rule_context.append(RuleContext::AtFontFace);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtFontFace);
-    };
-
     // https://drafts.csswg.org/css-fonts/#font-face-rule
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-face"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Empty) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-face"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Prelude is not allowed."_string,
-        });
-        return {};
-    }
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Empty);
 
     auto font_face_descriptors = CSSFontFaceDescriptors::create(copy_descriptors(rule.descriptors));
     return CSSFontFaceRule::create(font_face_descriptors);
@@ -656,17 +422,8 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
 {
     // https://drafts.csswg.org/css-fonts-4/#font-feature-values-syntax
     // @font-feature-values = @font-feature-values <family-name># { <declaration-rule-list> }
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@font-feature-values"_utf16_fly_string,
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::FontFamilyNames)
-        return nullptr;
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::FontFamilyNames);
     Vector<Utf16FlyString> family_names;
     family_names.ensure_capacity(rule.parsed_prelude.items.size());
     for (auto const& item : rule.parsed_prelude.items) {
@@ -687,8 +444,8 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
             // @ornaments = @ornaments { <declaration-list> }
             // @annotation = @annotation { <declaration-list> }
 
-            if (at_rule.parsed_prelude.kind != ParsedRulePreludeKind::FontFeatureValuesRule || at_rule.parsed_prelude.items.size() != 1)
-                return;
+            VERIFY(at_rule.parsed_prelude.kind == ParsedRulePreludeKind::FontFeatureValuesRule);
+            VERIFY(at_rule.parsed_prelude.items.size() == 1);
             GC::Ref<CSSFontFeatureValuesMap> feature_values_map = [&] {
                 switch (static_cast<ValueParserFFI::FfiFontFeatureValuesRuleKind>(at_rule.parsed_prelude.items.first().kind)) {
                 case ValueParserFFI::FfiFontFeatureValuesRuleKind::Annotation:
@@ -726,24 +483,9 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
 
 GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function_rule)
 {
-    m_rule_context.append(RuleContext::AtFunction);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtFunction);
-    };
-
     // https://drafts.csswg.org/css-mixins-1/#function-rule
-    if (!function_rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@function"_utf16_fly_string,
-            .prelude = function_rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (function_rule.parsed_prelude.kind != ParsedRulePreludeKind::Function)
-        return nullptr;
+    VERIFY(function_rule.is_block_rule);
+    VERIFY(function_rule.parsed_prelude.kind == ParsedRulePreludeKind::Function);
     VERIFY(function_rule.parsed_prelude.name.has_value());
     VERIFY(function_rule.parsed_prelude.syntax.has_value());
 
@@ -762,39 +504,18 @@ GC::Ptr<CSSFunctionRule> Parser::convert_to_function_rule(AtRule const& function
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 {
-    m_rule_context.append(RuleContext::AtPage);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::AtPage);
-    };
-
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // @page = @page <page-selector-list>? { <declaration-rule-list> }
-    if (!page_rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = "@page"_utf16_fly_string,
-            .prelude = page_rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (page_rule.parsed_prelude.kind != ParsedRulePreludeKind::PageSelectors)
-        return nullptr;
+    VERIFY(page_rule.is_block_rule);
+    VERIFY(page_rule.parsed_prelude.kind == ParsedRulePreludeKind::PageSelectors);
     auto page_selectors = page_rule.parsed_prelude.page_selectors;
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     page_rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {
             if (auto converted_rule = convert_to_rule<CSSNestedDeclarations>(at_rule, Nested::No)) {
-                if (is<CSSMarginRule>(*converted_rule)) {
-                    child_rules.append(*converted_rule);
-                } else {
-                    ErrorReporter::the().report(InvalidRuleLocationError {
-                        .outer_rule_name = "@page"_utf16_fly_string,
-                        .inner_rule_name = Utf16FlyString::from_utf8(converted_rule->class_name()),
-                    });
-                }
+                VERIFY(is<CSSMarginRule>(*converted_rule));
+                child_rules.append(*converted_rule);
             }
         },
         [](auto&) {});
@@ -805,29 +526,8 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
 {
-    m_rule_context.append(RuleContext::Margin);
-    ScopeGuard guard = [&] {
-        [[maybe_unused]] auto last = m_rule_context.take_last();
-        VERIFY(last == RuleContext::Margin);
-    };
-
-    if (!rule.is_block_rule) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = Utf16String::formatted("@{}", rule.name),
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Must be a block, not a statement."_string,
-        });
-        return nullptr;
-    }
-
-    if (rule.parsed_prelude.kind != ParsedRulePreludeKind::Empty) {
-        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
-            .rule_name = Utf16String::formatted("@{}", rule.name),
-            .prelude = rule.prelude_text.to_utf8(),
-            .description = "Prelude is not allowed."_string,
-        });
-        return {};
-    }
+    VERIFY(rule.is_block_rule);
+    VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Empty);
 
     // https://drafts.csswg.org/css-page-3/#syntax-page-selector
     // There are lots of these, but they're all in the format:

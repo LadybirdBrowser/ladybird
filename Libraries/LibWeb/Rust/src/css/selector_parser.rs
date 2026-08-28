@@ -1069,10 +1069,14 @@ pub(crate) fn parse_selector_list<'a>(
 
 pub(crate) fn parse_selector_list_from_component_values(
     values: &[ComponentValue],
+    declared_namespaces: &[TokenizerInput<'_>],
     selector_type: SelectorType,
 ) -> Result<RustParsedSelectorList, ()> {
-    let selectors =
-        SelectorParser::new(None).parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
+    let selectors = SelectorParser::new(Some(declared_namespaces)).parse_selector_list(
+        values,
+        selector_type,
+        SelectorParsingMode::Standard,
+    )?;
     Ok(RustParsedSelectorList::new(selectors))
 }
 
