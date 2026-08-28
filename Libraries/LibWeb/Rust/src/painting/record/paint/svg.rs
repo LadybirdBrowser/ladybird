@@ -5,13 +5,13 @@
  */
 
 use crate::css::css_enums::paint_order;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::DisplayListGradientSpreadMethod;
 use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
 use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvgPaintStyleKind};
-use crate::painting::paintable_data::PaintableKind;
+use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::paint::background::paint_image;
@@ -58,8 +58,9 @@ pub(crate) fn svg_paint_color(paint: &crate::css::computed_value_types::Computed
 fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (SvgPaintFacts, Vec<f32>) {
     use crate::css::css_enums::{fill_rule, overflow, stroke_linecap, stroke_linejoin, vector_effect};
     let layout_arena = recorder.layout_arena;
-    let kind = layout_arena.paintable_data(paintable).kind;
-    let viewport = (kind == PaintableKind::SVGPathPaintable)
+    let kind = layout_arena.node_kind_if_live(paintable);
+    let viewport = kind
+        .is_some_and(node_painting::is_svg_path)
         .then(|| crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, paintable))
         .flatten();
     let mut facts = SvgPaintFacts {
@@ -67,7 +68,7 @@ fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (
         viewport: viewport.map_or([0.0; 4], |rect| [rect.x, rect.y, rect.width, rect.height]),
         ..SvgPaintFacts::default()
     };
-    if kind == PaintableKind::SVGImagePaintable {
+    if kind == Some(NodeKind::SVGImageBox) {
         let image = recorder
             .paint_host
             .svg_image_facts(recorder.layout_node_shell(paintable));
@@ -210,7 +211,11 @@ fn paint_style_from_ffi(
 }
 
 pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
-    if recorder.data(paintable).kind != crate::painting::paintable_data::PaintableKind::SVGPathPaintable {
+    if !recorder
+        .layout_arena
+        .node_kind_if_live(paintable)
+        .is_some_and(node_painting::is_svg_path)
+    {
         return;
     }
     if recorder.draw_svg_geometry_for_clip_path {

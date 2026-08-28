@@ -13,6 +13,7 @@ use crate::painting::display_list::commands::ContextRef;
 use crate::painting::fragment_ownership;
 use crate::painting::hit_test::*;
 use crate::painting::host::FfiHitTestTextNodeFacts;
+use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::text_fragment;
@@ -56,8 +57,9 @@ pub(crate) fn hit_test_facts(
         inputs.viewport_wheel_overflow_x,
         inputs.viewport_wheel_overflow_y,
     );
-    let kind = arena.paintable_data(paintable).kind;
-    let svg_path = kind == PaintableKind::SVGPathPaintable;
+    let svg_path = arena
+        .node_kind_if_live(paintable)
+        .is_some_and(node_painting::is_svg_path);
     let svg = style.inherited_svg();
     HitTestFacts {
         visible_for_hit_testing: arena.paintable_row_is_populated(paintable)
@@ -118,13 +120,16 @@ impl<'a> PaintRecorder<'a> {
         if self.nested.is_some() {
             return;
         }
-        let kind = self.data(paintable).kind;
-        if kind == PaintableKind::InlinePaintable {
+        if node_painting::is_inline(self.layout_arena, paintable) {
             self.record_inline_hit_test_items(paintable, phase);
-        } else if kind.has_lines() {
+        } else if node_painting::has_lines(self.layout_arena, paintable) {
             self.record_base_hit_test_items(paintable, phase);
             self.record_lines_hit_test_items(paintable, phase);
-        } else if kind == PaintableKind::SVGPathPaintable {
+        } else if self
+            .layout_arena
+            .node_kind_if_live(paintable)
+            .is_some_and(node_painting::is_svg_path)
+        {
             self.record_svg_path_hit_test_items(paintable, phase);
         } else {
             self.record_base_hit_test_items(paintable, phase);
@@ -264,7 +269,7 @@ impl<'a> PaintRecorder<'a> {
         if block.is_invalid() || !self.layout_arena.paintable_row_is_populated(block) {
             return None;
         }
-        self.data(block).kind.has_lines().then_some(block)
+        node_painting::has_lines(self.layout_arena, block).then_some(block)
     }
 
     fn piece_of(&self, root: NodeSlotId, piece_index: u32) -> InlineBoxPieceRecord {
@@ -451,7 +456,7 @@ impl<'a> PaintRecorder<'a> {
         let block = self.data(paintable).containing_block;
         if block.is_invalid()
             || !self.layout_arena.paintable_row_is_populated(block)
-            || !self.data(block).kind.has_lines()
+            || !node_painting::has_lines(self.layout_arena, block)
         {
             return None;
         }

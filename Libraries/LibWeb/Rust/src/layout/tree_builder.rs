@@ -1482,7 +1482,7 @@ fn transfer_fragments_to_replacement_box(
     }
     let paintable_rows = arena.paintable_rows();
     if !paintable_rows.paintable_row_is_populated(containing_block)
-        || !paintable_rows.paintable_data(containing_block).kind.has_lines()
+        || !crate::painting::node_painting::has_lines(&paintable_rows, containing_block)
     {
         return;
     }

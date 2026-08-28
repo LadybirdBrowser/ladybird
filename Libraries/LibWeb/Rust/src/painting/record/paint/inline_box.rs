@@ -19,7 +19,7 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
         let block = recorder.data(paintable).containing_block;
         if block.is_invalid()
             || !recorder.layout_arena.paintable_row_is_populated(block)
-            || !recorder.data(block).kind.has_lines()
+            || !crate::painting::node_painting::has_lines(recorder.layout_arena, block)
         {
             return;
         }

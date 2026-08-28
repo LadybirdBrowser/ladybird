@@ -6,8 +6,7 @@
 
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::node_facts;
-use crate::painting::paintable_data::*;
+use crate::painting::node_painting;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::stacking_context::NO_STACKING_CONTEXT;
 
@@ -63,15 +62,9 @@ pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintableRowsRead, pai
     // Whether this box paints its own foreground (fragments and caret) instead of the
     // containing block: it forms a group that content must be recorded inside.
     let data = layout_arena.paintable_data(paintable);
-    data.kind == PaintableKind::InlinePaintable
+    node_painting::is_inline(layout_arena, paintable)
         && (data.stacking_context != NO_STACKING_CONTEXT
             || crate::painting::style_queries::is_positioned(layout_arena, paintable))
-}
-
-pub(crate) fn node_is_fragmented_inline(layout_arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    layout_arena
-        .node_data_if_live(node)
-        .is_some_and(|data| node_facts::node_is_fragmented_inline(data, layout_arena.node_style_if_live(node)))
 }
 
 pub(crate) fn nearest_fragmented_inline_ancestor(
@@ -84,7 +77,7 @@ pub(crate) fn nearest_fragmented_inline_ancestor(
         if !display.is_some_and(|display| display.is_inline_outside() && display.is_flow_inside()) {
             break;
         }
-        if node_is_fragmented_inline(layout_arena, candidate) {
+        if node_painting::is_fragmented_inline(layout_arena, candidate) {
             return Some(candidate);
         }
         ancestor = layout_arena.node_parent_if_live(candidate);
@@ -119,8 +112,9 @@ pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, v
         if let Some(first_child) = crate::painting::paint_order::first_paint_child(layout_arena, current) {
             stack.push(first_child);
         }
-        let data = layout_arena.paintable_data(current);
-        if data.kind.has_lines() && !layout_arena.paintable_side_data(current).inline_box_pieces.is_empty() {
+        if node_painting::has_lines(layout_arena, current)
+            && !layout_arena.paintable_side_data(current).inline_box_pieces.is_empty()
+        {
             assign_for_block(layout_arena, current);
         }
     }
@@ -134,9 +128,7 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
         if node.is_invalid() || layout_arena.shell_if_live(node).is_null() {
             return None;
         }
-        (layout_arena.paintable_row_is_populated(node)
-            && layout_arena.paintable_data(node).kind == PaintableKind::InlinePaintable)
-            .then_some(node)
+        (layout_arena.paintable_row_is_populated(node) && node_painting::is_inline(layout_arena, node)).then_some(node)
     };
 
     // Start every piece's box from a clean slate.
@@ -199,7 +191,7 @@ pub(crate) fn effective_filter(
     if let Some(filter) = &layout_arena.paintable_side_data(paintable).fragment_ownership {
         return filter.clone();
     }
-    if layout_arena.paintable_data(paintable).kind.has_lines() {
+    if node_painting::has_lines(layout_arena, paintable) {
         return FragmentOwnershipFilter::everything();
     }
     FragmentOwnershipFilter::default()

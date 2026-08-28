@@ -5,13 +5,12 @@
  */
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
     ChromeGeometry, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
 };
 use crate::painting::display_list::commands::*;
 use crate::painting::ffi::ScrollDirection;
-use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::style_queries;
@@ -207,7 +206,7 @@ impl PaintRecorder<'_> {
             Some(ancestor) => self.data(ancestor).own_scroll_node_index,
             None => VISUAL_VIEWPORT_NODE_INDEX,
         };
-        let is_viewport = self.data(paintable).kind == PaintableKind::ViewportPaintable;
+        let is_viewport = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
         let scrollport_rect = if is_viewport {
             IntRect::new(
                 0,
@@ -243,7 +242,7 @@ impl PaintRecorder<'_> {
     }
 
     fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {
-        let records_viewport_scrollbars = self.data(paintable).kind == PaintableKind::ViewportPaintable
+        let records_viewport_scrollbars = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             && self.inputs.async_scrolling_enabled
             && self.inputs.paint_viewport_scrollbars
             && self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {

@@ -1120,9 +1120,9 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             auto const* row = committed_row(layout_node);
             VERIFY(row);
-            auto kind = row->kind;
+            auto kind = layout_node.kind();
             Layout::RustFFI::FfiReplacedPaintFacts facts {};
-            if (kind == Layout::RustFFI::PaintableKind::ImagePaintable) {
+            if (kind == Layout::RustFFI::NodeKind::ImageBox) {
                 auto const& image_provider = static_cast<Layout::Box const&>(layout_node).image_provider();
                 facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
                 facts.natural_width = image_provider.intrinsic_width();
@@ -1134,7 +1134,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 }
                 if (selection_state(layout_node) != SelectionState::None)
                     facts.selection_background_color = selection_style(layout_node).background_color;
-            } else if (kind == Layout::RustFFI::PaintableKind::CanvasPaintable) {
+            } else if (kind == Layout::RustFFI::NodeKind::CanvasBox) {
                 auto& canvas_element = as<HTML::HTMLCanvasElement>(*layout_node.dom_node());
                 if (auto content_size = canvas_element.canvas_surface_content_size(); content_size.has_value()) {
                     facts.has_canvas_content = true;
@@ -1143,7 +1143,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     facts.canvas_id = canvas_element.canvas_id().value().value();
                     facts.canvas_content_generation = canvas_element.content_generation();
                 }
-            } else if (kind == Layout::RustFFI::PaintableKind::VideoPaintable) {
+            } else if (kind == Layout::RustFFI::NodeKind::VideoBox) {
                 auto const& video_element = as<HTML::HTMLVideoElement>(*layout_node.dom_node());
                 switch (video_element.current_representation()) {
                 case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
@@ -1191,7 +1191,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                         facts.composited_context_id = context_id->value();
                     }
                 }
-            } else if (kind == Layout::RustFFI::PaintableKind::CheckBoxPaintable || kind == Layout::RustFFI::PaintableKind::RadioButtonPaintable) {
+            } else if (kind == Layout::RustFFI::NodeKind::CheckBox || kind == Layout::RustFFI::NodeKind::RadioButton) {
                 auto const& input = as<HTML::HTMLInputElement const>(*layout_node.dom_node());
                 facts.enabled = input.enabled();
                 facts.checked = input.checked();
@@ -1211,9 +1211,9 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             VERIFY(row);
             Layout::RustFFI::FfiImagePaintFacts facts {};
             GC::Ptr<HTML::DecodedImageData> decoded_image_data;
-            if (row->kind == Layout::RustFFI::PaintableKind::ImagePaintable)
+            if (layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox)
                 decoded_image_data = static_cast<Layout::Box const&>(layout_node).image_provider().decoded_image_data();
-            else if (row->kind == Layout::RustFFI::PaintableKind::SVGImagePaintable) {
+            else if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox) {
                 auto const& image_provider = as<SVG::SVGImageElement>(*layout_node.dom_node());
                 decoded_image_data = image_provider.decoded_image_data();
             }
@@ -1258,7 +1258,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* row = committed_row(layout_node);
             VERIFY(row);
-            VERIFY(row->kind == Layout::RustFFI::PaintableKind::SVGImagePaintable);
+            VERIFY(layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox);
             Layout::RustFFI::FfiSvgImageFacts facts {};
             auto const& image_provider = as<SVG::SVGImageElement>(*layout_node.dom_node());
             facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;

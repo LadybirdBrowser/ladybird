@@ -16,6 +16,7 @@ use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
+use crate::painting::node_painting;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -53,8 +54,7 @@ pub(crate) fn transform_reference_box(
 ) -> CssPixelRect {
     use css_enums::transform_box::{BORDER_BOX, CONTENT_BOX, FILL_BOX, STROKE_BOX, VIEW_BOX};
     let mut transform_box = style.transform().transform_box;
-    let data = layout_arena.paintable_data(slot);
-    if paintable_geometry::is_svg_paintable(data.kind) {
+    if layout_arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg) {
         transform_box = match transform_box {
             CONTENT_BOX => FILL_BOX,
             BORDER_BOX => STROKE_BOX,
@@ -438,12 +438,11 @@ fn overflow_property_applies(layout_arena: &impl PaintableRowsRead, slot: NodeSl
     // Overflow properties apply to block containers, flex containers and grid containers.
     // FIXME: Ideally we would check whether overflow applies positively rather than listing exceptions. However,
     // not all elements that should support overflow are currently identifiable that way.
-    let data = layout_arena.paintable_data(slot);
-    if paintable_geometry::is_svg_paintable(data.kind) {
+    if layout_arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg) {
         return false;
     }
     let display = crate::painting::style_queries::display(layout_arena, slot);
-    if crate::painting::fragment_ownership::node_is_fragmented_inline(layout_arena, slot) {
+    if node_painting::is_fragmented_inline(layout_arena, slot) {
         return false;
     }
     if display.is_ruby_inside() {
@@ -650,18 +649,6 @@ pub(crate) struct MaskLayerPresenceEntry {
     pub kind: libgfx_rust::MaskKind,
 }
 
-fn kind_overrides_svg_mask_virtuals(kind: crate::painting::paintable_data::PaintableKind) -> bool {
-    use crate::painting::paintable_data::PaintableKind;
-    matches!(
-        kind,
-        PaintableKind::SVGGraphicsPaintable
-            | PaintableKind::SVGPathPaintable
-            | PaintableKind::SVGImagePaintable
-            | PaintableKind::SVGMaskPaintable
-            | PaintableKind::SVGForeignObjectPaintable
-    )
-}
-
 pub(crate) fn mask_layer_presence(
     layout_arena: &impl PaintableRowsRead,
     callbacks: &FfiVisualContextHostCallbacks,
@@ -670,7 +657,6 @@ pub(crate) fn mask_layer_presence(
 ) -> Vec<MaskLayerPresenceEntry> {
     use super::MaskLayerOrigin;
     let mut layers = Vec::new();
-    let data = layout_arena.paintable_data(slot);
     if include_css_mask_layers {
         let node = slot;
         if let Some(style) = layout_arena.node_style_if_live(node)
@@ -687,7 +673,10 @@ pub(crate) fn mask_layer_presence(
             });
         }
     }
-    if kind_overrides_svg_mask_virtuals(data.kind) {
+    if layout_arena
+        .node_kind_if_live(slot)
+        .is_some_and(node_painting::supports_svg_masking)
+    {
         let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(slot));
         if svg_facts.mask_area.has_value {
             layers.push(MaskLayerPresenceEntry {

@@ -8,7 +8,7 @@ use super::local_frames::LocalFrameBuilder;
 use super::refresh::compute_sticky_data;
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
-use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::painting::host::FfiVisualContextHostCallbacks;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
@@ -324,8 +324,7 @@ impl<Arena: PaintableRowsRead> Builder<'_, Arena> {
         if let SpatialData::Scroll(scroll) = &mut self.tree.spatial_nodes[node_index.0 as usize].data {
             scroll.state_slot = slot;
         }
-        let data = self.layout_arena.paintable_data(paintable);
-        if data.kind != crate::painting::paintable_data::PaintableKind::ViewportPaintable
+        if self.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport)
             && let Some(style) = self.layout_arena.node_style_if_live(paintable)
         {
             use crate::css::css_enums::overflow;

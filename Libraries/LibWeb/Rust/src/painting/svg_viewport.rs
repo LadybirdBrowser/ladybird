@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_data::PaintableKind;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use libgfx_rust::FloatRect;
@@ -31,7 +30,7 @@ pub(crate) fn svg_viewport_user_rect(arena: &impl PaintableRowsRead, viewport: N
         );
     }
 
-    let size = if arena.paintable_data(viewport).kind == PaintableKind::SVGSVGPaintable {
+    let size = if arena.node_kind_if_live(viewport) == Some(NodeKind::SVGSVGBox) {
         let size = paintable_geometry::committed_svg_viewport_size(arena, viewport);
         (size.width.to_float(), size.height.to_float())
     } else {

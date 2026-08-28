@@ -15,14 +15,16 @@
 
 namespace Web::Painting {
 
-static bool kind_supports_svg_masking(Layout::RustFFI::PaintableKind kind)
+static bool kind_supports_svg_masking(Layout::RustFFI::NodeKind kind)
 {
     switch (kind) {
-    case Layout::RustFFI::PaintableKind::SVGGraphicsPaintable:
-    case Layout::RustFFI::PaintableKind::SVGPathPaintable:
-    case Layout::RustFFI::PaintableKind::SVGImagePaintable:
-    case Layout::RustFFI::PaintableKind::SVGMaskPaintable:
-    case Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable:
+    case Layout::RustFFI::NodeKind::SVGGraphicsBox:
+    case Layout::RustFFI::NodeKind::SVGGeometryBox:
+    case Layout::RustFFI::NodeKind::SVGTextBox:
+    case Layout::RustFFI::NodeKind::SVGTextPathBox:
+    case Layout::RustFFI::NodeKind::SVGImageBox:
+    case Layout::RustFFI::NodeKind::SVGMaskBox:
+    case Layout::RustFFI::NodeKind::SVGForeignObjectBox:
         return true;
     default:
         return false;
@@ -129,7 +131,7 @@ static Gfx::AffineTransform object_bounding_box_content_units_transform(SVG::SVG
 Optional<CSSPixelRect> mask_area(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    if (!row || !kind_supports_svg_masking(row->kind))
+    if (!row || !kind_supports_svg_masking(node.kind()))
         return {};
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
     auto* mask_box = get_mask_box(graphics_element);
@@ -167,7 +169,7 @@ static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
 Optional<Gfx::MaskKind> mask_type(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    if (!row || !kind_supports_svg_masking(row->kind))
+    if (!row || !kind_supports_svg_masking(node.kind()))
         return {};
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
     if (auto* mask_box = get_mask_box(graphics_element))
@@ -178,7 +180,7 @@ Optional<Gfx::MaskKind> mask_type(Layout::Node const& node)
 Optional<CSSPixelRect> clip_area(Layout::Node const& node)
 {
     auto const* row = committed_row(node);
-    if (!row || !kind_supports_svg_masking(row->kind))
+    if (!row || !kind_supports_svg_masking(node.kind()))
         return {};
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
     auto const* clip_box = get_clip_box(graphics_element);

@@ -13,11 +13,11 @@ use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::fragment_ownership;
 use crate::painting::hit_test::*;
 use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiVisualContextHostCallbacks,
 };
+use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::masks::MaskLayerSet;
@@ -174,7 +174,7 @@ impl PaintRecorder<'_> {
     }
 
     fn is_fragmented_inline(&self, paintable: NodeSlotId) -> bool {
-        fragment_ownership::node_is_fragmented_inline(self.layout_arena, paintable)
+        node_painting::is_fragmented_inline(self.layout_arena, paintable)
     }
 
     fn establishes_inline_level_painting_context(&self, paintable: NodeSlotId) -> bool {
@@ -231,7 +231,7 @@ impl PaintRecorder<'_> {
         let node = &stacking_contexts.nodes[index as usize];
         let paintable = node.paintable;
         let children = &node.children;
-        if self.data(paintable).kind == PaintableKind::SVGSVGPaintable {
+        if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
             self.paint_node(paintable, PaintPhase::Background);
             self.paint_node(paintable, PaintPhase::Border);
             self.paint_svg_box(paintable, PaintPhase::Foreground);
@@ -356,7 +356,7 @@ impl PaintRecorder<'_> {
     }
 
     fn paint_node_as_stacking_context(&mut self, paintable: NodeSlotId) {
-        if self.data(paintable).kind == PaintableKind::SVGSVGPaintable {
+        if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
             self.paint_svg(paintable, PaintPhase::Foreground);
             return;
         }
@@ -408,7 +408,6 @@ impl PaintRecorder<'_> {
         let positioned = style_queries::is_positioned(self.layout_arena, child);
         let floating = style_queries::is_floating(self.layout_arena, child);
         let inline = style_queries::is_inline(self.layout_arena, child);
-        let child_kind = self.data(child).kind;
         let is_item = style_queries::is_flex_or_grid_item(self.layout_arena, child);
 
         // Positioned descendants at stack level 0 are painted in a separate pass.
@@ -416,7 +415,7 @@ impl PaintRecorder<'_> {
             return;
         }
 
-        if child_kind == PaintableKind::SVGSVGPaintable {
+        if self.layout_kind(child) == Some(NodeKind::SVGSVGBox) {
             self.paint_svg(child, to_paint_phase(phase));
             return;
         }
@@ -629,10 +628,10 @@ impl PaintRecorder<'_> {
         if self.layout_kind(svg_box) == Some(NodeKind::SVGForeignObjectBox) {
             self.record_foreign_object_descendant_hit_test_items(svg_box);
         }
-        let kind = self.data(svg_box).kind;
-        if kind != PaintableKind::SVGSVGPaintable
-            && !crate::painting::paintable_geometry::is_svg_paintable(kind)
-            && self.layout_kind(svg_box).is_some_and(node_facts::kind_is_replaced_box)
+        let kind = self.layout_kind(svg_box);
+        if kind != Some(NodeKind::SVGSVGBox)
+            && !kind.is_some_and(node_painting::is_svg)
+            && kind.is_some_and(node_facts::kind_is_replaced_box)
         {
             crate::painting::record::paint::paint(self, svg_box, PaintPhase::Background);
         }
@@ -665,10 +664,10 @@ impl PaintRecorder<'_> {
     }
 
     fn context_for_phase(&self, paintable: NodeSlotId, phase: PaintPhase) -> ContextRef {
-        let data = self.data(paintable);
         // Text fragments are content of the block container (or of a self-painting inline box).
         // They need the descendants' visual context, not the element's own visual context.
-        let foreground_paints_descendant_content = data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable;
+        let foreground_paints_descendant_content = node_painting::has_lines(self.layout_arena, paintable)
+            || node_painting::is_inline(self.layout_arena, paintable);
         if foreground_paints_descendant_content && phase == PaintPhase::Foreground {
             self.for_descendants_context(paintable)
         } else {
@@ -691,7 +690,10 @@ impl PaintRecorder<'_> {
         // captures can never be reused.
         let skip_cache = data.has_fixed_background_visual_context
             || (data.has_scroll_offset_dependent_background && phase == PaintPhase::Background)
-            || (data.kind.foreground_is_never_cached() && phase == PaintPhase::Foreground);
+            || (self
+                .layout_kind(paintable)
+                .is_some_and(node_painting::foreground_is_never_cached)
+                && phase == PaintPhase::Foreground);
         if skip_cache {
             self.prevent_descendant_subtree_caching();
         }

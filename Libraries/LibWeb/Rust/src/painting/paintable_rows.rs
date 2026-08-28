@@ -8,6 +8,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::{fragment_tree, used_values};
 use crate::painting::display_list::commands::ContextRef;
+use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::record::cache::PaintCache;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -182,7 +183,7 @@ where
             return None;
         }
         let root = self.paintable_data(inline_paintable).containing_block;
-        (self.paintable_row_is_populated(root) && self.paintable_data(root).kind.has_lines()).then_some(root)
+        (self.paintable_row_is_populated(root) && node_painting::has_lines(self, root)).then_some(root)
     }
 
     pub(crate) fn visual_context_assignments(&self) -> Vec<VisualContextAssignmentSnapshot> {
@@ -251,7 +252,7 @@ where
                 self.mark_descendant_subtree_caches_dirty_along_paint_chain(node);
                 return;
             }
-            if !crate::painting::fragment_ownership::node_is_fragmented_inline(self.arena.deref(), node) {
+            if !node_painting::is_fragmented_inline(self.arena.deref(), node) {
                 return;
             }
             let Some(parent) = self.arena.node_parent_if_live(node) else {
@@ -278,11 +279,11 @@ where
                 child = crate::painting::paint_order::next_paint_sibling(self, child_slot);
             }
         }
-        if self.paintable_data(id).kind == PaintableKind::InlinePaintable {
+        if node_painting::is_inline(self, id) {
             let mut ancestor = crate::painting::paint_order::paint_parent(self, id);
             while let Some(current) = ancestor {
                 self.invalidate_paint_cache(current);
-                if self.paintable_data(current).kind.has_lines() {
+                if node_painting::has_lines(self, current) {
                     break;
                 }
                 ancestor = crate::painting::paint_order::paint_parent(self, current);
@@ -304,11 +305,10 @@ where
                 stack.push(next_sibling);
             }
 
-            let data = self.paintable_data(current);
             if crate::painting::style_queries::is_text_decoration_propagation_boundary(self.arena.deref(), current) {
                 continue;
             }
-            if data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable {
+            if node_painting::has_lines(self, current) || node_painting::is_inline(self, current) {
                 self.mark_paint_cache_self_dirty(current);
             }
             if let Some(first_child) = crate::painting::paint_order::first_paint_child(self, current) {

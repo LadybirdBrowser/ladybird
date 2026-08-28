@@ -5,21 +5,20 @@
  */
 
 use crate::css::css_pixels::CssPixels;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
     ChromeGeometry, is_chrome_mirrored, scrollbar_colors_for_paint, scrollbar_is_enlarged,
 };
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
 use crate::painting::ffi::ScrollDirection;
-use crate::painting::paintable_data::PaintableKind;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntRect, LineStyle, ShouldAntiAlias, WindingRule};
 
 pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
-    let kind = recorder.data(paintable).kind;
+    let is_viewport = recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
     let own_scroll_node_index = recorder.data(paintable).own_scroll_node_index;
-    if kind != PaintableKind::ViewportPaintable
+    if !is_viewport
         && own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
         && !recorder.hit_test_facts(paintable).has_resizer
     {
@@ -29,8 +28,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
     let chrome_geometry = ChromeGeometry::for_recording(recorder.layout_arena, &recorder.inputs);
     let style = recorder.layout_arena.node_style_if_live(paintable);
     let paints_scrollbars = style.is_some_and(|style| {
-        ((recorder.inputs.paint_viewport_scrollbars && !recorder.inputs.async_scrolling_enabled)
-            || kind != PaintableKind::ViewportPaintable)
+        ((recorder.inputs.paint_viewport_scrollbars && !recorder.inputs.async_scrolling_enabled) || !is_viewport)
             && style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
     });
 
@@ -113,7 +111,8 @@ fn paint_middle_button_scroll_indicator(recorder: &mut PaintRecorder<'_>, painta
     const ARROW_SIZE: f32 = 6.0;
     const ARROW_OFFSET: f32 = 8.0;
 
-    if recorder.data(paintable).kind != PaintableKind::ViewportPaintable || !recorder.inputs.middle_button_scroll_active
+    if recorder.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport)
+        || !recorder.inputs.middle_button_scroll_active
     {
         return;
     }

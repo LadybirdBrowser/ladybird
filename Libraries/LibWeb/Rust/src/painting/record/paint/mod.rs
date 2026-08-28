@@ -22,57 +22,63 @@ pub mod table_borders;
 pub mod text;
 pub mod text_decoration;
 
-use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_data::PaintableKind;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::node_painting;
 use crate::painting::record::{PaintPhase, PaintRecorder};
 
 pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
-    let kind = recorder.data(paintable).kind;
-    match kind {
-        PaintableKind::PaintableWithLines
-        | PaintableKind::ViewportPaintable
-        | PaintableKind::SVGForeignObjectPaintable => {
-            if kind == PaintableKind::SVGForeignObjectPaintable && !recorder.is_visible(paintable) {
-                return;
-            }
-            paint_base(recorder, paintable, phase);
-            if phase == PaintPhase::Foreground {
-                // visibility: hidden on this block does not hide descendants that set visibility:
-                // visible again, so fragments (and the caret between their glyphs) are filtered by
-                // their own node's visibility instead.
-                text::paint_fragments_foreground(recorder, paintable, None);
-                text::paint_cursor(recorder, paintable, None);
-            }
+    let Some(kind) = recorder.layout_arena.node_kind_if_live(paintable) else {
+        return;
+    };
+    if node_painting::is_inline(recorder.layout_arena, paintable) {
+        inline_box::paint(recorder, paintable, phase);
+        return;
+    }
+    if node_painting::has_lines(recorder.layout_arena, paintable) {
+        if kind == NodeKind::SVGForeignObjectBox && !recorder.is_visible(paintable) {
+            return;
         }
-        PaintableKind::Paintable => paint_base(recorder, paintable, phase),
-        PaintableKind::InlinePaintable => inline_box::paint(recorder, paintable, phase),
-        PaintableKind::ImagePaintable
-        | PaintableKind::CanvasPaintable
-        | PaintableKind::VideoPaintable
-        | PaintableKind::CheckBoxPaintable
-        | PaintableKind::RadioButtonPaintable
-        | PaintableKind::NavigableContainerViewportPaintable => {
+        paint_base(recorder, paintable, phase);
+        if phase == PaintPhase::Foreground {
+            // visibility: hidden on this block does not hide descendants that set visibility:
+            // visible again, so fragments (and the caret between their glyphs) are filtered by
+            // their own node's visibility instead.
+            text::paint_fragments_foreground(recorder, paintable, None);
+            text::paint_cursor(recorder, paintable, None);
+        }
+        return;
+    }
+    match kind {
+        NodeKind::Box | NodeKind::ReplacedBox | NodeKind::AudioBox | NodeKind::SVGBox => {
+            paint_base(recorder, paintable, phase);
+        }
+        NodeKind::ImageBox
+        | NodeKind::CanvasBox
+        | NodeKind::VideoBox
+        | NodeKind::CheckBox
+        | NodeKind::RadioButton
+        | NodeKind::NavigableContainerViewport => {
             if !recorder.is_visible(paintable) {
                 return;
             }
             paint_base(recorder, paintable, phase);
             if phase == PaintPhase::Foreground {
                 match kind {
-                    PaintableKind::ImagePaintable => replaced::paint_image_foreground(recorder, paintable),
-                    PaintableKind::CanvasPaintable => replaced::paint_canvas_foreground(recorder, paintable),
-                    PaintableKind::VideoPaintable => replaced::paint_video_foreground(recorder, paintable),
-                    PaintableKind::NavigableContainerViewportPaintable => {
+                    NodeKind::ImageBox => replaced::paint_image_foreground(recorder, paintable),
+                    NodeKind::CanvasBox => replaced::paint_canvas_foreground(recorder, paintable),
+                    NodeKind::VideoBox => replaced::paint_video_foreground(recorder, paintable),
+                    NodeKind::NavigableContainerViewport => {
                         replaced::paint_navigable_container_foreground(recorder, paintable);
                     }
-                    PaintableKind::CheckBoxPaintable => form_controls::paint_check_box_foreground(recorder, paintable),
-                    PaintableKind::RadioButtonPaintable => {
+                    NodeKind::CheckBox => form_controls::paint_check_box_foreground(recorder, paintable),
+                    NodeKind::RadioButton => {
                         form_controls::paint_radio_button_foreground(recorder, paintable);
                     }
                     _ => unreachable!(),
                 }
             }
         }
-        PaintableKind::FieldSetPaintable => {
+        NodeKind::FieldSetBox => {
             if !recorder.is_visible(paintable) {
                 return;
             }
@@ -82,14 +88,33 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
             }
             fieldset::paint_border(recorder, paintable);
         }
-        PaintableKind::SVGSVGPaintable
-        | PaintableKind::SVGGraphicsPaintable
-        | PaintableKind::SVGMaskPaintable
-        | PaintableKind::SVGClipPaintable
-        | PaintableKind::SVGPatternPaintable => paint_base(recorder, paintable, phase),
-        PaintableKind::SVGPathPaintable => svg::paint_path(recorder, paintable, phase),
-        PaintableKind::SVGImagePaintable => svg::paint_image_element(recorder, paintable, phase),
-        PaintableKind::None => {}
+        NodeKind::SVGSVGBox
+        | NodeKind::SVGGraphicsBox
+        | NodeKind::SVGMaskBox
+        | NodeKind::SVGClipBox
+        | NodeKind::SVGPatternBox => paint_base(recorder, paintable, phase),
+        NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox => {
+            svg::paint_path(recorder, paintable, phase);
+        }
+        NodeKind::SVGImageBox => svg::paint_image_element(recorder, paintable, phase),
+        NodeKind::Unset
+        | NodeKind::BreakNode
+        | NodeKind::GeneratedTextNode
+        | NodeKind::Node
+        | NodeKind::NodeWithStyle
+        | NodeKind::TextNode
+        | NodeKind::TextSliceNode => {}
+        NodeKind::Viewport
+        | NodeKind::BlockContainer
+        | NodeKind::LegendBox
+        | NodeKind::TableWrapper
+        | NodeKind::TextAreaBox
+        | NodeKind::TextInputBox
+        | NodeKind::RangeInputBox
+        | NodeKind::ListItemMarkerBox
+        | NodeKind::SVGForeignObjectBox
+        | NodeKind::ListItemBox
+        | NodeKind::InlineNode => unreachable!("line and inline paintables are handled before kind dispatch"),
     }
 }
 
