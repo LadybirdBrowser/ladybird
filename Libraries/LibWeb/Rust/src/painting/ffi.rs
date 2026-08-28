@@ -853,6 +853,71 @@ pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_note_box_dirty(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    kind: crate::painting::host::FfiVisualContextBoxDirtyKind,
+) {
+    abort_on_panic(|| {
+        use crate::painting::host::FfiVisualContextBoxDirtyKind;
+        use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
+        let arena = unsafe { arena_from_handle(arena) };
+        if !arena.paintable_row_is_populated(slot) {
+            return;
+        }
+        let kind = match kind {
+            FfiVisualContextBoxDirtyKind::StyleValueChange => VisualContextBoxDirtyKind::StyleValueChange,
+            FfiVisualContextBoxDirtyKind::StyleStructuralChange => VisualContextBoxDirtyKind::StyleStructuralChange,
+            FfiVisualContextBoxDirtyKind::ScrollableOverflowFlipped => {
+                VisualContextBoxDirtyKind::ScrollableOverflowFlipped
+            }
+        };
+        arena.note_visual_context_box_dirty(slot, kind);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_request_full_rebuild(
+    arena: *mut c_void,
+    reason: crate::painting::host::FfiVisualContextGlobalRebuildReason,
+) {
+    abort_on_panic(|| {
+        use crate::painting::host::FfiVisualContextGlobalRebuildReason;
+        use crate::painting::visual_context::dirty::VisualContextGlobalRebuildReason;
+        let arena = unsafe { arena_from_handle(arena) };
+        let reason = match reason {
+            FfiVisualContextGlobalRebuildReason::FirstBuild => VisualContextGlobalRebuildReason::FirstBuild,
+            FfiVisualContextGlobalRebuildReason::DocumentWideStructuralChange => {
+                VisualContextGlobalRebuildReason::DocumentWideStructuralChange
+            }
+            FfiVisualContextGlobalRebuildReason::FilterResourcesChanged => {
+                VisualContextGlobalRebuildReason::FilterResourcesChanged
+            }
+            FfiVisualContextGlobalRebuildReason::ForcedForTesting => VisualContextGlobalRebuildReason::ForcedForTesting,
+        };
+        arena.request_full_visual_context_rebuild(reason);
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_pending_dirty_box_count(arena: *mut c_void) -> usize {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paint_state = arena.paint_state().borrow();
+        paint_state.visual_context.dirty_boxes.boxes.len()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_visual_context_node_count(
     arena: *mut c_void,
     slot: NodeSlotId,
@@ -974,6 +1039,7 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
         state.scroll_state = scroll_state;
         state.scroll_state_snapshot.clear();
         state.needs_to_refresh_scroll_state = true;
+        state.dirty_boxes.clear();
         if assignments_changed {
             arena.mark_all_descendant_subtree_caches_dirty();
         }

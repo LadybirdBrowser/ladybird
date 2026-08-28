@@ -11,6 +11,9 @@ use crate::painting::display_list::commands::ContextRef;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::record::cache::PaintCache;
+use crate::painting::visual_context::dirty::{
+    RemovedBoxBlocks, VisualContextBoxDirtyKind, VisualContextGlobalRebuildReason,
+};
 use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
 };
@@ -639,6 +642,25 @@ impl LayoutNodeArena {
             self.paintable_rows()
                 .mark_descendant_subtree_caches_dirty_along_paint_chain(id);
         }
+        if let Some(record) = self.take_paintable_visual_context_record(id) {
+            let former_paint_parent =
+                crate::painting::paint_order::paint_parent(&self.paintable_rows(), id).unwrap_or(NodeSlotId::INVALID);
+            self.paint_state()
+                .borrow_mut()
+                .visual_context
+                .dirty_boxes
+                .note_removed(RemovedBoxBlocks {
+                    slot: id,
+                    node_handles: record.node_handles,
+                    former_paint_parent,
+                });
+        } else {
+            self.paint_state()
+                .borrow_mut()
+                .visual_context
+                .dirty_boxes
+                .forget_box(id);
+        }
         self.clear_absolute_rect_memo();
         let store = &mut self.paintable_rows;
         let index = id.slot_index() as usize;
@@ -662,6 +684,17 @@ impl LayoutNodeArena {
         .ok()
     }
 
+    pub(crate) fn take_paintable_visual_context_record(&self, id: NodeSlotId) -> Option<PaintableVisualContextRecord> {
+        if !self.paintable_row_is_populated(id) {
+            return None;
+        }
+        self.paintable_rows
+            .visual_context_records
+            .borrow_mut()
+            .get_mut(id.slot_index() as usize)
+            .and_then(Option::take)
+    }
+
     pub(crate) fn set_paintable_visual_context_record(&self, id: NodeSlotId, record: PaintableVisualContextRecord) {
         debug_assert!(self.paintable_row_is_populated(id));
         self.paintable_rows.visual_context_records.borrow_mut()[id.slot_index() as usize] = Some(record);
@@ -676,6 +709,25 @@ impl LayoutNodeArena {
             Some(record) => read(&record.node_handles),
             None => read(&EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES),
         }
+    }
+
+    pub(crate) fn note_visual_context_box_dirty(&self, id: NodeSlotId, kind: VisualContextBoxDirtyKind) {
+        let pending_box_limit = self
+            .paintable_row_count()
+            .max(crate::painting::visual_context::dirty::MINIMUM_PENDING_DIRTY_BOX_LIMIT);
+        self.paint_state()
+            .borrow_mut()
+            .visual_context
+            .dirty_boxes
+            .note_box(id, kind, pending_box_limit);
+    }
+
+    pub(crate) fn request_full_visual_context_rebuild(&self, reason: VisualContextGlobalRebuildReason) {
+        self.paint_state()
+            .borrow_mut()
+            .visual_context
+            .dirty_boxes
+            .request_full_rebuild(reason);
     }
 
     pub(crate) fn prepare_paintable_row_freed_reset(&self, layout_slot_index: u32) -> Option<PaintableRowReset> {

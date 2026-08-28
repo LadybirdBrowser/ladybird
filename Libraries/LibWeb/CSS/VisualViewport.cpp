@@ -234,7 +234,7 @@ void VisualViewport::update_accumulated_visual_context()
         return;
     }
 
-    m_document->set_needs_accumulated_visual_contexts_update(true);
+    m_document->schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::FirstBuild);
 }
 
 }

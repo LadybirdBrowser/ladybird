@@ -13,6 +13,7 @@ use crate::layout::{
 };
 use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
+use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PreparedPaintable {
@@ -115,6 +116,8 @@ impl<'a> PaintableCommit<'a> {
             // their painted output changes exactly when the enclosing line root's fragment did.
             if row_existed_before_this_commit && enclosing_line_root_content_changed {
                 self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
+                self.arena()
+                    .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::InlineGeometryChanged);
             }
         }
         if row_existed_before_this_commit {
@@ -136,6 +139,7 @@ impl<'a> PaintableCommit<'a> {
             if node_kind == NodeKind::Viewport {
                 arena.paint_state().borrow_mut().reset_visual_context_state();
             }
+            arena.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::NewRow);
         }
         PreparedPaintable {
             has_paintable_row: true,
@@ -196,6 +200,13 @@ impl<'a> PaintableCommit<'a> {
             .is_some_and(|&offset_before_commit| offset_before_commit == link.committed_offset);
         if !(content_unchanged && offset_unchanged) {
             self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
+        }
+        if !offset_unchanged {
+            self.arena()
+                .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::MovedWithDescendants);
+        } else if !content_unchanged {
+            self.arena()
+                .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::RecommittedInPlace);
         }
         {
             let arena = self.arena_mut();
@@ -422,7 +433,12 @@ impl<'a> PaintableCommit<'a> {
         } else {
             NodeSlotId::INVALID
         };
-        paintable_rows.paintable_data_mut(node).containing_block = containing_block;
+        let data = paintable_rows.paintable_data_mut(node);
+        let containing_block_changed = data.containing_block != containing_block;
+        data.containing_block = containing_block;
+        if containing_block_changed {
+            paintable_rows.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ContainingBlockChanged);
+        }
     }
 
     pub(crate) fn assign_inline_box_geometry(&mut self, slot: NodeSlotId) {
@@ -503,10 +519,22 @@ impl<'a> PaintableCommit<'a> {
             let border_union = border_union.expect("border union set alongside content union");
             {
                 let data = paintable_rows.paintable_data_mut(piece_node);
-                data.offset = content_union.location().into();
-                data.content_size = content_union.size().into();
-                data.local_padding_box_union = padding_union.translated(-content_union.x, -content_union.y).into();
-                data.local_border_box_union = border_union.translated(-content_union.x, -content_union.y).into();
+                let new_offset = content_union.location().into();
+                let new_content_size = content_union.size().into();
+                let new_padding_box_union = padding_union.translated(-content_union.x, -content_union.y).into();
+                let new_border_box_union = border_union.translated(-content_union.x, -content_union.y).into();
+                let inline_geometry_changed = data.offset != new_offset
+                    || data.content_size != new_content_size
+                    || data.local_padding_box_union != new_padding_box_union
+                    || data.local_border_box_union != new_border_box_union;
+                data.offset = new_offset;
+                data.content_size = new_content_size;
+                data.local_padding_box_union = new_padding_box_union;
+                data.local_border_box_union = new_border_box_union;
+                if inline_geometry_changed {
+                    paintable_rows
+                        .note_visual_context_box_dirty(piece_node, VisualContextBoxDirtyKind::InlineGeometryChanged);
+                }
             }
             // This box has at most one piece per line, so its piece indices are ordered by line.
             paintable_rows.paintable_side_data_mut(piece_node).piece_indices = piece_indices;

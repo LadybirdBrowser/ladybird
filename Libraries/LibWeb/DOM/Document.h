@@ -1176,10 +1176,15 @@ public:
     LayoutTreeBuildStats const& layout_tree_build_stats() const { return m_layout_tree_build_stats; }
     void record_layout_tree_build(u64 rebuilt_subtree_root_count, bool escaped_rebuild_roots);
 
+    enum class AccumulatedVisualContextUpdateScope : u8 {
+        Values,
+        Structure,
+    };
     void set_needs_accumulated_visual_contexts_update(bool);
+    void schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason);
     bool can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const&) const;
-    void schedule_accumulated_visual_context_value_update(Element&);
-    void schedule_accumulated_visual_context_value_update(Layout::Node const&);
+    void schedule_accumulated_visual_context_update(Element&, AccumulatedVisualContextUpdateScope);
+    void schedule_accumulated_visual_context_update(Layout::Node const&, AccumulatedVisualContextUpdateScope);
     void schedule_scrollable_overflow_recalculation(Element&);
     void schedule_scrollable_overflow_recalculation(Layout::Node const&);
 

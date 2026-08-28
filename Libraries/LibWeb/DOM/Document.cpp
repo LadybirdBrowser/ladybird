@@ -10338,8 +10338,30 @@ void Document::set_needs_accumulated_visual_contexts_update(bool value)
         set_needs_repaint(InvalidateDisplayList::No);
 }
 
-void Document::schedule_accumulated_visual_context_value_update(Layout::Node const& layout_node)
+void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason reason)
 {
+    if (m_layout_node_arena)
+        Layout::RustFFI::layout_arena_visual_context_request_full_rebuild(m_layout_node_arena->handle(), reason);
+    set_needs_accumulated_visual_contexts_update(true);
+}
+
+void Document::schedule_accumulated_visual_context_update(Layout::Node const& layout_node, AccumulatedVisualContextUpdateScope scope)
+{
+    if (!Painting::has_committed_box(layout_node))
+        return;
+    auto slot = Painting::committed_row_slot(layout_node);
+    Layout::RustFFI::layout_arena_visual_context_note_box_dirty(
+        layout_node_arena().handle(),
+        slot,
+        scope == AccumulatedVisualContextUpdateScope::Values
+            ? Layout::RustFFI::FfiVisualContextBoxDirtyKind::StyleValueChange
+            : Layout::RustFFI::FfiVisualContextBoxDirtyKind::StyleStructuralChange);
+
+    if (scope == AccumulatedVisualContextUpdateScope::Structure) {
+        set_needs_accumulated_visual_contexts_update(true);
+        return;
+    }
+
     // NB: A full rebuild is already pending and will refresh all node values anyway.
     if (m_needs_accumulated_visual_contexts_update)
         return;
@@ -10348,24 +10370,35 @@ void Document::schedule_accumulated_visual_context_value_update(Layout::Node con
     static constexpr size_t max_pending_visual_context_value_updates = 1024;
     if (m_boxes_needing_visual_context_value_update.size() >= max_pending_visual_context_value_updates) {
         m_boxes_needing_visual_context_value_update.clear();
-        set_needs_accumulated_visual_contexts_update(true);
+        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::DocumentWideStructuralChange);
         return;
     }
 
-    if (Painting::has_committed_box(layout_node)) {
-        m_boxes_needing_visual_context_value_update.append(Painting::committed_row_slot(layout_node));
-        set_needs_repaint(InvalidateDisplayList::No);
-    }
+    m_boxes_needing_visual_context_value_update.append(slot);
+    set_needs_repaint(InvalidateDisplayList::No);
 }
 
-void Document::schedule_accumulated_visual_context_value_update(Element& element)
+void Document::schedule_accumulated_visual_context_update(Element& element, AccumulatedVisualContextUpdateScope scope)
 {
     if (auto* layout_node = element.unsafe_layout_node())
-        schedule_accumulated_visual_context_value_update(*layout_node);
+        schedule_accumulated_visual_context_update(*layout_node, scope);
     element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
         if (auto* pseudo_element_layout_node = pseudo_element.unsafe_layout_node())
-            schedule_accumulated_visual_context_value_update(*pseudo_element_layout_node);
+            schedule_accumulated_visual_context_update(*pseudo_element_layout_node, scope);
     });
+
+    // https://drafts.csswg.org/css-backgrounds/#root-background
+    // The root and body boxes paint each other's propagated background layers, so a structural
+    // change on either has to reach both.
+    if (scope != AccumulatedVisualContextUpdateScope::Structure)
+        return;
+    if (element.is_document_element()) {
+        if (auto* body = this->body(); body && body->unsafe_layout_node())
+            schedule_accumulated_visual_context_update(*body->unsafe_layout_node(), scope);
+    } else if (&element == body()) {
+        if (auto* document_element = this->document_element(); document_element && document_element->unsafe_layout_node())
+            schedule_accumulated_visual_context_update(*document_element->unsafe_layout_node(), scope);
+    }
 }
 
 void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& layout_node)
