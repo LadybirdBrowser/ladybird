@@ -277,6 +277,10 @@ impl DisplayListRecorder {
         self.builder.byte_size()
     }
 
+    pub fn bytes(&self) -> &[u8] {
+        self.builder.bytes()
+    }
+
     pub fn accumulated_visual_context(&self) -> ContextRef {
         self.context
     }
