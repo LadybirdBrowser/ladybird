@@ -236,6 +236,8 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
             node_handles: BoxVisualContextNodeHandles::default(),
             has_mask_nodes: false,
             may_be_root_element,
+            owns_geometry_dependent_nodes: false,
+            subtree_may_own_geometry_dependent_nodes: false,
         },
     );
     assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
@@ -562,17 +564,15 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     }
 
     assignment.accumulated_visual_context_for_descendants = state_for_descendants;
+    let spatial_end = sink.next_spatial_node_index().0;
+    let descendant_frames_end = sink.next_frame_node_index().0;
     assignment.record.node_handles = BoxVisualContextNodeHandles {
-        spatial: (first_spatial_node_index..sink.next_spatial_node_index().0)
-            .map(SpatialNodeIndex)
-            .collect(),
+        spatial: (first_spatial_node_index..spatial_end).map(SpatialNodeIndex).collect(),
         chain_frames: (first_frame_node_index..local_frames_begin)
             .map(FrameNodeIndex)
             .collect(),
         local_frames: (local_frames_begin..local_frames_end).map(FrameNodeIndex).collect(),
-        descendant_frames: (local_frames_end..sink.next_frame_node_index().0)
-            .map(FrameNodeIndex)
-            .collect(),
+        descendant_frames: (local_frames_end..descendant_frames_end).map(FrameNodeIndex).collect(),
     };
     let mut absolute_position_nearest_scroll_nodes = inherited.absolute_position_nearest_scroll_nodes;
     let mut fixed_position_nearest_scroll_nodes = inherited.fixed_position_nearest_scroll_nodes;

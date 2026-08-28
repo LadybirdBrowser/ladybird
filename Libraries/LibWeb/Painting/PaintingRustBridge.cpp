@@ -495,9 +495,14 @@ static void* layout_arena_handle(DOM::Document const& document)
     return const_cast<DOM::Document&>(document).layout_node_arena().handle();
 }
 
-bool rust_assign_accumulated_visual_contexts(DOM::Document& document, bool forced_incompatible_rebuild)
+VisualContextTreeUpdateResult rust_update_accumulated_visual_contexts(DOM::Document& document, bool force_full_rebuild)
 {
-    return Layout::RustFFI::layout_arena_assign_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document), visual_context_host_callbacks(document), forced_incompatible_rebuild);
+    auto outcome = Layout::RustFFI::layout_arena_update_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document), visual_context_host_callbacks(document), force_full_rebuild);
+    return {
+        .performed_full_build = outcome.performed_full_build,
+        .structural_epoch_changed = outcome.structural_epoch_changed,
+        .requires_display_list_recording = outcome.requires_display_list_recording,
+    };
 }
 
 void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
@@ -505,11 +510,6 @@ void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
     auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree_retain(layout_arena_handle(document));
     VERIFY(tree);
     return tree;
-}
-
-bool rust_update_accumulated_visual_context_values(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable_slot)
-{
-    return Layout::RustFFI::layout_arena_update_visual_context_values(layout_arena_handle(document), paintable_slot, visual_context_host_callbacks(document));
 }
 
 Optional<TransformWithOrigin> rust_compute_css_transform(Layout::Node const& box, double pixel_ratio)
@@ -1268,6 +1268,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     inputs.is_recording_async_scrolling_metadata = true;
     inputs.document_id = document.unique_id().value();
     inputs.has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport;
+    inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();
     inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal)));
     inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Vertical)));
     inputs.chrome_metrics = document.page().chrome_metrics();

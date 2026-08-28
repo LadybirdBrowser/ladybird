@@ -36,8 +36,7 @@ public:
     void refresh_scroll_state(DOM::Document&);
     void refresh_sticky_constraints(DOM::Document&);
 
-    void assign_accumulated_visual_contexts(DOM::Document&);
-    bool update_accumulated_visual_context_values(DOM::Document&, Layout::RustFFI::NodeSlotId);
+    void update_accumulated_visual_contexts(DOM::Document&);
     void update_visual_viewport_accumulated_visual_context(DOM::Document&);
     void set_visual_animations(DOM::Document&, Vector<Compositor::VisualAnimation>);
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
@@ -45,6 +44,7 @@ public:
     void set_force_incompatible_visual_context_tree_rebuild_for_testing() { m_force_incompatible_visual_context_tree_rebuild_for_testing = true; }
     bool has_visual_context_tree() const;
     u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
+    u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
 
     void recompute_selection_states(DOM::Document&, DOM::Range&);
     void reset_selection_states(DOM::Document&);
@@ -90,6 +90,7 @@ private:
     Vector<Compositor::VisualAnimation> m_visual_animations;
     RefPtr<VisualAnimationList const> m_visual_context_tree_visual_animations;
     u64 m_accumulated_visual_context_tree_build_count { 0 };
+    u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
     bool m_force_incompatible_visual_context_tree_rebuild_for_testing { false };
 };

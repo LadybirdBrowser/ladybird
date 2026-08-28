@@ -3001,23 +3001,8 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     // NB: Called during paint property resolution.
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
-        m_boxes_needing_visual_context_value_update.clear_with_capacity();
         if (has_committed_viewport_box())
-            paint_state().assign_accumulated_visual_contexts(*this);
-    } else if (!m_boxes_needing_visual_context_value_update.is_empty()) {
-        auto boxes = move(m_boxes_needing_visual_context_value_update);
-        if (has_committed_viewport_box()) {
-            for (auto const& paintable_slot : boxes) {
-                auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
-                if (!layout_node)
-                    continue;
-                if (!paint_state().update_accumulated_visual_context_values(*this, paintable_slot)) {
-                    // Structure changed after all; rebuild the whole tree.
-                    paint_state().assign_accumulated_visual_contexts(*this);
-                    break;
-                }
-            }
-        }
+            paint_state().update_accumulated_visual_contexts(*this);
     }
 
     // Scroll nodes are (re)created by the visual context tree build above, so scroll offsets and
@@ -10357,25 +10342,7 @@ void Document::schedule_accumulated_visual_context_update(Layout::Node const& la
             ? Layout::RustFFI::FfiVisualContextBoxDirtyKind::StyleValueChange
             : Layout::RustFFI::FfiVisualContextBoxDirtyKind::StyleStructuralChange);
 
-    if (scope == AccumulatedVisualContextUpdateScope::Structure) {
-        set_needs_accumulated_visual_contexts_update(true);
-        return;
-    }
-
-    // NB: A full rebuild is already pending and will refresh all node values anyway.
-    if (m_needs_accumulated_visual_contexts_update)
-        return;
-
-    // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document that never paints).
-    static constexpr size_t max_pending_visual_context_value_updates = 1024;
-    if (m_boxes_needing_visual_context_value_update.size() >= max_pending_visual_context_value_updates) {
-        m_boxes_needing_visual_context_value_update.clear();
-        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::DocumentWideStructuralChange);
-        return;
-    }
-
-    m_boxes_needing_visual_context_value_update.append(slot);
-    set_needs_repaint(InvalidateDisplayList::No);
+    set_needs_accumulated_visual_contexts_update(true);
 }
 
 void Document::schedule_accumulated_visual_context_update(Element& element, AccumulatedVisualContextUpdateScope scope)

@@ -7,15 +7,19 @@
 pub mod basic_shapes;
 pub mod box_build;
 pub mod build;
+pub mod delta;
 pub mod dirty;
 pub mod dump;
+pub mod incremental;
 pub mod local_frames;
 pub mod nested;
 pub mod node_values;
 pub mod queries;
+pub mod reconcile;
 pub mod refresh;
 pub mod scroll_state;
 pub mod serialize;
+pub mod shape;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -552,11 +556,26 @@ pub struct VisualContextState {
     pub needs_to_refresh_scroll_state: bool,
     pub build_count: u64,
     pub dirty_boxes: dirty::VisualContextDirtySet,
+    pub incremental_update_count: u64,
+    pub last_tree_inputs: Option<crate::painting::host::FfiVisualContextTreeInputs>,
+    pub last_root_background_source: Option<crate::painting::host::FfiRootBackgroundSource>,
+    pub last_full_build_reason: dirty::VisualContextGlobalRebuildReason,
+    pub quarantined_slots_are_releasable: bool,
 }
 
 impl VisualContextState {
     pub fn structural_epoch(&self) -> u64 {
         self.tree.as_ref().map_or(0, |tree| tree.structural_epoch)
+    }
+
+    pub fn release_quarantined_slots_while_no_handle_is_retained(&mut self) {
+        if !self.quarantined_slots_are_releasable {
+            return;
+        }
+        self.quarantined_slots_are_releasable = false;
+        if let Some(tree) = self.tree.as_mut() {
+            Rc::make_mut(tree).release_quarantined_slots_after_recording();
+        }
     }
 }
 
@@ -1244,6 +1263,8 @@ pub(crate) struct PaintableVisualContextRecord {
     pub node_handles: BoxVisualContextNodeHandles,
     pub has_mask_nodes: bool,
     pub may_be_root_element: bool,
+    pub owns_geometry_dependent_nodes: bool,
+    pub subtree_may_own_geometry_dependent_nodes: bool,
 }
 
 #[cfg(test)]

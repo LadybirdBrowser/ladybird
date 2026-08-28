@@ -981,69 +981,207 @@ pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_
 
 use crate::painting::host::FfiVisualContextHostCallbacks;
 
+fn full_visual_context_build(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
+    callbacks: &FfiVisualContextHostCallbacks,
+    state: &mut crate::painting::visual_context::VisualContextState,
+    force_incompatible_rebuild: bool,
+) -> crate::painting::host::FfiVisualContextUpdateOutcome {
+    let (mut tree, scroll_state, paintables_with_mask_nodes, previous_assignments, assignments) = {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintable_rows = arena.paintable_rows();
+        let previous_assignments = paintable_rows.visual_context_assignments();
+        let (tree, scroll_state, paintables_with_mask_nodes, assignments) =
+            crate::painting::visual_context::build::build_visual_context_tree(&paintable_rows, callbacks, viewport);
+        (
+            tree,
+            scroll_state,
+            paintables_with_mask_nodes,
+            previous_assignments,
+            assignments,
+        )
+    };
+    let arena = unsafe { arena_from_handle_mut(arena) };
+    let assignments_changed = {
+        let mut paintable_rows = arena.paintable_rows_mut();
+        for assignment in assignments {
+            assignment.apply(&mut paintable_rows);
+        }
+        previous_assignments != paintable_rows.visual_context_assignments()
+    };
+    state.build_count += 1;
+    let is_compatible = !force_incompatible_rebuild
+        && state
+            .tree
+            .as_deref()
+            .is_some_and(|previous| tree.is_compatible_with(previous));
+    if is_compatible {
+        tree.structural_epoch = state.structural_epoch();
+    } else {
+        arena.mark_all_paint_caches_dirty();
+    }
+    let structural_epoch = tree.structural_epoch;
+    state.tree = Some(Rc::new(tree));
+    state.paintables_with_mask_nodes = paintables_with_mask_nodes;
+    state.scroll_state = scroll_state;
+    state.scroll_state_snapshot.clear();
+    state.needs_to_refresh_scroll_state = true;
+    state.dirty_boxes.clear();
+    state.quarantined_slots_are_releasable = false;
+    if assignments_changed {
+        arena.mark_all_descendant_subtree_caches_dirty();
+    }
+    crate::painting::host::FfiVisualContextUpdateOutcome {
+        performed_full_build: true,
+        structural_epoch_changed: !is_compatible,
+        requires_display_list_recording: !is_compatible,
+        structural_epoch,
+    }
+}
+
+fn paintables_with_mask_nodes_in_paint_order(
+    arena: &crate::layout::LayoutNodeArena,
+    viewport: NodeSlotId,
+) -> Vec<NodeSlotId> {
+    let paintable_rows = arena.paintable_rows();
+    let mut owners = Vec::new();
+    crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, viewport, |slot| {
+        if arena
+            .paintable_visual_context_record(slot)
+            .is_some_and(|record| record.has_mask_nodes)
+        {
+            owners.push(slot);
+        }
+    });
+    owners
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
+pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     arena: *mut c_void,
     viewport: NodeSlotId,
     callbacks: FfiVisualContextHostCallbacks,
-    force_incompatible_rebuild: bool,
-) -> bool {
+    force_full_rebuild: bool,
+) -> crate::painting::host::FfiVisualContextUpdateOutcome {
     abort_on_panic(|| {
-        let (mut tree, scroll_state, paintables_with_mask_nodes, previous_assignments, assignments) = {
-            let arena = unsafe { arena_from_handle(arena) };
-            let paintable_rows = arena.paintable_rows();
-            if !paintable_rows.paintable_row_is_populated(viewport) {
-                return false;
+        use crate::painting::visual_context::dirty::{VisualContextBoxDirtyKind, VisualContextGlobalRebuildReason};
+        use crate::painting::visual_context::incremental::{
+            IncrementalUpdateResult, update_visual_context_tree_incrementally,
+        };
+        let arena_ref = unsafe { arena_from_handle(arena) };
+        if !arena_ref.paintable_row_is_populated(viewport) {
+            return crate::painting::host::FfiVisualContextUpdateOutcome::default();
+        }
+        let inputs = callbacks.tree_inputs();
+        let root_background_source = callbacks.root_background_source();
+        let mut state = std::mem::take(&mut arena_ref.paint_state().borrow_mut().visual_context);
+        state.release_quarantined_slots_while_no_handle_is_retained();
+
+        let mut reason = state.dirty_boxes.global_reason;
+        if state.tree.is_none() {
+            reason = reason.max(VisualContextGlobalRebuildReason::FirstBuild);
+        }
+        if force_full_rebuild {
+            reason = reason.max(VisualContextGlobalRebuildReason::ForcedForTesting);
+        }
+        if state.last_tree_inputs.is_some_and(|last| {
+            last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
+                || last.viewport_wheel_overflow_x != inputs.viewport_wheel_overflow_x
+                || last.viewport_wheel_overflow_y != inputs.viewport_wheel_overflow_y
+        }) {
+            reason = reason.max(VisualContextGlobalRebuildReason::TreeInputsChanged);
+        }
+        if inputs.may_have_default_scroll_shift_anchor {
+            reason = reason.max(VisualContextGlobalRebuildReason::AnchorsRegistered);
+        }
+        if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
+            reason = reason.max(VisualContextGlobalRebuildReason::Compaction);
+        }
+        if let Some(last_source) = state.last_root_background_source
+            && (last_source.use_body_background_properties != root_background_source.use_body_background_properties
+                || last_source.body_layout_node != root_background_source.body_layout_node)
+        {
+            for body in [last_source.body_layout_node, root_background_source.body_layout_node] {
+                if arena_ref.paintable_row_is_populated(body) {
+                    let pending_box_limit = arena_ref
+                        .paintable_row_count()
+                        .max(crate::painting::visual_context::dirty::MINIMUM_PENDING_DIRTY_BOX_LIMIT);
+                    state.dirty_boxes.note_box(
+                        body,
+                        VisualContextBoxDirtyKind::StyleStructuralChange,
+                        pending_box_limit,
+                    );
+                    if let Some(html) = crate::painting::paint_order::paint_parent(&arena_ref.paintable_rows(), body) {
+                        state.dirty_boxes.note_box(
+                            html,
+                            VisualContextBoxDirtyKind::StyleStructuralChange,
+                            pending_box_limit,
+                        );
+                    }
+                }
             }
-            let previous_assignments = paintable_rows.visual_context_assignments();
-            let (tree, scroll_state, paintables_with_mask_nodes, assignments) =
-                crate::painting::visual_context::build::build_visual_context_tree(
+        }
+        let allow_structural_changes = false;
+        if reason == VisualContextGlobalRebuildReason::None && !state.dirty_boxes.is_value_only() {
+            reason = VisualContextGlobalRebuildReason::StructuralDirtyBoxes;
+        }
+
+        if reason == VisualContextGlobalRebuildReason::None {
+            let result = {
+                let paintable_rows = arena_ref.paintable_rows();
+                update_visual_context_tree_incrementally(
                     &paintable_rows,
                     &callbacks,
                     viewport,
-                );
-            (
-                tree,
-                scroll_state,
-                paintables_with_mask_nodes,
-                previous_assignments,
-                assignments,
-            )
-        };
-        let arena = unsafe { arena_from_handle_mut(arena) };
-        let assignments_changed = {
-            let mut paintable_rows = arena.paintable_rows_mut();
-            for assignment in assignments {
-                assignment.apply(&mut paintable_rows);
+                    inputs,
+                    root_background_source,
+                    &mut state,
+                    allow_structural_changes,
+                )
+            };
+            match result {
+                IncrementalUpdateResult::Applied(outcome) => {
+                    let arena_mut = unsafe { arena_from_handle_mut(arena) };
+                    {
+                        let mut paintable_rows = arena_mut.paintable_rows_mut();
+                        for assignment in outcome.assignments {
+                            assignment.apply(&mut paintable_rows);
+                        }
+                    }
+                    if outcome.mask_node_owners_changed {
+                        state.paintables_with_mask_nodes =
+                            paintables_with_mask_nodes_in_paint_order(arena_mut, viewport);
+                    }
+                    let structural_epoch_changed = outcome.delta.structural_epoch_changed;
+                    let requires_display_list_recording = outcome.delta.requires_display_list_recording;
+                    state.dirty_boxes.clear();
+                    state.incremental_update_count += 1;
+                    state.last_tree_inputs = Some(inputs);
+                    state.last_root_background_source = Some(root_background_source);
+                    let structural_epoch = state.structural_epoch();
+                    arena_mut.paint_state().borrow_mut().visual_context = state;
+                    return crate::painting::host::FfiVisualContextUpdateOutcome {
+                        performed_full_build: false,
+                        structural_epoch_changed,
+                        requires_display_list_recording,
+                        structural_epoch,
+                    };
+                }
+                IncrementalUpdateResult::NeedsFullBuild(fallback_reason) => reason = fallback_reason,
             }
-            previous_assignments != paintable_rows.visual_context_assignments()
-        };
-        let mut paint_state = arena.paint_state().borrow_mut();
-        let state = &mut paint_state.visual_context;
-        state.build_count += 1;
-        let is_compatible = !force_incompatible_rebuild
-            && state
-                .tree
-                .as_deref()
-                .is_some_and(|previous| tree.is_compatible_with(previous));
-        if is_compatible {
-            tree.structural_epoch = state.structural_epoch();
-        } else {
-            arena.mark_all_paint_caches_dirty();
         }
-        state.tree = Some(Rc::new(tree));
-        state.paintables_with_mask_nodes = paintables_with_mask_nodes;
-        state.scroll_state = scroll_state;
-        state.scroll_state_snapshot.clear();
-        state.needs_to_refresh_scroll_state = true;
-        state.dirty_boxes.clear();
-        if assignments_changed {
-            arena.mark_all_descendant_subtree_caches_dirty();
-        }
-        is_compatible
+
+        state.last_full_build_reason = reason;
+        let outcome = full_visual_context_build(arena, viewport, &callbacks, &mut state, force_full_rebuild);
+        state.last_tree_inputs = Some(inputs);
+        state.last_root_background_source = Some(root_background_source);
+        let arena_ref = unsafe { arena_from_handle(arena) };
+        arena_ref.paint_state().borrow_mut().visual_context = state;
+        outcome
     })
 }
 
@@ -1080,46 +1218,6 @@ pub unsafe extern "C" fn layout_arena_compute_css_transform(
             out_origin.add(1).write(transform.origin.y);
         }
         true
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_update_visual_context_values(
-    arena: *mut c_void,
-    paintable: NodeSlotId,
-    callbacks: FfiVisualContextHostCallbacks,
-) -> bool {
-    abort_on_panic(|| {
-        let pixel_ratio = callbacks.tree_inputs().device_pixels_per_css_pixel;
-        let (compatible, has_non_invertible_css_transform) = {
-            let arena = unsafe { arena_from_handle(arena) };
-            let paintable_rows = arena.paintable_rows();
-            if !paintable_rows.paintable_row_is_populated(paintable) {
-                return false;
-            }
-            let mut paint_state = arena.paint_state().borrow_mut();
-            let Some(tree) = paint_state.visual_context.tree.as_mut() else {
-                return false;
-            };
-            crate::painting::visual_context::build::update_visual_context_values(
-                &paintable_rows,
-                &callbacks,
-                Rc::make_mut(tree),
-                paintable,
-                pixel_ratio,
-            )
-        };
-        if let Some(value) = has_non_invertible_css_transform {
-            let arena = unsafe { arena_from_handle_mut(arena) };
-            arena.paintable_rows_mut().paintable_data_mut(paintable).set_flag(
-                crate::painting::paintable_data::PaintableFlag::HasNonInvertibleCssTransform,
-                value,
-            );
-        }
-        compatible
     })
 }
 
@@ -1244,6 +1342,16 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
 ) -> u64 {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
+        {
+            let mut paint_state = arena.paint_state().borrow_mut();
+            if paint_state.recorded_wheel_event_listener_state_generation
+                != Some(inputs.wheel_event_listener_state_generation)
+            {
+                arena.mark_all_descendant_subtree_caches_dirty();
+                paint_state.recorded_wheel_event_listener_state_generation =
+                    Some(inputs.wheel_event_listener_state_generation);
+            }
+        }
         let mut output = {
             let paint_state = arena.paint_state().borrow();
             if !arena.paintable_row_is_populated(viewport) || paint_state.stacking_context_tree.is_none() {
@@ -1285,6 +1393,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.paint_command_cache_source = Some(output.clone());
             // Read-only recordings commit nothing and must not age dirty stamps out.
             arena.note_paint_record_completed_with_cache_writes();
+            paint_state.visual_context.quarantined_slots_are_releasable = true;
         }
         paint_state.last_recording = Some(output);
         list_generation_of(&paint_state)

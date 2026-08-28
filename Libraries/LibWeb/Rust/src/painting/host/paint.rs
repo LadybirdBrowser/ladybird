@@ -24,6 +24,7 @@ pub struct FfiRecordingInputs {
     pub is_recording_async_scrolling_metadata: bool,
     pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
+    pub wheel_event_listener_state_generation: u64,
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,

@@ -286,8 +286,11 @@ pub(crate) struct OverflowAssignment {
 
 impl OverflowAssignment {
     pub(crate) fn apply(self, layout_arena: &mut PaintableRowsMut<'_>) {
-        let scrollability_flipped = {
+        let (scroll_metadata_changed, scrollability_flipped) = {
             let data = layout_arena.paintable_data_mut(self.box_paintable);
+            let scroll_metadata_changed = self
+                .overflow_relative_to_padding_box
+                .is_some_and(|overflow| overflow != data.overflow_relative_to_padding_box);
             let scrollability_flipped = self.overflow_relative_to_padding_box.is_some_and(|overflow| {
                 overflow.has_scrollable_overflow != data.overflow_relative_to_padding_box.has_scrollable_overflow
             });
@@ -296,8 +299,11 @@ impl OverflowAssignment {
                 data.overflow_valid_across_recommits = true;
             }
             data.overflow_measured_this_commit = true;
-            scrollability_flipped
+            (scroll_metadata_changed, scrollability_flipped)
         };
+        if scroll_metadata_changed {
+            layout_arena.mark_paint_cache_self_dirty(self.box_paintable);
+        }
         if scrollability_flipped {
             layout_arena.note_visual_context_box_dirty(
                 self.box_paintable,
