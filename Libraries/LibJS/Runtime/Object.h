@@ -465,6 +465,8 @@ private:
     void ensure_indexed_elements(u32 needed_capacity);
     void grow_indexed_elements(u32 needed_capacity);
     void transition_to_dictionary();
+    NEVER_INLINE COLD void transition_to_packed();
+    NEVER_INLINE COLD void indexed_put_into_dictionary(u32, Value, PropertyAttributes);
     void free_indexed_elements();
     void ensure_named_storage_capacity(u32 needed);
     bool named_storage_is_inline() const { return m_named_properties == m_inline_named_storage; }

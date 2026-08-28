@@ -2008,6 +2008,18 @@ void Object::transition_to_dictionary()
     m_indexed_storage_kind = IndexedStorageKind::Dictionary;
 }
 
+NEVER_INLINE COLD void Object::transition_to_packed()
+{
+    auto* dictionary = indexed_dictionary();
+    auto* elements = allocate_indexed_elements(m_indexed_array_like_size);
+    for (auto const& entry : dictionary->sparse_elements())
+        elements[entry.key] = entry.value.value;
+
+    delete dictionary;
+    m_indexed_elements = elements;
+    m_indexed_storage_kind = IndexedStorageKind::Packed;
+}
+
 Optional<ValueAndAttributes> Object::indexed_get(u32 index) const
 {
     switch (m_indexed_storage_kind) {
@@ -2031,6 +2043,21 @@ Optional<ValueAndAttributes> Object::indexed_get(u32 index) const
     VERIFY_NOT_REACHED();
 }
 
+NEVER_INLINE COLD void Object::indexed_put_into_dictionary(u32 index, Value value, PropertyAttributes attributes)
+{
+    auto* dictionary = indexed_dictionary();
+    auto had_missing_entries = dictionary->size() < dictionary->array_like_size();
+    dictionary->put(index, value, attributes);
+    m_indexed_array_like_size = dictionary->array_like_size();
+    if (!had_missing_entries || dictionary->size() < dictionary->array_like_size())
+        return;
+    for (auto const& entry : dictionary->sparse_elements()) {
+        if (entry.value.attributes != default_attributes || entry.value.value.is_special_empty_value())
+            return;
+    }
+    transition_to_packed();
+}
+
 void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
 {
     bool const storing_hole = value.is_special_empty_value();
@@ -2039,8 +2066,7 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
         materialized_elements = min(m_indexed_array_like_size, indexed_elements_capacity());
 
     if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
-        indexed_dictionary()->put(index, value, attributes);
-        m_indexed_array_like_size = indexed_dictionary()->array_like_size();
+        indexed_put_into_dictionary(index, value, attributes);
         return;
     }
 
