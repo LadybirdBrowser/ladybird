@@ -121,6 +121,26 @@ pub unsafe extern "C" fn layout_arena_paintable_set_scrollbar_enlarged(
     rows.paintable_data_mut(slot).set_flag(flag, enlarged);
 }
 
+/// Decide if force-dark should invert an image: the caller owns the sampling, this owns the policy. Returns false
+/// for an empty or null buffer, which leaves the image untouched.
+///
+/// # Safety
+/// `samples` must point to `count` packed colors, or be null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
+    samples: *const u32,
+    count: usize,
+    transparency_ratio: f32,
+) -> bool {
+    if samples.is_null() || count == 0 {
+        return false;
+    }
+    // Color is repr(transparent) over u32, so the buffer needs no copy to be read as colors.
+    let colors = unsafe { std::slice::from_raw_parts(samples.cast::<libgfx_rust::Color>(), count) };
+    let features = crate::painting::force_dark::features_from_samples(colors, transparency_ratio);
+    crate::painting::force_dark::should_filter(&features)
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

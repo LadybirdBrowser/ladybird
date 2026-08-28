@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <core/SkBitmap.h>
@@ -24,6 +25,7 @@
 #include <effects/SkGradient.h>
 #include <effects/SkImageFilters.h>
 #include <effects/SkLumaColorFilter.h>
+#include <effects/SkRuntimeEffect.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
@@ -306,6 +308,77 @@ void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
     canvas.drawImageRect(image.get(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
+// Images invert lightness in Oklab, same as solid colors. Skia's high-contrast filter inverts through HSL, which sends
+// white to black where a fill of that same white lands on the dark surface color. A page with both would show the seam.
+sk_sp<SkColorFilter> force_dark_image_color_filter()
+{
+    // Compiled once and deliberately leaked: it lives as long as the process, and a static with a destructor here would
+    // be an exit-time destructor. The filter takes no uniforms, so one instance serves every draw.
+    static auto* filter = [] {
+        auto result = SkRuntimeEffect::MakeForColorFilter(SkString(R"(
+            const float LIGHTNESS_LIFT = 1.20;
+            const float GRAY_BRIGHTNESS_THRESHOLD = 32.0 / 255.0;
+            const float GRAY_ADJUSTED_BRIGHTNESS = 18.0 / 255.0;
+
+            float3 to_linear(float3 c) {
+                return mix(c / 12.92, pow((c + 0.055) / 1.055, float3(2.4)), step(float3(0.04045), c));
+            }
+
+            float3 to_srgb(float3 c) {
+                return mix(c * 12.92, 1.055 * pow(c, float3(1.0 / 2.4)) - 0.055, step(float3(0.0031308), c));
+            }
+
+            half4 main(half4 color) {
+                // A runtime color filter is handed premultiplied color and must return it that way, but the
+                // transfer functions below only make sense on the color as authored.
+                if (color.a <= 0.0)
+                    return color;
+                float3 rgb = float3(color.rgb) / float(color.a);
+
+                float3 lin = to_linear(rgb);
+                float3 lms = pow(float3(
+                    0.41222146 * lin.r + 0.53633255 * lin.g + 0.051445995 * lin.b,
+                    0.2119035  * lin.r + 0.6806995  * lin.g + 0.10739696  * lin.b,
+                    0.08830246 * lin.r + 0.28171885 * lin.g + 0.6299787   * lin.b), float3(1.0 / 3.0));
+
+                float l = 0.21045426  * lms.x + 0.7936178   * lms.y - 0.004072047 * lms.z;
+                float a = 1.9779985   * lms.x - 2.4285922   * lms.y + 0.4505937   * lms.z;
+                float b = 0.025904037 * lms.x + 0.78277177  * lms.y - 0.80867577  * lms.z;
+
+                l = min(LIGHTNESS_LIFT - l, 1.0);
+
+                float3 back = float3(
+                    l + 0.39633778  * a + 0.21580376 * b,
+                    l - 0.105561346 * a - 0.06385417 * b,
+                    l - 0.08948418  * a - 1.2914855  * b);
+                back = back * back * back;
+
+                // The lift pushes saturated colors out of sRGB, so this matrix can return negative linear components,
+                // and those can't reach the transfer function: mix() evaluates both of its arms, so pow() would see the
+                // negative base and yield NaN even though step() then picks the linear arm. This clamp is the
+                // per-channel gamut clip; the outer one only guards the transfer function's rounding at 1.0.
+                float3 inverted = clamp(to_srgb(clamp(float3(
+                     4.0767417    * back.x - 3.3077116 * back.y + 0.23096994 * back.z,
+                    -1.268438     * back.x + 2.6097574 * back.y - 0.34131938 * back.z,
+                    -0.0041960863 * back.x - 0.7034186 * back.y + 1.7076147  * back.z), 0.0, 1.0)), 0.0, 1.0);
+
+                // Grays landing in the band snap to one dark surface color, rather than a spread of near-blacks.
+                float epsilon = 1.0 / 255.0;
+                if (abs(inverted.r - inverted.g) <= epsilon && abs(inverted.r - inverted.b) <= epsilon
+                    && inverted.r < GRAY_BRIGHTNESS_THRESHOLD && inverted.r > GRAY_ADJUSTED_BRIGHTNESS) {
+                    inverted = float3(GRAY_ADJUSTED_BRIGHTNESS);
+                }
+
+                return half4(half3(inverted) * color.a, color.a);
+            }
+        )"));
+        VERIFY(result.effect);
+        return result.effect->makeColorFilter(nullptr).release();
+    }();
+
+    return sk_ref_sp(filter);
+}
+
 void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& command)
 {
     auto image = resource_storage().skia_image_for_image_frame(command.frame_id, m_skia_backend_context);
@@ -316,16 +389,24 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
+    auto should_force_dark = command.apply_force_dark && resource_storage().image_frame_should_force_dark(command.frame_id);
     if (command.isolated_backdrop_color.has_value()) {
         auto src_rect = command.src_rect.value_or(Gfx::FloatRect { 0, 0, static_cast<float>(image->width()), static_cast<float>(image->height()) });
         SkMatrix matrix;
         matrix.setScale(dst_rect.width() / src_rect.width(), dst_rect.height() / src_rect.height());
         matrix.postTranslate(dst_rect.x() - src_rect.x() * dst_rect.width() / src_rect.width(), dst_rect.y() - src_rect.y() * dst_rect.height() / src_rect.height());
         auto image_shader = image->makeShader(SkTileMode::kDecal, SkTileMode::kDecal, to_skia_sampling_options(command.scaling_mode), matrix);
+        // The backdrop arrives already resolved by the recorder, so only the image gets the filter; filtering the
+        // blended result would run the backdrop through the image transform on top of its own.
+        if (should_force_dark)
+            image_shader = image_shader->makeWithColorFilter(force_dark_image_color_filter());
         auto backdrop_shader = SkShaders::Color(to_skia_color(command.isolated_backdrop_color.value()));
         paint.setShader(SkShaders::Blend(Gfx::to_skia_blender(command.compositing_and_blending_operator), move(backdrop_shader), move(image_shader)));
-    } else if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
-        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
+    } else {
+        if (should_force_dark)
+            paint.setColorFilter(force_dark_image_color_filter());
+        if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+            paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
     }
     canvas.save();
     canvas.clipRect(dst_rect, true);
@@ -360,10 +441,17 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& co
 
     SkPaint paint;
     paint.setAntiAlias(true);
+    auto should_force_dark = command.apply_force_dark && resource_storage().image_frame_should_force_dark(command.frame_id);
     if (command.isolated_backdrop_color.has_value()) {
+        // The backdrop arrives already resolved by the recorder, so only the image gets the filter; filtering the
+        // blended result would run the backdrop through the image transform on top of its own.
+        if (should_force_dark)
+            shader = shader->makeWithColorFilter(force_dark_image_color_filter());
         auto backdrop_shader = SkShaders::Color(to_skia_color(command.isolated_backdrop_color.value()));
         paint.setShader(SkShaders::Blend(Gfx::to_skia_blender(command.compositing_and_blending_operator), move(backdrop_shader), move(shader)));
     } else {
+        if (should_force_dark)
+            paint.setColorFilter(force_dark_image_color_filter());
         paint.setShader(shader);
     }
     if (!command.isolated_backdrop_color.has_value() && command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
@@ -406,6 +494,8 @@ void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& comma
     auto* tile_canvas = tile_recorder.beginRecording(tile_bounds);
     SkPaint tile_paint;
     tile_paint.setAntiAlias(true);
+    if (command.apply_force_dark && resource_storage().image_frame_should_force_dark(command.frame_id))
+        tile_paint.setColorFilter(force_dark_image_color_filter());
     tile_canvas->drawImageRect(
         image.get(),
         to_skia_rect(command.src_rect),

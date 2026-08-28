@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+
+<style>
+    body { margin: 0; background: #808080; }
+    img { width: 200px; height: 200px; image-rendering: pixelated; }
+</style>
+<img src="../data/force-dark-flat-blue-square.png">
+<script>
+    // The same page with force-dark off. It must render identically to the test.
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

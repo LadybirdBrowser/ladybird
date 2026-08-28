@@ -127,6 +127,8 @@ public:
 
     Gfx::Font const& font(FontResourceId id) const { return *m_fonts.get(id.value()).value(); }
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
+    // Whether force-dark should invert this image, worked out once and cached.
+    bool image_frame_should_force_dark(ImageFrameResourceId) const;
     sk_sp<SkImage> skia_image_for_image_frame(ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
     sk_sp<SkImage> skia_image_for_video_sink(VideoSinkResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
     sk_sp<SkImage> cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;

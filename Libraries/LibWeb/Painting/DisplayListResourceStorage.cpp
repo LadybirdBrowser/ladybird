@@ -6,6 +6,7 @@
 
 #include <AK/BitCast.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Math.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Filter.h>
@@ -15,6 +16,7 @@
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoFrameHandle.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
@@ -35,6 +37,9 @@ struct DisplayListStoredImageFrameResource {
     }
 
     Gfx::DecodedImageFrame frame;
+    // Classifying costs a walk over the pixels and the answer never changes for a given frame — so it's worked out on
+    // first use, and kept.
+    mutable Optional<bool> force_dark_should_filter;
     mutable sk_sp<SkImage> skia_image;
     mutable RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
 };
@@ -185,6 +190,54 @@ FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
     auto id = font.id();
     m_fonts.ensure(id, [&]() -> NonnullRefPtr<Gfx::Font const> { return font; });
     return { id };
+}
+
+// Coarse by design: the verdict only must tell line art from photos; a large image shouldn't pay per-pixel to be asked.
+static constexpr size_t max_sampled_pixels = 1000;
+
+static bool classify_image_frame_for_force_dark(Gfx::DecodedImageFrame const& frame)
+{
+    auto const& bitmap = frame.bitmap();
+    auto size = bitmap.size();
+    if (size.is_empty())
+        return false;
+
+    auto total = static_cast<double>(size.width()) * static_cast<double>(size.height());
+    auto step = max(1, static_cast<int>(AK::ceil(AK::sqrt(total / static_cast<double>(max_sampled_pixels)))));
+
+    Vector<u32> opaque_samples;
+    size_t transparent_count = 0;
+    size_t sampled_count = 0;
+    for (int y = 0; y < size.height(); y += step) {
+        for (int x = 0; x < size.width(); x += step) {
+            auto color = bitmap.get_pixel(x, y);
+            sampled_count++;
+            // A pixel this sheer says something about the image's shape rather than its palette — so it's counted
+            // toward transparency, but kept out of the palette samples.
+            if (color.alpha() < 128) {
+                transparent_count++;
+                continue;
+            }
+            opaque_samples.append(color.value());
+        }
+    }
+    if (sampled_count == 0)
+        return false;
+
+    auto transparency_ratio = static_cast<float>(transparent_count) / static_cast<float>(sampled_count);
+    return Layout::RustFFI::ladybird_web_force_dark_should_filter_image(
+        opaque_samples.data(), opaque_samples.size(), transparency_ratio);
+}
+
+bool DisplayListResourceStorage::image_frame_should_force_dark(ImageFrameResourceId id) const
+{
+    auto stored = m_image_frames.get(id.value());
+    if (!stored.has_value())
+        return false;
+    auto const& resource = *stored.value();
+    if (!resource.force_dark_should_filter.has_value())
+        resource.force_dark_should_filter = classify_image_frame_for_force_dark(resource.frame);
+    return resource.force_dark_should_filter.value();
 }
 
 ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedImageFrame const& frame)
