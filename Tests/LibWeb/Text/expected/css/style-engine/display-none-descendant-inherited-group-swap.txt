@@ -1,0 +1,2 @@
+hidden inherited style: square
+visible inherited style: square
