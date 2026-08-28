@@ -2663,6 +2663,17 @@ void ViewImplementation::did_change_display_page(Badge<CanonicalNavigable>, RefP
 // The tab is displayed by the page hosting its document from now on.
 void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_page)
 {
+    auto new_page_id = page().id();
+    Vector<u64> stale_close_preflight_requests;
+    for (auto const& [request_id, request] : m_pending_close_preflight_requests) {
+        if (request.page_id != new_page_id)
+            stale_close_preflight_requests.append(request_id);
+    }
+    for (auto request_id : stale_close_preflight_requests) {
+        if (auto request = m_pending_close_preflight_requests.take(request_id); request.has_value())
+            request->on_complete(false);
+    }
+
     // Screenshot and page info requests went to the outgoing page, so only it could answer them.
     if (auto pending_screenshot = move(m_pending_screenshot))
         pending_screenshot->reject(Error::from_string_literal("The displayed page changed before taking the screenshot"));
@@ -2731,6 +2742,16 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
 
 void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPage& page, WebContentProcessLost process_lost)
 {
+    Vector<u64> lost_close_preflight_requests;
+    for (auto const& [request_id, request] : m_pending_close_preflight_requests) {
+        if (request.page_id == page.id())
+            lost_close_preflight_requests.append(request_id);
+    }
+    for (auto request_id : lost_close_preflight_requests) {
+        if (auto request = m_pending_close_preflight_requests.take(request_id); request.has_value())
+            request->on_complete(false);
+    }
+
     // NB: The view fails the commands of its own page when it recovers from its process's crash.
     if (traversable().display_page() == &page)
         return;
@@ -4454,6 +4475,34 @@ void ViewImplementation::request_close()
 void ViewImplementation::force_close()
 {
     page().async_force_close();
+}
+
+void ViewImplementation::request_close_preflight(Function<void(bool)> on_complete)
+{
+    auto request_id = m_next_close_preflight_request_id++;
+    auto page_id = page().id();
+    m_pending_close_preflight_requests.set(request_id, { page_id, move(on_complete) });
+    page().async_request_close_preflight(request_id);
+}
+
+void ViewImplementation::did_complete_close_preflight(Badge<WebContentPage>, u64 request_id, bool approved)
+{
+    if (auto request = m_pending_close_preflight_requests.take(request_id); request.has_value())
+        request->on_complete(approved);
+}
+
+Function<void()> ViewImplementation::prepare_for_close_without_prompting()
+{
+    if (m_debugger_paused) {
+        resume_debugger(DebuggerResumeMode::Continue);
+        set_debugger_paused(false);
+    }
+
+    NonnullRefPtr closing_page = page();
+    closing_page->set_detached_close_pending(true);
+    return [closing_page = move(closing_page)] {
+        closing_page->async_request_close_without_prompting();
+    };
 }
 
 Function<void()> ViewImplementation::prepare_for_immediate_close()

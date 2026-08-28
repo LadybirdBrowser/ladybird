@@ -3576,6 +3576,33 @@ void ConnectionFromClient::request_close(Web::PageId page_id)
     }
 }
 
+void ConnectionFromClient::request_close_preflight(Web::PageId page_id, u64 request_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_complete_close_preflight(page_id, request_id, false);
+        return;
+    }
+
+    auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(page->page().top_level_traversable().ptr());
+    if (!traversable) {
+        async_did_complete_close_preflight(page_id, request_id, true);
+        return;
+    }
+
+    traversable->request_close_preflight(GC::create_function(Web::Bindings::main_thread_vm().heap(), [this, page_id, request_id](bool approved) {
+        async_did_complete_close_preflight(page_id, request_id, approved);
+    }));
+}
+
+void ConnectionFromClient::request_close_without_prompting(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(page->page().top_level_traversable().ptr()))
+            traversable->close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
+    }
+}
+
 void ConnectionFromClient::force_close(Web::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {

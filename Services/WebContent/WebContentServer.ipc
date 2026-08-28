@@ -311,6 +311,8 @@ endpoint WebContentServer routed by Web::PageId page_id
     did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) =|
 
     request_close(Web::PageId page_id) =|
+    request_close_preflight(Web::PageId page_id, u64 request_id) =|
+    request_close_without_prompting(Web::PageId page_id) =|
     unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult result) =|
     force_close(Web::PageId page_id) =|
 

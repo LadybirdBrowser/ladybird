@@ -224,7 +224,7 @@ void HistoryExecutor::run_ui_beforeunload_check(Vector<CrossProcessId> navigable
         if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed() && navigable->active_document())
             navigables.append(*navigable);
     }
-    check_if_unloading_is_canceled(move(navigables), traversable, move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, on_complete);
+    check_if_unloading_is_canceled(move(navigables), traversable, traversable, move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, on_complete);
 }
 
 static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> navigation_type, SessionHistoryEntry const& target_entry, Optional<UniqueNodeID> displayed_document_id)
