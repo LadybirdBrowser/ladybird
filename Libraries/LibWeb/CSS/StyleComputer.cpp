@@ -5699,17 +5699,16 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     };
     auto box_type_input = make_box_type_transformation_input(
         abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
-    Optional<DOM::AbstractElement::TreeCountingFunctionResolutionContext> tree_counting_context;
-    if (ComputedValuesFFI::rust_cascaded_properties_uses_tree_counting_function(cascaded_properties.rust_store()))
-        tree_counting_context = abstract_element.tree_counting_function_resolution_context();
-    auto const container_relative_length_unit_mask = ComputedValuesFFI::rust_cascaded_properties_container_relative_length_unit_mask(cascaded_properties.rust_store());
-    auto unfixed_random_sharings = ComputedValuesFFI::rust_cascaded_properties_unfixed_random_sharings(cascaded_properties.rust_store());
-    ScopeGuard release_unfixed_random_sharings = [&] {
-        ComputedValuesFFI::rust_cascaded_properties_unfixed_random_sharings_release(unfixed_random_sharings.storage, unfixed_random_sharings.entry_count);
+    auto computation_requirements = ComputedValuesFFI::rust_cascaded_properties_computation_requirements(cascaded_properties.rust_store());
+    ScopeGuard destroy_computation_requirements = [&] {
+        ComputedValuesFFI::rust_style_computation_requirements_destroy(computation_requirements.storage, computation_requirements.unfixed_random_sharing_count);
     };
+    Optional<DOM::AbstractElement::TreeCountingFunctionResolutionContext> tree_counting_context;
+    if (computation_requirements.uses_tree_counting_function)
+        tree_counting_context = abstract_element.tree_counting_function_resolution_context();
     Vector<ComputedValuesFFI::FfiRandomBaseValue> random_base_values;
-    random_base_values.ensure_capacity(unfixed_random_sharings.entry_count);
-    for (auto const& sharing : ReadonlySpan<ComputedValuesFFI::FfiUnfixedRandomSharing> { unfixed_random_sharings.entries, unfixed_random_sharings.entry_count }) {
+    random_base_values.ensure_capacity(computation_requirements.unfixed_random_sharing_count);
+    for (auto const& sharing : ReadonlySpan<ComputedValuesFFI::FfiUnfixedRandomSharing> { computation_requirements.unfixed_random_sharings, computation_requirements.unfixed_random_sharing_count }) {
         VERIFY(sharing.name != 0);
         RandomCachingKey random_caching_key {
             .name = Utf16FlyString::from_raw(sharing.name),
@@ -5719,10 +5718,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         };
         random_base_values.empend(sharing.source, const_cast<DOM::Element&>(abstract_element.element()).ensure_css_random_base_value(random_caching_key));
     }
-    auto const environment_requirements = ComputedValuesFFI::rust_cascaded_properties_environment_requirements(cascaded_properties.rust_store());
     Vector<String> style_sheet_base_urls;
     Vector<ComputedValuesFFI::FfiStyleSheetResourceContext> style_sheet_resource_contexts;
-    if (environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT) {
+    if (computation_requirements.environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT) {
         style_sheet_base_urls.resize(cascaded_properties.source_slot_count());
         style_sheet_resource_contexts.resize(cascaded_properties.source_slot_count());
         for (size_t slot = 0; slot < cascaded_properties.source_slot_count(); ++slot) {
@@ -5752,7 +5750,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         }
     }
     String document_base_url;
-    if (environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL)
+    if (computation_requirements.environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL)
         document_base_url = abstract_element.document().base_url().to_string();
     auto document_base_url_bytes = document_base_url.bytes();
     ComputedValuesFFI::FfiStyleComputationEnvironment const computation_environment {
@@ -5778,7 +5776,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         if (context_property.has_value()) {
             auto const& computation_context = get_computation_context_for_property(*context_property, computed_style, abstract_element);
-            length_resolution_context = to_ffi_length_resolution_context_with_container_bases(computation_context.length_resolution_context, container_relative_length_unit_mask);
+            length_resolution_context = to_ffi_length_resolution_context_with_container_bases(computation_context.length_resolution_context, computation_requirements.container_relative_length_unit_mask);
         }
         auto store_batch = ComputedValuesFFI::rust_drive_property_computation(computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, &driver_results);
         ScopeGuard destroy_store_batch = [&] {
