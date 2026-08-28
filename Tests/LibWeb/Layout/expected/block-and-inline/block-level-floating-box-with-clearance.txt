@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x976]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 976 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 600 0+0+192] [8+0+0 960 0+0+8] children: not-inline
       BlockContainer <div.normal> at [18,18] [0+10+0 300 0+10+280] [0+10+0 300 0+10+0] children: not-inline
@@ -16,16 +16,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <div.normal> at [18,338] [0+10+0 300 0+10+280] [0+10+0 300 0+10+0] children: not-inline
       BlockContainer <div.normal> at [18,658] [0+10+0 300 0+10+280] [0+10+0 300 0+10+0] children: not-inline
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x976]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x976]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 600x960]
-      PaintableWithLines (BlockContainer<DIV>.normal) [8,8 320x320]
-      PaintableWithLines (BlockContainer<DIV>#top) [8,328 100x100]
-      PaintableWithLines (BlockContainer<DIV>#left) [8,428 100x100]
-      PaintableWithLines (BlockContainer<DIV>#right) [108,428 100x100]
-      PaintableWithLines (BlockContainer<DIV>.normal) [8,328 320x320]
-      PaintableWithLines (BlockContainer<DIV>.normal) [8,648 320x320]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x976] (z-index: auto)

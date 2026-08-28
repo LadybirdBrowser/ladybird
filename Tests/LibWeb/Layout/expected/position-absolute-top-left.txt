@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x616]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 616 0+0+0] [BFC] children: not-inline
     BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
       TextNode <#text> (not painted)
@@ -34,28 +34,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.blue_margin> at [408,408] [400+0+0 200 0+0+184] [200+0+0 200 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,608] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x616]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x616]
-    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x600]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-        PaintableWithLines (BlockContainer<DIV>.blue.absolute) [208,208 200x200]
-          PaintableWithLines (BlockContainer<DIV>.red.absolute) [308,308 100x100]
-          PaintableWithLines (BlockContainer<DIV>.yellow.absolute) [258,258 100x100]
-            PaintableWithLines (BlockContainer<DIV>.black.absolute) [308,308 50x50]
-          PaintableWithLines (BlockContainer<DIV>.green.absolute) [508,508 100x100]
-      PaintableWithLines (BlockContainer<DIV>.blue) [8,8 200x200]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 200x0]
-        PaintableWithLines (BlockContainer<DIV>.red) [8,8 100x100]
-        PaintableWithLines (BlockContainer(anonymous)) [8,108 200x0]
-        PaintableWithLines (BlockContainer<DIV>.yellow) [8,108 100x100]
-        PaintableWithLines (BlockContainer(anonymous)) [8,208 200x0]
-        PaintableWithLines (BlockContainer<DIV>.green) [8,208 100x100]
-        PaintableWithLines (BlockContainer(anonymous)) [8,308 200x0]
-      PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
-      PaintableWithLines (BlockContainer<DIV>.blue_margin) [408,408 200x200]
-      PaintableWithLines (BlockContainer(anonymous)) [8,608 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x616] (z-index: auto)

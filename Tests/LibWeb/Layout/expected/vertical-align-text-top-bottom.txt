@@ -26,18 +26,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [0,94] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x94]
-    PaintableWithLines (BlockContainer<BODY>) [0,0 800x94]
-      PaintableWithLines (BlockContainer<DIV>.line) [0,0 800x40]
-        PaintableWithLines (BlockContainer<SPAN>.box.text-top) [20,10 20x10]
-        PaintableWithLines (BlockContainer<SPAN>.box.text-bottom) [40,20 20x10]
-      PaintableWithLines (BlockContainer(anonymous)) [0,40 800x0]
-      PaintableWithLines (BlockContainer<DIV>.line) [0,40 800x54]
-        InlinePaintable (InlineNode<SPAN>.parent) [20,48 80x40]
-          PaintableWithLines (BlockContainer<SPAN>.box.text-top) [60,48 20x10]
-          PaintableWithLines (BlockContainer<SPAN>.box.text-bottom) [80,78 20x10]
-      PaintableWithLines (BlockContainer(anonymous)) [0,94 800x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x94] (z-index: auto)

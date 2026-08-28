@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x632]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 632 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 604 0+0+8] children: not-inline
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 136 0+0+0] children: not-inline
@@ -75,26 +75,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.square> at [28,512] [20+0+0 100 0+0+664] [20+0+0 100 0+0+20] children: not-inline
       BlockContainer <(anonymous)> at [8,632] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x632]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x632]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x604]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 784x136]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 784x16]
-        PaintableWithLines (BlockContainer<DIV>.square) [28,44 100x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,164 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,164 784x136]
-        PaintableWithLines (BlockContainer(anonymous)) [8,164 784x16]
-        PaintableWithLines (BlockContainer<DIV>.square) [350,200 100x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,320 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,320 784x136]
-        PaintableWithLines (BlockContainer(anonymous)) [8,320 784x16]
-        PaintableWithLines (BlockContainer<DIV>.square) [672,356 100x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,476 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,476 784x136]
-        PaintableWithLines (BlockContainer(anonymous)) [8,476 784x16]
-        PaintableWithLines (BlockContainer<DIV>.square) [28,512 100x100]
-      PaintableWithLines (BlockContainer(anonymous)) [8,632 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x632] (z-index: auto)

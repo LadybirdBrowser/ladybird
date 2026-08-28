@@ -18,13 +18,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "jkl"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x208]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [15.828125,8 376.3125x100]
-      PaintableWithLines (BlockContainer<DIV>) [407.796875,8 376.3125x100]
-      PaintableWithLines (BlockContainer<DIV>) [15.828125,108 376.3125x100]
-      PaintableWithLines (BlockContainer<DIV>) [407.796875,108 376.3125x100]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x208] (z-index: auto)

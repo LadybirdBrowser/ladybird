@@ -14,15 +14,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "auto width should behave as fit-content"
             TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x56]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x40]
-      PaintableWithLines (BlockContainer<BUTTON>.btn.fixed-width) [8,8 200x20]
-        PaintableWithLines (BlockContainer(anonymous)) [13,10 190x16]
-          PaintableWithLines (BlockContainer(anonymous)) [13,10 190x16]
-      PaintableWithLines (BlockContainer<BUTTON>.btn) [8,28 334.671875x20]
-        PaintableWithLines (BlockContainer(anonymous)) [13,30 324.671875x16]
-          PaintableWithLines (BlockContainer(anonymous)) [13,30 324.671875x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x56] (z-index: auto)

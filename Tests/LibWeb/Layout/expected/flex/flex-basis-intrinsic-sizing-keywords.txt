@@ -26,13 +26,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "baz"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64]
-    Paintable (Box<BODY>) [8,8 784x48]
-      PaintableWithLines (BlockContainer<DIV>.min-content) [8,8 27.640625x48]
-      PaintableWithLines (BlockContainer<DIV>.max-content) [35.640625,8 98x48]
-      PaintableWithLines (BlockContainer<DIV>.fit-content) [133.640625,8 98x48]
-      PaintableWithLines (BlockContainer<DIV>.auto) [231.640625,8 0x48]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

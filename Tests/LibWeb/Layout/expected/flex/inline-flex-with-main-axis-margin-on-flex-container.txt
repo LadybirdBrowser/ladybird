@@ -7,10 +7,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Immobilie inserieren"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 502x38]
-    Paintable (Box<BODY>) [9,9 164.40625x20]
-      PaintableWithLines (BlockContainer<DIV>) [10,10 162.40625x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 500x36] (z-index: auto)

@@ -6,10 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Diese Website nutzt Cookies und vergleichbare Funktionen zur"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x2]
-    Paintable (Box<BODY>) [8,8 514.859375x20]
-      PaintableWithLines (BlockContainer<DIV>) [9,9 512.859375x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x0] (z-index: auto)

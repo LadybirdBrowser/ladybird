@@ -3,17 +3,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       Box <div.a> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
         Box <div.b> at [8,8] [0+0+0 196 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
-          BlockContainer <span> at [8,8] [0+0+0 196 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          BlockContainer <span> at [8,8] [0+0+0 196 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline overflow: [8,8 970.5625x16]
             frag 0 from TextNode start: 0, length: 115, rect: [8,8 970.5625x16] baseline: 12.796875
                 "Very very very long sentence lorem ipsum too long to fit what will happen with this sentence? Nobody knows for sure"
             TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
-      Paintable (Box<DIV>.a) [8,8 784x16]
-        Paintable (Box<DIV>.b) [8,8 196x16]
-          PaintableWithLines (BlockContainer<SPAN>) [8,8 196x16] overflow: [8,8 970.5625x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

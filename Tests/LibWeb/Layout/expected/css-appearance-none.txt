@@ -56,21 +56,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BreakNode <br> (not painted)
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120.40625]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x104.40625]
-      PaintableWithLines (BlockContainer<INPUT>) [8,8 10x20]
-        PaintableWithLines (BlockContainer(anonymous)) [13,10 0x16]
-          PaintableWithLines (BlockContainer(anonymous)) [13,10 0x16]
-            PaintableWithLines (BlockContainer<SPAN>) [13,10 0x16]
-      PaintableWithLines (BlockContainer<INPUT>) [8,28 10x20]
-        PaintableWithLines (BlockContainer(anonymous)) [13,30 0x16]
-          PaintableWithLines (BlockContainer(anonymous)) [13,30 0x16]
-            PaintableWithLines (BlockContainer<SPAN>) [13,30 0x16]
-      CheckBoxPaintable (CheckBox<INPUT>) [8,48 13x13]
-      PaintableWithLines (BlockContainer<INPUT>) [8,77 0x0]
-      RadioButtonPaintable (RadioButton<INPUT>) [8,81 12x12]
-      PaintableWithLines (BlockContainer<INPUT>) [8,109 0x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x120.40625] (z-index: auto)

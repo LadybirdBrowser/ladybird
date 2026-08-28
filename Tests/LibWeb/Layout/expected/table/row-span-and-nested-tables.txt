@@ -52,31 +52,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,120] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x128]
-    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x112]
-      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 75.828125x112]
-        Paintable (Box<TABLE>) [8,8 75.828125x112]
-          Paintable (Box<TBODY>) [11,11 69.828125x106]
-            Paintable (Box<TR>) [11,11 69.828125x52]
-              PaintableWithLines (BlockContainer<TD>) [11,11 23.5625x52]
-              PaintableWithLines (BlockContainer<TD>) [36.5625,11 44.265625x106]
-                PaintableWithLines (BlockContainer(anonymous)) [42.5625,17 32.265625x0]
-                PaintableWithLines (TableWrapper(anonymous)) [42.5625,17 32.265625x94]
-                  Paintable (Box<TABLE>) [42.5625,17 32.265625x94]
-                    Paintable (Box<TBODY>) [45.5625,20 26.265625x88]
-                      Paintable (Box<TR>) [45.5625,20 26.265625x28]
-                        PaintableWithLines (BlockContainer<TD>) [45.5625,20 26.265625x28]
-                      Paintable (Box<TR>) [45.5625,50 26.265625x28]
-                        PaintableWithLines (BlockContainer<TD>) [45.5625,50 26.265625x28]
-                      Paintable (Box<TR>) [45.5625,80 26.265625x28]
-                        PaintableWithLines (BlockContainer<TD>) [45.5625,80 26.265625x28]
-                PaintableWithLines (BlockContainer(anonymous)) [42.5625,111 32.265625x0]
-            Paintable (Box<TR>) [11,65 69.828125x52]
-              PaintableWithLines (BlockContainer<TD>) [11,65 23.5625x52]
-      PaintableWithLines (BlockContainer(anonymous)) [8,120 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x128] (z-index: auto)

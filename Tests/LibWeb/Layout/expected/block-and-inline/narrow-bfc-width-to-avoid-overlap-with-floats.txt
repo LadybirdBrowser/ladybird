@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1008]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1008 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: not-inline
       BlockContainer <div.wrapper> at [8,8] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: not-inline
@@ -23,13 +23,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 8 from TextNode start: 316, length: 9, rect: [410.171875,82 63.203125x16] baseline: 12.796875
               "eleifend."
           TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1008]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1008]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
-      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x100]
-        PaintableWithLines (BlockContainer<DIV>.float) [592,8 200x1000]
-        PaintableWithLines (BlockContainer<DIV>.bfc) [8,8 584x100]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x1008] (z-index: auto)

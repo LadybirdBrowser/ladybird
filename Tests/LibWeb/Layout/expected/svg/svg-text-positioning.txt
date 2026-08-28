@@ -20,15 +20,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x136]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x120]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x120]
-        SVGPathPaintable (SVGGeometryBox<rect>) [0,0 300x120]
-        SVGPathPaintable (SVGTextBox<text>) [0,0 0x0]
-          SVGPathPaintable (SVGTextBox<tspan>) [40.796875,15.140625 44.46875x22.125]
-          SVGPathPaintable (SVGTextBox<tspan>) [108.640625,39.6875 45.765625x20.53125]
-          SVGPathPaintable (SVGTextBox<tspan>) [187.03125,74.6875 45.09375x20.53125]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x136] (z-index: auto)

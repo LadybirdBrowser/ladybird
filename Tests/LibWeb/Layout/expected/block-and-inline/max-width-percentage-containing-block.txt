@@ -6,10 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Trimmed"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x38]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x20]
-      PaintableWithLines (BlockContainer<SPAN>.text) [10,10 68.671875x18]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x36] (z-index: auto)

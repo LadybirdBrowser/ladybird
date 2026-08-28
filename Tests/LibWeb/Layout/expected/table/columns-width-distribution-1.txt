@@ -22,16 +22,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     "client."
                 TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x104]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 784x104]
-        Paintable (Box<TABLE>.ambox) [8,8 784x104]
-          Paintable (Box<TBODY>) [11,11 778x98]
-            Paintable (Box<TR>) [11,11 778x98]
-              PaintableWithLines (BlockContainer<TD>.mbox-image) [11,11 52x98]
-                PaintableWithLines (BlockContainer<DIV>.mbox-image-div) [12,35 50x50]
-              PaintableWithLines (BlockContainer<TD>.mbox-text) [65,11 724x98]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x120] (z-index: auto)

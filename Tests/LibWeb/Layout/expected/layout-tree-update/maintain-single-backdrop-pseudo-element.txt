@@ -11,15 +11,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 0, rect: [300,290.390625 0x16] baseline: 12.796875
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-  PaintableWithLines (BlockContainer(anonymous)) [0,0 800x600]
-  PaintableWithLines (BlockContainer<DIALOG>#d) [278,269.390625 244x61.203125]
-    PaintableWithLines (TextInputBox<INPUT>) [297,288.390625 206x20]
-      Paintable (Box<DIV>) [300,290.390625 200x16]
-        PaintableWithLines (BlockContainer<DIV>) [300,290.390625 200x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
  SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)

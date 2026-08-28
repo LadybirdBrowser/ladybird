@@ -6,12 +6,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div> at [52,1.40625] positioned [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x123.390625]
-    PaintableWithLines (BlockContainer<BODY>) [0,0 800x123.390625]
-      FieldSetPaintable (FieldSetBox<FIELDSET>) [50,-0.59375 128x119.59375]
-        PaintableWithLines (BlockContainer<DIV>) [52,1.40625 20x20]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x123.390625] (z-index: auto)
   SC for FieldSetBox<FIELDSET> [64,7 100x100] (z-index: auto), has_transform

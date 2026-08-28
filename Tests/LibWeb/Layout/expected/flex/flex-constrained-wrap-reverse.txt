@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1024]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1024 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 1008 0+0+8] children: not-inline
       Box <div.row> at [9,9] flex-container(row) [0+1+0 250 0+1+532] [0+1+0 250 0+1+0] [FFC] children: not-inline
@@ -93,30 +93,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,1016] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1024]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1024]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x1008]
-      Paintable (Box<DIV>.row) [8,8 252x252]
-        PaintableWithLines (BlockContainer<DIV>.box) [9,157 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [111,157 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [9,32 102x102]
-      PaintableWithLines (BlockContainer(anonymous)) [8,260 784x0]
-      Paintable (Box<DIV>.column) [8,260 252x252]
-        PaintableWithLines (BlockContainer<DIV>.box) [157,261 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [157,363 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [32,261 102x102]
-      PaintableWithLines (BlockContainer(anonymous)) [8,512 784x0]
-      Paintable (Box<DIV>.row.start) [8,512 252x252]
-        PaintableWithLines (BlockContainer<DIV>.box) [9,638 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [111,638 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [9,513 102x102]
-      PaintableWithLines (BlockContainer(anonymous)) [8,764 784x0]
-      Paintable (Box<DIV>.column.start) [8,764 252x252]
-        PaintableWithLines (BlockContainer<DIV>.box) [134,765 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [134,867 102x102]
-        PaintableWithLines (BlockContainer<DIV>.box) [9,765 102x102]
-      PaintableWithLines (BlockContainer(anonymous)) [8,1016 784x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x1024] (z-index: auto)

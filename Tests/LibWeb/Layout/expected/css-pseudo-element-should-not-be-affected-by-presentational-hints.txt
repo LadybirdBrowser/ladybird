@@ -8,15 +8,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <td> at [15,62] table-cell [0+1+1 100 1+1+0] [0+1+48 2 48+1+0] [BFC] children: not-inline
                 BlockContainer <(anonymous)> at [16,63] [0+1+0 98 0+1+0] [0+1+0 0 0+1+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x126]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x108]
-      PaintableWithLines (TableWrapper(anonymous)) [10,10 110x106]
-        Paintable (Box<TABLE>) [10,10 110x106]
-          Paintable (Box<TBODY>) [13,13 104x100]
-            Paintable (Box<TR>) [13,13 104x100]
-              PaintableWithLines (BlockContainer<TD>) [13,13 104x100]
-                PaintableWithLines (BlockContainer(anonymous)) [15,62 100x2]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x124] (z-index: auto)

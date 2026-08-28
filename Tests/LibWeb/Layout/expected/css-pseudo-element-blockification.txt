@@ -15,13 +15,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "friends"
           GeneratedTextNode <(anonymous)> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
-      Paintable (Box<DIV>.foo) [8,8 784x16]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 28.40625x16]
-        PaintableWithLines (BlockContainer(anonymous)) [46.40625,8 36.84375x16]
-        PaintableWithLines (BlockContainer(anonymous)) [93.25,8 55.359375x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

@@ -18,21 +18,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,508] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x516]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x500]
-      Paintable (Box<DIV>.max-content-row) [8,8 784x200]
-        PaintableWithLines (BlockContainer<DIV>.green-block-definite-height) [8,8 50x200]
-      PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
-      Paintable (Box<DIV>.max-content-row) [8,208 784x50]
-        PaintableWithLines (BlockContainer<DIV>.blue-block-definite-height) [8,208 200x50]
-      PaintableWithLines (BlockContainer(anonymous)) [8,258 784x0]
-      Paintable (Box<DIV>.min-content-row) [8,258 784x200]
-        PaintableWithLines (BlockContainer<DIV>.green-block-definite-height) [8,258 50x200]
-      PaintableWithLines (BlockContainer(anonymous)) [8,458 784x0]
-      Paintable (Box<DIV>.min-content-row) [8,458 784x50]
-        PaintableWithLines (BlockContainer<DIV>.blue-block-definite-height) [8,458 200x50]
-      PaintableWithLines (BlockContainer(anonymous)) [8,508 784x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x516] (z-index: auto)

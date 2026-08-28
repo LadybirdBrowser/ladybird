@@ -8,10 +8,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "intruding on this div"
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x54]
-    PaintableWithLines (BlockContainer<BODY>) [109,9 302x36]
-      PaintableWithLines (BlockContainer<DIV>) [60,10 202x34]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x52] (z-index: auto)

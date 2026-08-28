@@ -8,10 +8,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <span.icon> at [104.15625,30] inline-block [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x80]
-    PaintableWithLines (BlockContainer<BODY>) [0,0 800x80]
-      PaintableWithLines (BlockContainer<SPAN>.icon) [104.15625,30 16x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x80] (z-index: auto)

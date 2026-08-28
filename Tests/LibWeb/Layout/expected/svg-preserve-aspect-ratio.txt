@@ -102,35 +102,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x273]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x257]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,83 102x52]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [118,83 102x52]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [228,83 102x52]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [338,83 102x52]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [448,83 102x52]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [558,83 102x52]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [668,8 52x127]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [728,8 52x127]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,135 52x127]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [68,135 52x127]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [128,135 52x127]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [188,135 52x127]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-      SVGSVGPaintable (SVGSVGBox<svg>) [248,200 162x62]
-        SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x273] (z-index: auto)

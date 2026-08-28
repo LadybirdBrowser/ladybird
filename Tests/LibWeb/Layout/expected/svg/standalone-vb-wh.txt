@@ -10,11 +10,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
     TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  SVGSVGPaintable (SVGSVGBox<svg>) [0,0 800x600]
-    SVGPathPaintable (SVGGeometryBox<rect>) [0,0 32x64]
-    SVGGraphicsPaintable (SVGGraphicsBox<g>) [0,0 32x64]
-      SVGPathPaintable (SVGGeometryBox<path>) [0,0 32x64]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for SVGSVGBox<svg> [0,0 800x600] (z-index: auto)

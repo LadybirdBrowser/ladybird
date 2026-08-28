@@ -8,12 +8,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "pillow"
             TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x22]
-      Paintable (Box<DIV>.flexrow) [10,10 780x20]
-        Paintable (Box<DIV>.project) [11,11 46.03125x18]
-          PaintableWithLines (BlockContainer(anonymous)) [12,12 44.03125x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x38] (z-index: auto)

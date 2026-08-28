@@ -91,20 +91,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [10,414] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x424]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x406]
-      Paintable (Box<DIV>.grid) [10,10 502x404]
-        PaintableWithLines (BlockContainer<DIV>.left-margin-auto.right-margin-auto) [98.71875,11 324.5625x18]
-        PaintableWithLines (BlockContainer<DIV>.left-margin-auto) [251.375,29 259.625x18]
-        PaintableWithLines (BlockContainer<DIV>.right-margin-auto) [11,47 270.484375x18]
-        PaintableWithLines (BlockContainer<DIV>.left-margin-auto.right-margin-auto.fit-content-width) [74.25,65 373.484375x18]
-        PaintableWithLines (BlockContainer<DIV>.left-margin-auto.fit-content-width) [202.453125,83 308.546875x18]
-        PaintableWithLines (BlockContainer<DIV>.right-margin-auto.fit-content-width) [11,101 319.40625x18]
-        PaintableWithLines (BlockContainer<DIV>.left-margin-auto.right-margin-auto.fixed-width) [235,119 52x98]
-        PaintableWithLines (BlockContainer<DIV>.left-margin-auto.fixed-width) [459,217 52x98]
-        PaintableWithLines (BlockContainer<DIV>.right-margin-auto.fixed-width) [11,315 52x98]
-      PaintableWithLines (BlockContainer(anonymous)) [10,414 780x0]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x422] (z-index: auto)

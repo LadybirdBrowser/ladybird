@@ -19,14 +19,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "goes-there"
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      Paintable (Box<DIV>.container) [8,8 203.28125x32]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,8 101.640625x16]
-        PaintableWithLines (BlockContainer<DIV>.item) [109.640625,8 101.640625x16]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,24 101.640625x16]
-        PaintableWithLines (BlockContainer<DIV>.item) [109.640625,24 101.640625x16]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x40] (z-index: auto)

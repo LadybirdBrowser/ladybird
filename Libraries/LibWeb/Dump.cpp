@@ -345,6 +345,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         }
     }
 
+    if (Painting::has_scrollable_overflow(layout_node))
+        builder.appendff(" overflow: {}", Painting::scrollable_overflow_rect(layout_node));
+
     builder.append("\n"sv);
 
     if (layout_node.dom_node() && is<HTML::HTMLImageElement>(*layout_node.dom_node())) {

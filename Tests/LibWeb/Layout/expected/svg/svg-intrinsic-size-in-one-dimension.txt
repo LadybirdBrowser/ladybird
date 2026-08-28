@@ -6,13 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       SVGSVGBox <svg> at [9,61] [0+1+0 200 0+1+582] [0+1+0 100 0+1+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
         SVGGeometryBox <rect> at [25,25] [0+0+0 150 0+0+0] [0+0+0 50 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x170]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x154]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 102x52]
-        SVGPathPaintable (SVGGeometryBox<rect>) [25,25 150x50]
-      SVGSVGPaintable (SVGSVGBox<svg>) [8,60 202x102]
-        SVGPathPaintable (SVGGeometryBox<rect>) [25,25 150x50]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x170] (z-index: auto)

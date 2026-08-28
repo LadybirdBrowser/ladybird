@@ -6,12 +6,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BreakNode <br> (not painted)
       BlockContainer <div#end> at [8,26] [0+0+0 784 0+0+0] [0+0+0 2 0+0+0] children: not-inline
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x20]
-      PaintableWithLines (BlockContainer<DIV>#begin) [8,8 784x2]
-      PaintableWithLines (BlockContainer(anonymous)) [8,10 784x16]
-      PaintableWithLines (BlockContainer<DIV>#end) [8,26 784x2]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

@@ -41,11 +41,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "tellus."
           TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x296]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      Paintable (Box<DIV>.container) [8,8 200x288]
-        PaintableWithLines (BlockContainer<DIV>.item) [8,8 100x288]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x296] (z-index: auto)

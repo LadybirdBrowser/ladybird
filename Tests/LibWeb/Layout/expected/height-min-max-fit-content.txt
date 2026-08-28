@@ -15,12 +15,5 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       ImageBox <img.fit> at [264,8] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x139]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x123]
-      ImagePaintable (ImageBox<IMG>.min) [8,8 120x120]
-      ImagePaintable (ImageBox<IMG>.max) [136,8 120x120]
-      ImagePaintable (ImageBox<IMG>.fit) [264,8 120x120]
-
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x139] (z-index: auto)
