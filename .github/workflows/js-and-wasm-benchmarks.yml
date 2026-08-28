@@ -20,7 +20,7 @@ jobs:
         arch: ['x86_64']
         package_type: ['Linux-x86_64']
         runner_labels: ['["ubuntu-24.04-internal", "js-benchmarks", "self-hosted"]']
-        container: ['{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.08.13"}']
+        container: ['{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.08.28"}']
 
         include:
           - os_name: 'macOS'
