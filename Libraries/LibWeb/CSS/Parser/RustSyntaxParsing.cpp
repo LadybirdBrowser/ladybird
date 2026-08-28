@@ -159,15 +159,15 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
 {
     VERIFY(index < data.declaration_count);
     auto const& declaration = data.declarations[index];
+    VERIFY(declaration.rejection <= FfiDeclarationRejection::InvalidValue);
     auto optional_text = [&](size_t offset, size_t length) -> Optional<Utf16String> {
         if (offset == NumericLimits<size_t>::max())
             return {};
         return Utf16String::from_utf16(utf16_value(data, offset, length));
     };
-    Optional<Utf16String> original_value_text;
-    if (declaration.original_value_offset != NumericLimits<size_t>::max())
-        original_value_text = Utf16String::from_utf16(utf16_value(data, declaration.original_value_offset, declaration.original_value_length));
-    auto value_text = Utf16String::from_utf16(utf16_value(data, declaration.value_source_offset, declaration.value_source_length));
+
+    auto name_view = utf16_value(data, declaration.name_offset, declaration.name_length);
+    auto value_view = utf16_value(data, declaration.value_source_offset, declaration.value_source_length);
     Optional<PropertyID> parsed_property_id;
     Optional<DescriptorNameAndID> descriptor_name_and_id;
     RefPtr<StyleValue const> parsed_value;
@@ -179,15 +179,44 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         VERIFY(declaration.descriptor_id <= to_underlying(DescriptorID::Custom));
         auto descriptor_id = static_cast<DescriptorID>(declaration.descriptor_id);
         descriptor_name_and_id = descriptor_id == DescriptorID::Custom
-            ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)))
+            ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(name_view))
             : DescriptorNameAndID::from_id(descriptor_id);
     }
-    if (declaration.parse_status == FfiParseStatus::Parsed) {
-        VERIFY(declaration.parsed_value);
-        parsed_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value));
+
+    Optional<StylePropertyAndName> property;
+    if (declaration.parsed_value) {
+        VERIFY(declaration.rejection == FfiDeclarationRejection::None);
+        auto value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value));
+        if (declaration.is_property) {
+            VERIFY(parsed_property_id.has_value());
+            auto custom_name = *parsed_property_id == PropertyID::Custom ? Utf16FlyString::from_utf16(name_view) : Utf16FlyString {};
+            property = StylePropertyAndName {
+                .property = { declaration.important ? Important::Yes : Important::No, *parsed_property_id, move(value) },
+                .name = move(custom_name),
+            };
+        } else
+            parsed_value = move(value);
     } else {
-        VERIFY(!declaration.parsed_value);
+        VERIFY(!parsed_property_id.has_value() || declaration.rejection == FfiDeclarationRejection::InvalidValue);
     }
+
+    switch (declaration.rejection) {
+    case FfiDeclarationRejection::None:
+    case FfiDeclarationRejection::IgnoredVendorPrefix:
+        break;
+    case FfiDeclarationRejection::UnknownProperty:
+        ErrorReporter::the().report(UnknownPropertyError { .property_name = Utf16FlyString::from_utf16(name_view) });
+        break;
+    case FfiDeclarationRejection::InvalidValue:
+        VERIFY(parsed_property_id.has_value());
+        ErrorReporter::the().report(InvalidPropertyError {
+            .property_name = string_from_property_id(*parsed_property_id),
+            .value_string = MUST(value_view.to_utf8(AllowLonelySurrogates::Yes)),
+            .description = "Failed to parse."_string,
+        });
+        break;
+    }
+
     Optional<Vector<u32>> font_feature_values;
     if (declaration.font_feature_values_start != NumericLimits<size_t>::max()) {
         VERIFY(declaration.font_feature_values_start <= data.font_feature_value_count);
@@ -197,14 +226,19 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
         for (size_t index = 0; index < declaration.font_feature_value_count; ++index)
             font_feature_values->unchecked_append(data.font_feature_values[declaration.font_feature_values_start + index]);
     }
+    Optional<Utf16FlyString> name;
+    if (declaration.preserve_source_text || font_feature_values.has_value())
+        name = Utf16FlyString::from_utf16(name_view);
     return Declaration {
-        .name = Utf16FlyString::from_utf16(utf16_value(data, declaration.name_offset, declaration.name_length)),
+        .name = move(name),
         .important = declaration.important ? Important::Yes : Important::No,
-        .original_value_text = move(original_value_text),
+        .original_value_text = optional_text(declaration.original_value_offset, declaration.original_value_length),
         .original_full_text = optional_text(declaration.original_full_text_offset, declaration.original_full_text_length),
         .source_position = source_position(declaration.start_line, declaration.start_column),
-        .value_text = move(value_text),
+        .value_text = declaration.preserve_source_text ? Optional<Utf16String> { Utf16String::from_utf16(value_view) } : OptionalNone {},
         .parsed_property_id = parsed_property_id,
+        .property = move(property),
+        .rejection = declaration.rejection,
         .descriptor_name_and_id = move(descriptor_name_and_id),
         .parsed_value = move(parsed_value),
         .font_feature_values = move(font_feature_values),

@@ -227,9 +227,4 @@ bool is_valid_animation_name_custom_ident(Utf16View ident)
     return CSS::Parser::ValueParserFFI::rust_is_valid_animation_name_custom_ident(CSS::Parser::ffi_utf16_view(ident));
 }
 
-bool has_ignored_vendor_prefix(Utf16View string)
-{
-    return CSS::Parser::ValueParserFFI::rust_has_ignored_vendor_prefix(CSS::Parser::ffi_utf16_view(string));
-}
-
 }

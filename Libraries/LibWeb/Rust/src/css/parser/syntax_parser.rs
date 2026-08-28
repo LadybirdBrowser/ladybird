@@ -7,7 +7,7 @@
 // Style values are shared only across the thread-confined CSS object graph.
 #![allow(clippy::arc_with_non_send_sync)]
 
-use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
+use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
 use crate::css::css_tokenizer::{
     CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
@@ -26,8 +26,8 @@ use crate::css::parser::query_parser::{
 };
 use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{
-    FfiParseStatus, FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome,
-    is_valid_custom_ident, parse_css_value_with_utf16_source, parse_url_value,
+    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, is_valid_custom_ident,
+    parse_css_value_with_utf16_source, parse_url_value,
 };
 use crate::css::property_metadata::{property_id, property_id_from_name};
 use crate::css::selector_parser::{RustParsedSelectorList, SelectorType, parse_selector_list_from_component_values};
@@ -1204,6 +1204,18 @@ fn starts_with_ascii(value: &[u16], expected: &[u8]) -> bool {
             .all(|(&left, &right)| u8::try_from(left) == Ok(right))
 }
 
+fn trim_ascii_whitespace(value: &[u16]) -> &[u16] {
+    let start = value
+        .iter()
+        .position(|code_unit| !matches!(*code_unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+        .unwrap_or(value.len());
+    let end = value
+        .iter()
+        .rposition(|code_unit| !matches!(*code_unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+        .map_or(start, |index| index + 1);
+    &value[start..end]
+}
+
 fn is_margin_rule_name(name: &[u16]) -> bool {
     [
         b"top-left-corner".as_slice(),
@@ -1243,14 +1255,6 @@ fn has_ignored_vendor_prefix(name: TokenizerInput<'_>) -> bool {
             .filter(|&index| name.code_unit_at(index) == u16::from(b'-'))
             .count()
             > 1
-}
-
-/// # Safety
-/// The source view must contain exactly one valid pointer when non-empty.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_has_ignored_vendor_prefix(source: FfiUtf16View) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::RustHasIgnoredVendorPrefixEntry);
-    crate::abort_on_panic(|| unsafe { source.units() }.is_some_and(has_ignored_vendor_prefix))
 }
 
 fn rule_kind(rule: &Rule) -> FfiRuleKind {
@@ -1822,7 +1826,7 @@ impl Parser {
 
     fn declaration_is_property(&self) -> bool {
         match self.rule_context.last() {
-            Some(RuleContext::Style | RuleContext::Keyframe | RuleContext::AtScope) => true,
+            Some(RuleContext::Style | RuleContext::Keyframe | RuleContext::AtScope | RuleContext::Margin) => true,
             Some(RuleContext::AtContainer | RuleContext::AtLayer | RuleContext::AtMedia | RuleContext::AtSupports) => {
                 self.rule_context.contains(&RuleContext::Style)
             }
@@ -1992,12 +1996,22 @@ pub struct FfiSyntaxDeclaration {
     pub original_full_text_length: usize,
     pub start_line: usize,
     pub start_column: usize,
+    pub preserve_source_text: bool,
     pub property_id: u16,
     pub descriptor_id: u8,
-    pub parse_status: FfiParseStatus,
+    pub rejection: FfiDeclarationRejection,
     pub parsed_value: *const c_void,
     pub font_feature_values_start: usize,
     pub font_feature_value_count: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiDeclarationRejection {
+    None,
+    UnknownProperty,
+    IgnoredVendorPrefix,
+    InvalidValue,
 }
 
 #[derive(Clone, Copy)]
@@ -2407,11 +2421,17 @@ impl FfiSyntaxParse {
         } else {
             self.append_component_list(&declaration.value)
         };
-        let (original_value_offset, original_value_length) =
-            self.append_optional_value(declaration.original_value_text.as_deref());
-        let (original_full_text_offset, original_full_text_length) =
-            self.append_optional_value(declaration.original_full_text.as_deref());
-        let (property_id, descriptor_id, parse_status, parsed_value) =
+        let original_value_text = self
+            .preserve_property_source_text
+            .then_some(declaration.original_value_text.as_deref())
+            .flatten();
+        let original_full_text = self
+            .preserve_property_source_text
+            .then_some(declaration.original_full_text.as_deref())
+            .flatten();
+        let (original_value_offset, original_value_length) = self.append_optional_value(original_value_text);
+        let (original_full_text_offset, original_full_text_length) = self.append_optional_value(original_full_text);
+        let (property_id, descriptor_id, rejection, parsed_value) =
             self.parse_declaration_value(declaration, value_source.as_ref());
         let font_feature_values = font_feature_maximum_value_count
             .and_then(|maximum_value_count| parse_font_feature_values(declaration, maximum_value_count));
@@ -2423,9 +2443,7 @@ impl FfiSyntaxParse {
         } else {
             (usize::MAX, 0)
         };
-        let needs_value_text = self.preserve_property_source_text
-            || parse_status != FfiParseStatus::Parsed
-            || equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient");
+        let needs_value_text = self.preserve_property_source_text || rejection == FfiDeclarationRejection::InvalidValue;
         let (value_source_offset, value_source_length) = if needs_value_text {
             self.append_value(value_source.as_ref())
         } else {
@@ -2447,9 +2465,10 @@ impl FfiSyntaxParse {
             original_full_text_length,
             start_line: declaration.source_position.line,
             start_column: declaration.source_position.column,
+            preserve_source_text: self.preserve_property_source_text,
             property_id,
             descriptor_id,
-            parse_status,
+            rejection,
             parsed_value,
             font_feature_values_start,
             font_feature_value_count,
@@ -2461,13 +2480,13 @@ impl FfiSyntaxParse {
         &self,
         declaration: &Declaration,
         source_utf16: &[u16],
-    ) -> (u16, u8, FfiParseStatus, *const c_void) {
+    ) -> (u16, u8, FfiDeclarationRejection, *const c_void) {
         if self.parse_context.is_null() {
-            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            return (u16::MAX, u8::MAX, FfiDeclarationRejection::None, std::ptr::null());
         }
         if !declaration.is_property {
             let Some(at_rule) = descriptor_at_rule(declaration.rule_context) else {
-                return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+                return (u16::MAX, u8::MAX, FfiDeclarationRejection::None, std::ptr::null());
             };
             let parse_context = unsafe { &*self.parse_context };
             return match parse_descriptor(
@@ -2480,15 +2499,43 @@ impl FfiSyntaxParse {
                 Some(descriptor) => (
                     u16::MAX,
                     descriptor.id,
-                    FfiParseStatus::Parsed,
+                    FfiDeclarationRejection::None,
                     Arc::into_raw(descriptor.value).cast::<c_void>(),
                 ),
-                None => (u16::MAX, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
+                None => (u16::MAX, u8::MAX, FfiDeclarationRejection::None, std::ptr::null()),
             };
         }
         let Some(property_id) = property_id_from_name(declaration.name.as_ref()) else {
-            return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
+            // NB: Mirrors the ignored-vendor and unknown-property distinction from commit
+            //     dbe9950abd9 in Libraries/LibWeb/CSS/Parser/Parser.cpp:360.
+            let rejection = if has_ignored_vendor_prefix(declaration.name.as_ref().into()) {
+                FfiDeclarationRejection::IgnoredVendorPrefix
+            } else {
+                FfiDeclarationRejection::UnknownProperty
+            };
+            return (u16::MAX, u8::MAX, rejection, std::ptr::null());
         };
+
+        if equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient") {
+            // NB: Mirrors the legacy value mapping from commit dbe9950abd9 in
+            //     Libraries/LibWeb/CSS/Parser/Parser.cpp:373.
+            let source = trim_ascii_whitespace(source_utf16);
+            let legacy_keyword = if equals_ascii_case_insensitive(source, b"horizontal") {
+                Some(keyword::ROW)
+            } else if equals_ascii_case_insensitive(source, b"vertical") {
+                Some(keyword::COLUMN)
+            } else {
+                None
+            };
+            if let Some(keyword) = legacy_keyword {
+                return (
+                    property_id,
+                    u8::MAX,
+                    FfiDeclarationRejection::None,
+                    Arc::into_raw(Arc::new(StyleValueData::Keyword { keyword })).cast(),
+                );
+            }
+        }
 
         let parse_context = unsafe { &*self.parse_context };
         let mut value_contexts = if parse_context.value_context_count == 0 {
@@ -2516,11 +2563,15 @@ impl FfiSyntaxParse {
             ParseOutcome::Parsed(value) => (
                 property_id,
                 u8::MAX,
-                FfiParseStatus::Parsed,
+                FfiDeclarationRejection::None,
                 Arc::into_raw(value).cast::<c_void>(),
             ),
-            ParseOutcome::Invalid => (property_id, u8::MAX, FfiParseStatus::Invalid, std::ptr::null()),
-            ParseOutcome::NotHandled => (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null()),
+            ParseOutcome::Invalid | ParseOutcome::NotHandled => (
+                property_id,
+                u8::MAX,
+                FfiDeclarationRejection::InvalidValue,
+                std::ptr::null(),
+            ),
         }
     }
 
@@ -2541,9 +2592,10 @@ impl FfiSyntaxParse {
             original_full_text_length: 0,
             start_line: 0,
             start_column: 0,
+            preserve_source_text: false,
             property_id: u16::MAX,
             descriptor_id: descriptor.id,
-            parse_status: FfiParseStatus::Parsed,
+            rejection: FfiDeclarationRejection::None,
             parsed_value: Arc::into_raw(descriptor.value).cast(),
             font_feature_values_start: usize::MAX,
             font_feature_value_count: 0,

@@ -100,8 +100,8 @@ TEST_CASE(devtools_declaration_metadata)
         EXPECT_EQ(declarations[index].is_name_valid, is_name_valid);
         EXPECT_EQ(declarations[index].is_valid, is_valid);
     };
-    expect_declaration(0, u"COLOR"sv, u""sv, Important::Yes, false, true, true);
-    expect_declaration(1, u"--custom"sv, u""sv, Important::No, true, true, true);
+    expect_declaration(0, u"COLOR"sv, u"red"sv, Important::Yes, false, true, true);
+    expect_declaration(1, u"--custom"sv, u"token stream"sv, Important::No, true, true, true);
     expect_declaration(2, u"unknown-property"sv, u"1px"sv, Important::No, false, false, false);
     expect_declaration(3, u"-webkit-unknown"sv, u"2px"sv, Important::No, false, false, false);
     expect_declaration(4, u"-webkit-box-orient"sv, u"horizontal"sv, Important::No, false, true, true);
