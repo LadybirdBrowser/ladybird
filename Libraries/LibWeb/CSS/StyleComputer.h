@@ -341,6 +341,7 @@ public:
 
 private:
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedStyleWorkingSet const&) const;
+    NonnullRefPtr<StyleValue const> finalize_custom_property_value(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const&, NonnullRefPtr<StyleValue const>) const;
 
     GC::Ref<DOM::Document> m_document;
 
@@ -457,21 +458,6 @@ private:
     mutable u64 m_parsed_substitution_registration_generation { 0 };
     [[nodiscard]] u64 parsed_substitution_cache_bytes() const;
     void settle_parsed_substitution_cache() const;
-
-    // While one element's own custom properties resolve in dependency order, the values already final for it. A
-    // nested var() naming one reads the finished answer instead of resolving the value again. Members of a reference
-    // cycle are never in here while their cycle resolves, so the substitution guards remain the only thing that
-    // decides what a cycle is.
-    struct ActiveCustomPropertyResolution {
-        DOM::AbstractElement element;
-        HashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> finalized;
-
-        void visit_edges(GC::Cell::Visitor& visitor) const
-        {
-            element.visit(visitor);
-        }
-    };
-    mutable Optional<ActiveCustomPropertyResolution> m_active_custom_property_resolution;
 
     // The cascade input a match signature names, expanded once and answered from for every other
     // element the traversal proves has the same one. Keyed by the signature and what is being

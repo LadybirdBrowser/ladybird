@@ -237,6 +237,20 @@ fn scan_custom_property_references(
     all_references_visible
 }
 
+pub(crate) fn custom_property_references(value: &StyleValueData) -> Option<(Vec<Vec<u16>>, bool)> {
+    let StyleValueData::Unresolved { components, .. } = value else {
+        return None;
+    };
+    let mut references = Vec::new();
+    unsafe extern "C" fn collect(context: *mut c_void, name: *const u16, name_length: usize) {
+        let references = unsafe { &mut *context.cast::<Vec<Vec<u16>>>() };
+        references.push(unsafe { std::slice::from_raw_parts(name, name_length) }.to_vec());
+    }
+    let all_references_visible =
+        scan_custom_property_references(components.as_slice(), (&raw mut references).cast(), collect);
+    Some((references, all_references_visible))
+}
+
 /// Visits the Typed OM reification of an unresolved style value. Event 0 appends a text segment,
 /// event 1 begins a variable reference, and event 2 ends its optional fallback.
 ///

@@ -290,11 +290,12 @@ struct VarResolutionContext<'a> {
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     condition_context: *mut c_void,
     evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
-    lookup_final_custom_property: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> *const c_void>,
+    final_custom_properties: Option<&'a HashMap<Vec<u16>, *const c_void>>,
     active_functions: Vec<usize>,
     cyclic_functions: HashSet<usize>,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
+    resolution_stats: Option<&'a VarResolutionStats>,
 }
 
 type CustomPropertyTokenCache = HashMap<*const StyleValueData, (Arc<[OwnedToken]>, bool, bool)>;
@@ -303,6 +304,23 @@ pub(crate) struct VarResolutionEnvironment {
     attributes: HashMap<Vec<u16>, Vec<u16>>,
     custom_functions: CustomFunctionRegistry,
     token_cache: CustomPropertyTokenCache,
+    resolution_stats: VarResolutionStats,
+}
+
+#[derive(Default)]
+struct VarResolutionStats {
+    final_value_hits: std::cell::Cell<u64>,
+    final_value_misses: std::cell::Cell<u64>,
+}
+
+impl VarResolutionEnvironment {
+    pub(crate) fn final_value_hits(&self) -> u64 {
+        self.resolution_stats.final_value_hits.get()
+    }
+
+    pub(crate) fn final_value_misses(&self) -> u64 {
+        self.resolution_stats.final_value_misses.get()
+    }
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -585,6 +603,7 @@ pub(crate) unsafe fn prepare_var_resolution_environment(
         attributes,
         custom_functions,
         token_cache: HashMap::new(),
+        resolution_stats: VarResolutionStats::default(),
     })
 }
 
@@ -866,19 +885,15 @@ fn resolve_custom_property_with_lookup(
         }
     }
     if lookup == CustomPropertyLookup::Normal
-        && let Some(lookup_final) = context.lookup_final_custom_property
+        && let Some(final_values) = context.final_custom_properties
     {
-        let data = unsafe {
-            lookup_final(
-                context.condition_context,
-                FfiUtf16View {
-                    ascii: std::ptr::null(),
-                    utf16: name.as_ptr(),
-                    length: name.len(),
-                },
-            )
-        };
-        if let Some(data) = unsafe { data.cast::<StyleValueData>().as_ref() } {
+        if let Some(data) = final_values
+            .get(name)
+            .and_then(|data| unsafe { data.cast::<StyleValueData>().as_ref() })
+        {
+            if let Some(stats) = context.resolution_stats {
+                stats.final_value_hits.set(stats.final_value_hits.get() + 1);
+            }
             if matches!(data, StyleValueData::GuaranteedInvalid) {
                 return TokenResolution::Invalid;
             }
@@ -891,6 +906,8 @@ fn resolve_custom_property_with_lookup(
             if !includes_substitution {
                 return TokenResolution::Resolved(tokens.to_vec());
             }
+        } else if let Some(stats) = context.resolution_stats {
+            stats.final_value_misses.set(stats.final_value_misses.get() + 1);
         }
     }
     let registration = registry.and_then(|registry| registry.registrations.get(name));
@@ -2248,7 +2265,7 @@ pub(crate) unsafe fn resolve_vars(
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     condition_context: *mut c_void,
     evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
-    lookup_final_custom_property: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> *const c_void>,
+    final_custom_properties: Option<&HashMap<Vec<u16>, *const c_void>>,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
         None
@@ -2274,6 +2291,7 @@ pub(crate) unsafe fn resolve_vars(
         attributes,
         custom_functions,
         token_cache,
+        resolution_stats,
     } = environment;
     let mut context = VarResolutionContext {
         active_names,
@@ -2285,8 +2303,9 @@ pub(crate) unsafe fn resolve_vars(
         resolve_custom_function,
         condition_context,
         evaluate_condition,
-        lookup_final_custom_property,
+        final_custom_properties,
         token_cache: Some(token_cache),
+        resolution_stats: Some(resolution_stats),
         ..Default::default()
     };
     let Some((source, includes_substitution, contains_attr_tainted_values)) =

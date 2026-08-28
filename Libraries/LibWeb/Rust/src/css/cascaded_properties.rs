@@ -984,6 +984,7 @@ pub struct FfiCascadedCustomProperties {
 
 /// Main-thread services used while resolving substituted values inside the Rust cascade.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiCascadeResolutionContext {
     pub parse_context: *const c_void,
     pub custom_property_store: *const c_void,
@@ -999,10 +1000,31 @@ pub struct FfiCascadeResolutionContext {
     pub callback_context: *mut c_void,
     pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
     pub evaluate_condition: Option<unsafe extern "C" fn(*mut c_void, u8, FfiUtf16View) -> u8>,
-    pub lookup_final_custom_property: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> *const c_void>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
     pub lookup_cached_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16) -> *const c_void>,
     pub cache_parsed_substitution: Option<unsafe extern "C" fn(*mut c_void, u32, u16, *const c_void)>,
+}
+
+/// One unresolved value submitted to the bulk substitution resolver.
+#[repr(C)]
+pub struct FfiUnresolvedStyleValue {
+    pub property_id: u16,
+    pub root_custom_property_name: FfiUtf16View,
+    pub data: *const c_void,
+    pub resolve_substitutions: bool,
+}
+
+/// One retained value produced by the bulk substitution resolver.
+#[repr(C)]
+pub struct FfiResolvedStyleValue {
+    pub data: *const c_void,
+}
+
+#[repr(C)]
+pub struct FfiCustomPropertyResolutionStats {
+    pub final_value_hits: u64,
+    pub final_value_misses: u64,
+    pub cycle_participants: u64,
 }
 
 /// Source assignments produced by a completed cascade.
@@ -1208,6 +1230,7 @@ fn resolve_cascade_value(
     property_id: u16,
     unresolved_data: *const c_void,
     has_style_sheet_context: bool,
+    final_custom_properties: Option<&HashMap<Vec<u16>, *const c_void>>,
 ) -> ResolvedStyleValue {
     let native_resolution = match resolution_environment {
         Some(resolution_environment) => unsafe {
@@ -1222,7 +1245,7 @@ fn resolve_cascade_value(
                 resolution_context.resolve_custom_function,
                 resolution_context.callback_context,
                 resolution_context.evaluate_condition,
-                resolution_context.lookup_final_custom_property,
+                final_custom_properties,
             )
         },
         None => crate::css::custom_properties::NativeVarResolution::NotHandled,
@@ -1320,18 +1343,134 @@ fn resolve_cascade_value(
     }
 }
 
-/// Resolves and parses one unresolved value outside the bulk cascade.
+fn custom_property_components(inputs: &[FfiUnresolvedStyleValue]) -> (Vec<Vec<u32>>, u64, bool) {
+    let mut indices = HashMap::new();
+    for (index, input) in inputs.iter().enumerate() {
+        if let Some(name) = unsafe { input.root_custom_property_name.to_utf16() } {
+            indices.insert(name, index as u32);
+        }
+    }
+
+    let mut edges = vec![Vec::new(); inputs.len()];
+    let mut has_own_reference = false;
+    for (index, input) in inputs.iter().enumerate() {
+        let value = unsafe { &*input.data.cast::<StyleValueData>() };
+        let Some((references, mut all_references_visible)) = crate::css::style_value::custom_property_references(value)
+        else {
+            continue;
+        };
+        if let StyleValueData::Unresolved {
+            presence_attr,
+            presence_dashed_function,
+            presence_if,
+            ..
+        } = value
+        {
+            all_references_visible &= !presence_attr && !presence_dashed_function && !presence_if;
+        }
+        if all_references_visible {
+            for reference in references {
+                if let Some(target) = indices.get(&reference) {
+                    edges[index].push(*target);
+                    has_own_reference |= inputs[*target as usize].resolve_substitutions;
+                }
+            }
+        } else {
+            edges[index].extend(0..inputs.len() as u32);
+        }
+    }
+
+    let unvisited = u32::MAX;
+    let mut discovery_index = vec![unvisited; inputs.len()];
+    let mut lowlink = vec![0; inputs.len()];
+    let mut on_stack = vec![false; inputs.len()];
+    let mut component_stack = Vec::new();
+    let mut components = Vec::new();
+    let mut cycle_participants = 0;
+    let mut next_discovery_index = 0;
+    let mut walk_stack: Vec<(u32, usize)> = Vec::new();
+
+    for root in 0..inputs.len() as u32 {
+        if discovery_index[root as usize] != unvisited {
+            continue;
+        }
+        walk_stack.push((root, 0));
+        while let Some(&(node, next_edge)) = walk_stack.last() {
+            let node_index = node as usize;
+            if next_edge == 0 {
+                discovery_index[node_index] = next_discovery_index;
+                lowlink[node_index] = next_discovery_index;
+                next_discovery_index += 1;
+                component_stack.push(node);
+                on_stack[node_index] = true;
+            }
+            if next_edge < edges[node_index].len() {
+                let target = edges[node_index][next_edge];
+                walk_stack.last_mut().unwrap().1 += 1;
+                if discovery_index[target as usize] == unvisited {
+                    walk_stack.push((target, 0));
+                } else if on_stack[target as usize] {
+                    lowlink[node_index] = lowlink[node_index].min(discovery_index[target as usize]);
+                }
+                continue;
+            }
+            if lowlink[node_index] == discovery_index[node_index] {
+                let mut component = Vec::new();
+                loop {
+                    let popped = component_stack.pop().expect("active custom-property component");
+                    on_stack[popped as usize] = false;
+                    component.push(popped);
+                    if popped == node {
+                        break;
+                    }
+                }
+                if component.len() > 1 || edges[component[0] as usize].contains(&component[0]) {
+                    cycle_participants += component.len() as u64;
+                }
+                components.push(component);
+            }
+            walk_stack.pop();
+            if let Some(&(parent, _)) = walk_stack.last() {
+                lowlink[parent as usize] = lowlink[parent as usize].min(lowlink[node_index]);
+            }
+        }
+    }
+    (
+        components,
+        if has_own_reference { cycle_participants } else { 0 },
+        has_own_reference,
+    )
+}
+
+/// Resolves and parses unresolved values outside the longhand cascade. When a
+/// finalizer is supplied, custom properties are resolved in dependency order
+/// and each component is finalized before later components can read it.
 ///
 /// # Safety
-/// `resolution_context` and `unresolved_data` must remain valid for the duration of this call.
+/// Every pointer must remain valid for this call. `outputs` must have room for
+/// `input_count` entries, and a finalizer must replace each component output
+/// with a live style value pointer before returning.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolve_unresolved_style_value(
+pub unsafe extern "C" fn rust_resolve_unresolved_style_values(
     resolution_context: *const FfiCascadeResolutionContext,
-    property_id: u16,
-    unresolved_data: *const c_void,
-) -> *const c_void {
+    inputs: *const FfiUnresolvedStyleValue,
+    input_count: usize,
+    outputs: *mut FfiResolvedStyleValue,
+    finalizer_context: *mut c_void,
+    finalize_component: Option<unsafe extern "C" fn(*mut c_void, *const u32, usize, *mut FfiResolvedStyleValue)>,
+) -> FfiCustomPropertyResolutionStats {
     crate::abort_on_panic(|| {
-        let resolution_context = unsafe { &*resolution_context };
+        let resolution_context = unsafe { *resolution_context };
+        let inputs = if input_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(inputs, input_count) }
+        };
+        let outputs = if input_count == 0 {
+            &mut []
+        } else {
+            unsafe { std::slice::from_raw_parts_mut(outputs, input_count) }
+        };
         let mut resolution_environment = unsafe {
             crate::css::custom_properties::prepare_var_resolution_environment(
                 resolution_context.attributes,
@@ -1341,17 +1480,61 @@ pub unsafe extern "C" fn rust_resolve_unresolved_style_value(
                 resolution_context.custom_function_scope_identity,
             )
         };
-        let resolved = resolve_cascade_value(
-            resolution_context,
-            resolution_environment.as_mut(),
-            0,
-            property_id,
-            unresolved_data,
-            false,
-        );
-        let pointer = resolved.value.pointer().cast();
-        std::mem::forget(resolved.value);
-        pointer
+        let (components, cycle_participants, use_final_custom_properties) = if finalize_component.is_some() {
+            custom_property_components(inputs)
+        } else {
+            ((0..input_count as u32).map(|index| vec![index]).collect(), 0, false)
+        };
+        let mut final_custom_properties = HashMap::new();
+        for mut component in components {
+            component.sort_unstable();
+            for &member in &component {
+                let input = &inputs[member as usize];
+                if !input.resolve_substitutions {
+                    outputs[member as usize].data = unsafe {
+                        crate::css::style_value::retain_style_value(input.data.cast::<StyleValueData>()).cast()
+                    };
+                    continue;
+                }
+                let mut member_context = resolution_context;
+                member_context.root_custom_property_name = input.root_custom_property_name;
+                let resolved = resolve_cascade_value(
+                    &member_context,
+                    resolution_environment.as_mut(),
+                    0,
+                    input.property_id,
+                    input.data,
+                    false,
+                    use_final_custom_properties.then_some(&final_custom_properties),
+                );
+                outputs[member as usize].data = resolved.value.pointer().cast();
+                std::mem::forget(resolved.value);
+            }
+            if let Some(finalize_component) = finalize_component {
+                unsafe {
+                    finalize_component(
+                        finalizer_context,
+                        component.as_ptr(),
+                        component.len(),
+                        outputs.as_mut_ptr(),
+                    );
+                };
+                for &member in &component {
+                    let name = unsafe { inputs[member as usize].root_custom_property_name.to_utf16() }
+                        .expect("custom-property resolution input name");
+                    final_custom_properties.insert(name, outputs[member as usize].data);
+                }
+            }
+        }
+        FfiCustomPropertyResolutionStats {
+            final_value_hits: resolution_environment
+                .as_ref()
+                .map_or(0, |environment| environment.final_value_hits()),
+            final_value_misses: resolution_environment
+                .as_ref()
+                .map_or(0, |environment| environment.final_value_misses()),
+            cycle_participants,
+        }
     })
 }
 
@@ -1450,6 +1633,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                         property_id,
                         unresolved_data,
                         has_style_sheet_context,
+                        None,
                     )
                 },
                 block.style_engine_rule_id,
