@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // This fixture uses the styled runs and images from the SCEditor front-page demo. The expected DOM and selection
+    // This fixture uses the styled runs and images from the SCEditor front-page demo, with the demo's emoticon
+    // replaced by a local image so that the test does not depend on the network. The expected DOM and selection
     // endpoints were recorded by driving Chromium through WebDriver with the same copy, paste, undo, and redo keys.
     promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
@@ -11,7 +12,7 @@
         let assertionCount = 0;
         let host = null;
 
-        const originalHTML = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        const originalHTML = '<div id="first">Give it a try! <img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="../../../Screenshot/data/smiley.png" alt=":)"> as you type.</div>';
 
         function newHost() {
             if (host)
@@ -121,30 +122,30 @@
         internals.sendKey(host, "V", platformControl);
         await scriptedPasteEvent;
 
-        const scriptedPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just <span style="color: rgb(51, 153, 255);">blue text</span>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        const scriptedPaste = '<div id="first">Give it a try! <img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just <span style="color: rgb(51, 153, 255);">blue text</span>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="../../../Screenshot/data/smiley.png" alt=":)"> as you type.</div>';
         expectState("scripted paste", scriptedPaste, "host/3@2->host/3@2");
 
         internals.sendKey(host, "Z", platformControl);
         expectState("undo scripted paste", scriptedPaste, "host/3@2->host/3@2");
 
-        const blueTextPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<span style="color: rgb(51, 153, 255);">blue text</span>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        const blueTextPaste = '<div id="first">Give it a try! <img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<span style="color: rgb(51, 153, 255);">blue text</span>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="../../../Screenshot/data/smiley.png" alt=":)"> as you type.</div>';
         await verifyScenario("partial styled text", () => {
             const blueText = host.querySelector("#blue").firstChild;
             selection.setBaseAndExtent(blueText, 0, blueText, 9);
         }, blueTextPaste, "host/3/1/0@9->host/3/1/0@9");
 
-        const styledRunsPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text</font>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        const styledRunsPaste = '<div id="first">Give it a try! <img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text</font>type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="../../../Screenshot/data/smiley.png" alt=":)"> as you type.</div>';
         await verifyScenario("multiple styled runs", () => {
             selection.setBaseAndExtent(host.querySelector("#red").firstChild, 0, host.querySelector("#blue").firstChild, 9);
         }, styledRunsPaste, "host/3/2/0@9->host/3/2/0@9");
 
-        const imagePaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)">type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        const imagePaste = '<div id="first">Give it a try! <img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just&nbsp;<img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)">type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="../../../Screenshot/data/smiley.png" alt=":)"> as you type.</div>';
         await verifyScenario("image", () => {
             const firstLine = host.querySelector("#first");
             selection.setBaseAndExtent(firstLine, 1, firstLine, 2);
         }, imagePaste, "host/3@2->host/3@2");
 
-        const mixedPaste = '<div id="first">Give it a try! <img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just try!&nbsp;<img id="smile" src="https://www.sceditor.com/emoticons/smile.png" alt=":)">type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="https://www.sceditor.com/emoticons/smile.png" alt=":)"> as you type.</div>';
+        const mixedPaste = '<div id="first">Give it a try! <img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just try!&nbsp;<img id="smile" src="../../../Screenshot/data/smiley.png" alt=":)">type <strong id="strong">:</strong>) and it will be converted into <img id="lastimg" src="../../../Screenshot/data/smiley.png" alt=":)"> as you type.</div>';
         await verifyScenario("mixed text and image", () => {
             const firstLine = host.querySelector("#first");
             selection.setBaseAndExtent(firstLine.firstChild, 10, firstLine, 2);
