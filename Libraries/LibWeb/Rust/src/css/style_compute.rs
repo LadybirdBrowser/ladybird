@@ -1877,23 +1877,6 @@ fn compute_math_depth(
     }
 }
 
-/// Computes the math-depth property from its absolutized value.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_math_depth(
-    absolutized_value: *const c_void,
-    inherited_math_depth: i32,
-    inherited_math_style_is_compact: bool,
-) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_math_depth(value, inherited_math_depth, inherited_math_style_is_compact)
-    })
-}
-
 // https://drafts.csswg.org/css-inline-3/#line-height-property
 fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) -> FfiComputedLineHeight {
     match value {
@@ -1944,23 +1927,6 @@ fn compute_line_height(value: &StyleValueData, computed_font_size: CssPixels) ->
         }
         _ => LINE_HEIGHT_UNHANDLED,
     }
-}
-
-/// Computes the line-height property from its absolutized value. The computed
-/// font size is a raw CSSPixels value.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_line_height(
-    absolutized_value: *const c_void,
-    computed_font_size_raw: i32,
-) -> FfiComputedLineHeight {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_line_height(value, CssPixels::from_raw(computed_font_size_raw))
-    })
 }
 
 // https://drafts.csswg.org/css-backgrounds/#border-width
@@ -2031,22 +1997,6 @@ fn snap_a_length_as_a_border_width(device_pixels_per_css_pixel: f64, length: Css
     length
 }
 
-/// Computes a border or outline width property from its absolutized value.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_border_or_outline_width(
-    absolutized_value: *const c_void,
-    device_pixels_per_css_pixel: f64,
-) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_border_or_outline_width(value, device_pixels_per_css_pixel, None)
-    })
-}
-
 // https://drafts.csswg.org/css-borders-4/#propdef-corner-top-left-shape
 // the corresponding superellipse() value
 fn compute_corner_shape_parameter(value: &StyleValueData) -> FfiComputedNumber {
@@ -2081,19 +2031,6 @@ fn compute_corner_shape_parameter(value: &StyleValueData) -> FfiComputedNumber {
         },
         _ => NUMBER_UNHANDLED,
     }
-}
-
-/// Computes the superellipse parameter for a corner shape property.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_corner_shape_parameter(absolutized_value: *const c_void) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_corner_shape_parameter(value)
-    })
 }
 
 /// Whether a font-family value is a single monospace keyword, which triggers
@@ -2156,41 +2093,6 @@ fn compute_font_feature_tag_value_list(value: &StyleValueData) -> Arc<StyleValue
     })
 }
 
-/// Computes a font-feature-settings or font-variation-settings value list:
-/// deduplicate by tag with the later occurrence taking precedence, then sort
-/// the survivors ascending by tag.
-/// https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
-///
-/// # Safety
-/// `data` must point at a value list of OpenType tagged values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_font_feature_settings(data: *const c_void) -> *const c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| {
-        Arc::into_raw(compute_font_feature_tag_value_list(unsafe {
-            &*data.cast::<StyleValueData>()
-        }))
-        .cast()
-    })
-}
-
-/// Computes a transform-origin value list over an already absolutized value.
-/// A null return means the absolutized value is already the computed value.
-/// https://drafts.csswg.org/css-transforms/#transform-origin-property
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_transform_origin(absolutized_value: *const c_void) -> *const c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(
-        || match compute_transform_origin(unsafe { &*absolutized_value.cast::<StyleValueData>() }) {
-            Some(value) => Arc::into_raw(value).cast(),
-            None => std::ptr::null(),
-        },
-    )
-}
-
 /// Whether a value contains a percentage, either directly or inside a
 /// calculation tree; the shared core of the two font predicates below.
 fn value_contains_percentage(value: &StyleValueData) -> bool {
@@ -2229,19 +2131,6 @@ pub(crate) fn value_depends_on_inherited_info_for_property(value: &StyleValueDat
     }
 }
 
-/// # Safety
-/// `value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_value_depends_on_inherited_info_for_property(
-    value: *const c_void,
-    property_id: u16,
-) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
-    abort_on_panic(|| {
-        value_depends_on_inherited_info_for_property(unsafe { &*(value as *const StyleValueData) }, property_id)
-    })
-}
-
 /// The outcome of the font-style computation: whether a keyword was mapped to
 /// a font-style keyword the caller should construct, and that keyword's code.
 #[repr(C)]
@@ -2275,17 +2164,6 @@ pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_voi
             font_style_keyword: 0,
         }
     })
-}
-
-/// Computes letter-spacing or word-spacing: the normal keyword computes to a
-/// zero length, and any other value is already the computed value.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_letter_or_word_spacing(absolutized_value: *const c_void) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| compute_letter_or_word_spacing_value(unsafe { &*(absolutized_value as *const StyleValueData) }))
 }
 
 fn compute_letter_or_word_spacing_value(absolutized_value: &StyleValueData) -> FfiComputedNumber {
@@ -2795,6 +2673,35 @@ pub struct FfiDocumentLonghandResult {
     pub font_metrics_depend_on_viewport_metrics: bool,
 }
 
+#[repr(C)]
+pub struct FfiAnimationKeyframeLonghand {
+    pub keyframe_index: usize,
+    pub property_id: u16,
+    pub value: *const c_void,
+    pub style_sheet_resource_context: FfiStyleSheetResourceContext,
+}
+
+#[repr(C)]
+pub struct FfiAnimationKeyframeLonghandInput {
+    pub underlying_longhand_table: *const ComputedLonghandTable,
+    pub parent_snapshot: *const FfiParentSnapshot,
+    pub longhands: *const FfiAnimationKeyframeLonghand,
+    pub longhand_count: usize,
+    pub environment: *const FfiStyleComputationEnvironment,
+    pub font_length_resolution_context: *const FfiLengthResolutionContext,
+    pub line_height_length_resolution_context: *const FfiLengthResolutionContext,
+    pub remaining_length_resolution_context: *const FfiLengthResolutionContext,
+}
+
+#[repr(C)]
+pub struct FfiAnimationKeyframeLonghandResult {
+    pub values: *const *const c_void,
+    pub value_count: usize,
+    pub depends_on_viewport_metrics: bool,
+    pub font_metrics_depend_on_viewport_metrics: bool,
+    pub storage: *mut c_void,
+}
+
 impl FfiEffectiveColorSchemeInput {
     /// # Safety
     /// The document-supported scheme storage must be valid for the returned
@@ -2817,6 +2724,7 @@ impl FfiEffectiveColorSchemeInput {
 
 /// Stable element and document facts supplied once for a longhand drive.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiStyleComputationEnvironment {
     pub box_type_input: FfiBoxTypeTransformationInput,
     pub color_scheme_input: FfiEffectiveColorSchemeInput,
@@ -2844,11 +2752,23 @@ pub struct FfiRandomBaseValue {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiStyleSheetResourceContext {
     pub base_url: *const u8,
     pub base_url_length: usize,
     pub has_value: bool,
     pub origin_clean: bool,
+}
+
+impl FfiStyleSheetResourceContext {
+    pub(crate) const fn empty() -> Self {
+        Self {
+            base_url: std::ptr::null(),
+            base_url_length: 0,
+            has_value: false,
+            origin_clean: false,
+        }
+    }
 }
 
 /// Whether a value's absolutization is the identity, so the specified value
@@ -3067,6 +2987,40 @@ pub struct FfiPostComputeAdjustment {
     pub element_style_adjustment: FfiElementStyleAdjustment,
 }
 
+fn empty_longhand_driver_results() -> FfiLonghandDriverResults {
+    FfiLonghandDriverResults {
+        longhand_evaluations: 0,
+        raw_cascaded_font_size_data: std::ptr::null(),
+        depends_on_viewport_metrics: false,
+        font_metrics_depend_on_viewport_metrics: false,
+        explicitly_inherited_non_inherited_property: false,
+        uses_tree_counting_function: false,
+        effective_color_scheme: -1,
+        post_compute_adjustment: FfiPostComputeAdjustment {
+            display_before: FfiDisplay::inline(),
+            float_before: keyword::NONE,
+            overflow_x_before: keyword::VISIBLE,
+            overflow_y_before: keyword::VISIBLE,
+            text_align_before: keyword::START,
+            position_before: keyword::STATIC,
+            box_type_transformation: FfiBoxTypeTransformation {
+                set_float_none: false,
+                changed_display: false,
+                display: FfiDisplay::inline(),
+            },
+            element_style_adjustment: FfiElementStyleAdjustment {
+                changed_display: false,
+                display: FfiDisplay::inline(),
+                set_line_height_normal: false,
+                check_input_line_height: false,
+                set_position_static: false,
+                changed_text_align: false,
+                text_align: keyword::START,
+            },
+        },
+    }
+}
+
 pub const POST_ADJUSTED_FLOAT: u8 = 1 << 0;
 pub const POST_ADJUSTED_DISPLAY: u8 = 1 << 1;
 pub const POST_ADJUSTED_LINE_HEIGHT: u8 = 1 << 2;
@@ -3280,6 +3234,7 @@ unsafe fn drive_property_computation(
     phase: u8,
     length_resolution_context: *const FfiLengthResolutionContext,
     results: *mut FfiLonghandDriverResults,
+    coordinate_overflow_keywords: bool,
 ) -> FfiLonghandStoreBatch {
     abort_on_panic(|| {
         use crate::css::property_metadata::{
@@ -4331,27 +4286,30 @@ unsafe fn drive_property_computation(
                     computed_overflow_x = Some(*keyword);
                 }
             } else if property_id == prop::OVERFLOW_Y
-                && let (Some(overflow_x), StyleValueData::Keyword { keyword: overflow_y }) =
-                    (computed_overflow_x, value_data)
+                && let StyleValueData::Keyword { keyword: overflow_y } = value_data
             {
                 computed_overflow_y = Some(*overflow_y);
-                let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
-                let overflow_x_entry = pending_overflow_x_store
-                    .as_mut()
-                    .expect("overflow-x must precede overflow-y in computation order");
-                if effective_overflow.changed_x {
-                    debug_assert_eq!(overflow_x_entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                    overflow_x_entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                    overflow_x_entry.value = effective_overflow.x_keyword as f64;
-                    clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
-                    clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
-                }
-                if effective_overflow.changed_y {
-                    debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                    entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                    entry.value = effective_overflow.y_keyword as f64;
-                    clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
-                    clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
+                if coordinate_overflow_keywords {
+                    let overflow_x =
+                        computed_overflow_x.expect("overflow-x must precede overflow-y in computation order");
+                    let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
+                    let overflow_x_entry = pending_overflow_x_store
+                        .as_mut()
+                        .expect("overflow-x must precede overflow-y in computation order");
+                    if effective_overflow.changed_x {
+                        debug_assert_eq!(overflow_x_entry.computed_kind, COMPUTED_KIND_UNCHANGED);
+                        overflow_x_entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                        overflow_x_entry.value = effective_overflow.x_keyword as f64;
+                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
+                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
+                    }
+                    if effective_overflow.changed_y {
+                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
+                        entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                        entry.value = effective_overflow.y_keyword as f64;
+                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
+                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
+                    }
                 }
             } else if property_id == prop::TEXT_ALIGN
                 && let StyleValueData::Keyword { keyword: text_align } = value_data
@@ -4508,6 +4466,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             phase,
             length_resolution_context,
             results,
+            true,
         )
     }
 }
@@ -4569,37 +4528,7 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
             initial_font_size_raw: input.initial_font_size_raw,
             default_font_size_raw: input.default_font_size_raw,
         };
-        let mut results = FfiLonghandDriverResults {
-            longhand_evaluations: 0,
-            raw_cascaded_font_size_data: std::ptr::null(),
-            depends_on_viewport_metrics: false,
-            font_metrics_depend_on_viewport_metrics: false,
-            explicitly_inherited_non_inherited_property: false,
-            uses_tree_counting_function: false,
-            effective_color_scheme: -1,
-            post_compute_adjustment: FfiPostComputeAdjustment {
-                display_before: FfiDisplay::inline(),
-                float_before: keyword::NONE,
-                overflow_x_before: keyword::VISIBLE,
-                overflow_y_before: keyword::VISIBLE,
-                text_align_before: keyword::START,
-                position_before: keyword::STATIC,
-                box_type_transformation: FfiBoxTypeTransformation {
-                    set_float_none: false,
-                    changed_display: false,
-                    display: FfiDisplay::inline(),
-                },
-                element_style_adjustment: FfiElementStyleAdjustment {
-                    changed_display: false,
-                    display: FfiDisplay::inline(),
-                    set_line_height_normal: false,
-                    check_input_line_height: false,
-                    set_position_static: false,
-                    changed_text_align: false,
-                    text_align: keyword::START,
-                },
-            },
-        };
+        let mut results = empty_longhand_driver_results();
         for phase in [
             LONGHAND_DRIVE_PHASE_FONT,
             LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
@@ -4622,6 +4551,7 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
                     phase,
                     length_resolution_context,
                     &raw mut results,
+                    true,
                 )
             };
             assert_eq!(batch.count, 0, "document initialization has no C++ store side effects");
@@ -4632,6 +4562,155 @@ pub unsafe extern "C" fn rust_compute_document_longhands(
             font_metrics_depend_on_viewport_metrics: results.font_metrics_depend_on_viewport_metrics,
         }
     })
+}
+
+/// Computes every selected keyframe longhand through the native longhand
+/// driver. Each keyframe gets a temporary table seeded from the underlying
+/// style, then all of that keyframe's specified values are cascaded together
+/// before its selected properties are evaluated.
+///
+/// # Safety
+/// `input` and every range and pointer it contains must remain valid for the
+/// duration of the call. Every returned value transfers one strong reference
+/// to the caller.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
+    input: *const FfiAnimationKeyframeLonghandInput,
+) -> FfiAnimationKeyframeLonghandResult {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
+    abort_on_panic(|| {
+        use crate::css::property_metadata::{
+            FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
+        };
+
+        let input = unsafe { &*input };
+        let longhands = if input.longhand_count == 0 {
+            &[][..]
+        } else {
+            unsafe { std::slice::from_raw_parts(input.longhands, input.longhand_count) }
+        };
+        if longhands.is_empty() {
+            return FfiAnimationKeyframeLonghandResult {
+                values: std::ptr::null(),
+                value_count: 0,
+                depends_on_viewport_metrics: false,
+                font_metrics_depend_on_viewport_metrics: false,
+                storage: std::ptr::null_mut(),
+            };
+        }
+        assert!(!input.underlying_longhand_table.is_null());
+        assert!(!input.environment.is_null());
+        assert!(!input.font_length_resolution_context.is_null());
+        assert!(!input.line_height_length_resolution_context.is_null());
+        assert!(!input.remaining_length_resolution_context.is_null());
+        let underlying_longhand_table = unsafe { &*input.underlying_longhand_table };
+        let mut longhands_by_keyframe = std::collections::BTreeMap::<usize, Vec<usize>>::new();
+        for (index, longhand) in longhands.iter().enumerate() {
+            assert!((FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&longhand.property_id));
+            assert!(!longhand.value.is_null());
+            longhands_by_keyframe
+                .entry(longhand.keyframe_index)
+                .or_default()
+                .push(index);
+        }
+
+        const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
+        let mut values = vec![std::ptr::null(); longhands.len()];
+        let mut depends_on_viewport_metrics = false;
+        let mut font_metrics_depend_on_viewport_metrics = false;
+        for indices in longhands_by_keyframe.values() {
+            let mut table = ComputedLonghandTable::copied_for_drive(underlying_longhand_table);
+            let mut store = CascadedPropertyStore::new();
+            for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+                if let Some(value) = underlying_longhand_table.get(property_id) {
+                    store.seed_retained_property(property_id, value.clone_retained(), false, false);
+                }
+            }
+            let mut selected_longhands = [0; LONGHAND_WORD_COUNT];
+            let mut style_sheet_resource_contexts = Vec::new();
+            for &index in indices {
+                let longhand = &longhands[index];
+                let value = unsafe {
+                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                        longhand.value.cast(),
+                    ))
+                };
+                let has_style_sheet_context = longhand.style_sheet_resource_context.has_value;
+                let source_slot =
+                    store.seed_retained_property(longhand.property_id, value, false, has_style_sheet_context);
+                if has_style_sheet_context {
+                    let source_slot = source_slot as usize;
+                    if style_sheet_resource_contexts.len() <= source_slot {
+                        style_sheet_resource_contexts.resize(source_slot + 1, FfiStyleSheetResourceContext::empty());
+                    }
+                    style_sheet_resource_contexts[source_slot] = longhand.style_sheet_resource_context;
+                }
+                set_longhand_bit(&mut selected_longhands, longhand.property_id);
+            }
+            let mut environment = unsafe { *input.environment };
+            environment.style_sheet_resource_contexts = style_sheet_resource_contexts.as_ptr();
+            environment.style_sheet_resource_context_count = style_sheet_resource_contexts.len();
+
+            let mut results = empty_longhand_driver_results();
+            for phase in [
+                LONGHAND_DRIVE_PHASE_FONT,
+                LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+                LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+                LONGHAND_DRIVE_PHASE_REMAINING,
+            ] {
+                let length_resolution_context = match phase {
+                    LONGHAND_DRIVE_PHASE_FONT => input.font_length_resolution_context,
+                    LONGHAND_DRIVE_PHASE_LINE_HEIGHT => input.line_height_length_resolution_context,
+                    LONGHAND_DRIVE_PHASE_COLOR_SCHEME => std::ptr::null(),
+                    LONGHAND_DRIVE_PHASE_REMAINING => input.remaining_length_resolution_context,
+                    _ => unreachable!(),
+                };
+                let batch = unsafe {
+                    drive_property_computation(
+                        &raw mut table,
+                        &raw const store,
+                        input.parent_snapshot,
+                        &raw const environment,
+                        u32::MAX,
+                        selected_longhands.as_ptr(),
+                        phase,
+                        length_resolution_context,
+                        &raw mut results,
+                        false,
+                    )
+                };
+                unsafe { rust_longhand_store_batch_destroy(batch.storage) };
+            }
+            depends_on_viewport_metrics |= results.depends_on_viewport_metrics;
+            font_metrics_depend_on_viewport_metrics |= results.font_metrics_depend_on_viewport_metrics;
+            for &index in indices {
+                let value = table
+                    .get(longhands[index].property_id)
+                    .expect("the keyframe longhand drive must store every selected property");
+                values[index] = unsafe { crate::css::style_value::retain_style_value(value.pointer()) }.cast();
+            }
+        }
+
+        let values = Box::new(values);
+        FfiAnimationKeyframeLonghandResult {
+            values: values.as_ptr(),
+            value_count: values.len(),
+            depends_on_viewport_metrics,
+            font_metrics_depend_on_viewport_metrics,
+            storage: Box::into_raw(values).cast(),
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be null or returned by
+/// `rust_compute_animation_keyframe_longhands`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animation_keyframe_longhands_destroy(storage: *mut c_void) {
+    if !storage.is_null() {
+        drop(unsafe { Box::from_raw(storage.cast::<Vec<*const c_void>>()) });
+    }
 }
 
 /// # Safety

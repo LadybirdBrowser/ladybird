@@ -1,0 +1,3 @@
+percentage font size: 60px
+larger font size: 37.5px
+bolder font weight: 700

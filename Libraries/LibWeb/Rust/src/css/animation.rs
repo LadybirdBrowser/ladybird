@@ -466,10 +466,32 @@ pub struct FfiAnimatedProperty {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiAnimationStyleSheetResourceContext {
+    pub base_url: *const u8,
+    pub base_url_length: usize,
+    pub has_value: bool,
+    pub origin_clean: bool,
+}
+
+impl FfiAnimationStyleSheetResourceContext {
+    #[cfg(test)]
+    const fn empty() -> Self {
+        Self {
+            base_url: std::ptr::null(),
+            base_url_length: 0,
+            has_value: false,
+            origin_clean: false,
+        }
+    }
+}
+
+#[repr(C)]
 pub struct FfiAnimationDeclaration {
     pub keyframe_index: usize,
     pub property_id: u16,
     pub value: *const StyleValueData,
+    pub style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
     pub use_initial: bool,
     pub is_transition: bool,
 }
@@ -480,6 +502,7 @@ struct AnimationPropertyConflictCandidate {
     source_property_id: u16,
     source_longhand_id: u16,
     value: RetainedStyleValueData,
+    style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
     use_initial: bool,
     suppressed_by_important: bool,
 }
@@ -589,13 +612,26 @@ pub struct FfiResolvedAnimationProperty {
     pub source_longhand_id: u16,
     pub value: *const StyleValueData,
     pub value_source: FfiAnimationSpecifiedValueSource,
+    pub style_sheet_resource_context: FfiAnimationStyleSheetResourceContext,
 }
 
 #[repr(C)]
 pub struct FfiResolvedAnimationProperties {
     pub properties: *const FfiResolvedAnimationProperty,
     pub count: usize,
+    pub uses_tree_counting_function: bool,
+    pub container_relative_length_unit_mask: u8,
+    pub needs_document_base_url: bool,
+    pub unfixed_random_sharings: *const FfiAnimationUnfixedRandomSharing,
+    pub unfixed_random_sharing_count: usize,
     pub storage: *mut std::ffi::c_void,
+}
+
+#[repr(C)]
+pub struct FfiAnimationUnfixedRandomSharing {
+    pub source: *const StyleValueData,
+    pub name: usize,
+    pub element_shared: bool,
 }
 
 fn resolve_animation_declarations(
@@ -627,6 +663,7 @@ fn resolve_animation_declarations(
                             data.cast(),
                         ))
                     },
+                    style_sheet_resource_context: declaration.style_sheet_resource_context,
                     use_initial: declaration.use_initial,
                     // OPTIMIZATION: Values resulting from animations other than CSS transitions
                     // are overridden by important properties, so there is no need to compute or
@@ -654,19 +691,70 @@ fn resolve_animation_declarations(
                 source_longhand_id: candidate.source_longhand_id,
                 value: candidate.value.pointer(),
                 value_source,
+                style_sheet_resource_context: candidate.style_sheet_resource_context,
             });
             retained_values.push(candidate.value);
         }
     }
+    let mut uses_tree_counting_function = false;
+    let mut container_relative_length_unit_mask = 0;
+    let mut needs_document_base_url = false;
+    let mut random_sharing_sources = Vec::new();
+    for property in &properties {
+        if property.value_source != FfiAnimationSpecifiedValueSource::Value {
+            continue;
+        }
+        let value = unsafe { &*property.value };
+        if matches!(
+            value,
+            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
+        ) {
+            continue;
+        }
+        let dependencies = crate::css::style_compute::external_value_dependencies(value);
+        uses_tree_counting_function |= dependencies.uses_tree_counting_function;
+        container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
+        needs_document_base_url |= dependencies.needs_document_base_url;
+        if dependencies.has_unfixed_random_sharing {
+            crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut random_sharing_sources);
+        }
+    }
+    let unfixed_random_sharings = random_sharing_sources
+        .into_iter()
+        .map(|source| {
+            let StyleValueData::RandomValueSharing {
+                has_name,
+                name,
+                element_shared,
+                ..
+            } = (unsafe { &*source })
+            else {
+                unreachable!();
+            };
+            FfiAnimationUnfixedRandomSharing {
+                source,
+                name: if *has_name { name.raw() } else { 0 },
+                element_shared: *element_shared,
+            }
+        })
+        .collect();
     ResolvedAnimationDeclarations {
         properties,
         _retained_values: retained_values,
+        uses_tree_counting_function,
+        container_relative_length_unit_mask,
+        needs_document_base_url,
+        unfixed_random_sharings,
     }
 }
 
 struct ResolvedAnimationDeclarations {
     properties: Vec<FfiResolvedAnimationProperty>,
     _retained_values: Vec<RetainedStyleValueData>,
+    uses_tree_counting_function: bool,
+    container_relative_length_unit_mask: u8,
+    needs_document_base_url: bool,
+    unfixed_random_sharings: Vec<FfiAnimationUnfixedRandomSharing>,
 }
 
 #[repr(u8)]
@@ -6820,6 +6908,11 @@ pub unsafe extern "C" fn rust_resolve_animation_declarations(
             return FfiResolvedAnimationProperties {
                 properties: std::ptr::null(),
                 count: 0,
+                uses_tree_counting_function: false,
+                container_relative_length_unit_mask: 0,
+                needs_document_base_url: false,
+                unfixed_random_sharings: std::ptr::null(),
+                unfixed_random_sharing_count: 0,
                 storage: std::ptr::null_mut(),
             };
         }
@@ -6829,6 +6922,11 @@ pub unsafe extern "C" fn rust_resolve_animation_declarations(
         FfiResolvedAnimationProperties {
             properties,
             count,
+            uses_tree_counting_function: resolved.uses_tree_counting_function,
+            container_relative_length_unit_mask: resolved.container_relative_length_unit_mask,
+            needs_document_base_url: resolved.needs_document_base_url,
+            unfixed_random_sharings: resolved.unfixed_random_sharings.as_ptr(),
+            unfixed_random_sharing_count: resolved.unfixed_random_sharings.len(),
             storage: Box::into_raw(resolved).cast(),
         }
     })
@@ -6937,6 +7035,7 @@ mod tests {
                 source_property_id: property_id::BORDER,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
                 value: value(),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: false,
                 suppressed_by_important: false,
             },
@@ -6946,6 +7045,7 @@ mod tests {
                 source_property_id: property_id::BORDER_TOP,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
                 value: value(),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: false,
                 suppressed_by_important: false,
             },
@@ -6955,6 +7055,7 @@ mod tests {
                 source_property_id: property_id::BORDER_TOP_COLOR,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
                 value: value(),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: false,
                 suppressed_by_important: false,
             },
@@ -6964,6 +7065,7 @@ mod tests {
                 source_property_id: property_id::BORDER_TOP_COLOR,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
                 value: value(),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: true,
                 suppressed_by_important: false,
             },
@@ -6973,6 +7075,7 @@ mod tests {
                 source_property_id: property_id::BORDER,
                 source_longhand_id: property_id::BORDER_TOP_COLOR,
                 value: value(),
+                style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
                 use_initial: true,
                 suppressed_by_important: false,
             },
@@ -7025,6 +7128,7 @@ mod tests {
             keyframe_index: 0,
             property_id: crate::css::property_metadata::property_id::BORDER,
             value: &raw const *pending,
+            style_sheet_resource_context: FfiAnimationStyleSheetResourceContext::empty(),
             use_initial: false,
             is_transition: false,
         };
@@ -7179,6 +7283,7 @@ mod tests {
         ];
         let input = FfiAnimationValueInput {
             property_id: crate::css::property_metadata::property_id::FLEX_GROW,
+            result_of_transition: false,
             underlying: &raw const underlying,
             initial: &raw const underlying,
             current_key: 75.0,
@@ -7229,6 +7334,7 @@ mod tests {
             ];
             let input = FfiAnimationValueInput {
                 property_id: crate::css::property_metadata::property_id::FLEX_GROW,
+                result_of_transition: false,
                 underlying: Arc::as_ptr(&underlying),
                 initial: Arc::as_ptr(&initial),
                 current_key: 50.0,

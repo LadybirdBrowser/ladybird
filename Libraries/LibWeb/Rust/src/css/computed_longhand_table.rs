@@ -216,6 +216,13 @@ impl ComputedLonghandTable {
         self.rebuild_inheritance_dependent_view();
     }
 
+    pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
+        let mut table = Self::new();
+        table.copy_from(source);
+        table.clear_seeded_state();
+        table
+    }
+
     fn copy_from_values(&mut self, values: &[*const c_void]) {
         assert!(
             !self.frozen,

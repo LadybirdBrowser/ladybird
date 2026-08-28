@@ -57,6 +57,7 @@ define_ffi_ops! {
     StyleValueSerializeEntry => "styleValueSerializeEntries",
     StyleGroupCloneEntry => "styleGroupCloneEntries",
     StyleGroupFreeEntry => "styleGroupFreeEntries",
+    AnimationKeyframeLonghandEntry => "animationKeyframeLonghandEntries",
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
     SubstitutionCallbackFreeParse => "substitutionCallbackFreeParses",

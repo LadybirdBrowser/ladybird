@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/RedBlackTree.h>
+#include <AK/String.h>
 #include <AK/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
@@ -78,6 +79,10 @@ public:
     };
 
     struct KeyFrameSet : public RefCounted<KeyFrameSet> {
+        struct StyleSheetResourceContext {
+            String base_url;
+            bool origin_clean { false };
+        };
         struct UseInitial { };
         struct ResolvedKeyFrame {
             // These style values can be unresolved, as they may be generated from a @keyframes rule, well
@@ -87,6 +92,7 @@ public:
             Variant<Empty, CSS::EasingFunction, CSS::RustStyleValueHandle> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
+        Optional<StyleSheetResourceContext> style_sheet_resource_context;
     };
     static void generate_initial_and_final_frames(RefPtr<KeyFrameSet>, HashTable<CSS::PropertyID> const& animated_properties);
 
