@@ -19,6 +19,10 @@ use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
+pub(crate) fn time_to_milliseconds(value: f64, unit: u8) -> f64 {
+    value * TIME_UNIT_CANONICAL_RATIOS[usize::from(unit)] * 1000.0
+}
+
 /// The numeric leaf of a calculation: a raw value in one of the numeric
 /// dimensions, mirroring CalculationResult::Value. Units cross as the same
 /// opaque codes the style value data uses.
