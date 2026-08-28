@@ -274,18 +274,28 @@ pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>
         .iter()
         .any(|removed| state.paintables_with_mask_nodes.contains(&removed.slot));
     let mut stack: Vec<PendingBox> = Vec::new();
-    let push_children = |stack: &mut Vec<PendingBox>, parent: NodeSlotId, cascade: ChildCascade| {
-        let mut children = Vec::new();
-        paint_order::for_each_paint_child(layout_arena, parent, |child| children.push(child));
-        for child in children.into_iter().rev() {
-            stack.push(PendingBox {
-                slot: child,
-                parent: Some(parent),
-                cascade,
+    let push_children =
+        |stack: &mut Vec<PendingBox>, parent: NodeSlotId, cascade: ChildCascade, visit_every_child: bool| {
+            let mut children = Vec::new();
+            paint_order::for_each_paint_child(layout_arena, parent, |child| {
+                if visit_every_child || plan.work.contains_key(&child) || plan.ancestors_of_work.contains(&child) {
+                    children.push(child);
+                }
             });
-        }
-    };
-    push_children(&mut stack, viewport, ChildCascade::default());
+            for child in children.into_iter().rev() {
+                stack.push(PendingBox {
+                    slot: child,
+                    parent: Some(parent),
+                    cascade,
+                });
+            }
+        };
+    push_children(
+        &mut stack,
+        viewport,
+        ChildCascade::default(),
+        plan.revalidate_children_of.contains(&viewport),
+    );
 
     while let Some(pending) = stack.pop() {
         let slot = pending.slot;
@@ -408,11 +418,14 @@ pub(crate) fn update_visual_context_tree_incrementally<Arena: PaintableRowsRead>
                 geometry_walk: pending.cascade.geometry_walk && subtree_may_own_geometry_dependent_nodes,
             }
         };
-        if child_cascade.visits_every_child()
-            || plan.ancestors_of_work.contains(&slot)
-            || plan.revalidate_children_of.contains(&slot)
-        {
-            push_children(&mut stack, slot, child_cascade);
+        let revalidate_children = plan.revalidate_children_of.contains(&slot);
+        if child_cascade.visits_every_child() || revalidate_children || plan.ancestors_of_work.contains(&slot) {
+            push_children(
+                &mut stack,
+                slot,
+                child_cascade,
+                child_cascade.visits_every_child() || revalidate_children,
+            );
         }
     }
 
