@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        let caseNumber = 0;
+        function parsedSourceSize(sizes) {
+            return new Promise(resolve => {
+                const image = document.createElement("img");
+                image.sizes = sizes;
+                image.srcset = `../../../Assets/120.png?case=${caseNumber++} 120w`;
+                image.onload = () => {
+                    resolve(image.naturalWidth);
+                    image.remove();
+                };
+                document.body.appendChild(image);
+            });
+        }
+
+        internals.resetStyleFfiCounters();
+
+        println(`direct length: ${await parsedSourceSize("60px")}`);
+        println(`true condition: ${await parsedSourceSize("(min-width: 0px) 40px, 60px")}`);
+        println(`false condition: ${await parsedSourceSize("(width < 0px) 40px, 60px")}`);
+        println(`invalid source size: ${await parsedSourceSize("10%, 60px")}`);
+        println(`bare non-final length: ${await parsedSourceSize("40px, 60px")}`);
+        println(`math function: ${await parsedSourceSize("calc(20px + 20px), 60px")}`);
+        println(`non-finite math: ${await parsedSourceSize("calc(1px / 0), 60px")}`);
+        println(`non-math function: ${await parsedSourceSize("foo(40px), 60px")}`);
+        println(`sizes attribute splitter observed: ${internals.styleFfiCounters().sizesAttributeSplitEntries > 0}`);
+    });
+</script>
