@@ -17,11 +17,6 @@ use crate::painting::{paintable_geometry, style_queries};
 use libgfx_rust::WindingRule;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 
-unsafe extern "C" {
-    fn ladybird_web_svg_path_from_path_data_ascii(bytes: *const u8, length: usize) -> *mut std::ffi::c_void;
-    fn ladybird_web_svg_path_from_path_data_utf16(units: *const u16, length: usize) -> *mut std::ffi::c_void;
-}
-
 mod basic_shape_kind {
     pub const INSET: u8 = 0;
     pub const CIRCLE: u8 = 3;
@@ -420,19 +415,11 @@ fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, ref
 
 fn svg_path_data_to_path(path_string: &crate::css::retained_fly_string::RetainedUtf16FlyString) -> OwnedPath {
     with_fly_string_units(path_string, |units| {
-        // SAFETY: The unit views live for the call; the export returns a
-        // fresh heap-allocated Gfx::Path that only the OwnedPath owns.
-        unsafe {
-            match units {
-                StringUnits::Ascii(bytes) => {
-                    OwnedPath::adopt(ladybird_web_svg_path_from_path_data_ascii(bytes.as_ptr(), bytes.len()))
-                }
-                StringUnits::Utf16(code_units) => OwnedPath::adopt(ladybird_web_svg_path_from_path_data_utf16(
-                    code_units.as_ptr(),
-                    code_units.len(),
-                )),
-            }
-        }
+        let path = match units {
+            StringUnits::Ascii(bytes) => crate::svg::parse_ascii_path(bytes, true),
+            StringUnits::Utf16(code_units) => crate::svg::parse_utf16_path(code_units, true),
+        };
+        path.unwrap_or_default().to_gfx_path()
     })
 }
 

@@ -63,7 +63,6 @@
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/Platform/FontPlugin.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -458,21 +457,6 @@ static AccumulatedVisualContextTree materialize_rust_visual_context_tree(void co
     if (auto root_isolation_frame = Layout::RustFFI::layout_arena_visual_context_tree_root_isolation_frame(tree); root_isolation_frame != NO_FRAME_NODE.value())
         visual_context_tree.set_root_isolation_frame(FrameNodeIndex { root_isolation_frame });
     return visual_context_tree;
-}
-
-extern "C" void* ladybird_web_svg_path_from_path_data_ascii(u8 const*, size_t);
-extern "C" void* ladybird_web_svg_path_from_path_data_utf16(char16_t const*, size_t);
-
-extern "C" void* ladybird_web_svg_path_from_path_data_ascii(u8 const* bytes, size_t length)
-{
-    auto path_data = SVG::AttributeParser::parse_path_data(Utf16View { StringView { bytes, length } });
-    return new Gfx::Path(path_data.to_gfx_path());
-}
-
-extern "C" void* ladybird_web_svg_path_from_path_data_utf16(char16_t const* units, size_t length)
-{
-    auto path_data = SVG::AttributeParser::parse_path_data(Utf16View { units, length });
-    return new Gfx::Path(path_data.to_gfx_path());
 }
 
 struct LayerImage {

@@ -69,7 +69,6 @@ define_ffi_ops! {
     SubstitutionOracleCallback => "substitutionOracleCallbacks",
     // CSS parser callbacks: Rust -> C++.
     InternUtf16FlyStringCallback => "internUtf16FlyStringCallbacks",
-    NormalizeSvgPathDataCallback => "normalizeSvgPathDataCallbacks",
     EvaluateConditionCallback => "evaluateConditionCallbacks",
     MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    target.style.clipPath = 'path("M 1e20 -1e20 L 1e-20 -1e-20 H 1.2345678e20 V -0 C 1.5 2 3 4 5 6")';
+    println(getComputedStyle(target).clipPath);
+
+    target.style.clipPath = 'path("M 1e40 -1e40")';
+    println(getComputedStyle(target).clipPath);
+});
+</script>

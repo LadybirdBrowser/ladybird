@@ -109,7 +109,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/FontPlugin.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
 #include <math.h>
@@ -138,17 +137,6 @@ static Utf16View utf16_view(ComputedValuesFFI::FfiUtf16View view)
 static size_t retain_utf16_fly_string_for_substitution(u16 const* code_units, size_t length)
 {
     return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
-}
-
-static size_t normalize_svg_path_data_for_substitution(u16 const* code_units, size_t length, bool allow_error_recovery)
-{
-    auto input = Utf16View { reinterpret_cast<char16_t const*>(code_units), length };
-    auto path = allow_error_recovery
-        ? Optional<SVG::Path> { SVG::AttributeParser::parse_path_data(input) }
-        : SVG::AttributeParser::parse_path_data_without_error_recovery(input);
-    if (!path.has_value() || path->instructions().is_empty())
-        return 0;
-    return Utf16String::from_utf8(path->serialize()).to_raw_leaked();
 }
 
 struct SubstitutionData {
@@ -198,7 +186,6 @@ struct SubstitutionData {
             .document_base_url = document_base_url.bytes().data(),
             .document_base_url_length = document_base_url.bytes().size(),
             .intern_utf16_fly_string = retain_utf16_fly_string_for_substitution,
-            .normalize_svg_path_data = normalize_svg_path_data_for_substitution,
             .length_resolution_context = nullptr,
             .random_function_index = nullptr,
         };

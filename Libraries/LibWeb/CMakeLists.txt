@@ -1260,6 +1260,7 @@ import_rust_crate(
     FFI_HEADERS
         HTML/Parser/RustFFI.h
         RustFFI.h
+        SVG/PathParserRustFFI.h
         SelectorRustFFI.h
         StyleValueRustFFI.h
         ValueParserRustFFI.h
@@ -1318,6 +1319,8 @@ if(NOT BUILD_SHARED_LIBS)
     set_property(SOURCE Layout/LayoutRustBridge.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Layout/TreeBuilder.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Painting/PaintingRustBridge.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+    set_property(SOURCE SVG/AttributeParser.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+    set_property(SOURCE SVG/Path.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Loader/ContentBlocker.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_content_blocker_rust_lib})
 endif()
 

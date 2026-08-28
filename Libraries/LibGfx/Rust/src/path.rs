@@ -5,6 +5,7 @@
  */
 
 use std::ffi::c_void;
+use std::mem::ManuallyDrop;
 use std::ptr::NonNull;
 
 unsafe extern "C" {
@@ -182,6 +183,13 @@ impl OwnedPath {
     #[inline]
     pub fn as_raw(&self) -> *mut c_void {
         self.raw.as_ptr()
+    }
+
+    /// Transfers ownership of the heap-allocated `Gfx::Path` to the caller.
+    #[inline]
+    pub fn into_raw(self) -> *mut c_void {
+        let this = ManuallyDrop::new(self);
+        this.raw.as_ptr()
     }
 
     /// A process-unique, never-reused identity for this path allocation, so

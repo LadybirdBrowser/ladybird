@@ -155,7 +155,6 @@ pub struct ParseContext {
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
     pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
-    pub normalize_svg_path_data: Option<unsafe extern "C" fn(*const u16, usize, bool) -> usize>,
     pub length_resolution_context: *const c_void,
     pub random_function_index: *mut usize,
 }
@@ -5936,10 +5935,6 @@ mod tests {
         0
     }
 
-    unsafe extern "C" fn retain_normalized_path(_: *const u16, _: usize, _: bool) -> usize {
-        ak::utf16_short_string_raw("M0 0").unwrap()
-    }
-
     fn utf16(source: &str) -> Vec<u16> {
         source.encode_utf16().collect()
     }
@@ -5966,7 +5961,6 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
-            normalize_svg_path_data: Some(retain_normalized_path),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }
