@@ -389,7 +389,7 @@ impl<'a> PaintRecorder<'a> {
         Some(parent)
     }
 
-    fn containing_block_margin_rect(&self, containing_block: NodeSlotId) -> Option<CssPixelRect> {
+    pub(super) fn containing_block_margin_rect(&self, containing_block: NodeSlotId) -> Option<CssPixelRect> {
         if containing_block.is_invalid() || !self.layout_arena.paintable_row_is_populated(containing_block) {
             return None;
         }
@@ -410,13 +410,12 @@ impl<'a> PaintRecorder<'a> {
         ))
     }
 
-    fn margin_rect_for_paintable(&self, paintable: NodeSlotId) -> Option<CssPixelRect> {
-        self.containing_block_margin_rect(self.data(paintable).containing_block)
+    fn block_container_of_paintable(&self, paintable: NodeSlotId) -> NodeSlotId {
+        self.data(paintable).containing_block
     }
 
-    fn margin_rect_for_fragment(&self, fragment: &FragmentRecord) -> Option<CssPixelRect> {
-        let block = text_fragment::containing_block_paintable(self.layout_arena, fragment)?;
-        self.containing_block_margin_rect(block)
+    fn block_container_of_fragment(&self, fragment: &FragmentRecord) -> NodeSlotId {
+        text_fragment::containing_block_paintable(self.layout_arena, fragment).unwrap_or(NodeSlotId::INVALID)
     }
 
     fn writing_mode_of(&self, paintable: NodeSlotId) -> u8 {
@@ -466,6 +465,16 @@ impl<'a> PaintRecorder<'a> {
         )
     }
 
+    pub(super) fn containing_line_of_box(&self, paintable_box: NodeSlotId) -> (Option<usize>, Option<CssPixelRect>) {
+        match paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable_box) {
+            Some(containing_line_box_index) => (
+                Some(containing_line_box_index),
+                self.absolute_containing_line_box_rect(paintable_box),
+            ),
+            None => (None, None),
+        }
+    }
+
     fn append_box(
         &mut self,
         paintable_box: NodeSlotId,
@@ -474,26 +483,21 @@ impl<'a> PaintRecorder<'a> {
         context: ContextRef,
         border_radii: BorderRadii,
     ) {
-        let (caret_line_index, caret_line_rect) =
-            match paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable_box) {
-                Some(containing_line_box_index) => (
-                    Some(containing_line_box_index),
-                    self.absolute_containing_line_box_rect(paintable_box),
-                ),
-                None => (None, None),
-            };
+        let (caret_line_index, caret_line_rect) = self.containing_line_of_box(paintable_box);
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z =
                 crate::painting::style_queries::effective_z_index(self.layout_arena, target).unwrap_or(0) < 0;
             let target_node = target;
             !negative_z && self.node_has_dom_node(target_node) && self.paintable_facts(target).dom_node_has_parent
         };
+        let block_container = self.block_container_of_paintable(paintable_box);
         let item = HitTestItem {
             rect,
             caret_rect: rect,
             caret_line_index,
             caret_line_rect,
-            block_container_margin_rect: self.margin_rect_for_paintable(paintable_box),
+            block_container_margin_rect: self.containing_block_margin_rect(block_container),
+            block_container,
             border_radii,
             can_produce_caret_position,
             ..self.base_hit_test_item(HitTestItemKind::Box, target, context)
@@ -515,6 +519,7 @@ impl<'a> PaintRecorder<'a> {
             caret_line_index: None,
             caret_line_rect: None,
             block_container_margin_rect: None,
+            block_container: NodeSlotId::INVALID,
             context,
             border_radii: BorderRadii::default(),
             path: None,
@@ -551,13 +556,15 @@ impl<'a> PaintRecorder<'a> {
         };
         let layout_arena = self.layout_arena;
         let first_available_font = || text_fragment::first_available_font(layout_arena, &fragment);
+        let block_container = self.block_container_of_fragment(&fragment);
         let item = HitTestItem {
             text_fragment_index: Some(fragment_index),
             rect: text_fragment::absolute_rect(layout_arena, &fragment),
             caret_rect: text_fragment::whole_range_rect(layout_arena, &fragment, first_available_font),
             caret_line_index: Some(fragment.line_index as usize),
             caret_line_rect: Some(text_fragment::absolute_line_box_rect(layout_arena, owner, &fragment)),
-            block_container_margin_rect: self.margin_rect_for_fragment(&fragment),
+            block_container_margin_rect: self.containing_block_margin_rect(block_container),
+            block_container,
             containing_block: layout_arena
                 .node_containing_block_if_live(fragment.layout_node)
                 .unwrap_or(NodeSlotId::INVALID),
@@ -583,6 +590,7 @@ impl<'a> PaintRecorder<'a> {
         };
         // Empty lines are only reachable through caret lines, never through regular hit testing,
         // so they are recorded with the base's empty rect and stay out of the spatial index.
+        let block_container = self.block_container_of_fragment(&fragment);
         let item = HitTestItem {
             text_fragment_index: Some(sibling_fragment_index),
             caret_node: fragment.layout_node,
@@ -590,7 +598,8 @@ impl<'a> PaintRecorder<'a> {
             caret_rect: line_rect,
             caret_line_index: Some(line_box_index),
             caret_line_rect: Some(line_rect),
-            block_container_margin_rect: self.margin_rect_for_fragment(&fragment),
+            block_container_margin_rect: self.containing_block_margin_rect(block_container),
+            block_container,
             containing_block: self
                 .layout_arena
                 .node_containing_block_if_live(fragment.layout_node)
@@ -610,12 +619,14 @@ impl<'a> PaintRecorder<'a> {
         line_rect: CssPixelRect,
         context: ContextRef,
     ) {
+        let block_container = self.block_container_of_paintable(owner);
         let item = HitTestItem {
             caret_node,
             caret_offset,
             caret_rect: line_rect,
             caret_line_rect: Some(line_rect),
-            block_container_margin_rect: self.margin_rect_for_paintable(owner),
+            block_container_margin_rect: self.containing_block_margin_rect(block_container),
+            block_container,
             can_produce_caret_position: self.node_has_dom_node(caret_node),
             ..self.base_hit_test_item(HitTestItemKind::EmptyLine, owner, context)
         };
@@ -623,10 +634,12 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn append_empty_editable(&mut self, paintable: NodeSlotId, rect: CssPixelRect, context: ContextRef) {
+        let block_container = self.block_container_of_paintable(paintable);
         let item = HitTestItem {
             rect,
             caret_rect: rect,
-            block_container_margin_rect: self.margin_rect_for_paintable(paintable),
+            block_container_margin_rect: self.containing_block_margin_rect(block_container),
+            block_container,
             can_produce_caret_position: self.node_has_dom_node(paintable),
             ..self.base_hit_test_item(HitTestItemKind::EmptyEditable, paintable, context)
         };

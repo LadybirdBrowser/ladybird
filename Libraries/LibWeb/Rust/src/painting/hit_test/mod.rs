@@ -50,6 +50,7 @@ pub struct HitTestItem {
     pub caret_line_index: Option<usize>,
     pub caret_line_rect: Option<CssPixelRect>,
     pub block_container_margin_rect: Option<CssPixelRect>,
+    pub block_container: NodeSlotId,
     pub context: ContextRef,
     pub border_radii: BorderRadii,
     pub path: Option<Rc<libgfx_rust::path::OwnedPath>>,
