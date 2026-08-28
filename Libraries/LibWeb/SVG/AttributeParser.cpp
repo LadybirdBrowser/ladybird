@@ -8,12 +8,14 @@
  */
 
 #include <AK/GenericShorthands.h>
-#include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/PathParserRustFFI.h>
 
 namespace Web::SVG {
+
+static SVG::RustFFI::FfiSvgPathInput ffi_svg_path_input(Utf16View);
 
 AttributeParser::AttributeParser(Utf16View source)
     : m_lexer(source)
@@ -28,31 +30,17 @@ Optional<Vector<Transform>> AttributeParser::parse_transform(Utf16View input)
 
 Path AttributeParser::parse_path_data(Utf16View input)
 {
-    return parse_path_data(input, PathParsingMode::AllowErrorRecovery).value_or(Path { {} });
+    auto* path = SVG::RustFFI::rust_parse_svg_path_data(ffi_svg_path_input(input));
+    return path ? Path { path } : Path {};
 }
 
-Optional<Path> AttributeParser::parse_path_data_without_error_recovery(Utf16View input)
+static SVG::RustFFI::FfiSvgPathInput ffi_svg_path_input(Utf16View input)
 {
-    return parse_path_data(input, PathParsingMode::DisallowErrorRecovery);
-}
-
-Optional<Path> AttributeParser::parse_path_data(Utf16View input, PathParsingMode mode)
-{
-    AttributeParser parser { input };
-    parser.parse_whitespace();
-    while (!parser.done()) {
-        auto maybe_error = parser.parse_drawto();
-        if (maybe_error.is_error()) {
-            if (mode == PathParsingMode::DisallowErrorRecovery)
-                return {};
-            break;
-        }
-    }
-    if (!parser.m_instructions.is_empty() && !parser.m_instructions[0].has<MoveToInstruction>()) {
-        // Invalid. "A path data segment (if there is one) must begin with a "moveto" command."
-        return {};
-    }
-    return Path { move(parser.m_instructions) };
+    return {
+        .ascii = input.has_ascii_storage() ? reinterpret_cast<u8 const*>(input.ascii_span().data()) : nullptr,
+        .utf16 = input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input.utf16_span().data()),
+        .length = input.length_in_code_units(),
+    };
 }
 
 Optional<i32> AttributeParser::parse_integer(Utf16View input)
@@ -112,195 +100,6 @@ Vector<Gfx::FloatPoint> AttributeParser::parse_points(Utf16View input)
     return points;
 }
 
-ErrorOr<void> AttributeParser::parse_drawto()
-{
-    if (match('M') || match('m')) {
-        return parse_moveto();
-    } else if (match('Z') || match('z')) {
-        parse_closepath();
-        return {};
-    } else if (match('L') || match('l')) {
-        return parse_lineto();
-    } else if (match('H') || match('h')) {
-        return parse_horizontal_lineto();
-    } else if (match('V') || match('v')) {
-        return parse_vertical_lineto();
-    } else if (match('C') || match('c')) {
-        return parse_curveto();
-    } else if (match('S') || match('s')) {
-        return parse_smooth_curveto();
-    } else if (match('Q') || match('q')) {
-        return parse_quadratic_bezier_curveto();
-    } else if (match('T') || match('t')) {
-        return parse_smooth_quadratic_bezier_curveto();
-    } else if (match('A') || match('a')) {
-        return parse_elliptical_arc();
-    }
-
-    dbgln("AttributeParser::parse_drawto failed to match: '{}'", ch());
-    return Error::from_string_literal("Invalid drawto command");
-}
-
-// https://www.w3.org/TR/SVG2/paths.html#PathDataMovetoCommands
-ErrorOr<void> AttributeParser::parse_moveto()
-{
-    bool absolute = consume() == 'M';
-    parse_whitespace();
-
-    bool is_first = true;
-    TRY(parse_coordinate_pair_sequence([&](Gfx::FloatPoint pair) {
-        // NOTE: "M 1 2 3 4" is equivalent to "M 1 2 L 3 4".
-        if (is_first)
-            m_instructions.append(MoveToInstruction { absolute, pair });
-        else
-            m_instructions.append(LineToInstruction { absolute, pair });
-        is_first = false;
-    }));
-
-    return {};
-}
-
-void AttributeParser::parse_closepath()
-{
-    // NB: Z and z are equivalent
-    consume();
-    parse_whitespace();
-    m_instructions.append(ClosePathInstruction {});
-}
-
-ErrorOr<void> AttributeParser::parse_lineto()
-{
-    bool absolute = consume() == 'L';
-    parse_whitespace();
-    TRY(parse_coordinate_pair_sequence([&](Gfx::FloatPoint point) {
-        m_instructions.append(LineToInstruction { absolute, point });
-    }));
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_horizontal_lineto()
-{
-    bool absolute = consume() == 'H';
-    parse_whitespace();
-    TRY(parse_coordinate_sequence([&](float coordinate) {
-        m_instructions.append(HorizontalLineToInstruction { absolute, coordinate });
-    }));
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_vertical_lineto()
-{
-    bool absolute = consume() == 'V';
-    parse_whitespace();
-    TRY(parse_coordinate_sequence([&](float coordinate) {
-        m_instructions.append(VerticalLineToInstruction { absolute, coordinate });
-    }));
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_curveto()
-{
-    bool absolute = consume() == 'C';
-    parse_whitespace();
-
-    while (true) {
-        auto coordinate_pair_triplet = TRY(parse_coordinate_pair_triplet());
-        m_instructions.append(CurveToInstruction { absolute, coordinate_pair_triplet[0], coordinate_pair_triplet[1], coordinate_pair_triplet[2] });
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        if (!match_coordinate())
-            break;
-    }
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_smooth_curveto()
-{
-    bool absolute = consume() == 'S';
-    parse_whitespace();
-
-    while (true) {
-        auto coordinate_pair_double = TRY(parse_coordinate_pair_double());
-        m_instructions.append(SmoothCurveToInstruction { absolute, coordinate_pair_double[0], coordinate_pair_double[1] });
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        if (!match_coordinate())
-            break;
-    }
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_quadratic_bezier_curveto()
-{
-    bool absolute = consume() == 'Q';
-    parse_whitespace();
-
-    while (true) {
-        auto coordinate_pair_double = TRY(parse_coordinate_pair_double());
-        m_instructions.append(QuadraticBezierCurveToInstruction { absolute, coordinate_pair_double[0], coordinate_pair_double[1] });
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        if (!match_coordinate())
-            break;
-    }
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_smooth_quadratic_bezier_curveto()
-{
-    bool absolute = consume() == 'T';
-    parse_whitespace();
-
-    while (true) {
-        m_instructions.append(SmoothQuadraticBezierCurveToInstruction { absolute, TRY(parse_coordinate_pair()) });
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        if (!match_coordinate())
-            break;
-    }
-
-    return {};
-}
-
-ErrorOr<void> AttributeParser::parse_elliptical_arc()
-{
-    bool absolute = consume() == 'A';
-    parse_whitespace();
-
-    while (true) {
-        auto rx = TRY(parse_number());
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        auto ry = TRY(parse_number());
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        auto x_axis_rotation = TRY(parse_number());
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        auto large_arc_flag = TRY(parse_flag());
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        auto sweep_flag = TRY(parse_flag());
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        auto point = TRY(parse_coordinate_pair());
-
-        m_instructions.append(EllipticalArcInstruction { rx, ry, x_axis_rotation, absolute, large_arc_flag, sweep_flag, point });
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        if (!match_coordinate())
-            break;
-    }
-
-    return {};
-}
-
 ErrorOr<float> AttributeParser::parse_length()
 {
     // https://www.w3.org/TR/SVG11/types.html#DataTypeLength
@@ -337,26 +136,6 @@ ErrorOr<Gfx::FloatPoint> AttributeParser::parse_coordinate_pair()
     return Gfx::FloatPoint { x, y };
 }
 
-ErrorOr<void> AttributeParser::parse_coordinate_sequence(Function<void(float)> const& callback)
-{
-    bool is_first = true;
-    while (true) {
-        auto coordinate_or_error = parse_coordinate();
-        if (coordinate_or_error.is_error()) {
-            if (is_first)
-                return Error::from_string_literal("Expected coordinate sequence");
-            break;
-        }
-        is_first = false;
-        callback(coordinate_or_error.release_value());
-        if (match_comma_whitespace())
-            parse_comma_whitespace();
-        if (!match_comma_whitespace() && !match_coordinate())
-            break;
-    }
-    return {};
-}
-
 ErrorOr<void> AttributeParser::parse_coordinate_pair_sequence(Function<void(Gfx::FloatPoint)> const& callback)
 {
     bool is_first = true;
@@ -375,29 +154,6 @@ ErrorOr<void> AttributeParser::parse_coordinate_pair_sequence(Function<void(Gfx:
             break;
     }
     return {};
-}
-
-ErrorOr<Vector<Gfx::FloatPoint, 2>> AttributeParser::parse_coordinate_pair_double()
-{
-    Vector<Gfx::FloatPoint, 2> coordinates;
-    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
-    return coordinates;
-}
-
-ErrorOr<Vector<Gfx::FloatPoint, 3>> AttributeParser::parse_coordinate_pair_triplet()
-{
-    Vector<Gfx::FloatPoint, 3> coordinates;
-    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
-    if (match_comma_whitespace())
-        parse_comma_whitespace();
-    coordinates.unchecked_append(TRY(parse_coordinate_pair()));
-    return coordinates;
 }
 
 void AttributeParser::parse_whitespace(bool must_match_once)
@@ -444,13 +200,6 @@ ErrorOr<float> AttributeParser::parse_nonnegative_number()
 
     m_lexer.ignore(parse_result->characters_parsed);
     return parse_result->value;
-}
-
-ErrorOr<bool> AttributeParser::parse_flag()
-{
-    if (!match('0') && !match('1'))
-        return Error::from_string_literal("Expected flag");
-    return consume() - '0';
 }
 
 int AttributeParser::parse_sign()

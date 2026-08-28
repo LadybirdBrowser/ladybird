@@ -136,7 +136,6 @@ public:
     static Optional<NumberPercentage> parse_number_percentage(Utf16View input);
     static Vector<Gfx::FloatPoint> parse_points(Utf16View input);
     static Path parse_path_data(Utf16View input);
-    static Optional<Path> parse_path_data_without_error_recovery(Utf16View input);
     static Optional<Vector<Transform>> parse_transform(Utf16View input);
     static Optional<PreserveAspectRatio> parse_preserve_aspect_ratio(Utf16View input);
     static Optional<SVGUnits> parse_units(Utf16View input);
@@ -145,26 +144,7 @@ public:
     static Optional<ViewBox> parse_viewbox(Utf16View input);
 
 private:
-    enum class PathParsingMode {
-        AllowErrorRecovery,
-        DisallowErrorRecovery,
-    };
-
     AttributeParser(Utf16View source);
-
-    static Optional<Path> parse_path_data(Utf16View input, PathParsingMode);
-
-    ErrorOr<void> parse_drawto();
-    ErrorOr<void> parse_moveto();
-    void parse_closepath();
-    ErrorOr<void> parse_lineto();
-    ErrorOr<void> parse_horizontal_lineto();
-    ErrorOr<void> parse_vertical_lineto();
-    ErrorOr<void> parse_curveto();
-    ErrorOr<void> parse_smooth_curveto();
-    ErrorOr<void> parse_quadratic_bezier_curveto();
-    ErrorOr<void> parse_smooth_quadratic_bezier_curveto();
-    ErrorOr<void> parse_elliptical_arc();
 
     Optional<Vector<Transform>> parse_transform();
 
@@ -172,15 +152,11 @@ private:
     ErrorOr<float> parse_coordinate();
     ErrorOr<i32> parse_integer();
     ErrorOr<Gfx::FloatPoint> parse_coordinate_pair();
-    ErrorOr<void> parse_coordinate_sequence(Function<void(float)> const& callback);
     ErrorOr<void> parse_coordinate_pair_sequence(Function<void(Gfx::FloatPoint)> const& callback);
-    ErrorOr<Vector<Gfx::FloatPoint, 2>> parse_coordinate_pair_double();
-    ErrorOr<Vector<Gfx::FloatPoint, 3>> parse_coordinate_pair_triplet();
     void parse_whitespace(bool must_match_once = false);
     void parse_comma_whitespace();
     ErrorOr<float> parse_number();
     ErrorOr<float> parse_nonnegative_number();
-    ErrorOr<bool> parse_flag();
     // -1 if negative, +1 otherwise
     int parse_sign();
 
@@ -202,7 +178,6 @@ private:
     char16_t consume() { return m_lexer.consume(); }
 
     Utf16GenericLexer m_lexer;
-    Vector<PathInstruction> m_instructions;
 };
 
 }

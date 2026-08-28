@@ -2466,6 +2466,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("RustFFI.h"),
     );
 
+    // SVG path parser header - namespace Web::SVG::RustFFI.
+    let mut svg_path_config = base_config.clone();
+    svg_path_config.namespaces = Some(vec!["Web".to_string(), "SVG".to_string(), "RustFFI".to_string()]);
+    svg_path_config.export.include = vec!["FfiSvgPathInput".to_string()];
+
+    generate_ffi_header_strict(
+        svg_path_config,
+        &[manifest_dir.join("src/svg/path_parser.rs")],
+        &out_dir,
+        Path::new("SVG/PathParserRustFFI.h"),
+    );
+
     // Selector matching header - namespace Web::CSS::SelectorFFI. Generate both sides of this
     // ABI from the Rust declarations so changes to layouts or signatures cannot drift silently.
     let mut selector_config = base_config.clone();

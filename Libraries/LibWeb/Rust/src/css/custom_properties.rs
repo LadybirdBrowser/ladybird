@@ -235,7 +235,6 @@ impl CustomPropertyRegistry {
             document_base_url: self.document_base_url.as_ptr(),
             document_base_url_length: self.document_base_url.len(),
             intern_utf16_fly_string: self.intern_utf16_fly_string,
-            normalize_svg_path_data: None,
             length_resolution_context: std::ptr::null(),
             random_function_index,
         }

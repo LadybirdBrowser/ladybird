@@ -744,7 +744,6 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: None,
-            normalize_svg_path_data: None,
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

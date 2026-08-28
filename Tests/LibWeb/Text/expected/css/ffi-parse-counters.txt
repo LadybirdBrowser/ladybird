@@ -1,5 +1,4 @@
 computed width: 1px
-internUtf16FlyStringCallbacks: 68
-normalizeSvgPathDataCallbacks: 1
+internUtf16FlyStringCallbacks: 69
 evaluateConditionCallbacks: 0
 mediaEnvironmentCallbacks: 1

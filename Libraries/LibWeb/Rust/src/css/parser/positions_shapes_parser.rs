@@ -1003,13 +1003,12 @@ fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<St
     if tokens.has_next_token() {
         return None;
     }
-    let normalize = context.normalize_svg_path_data?;
-    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::NormalizeSvgPathDataCallback);
-    let raw = unsafe { normalize(path.as_ptr(), path.len(), context.is_svg_presentation_attribute) };
-    if raw == 0 {
+    let path = crate::svg::parse_utf16_path(&path, context.is_svg_presentation_attribute)?;
+    if path.is_empty() {
         return None;
     }
-    let path_string = unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) };
+    let serialized = path.serialize().encode_utf16().collect::<Vec<_>>();
+    let path_string = super::value_parser::retain_fly_string(context, &serialized)?;
     Some(basic_shape(6, vec![], fill_rule, vec![], path_string))
 }
 
@@ -1638,10 +1637,6 @@ mod tests {
         0
     }
 
-    unsafe extern "C" fn retain_normalized_path(_: *const u16, _: usize, _: bool) -> usize {
-        ak::utf16_short_string_raw("M0 0").unwrap()
-    }
-
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -1658,7 +1653,6 @@ mod tests {
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
             intern_utf16_fly_string: Some(discard_interned_string),
-            normalize_svg_path_data: Some(retain_normalized_path),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

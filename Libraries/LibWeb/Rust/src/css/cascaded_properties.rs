@@ -699,7 +699,6 @@ fn parse_substituted_without_callbacks(
         document_base_url: input.document_base_url.as_ptr(),
         document_base_url_length: input.document_base_url.len(),
         intern_utf16_fly_string: None,
-        normalize_svg_path_data: None,
         length_resolution_context: std::ptr::null(),
         random_function_index: &raw mut random_function_index,
     };
