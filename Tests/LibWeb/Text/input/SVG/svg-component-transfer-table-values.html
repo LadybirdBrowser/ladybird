@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", "feFuncR");
+    for (const value of ["", " \t", "1, 2 3", " 1 ", "1,", "1, ", ".5, 1e2", "1,,2", "-1, +2"]) {
+        element.setAttribute("tableValues", value);
+        const list = element.tableValues.baseVal;
+        const items = Array.from({ length: list.numberOfItems }, (_, index) => list.getItem(index).value);
+        println(`${JSON.stringify(value)} => [${items.join(", ")}]`);
+    }
+});
+</script>

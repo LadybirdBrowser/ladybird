@@ -12,7 +12,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
@@ -44,23 +44,23 @@ void SVGPatternElement::attribute_changed(Utf16FlyString const& name, Optional<U
     SVGFitToViewBox::attribute_changed(*this, name, value);
 
     if (name == AttributeNames::patternUnits) {
-        m_pattern_units = AttributeParser::parse_units(value.value_or({}));
+        m_pattern_units = parse_units(value.value_or({}));
     } else if (name == AttributeNames::patternContentUnits) {
-        m_pattern_content_units = AttributeParser::parse_units(value.value_or({}));
+        m_pattern_content_units = parse_units(value.value_or({}));
     } else if (name == AttributeNames::patternTransform) {
-        if (auto transform_list = AttributeParser::parse_transform(value.value_or({})); transform_list.has_value()) {
+        if (auto transform_list = parse_transform(value.value_or({})); transform_list.has_value()) {
             m_pattern_transform = transform_from_transform_list(*transform_list);
         } else {
             m_pattern_transform = {};
         }
     } else if (name == AttributeNames::x) {
-        m_x = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_x = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::y) {
-        m_y = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_y = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::width) {
-        m_width = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_width = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::height) {
-        m_height = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_height = parse_number_percentage(value.value_or({}));
     }
 }
 

@@ -4,32 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::parser::{Input, Parser as Lexer};
 use libgfx_rust::path::{OwnedPath, PathBuilder};
-use smallvec::SmallVec;
 use std::ffi::c_void;
 use std::fmt::Write;
-
-#[derive(Clone, Copy)]
-enum Input<'a> {
-    Ascii(&'a [u8]),
-    Utf16(&'a [u16]),
-}
-
-impl Input<'_> {
-    fn len(self) -> usize {
-        match self {
-            Self::Ascii(input) => input.len(),
-            Self::Utf16(input) => input.len(),
-        }
-    }
-
-    fn code_unit_at(self, index: usize) -> u16 {
-        match self {
-            Self::Ascii(input) => u16::from(input[index]),
-            Self::Utf16(input) => input[index],
-        }
-    }
-}
 
 struct SerializedNumber(f32);
 
@@ -425,16 +403,14 @@ pub(crate) fn parse_utf16_path(input: &[u16], allow_error_recovery: bool) -> Opt
 }
 
 struct Parser<'a> {
-    input: Input<'a>,
-    position: usize,
+    lexer: Lexer<'a>,
     instructions: Vec<PathInstruction>,
 }
 
 impl<'a> Parser<'a> {
     fn new(input: Input<'a>) -> Self {
         Self {
-            input,
-            position: 0,
+            lexer: Lexer::new(input),
             instructions: Vec::new(),
         }
     }
@@ -674,63 +650,8 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    // https://www.w3.org/TR/SVG11/types.html#DataTypeNumber
     fn parse_number(&mut self) -> Result<f32, ()> {
-        let sign = match self.current_ascii() {
-            Some(b'-') => {
-                self.consume();
-                -1.0
-            }
-            Some(b'+') => {
-                self.consume();
-                1.0
-            }
-            _ => 1.0,
-        };
-        let start = self.position;
-
-        let mut integer_digits = 0;
-        while self.current_ascii().is_some_and(|unit| unit.is_ascii_digit()) {
-            integer_digits += 1;
-            self.consume();
-        }
-
-        let mut fractional_digits = 0;
-        if self.current_ascii() == Some(b'.') {
-            self.consume();
-            while self.current_ascii().is_some_and(|unit| unit.is_ascii_digit()) {
-                fractional_digits += 1;
-                self.consume();
-            }
-        }
-        if integer_digits == 0 && fractional_digits == 0 {
-            return Err(());
-        }
-
-        if matches!(self.current_ascii(), Some(b'e' | b'E')) {
-            let exponent_start = self.position;
-            self.consume();
-            if matches!(self.current_ascii(), Some(b'+' | b'-')) {
-                self.consume();
-            }
-            let digits_start = self.position;
-            while self.current_ascii().is_some_and(|unit| unit.is_ascii_digit()) {
-                self.consume();
-            }
-            if self.position == digits_start {
-                self.position = exponent_start;
-            }
-        }
-
-        let mut number = SmallVec::<[u8; 32]>::with_capacity(self.position - start);
-        for index in start..self.position {
-            number.push(u8::try_from(self.input.code_unit_at(index)).map_err(|_| ())?);
-        }
-        let number = std::str::from_utf8(&number)
-            .map_err(|_| ())?
-            .parse::<f32>()
-            .map_err(|_| ())?;
-        Ok(sign * number)
+        self.lexer.parse_number()
     }
 
     fn parse_flag(&mut self) -> Result<bool, ()> {
@@ -748,94 +669,46 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_optional_comma_whitespace(&mut self) {
-        if !self.matches_comma_whitespace() {
-            return;
-        }
-        if self.current_ascii() == Some(b',') {
-            self.consume();
-            self.parse_whitespace();
-        } else {
-            self.parse_whitespace();
-            if self.current_ascii() == Some(b',') {
-                self.consume();
-            }
-            self.parse_whitespace();
-        }
+        self.lexer.parse_optional_comma_whitespace();
     }
 
     fn parse_whitespace(&mut self) {
-        while self.current_ascii().is_some_and(is_whitespace) {
-            self.consume();
-        }
+        self.lexer.parse_whitespace();
     }
 
     fn matches_coordinate(&self) -> bool {
-        let Some(mut unit) = self.current_ascii() else {
-            return false;
-        };
-        let mut offset = 0;
-        if matches!(unit, b'+' | b'-') {
-            offset += 1;
-            let Some(next) = self.ascii_at(offset) else {
-                return false;
-            };
-            unit = next;
-        }
-        if unit == b'.' {
-            offset += 1;
-            let Some(next) = self.ascii_at(offset) else {
-                return false;
-            };
-            unit = next;
-        }
-        unit.is_ascii_digit()
+        self.lexer.matches_coordinate()
     }
 
     fn matches_comma_whitespace(&self) -> bool {
-        self.current_ascii()
-            .is_some_and(|unit| unit == b',' || is_whitespace(unit))
-    }
-
-    fn ascii_at(&self, offset: usize) -> Option<u8> {
-        let index = self.position.checked_add(offset)?;
-        if index >= self.input.len() {
-            return None;
-        }
-        let unit = self.input.code_unit_at(index);
-        u8::try_from(unit).ok()
+        self.lexer.matches_comma_whitespace()
     }
 
     fn current_ascii(&self) -> Option<u8> {
-        if self.done() { None } else { self.ascii_at(0) }
+        self.lexer.current_ascii()
     }
 
     fn consume(&mut self) -> u16 {
-        let unit = self.input.code_unit_at(self.position);
-        self.position += 1;
-        unit
+        self.lexer.consume()
     }
 
     fn done(&self) -> bool {
-        self.position >= self.input.len()
+        self.lexer.done()
     }
-}
-
-fn is_whitespace(unit: u8) -> bool {
-    matches!(unit, b'\t' | b'\n' | 0x0c | b'\r' | b' ')
 }
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiSvgPathInput {
+pub struct FfiSvgInput {
     pub ascii: *const u8,
     pub utf16: *const u16,
     pub length: usize,
 }
 
-impl FfiSvgPathInput {
+impl FfiSvgInput {
     /// # Safety
     /// For non-empty input, exactly one pointer must identify `length` readable units.
-    unsafe fn input<'a>(self) -> Option<Input<'a>> {
+    pub(super) unsafe fn input<'a>(self) -> Option<Input<'a>> {
         if self.length == 0 {
             return Some(Input::Ascii(&[]));
         }
@@ -852,9 +725,9 @@ impl FfiSvgPathInput {
 }
 
 /// # Safety
-/// - `input` must satisfy [`FfiSvgPathInput::input`]'s requirements.
+/// - `input` must satisfy [`FfiSvgInput::input`]'s requirements.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_path_data(input: FfiSvgPathInput) -> *mut c_void {
+pub unsafe extern "C" fn rust_parse_svg_path_data(input: FfiSvgInput) -> *mut c_void {
     crate::abort_on_panic(|| {
         let Some(input) = (unsafe { input.input() }) else {
             return std::ptr::null_mut();

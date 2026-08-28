@@ -14,7 +14,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -200,7 +200,7 @@ RefPtr<CSS::StyleValue const> SVGElement::parse_presentation_attribute(CSS::Prop
     //     grammar and re-express the resulting matrix as a single-function transform
     //     list, the shape the CSS parser produces for the transform property.
     if (property_id == CSS::PropertyID::Transform) {
-        auto transform_list = AttributeParser::parse_transform(Utf16String::from_utf16(value));
+        auto transform_list = parse_transform(Utf16String::from_utf16(value));
         if (!transform_list.has_value())
             return {};
         auto matrix = transform_from_transform_list(*transform_list);

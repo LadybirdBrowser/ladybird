@@ -7,7 +7,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedInteger.h>
 
 namespace Web::SVG {
@@ -110,7 +110,7 @@ WebIDL::Long SVGAnimatedInteger::anim_val() const
 
 WebIDL::Long SVGAnimatedInteger::parse_value_or_initial(Utf16View number_value) const
 {
-    auto value = AttributeParser::parse_integer(number_value);
+    auto value = parse_integer(number_value);
     if (!value.has_value())
         return m_initial_value;
     return value.release_value();

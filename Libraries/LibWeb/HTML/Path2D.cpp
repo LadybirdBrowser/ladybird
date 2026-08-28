@@ -10,7 +10,6 @@
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Path2D.h>
-#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::HTML {
@@ -38,7 +37,7 @@ Path2D::Path2D(Optional<Variant<GC::Ref<Path2D>, Utf16String>> const& path)
     }
 
     // 4. Let svgPath be the result of parsing and interpreting path according to SVG 2's rules for path data. [SVG]
-    auto path_instructions = SVG::AttributeParser::parse_path_data(path->get<Utf16String>());
+    auto path_instructions = SVG::parse_path_data(path->get<Utf16String>());
     auto svg_path = path_instructions.to_gfx_path();
 
     if (!svg_path.is_empty()) {

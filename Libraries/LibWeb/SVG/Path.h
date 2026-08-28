@@ -10,11 +10,13 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Utf16View.h>
 #include <LibGfx/Forward.h>
 
 namespace Web::SVG {
 
-class AttributeParser;
+class Path;
+Path parse_path_data(Utf16View);
 
 class Path {
 public:
@@ -32,7 +34,7 @@ public:
     bool operator==(Path const&) const;
 
 private:
-    friend class AttributeParser;
+    friend Path parse_path_data(Utf16View);
 
     explicit Path(void* rust_path)
         : m_rust_path(rust_path)

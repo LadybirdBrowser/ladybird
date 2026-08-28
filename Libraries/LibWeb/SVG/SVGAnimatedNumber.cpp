@@ -6,7 +6,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedNumber.h>
 
 namespace Web::SVG {
@@ -110,7 +110,7 @@ float SVGAnimatedNumber::anim_val() const
 
 float SVGAnimatedNumber::parse_value_or_initial(Utf16View number_value) const
 {
-    auto value = AttributeParser::parse_number_percentage(number_value);
+    auto value = parse_number_percentage(number_value);
     if (!value.has_value())
         return m_initial_value;
     return value.release_value().value();

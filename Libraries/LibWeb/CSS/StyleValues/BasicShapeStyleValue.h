@@ -11,7 +11,7 @@
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/Path.h>
 
 namespace Web::CSS {
 

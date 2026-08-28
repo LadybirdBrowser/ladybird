@@ -8,7 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
 namespace Web::SVG {

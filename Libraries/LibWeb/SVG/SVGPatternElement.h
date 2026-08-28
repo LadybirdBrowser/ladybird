@@ -10,7 +10,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>

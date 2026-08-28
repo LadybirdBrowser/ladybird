@@ -11,7 +11,7 @@
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>

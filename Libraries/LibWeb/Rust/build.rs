@@ -2466,16 +2466,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("RustFFI.h"),
     );
 
-    // SVG path parser header - namespace Web::SVG::RustFFI.
-    let mut svg_path_config = base_config.clone();
-    svg_path_config.namespaces = Some(vec!["Web".to_string(), "SVG".to_string(), "RustFFI".to_string()]);
-    svg_path_config.export.include = vec!["FfiSvgPathInput".to_string()];
+    // SVG parser header - namespace Web::SVG::RustFFI.
+    let mut svg_config = base_config.clone();
+    svg_config.namespaces = Some(vec!["Web".to_string(), "SVG".to_string(), "RustFFI".to_string()]);
+    svg_config.export.include = vec![
+        "FfiSvgInput".to_string(),
+        "FfiSvgPoint".to_string(),
+        "FfiSvgTransform".to_string(),
+        "TRANSFORM_MATRIX".to_string(),
+        "TRANSFORM_ROTATE".to_string(),
+        "TRANSFORM_SCALE".to_string(),
+        "TRANSFORM_SKEW_X".to_string(),
+        "TRANSFORM_SKEW_Y".to_string(),
+        "TRANSFORM_TRANSLATE".to_string(),
+    ];
 
     generate_ffi_header_strict(
-        svg_path_config,
-        &[manifest_dir.join("src/svg/path_parser.rs")],
+        svg_config,
+        &[
+            manifest_dir.join("src/svg/attribute_parser.rs"),
+            manifest_dir.join("src/svg/path_parser.rs"),
+        ],
         &out_dir,
-        Path::new("SVG/PathParserRustFFI.h"),
+        Path::new("SVG/ParserRustFFI.h"),
     );
 
     // Selector matching header - namespace Web::CSS::SelectorFFI. Generate both sides of this

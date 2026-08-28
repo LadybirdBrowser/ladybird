@@ -7,7 +7,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGEllipseElement.h>
 
 namespace Web::SVG {

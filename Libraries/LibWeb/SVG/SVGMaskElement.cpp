@@ -33,17 +33,17 @@ void SVGMaskElement::attribute_changed(Utf16FlyString const& name, Optional<Utf1
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == AttributeNames::maskUnits) {
-        m_mask_units = AttributeParser::parse_units(value.value_or({}));
+        m_mask_units = parse_units(value.value_or({}));
     } else if (name == AttributeNames::maskContentUnits) {
-        m_mask_content_units = AttributeParser::parse_units(value.value_or({}));
+        m_mask_content_units = parse_units(value.value_or({}));
     } else if (name == AttributeNames::x) {
-        m_x = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_x = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::y) {
-        m_y = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_y = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::width) {
-        m_width = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_width = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::height) {
-        m_height = AttributeParser::parse_number_percentage(value.value_or({}));
+        m_height = parse_number_percentage(value.value_or({}));
     }
 }
 

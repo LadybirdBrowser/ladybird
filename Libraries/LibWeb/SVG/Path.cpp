@@ -9,10 +9,25 @@
 
 #include <AK/StringBuilder.h>
 #include <LibGfx/Path.h>
+#include <LibWeb/SVG/ParserRustFFI.h>
 #include <LibWeb/SVG/Path.h>
-#include <LibWeb/SVG/PathParserRustFFI.h>
 
 namespace Web::SVG {
+
+static RustFFI::FfiSvgInput ffi_svg_input(Utf16View input)
+{
+    return {
+        .ascii = input.has_ascii_storage() ? reinterpret_cast<u8 const*>(input.ascii_span().data()) : nullptr,
+        .utf16 = input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input.utf16_span().data()),
+        .length = input.length_in_code_units(),
+    };
+}
+
+Path parse_path_data(Utf16View input)
+{
+    auto* path = RustFFI::rust_parse_svg_path_data(ffi_svg_input(input));
+    return path ? Path { path } : Path {};
+}
 
 Path::Path()
     : m_rust_path(RustFFI::rust_parse_svg_path_data({}))

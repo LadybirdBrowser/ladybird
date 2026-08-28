@@ -8,7 +8,7 @@
 
 #include <AK/Utf16FlyString.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/SVG/AttributeParser.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 
 namespace Web::SVG {
