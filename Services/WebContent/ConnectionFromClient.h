@@ -259,6 +259,7 @@ private:
     virtual void did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
     virtual void request_close(u64 page_id) override;
+    virtual void force_close(u64 page_id) override;
 
     virtual void exit_fullscreen(u64 page_id) override;
 

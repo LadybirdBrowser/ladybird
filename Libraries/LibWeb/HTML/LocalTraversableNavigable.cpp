@@ -1710,7 +1710,8 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
 void LocalTraversableNavigable::close_top_level_traversable(PromptToUnload prompt_to_unload)
 {
     // 1. If traversable's is closing is true, then return.
-    if (is_closing())
+    // AD-HOC: A forced close must be able to supersede an in-progress prompted close.
+    if (is_closing() && prompt_to_unload == PromptToUnload::Yes)
         return;
 
     // AD-HOC: Set the is closing flag to prevent re-entrant calls from queuing duplicate session history steps.
@@ -1726,14 +1727,21 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
     VERIFY(is_top_level_traversable());
 
     auto append_close_steps = [this] {
+        if (m_close_steps_have_been_appended)
+            return;
+        m_close_steps_have_been_appended = true;
+
         // 3. Append the following session history traversal steps to traversable:
         request_history_operation(
             CloseTopLevelTraversableHistoryOperationParameters { .traversable_id = id() },
             {
                 .on_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
                     // NB: An abandoned close never reached its queue position; do not destroy the traversable for it.
-                    if (result != HistoryStepResult::Applied)
+                    if (result != HistoryStepResult::Applied) {
+                        m_close_steps_have_been_appended = false;
+                        set_closing(false);
                         return;
+                    }
 
                     // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
                     auto after_all_unloads = GC::create_function(heap(), [this] {
@@ -1758,7 +1766,8 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
     check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
         if (result != CheckIfUnloadingIsCanceledResult::Continue) {
             // AD-HOC: Allow a later close attempt if this one was canceled.
-            set_closing(false);
+            if (!m_close_steps_have_been_appended)
+                set_closing(false);
             return;
         }
 

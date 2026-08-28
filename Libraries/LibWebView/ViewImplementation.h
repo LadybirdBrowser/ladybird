@@ -369,6 +369,7 @@ public:
     void set_user_style_sheet(String const& source);
 
     void request_close();
+    void force_close();
     Function<void()> prepare_for_immediate_close();
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
 

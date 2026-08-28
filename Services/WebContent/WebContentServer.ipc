@@ -241,6 +241,7 @@ endpoint WebContentServer
     did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) =|
 
     request_close(u64 page_id) =|
+    force_close(u64 page_id) =|
 
     exit_fullscreen(u64 page_id) =|
 }

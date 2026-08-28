@@ -167,6 +167,9 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-created-by-web-content
     bool m_is_created_by_web_content { false };
 
+    // AD-HOC: A forced close may supersede a prompted close while its beforeunload check is still pending.
+    bool m_close_steps_have_been_appended { false };
+
     // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
     // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.
     GC::Ref<StorageAPI::StorageShed> m_storage_shed;

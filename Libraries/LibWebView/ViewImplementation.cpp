@@ -3851,6 +3851,11 @@ void ViewImplementation::request_close()
     client().request_close(page_id());
 }
 
+void ViewImplementation::force_close()
+{
+    client().async_force_close(page_id());
+}
+
 Function<void()> ViewImplementation::prepare_for_immediate_close()
 {
     VERIFY(!needs_beforeunload_check());

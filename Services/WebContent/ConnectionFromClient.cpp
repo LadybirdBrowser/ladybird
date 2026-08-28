@@ -2664,6 +2664,12 @@ void ConnectionFromClient::request_close(u64 page_id)
         page->page().top_level_traversable()->close_top_level_traversable();
 }
 
+void ConnectionFromClient::force_close(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
+}
+
 void ConnectionFromClient::exit_fullscreen(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {

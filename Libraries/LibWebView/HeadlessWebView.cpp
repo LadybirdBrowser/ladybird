@@ -10,6 +10,7 @@
 namespace WebView {
 
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
+static constexpr auto child_close_timeout_ms = 1000;
 
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
 {
@@ -190,6 +191,20 @@ void HeadlessWebView::discard_child_web_view(HeadlessWebView& child_web_view)
             return child.ptr() == child_web_view_pointer;
         });
     });
+}
+
+void HeadlessWebView::schedule_forced_close()
+{
+    if (!m_forced_close_timer) {
+        m_forced_close_timer = Core::Timer::create_single_shot(child_close_timeout_ms, [weak_this = make_weak_ptr<HeadlessWebView>()] {
+            if (!weak_this || weak_this->handle().is_empty() || !weak_this->client().is_open())
+                return;
+            weak_this->force_close();
+        });
+    }
+
+    if (!m_forced_close_timer->is_active())
+        m_forced_close_timer->start();
 }
 
 void HeadlessWebView::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
