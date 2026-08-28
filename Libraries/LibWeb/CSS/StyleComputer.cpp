@@ -5420,13 +5420,13 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
         if (step.action == ComputedValuesFFI::FontSizeRecascadeAction::NeedsLengthResolution) {
             bool inherited_font_metrics_depend_on_viewport_metrics = false;
-            auto inherited_line_height = ancestor.element_to_inherit_style_from()
-                                             .map([&](auto&& parent_element) {
-                                                 auto parent_style = parent_element.computed_style();
-                                                 inherited_font_metrics_depend_on_viewport_metrics = parent_style->font_metrics_depend_on_viewport_metrics();
-                                                 return parent_style->line_height();
-                                             })
-                                             .value_or(InitialValues::line_height());
+            auto inherited_line_height = InitialValues::line_height();
+            if (auto parent_element = ancestor.element_to_inherit_style_from(); parent_element.has_value()) {
+                if (auto parent_style = parent_element->computed_style()) {
+                    inherited_font_metrics_depend_on_viewport_metrics = parent_style->font_metrics_depend_on_viewport_metrics();
+                    inherited_line_height = parent_style->line_height();
+                }
+            }
 
             bool did_resolve_viewport_relative_length = false;
             Length::ResolutionContext resolution_context {

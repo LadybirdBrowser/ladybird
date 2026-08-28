@@ -1,0 +1,4 @@
+hidden font size: 13.333333px
+hidden restyled background: fixed
+hidden cleared font size: 13.333333px
+visible font size: 13.333333px
