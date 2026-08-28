@@ -153,6 +153,5 @@ impl PaintCache {
 
 pub struct HitTestItemCacheSource {
     pub id: u64,
-    pub visual_context_tree_version: u64,
     pub items: Rc<Vec<HitTestItem>>,
 }

@@ -544,7 +544,7 @@ public:
     Painting::DocumentPaintState& paint_state();
     Painting::DocumentPaintState const& paint_state() const;
     Painting::AccumulatedVisualContextTree visual_context_tree() const;
-    u64 visual_context_tree_version() const;
+    u64 visual_context_tree_structural_epoch() const;
     Painting::ScrollStateSnapshot const& scroll_state_snapshot() const;
 
     GC::Ref<NodeList> get_elements_by_name(Utf16View);

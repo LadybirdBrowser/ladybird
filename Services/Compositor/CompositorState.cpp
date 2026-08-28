@@ -139,10 +139,10 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    if (display_list->compatible_visual_context_tree_version() != visual_context_tree.version()) {
-        dbgln("Compositor: Dropping inconsistent display list update (display list version {}, tree version {})",
-            display_list->compatible_visual_context_tree_version(),
-            visual_context_tree.version());
+    if (display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch()) {
+        dbgln("Compositor: Dropping inconsistent display list update (display list epoch {}, tree epoch {})",
+            display_list->compatible_visual_context_tree_structural_epoch(),
+            visual_context_tree.structural_epoch());
         return;
     }
     if (auto validation = Web::Painting::validate_display_list_references_live_visual_context_nodes(*display_list, visual_context_tree); validation.is_error()) {

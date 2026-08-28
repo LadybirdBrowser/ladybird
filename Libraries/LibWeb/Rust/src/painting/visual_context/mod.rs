@@ -499,10 +499,10 @@ pub fn resolve_sorting_contexts_over_nodes(
     contexts
 }
 
-static NEXT_TREE_VERSION: AtomicU64 = AtomicU64::new(1);
+static NEXT_STRUCTURAL_EPOCH: AtomicU64 = AtomicU64::new(1);
 
-pub fn allocate_tree_version() -> u64 {
-    NEXT_TREE_VERSION.fetch_add(1, Ordering::Relaxed)
+pub fn allocate_structural_epoch() -> u64 {
+    NEXT_STRUCTURAL_EPOCH.fetch_add(1, Ordering::Relaxed)
 }
 
 pub fn resolve_leaf_to_context_matrices(
@@ -553,8 +553,8 @@ pub struct VisualContextState {
 }
 
 impl VisualContextState {
-    pub fn tree_version(&self) -> u64 {
-        self.tree.as_ref().map_or(0, |tree| tree.version)
+    pub fn structural_epoch(&self) -> u64 {
+        self.tree.as_ref().map_or(0, |tree| tree.structural_epoch)
     }
 }
 
@@ -564,8 +564,7 @@ pub struct VisualContextTree {
     pub frame_nodes: Vec<FrameNode>,
     pub root_is_visual_viewport: bool,
     pub root_isolation_frame: Option<FrameNodeIndex>,
-    pub version: u64,
-    pub reused_previous_version: bool,
+    pub structural_epoch: u64,
     pub live_spatial_node_count: u32,
     pub live_frame_node_count: u32,
     free_spatial_slots: Vec<SpatialNodeIndex>,
@@ -704,8 +703,7 @@ impl VisualContextTree {
             frame_nodes: Vec::new(),
             root_is_visual_viewport,
             root_isolation_frame: None,
-            version: allocate_tree_version(),
-            reused_previous_version: false,
+            structural_epoch: allocate_structural_epoch(),
             live_spatial_node_count: 1,
             live_frame_node_count: 0,
             free_spatial_slots: Vec::new(),

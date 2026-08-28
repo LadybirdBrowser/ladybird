@@ -509,7 +509,7 @@ impl VisualContextTree {
         let mut writer = TreeByteWriter::default();
         writer.u32(SERIALIZED_TREE_MAGIC);
         writer.u32(SERIALIZED_TREE_FORMAT);
-        writer.u64(self.version);
+        writer.u64(self.structural_epoch);
         writer.bool(self.root_is_visual_viewport);
         writer.frame_index(self.root_isolation_frame.unwrap_or(FrameNodeIndex::NONE));
         writer.u32(self.spatial_nodes.len() as u32);
@@ -531,7 +531,7 @@ impl VisualContextTree {
         if reader.u32()? != SERIALIZED_TREE_MAGIC || reader.u32()? != SERIALIZED_TREE_FORMAT {
             return None;
         }
-        let version = reader.u64()?;
+        let structural_epoch = reader.u64()?;
         let root_is_visual_viewport = reader.bool()?;
         let root_isolation_frame = reader.frame_index()?;
         let spatial_count = reader.u32()? as usize;
@@ -569,8 +569,7 @@ impl VisualContextTree {
             frame_nodes,
             root_is_visual_viewport,
             root_isolation_frame: (!root_isolation_frame.is_none()).then_some(root_isolation_frame),
-            version,
-            reused_previous_version: false,
+            structural_epoch,
             live_spatial_node_count,
             live_frame_node_count,
             free_spatial_slots: Vec::new(),
@@ -601,7 +600,7 @@ mod tests {
 
     fn tree_with_every_node_kind() -> VisualContextTree {
         let mut tree = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
-        tree.version = 42;
+        tree.structural_epoch = 42;
         let scroll_node = tree.append_spatial(
             SpatialData::Scroll(ScrollData {
                 state_slot: NO_SCROLL_STATE_SLOT,
@@ -797,7 +796,7 @@ mod tests {
     }
 
     fn assert_trees_match(a: &VisualContextTree, b: &VisualContextTree) {
-        assert_eq!(a.version, b.version);
+        assert_eq!(a.structural_epoch, b.structural_epoch);
         assert_eq!(a.root_is_visual_viewport, b.root_is_visual_viewport);
         assert_eq!(a.root_isolation_frame, b.root_isolation_frame);
         assert_eq!(a.spatial_nodes.len(), b.spatial_nodes.len());
@@ -954,7 +953,7 @@ mod tests {
     #[test]
     fn a_content_root_tree_round_trips() {
         let mut tree = VisualContextTree::create_with_content_root(transform(translation_matrix(-8.0, -9.0, 0.0)));
-        tree.version = 7;
+        tree.structural_epoch = 7;
         let decoded = VisualContextTree::from_bytes(&tree.to_bytes()).expect("a serialized tree decodes");
         assert_trees_match(&tree, &decoded);
     }

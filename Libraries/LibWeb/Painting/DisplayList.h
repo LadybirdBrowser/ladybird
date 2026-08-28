@@ -89,8 +89,8 @@ private:
         ByteBuffer filter_bytes;
         Gfx::Filter filter;
     };
-    HashMap<u64, HashMap<u32, CachedLayerFilter>> m_layer_filters_by_tree_version_and_frame;
-    u64 m_layer_filter_cache_tree_version { 0 };
+    HashMap<u64, HashMap<u32, CachedLayerFilter>> m_layer_filters_by_tree_structural_epoch_and_frame;
+    u64 m_layer_filter_cache_tree_structural_epoch { 0 };
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
@@ -104,12 +104,12 @@ public:
 
     static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const& visual_context_tree)
     {
-        return adopt_ref(*new DisplayList(visual_context_tree.version()));
+        return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch()));
     }
 
     static WEB_API NonnullRefPtr<DisplayList> create_from_command_bytes(AccumulatedVisualContextTree const&, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs);
 
-    u64 compatible_visual_context_tree_version() const { return m_compatible_visual_context_tree_version; }
+    u64 compatible_visual_context_tree_structural_epoch() const { return m_compatible_visual_context_tree_structural_epoch; }
     u64 id() const { return m_id; }
 
     ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
@@ -147,10 +147,10 @@ public:
     }
 
 private:
-    explicit DisplayList(u64 compatible_visual_context_tree_version);
-    DisplayList(u64 compatible_visual_context_tree_version, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists);
+    explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
+    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists);
 
-    u64 m_compatible_visual_context_tree_version { 0 };
+    u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;
     Vector<DisplayListCommandRun> m_command_runs;

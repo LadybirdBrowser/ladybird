@@ -82,7 +82,7 @@ private:
     Vector<BlockingWheelEventRegion> m_blocking_wheel_event_regions;
     Vector<CachedMainThreadWheelEventTarget> m_cached_main_thread_wheel_event_targets;
     Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
-    Optional<u64> m_visual_context_tree_version;
+    Optional<u64> m_visual_context_tree_structural_epoch;
     Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_has_blocking_wheel_event_region_covering_viewport { false };
 };

@@ -59,7 +59,7 @@ public:
     Vector<Layout::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
     AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
-    u64 visual_context_tree_version(DOM::Document const&) const;
+    u64 visual_context_tree_structural_epoch(DOM::Document const&) const;
 
     void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList const> display_list, DisplayListResourceSet referenced_resources)
     {

@@ -964,9 +964,10 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
                 .tree
                 .as_deref()
                 .is_some_and(|previous| tree.is_compatible_with(previous));
-        tree.reused_previous_version = is_compatible;
         if is_compatible {
-            tree.version = state.tree_version();
+            tree.structural_epoch = state.structural_epoch();
+        } else {
+            arena.mark_all_paint_caches_dirty();
         }
         state.tree = Some(Rc::new(tree));
         state.paintables_with_mask_nodes = paintables_with_mask_nodes;
@@ -1203,19 +1204,11 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let mut paint_state = arena.paint_state().borrow_mut();
         paint_state.hit_test_list_generation += 1;
         debug_assert_eq!(output.hit_test_list.generation, paint_state.hit_test_list_generation);
-        if paint_state
-            .hit_test_item_cache_source
-            .as_ref()
-            .is_some_and(|source| source.visual_context_tree_version != output.compatible_visual_context_tree_version)
-        {
-            paint_state.hit_test_item_cache_source = None;
-        }
         let list = std::mem::take(&mut output.hit_test_list);
         if inputs.paint_command_cache_read_write {
             paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
                 crate::painting::record::cache::HitTestItemCacheSource {
                     id: list.generation,
-                    visual_context_tree_version: output.compatible_visual_context_tree_version,
                     items: list.items.clone(),
                 },
             ));
@@ -2293,11 +2286,11 @@ pub unsafe extern "C" fn layout_arena_has_visual_context_tree(arena: *mut c_void
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_visual_context_tree_version(arena: *mut c_void) -> u64 {
+pub unsafe extern "C" fn layout_arena_visual_context_tree_structural_epoch(arena: *mut c_void) -> u64 {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paint_state = arena.paint_state().borrow();
-        paint_state.visual_context.tree_version()
+        paint_state.visual_context.structural_epoch()
     })
 }
 
@@ -2332,8 +2325,8 @@ pub unsafe extern "C" fn visual_context_tree_release(tree: *const c_void) {
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_version(tree: *const c_void) -> u64 {
-    abort_on_panic(|| unsafe { tree_from_handle(tree) }.version)
+pub unsafe extern "C" fn visual_context_tree_structural_epoch(tree: *const c_void) -> u64 {
+    abort_on_panic(|| unsafe { tree_from_handle(tree) }.structural_epoch)
 }
 
 /// # Safety
@@ -2594,7 +2587,7 @@ pub unsafe extern "C" fn visual_context_tree_visual_viewport_transform(
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle. Returns a retained handle to a copy of the tree whose
-/// visual viewport node carries the given transform; the copy keeps the version.
+/// visual viewport node carries the given transform; the copy keeps the structural epoch.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_with_visual_viewport_transform(
     tree: *const c_void,
@@ -2611,7 +2604,7 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_viewport_transform(
 ///
 /// `tree` must be a live retained tree handle; `frame_opacities` must address `frame_opacity_count`
 /// samples and `spatial_matrices` `spatial_matrix_count` samples. Returns a retained handle to a copy
-/// of the tree carrying the sampled values; the copy keeps the version.
+/// of the tree carrying the sampled values; the copy keeps the structural epoch.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
     tree: *const c_void,
@@ -2983,12 +2976,15 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects_frame(
 /// # Safety
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`. Gives the tree
-/// the version another tree carries, so a test can stage a compatible tree-only update.
+/// the structural epoch another tree carries, so a test can stage a compatible tree-only update.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_set_version(builder: *mut c_void, version: u64) {
+pub unsafe extern "C" fn visual_context_tree_test_builder_set_structural_epoch(
+    builder: *mut c_void,
+    structural_epoch: u64,
+) {
     abort_on_panic(|| {
         let tree = unsafe { test_builder_tree(builder) };
-        tree.version = version;
+        tree.structural_epoch = structural_epoch;
     });
 }
 

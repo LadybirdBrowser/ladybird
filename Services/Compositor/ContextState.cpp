@@ -152,7 +152,7 @@ void ContextState::install_display_list_update(
     Web::Painting::AccumulatedVisualContextTree visual_context_tree,
     Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    VERIFY(display_list->compatible_visual_context_tree_version() == visual_context_tree.version());
+    VERIFY(display_list->compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     invalidate_visual_context_tree_for_compositing();
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
@@ -197,10 +197,10 @@ void ContextState::install_display_list_update(
 
 void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
 {
-    if (!m_display_list || m_display_list->compatible_visual_context_tree_version() != visual_context_tree.version()) {
-        dbgln("Compositor: Dropping stale visual context tree update (tree version {}, display list version {})",
-            visual_context_tree.version(),
-            m_display_list ? m_display_list->compatible_visual_context_tree_version() : 0);
+    if (!m_display_list || m_display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch()) {
+        dbgln("Compositor: Dropping stale visual context tree update (tree epoch {}, display list epoch {})",
+            visual_context_tree.structural_epoch(),
+            m_display_list ? m_display_list->compatible_visual_context_tree_structural_epoch() : 0);
         return;
     }
     invalidate_visual_context_tree_for_compositing();

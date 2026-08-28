@@ -79,9 +79,9 @@ void AccumulatedVisualContextTree::release_rust_handle()
     m_rust_tree = nullptr;
 }
 
-u64 AccumulatedVisualContextTree::version() const
+u64 AccumulatedVisualContextTree::structural_epoch() const
 {
-    return Layout::RustFFI::visual_context_tree_version(m_rust_tree);
+    return Layout::RustFFI::visual_context_tree_structural_epoch(m_rust_tree);
 }
 
 ByteBuffer AccumulatedVisualContextTree::serialize_to_bytes() const

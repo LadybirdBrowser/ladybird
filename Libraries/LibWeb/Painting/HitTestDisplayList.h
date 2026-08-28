@@ -42,11 +42,11 @@ enum class CaretLineDirection : u8 {
 
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
-    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena&, ChromeWidgetRegistry&);
+    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&);
 
     void visit_edges(GC::Cell::Visitor&);
 
-    u64 visual_context_tree_version() const { return m_visual_context_tree_version; }
+    u64 visual_context_tree_structural_epoch() const { return m_visual_context_tree_structural_epoch; }
     [[nodiscard]] bool is_current() const;
     [[nodiscard]] Optional<HitTestResult> hit_test(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
     // When constraint_scope is given, the caret position is constrained to lines inside that node, and points
@@ -62,7 +62,7 @@ public:
     TraversalDecision hit_test_all(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
-    HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena&, ChromeWidgetRegistry&, u64 rust_generation);
+    HitTestDisplayList(u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&, u64 rust_generation);
 
     struct Item {
         size_t item_index { 0 };
@@ -124,7 +124,7 @@ private:
     [[nodiscard]] Optional<CaretPosition> caret_position_for_hit_container(Item) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
 
-    u64 m_visual_context_tree_version { 0 };
+    u64 m_visual_context_tree_structural_epoch { 0 };
     NonnullRefPtr<Layout::NodeArena> m_arena;
     NonnullRefPtr<ChromeWidgetRegistry> m_chrome_widget_registry;
     u64 m_rust_generation { 0 };
