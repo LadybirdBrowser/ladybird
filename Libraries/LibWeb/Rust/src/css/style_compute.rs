@@ -19,6 +19,7 @@ use std::ffi::c_void;
 use std::sync::{Arc, OnceLock};
 
 use crate::abort_on_panic;
+use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::cascaded_properties::CascadedPropertyStore;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::css_pixels::CssPixels;
@@ -5071,7 +5072,16 @@ pub struct FfiStyleFinalization {
     pub element_style: FfiElementStyleAdjustments,
     pub overflow: FfiEffectiveOverflow,
     pub text_align: FfiTextAlignAdjustment,
+    pub invalidated_longhands: u16,
 }
+
+pub const FINALIZED_FLOAT: u16 = 1 << 0;
+pub const FINALIZED_DISPLAY: u16 = 1 << 1;
+pub const FINALIZED_LINE_HEIGHT: u16 = 1 << 2;
+pub const FINALIZED_POSITION: u16 = 1 << 3;
+pub const FINALIZED_TEXT_ALIGN: u16 = 1 << 4;
+pub const FINALIZED_OVERFLOW_X: u16 = 1 << 5;
+pub const FINALIZED_OVERFLOW_Y: u16 = 1 << 6;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -5466,11 +5476,21 @@ fn compute_text_align_adjustment(
 /// computation. Callers select the decisions whose results they need.
 ///
 /// # Safety
-/// `input` must point at a live `FfiStyleFinalizationInput`.
+/// `input` must point at a live `FfiStyleFinalizationInput`. `longhand_table`
+/// may be null for a decision-only query; otherwise it must be a live mutable
+/// table, `animated_overlay` null or a live mutable overlay, and
+/// `input_line_height_metrics` a live metrics snapshot.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_finalize_style(input: *const FfiStyleFinalizationInput) -> FfiStyleFinalization {
+pub unsafe extern "C" fn rust_finalize_style(
+    input: *const FfiStyleFinalizationInput,
+    longhand_table: *mut ComputedLonghandTable,
+    animated_overlay: *mut AnimatedOverlay,
+    input_line_height_metrics: *const FfiInputLineHeightMetrics,
+) -> FfiStyleFinalization {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
+        use crate::css::property_metadata::property_id as prop;
+
         let input = unsafe { &*input };
         let element_style = if matches!(
             input.mode,
@@ -5528,11 +5548,187 @@ pub unsafe extern "C" fn rust_finalize_style(input: *const FfiStyleFinalizationI
                 inherited: false,
             }
         };
-        FfiStyleFinalization {
+        let mut finalization = FfiStyleFinalization {
             element_style,
             overflow,
             text_align,
+            invalidated_longhands: 0,
+        };
+        if longhand_table.is_null() {
+            return finalization;
         }
+
+        let longhand_table = unsafe { &mut *longhand_table };
+        let mut animated_overlay = unsafe { animated_overlay.as_mut() };
+        let animated_box_type = input.mode == FfiStyleFinalizationMode::AnimatedBoxType;
+        let animated_display_missing = animated_box_type
+            && animated_overlay
+                .as_deref()
+                .is_none_or(|overlay| overlay.get(prop::DISPLAY).is_none());
+        let mut invalidated_longhands = 0;
+        {
+            let mut set_adjusted_property = |property_id: u16, value: RetainedStyleValueData, flag: u16| {
+                let animated_metadata = animated_overlay
+                    .as_deref()
+                    .and_then(|overlay| overlay.get(property_id))
+                    .map(|entry| (entry.inherited, entry.result_of_transition));
+                if animated_box_type {
+                    let effective = longhand_table.effective_value(animated_overlay.as_deref(), property_id, true);
+                    let effective_value = unsafe { &*effective.value.cast::<StyleValueData>() };
+                    if effective_value == value.data() {
+                        return;
+                    }
+                    let (inherited, result_of_transition) = animated_metadata.unwrap_or((false, false));
+                    animated_overlay
+                        .as_deref_mut()
+                        .expect("animated box-type finalization requires an overlay")
+                        .set_owned(property_id, value, inherited, result_of_transition);
+                    return;
+                }
+                if let Some((inherited, result_of_transition)) = animated_metadata {
+                    animated_overlay.as_deref_mut().unwrap().set_owned(
+                        property_id,
+                        value.clone(),
+                        inherited,
+                        result_of_transition,
+                    );
+                }
+                longhand_table.set(property_id, value, -1);
+                longhand_table.set_important(property_id, false);
+                longhand_table.set_inherited(property_id, false);
+                invalidated_longhands |= flag;
+            };
+
+            if matches!(
+                input.mode,
+                FfiStyleFinalizationMode::BoxType
+                    | FfiStyleFinalizationMode::AnimatedBoxType
+                    | FfiStyleFinalizationMode::All
+            ) {
+                if animated_display_missing {
+                    set_adjusted_property(
+                        prop::DISPLAY,
+                        retained_new(StyleValueData::Display {
+                            raw: input.box_type.display.encoded(),
+                        }),
+                        FINALIZED_DISPLAY,
+                    );
+                }
+                if finalization.element_style.box_type.set_float_none {
+                    set_adjusted_property(
+                        prop::FLOAT,
+                        retained_new(StyleValueData::Keyword { keyword: keyword::NONE }),
+                        FINALIZED_FLOAT,
+                    );
+                }
+                if finalization.element_style.box_type.changed_display {
+                    set_adjusted_property(
+                        prop::DISPLAY,
+                        retained_new(StyleValueData::Display {
+                            raw: finalization.element_style.box_type.display.encoded(),
+                        }),
+                        FINALIZED_DISPLAY,
+                    );
+                }
+                let element_style = finalization.element_style.element_style;
+                if element_style.changed_display {
+                    set_adjusted_property(
+                        prop::DISPLAY,
+                        retained_new(StyleValueData::Display {
+                            raw: element_style.display.encoded(),
+                        }),
+                        FINALIZED_DISPLAY,
+                    );
+                }
+                if element_style.set_position_static {
+                    set_adjusted_property(
+                        prop::POSITION,
+                        retained_new(StyleValueData::Keyword {
+                            keyword: keyword::STATIC,
+                        }),
+                        FINALIZED_POSITION,
+                    );
+                }
+                if element_style.changed_text_align {
+                    set_adjusted_property(
+                        prop::TEXT_ALIGN,
+                        retained_new(StyleValueData::Keyword {
+                            keyword: element_style.text_align,
+                        }),
+                        FINALIZED_TEXT_ALIGN,
+                    );
+                }
+                if element_style.set_line_height_normal
+                    || (element_style.check_input_line_height
+                        && should_clamp_input_line_height(&element_style, unsafe { &*input_line_height_metrics }))
+                {
+                    set_adjusted_property(
+                        prop::LINE_HEIGHT,
+                        retained_new(StyleValueData::Keyword {
+                            keyword: keyword::NORMAL,
+                        }),
+                        FINALIZED_LINE_HEIGHT,
+                    );
+                }
+            }
+        }
+        finalization.invalidated_longhands = invalidated_longhands;
+
+        if finalization.overflow.changed_x {
+            longhand_table.set(
+                prop::OVERFLOW_X,
+                retained_new(StyleValueData::Keyword {
+                    keyword: finalization.overflow.x_keyword,
+                }),
+                -1,
+            );
+            longhand_table.set_important(prop::OVERFLOW_X, false);
+            longhand_table.set_inherited(prop::OVERFLOW_X, false);
+            finalization.invalidated_longhands |= FINALIZED_OVERFLOW_X;
+        }
+        if finalization.overflow.changed_y {
+            longhand_table.set(
+                prop::OVERFLOW_Y,
+                retained_new(StyleValueData::Keyword {
+                    keyword: finalization.overflow.y_keyword,
+                }),
+                -1,
+            );
+            longhand_table.set_important(prop::OVERFLOW_Y, false);
+            longhand_table.set_inherited(prop::OVERFLOW_Y, false);
+            finalization.invalidated_longhands |= FINALIZED_OVERFLOW_Y;
+        }
+        if matches!(
+            input.mode,
+            FfiStyleFinalizationMode::TextAlign | FfiStyleFinalizationMode::All
+        ) && matches!(
+            input.text_align,
+            keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER
+        ) {
+            longhand_table.add_inheritance_dependent_value(
+                prop::TEXT_ALIGN,
+                retained_new(StyleValueData::Keyword {
+                    keyword: input.text_align,
+                }),
+            );
+            finalization.invalidated_longhands |= FINALIZED_TEXT_ALIGN;
+        }
+        if finalization.text_align.changed {
+            longhand_table.set(
+                prop::TEXT_ALIGN,
+                retained_new(StyleValueData::Keyword {
+                    keyword: finalization.text_align.keyword,
+                }),
+                -1,
+            );
+            longhand_table.set_important(prop::TEXT_ALIGN, false);
+            longhand_table.set_inherited(prop::TEXT_ALIGN, finalization.text_align.inherited);
+            finalization.invalidated_longhands |= FINALIZED_TEXT_ALIGN;
+        }
+        if let Some(overlay) = animated_overlay {
+            overlay.refresh_ffi_entries();
+        }
+        finalization
     })
 }
 
@@ -5735,7 +5931,8 @@ mod tests {
             parent_direction_is_ltr: true,
         };
 
-        let finalization = unsafe { rust_finalize_style(&input) };
+        let finalization =
+            unsafe { rust_finalize_style(&input, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null()) };
         assert!(finalization.element_style.box_type.changed_display);
         assert!(finalization.element_style.box_type.display.is_block_outside());
         assert!(finalization.element_style.element_style.changed_display);
@@ -5744,6 +5941,28 @@ mod tests {
         assert_eq!(finalization.overflow.x_keyword, keyword::AUTO);
         assert!(finalization.text_align.changed);
         assert_eq!(finalization.text_align.keyword, keyword::RIGHT);
+    }
+
+    #[test]
+    fn style_finalization_does_not_require_unused_line_height_metrics() {
+        let input = FfiStyleFinalizationInput {
+            mode: FfiStyleFinalizationMode::BoxType,
+            box_type: element_adjustment_input(),
+            overflow_x: keyword::VISIBLE,
+            overflow_y: keyword::VISIBLE,
+            text_align: keyword::START,
+            is_th_element: false,
+            has_parent_with_computed_values: false,
+            parent_text_align: keyword::START,
+            parent_direction_is_ltr: true,
+        };
+        let longhand_table = crate::css::computed_longhand_table::rust_computed_longhand_table_create();
+
+        let finalization =
+            unsafe { rust_finalize_style(&input, longhand_table, std::ptr::null_mut(), std::ptr::null()) };
+
+        assert_eq!(finalization.invalidated_longhands, 0);
+        unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_release(longhand_table) };
     }
 
     fn test_context() -> FfiLengthResolutionContext {

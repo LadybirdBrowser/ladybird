@@ -340,7 +340,7 @@ impl ComputedLonghandTable {
     /// The effective value property() returns for one longhand: the animated
     /// overlay under the overlay read rule, then an unevaluated longhand's
     /// recorded currentcolor-dependent specified value, then the table slot.
-    fn effective_value(
+    pub(crate) fn effective_value(
         &self,
         overlay: Option<&AnimatedOverlay>,
         property_id: u16,
