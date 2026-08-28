@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    #parent {
+        font-size: 20px;
+        font-weight: 700;
+    }
+</style>
+<div id="parent">
+    <div id="percentage"></div>
+    <div id="larger"></div>
+    <div id="bolder"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parentElement = document.getElementById("parent");
+        const animations = [
+            parentElement.animate(
+                {
+                    fontSize: ["30px", "30px"],
+                    fontWeight: ["400", "400"],
+                },
+                100
+            ),
+            percentage.animate({ fontSize: ["200%", "200%"] }, 100),
+            larger.animate({ fontSize: ["larger", "larger"] }, 100),
+            bolder.animate({ fontWeight: ["bolder", "bolder"] }, 100),
+        ];
+        for (const animation of animations) {
+            animation.pause();
+            animation.currentTime = 50;
+        }
+
+        println(`percentage font size: ${getComputedStyle(percentage).fontSize}`);
+        println(`larger font size: ${getComputedStyle(larger).fontSize}`);
+        println(`bolder font weight: ${getComputedStyle(bolder).fontWeight}`);
+    });
+</script>

@@ -1,0 +1,11 @@
+@keyframes animated-image {
+    from, to {
+        background-image: url("../../wpt-import/images/anim-gr.gif");
+    }
+}
+
+#target {
+    width: 100px;
+    height: 50px;
+    animation: animated-image 1s paused;
+}

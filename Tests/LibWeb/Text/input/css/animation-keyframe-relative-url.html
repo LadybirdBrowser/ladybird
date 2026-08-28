@@ -1,0 +1,13 @@
+<!doctype html>
+<link rel="stylesheet" href="resources/animation-keyframe-relative-url.css">
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    const imageURL = new URL("wpt-import/images/anim-gr.gif", new URL("../", document.baseURI)).href;
+
+    promiseTest(async () => {
+        internals.dumpLayoutTree(document);
+        const state = await waitForImageAnimationState(imageURL, state => state.timerActive);
+        println(`stylesheet-relative image loaded: ${state.timerActive}`);
+    });
+</script>
