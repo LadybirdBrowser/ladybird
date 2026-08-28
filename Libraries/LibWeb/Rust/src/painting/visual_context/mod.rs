@@ -7,6 +7,7 @@
 pub mod basic_shapes;
 pub mod box_build;
 pub mod build;
+pub mod dirty;
 pub mod dump;
 pub mod local_frames;
 pub mod nested;
@@ -550,6 +551,7 @@ pub struct VisualContextState {
     pub scroll_state_snapshot: Vec<FloatPoint>,
     pub needs_to_refresh_scroll_state: bool,
     pub build_count: u64,
+    pub dirty_boxes: dirty::VisualContextDirtySet,
 }
 
 impl VisualContextState {

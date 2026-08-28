@@ -65,7 +65,7 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
             document().style_computer().style_engine().record_element_style_input_change(style_node_id());
-            document().set_needs_accumulated_visual_contexts_update(true);
+            document().schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::FilterResourcesChanged);
             document().set_needs_repaint(Badge<SVGFEImageElement> {});
         },
         nullptr);

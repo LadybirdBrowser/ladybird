@@ -1020,16 +1020,17 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 : invalidation.layout_tree_rebuild_root();
             target->set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect, rebuild_root);
         }
-        if (invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::Rebuild) {
-            element.document().set_needs_accumulated_visual_contexts_update(true);
-        } else if (invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::UpdateValues) {
+        if (invalidation.accumulated_visual_contexts() != CSS::AccumulatedVisualContextInvalidation::None) {
+            auto scope = invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::Rebuild
+                ? DOM::Document::AccumulatedVisualContextUpdateScope::Structure
+                : DOM::Document::AccumulatedVisualContextUpdateScope::Values;
             // NB: Element-reference pseudo elements (e.g. ::placeholder) are not synthetic, so schedule their
             //     layout node directly instead of going through the owning element.
             if (element.pseudo_element().has_value()) {
                 if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
-                    element.document().schedule_accumulated_visual_context_value_update(*pseudo_element_node);
+                    element.document().schedule_accumulated_visual_context_update(*pseudo_element_node, scope);
             } else {
-                element.document().schedule_accumulated_visual_context_value_update(target);
+                element.document().schedule_accumulated_visual_context_update(target, scope);
             }
         }
         if (invalidation.needs_scrollable_overflow_recalculation()) {

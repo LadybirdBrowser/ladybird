@@ -12,7 +12,8 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::host::{FfiScrollableOverflowHostCallbacks, FfiVisualContextHostCallbacks};
 use crate::painting::paintable_data::FfiOverflowData;
-use crate::painting::paintable_rows::{PaintableRowsRead, PaintableRowsWrite};
+use crate::painting::paintable_rows::{PaintableRowsMut, PaintableRowsRead};
+use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::painting::visual_context::node_values;
 use crate::painting::{paintable_geometry, style_queries, text_fragment};
 use libgfx_rust::matrix::{AffineTransform, FloatMatrix4x4};
@@ -284,13 +285,25 @@ pub(crate) struct OverflowAssignment {
 }
 
 impl OverflowAssignment {
-    pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
-        let data = layout_arena.paintable_data_mut(self.box_paintable);
-        if let Some(overflow) = self.overflow_relative_to_padding_box {
-            data.overflow_relative_to_padding_box = overflow;
-            data.overflow_valid_across_recommits = true;
+    pub(crate) fn apply(self, layout_arena: &mut PaintableRowsMut<'_>) {
+        let scrollability_flipped = {
+            let data = layout_arena.paintable_data_mut(self.box_paintable);
+            let scrollability_flipped = self.overflow_relative_to_padding_box.is_some_and(|overflow| {
+                overflow.has_scrollable_overflow != data.overflow_relative_to_padding_box.has_scrollable_overflow
+            });
+            if let Some(overflow) = self.overflow_relative_to_padding_box {
+                data.overflow_relative_to_padding_box = overflow;
+                data.overflow_valid_across_recommits = true;
+            }
+            data.overflow_measured_this_commit = true;
+            scrollability_flipped
+        };
+        if scrollability_flipped {
+            layout_arena.note_visual_context_box_dirty(
+                self.box_paintable,
+                VisualContextBoxDirtyKind::ScrollableOverflowFlipped,
+            );
         }
-        data.overflow_measured_this_commit = true;
     }
 }
 

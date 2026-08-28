@@ -22,6 +22,23 @@ pub struct FfiSvgMaskFacts {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+pub enum FfiVisualContextBoxDirtyKind {
+    StyleValueChange,
+    StyleStructuralChange,
+    ScrollableOverflowFlipped,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiVisualContextGlobalRebuildReason {
+    FirstBuild,
+    DocumentWideStructuralChange,
+    FilterResourcesChanged,
+    ForcedForTesting,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum FfiVisualContextBoxNodeList {
     SpatialNodes,
     FrameNodes,

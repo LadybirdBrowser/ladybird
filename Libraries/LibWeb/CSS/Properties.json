@@ -1606,6 +1606,7 @@
   },
   "contain": {
     "style-group": "BoxValues",
+    "affects-accumulated-visual-contexts": true,
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -4918,6 +4919,7 @@
   },
   "transform-style": {
     "style-group": "TransformValues",
+    "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "flat",
