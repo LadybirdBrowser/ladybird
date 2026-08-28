@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibCore/Forward.h>
+#include <LibCore/Timer.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
@@ -28,8 +29,10 @@ public:
         for (auto& child : m_child_web_views) {
             child->close_child_web_views();
             // Children sharing a crashed WebContent process are discarded by their pending crash callbacks.
-            if (!child->handle().is_empty() && child->client().is_open())
+            if (!child->handle().is_empty() && child->client().is_open()) {
                 child->request_close();
+                child->schedule_forced_close();
+            }
         }
     }
 
@@ -49,6 +52,7 @@ protected:
 
     void propagate_web_content_crash();
     void discard_child_web_view(HeadlessWebView&);
+    void schedule_forced_close();
     void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     void update_zoom() override;
 
@@ -65,6 +69,7 @@ protected:
     // When restoring from fullscreen, we need to know to what dimension.
     Web::DevicePixelRect m_previous_dimensions;
 
+    RefPtr<Core::Timer> m_forced_close_timer;
     WeakPtr<HeadlessWebView> m_parent_web_view;
     bool m_propagate_crashes_to_parent { true };
     Vector<NonnullOwnPtr<HeadlessWebView>> m_child_web_views;
