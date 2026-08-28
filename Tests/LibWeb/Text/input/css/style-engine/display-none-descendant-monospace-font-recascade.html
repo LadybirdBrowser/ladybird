@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    * { font: 10pt monospace; }
+</style>
+<div id="cleared"><div id="restyled"><div id="child">x</div></div></div>
+<script>
+    test(() => {
+        const cleared = document.getElementById("cleared");
+        const restyled = document.getElementById("restyled");
+        const child = document.getElementById("child");
+        document.body.offsetWidth;
+
+        restyled.style.setProperty("background-attachment", "fixed");
+        document.body.style.display = "none";
+        document.body.offsetWidth;
+
+        println(`hidden font size: ${getComputedStyle(child).fontSize}`);
+        println(`hidden restyled background: ${getComputedStyle(restyled).backgroundAttachment}`);
+        println(`hidden cleared font size: ${getComputedStyle(cleared).fontSize}`);
+
+        document.body.style.display = "block";
+        document.body.offsetWidth;
+
+        println(`visible font size: ${getComputedStyle(child).fontSize}`);
+    });
+</script>
