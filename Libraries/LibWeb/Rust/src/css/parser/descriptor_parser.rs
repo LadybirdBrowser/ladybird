@@ -120,6 +120,7 @@ fn parse_integer_component(
             let callback = context.resolve_descriptor_integer?;
             let parsed = Arc::new(parsed);
             let mut resolved = 0;
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolveDescriptorIntegerCallback);
             if !(unsafe {
                 callback(
                     context.descriptor_integer_resolution_context,

@@ -1153,6 +1153,7 @@ fn has_ignored_vendor_prefix(name: TokenizerInput<'_>) -> bool {
 /// The source view must contain exactly one valid pointer when non-empty.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_has_ignored_vendor_prefix(source: FfiUtf16View) -> bool {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::RustHasIgnoredVendorPrefixEntry);
     crate::abort_on_panic(|| unsafe { source.units() }.is_some_and(has_ignored_vendor_prefix))
 }
 
@@ -2336,6 +2337,7 @@ impl FfiSyntaxParse {
             return (u16::MAX, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
         };
         // SAFETY: The declaration name remains live for this callback and the caller owns the callback.
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ResolvePropertyIdCallback);
         let property_id = unsafe { resolve_property_id(declaration.name.as_ptr(), declaration.name.len()) };
         if property_id == u16::MAX {
             return (property_id, u8::MAX, FfiParseStatus::NotHandled, std::ptr::null());
