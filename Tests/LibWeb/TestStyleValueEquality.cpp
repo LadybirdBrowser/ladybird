@@ -984,7 +984,7 @@ TEST_CASE(rust_custom_property_stores_retain_value_data)
         .important = false,
         .data = StyleValueFFI::rust_style_value_create_number(1),
     };
-    auto const* store = ComputedValuesFFI::rust_custom_property_store_create(&entry, 1, nullptr, nullptr);
+    auto const* store = ComputedValuesFFI::rust_custom_property_store_create(&entry, 1, 1, nullptr, nullptr);
     auto result = ComputedValuesFFI::rust_custom_property_store_get(store, name_raw);
     EXPECT(result.found);
     auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(

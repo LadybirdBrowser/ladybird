@@ -45,6 +45,7 @@ define_ffi_ops! {
     CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
     CustomPropertyStoreQueryEntry => "customPropertyStoreQueryEntries",
     LonghandDriverEntry => "longhandDriverEntries",
+    LonghandDriverPhaseCallback => "longhandDriverPhaseCallbacks",
     ShorthandExpansionEntry => "shorthandExpansionEntries",
     NestedPropertyComputeEntry => "nestedPropertyComputeEntries",
     CalcOperationEntry => "calcOperationEntries",

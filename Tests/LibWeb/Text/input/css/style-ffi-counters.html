@@ -61,7 +61,8 @@
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
             document.body.appendChild(simple);
         });
-        println(`longhand computation entered Rust: ${simpleCounters.longhandDriverEntries > 0}`);
+        println(`longhand computation used one Rust entry: ${simpleCounters.longhandDriverEntries === 1}`);
+        println(`longhand computation used two context callbacks: ${simpleCounters.longhandDriverPhaseCallbacks === 2}`);
         println(`shorthand expansion entered Rust: ${simpleCounters.shorthandExpansionEntries > 0}`);
         const inheritanceParent = document.createElement("div");
         const inheritanceChild = document.createElement("span");

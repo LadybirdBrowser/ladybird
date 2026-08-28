@@ -94,7 +94,7 @@ public:
     static CSSPixels default_user_font_size();
     static void ensure_style_metadata_tables_installed();
     static CSSPixels absolute_size_mapping(AbsoluteSize, CSSPixels default_font_size);
-    [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, CascadedProperties&, bool& depends_on_viewport_metrics) const;
+    [[nodiscard]] RefPtr<StyleValue const> recascade_font_size_if_needed(DOM::AbstractElement, bool has_monospace_font_family, bool& depends_on_viewport_metrics) const;
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
     [[nodiscard]] CSSPixelRect const& viewport_rect_for_style_environment() const { return m_viewport_rect; }
@@ -165,10 +165,20 @@ public:
     };
     void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
 
+    struct LonghandComputationPlan {
+        u32 initial_computed_group_mask { ComputedValues::all_style_groups };
+        Optional<Array<u64, (number_of_longhand_properties + 63) / 64>> computed_property_words;
+        Vector<u16> selected_transition_properties;
+        bool computed_property_closure_is_exact { false };
+        bool has_retained_transition_candidates { false };
+        bool has_relevant_animations { false };
+        bool has_css_defined_animations { false };
+    };
+
     // `explicitly_inherited_non_inherited_style_groups` reports the style groups whose values the
     // computation read from the half of the style it inherits from that a child normally cannot
     // see, which decides whether its answer can be offered to another element.
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, ComputedValues const* previous_values = nullptr, u32 computed_group_mask = ComputedValues::all_style_groups, u64 const* computed_properties_to_evaluate = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, ComputedValues const* previous_values = nullptr, LonghandComputationPlan const* = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr) const;
 
     void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
 
@@ -299,7 +309,6 @@ private:
     [[nodiscard]] RefPtr<ComputedStyleWorkingSet> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle, StyleEngineMatchResult* = nullptr, StyleSharingCandidate* = nullptr) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, CascadeInput const&, IncludeInlineStyle, StyleSharingCandidate* sharing = nullptr, Vector<StyleProperty> const* precomputed_presentational_hints = nullptr) const;
     void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
-    void compute_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedValues const& old_style, ComputedStyleWorkingSet& new_style, DOM::AbstractElement) const;
     void finalize_style(ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
 

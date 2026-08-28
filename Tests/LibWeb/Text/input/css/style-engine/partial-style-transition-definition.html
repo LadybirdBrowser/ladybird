@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+
+        target.getBoundingClientRect();
+        target.style.transition = "opacity 1s";
+        internals.updateStyle();
+
+        println(getComputedStyle(target).transitionDuration);
+    });
+</script>

@@ -1519,6 +1519,259 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         })
         .collect();
     property_name_lookup.sort_unstable_by(|left, right| left.0.cmp(right.0));
+    let longhand_names: Vec<&str> = inherited_longhands
+        .iter()
+        .chain(&noninherited_longhands)
+        .map(String::as_str)
+        .collect();
+    const WRITING_MODE_COUNT: usize = 5;
+    const DIRECTION_COUNT: usize = 2;
+    const LOGICAL_CONTEXT_COUNT: usize = WRITING_MODE_COUNT * DIRECTION_COUNT;
+    let mut logical_alias_to_physical = vec![0u16; longhand_names.len() * LOGICAL_CONTEXT_COUNT];
+    for (longhand_index, name) in longhand_names.iter().enumerate() {
+        let Some(alias) = properties[*name]
+            .get("logical-alias-for")
+            .and_then(serde_json::Value::as_object)
+        else {
+            continue;
+        };
+        let group_name = alias["group"].as_str().unwrap();
+        let mapping = alias["mapping"].as_str().unwrap();
+        let physical = groups[group_name]["physical"].as_object().unwrap();
+        for writing_mode in 0..WRITING_MODE_COUNT {
+            for direction in 0..DIRECTION_COUNT {
+                let ltr = direction == 0;
+                let physical_name = match mapping {
+                    "block-end" => match writing_mode {
+                        0 => "bottom",
+                        1 | 3 => "left",
+                        _ => "right",
+                    },
+                    "block-size" => {
+                        if writing_mode == 0 {
+                            "height"
+                        } else {
+                            "width"
+                        }
+                    }
+                    "block-start" => match writing_mode {
+                        0 => "top",
+                        1 | 3 => "right",
+                        _ => "left",
+                    },
+                    "block-xy" => {
+                        if writing_mode == 0 {
+                            "y"
+                        } else {
+                            "x"
+                        }
+                    }
+                    "end-end" => match writing_mode {
+                        0 => {
+                            if ltr {
+                                "bottom-right"
+                            } else {
+                                "bottom-left"
+                            }
+                        }
+                        1 | 3 => {
+                            if ltr {
+                                "bottom-left"
+                            } else {
+                                "top-left"
+                            }
+                        }
+                        2 => {
+                            if ltr {
+                                "bottom-right"
+                            } else {
+                                "top-right"
+                            }
+                        }
+                        _ => {
+                            if ltr {
+                                "top-right"
+                            } else {
+                                "bottom-right"
+                            }
+                        }
+                    },
+                    "end-start" => match writing_mode {
+                        0 => {
+                            if ltr {
+                                "bottom-left"
+                            } else {
+                                "bottom-right"
+                            }
+                        }
+                        1 | 3 => {
+                            if ltr {
+                                "top-left"
+                            } else {
+                                "bottom-left"
+                            }
+                        }
+                        2 => {
+                            if ltr {
+                                "top-right"
+                            } else {
+                                "bottom-right"
+                            }
+                        }
+                        _ => {
+                            if ltr {
+                                "bottom-right"
+                            } else {
+                                "top-right"
+                            }
+                        }
+                    },
+                    "inline-end" => match writing_mode {
+                        0 => {
+                            if ltr {
+                                "right"
+                            } else {
+                                "left"
+                            }
+                        }
+                        1..=3 => {
+                            if ltr {
+                                "bottom"
+                            } else {
+                                "top"
+                            }
+                        }
+                        _ => {
+                            if ltr {
+                                "top"
+                            } else {
+                                "bottom"
+                            }
+                        }
+                    },
+                    "inline-size" => {
+                        if writing_mode == 0 {
+                            "width"
+                        } else {
+                            "height"
+                        }
+                    }
+                    "inline-start" => match writing_mode {
+                        0 => {
+                            if ltr {
+                                "left"
+                            } else {
+                                "right"
+                            }
+                        }
+                        1..=3 => {
+                            if ltr {
+                                "top"
+                            } else {
+                                "bottom"
+                            }
+                        }
+                        _ => {
+                            if ltr {
+                                "bottom"
+                            } else {
+                                "top"
+                            }
+                        }
+                    },
+                    "inline-xy" => {
+                        if writing_mode == 0 {
+                            "x"
+                        } else {
+                            "y"
+                        }
+                    }
+                    "start-end" => match writing_mode {
+                        0 => {
+                            if ltr {
+                                "top-right"
+                            } else {
+                                "top-left"
+                            }
+                        }
+                        1 | 3 => {
+                            if ltr {
+                                "bottom-right"
+                            } else {
+                                "top-right"
+                            }
+                        }
+                        2 => {
+                            if ltr {
+                                "bottom-left"
+                            } else {
+                                "top-left"
+                            }
+                        }
+                        _ => {
+                            if ltr {
+                                "top-left"
+                            } else {
+                                "bottom-left"
+                            }
+                        }
+                    },
+                    "start-start" => match writing_mode {
+                        0 => {
+                            if ltr {
+                                "top-left"
+                            } else {
+                                "top-right"
+                            }
+                        }
+                        1 | 3 => {
+                            if ltr {
+                                "top-right"
+                            } else {
+                                "bottom-right"
+                            }
+                        }
+                        2 => {
+                            if ltr {
+                                "top-left"
+                            } else {
+                                "bottom-left"
+                            }
+                        }
+                        _ => {
+                            if ltr {
+                                "bottom-left"
+                            } else {
+                                "top-left"
+                            }
+                        }
+                    },
+                    _ => return Err(format!("unknown logical property mapping '{mapping}'").into()),
+                };
+                let property_name = physical[physical_name].as_str().unwrap();
+                let index = (longhand_index * WRITING_MODE_COUNT + writing_mode) * DIRECTION_COUNT + direction;
+                logical_alias_to_physical[index] = ids[property_name];
+            }
+        }
+    }
+    let mut physical_to_logical_alias = vec![0u16; logical_alias_to_physical.len()];
+    for (longhand_index, name) in longhand_names.iter().enumerate() {
+        let logical_property_id = ids[*name];
+        for writing_mode in 0..WRITING_MODE_COUNT {
+            for direction in 0..DIRECTION_COUNT {
+                let context_index = writing_mode * DIRECTION_COUNT + direction;
+                let physical_property_id =
+                    logical_alias_to_physical[longhand_index * LOGICAL_CONTEXT_COUNT + context_index];
+                if physical_property_id == 0 {
+                    continue;
+                }
+                let physical_index = usize::from(physical_property_id - first_longhand);
+                let reverse_index = physical_index * LOGICAL_CONTEXT_COUNT + context_index;
+                assert_eq!(physical_to_logical_alias[reverse_index], 0);
+                physical_to_logical_alias[reverse_index] = logical_property_id;
+            }
+        }
+    }
     fn expanded_longhands(
         name: &str,
         properties: &serde_json::Map<String, serde_json::Value>,
@@ -1579,17 +1832,21 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             properties[name].as_object().unwrap().contains_key("logical-alias-for")
         })
         .collect();
-    let mut logical_group_property_names = std::collections::HashSet::new();
-    for group in groups.values() {
+    if groups.len() >= u8::MAX as usize {
+        return Err("too many logical property groups".into());
+    }
+    let mut logical_group_by_property = std::collections::HashMap::new();
+    for (index, group) in groups.values().enumerate() {
+        let group_id = (index + 1) as u8;
         for member_kind in ["physical", "logical"] {
             for property_name in group[member_kind].as_object().unwrap().values() {
-                logical_group_property_names.insert(property_name.as_str().unwrap());
+                logical_group_by_property.insert(property_name.as_str().unwrap(), group_id);
             }
         }
     }
-    let logical_group_members: Vec<bool> = property_names
+    let logical_groups: Vec<u8> = property_names
         .iter()
-        .map(|name| logical_group_property_names.contains(name))
+        .map(|name| logical_group_by_property.get(name).copied().unwrap_or(0))
         .collect();
     let expanded_longhand_counts: Vec<usize> = expanded_shorthand_longhands.iter().map(Vec::len).collect();
 
@@ -1738,9 +1995,19 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         logical_aliases
     ));
     output.push_str(&format!(
-        "pub(crate) static PROPERTY_IS_LOGICAL_GROUP_MEMBER: [bool; {}] = {:?};\n\n",
-        logical_group_members.len(),
-        logical_group_members
+        "pub(crate) static PROPERTY_LOGICAL_GROUPS: [u8; {}] = {:?};\n\n",
+        logical_groups.len(),
+        logical_groups
+    ));
+    output.push_str(&format!(
+        "pub(crate) static LOGICAL_ALIAS_TO_PHYSICAL: [u16; {}] = {:?};\n\n",
+        logical_alias_to_physical.len(),
+        logical_alias_to_physical
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PHYSICAL_TO_LOGICAL_ALIAS: [u16; {}] = {:?};\n\n",
+        physical_to_logical_alias.len(),
+        physical_to_logical_alias
     ));
     output.push_str(&format!(
         "pub(crate) static SHORTHAND_EXPANDED_LONGHAND_COUNTS: [usize; {}] = {:?};\n\n",

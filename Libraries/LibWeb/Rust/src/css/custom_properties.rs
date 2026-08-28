@@ -96,14 +96,16 @@ pub struct FfiCustomPropertyStoreEntry {
     pub data: *const c_void,
 }
 
-struct CustomPropertyEntry {
+pub(crate) struct CustomPropertyEntry {
     _name: RetainedUtf16FlyString,
-    value: RetainedStyleValueData,
-    important: bool,
+    pub(crate) name: Vec<u16>,
+    pub(crate) value: RetainedStyleValueData,
+    pub(crate) important: bool,
 }
 
 pub struct CustomPropertyStore {
-    own_values: HashMap<usize, CustomPropertyEntry>,
+    pub(crate) own_values: HashMap<usize, CustomPropertyEntry>,
+    pub(crate) declared_names: Vec<usize>,
     own_names: HashMap<Vec<u16>, usize>,
     parent: Option<Arc<CustomPropertyStore>>,
     inheritance_parent: Option<Arc<CustomPropertyStore>>,
@@ -2661,6 +2663,7 @@ pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_
 pub unsafe extern "C" fn rust_custom_property_store_create(
     entries: *const FfiCustomPropertyStoreEntry,
     entry_count: usize,
+    declared_count: usize,
     parent: *const c_void,
     inheritance_parent: *const c_void,
 ) -> *const c_void {
@@ -2671,6 +2674,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
         } else {
             unsafe { std::slice::from_raw_parts(entries, entry_count) }
         };
+        assert!(declared_count <= entries.len());
         let parent = if parent.is_null() {
             None
         } else {
@@ -2690,11 +2694,12 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             .iter()
             .map(|entry| {
                 let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
-                own_names.insert(name, entry.name_raw);
+                own_names.insert(name.clone(), entry.name_raw);
                 (
                     entry.name_raw,
                     CustomPropertyEntry {
                         _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
+                        name,
                         value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                         important: entry.important,
                     },
@@ -2703,6 +2708,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             .collect();
         Arc::into_raw(Arc::new(CustomPropertyStore {
             own_values,
+            declared_names: entries[..declared_count].iter().map(|entry| entry.name_raw).collect(),
             own_names,
             parent,
             inheritance_parent,
