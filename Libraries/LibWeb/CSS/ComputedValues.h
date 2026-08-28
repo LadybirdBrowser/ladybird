@@ -432,12 +432,6 @@ struct ComputedFontStyle {
     bool operator==(ComputedFontStyle const&) const = default;
 };
 
-enum class OverflowWrap : u8 {
-    Normal,
-    BreakWord,
-    Anywhere,
-};
-
 class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {}, true, {} }; }
