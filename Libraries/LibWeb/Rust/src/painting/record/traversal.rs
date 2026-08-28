@@ -10,7 +10,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_data::{NodeFlag, NodeKind};
 use crate::layout::{node_facts, used_values};
 use crate::painting::display_list::builder::CommandRange;
-use crate::painting::display_list::commands::ContextRef;
+use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::*;
@@ -689,15 +689,19 @@ impl PaintRecorder<'_> {
                 .layout_kind(paintable)
                 .is_some_and(node_painting::foreground_is_never_cached)
                 && phase == PaintPhase::Foreground);
+        let phase_records_scrollbars_with_scroll_node_indices = phase == PaintPhase::Overlay
+            && (data.own_scroll_node_index != VISUAL_VIEWPORT_NODE_INDEX
+                || self.layout_kind(paintable) == Some(NodeKind::Viewport));
         if skip_cache {
             self.prevent_descendant_subtree_caching();
         }
+        let skip_phase_capture = skip_cache || phase_records_scrollbars_with_scroll_node_indices;
         let cache_writes_enabled = self.inputs.paint_command_cache_read_write && !is_nested;
 
         if phase_can_record_hit_test_items && !is_nested {
             let own_context = self.own_context(paintable);
             let for_descendants_context = self.for_descendants_context(paintable);
-            let cached_items = if skip_cache {
+            let cached_items = if skip_phase_capture {
                 None
             } else {
                 self.valid_cached_hit_test_items(paintable, phase, own_context, for_descendants_context)
@@ -724,7 +728,7 @@ impl PaintRecorder<'_> {
             } else {
                 let items_before = self.list.items.len();
                 self.record_hit_test_items(paintable, phase);
-                if !skip_cache && cache_writes_enabled {
+                if !skip_phase_capture && cache_writes_enabled {
                     let items_after = self.list.items.len();
                     self.set_cached_hit_test_items(
                         paintable,
@@ -738,9 +742,13 @@ impl PaintRecorder<'_> {
             }
         }
 
+        if phase == PaintPhase::Background && !is_nested {
+            self.record_async_scrolling_metadata(paintable);
+        }
+
         // SVG subtrees are recorded outside per-paintable captures, so path-bearing items are never spliced.
         let phase_context = self.recorder.accumulated_visual_context();
-        let cached_commands = if skip_cache || is_nested {
+        let cached_commands = if skip_phase_capture || is_nested {
             None
         } else {
             self.valid_cached_commands(paintable, phase)
@@ -759,16 +767,13 @@ impl PaintRecorder<'_> {
             self.spliced_capture_count += 1;
         } else {
             let command_range_start = self.recorder.byte_size();
-            if phase == PaintPhase::Background && !is_nested {
-                self.record_async_scrolling_metadata(paintable);
-            }
             self.paint(paintable, phase);
             let command_range_end = self.recorder.byte_size();
             let command_range = CommandRange {
                 offset: command_range_start as u32,
                 size: (command_range_end - command_range_start) as u32,
             };
-            if !skip_cache && cache_writes_enabled {
+            if !skip_phase_capture && cache_writes_enabled {
                 self.set_cached_commands(paintable, phase, command_range, phase_context);
             }
         }
@@ -833,6 +838,10 @@ impl PaintRecorder<'_> {
         recorded_context: ContextRef,
     ) {
         let recorded_local_frame_range = self.local_frame_range(paintable);
+        debug_assert!(
+            self.captured_range_embeds_no_scroll_node_index_payload(range),
+            "a per-phase paint capture must not embed scroll node indices"
+        );
         let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.register_capture_position(self.current_absolute_position(paintable));
         cache.set_commands(
@@ -848,6 +857,29 @@ impl PaintRecorder<'_> {
 
     fn local_frame_range(&self, paintable: NodeSlotId) -> (u32, u32) {
         self.data(paintable).local_frame_range()
+    }
+
+    #[cfg(debug_assertions)]
+    fn captured_range_embeds_no_scroll_node_index_payload(&self, range: CommandRange) -> bool {
+        use crate::painting::display_list::builder::{HEADER_SIZE, read_header};
+        use crate::painting::display_list::commands::DisplayListCommandType;
+        let bytes = &self.recorder.bytes()[range.offset as usize..(range.offset + range.size) as usize];
+        let mut offset = 0;
+        while offset < bytes.len() {
+            let header = read_header(&bytes[offset..]);
+            if header.command_type.is_compositor_metadata()
+                || header.command_type == DisplayListCommandType::PaintScrollBar
+            {
+                return false;
+            }
+            offset += HEADER_SIZE + header.payload_size as usize;
+        }
+        true
+    }
+
+    #[cfg(not(debug_assertions))]
+    fn captured_range_embeds_no_scroll_node_index_payload(&self, _range: CommandRange) -> bool {
+        true
     }
 
     fn set_cached_hit_test_items(
