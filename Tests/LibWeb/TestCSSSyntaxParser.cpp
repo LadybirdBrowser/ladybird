@@ -6,6 +6,7 @@
 
 #include <AK/RefPtr.h>
 #include <LibTest/TestCase.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 
 namespace Web::CSS::Parser {
@@ -81,6 +82,32 @@ TEST_CASE(invalid)
              "<number> +"sv, "<number> #"sv }) {
         EXPECT(!parse_as_syntax(Utf16String::from_utf8_without_validation(source)).has_value());
     }
+}
+
+TEST_CASE(devtools_declaration_metadata)
+{
+    auto source = u"COLOR: red !important; --custom: token stream; unknown-property: 1px; -webkit-unknown: 2px; -webkit-box-orient: horizontal; -webkit-box-orient: vertical; -webkit-box-orient: invalid; color: nonsense;"sv;
+
+    auto declarations = parse_css_declaration_block_for_devtools(ParsingParams {}, source);
+    EXPECT_EQ(declarations.size(), 8u);
+
+    auto expect_declaration = [&](size_t index, Utf16View name, Utf16View value, Important important,
+                                  bool is_custom_property, bool is_name_valid, bool is_valid) {
+        EXPECT_EQ(declarations[index].name, name);
+        EXPECT_EQ(declarations[index].value, value);
+        EXPECT_EQ(declarations[index].important, important);
+        EXPECT_EQ(declarations[index].is_custom_property, is_custom_property);
+        EXPECT_EQ(declarations[index].is_name_valid, is_name_valid);
+        EXPECT_EQ(declarations[index].is_valid, is_valid);
+    };
+    expect_declaration(0, u"COLOR"sv, u""sv, Important::Yes, false, true, true);
+    expect_declaration(1, u"--custom"sv, u""sv, Important::No, true, true, true);
+    expect_declaration(2, u"unknown-property"sv, u"1px"sv, Important::No, false, false, false);
+    expect_declaration(3, u"-webkit-unknown"sv, u"2px"sv, Important::No, false, false, false);
+    expect_declaration(4, u"-webkit-box-orient"sv, u"horizontal"sv, Important::No, false, true, true);
+    expect_declaration(5, u"-webkit-box-orient"sv, u"vertical"sv, Important::No, false, true, true);
+    expect_declaration(6, u"-webkit-box-orient"sv, u"invalid"sv, Important::No, false, true, false);
+    expect_declaration(7, u"color"sv, u"nonsense"sv, Important::No, false, true, false);
 }
 
 }
