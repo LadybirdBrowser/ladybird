@@ -26,14 +26,11 @@ impl CommandRange {
 pub struct ContextRewrite {
     pub recorded_context: ContextRef,
     pub current_context: ContextRef,
-    pub recorded_local_frame_range: (u32, u32),
-    pub current_local_frame_range: (u32, u32),
 }
 
 impl ContextRewrite {
     fn is_identity(&self) -> bool {
         self.recorded_context == self.current_context
-            && self.recorded_local_frame_range.0 == self.current_local_frame_range.0
     }
 
     fn rewrite(&self, context: ContextRef) -> ContextRef {
@@ -42,15 +39,11 @@ impl ContextRewrite {
         } else {
             context.spatial
         };
-        let (recorded_begin, recorded_end) = self.recorded_local_frame_range;
-        let frame =
-            if context.frame != FrameNodeIndex::NONE && (recorded_begin..recorded_end).contains(&context.frame.0) {
-                FrameNodeIndex(context.frame.0 - recorded_begin + self.current_local_frame_range.0)
-            } else if context.frame == self.recorded_context.frame {
-                self.current_context.frame
-            } else {
-                context.frame
-            };
+        let frame = if context.frame == self.recorded_context.frame {
+            self.current_context.frame
+        } else {
+            context.frame
+        };
         ContextRef { spatial, frame }
     }
 }
@@ -271,8 +264,6 @@ mod tests {
         ContextRewrite {
             recorded_context: recorded,
             current_context: current,
-            recorded_local_frame_range: (0, 0),
-            current_local_frame_range: (0, 0),
         }
     }
 
@@ -383,48 +374,30 @@ mod tests {
     }
 
     #[test]
-    fn a_spliced_capture_rebases_the_frames_of_its_own_range() {
+    fn a_spliced_capture_leaves_frames_other_than_the_phase_frame_untouched() {
         let mut source = DisplayListBuilder::new();
         source.append(&fill_rect(0, 0, 10, 10), &[], context(2, Some(5)));
         source.append(&fill_rect(20, 20, 10, 10), &[], context(2, Some(6)));
-        source.append(&fill_rect(40, 40, 10, 10), &[], context(2, None));
+        source.append(&fill_rect(40, 40, 10, 10), &[], context(2, Some(1)));
+        source.append(&fill_rect(60, 60, 10, 10), &[], context(2, None));
 
         let mut builder = DisplayListBuilder::new();
         builder.append_command_range(
             source.bytes(),
             whole_tape(&source),
-            Some(ContextRewrite {
-                recorded_context: context(2, Some(5)),
-                current_context: context(3, Some(11)),
-                recorded_local_frame_range: (4, 8),
-                current_local_frame_range: (10, 14),
-            }),
+            Some(rewrite(context(2, Some(1)), context(3, Some(7)))),
         );
         assert_eq!(
             header_contexts(&builder),
-            vec![context(3, Some(11)), context(3, Some(12)), context(3, None)]
+            vec![
+                context(3, Some(5)),
+                context(3, Some(6)),
+                context(3, Some(7)),
+                context(3, None)
+            ]
         );
         assert_runs_cover_tape(&builder);
-        assert_eq!(builder.command_runs().len(), 3);
-    }
-
-    #[test]
-    fn a_spliced_phase_frame_outside_the_range_maps_to_the_current_phase_frame() {
-        let mut source = DisplayListBuilder::new();
-        source.append(&fill_rect(0, 0, 10, 10), &[], context(2, Some(1)));
-
-        let mut builder = DisplayListBuilder::new();
-        builder.append_command_range(
-            source.bytes(),
-            whole_tape(&source),
-            Some(ContextRewrite {
-                recorded_context: context(2, Some(1)),
-                current_context: context(2, Some(3)),
-                recorded_local_frame_range: (7, 7),
-                current_local_frame_range: (9, 9),
-            }),
-        );
-        assert_eq!(header_contexts(&builder), vec![context(2, Some(3))]);
+        assert_eq!(builder.command_runs().len(), 4);
     }
 
     #[test]
