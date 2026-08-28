@@ -1,0 +1,6 @@
+rect x: 28
+full builds: 0
+incremental updates: 1
+live nodes unchanged: true
+capacity unchanged: true
+epoch unchanged: true

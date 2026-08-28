@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #anchor { anchor-name: --a; width: 100px; height: 50px; }
+    #target { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 20px; height: 20px; }
+</style>
+<div id="anchor"></div>
+<div id="target"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const target = document.getElementById("target");
+        const anchor = document.getElementById("anchor");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const lines = [];
+
+        anchor.style.height = "80px";
+        lines.push(`target y follows the anchor: ${target.getBoundingClientRect().y}`);
+        settle();
+        lines.push(`full builds with anchors present: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

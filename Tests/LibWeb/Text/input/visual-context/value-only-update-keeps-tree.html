@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="box" style="width: 100px; height: 100px; opacity: 0.5; transform: translateX(10px)"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const box = document.getElementById("box");
+        settle();
+        const liveNodes = internals.visualContextTreeNodeCount();
+        const capacity = internals.visualContextTreeNodeCapacity();
+        const epoch = internals.visualContextTreeStructuralEpoch();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+
+        box.style.opacity = "0.6";
+        box.style.transform = "translateX(20px)";
+        const rect = box.getBoundingClientRect();
+        settle();
+
+        const lines = [
+            `rect x: ${rect.x}`,
+            `full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`,
+            `incremental updates: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`,
+            `live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`,
+            `capacity unchanged: ${internals.visualContextTreeNodeCapacity() === capacity}`,
+            `epoch unchanged: ${internals.visualContextTreeStructuralEpoch() === epoch}`,
+        ];
+        for (const line of lines)
+            println(line);
+    });
+</script>

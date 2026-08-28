@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #moving { margin-left: 0; width: 100px; height: 50px; }
+    #barrier { width: 100px; height: 50px; overflow: hidden; transform: translateX(0); }
+    #clip { width: 50px; height: 50px; overflow: hidden; }
+    #target { width: 100px; height: 50px; background: green; }
+</style>
+<div id="moving">
+    <div id="barrier">
+        <div id="clip"><div id="target"></div></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const moving = document.getElementById("moving");
+        settle();
+
+        moving.style.clipPath = "inset(0)";
+        settle();
+        moving.style.clipPath = "none";
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+
+        moving.style.marginLeft = "100px";
+        moving.style.clipPath = "inset(0)";
+        const lines = [];
+        lines.push(`inside the moved clip: ${document.elementFromPoint(125, 25).id}`);
+        lines.push(`old position after the move: ${document.elementFromPoint(25, 25).tagName}`);
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

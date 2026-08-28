@@ -35,6 +35,7 @@ pub enum FfiVisualContextGlobalRebuildReason {
     DocumentWideStructuralChange,
     FilterResourcesChanged,
     ForcedForTesting,
+    CanonicalDumpRequested,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

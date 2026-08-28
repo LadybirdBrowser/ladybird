@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="sibling" style="width: 100px; height: 100px; transform: translateX(1px)"></div>
+<div id="parent" style="width: 100px; height: 100px"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const parent = document.getElementById("parent");
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        settle();
+        const liveNodes = internals.visualContextTreeNodeCount();
+        const capacity = internals.visualContextTreeNodeCapacity();
+        const epoch = internals.visualContextTreeStructuralEpoch();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        const lines = [];
+
+        const child = document.createElement("div");
+        child.style.cssText = "width: 50px; height: 50px; overflow: hidden; transform: translateX(10px)";
+        parent.appendChild(child);
+        lines.push(`child rect x: ${child.getBoundingClientRect().x}`);
+        settle();
+        lines.push(`full builds after insertion: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`incremental updates after insertion: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`);
+        lines.push(`live nodes grew: ${internals.visualContextTreeNodeCount() > liveNodes}`);
+        lines.push(`capacity grew: ${internals.visualContextTreeNodeCapacity() > capacity}`);
+        lines.push(`epoch unchanged after insertion: ${internals.visualContextTreeStructuralEpoch() === epoch}`);
+        const capacityWithChild = internals.visualContextTreeNodeCapacity();
+
+        child.remove();
+        settle();
+        lines.push(`full builds after removal: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`live nodes back to the initial count: ${internals.visualContextTreeNodeCount() === liveNodes}`);
+        lines.push(`capacity kept: ${internals.visualContextTreeNodeCapacity() === capacityWithChild}`);
+        lines.push(`dead nodes after removal: ${internals.visualContextTreeDeadNodeCount() > 0}`);
+        lines.push(`epoch bumped by the tombstones: ${internals.visualContextTreeStructuralEpoch() > epoch}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

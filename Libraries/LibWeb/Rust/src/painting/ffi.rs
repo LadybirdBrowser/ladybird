@@ -897,6 +897,9 @@ pub unsafe extern "C" fn layout_arena_visual_context_request_full_rebuild(
                 VisualContextGlobalRebuildReason::FilterResourcesChanged
             }
             FfiVisualContextGlobalRebuildReason::ForcedForTesting => VisualContextGlobalRebuildReason::ForcedForTesting,
+            FfiVisualContextGlobalRebuildReason::CanonicalDumpRequested => {
+                VisualContextGlobalRebuildReason::CanonicalDumpRequested
+            }
         };
         arena.request_full_visual_context_rebuild(reason);
     });
@@ -1125,10 +1128,6 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
                 }
             }
         }
-        let allow_structural_changes = false;
-        if reason == VisualContextGlobalRebuildReason::None && !state.dirty_boxes.is_value_only() {
-            reason = VisualContextGlobalRebuildReason::StructuralDirtyBoxes;
-        }
 
         if reason == VisualContextGlobalRebuildReason::None {
             let result = {
@@ -1140,7 +1139,6 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
                     inputs,
                     root_background_source,
                     &mut state,
-                    allow_structural_changes,
                 )
             };
             match result {

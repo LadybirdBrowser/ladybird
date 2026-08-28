@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="100" height="100">
+    <g id="group">
+        <rect width="50" height="50" fill="green"/>
+    </g>
+</svg>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const group = document.getElementById("group");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const liveNodes = internals.visualContextTreeNodeCount();
+        const lines = [];
+
+        group.style.transformStyle = "preserve-3d";
+        settle();
+        lines.push(`live nodes added by preserve-3d: ${internals.visualContextTreeNodeCount() - liveNodes}`);
+
+        group.style.transformStyle = "flat";
+        settle();
+        lines.push(`live nodes added after flat again: ${internals.visualContextTreeNodeCount() - liveNodes}`);
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

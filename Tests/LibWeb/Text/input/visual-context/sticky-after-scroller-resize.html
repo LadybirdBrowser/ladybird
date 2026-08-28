@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { overflow: auto; width: 100px; height: 100px; }
+    #sticky { position: sticky; top: 0; height: 20px; }
+    #filler { height: 500px; }
+</style>
+<div id="scroller"><div id="sticky"></div><div id="filler"></div></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const scroller = document.getElementById("scroller");
+        const sticky = document.getElementById("sticky");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const lines = [];
+
+        scroller.style.height = "150px";
+        scroller.scrollTop = 60;
+        lines.push(`scrollTop: ${scroller.scrollTop}`);
+        lines.push(`sticky y after resize and scroll: ${sticky.getBoundingClientRect().y}`);
+        lines.push(`scroller y: ${scroller.getBoundingClientRect().y}`);
+        settle();
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

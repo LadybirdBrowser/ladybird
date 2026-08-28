@@ -1,0 +1,11 @@
+child rect x: 18
+full builds after insertion: 0
+incremental updates after insertion: 1
+live nodes grew: true
+capacity grew: true
+epoch unchanged after insertion: true
+full builds after removal: 0
+live nodes back to the initial count: true
+capacity kept: true
+dead nodes after removal: true
+epoch bumped by the tombstones: true

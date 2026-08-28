@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { margin: 0; padding: 20px; border: 4px solid black; width: 200px; }
+    legend { font-size: 16px; }
+</style>
+<fieldset id="fieldset"><legend id="legend">Legend</legend><div id="content" style="height: 40px"></div></fieldset>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const legend = document.getElementById("legend");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        const lines = [];
+        const legendRect = legend.getBoundingClientRect();
+        lines.push(`legend hit: ${document.elementFromPoint(legendRect.x + 2, legendRect.y + 2).id}`);
+
+        legend.style.fontSize = "32px";
+        const grownRect = legend.getBoundingClientRect();
+        lines.push(`legend grew: ${grownRect.width > legendRect.width && grownRect.height > legendRect.height}`);
+        lines.push(`grown legend hit: ${document.elementFromPoint(grownRect.x + grownRect.width - 2, grownRect.y + 2).id}`);
+        lines.push(`content hit: ${document.elementFromPoint(30, grownRect.y + grownRect.height + 30).id}`);
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`incremental updates happened: ${internals.accumulatedVisualContextIncrementalUpdateCount() > incrementalUpdates}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

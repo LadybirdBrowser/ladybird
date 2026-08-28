@@ -1,0 +1,3 @@
+inside the moved clip: target
+old position after the move: BODY
+full builds: 0

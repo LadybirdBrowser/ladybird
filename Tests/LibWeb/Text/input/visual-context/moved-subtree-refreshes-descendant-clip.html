@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #wrapper { margin-left: 0; }
+    #clip { overflow: hidden; width: 50px; height: 50px; }
+    #inner { width: 200px; height: 20px; }
+</style>
+<div id="wrapper"><div id="clip"><div id="inner"></div></div></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const wrapper = document.getElementById("wrapper");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const lines = [];
+        lines.push(`inside the clip before the move: ${document.elementFromPoint(25, 10).id}`);
+        lines.push(`beside the clip before the move: ${document.elementFromPoint(125, 10).id}`);
+
+        wrapper.style.marginLeft = "100px";
+        lines.push(`old position after the move: ${document.elementFromPoint(25, 10).tagName}`);
+        lines.push(`inside the moved clip: ${document.elementFromPoint(125, 10).id}`);
+        lines.push(`beyond the moved clip: ${document.elementFromPoint(175, 10).id}`);
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

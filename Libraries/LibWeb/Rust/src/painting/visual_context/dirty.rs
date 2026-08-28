@@ -73,7 +73,7 @@ pub enum VisualContextGlobalRebuildReason {
     SvgResourceSubtreeChanged = 6,
     FilterResourcesChanged = 7,
     ForcedForTesting = 8,
-    StructuralDirtyBoxes = 9,
+    CanonicalDumpRequested = 9,
 }
 
 #[derive(Default)]

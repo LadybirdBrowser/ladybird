@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #clip { overflow: hidden; width: 50px; height: 0; }
+    #child { width: 50px; height: 50px; }
+</style>
+<div id="clip"><div id="child"></div></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const clip = document.getElementById("clip");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        const lines = [];
+        lines.push(`hit while clipped away: ${document.elementFromPoint(25, 25).tagName}`);
+
+        clip.style.height = "50px";
+        lines.push(`hit after the clip opened: ${document.elementFromPoint(25, 25).id}`);
+
+        clip.style.height = "0";
+        lines.push(`hit after the clip closed again: ${document.elementFromPoint(25, 25).tagName}`);
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+        lines.push(`incremental updates: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

@@ -1,0 +1,4 @@
+hit while clipped away: BODY
+hit after the clip opened: child
+hit after the clip closed again: BODY
+full builds: 0

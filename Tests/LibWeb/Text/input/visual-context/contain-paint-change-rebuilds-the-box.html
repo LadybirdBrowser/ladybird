@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #host { width: 50px; height: 50px; }
+    #child { width: 100px; height: 50px; background: green; }
+</style>
+<div id="host"><div id="child"></div></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const host = document.getElementById("host");
+        settle();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const lines = [];
+        lines.push(`overflowing content without containment: ${document.elementFromPoint(75, 10).id}`);
+
+        host.style.contain = "paint";
+        lines.push(`overflowing content with paint containment: ${document.elementFromPoint(75, 10).tagName}`);
+
+        host.style.contain = "none";
+        lines.push(`overflowing content after containment is removed: ${document.elementFromPoint(75, 10).id}`);
+        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

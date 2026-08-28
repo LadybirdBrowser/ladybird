@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #box { width: 50px; height: 50px; }
+    #box.lifted { transform: translateY(-2px); }
+</style>
+<div id="box"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const box = document.getElementById("box");
+        settle();
+        const initialCapacity = internals.visualContextTreeNodeCapacity();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const capacities = [];
+        for (let i = 0; i < 6; ++i) {
+            box.classList.add("lifted");
+            settle();
+            capacities.push(internals.visualContextTreeNodeCapacity());
+            box.classList.remove("lifted");
+            settle();
+        }
+        const lines = [
+            `capacity grew on the first toggle: ${capacities[0] > initialCapacity}`,
+            `capacity stable afterwards: ${capacities.every(capacity => capacity === capacities[0])}`,
+            `full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`,
+        ];
+        for (const line of lines)
+            println(line);
+    });
+</script>
