@@ -514,66 +514,8 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
     })
 }
 
-/// Returns whether any winning declaration needs the element's sibling count or index.
-///
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_uses_tree_counting_function(
-    store: *const CascadedPropertyStore,
-) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| {
-        unsafe { &*store }
-            .winning_entries()
-            .any(|(_, entry)| entry.dependencies().uses_tree_counting_function)
-    })
-}
-
-/// Returns the container-relative units used by any winning declaration.
-///
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_container_relative_length_unit_mask(
-    store: *const CascadedPropertyStore,
-) -> u8 {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| {
-        unsafe { &*store }.winning_entries().fold(0, |mask, (_, entry)| {
-            mask | entry.dependencies().container_relative_length_unit_mask
-        })
-    })
-}
-
 pub const CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL: u8 = 1 << 0;
 pub const CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT: u8 = 1 << 1;
-
-/// Returns which URL-resolution inputs any winning declaration can consume.
-///
-/// # Safety
-/// `store` must be a valid store.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_environment_requirements(store: *const CascadedPropertyStore) -> u8 {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
-    abort_on_panic(|| {
-        unsafe { &*store }
-            .winning_entries()
-            .fold(0, |requirements, (_, entry)| {
-                requirements
-                    | if entry.dependencies().needs_document_base_url {
-                        CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL
-                    } else {
-                        0
-                    }
-                    | if entry.has_style_sheet_context {
-                        CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT
-                    } else {
-                        0
-                    }
-            })
-    })
-}
 
 #[repr(C)]
 pub struct FfiUnfixedRandomSharing {
@@ -583,29 +525,44 @@ pub struct FfiUnfixedRandomSharing {
 }
 
 #[repr(C)]
-pub struct FfiUnfixedRandomSharings {
-    pub entries: *const FfiUnfixedRandomSharing,
-    pub entry_count: usize,
+pub struct FfiStyleComputationRequirements {
+    pub uses_tree_counting_function: bool,
+    pub container_relative_length_unit_mask: u8,
+    pub environment_requirements: u8,
+    pub unfixed_random_sharings: *const FfiUnfixedRandomSharing,
+    pub unfixed_random_sharing_count: usize,
     pub storage: *mut c_void,
 }
 
-/// Returns unfixed random sharing values from winning declarations.
+/// Collects the external inputs needed to compute the winning declarations.
 ///
 /// # Safety
 /// `store` must be a valid store.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_unfixed_random_sharings(
+pub unsafe extern "C" fn rust_cascaded_properties_computation_requirements(
     store: *const CascadedPropertyStore,
-) -> FfiUnfixedRandomSharings {
+) -> FfiStyleComputationRequirements {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| {
+        let mut uses_tree_counting_function = false;
+        let mut container_relative_length_unit_mask = 0;
+        let mut environment_requirements = 0;
         let mut sharings = Vec::new();
         for (_, entry) in unsafe { &*store }.winning_entries() {
-            if entry.dependencies().has_unfixed_random_sharing {
+            let dependencies = entry.dependencies();
+            uses_tree_counting_function |= dependencies.uses_tree_counting_function;
+            container_relative_length_unit_mask |= dependencies.container_relative_length_unit_mask;
+            if dependencies.needs_document_base_url {
+                environment_requirements |= CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL;
+            }
+            if entry.has_style_sheet_context {
+                environment_requirements |= CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT;
+            }
+            if dependencies.has_unfixed_random_sharing {
                 crate::css::style_compute::collect_unfixed_random_sharings_in_value(entry.value.data(), &mut sharings);
             }
         }
-        let entries = sharings
+        let unfixed_random_sharings = sharings
             .into_iter()
             .map(|source| {
                 let StyleValueData::RandomValueSharing {
@@ -625,28 +582,31 @@ pub unsafe extern "C" fn rust_cascaded_properties_unfixed_random_sharings(
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        let entry_count = entries.len();
-        let entries = Box::into_raw(entries);
-        FfiUnfixedRandomSharings {
-            entries: entries.cast(),
-            entry_count,
-            storage: entries.cast(),
+        let unfixed_random_sharing_count = unfixed_random_sharings.len();
+        let unfixed_random_sharings = Box::into_raw(unfixed_random_sharings);
+        FfiStyleComputationRequirements {
+            uses_tree_counting_function,
+            container_relative_length_unit_mask,
+            environment_requirements,
+            unfixed_random_sharings: unfixed_random_sharings.cast(),
+            unfixed_random_sharing_count,
+            storage: unfixed_random_sharings.cast(),
         }
     })
 }
 
 /// # Safety
-/// `storage` must be null or returned by `rust_cascaded_properties_unfixed_random_sharings`.
+/// `storage` must be null or returned by `rust_cascaded_properties_computation_requirements`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_cascaded_properties_unfixed_random_sharings_release(
+pub unsafe extern "C" fn rust_style_computation_requirements_destroy(
     storage: *mut c_void,
-    entry_count: usize,
+    unfixed_random_sharing_count: usize,
 ) {
     if !storage.is_null() {
         drop(unsafe {
             Box::from_raw(std::ptr::slice_from_raw_parts_mut(
                 storage.cast::<FfiUnfixedRandomSharing>(),
-                entry_count,
+                unfixed_random_sharing_count,
             ))
         });
     }
@@ -1601,5 +1561,63 @@ mod tests {
 
         let properties: Vec<_> = store.winning_declarations().map(|(property, _, _)| property).collect();
         assert!(properties.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn computation_requirements_aggregate_winning_declarations() {
+        let value = Arc::new(StyleValueData::Number { value: 42.0 });
+        let retained_value = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(value)) };
+        let mut store = CascadedPropertyStore::new();
+        let property_id = crate::css::property_metadata::property_id::WIDTH;
+        store.set_property(
+            property_id,
+            retained_value,
+            true,
+            false,
+            CascadeOrigin::Author,
+            LayerName(None),
+            0,
+        );
+        store.last_entry(property_id).unwrap().dependencies.set(Some(
+            crate::css::style_compute::ExternalValueDependencies {
+                uses_tree_counting_function: true,
+                container_relative_length_unit_mask: 0b1001,
+                needs_document_base_url: true,
+                ..Default::default()
+            },
+        ));
+        let other_value = Arc::new(StyleValueData::Number { value: 7.0 });
+        let other_retained_value = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(other_value)) };
+        let other_property_id = crate::css::property_metadata::property_id::OPACITY;
+        store.set_property(
+            other_property_id,
+            other_retained_value,
+            false,
+            false,
+            CascadeOrigin::Author,
+            LayerName(None),
+            0,
+        );
+        store.last_entry(other_property_id).unwrap().dependencies.set(Some(
+            crate::css::style_compute::ExternalValueDependencies {
+                container_relative_length_unit_mask: 0b0110,
+                ..Default::default()
+            },
+        ));
+
+        let requirements = unsafe { rust_cascaded_properties_computation_requirements(&store) };
+        assert!(requirements.uses_tree_counting_function);
+        assert_eq!(requirements.container_relative_length_unit_mask, 0b1111);
+        assert_eq!(
+            requirements.environment_requirements,
+            CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL | CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT
+        );
+        assert_eq!(requirements.unfixed_random_sharing_count, 0);
+        unsafe {
+            rust_style_computation_requirements_destroy(
+                requirements.storage,
+                requirements.unfixed_random_sharing_count,
+            );
+        }
     }
 }
