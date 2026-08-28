@@ -25,15 +25,11 @@ namespace Web::CSS {
 // with a parent pointer to the inherited chain.
 class WEB_API CustomPropertyData : public RefCounted<CustomPropertyData> {
 public:
-    enum class AllowParentOwnValueAbsorption : u8 {
-        No,
-        Yes,
-    };
-
     static NonnullRefPtr<CustomPropertyData> create(
         OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
         RefPtr<CustomPropertyData const> parent,
-        AllowParentOwnValueAbsorption allow_parent_own_value_absorption = AllowParentOwnValueAbsorption::Yes);
+        // Transfers one strong Rust store reference when non-null.
+        void const* prebuilt_rust_store = nullptr);
     ~CustomPropertyData();
 
     StyleProperty const* get(Utf16FlyString const& name) const;
@@ -115,7 +111,7 @@ public:
     }
 
 private:
-    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count);
+    CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count, void const* prebuilt_rust_store);
 
     OrderedHashMap<Utf16FlyString, StyleProperty> m_own_values;
     RefPtr<CustomPropertyData const> m_parent;

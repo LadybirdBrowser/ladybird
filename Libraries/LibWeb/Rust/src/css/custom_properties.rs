@@ -36,6 +36,9 @@ pub(crate) fn environment_variable_is_known(name: &[u16]) -> bool {
         .iter()
         .any(|(known_name, _, _)| name.eq_ignore_ascii_case(known_name))
 }
+// Keep these structural-sharing limits aligned with CustomPropertyData.cpp.
+const MAX_ANCESTOR_COUNT: u8 = 32;
+const ABSORB_THRESHOLD: usize = 8;
 
 trait Utf16SliceExt {
     fn eq_ignore_ascii_case(&self, expected: &str) -> bool;
@@ -96,6 +99,7 @@ pub struct FfiCustomPropertyStoreEntry {
     pub data: *const c_void,
 }
 
+#[derive(Clone)]
 pub(crate) struct CustomPropertyEntry {
     _name: RetainedUtf16FlyString,
     pub(crate) name: Vec<u16>,
@@ -109,6 +113,7 @@ pub struct CustomPropertyStore {
     own_names: HashMap<Vec<u16>, usize>,
     parent: Option<Arc<CustomPropertyStore>>,
     inheritance_parent: Option<Arc<CustomPropertyStore>>,
+    ancestor_count: u8,
 }
 
 // SAFETY: Store nodes and their entries are immutable after construction. Style workers only
@@ -262,6 +267,135 @@ impl CustomPropertyStore {
         self.own_names
             .get(name)
             .and_then(|name_raw| self.own_values.get(name_raw))
+    }
+
+    pub(crate) fn value_matches(&self, name_raw: usize, value: &StyleValueData) -> bool {
+        self.get(name_raw).is_some_and(|entry| entry.value.data() == value)
+    }
+
+    pub(crate) fn value_is_identical(&self, name_raw: usize, value: *const c_void) -> bool {
+        self.get(name_raw)
+            .is_some_and(|entry| entry.value.pointer().cast() == value)
+    }
+
+    unsafe fn retained_parent(parent: *const c_void) -> Option<Arc<CustomPropertyStore>> {
+        if parent.is_null() {
+            return None;
+        }
+        let parent = parent.cast::<CustomPropertyStore>();
+        unsafe { Arc::increment_strong_count(parent) };
+        Some(unsafe { Arc::from_raw(parent) })
+    }
+
+    fn child(
+        mut parent: Option<Arc<CustomPropertyStore>>,
+        entries: Vec<(usize, CustomPropertyEntry)>,
+    ) -> *const c_void {
+        let mut own_names = HashMap::with_capacity(entries.len());
+        let mut own_values = HashMap::with_capacity(entries.len());
+        let mut declared_names = Vec::with_capacity(entries.len());
+        for (name_raw, entry) in entries {
+            declared_names.push(name_raw);
+            own_names.insert(entry.name.clone(), name_raw);
+            own_values.insert(name_raw, entry);
+        }
+
+        let inheritance_parent = parent.clone();
+        let ancestor_count = if let Some(current_parent) = parent.clone() {
+            if current_parent.ancestor_count >= MAX_ANCESTOR_COUNT - 1 {
+                let mut ancestor = Some(current_parent.as_ref());
+                while let Some(current) = ancestor {
+                    for (&name_raw, entry) in &current.own_values {
+                        if let std::collections::hash_map::Entry::Vacant(slot) = own_values.entry(name_raw) {
+                            own_names.insert(entry.name.clone(), name_raw);
+                            slot.insert(entry.clone());
+                        }
+                    }
+                    ancestor = current.parent.as_deref();
+                }
+                parent = None;
+                0
+            } else if current_parent.own_values.len() <= ABSORB_THRESHOLD {
+                for (&name_raw, entry) in &current_parent.own_values {
+                    if let std::collections::hash_map::Entry::Vacant(slot) = own_values.entry(name_raw) {
+                        own_names.insert(entry.name.clone(), name_raw);
+                        slot.insert(entry.clone());
+                    }
+                }
+                parent = current_parent.parent.clone();
+                parent.as_ref().map_or(0, |parent| parent.ancestor_count + 1)
+            } else {
+                current_parent.ancestor_count + 1
+            }
+        } else {
+            0
+        };
+
+        Arc::into_raw(Arc::new(CustomPropertyStore {
+            own_values,
+            declared_names,
+            own_names,
+            inheritance_parent,
+            parent,
+            ancestor_count,
+        }))
+        .cast()
+    }
+
+    /// # Safety
+    /// `parent` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
+    pub(crate) unsafe fn resolved_child(
+        &self,
+        parent: *const c_void,
+        values: Vec<(usize, RetainedStyleValueData)>,
+    ) -> *const c_void {
+        let entries = values
+            .into_iter()
+            .map(|(name_raw, value)| {
+                let source = self
+                    .own_values
+                    .get(&name_raw)
+                    .expect("resolved custom property must be an own value");
+                (
+                    name_raw,
+                    CustomPropertyEntry {
+                        _name: source._name.clone(),
+                        name: source.name.clone(),
+                        value,
+                        important: source.important,
+                    },
+                )
+            })
+            .collect();
+        Self::child(unsafe { Self::retained_parent(parent) }, entries)
+    }
+
+    /// # Safety
+    /// `parent` must be null or a live raw `Arc` pointer, and every value pointer must remain live
+    /// for this call.
+    pub(crate) unsafe fn cascaded_child(
+        parent: *const c_void,
+        values: Vec<(usize, Vec<u16>, bool, *const c_void)>,
+    ) -> *const c_void {
+        let entries = values
+            .into_iter()
+            .map(|(name_raw, name, important, value)| {
+                (
+                    name_raw,
+                    CustomPropertyEntry {
+                        _name: unsafe { RetainedUtf16FlyString::from_borrowed_raw(name_raw) },
+                        name,
+                        value: unsafe {
+                            RetainedStyleValueData::from_retained_pointer(
+                                crate::css::style_value::retain_style_value(value.cast()).cast(),
+                            )
+                        },
+                        important,
+                    },
+                )
+            })
+            .collect();
+        Self::child(unsafe { Self::retained_parent(parent) }, entries)
     }
 }
 
@@ -2710,6 +2844,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             own_values,
             declared_names: entries[..declared_count].iter().map(|entry| entry.name_raw).collect(),
             own_names,
+            ancestor_count: parent.as_ref().map_or(0, |parent| parent.ancestor_count + 1),
             parent,
             inheritance_parent,
         }))
