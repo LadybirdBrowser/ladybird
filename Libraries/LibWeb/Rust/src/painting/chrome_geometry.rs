@@ -6,11 +6,11 @@
 
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelFraction, CssPixelPoint, CssPixelRect, CssPixels};
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::ffi::{FfiChromeMetrics, ScrollDirection};
 use crate::painting::host::{FfiHitTestQueryCallbacks, FfiRecordingInputs, FfiRootBackgroundSource};
-use crate::painting::paintable_data::{PaintableFlag, PaintableKind};
+use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -123,7 +123,7 @@ pub(crate) fn physical_resize_axes(arena: &impl PaintableRowsRead, slot: NodeSlo
 
 pub(crate) fn has_resizer(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
     if !arena.paintable_row_is_populated(slot)
-        || arena.paintable_data(slot).kind == PaintableKind::ViewportPaintable
+        || arena.node_kind_if_live(slot) == Some(NodeKind::Viewport)
         || arena.node_is_generated_for_pseudo_element(slot)
     {
         return false;
@@ -142,7 +142,7 @@ pub(crate) fn wheel_scrollable_axes(
         return PhysicalAxes::default();
     };
     let box_values = style.box_values();
-    let is_viewport = arena.paintable_data(slot).kind == PaintableKind::ViewportPaintable;
+    let is_viewport = arena.node_kind_if_live(slot) == Some(NodeKind::Viewport);
     let (overflow_x, overflow_y) = if is_viewport {
         (viewport_wheel_overflow_x, viewport_wheel_overflow_y)
     } else {

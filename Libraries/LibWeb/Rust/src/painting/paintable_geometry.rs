@@ -11,6 +11,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::{
     formatting_context, grid_formatting_context, svg_formatting_context, table_formatting_context, used_values,
 };
+use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
@@ -20,7 +21,7 @@ pub(crate) fn for_each_rendered_inline_box_piece(
     mut visit: impl FnMut(u16, &InlineBoxPieceRecord, CssPixelRect),
 ) {
     let root = arena.paintable_data(inline_paintable).containing_block;
-    if root.is_invalid() || !arena.paintable_row_is_populated(root) || !arena.paintable_data(root).kind.has_lines() {
+    if root.is_invalid() || !arena.paintable_row_is_populated(root) || !node_painting::has_lines(arena, root) {
         return;
     }
     let root_position = absolute_position(arena, root);
@@ -36,21 +37,9 @@ pub(crate) fn for_each_rendered_inline_box_piece(
     }
 }
 
-pub(crate) fn is_svg_paintable(kind: PaintableKind) -> bool {
-    matches!(
-        kind,
-        PaintableKind::SVGGraphicsPaintable
-            | PaintableKind::SVGPathPaintable
-            | PaintableKind::SVGImagePaintable
-            | PaintableKind::SVGMaskPaintable
-            | PaintableKind::SVGClipPaintable
-            | PaintableKind::SVGPatternPaintable
-    )
-}
-
 pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
     let data = arena.paintable_data(slot);
-    if data.kind == PaintableKind::InlinePaintable {
+    if node_painting::is_inline(arena, slot) {
         return data.offset;
     }
     arena.with_committed_fragment_link(slot, |link| {
@@ -60,7 +49,7 @@ pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId)
 
 pub(crate) fn committed_content_size(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
     let data = arena.paintable_data(slot);
-    if data.kind == PaintableKind::InlinePaintable {
+    if node_painting::is_inline(arena, slot) {
         return data.content_size;
     }
     arena.with_committed_fragment_link(slot, |link| {
@@ -163,7 +152,7 @@ pub(crate) fn committed_svg_path(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
 ) -> Option<std::rc::Rc<libgfx_rust::path::OwnedPath>> {
-    if arena.paintable_data(slot).kind != PaintableKind::SVGPathPaintable {
+    if !arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg_path) {
         return None;
     }
     arena.with_committed_fragment_link(slot, |link| {
@@ -186,7 +175,7 @@ pub(crate) fn committed_svg_viewport_size(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
 ) -> used_values::FfiCssPixelSize {
-    if arena.paintable_data(slot).kind != PaintableKind::SVGSVGPaintable {
+    if arena.node_kind_if_live(slot) != Some(crate::layout::node_data::NodeKind::SVGSVGBox) {
         return used_values::FfiCssPixelSize::default();
     }
     arena.with_committed_fragment_link(slot, |link| {
@@ -217,18 +206,21 @@ pub(crate) fn absolute_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) ->
         committed_offset(arena, slot).into(),
         committed_content_size(arena, slot).into(),
     );
-    if is_svg_paintable(data.kind) {
+    if arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg) {
         arena.memoize_absolute_rect(slot, rect);
         return rect;
     }
     let mut block = data.containing_block;
     while !block.is_invalid() && arena.paintable_row_is_populated(block) {
         let block_data = arena.paintable_data(block);
-        if block_data.kind == PaintableKind::SVGSVGPaintable || is_svg_paintable(block_data.kind) {
+        let block_kind = arena.node_kind_if_live(block);
+        if block_kind == Some(crate::layout::node_data::NodeKind::SVGSVGBox)
+            || block_kind.is_some_and(node_painting::is_svg)
+        {
             break;
         }
         rect = rect.translated_by(committed_offset(arena, block).into());
-        if block_data.kind == PaintableKind::SVGForeignObjectPaintable {
+        if block_kind == Some(crate::layout::node_data::NodeKind::SVGForeignObjectBox) {
             break;
         }
         block = block_data.containing_block;
@@ -244,7 +236,7 @@ pub(crate) fn absolute_position(arena: &impl PaintableRowsRead, slot: NodeSlotId
 pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
     let absolute = absolute_rect(arena, slot);
-    if data.kind == PaintableKind::InlinePaintable {
+    if node_painting::is_inline(arena, slot) {
         return CssPixelRect::from(data.local_padding_box_union).translated_by(absolute.location());
     }
     let padding = committed_padding(arena, slot);
@@ -259,7 +251,7 @@ pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: No
 
 pub(crate) fn absolute_border_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
-    if data.kind == PaintableKind::InlinePaintable {
+    if node_painting::is_inline(arena, slot) {
         return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());
     }
     let padded = absolute_padding_box_rect(arena, slot);

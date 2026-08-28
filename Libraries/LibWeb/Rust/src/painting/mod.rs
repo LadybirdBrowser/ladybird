@@ -15,6 +15,7 @@ pub(crate) mod filter_bytes;
 pub mod fragment_ownership;
 pub mod hit_test;
 pub mod host;
+pub(crate) mod node_painting;
 pub(crate) mod paint_order;
 pub mod paint_state;
 pub mod paintable_build;

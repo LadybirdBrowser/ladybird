@@ -11,6 +11,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::{
     formatting_context, fragment_tree, inline_formatting_context, inline_level_iterator, node_facts, used_values,
 };
+use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +25,7 @@ pub(crate) struct ReplacedCommittedFragmentLink {
     pub(crate) committed_fragment_identity_changed: bool,
 }
 
-pub(crate) fn paintable_kind_for_node(facts: &node_facts::NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
+fn diagnostic_paintable_kind_for_node(facts: &node_facts::NodeFacts<'_>, kind: NodeKind) -> PaintableKind {
     match kind {
         NodeKind::Viewport => PaintableKind::ViewportPaintable,
         NodeKind::BlockContainer
@@ -109,14 +110,14 @@ impl<'a> PaintableCommit<'a> {
         reuses_committed_subtree: bool,
         enclosing_line_root_content_changed: bool,
     ) -> PreparedPaintable {
-        let (expected_kind, wants_paintable, node_kind) = {
+        let (diagnostic_kind, wants_paintable, node_kind) = {
             let facts = node_facts::NodeFacts::new(self.callbacks, node);
             let data = self.callbacks.node_data(node);
-            let expected_kind = paintable_kind_for_node(&facts, data.kind);
+            let diagnostic_kind = diagnostic_paintable_kind_for_node(&facts, data.kind);
             (
-                expected_kind,
+                diagnostic_kind,
                 (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
-                    && expected_kind != PaintableKind::None,
+                    && node_painting::has_paintable(data.kind),
                 data.kind,
             )
         };
@@ -178,10 +179,10 @@ impl<'a> PaintableCommit<'a> {
             arena.paintable_rows_mut().begin_paintable_row_recommit(node);
         } else {
             arena.populate_paintable_row(node);
-            if expected_kind == PaintableKind::ViewportPaintable {
+            if node_kind == NodeKind::Viewport {
                 arena.paint_state().borrow_mut().reset_visual_context_state();
             }
-            arena.paintable_rows_mut().paintable_data_mut(node).kind = expected_kind;
+            arena.paintable_rows_mut().paintable_data_mut(node).kind = diagnostic_kind;
         }
         PreparedPaintable {
             has_paintable_row: true,
@@ -266,7 +267,7 @@ impl<'a> PaintableCommit<'a> {
         line_data: &used_values::LineData,
         content_inline_size: CssPixels,
     ) -> bool {
-        if !self.arena().paintable_rows().paintable_data(slot).kind.has_lines() {
+        if !node_painting::has_lines(self.arena(), slot) {
             return false;
         }
         let (lines, fragments, pieces) = self.build_line_records(line_data, content_inline_size);
@@ -491,7 +492,7 @@ impl<'a> PaintableCommit<'a> {
         }
         for (piece_node, piece_indices) in piece_indices_by_node {
             if !paintable_rows.paintable_row_is_populated(piece_node)
-                || paintable_rows.paintable_data(piece_node).kind != PaintableKind::InlinePaintable
+                || !node_painting::is_inline(&paintable_rows, piece_node)
             {
                 continue;
             }

@@ -38,58 +38,6 @@ pub enum PaintableKind {
     SVGForeignObjectPaintable,
 }
 
-impl PaintableKind {
-    pub const fn class_name(self) -> &'static str {
-        match self {
-            Self::None => "(none)",
-            Self::Paintable => "Paintable",
-            Self::PaintableWithLines => "PaintableWithLines",
-            Self::InlinePaintable => "InlinePaintable",
-            Self::ViewportPaintable => "ViewportPaintable",
-            Self::ImagePaintable => "ImagePaintable",
-            Self::CanvasPaintable => "CanvasPaintable",
-            Self::VideoPaintable => "VideoPaintable",
-            Self::CheckBoxPaintable => "CheckBoxPaintable",
-            Self::RadioButtonPaintable => "RadioButtonPaintable",
-            Self::FieldSetPaintable => "FieldSetPaintable",
-            Self::NavigableContainerViewportPaintable => "NavigableContainerViewportPaintable",
-            Self::SVGSVGPaintable => "SVGSVGPaintable",
-            Self::SVGPathPaintable => "SVGPathPaintable",
-            Self::SVGGraphicsPaintable => "SVGGraphicsPaintable",
-            Self::SVGImagePaintable => "SVGImagePaintable",
-            Self::SVGMaskPaintable => "SVGMaskPaintable",
-            Self::SVGClipPaintable => "SVGClipPaintable",
-            Self::SVGPatternPaintable => "SVGPatternPaintable",
-            Self::SVGForeignObjectPaintable => "SVGForeignObjectPaintable",
-        }
-    }
-
-    pub const fn has_lines(self) -> bool {
-        matches!(
-            self,
-            Self::PaintableWithLines | Self::ViewportPaintable | Self::SVGForeignObjectPaintable
-        )
-    }
-
-    pub const fn foreground_is_never_cached(self) -> bool {
-        matches!(self, Self::NavigableContainerViewportPaintable)
-    }
-
-    pub const fn paints_box_decorations(self) -> bool {
-        !matches!(
-            self,
-            Self::None | Self::InlinePaintable | Self::SVGPathPaintable | Self::SVGImagePaintable
-        )
-    }
-
-    pub const fn forms_unconnected_subtree(self) -> bool {
-        matches!(
-            self,
-            Self::SVGMaskPaintable | Self::SVGClipPaintable | Self::SVGPatternPaintable
-        )
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum PaintableFlag {

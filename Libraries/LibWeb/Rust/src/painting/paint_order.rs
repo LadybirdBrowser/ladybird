@@ -5,12 +5,14 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::fragment_ownership;
+use crate::painting::node_painting;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
 pub(crate) fn paint_parent(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     if !layout_arena.paintable_row_is_populated(slot)
-        || layout_arena.paintable_data(slot).kind.forms_unconnected_subtree()
+        || layout_arena
+            .node_kind_if_live(slot)
+            .is_some_and(node_painting::forms_unconnected_subtree)
     {
         return None;
     }
@@ -20,7 +22,7 @@ pub(crate) fn paint_parent(layout_arena: &impl PaintableRowsRead, slot: NodeSlot
         if layout_arena.paintable_row_is_populated(node) {
             return Some(node);
         }
-        if !fragment_ownership::node_is_fragmented_inline(layout_arena, node) {
+        if !node_painting::is_fragmented_inline(layout_arena, node) {
             return None;
         }
         ancestor = layout_arena.node_parent_if_live(node);
@@ -37,10 +39,13 @@ fn first_paintable_in_layout_siblings(
     while let Some(node) = current {
         let next_sibling = layout_arena.node_next_sibling_if_live(node);
         if layout_arena.paintable_row_is_populated(node) {
-            if !layout_arena.paintable_data(node).kind.forms_unconnected_subtree() {
+            if !layout_arena
+                .node_kind_if_live(node)
+                .is_some_and(node_painting::forms_unconnected_subtree)
+            {
                 return Some(node);
             }
-        } else if fragment_ownership::node_is_fragmented_inline(layout_arena, node)
+        } else if node_painting::is_fragmented_inline(layout_arena, node)
             && let Some(first_child) = layout_arena.node_first_child_if_live(node)
         {
             if let Some(next_sibling) = next_sibling {
@@ -63,7 +68,9 @@ pub(crate) fn first_paint_child(layout_arena: &impl PaintableRowsRead, slot: Nod
 
 pub(crate) fn next_paint_sibling(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     if !layout_arena.paintable_row_is_populated(slot)
-        || layout_arena.paintable_data(slot).kind.forms_unconnected_subtree()
+        || layout_arena
+            .node_kind_if_live(slot)
+            .is_some_and(node_painting::forms_unconnected_subtree)
     {
         return None;
     }
@@ -76,8 +83,7 @@ pub(crate) fn next_paint_sibling(layout_arena: &impl PaintableRowsRead, slot: No
             return Some(sibling);
         }
         let parent = layout_arena.node_parent_if_live(node)?;
-        if layout_arena.paintable_row_is_populated(parent)
-            || !fragment_ownership::node_is_fragmented_inline(layout_arena, parent)
+        if layout_arena.paintable_row_is_populated(parent) || !node_painting::is_fragmented_inline(layout_arena, parent)
         {
             return None;
         }

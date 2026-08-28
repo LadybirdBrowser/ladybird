@@ -342,17 +342,14 @@ fn measure_scrollable_overflow_impl(
     box_paintable: NodeSlotId,
     assignments: &mut Vec<OverflowAssignment>,
 ) -> CssPixelRect {
-    let (kind, still_valid_overflow) = {
+    let still_valid_overflow = {
         let data = layout_arena.paintable_data(box_paintable);
         if data.overflow_measured_this_commit {
             return CssPixelRect::from(data.overflow_relative_to_padding_box.rect)
                 .translated_by(paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable).location());
         }
-        (
-            data.kind,
-            data.overflow_valid_across_recommits
-                .then_some(data.overflow_relative_to_padding_box),
-        )
+        data.overflow_valid_across_recommits
+            .then_some(data.overflow_relative_to_padding_box)
     };
 
     let box_node = box_paintable;
@@ -390,7 +387,7 @@ fn measure_scrollable_overflow_impl(
     let overflow_directions = physical_overflow_directions(layout_arena, box_node);
 
     // - All line boxes it directly contains.
-    if kind.has_lines() {
+    if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
         for fragment in &layout_arena.paintable_side_data(box_paintable).fragments {
             let mut fragment_rect = text_fragment::absolute_rect(layout_arena, fragment);
             if fragment_node_is_in_focused_text_control(layout_arena, overflow_callbacks, fragment.layout_node)

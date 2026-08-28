@@ -7,14 +7,15 @@
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform};
 use crate::painting::display_list::recorder::{DisplayListRecorder, FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
-use crate::painting::paintable_data::{FfiPixelBox, PaintableKind};
+use crate::painting::node_painting;
+use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background_resolution::{
     BackgroundPaintInputs, ResolvedBackgroundLayer, resolve_background_for_paint, resolve_background_layers,
@@ -391,7 +392,7 @@ fn paint_image_layer(
             }
         }
         css_enums::background_attachment::LOCAL
-            if recorder.data(paintable).kind != PaintableKind::ViewportPaintable =>
+            if recorder.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport) =>
         {
             let scroll_offset = CssPixelPoint::from(recorder.visual_context_host.scroll_offset(shell));
             background_positioning_area = background_positioning_area.translated(-scroll_offset.x, -scroll_offset.y);
@@ -844,11 +845,11 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotI
     };
 
     let data = recorder.data(paintable);
-    if data.kind == PaintableKind::InlinePaintable {
+    if node_painting::is_inline(recorder.layout_arena, paintable) {
         let root = data.containing_block;
         if !root.is_invalid()
             && recorder.layout_arena.paintable_row_is_populated(root)
-            && recorder.data(root).kind.has_lines()
+            && node_painting::has_lines(recorder.layout_arena, root)
         {
             let layout_arena = recorder.layout_arena;
             for piece_index in &layout_arena.paintable_side_data(paintable).piece_indices {
@@ -878,7 +879,7 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotI
         if let Some(first_child) = crate::painting::paint_order::first_paint_child(recorder.layout_arena, current) {
             stack.push(first_child);
         }
-        if recorder.data(current).kind.has_lines() {
+        if node_painting::has_lines(recorder.layout_arena, current) {
             let count = recorder.layout_arena.paintable_side_data(current).fragments.len();
             for fragment_index in 0..count {
                 append_fragment(recorder, current, fragment_index);

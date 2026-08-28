@@ -10,7 +10,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::DisplayListResourceId;
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::paintable_data::PaintableKind;
+use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::{NestedRecordingState, PaintPhase, PaintRecorder};
 use crate::painting::visual_context::PieceKey;
@@ -241,7 +241,10 @@ impl PaintRecorder<'_> {
     }
 
     fn target_user_space_object_bounding_box(&self, target: NodeSlotId) -> CssPixelRect {
-        if self.data(target).kind == PaintableKind::SVGPathPaintable
+        if self
+            .layout_arena
+            .node_kind_if_live(target)
+            .is_some_and(node_painting::is_svg_path)
             && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(self.layout_arena, target)
         {
             let [x, y, width, height] = path.bounding_box();

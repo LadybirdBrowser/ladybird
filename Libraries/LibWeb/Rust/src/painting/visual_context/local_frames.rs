@@ -12,11 +12,12 @@ use super::{
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{background_box, line_style, overflow};
 use crate::css::css_pixels::CssPixelRect;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::FfiRootBackgroundSource;
-use crate::painting::paintable_data::{BorderEdge, FfiPixelBox, PaintableKind};
+use crate::painting::node_painting;
+use crate::painting::paintable_data::{BorderEdge, FfiPixelBox};
 use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_rect, committed_border, committed_padding,
     committed_uses_collapsing_borders_model, for_each_rendered_inline_box_piece,
@@ -45,7 +46,7 @@ pub(crate) struct LocalFrameBuilder<'a, Arena: PaintableRowsRead> {
     tree: &'a mut VisualContextTree,
     layout_arena: &'a Arena,
     slot: NodeSlotId,
-    kind: PaintableKind,
+    kind: NodeKind,
     converter: DevicePixelConverter,
     frames: Option<LocalFrames>,
 }
@@ -82,7 +83,9 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             tree,
             layout_arena,
             slot,
-            kind: layout_arena.paintable_data(slot).kind,
+            kind: layout_arena
+                .node_kind_if_live(slot)
+                .expect("local frame builder requires a live layout node"),
             converter: DevicePixelConverter::new(pixel_ratio),
             frames: keeps_frame_list.then(LocalFrames::new),
         }
@@ -97,7 +100,7 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             return self.finish();
         };
         let root_background_source = root_background_source_or_no_propagation(root_background_source);
-        if self.kind == PaintableKind::InlinePaintable {
+        if node_painting::is_inline(self.layout_arena, self.slot) {
             self.append_inline_box_frames(style, own_state, root_background_source);
             return self.finish();
         }
@@ -109,14 +112,11 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         let mut background_parent = own_state;
         let mut fieldset = None;
         match self.kind {
-            PaintableKind::ImagePaintable
-            | PaintableKind::CanvasPaintable
-            | PaintableKind::VideoPaintable
-            | PaintableKind::NavigableContainerViewportPaintable => {
+            NodeKind::ImageBox | NodeKind::CanvasBox | NodeKind::VideoBox | NodeKind::NavigableContainerViewport => {
                 self.append_replaced_content_frames(style, own_state);
             }
-            PaintableKind::SVGImagePaintable => self.append_svg_image_frames(style, own_state),
-            PaintableKind::FieldSetPaintable => {
+            NodeKind::SVGImageBox => self.append_svg_image_frames(style, own_state),
+            NodeKind::FieldSetBox => {
                 let frames = self.append_fieldset_frames(own_state);
                 background_parent = frames.background_clip;
                 fieldset = Some(frames);
@@ -124,7 +124,7 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
             _ => {}
         }
 
-        if self.kind.paints_box_decorations() {
+        if node_painting::paints_box_decorations(self.layout_arena, self.slot) {
             self.append_background_frames(background_parent, root_background_source);
             self.append_border_frames(style, own_state, border_box_rect, border_radii, fieldset.as_ref());
             self.append_outline_frames(style, own_state, PieceKey::Box, border_box_rect, border_radii);
@@ -272,8 +272,8 @@ impl<'a, Arena: PaintableRowsRead> LocalFrameBuilder<'a, Arena> {
         let corner_radii =
             padding_edge_border_radii(style, self.layout_arena, self.slot).corners_unconditionally(&self.converter);
         let has_corner_clip = corner_radii.has_any_radius();
-        let content_always_fills_its_rect = self.kind == PaintableKind::CanvasPaintable;
-        if self.kind == PaintableKind::VideoPaintable {
+        let content_always_fills_its_rect = self.kind == NodeKind::CanvasBox;
+        if self.kind == NodeKind::VideoBox {
             let content = self.append_clip(own_state, content_rect, CornerRadii::default(), FrameRole::ContentClip);
             if has_corner_clip {
                 self.append_clip(content, content_rect, corner_radii, FrameRole::ContentCornerClip);
