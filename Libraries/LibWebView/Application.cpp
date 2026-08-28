@@ -685,6 +685,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         m_web_content_options.expose_experimental_interfaces = ExposeExperimentalInterfaces::Yes;
         m_web_content_options.expose_internals_object = ExposeInternalsObject::Yes;
         m_web_content_options.force_cpu_painting = ForceCPUPainting::Yes;
+
+        // Test results must not depend on the content blocking the developer running the tests happens to have
+        // configured for normal browsing, and compiling those lists into every renderer is not cheap.
+        m_browser_options.content_blocker_list_paths.clear();
     }
 
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
