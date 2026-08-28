@@ -8,26 +8,15 @@
 
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
-#include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 
 namespace Web::CSS::Parser {
 
-class Parser;
-
 class RustQueryParser {
 public:
-    struct ContainerCondition {
-        Optional<Utf16FlyString> name;
-        RefPtr<ContainerQuery> query;
-    };
-
-    static Vector<NonnullRefPtr<MediaQuery>> parse_media_query_list(Parser&, Utf16View);
-    static Optional<RustQueryHandle> parse_media_condition(Parser&, Utf16View);
-    static Optional<RustQueryHandle> parse_media_feature(Parser&, Utf16View);
-    static Optional<RustQueryHandle> parse_style_query(Parser&, Utf16View);
-    static Optional<Vector<ContainerCondition>> parse_container_condition_list(Parser&, Utf16View);
+    static Vector<NonnullRefPtr<MediaQuery>> parse_media_query_list(Utf16View);
+    static Optional<RustQueryHandle> parse_style_query(Utf16View);
 };
 
 }

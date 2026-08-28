@@ -37,6 +37,4 @@ private:
     GC::Ref<CSSStyleProperties> m_style;
 };
 
-bool is_margin_rule_name(Utf16View);
-
 }

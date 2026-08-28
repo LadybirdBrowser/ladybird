@@ -112,8 +112,6 @@ struct QualifiedRule {
 struct Declaration {
     Optional<Utf16FlyString> name;
     Important important = Important::No;
-    Optional<Utf16String> original_value_text = {};
-    Optional<Utf16String> original_full_text = {};
     Optional<SourcePosition> source_position = {};
     Optional<Utf16String> value_text;
     Optional<PropertyID> parsed_property_id;

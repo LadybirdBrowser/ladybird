@@ -1,13 +1,5 @@
 computed width: 1px
 internUtf16FlyStringCallbacks: 68
 normalizeSvgPathDataCallbacks: 1
-fontFormatIsSupportedCallbacks: 0
-fontTechIsSupportedCallbacks: 0
-resolveDescriptorIntegerCallbacks: 0
-resolvePropertyIdCallbacks: 0
-resolveQueryFeatureCallbacks: 0
-evaluateSupportsFeatureCallbacks: 0
 evaluateConditionCallbacks: 0
 mediaEnvironmentCallbacks: 1
-rustHasIgnoredVendorPrefixEntries: 0
-rustReevaluateSupportsConditionEntries: 0

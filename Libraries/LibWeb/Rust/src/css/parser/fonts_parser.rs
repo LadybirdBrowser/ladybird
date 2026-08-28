@@ -27,8 +27,8 @@ use crate::css::style_value::{
 };
 use std::sync::Arc;
 
-// NB: Mirrors Libraries/LibGfx/Font/FontSupport.cpp:13 and the format-name mapping in
-//     Libraries/LibWeb/CSS/FontFace.cpp:876 at commit bb989979110.
+// NB: Mirrors Libraries/LibGfx/Font/FontSupport.cpp and the format-name mapping that this series
+//     removed from Libraries/LibWeb/CSS/FontFace.cpp.
 const FONT_FORMAT_SUPPORT: &[(&str, bool)] = &[
     ("embedded-opentype", false),
     ("opentype", true),

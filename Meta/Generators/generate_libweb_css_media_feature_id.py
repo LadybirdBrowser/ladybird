@@ -17,23 +17,12 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from Utils.utils import title_casify
 from Utils.utils import underlying_type_for_enum
 
-VALUE_TYPE_NAMES = {
-    "<mq-boolean>": "Boolean",
-    "<integer>": "Integer",
-    "<length>": "Length",
-    "<ratio>": "Ratio",
-    "<resolution>": "Resolution",
-}
-
 
 def write_header_file(out: TextIO, media_feature_data: dict) -> None:
     underlying_type = underlying_type_for_enum(len(media_feature_data))
     out.write(f"""#pragma once
 
-#include <AK/StringView.h>
-#include <AK/Traits.h>
-#include <LibWeb/CSS/Keyword.h>
-#include <LibWeb/CSS/QueryValueType.h>
+#include <AK/Types.h>
 
 namespace Web::CSS {{
 
@@ -52,144 +41,6 @@ inline constexpr size_t media_feature_count = """)
     out.write(str(len(media_feature_data)))
     out.write(""";
 
-StringView string_from_media_feature_id(MediaFeatureID);
-
-bool media_feature_accepts_type(MediaFeatureID, QueryValueType);
-bool media_feature_accepts_keyword(MediaFeatureID, Keyword);
-
-bool media_feature_keyword_is_falsey(MediaFeatureID, Keyword);
-
-}
-""")
-
-
-def write_implementation_file(out: TextIO, media_feature_data: dict) -> None:
-    out.write("""
-#include <LibWeb/CSS/MediaFeatureID.h>
-#include <LibWeb/Infra/Strings.h>
-
-namespace Web::CSS {
-
-StringView string_from_media_feature_id(MediaFeatureID media_feature_id)
-{
-    switch (media_feature_id) {""")
-
-    out.writelines(
-        f"""
-    case MediaFeatureID::{title_casify(name)}:
-        return "{name}"sv;"""
-        for name in media_feature_data
-    )
-
-    out.write("""
-    }
-    VERIFY_NOT_REACHED();
-}
-
-bool media_feature_accepts_type(MediaFeatureID media_feature_id, QueryValueType value_type)
-{
-    switch (media_feature_id) {""")
-
-    for name, feature in media_feature_data.items():
-        out.write(f"""
-    case MediaFeatureID::{title_casify(name)}:""")
-
-        have_output_value_type_switch = False
-        if "values" in feature:
-            for type_name in feature["values"]:
-                # Skip keywords.
-                if not type_name.startswith("<"):
-                    continue
-                if type_name not in VALUE_TYPE_NAMES:
-                    print(f"Unrecognized media-feature value type: `{type_name}`", file=sys.stderr)
-                    sys.exit(1)
-                if not have_output_value_type_switch:
-                    out.write("""
-        switch (value_type) {""")
-                    have_output_value_type_switch = True
-                value_type = VALUE_TYPE_NAMES[type_name]
-                out.write(f"""
-        case QueryValueType::{value_type}:
-            return true;""")
-
-        if have_output_value_type_switch:
-            out.write("""
-        default:
-            return false;
-        }""")
-        else:
-            out.write("""
-        return false;""")
-
-    out.write("""
-    }
-    VERIFY_NOT_REACHED();
-}
-
-bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyword)
-{
-    switch (media_feature_id) {""")
-
-    for name, feature in media_feature_data.items():
-        out.write(f"""
-    case MediaFeatureID::{title_casify(name)}:""")
-
-        have_output_keyword_switch = False
-        if "values" in feature:
-            for keyword_name in feature["values"]:
-                # Skip types.
-                if keyword_name.startswith("<"):
-                    continue
-                if not have_output_keyword_switch:
-                    out.write("""
-        switch (keyword) {""")
-                    have_output_keyword_switch = True
-                out.write(f"""
-        case Keyword::{title_casify(keyword_name)}:
-            return true;""")
-
-        if have_output_keyword_switch:
-            out.write("""
-        default:
-            return false;
-        }""")
-        else:
-            out.write("""
-        return false;""")
-
-    out.write("""
-    }
-    VERIFY_NOT_REACHED();
-}
-
-bool media_feature_keyword_is_falsey(MediaFeatureID media_feature_id, Keyword keyword)
-{
-    switch (media_feature_id) {""")
-
-    for name, feature in media_feature_data.items():
-        false_keywords = feature.get("false-keywords")
-        if not false_keywords:
-            continue
-        out.write(f"""
-    case MediaFeatureID::{title_casify(name)}:
-        switch (keyword) {{""")
-        out.writelines(
-            f"""
-        case Keyword::{title_casify(false_keyword)}:"""
-            for false_keyword in false_keywords
-        )
-        out.write("""
-            return true;
-        default:
-            return false;
-        }""")
-
-    out.write("""
-    default:
-        return false;
-    }
-}
-
 }
 """)
 
@@ -198,9 +49,6 @@ def main():
     parser = argparse.ArgumentParser(description="Generate CSS MediaFeatureID", add_help=False)
     parser.add_argument("--help", action="help", help="Show this help message and exit")
     parser.add_argument("-h", "--header", required=True, help="Path to the MediaFeatureID header file to generate")
-    parser.add_argument(
-        "-c", "--implementation", required=True, help="Path to the MediaFeatureID implementation file to generate"
-    )
     parser.add_argument("-j", "--json", required=True, help="Path to the JSON file to read from")
     args = parser.parse_args()
 
@@ -209,9 +57,6 @@ def main():
 
     with open(args.header, "w", encoding="utf-8") as output_file:
         write_header_file(output_file, media_feature_data)
-
-    with open(args.implementation, "w", encoding="utf-8") as output_file:
-        write_implementation_file(output_file, media_feature_data)
 
 
 if __name__ == "__main__":

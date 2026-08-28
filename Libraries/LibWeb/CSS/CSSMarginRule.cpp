@@ -56,25 +56,4 @@ void CSSMarginRule::dump(StringBuilder& builder, int indent_levels) const
     dump_style_properties(builder, style(), indent_levels + 1);
 }
 
-// https://drafts.csswg.org/css-page-3/#syntax-page-selector
-bool is_margin_rule_name(Utf16View name)
-{
-    return name.equals_ignoring_ascii_case(u"top-left-corner"sv)
-        || name.equals_ignoring_ascii_case(u"top-left"sv)
-        || name.equals_ignoring_ascii_case(u"top-center"sv)
-        || name.equals_ignoring_ascii_case(u"top-right"sv)
-        || name.equals_ignoring_ascii_case(u"top-right-corner"sv)
-        || name.equals_ignoring_ascii_case(u"bottom-left-corner"sv)
-        || name.equals_ignoring_ascii_case(u"bottom-left"sv)
-        || name.equals_ignoring_ascii_case(u"bottom-center"sv)
-        || name.equals_ignoring_ascii_case(u"bottom-right"sv)
-        || name.equals_ignoring_ascii_case(u"bottom-right-corner"sv)
-        || name.equals_ignoring_ascii_case(u"left-top"sv)
-        || name.equals_ignoring_ascii_case(u"left-middle"sv)
-        || name.equals_ignoring_ascii_case(u"left-bottom"sv)
-        || name.equals_ignoring_ascii_case(u"right-top"sv)
-        || name.equals_ignoring_ascii_case(u"right-middle"sv)
-        || name.equals_ignoring_ascii_case(u"right-bottom"sv);
-}
-
 }

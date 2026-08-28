@@ -44,6 +44,7 @@
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
+#include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -294,9 +295,7 @@ static size_t resolve_custom_function_for_substitution(size_t scope_identity, Co
 
 static u8 evaluate_style_query_for_substitution(AbstractOrHypotheticalElement element, ComputedValuesFFI::FfiUtf16View source)
 {
-    auto source_view = utf16_view(source);
-    auto parser = Parser::Parser::create(Parser::ParsingParams { element.document() }, source_view);
-    auto query = Parser::RustQueryParser::parse_style_query(parser, source_view);
+    auto query = Parser::RustQueryParser::parse_style_query(utf16_view(source));
     if (!query.has_value())
         return 2;
     prepare_for_style_query_evaluation();
@@ -392,12 +391,10 @@ Parser::ValueParserFFI::FfiMediaEnvironment const* StyleComputer::cached_media_e
 
 Parser::ValueParserFFI::FfiMediaEnvironment const* StyleComputer::ensure_media_environment_for_style_update() const
 {
-    if (m_style_update_depth == 0) {
-        m_style_update_media_environment.emplace(m_document);
-        m_style_update_ffi_media_environment = m_style_update_media_environment->ffi_environment();
-        return &*m_style_update_ffi_media_environment;
-    }
-    if (!m_style_update_media_environment.has_value()) {
+    // NB: Outside a style update there is nothing to clear the cached snapshot, so always take a
+    //     fresh one. Every style-computation entry point currently opens a scope, so this is a
+    //     defensive path rather than one the engine relies on.
+    if (m_style_update_depth == 0 || !m_style_update_media_environment.has_value()) {
         m_style_update_media_environment.emplace(m_document);
         m_style_update_ffi_media_environment = m_style_update_media_environment->ffi_environment();
     }

@@ -7,4 +7,3 @@ math function: 40
 non-finite math: 60
 non-math function: 60
 sizes attribute parser observed: true
-sizes attribute splitter observed: false

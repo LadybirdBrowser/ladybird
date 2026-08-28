@@ -118,8 +118,8 @@ fn parse_integer_component(
     let resolved = match &parsed {
         StyleValueData::Integer { value } => *value,
         // NB: This matches CalculatedStyleValue::resolve_integer() at
-        //     Libraries/LibWeb/CSS/StyleValues/CalculatedStyleValue.cpp:378 in
-        //     commit 0e1fee55852, before descriptor integer resolution moved to Rust.
+        //     Libraries/LibWeb/CSS/StyleValues/CalculatedStyleValue.cpp, before descriptor
+        //     integer resolution moved to Rust.
         StyleValueData::Calculated { .. } => unsafe {
             context
                 .length_resolution_context

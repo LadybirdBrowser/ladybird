@@ -210,8 +210,6 @@ pub(crate) struct Declaration {
     pub name: ParserString,
     pub value: Vec<ComponentValue>,
     pub important: bool,
-    pub original_value_text: Option<Box<[u16]>>,
-    pub original_full_text: Option<Box<[u16]>>,
     pub source_position: SourcePosition,
     pub is_property: bool,
     pub rule_context: RuleContext,
@@ -508,8 +506,8 @@ fn parse_page_selectors(values: &[ComponentValue]) -> ParsedRulePrelude {
 
 // https://drafts.csswg.org/cssom/#parse-a-list-of-css-page-selectors
 fn parse_page_selector_list<'a>(source: impl Into<TokenizerInput<'a>>) -> Option<Vec<ParsedPageSelector>> {
-    // NB: This replaces SelectorParsing.cpp:66 at commit 0ea3305e3e9, which wrapped the source in
-    //     `@page <source> {}` and parsed exactly one rule. Consuming the complete component-value list
+    // NB: This replaces the C++ path that wrapped the source in `@page <source> {}` and parsed
+    //     exactly one rule. Consuming the complete component-value list
     //     preserves rejection of trailing tokens without constructing synthetic CSS.
     let values = consume_a_list_of_component_values(tokenize_for_parser(source)).ok()?;
     let ParsedRulePrelude::PageSelectors(selectors) = parse_page_selectors(&values) else {
@@ -1220,7 +1218,7 @@ where
             }
         }
         (Rule::At(_), FfiRuleKind::Unknown | FfiRuleKind::IgnoredVendor) => ParsedRulePrelude::Unparsed,
-        _ => unreachable!(),
+        (_, kind) => unreachable!("no prelude grammar for rule kind {kind:?}"),
     }
 }
 
@@ -1386,7 +1384,8 @@ fn at_rule_kind(name: &[u16]) -> FfiRuleKind {
     }
 }
 
-// NB: Mirrors Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp:45 at commit bb989979110.
+// NB: Mirrors the at-rule support list that this series removed from
+//     Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp.
 pub(crate) fn at_rule_is_supported(name: &[u16]) -> bool {
     !matches!(
         at_rule_kind(name),
@@ -1496,10 +1495,7 @@ impl Parser {
         consume_a_component_value(&mut self.tokens, &mut self.position, 0, false)
     }
 
-    fn declaration_can_take_tokens(&self, save_original_text: bool) -> bool {
-        if save_original_text {
-            return false;
-        }
+    fn declaration_can_take_tokens(&self) -> bool {
         let mut nesting_depth = 0usize;
         for token in &self.tokens[self.position..] {
             match token.kind {
@@ -1728,7 +1724,7 @@ impl Parser {
                         matches!(self.peek_kind(lookahead), Some(ParserTokenKind::Colon))
                     };
                     let start = self.position;
-                    if could_be_declaration && let Some(declaration) = self.consume_declaration(Nested::Yes, false) {
+                    if could_be_declaration && let Some(declaration) = self.consume_declaration(Nested::Yes) {
                         declarations.push(declaration);
                         continue;
                     }
@@ -1750,8 +1746,7 @@ impl Parser {
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-declaration
-    fn consume_declaration(&mut self, nested: Nested, save_original_text: bool) -> Option<Declaration> {
-        let start = self.position;
+    fn consume_declaration(&mut self, nested: Nested) -> Option<Declaration> {
         let token = self.tokens.get(self.position)?.clone();
         let ParserTokenKind::Ident(name) = token.kind else {
             self.consume_bad_declaration(nested);
@@ -1765,7 +1760,7 @@ impl Parser {
         }
         self.position += 1;
         self.discard_whitespace();
-        let can_take_tokens = self.declaration_can_take_tokens(save_original_text);
+        let can_take_tokens = self.declaration_can_take_tokens();
         let mut value = self.consume_component_values_until(Some(&ParserTokenKind::Semicolon), nested, can_take_tokens);
 
         let mut important = false;
@@ -1832,23 +1827,9 @@ impl Parser {
                 }
             }
         }
-        let original_value_text = is_custom_property.then(|| {
-            value
-                .iter()
-                .flat_map(|value| value.original_source_text.iter())
-                .collect::<Vec<_>>()
-                .into_boxed_slice()
-        });
         if !self.declaration_is_valid(name.as_ref()) {
             return None;
         }
-        let original_full_text = save_original_text.then(|| {
-            self.tokens[start..self.position]
-                .iter()
-                .flat_map(|token| token.source.iter())
-                .collect::<Vec<_>>()
-                .into_boxed_slice()
-        });
         let is_property = self.declaration_is_property();
         let rule_context = if !is_property && self.rule_context.contains(&RuleContext::AtFunction) {
             RuleContext::AtFunction
@@ -1859,8 +1840,6 @@ impl Parser {
             name,
             value,
             important,
-            original_value_text,
-            original_full_text,
             source_position: token.start_position,
             is_property,
             rule_context,
@@ -2025,8 +2004,8 @@ pub(crate) fn supports_declaration_matches(context: &ParseContext, source: &[u16
         && (equals_ascii_case_insensitive(source.as_ref(), b"horizontal")
             || equals_ascii_case_insensitive(source.as_ref(), b"vertical"))
     {
-        // NB: Mirrors the legacy acceptance from commit 7c54a530cc2 in
-        //     Libraries/LibWeb/CSS/Parser/Parser.cpp:376.
+        // NB: Mirrors the legacy -webkit-box-orient acceptance that this series removed from
+        //     Libraries/LibWeb/CSS/Parser/Parser.cpp.
         return true;
     }
 
@@ -2050,42 +2029,13 @@ pub(crate) fn supports_declaration_matches(context: &ParseContext, source: &[u16
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiSyntaxComponent {
-    pub component_type: u8,
-    pub token_type: u8,
-    pub hash_type: u8,
-    pub number_type: u8,
-    pub number_value: f64,
-    pub delim: u32,
-    pub value_offset: usize,
-    pub value_length: usize,
-    pub source_offset: usize,
-    pub source_length: usize,
-    pub end_source_offset: usize,
-    pub end_source_length: usize,
-    pub children_start: usize,
-    pub child_count: usize,
-    pub start_line: usize,
-    pub start_column: usize,
-    pub end_line: usize,
-    pub end_column: usize,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
 pub struct FfiSyntaxDeclaration {
     pub name_offset: usize,
     pub name_length: usize,
-    pub values_start: usize,
-    pub value_count: usize,
     pub value_source_offset: usize,
     pub value_source_length: usize,
     pub is_property: bool,
     pub important: bool,
-    pub original_value_offset: usize,
-    pub original_value_length: usize,
-    pub original_full_text_offset: usize,
-    pub original_full_text_length: usize,
     pub start_line: usize,
     pub start_column: usize,
     pub preserve_source_text: bool,
@@ -2122,8 +2072,6 @@ pub struct FfiSyntaxRule {
     pub rule_kind: FfiRuleKind,
     pub name_offset: usize,
     pub name_length: usize,
-    pub prelude_start: usize,
-    pub prelude_count: usize,
     pub declarations_start: usize,
     pub declaration_count: usize,
     pub children_start: usize,
@@ -2229,10 +2177,6 @@ pub struct FfiSyntaxDiagnostic {
 pub struct FfiSyntaxParseData {
     pub values: *const u16,
     pub value_count: usize,
-    pub components: *const FfiSyntaxComponent,
-    pub component_count: usize,
-    pub component_indices: *const usize,
-    pub component_index_count: usize,
     pub declarations: *const FfiSyntaxDeclaration,
     pub declaration_count: usize,
     pub descriptors: *const FfiSyntaxDescriptor,
@@ -2255,8 +2199,6 @@ pub struct FfiSyntaxParseData {
 
 pub struct FfiSyntaxParse {
     values: Vec<u16>,
-    components: Vec<FfiSyntaxComponent>,
-    component_indices: Vec<usize>,
     declarations: Vec<FfiSyntaxDeclaration>,
     descriptors: Vec<FfiSyntaxDescriptor>,
     descriptor_parse_cache: ParsedDescriptorCache,
@@ -2402,8 +2344,8 @@ fn parse_font_feature_values(declaration: &Declaration, maximum_value_count: usi
     (!values.is_empty() && values.len() <= maximum_value_count).then_some(values)
 }
 
-// NB: Mirrors rule structural validation from Libraries/LibWeb/CSS/Parser/RuleParsing.cpp:148-827
-//     and top-level ordering from Libraries/LibWeb/CSS/Parser/Parser.cpp:89-137 at commit a14df7fab3f.
+// NB: Mirrors the rule structural validation and top-level ordering that this series removed from
+//     Libraries/LibWeb/CSS/Parser/RuleParsing.cpp and Libraries/LibWeb/CSS/Parser/Parser.cpp.
 fn structural_validation_code(
     rule: &Rule,
     rule_kind: FfiRuleKind,
@@ -2552,7 +2494,15 @@ fn structural_validation_code(
             || !matches!(parsed_prelude, ParsedRulePrelude::Scope { .. }))
         .then_some(FfiSyntaxDiagnosticCode::ScopeInvalid),
         (Rule::At(_), FfiRuleKind::FontFeatureValuesRule) => None,
-        _ => unreachable!(),
+        // NB: `at_rule_kind` never classifies a rule as Qualified or Invalid, and qualified rules
+        //     are handled above, so every remaining pair is a classifier bug rather than input.
+        (rule, kind) => unreachable!(
+            "unclassified rule: {} rule with kind {kind:?}",
+            match rule {
+                Rule::At(_) => "at",
+                Rule::Qualified(_) => "qualified",
+            }
+        ),
     }
 }
 
@@ -2598,8 +2548,6 @@ impl FfiSyntaxParse {
             .collect();
         Self {
             values: Vec::new(),
-            components: Vec::new(),
-            component_indices: Vec::new(),
             declarations: Vec::new(),
             descriptors: Vec::new(),
             descriptor_parse_cache: HashMap::new(),
@@ -2677,105 +2625,6 @@ impl FfiSyntaxParse {
         value.map_or((usize::MAX, 0), |value| self.append_value(value))
     }
 
-    fn append_source(&mut self, source: &crate::css::css_tokenizer::ParserSource) -> (usize, usize) {
-        let offset = self.values.len();
-        source.append_to(&mut self.values);
-        (offset, source.len())
-    }
-
-    pub(crate) fn append_component_list(&mut self, values: &[ComponentValue]) -> (usize, usize) {
-        let indices = values
-            .iter()
-            .map(|value| self.append_component(value))
-            .collect::<Vec<_>>();
-        let start = self.component_indices.len();
-        self.component_indices.extend(indices);
-        (start, values.len())
-    }
-
-    fn append_component(&mut self, component: &ComponentValue) -> usize {
-        let (component_type, token_type, hash_type, number_type, number_value, delim, payload, children) =
-            match &component.kind {
-                ComponentKind::Token(kind) => match kind {
-                    ParserTokenKind::EndOfFile => (0, 1, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Ident(value) => (0, 2, 0, 0, 0.0, 0, value.as_ref(), &[][..]),
-                    ParserTokenKind::Function(value) => (0, 3, 0, 0, 0.0, 0, value.as_ref(), &[][..]),
-                    ParserTokenKind::AtKeyword(value) => (0, 4, 0, 0, 0.0, 0, value.as_ref(), &[][..]),
-                    ParserTokenKind::Hash { value, is_id } => {
-                        (0, 5, u8::from(!is_id), 0, 0.0, 0, value.as_ref(), &[][..])
-                    }
-                    ParserTokenKind::String(value) => (0, 6, 0, 0, 0.0, 0, value.as_ref(), &[][..]),
-                    ParserTokenKind::BadString => (0, 7, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Url(value) => (0, 8, 0, 0, 0.0, 0, value.as_ref(), &[][..]),
-                    ParserTokenKind::BadUrl => (0, 9, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Delim(value) => (0, 10, 0, 0, 0.0, *value, &[][..], &[][..]),
-                    ParserTokenKind::Number { value, number_type } => {
-                        (0, 11, 0, *number_type as u8, *value, 0, &[][..], &[][..])
-                    }
-                    ParserTokenKind::Percentage { value, number_type } => {
-                        (0, 12, 0, *number_type as u8, *value, 0, &[][..], &[][..])
-                    }
-                    ParserTokenKind::Dimension {
-                        value,
-                        number_type,
-                        unit,
-                    } => (0, 13, 0, *number_type as u8, *value, 0, unit.as_ref(), &[][..]),
-                    ParserTokenKind::Whitespace => (0, 14, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Cdo => (0, 15, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Cdc => (0, 16, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Colon => (0, 17, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Semicolon => (0, 18, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::Comma => (0, 19, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::OpenSquare => (0, 20, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::CloseSquare => (0, 21, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::OpenParen => (0, 22, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::CloseParen => (0, 23, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::OpenCurly => (0, 24, 0, 0, 0.0, 0, &[][..], &[][..]),
-                    ParserTokenKind::CloseCurly => (0, 25, 0, 0, 0.0, 0, &[][..], &[][..]),
-                },
-                ComponentKind::Function { name, values } => (1, 3, 0, 0, 0.0, 0, name.as_ref(), values.as_ref()),
-                ComponentKind::SimpleBlock { opening, values } => {
-                    let token_type = match opening {
-                        ParserTokenKind::OpenSquare => 20,
-                        ParserTokenKind::OpenParen => 22,
-                        ParserTokenKind::OpenCurly => 24,
-                        _ => unreachable!(),
-                    };
-                    (2, token_type, 0, 0, 0.0, 0, &[][..], values.as_ref())
-                }
-            };
-        let (children_start, child_count) = self.append_component_list(children);
-        let (value_offset, value_length) = self.append_value(payload);
-        let full_source_length = component.original_source_text.len();
-        let (full_source_offset, _) = self.append_source(&component.original_source_text);
-        let source_offset = full_source_offset;
-        let source_length = component.opening_source_length;
-        let end_source_offset = full_source_offset + full_source_length - component.closing_source_length;
-        let end_source_length = component.closing_source_length;
-        let index = self.components.len();
-        self.components.push(FfiSyntaxComponent {
-            component_type,
-            token_type,
-            hash_type,
-            number_type,
-            number_value,
-            delim,
-            value_offset,
-            value_length,
-            source_offset,
-            source_length,
-            end_source_offset,
-            end_source_length,
-            children_start,
-            child_count,
-            start_line: component.start_position.line,
-            start_column: component.start_position.column,
-            end_line: component.end_position.line,
-            end_column: component.end_position.column,
-        });
-        index
-    }
-
     fn append_declaration(
         &mut self,
         declaration: &Declaration,
@@ -2783,21 +2632,6 @@ impl FfiSyntaxParse {
     ) -> usize {
         let (name_offset, name_length) = self.append_value(declaration.name.as_ref());
         let value_source = component_list_source(&declaration.value);
-        let (values_start, value_count) = if declaration.is_property {
-            (0, 0)
-        } else {
-            self.append_component_list(&declaration.value)
-        };
-        let original_value_text = self
-            .preserve_property_source_text
-            .then_some(declaration.original_value_text.as_deref())
-            .flatten();
-        let original_full_text = self
-            .preserve_property_source_text
-            .then_some(declaration.original_full_text.as_deref())
-            .flatten();
-        let (original_value_offset, original_value_length) = self.append_optional_value(original_value_text);
-        let (original_full_text_offset, original_full_text_length) = self.append_optional_value(original_full_text);
         let (property_id, descriptor_id, rejection, parsed_value) =
             self.parse_declaration_value(declaration, value_source.as_ref());
         let font_feature_values = font_feature_maximum_value_count
@@ -2820,16 +2654,10 @@ impl FfiSyntaxParse {
         self.declarations.push(FfiSyntaxDeclaration {
             name_offset,
             name_length,
-            values_start,
-            value_count,
             value_source_offset,
             value_source_length,
             is_property: declaration.is_property,
             important: declaration.important,
-            original_value_offset,
-            original_value_length,
-            original_full_text_offset,
-            original_full_text_length,
             start_line: declaration.source_position.line,
             start_column: declaration.source_position.column,
             preserve_source_text: self.preserve_property_source_text,
@@ -2884,8 +2712,8 @@ impl FfiSyntaxParse {
         };
 
         if equals_ascii_case_insensitive(declaration.name.as_ref(), b"-webkit-box-orient") {
-            // NB: Mirrors the legacy value mapping from commit dbe9950abd9 in
-            //     Libraries/LibWeb/CSS/Parser/Parser.cpp:373.
+            // NB: Mirrors the legacy -webkit-box-orient value mapping that this series removed
+            //     from Libraries/LibWeb/CSS/Parser/Parser.cpp.
             let source = trim_ascii_whitespace(source_utf16);
             let legacy_keyword = if equals_ascii_case_insensitive(source, b"horizontal") {
                 Some(keyword::ROW)
@@ -2947,16 +2775,10 @@ impl FfiSyntaxParse {
         self.declarations.push(FfiSyntaxDeclaration {
             name_offset,
             name_length,
-            values_start: 0,
-            value_count: 0,
             value_source_offset: 0,
             value_source_length: 0,
             is_property: false,
             important: false,
-            original_value_offset: usize::MAX,
-            original_value_length: 0,
-            original_full_text_offset: usize::MAX,
-            original_full_text_length: 0,
             start_line: 0,
             start_column: 0,
             preserve_source_text: false,
@@ -3074,7 +2896,7 @@ impl FfiSyntaxParse {
 
     fn append_rule(&mut self, rule: &Rule) -> usize {
         let original_rule_kind = rule_kind(rule);
-        let (rule_type, name, prelude, prelude_is_selector, declarations, children, has_block, source_position) =
+        let (rule_type, name, prelude, _prelude_is_selector, declarations, children, has_block, source_position) =
             match rule {
                 Rule::At(rule) => (
                     0,
@@ -3099,11 +2921,6 @@ impl FfiSyntaxParse {
             };
         let (name_offset, name_length) = self.append_value(name);
         let prelude_source = component_list_source(prelude);
-        let (prelude_start, prelude_count) = if prelude_is_selector {
-            (0, 0)
-        } else {
-            self.append_component_list(prelude)
-        };
         let font_feature_maximum_value_count = match rule {
             Rule::At(rule) => font_feature_values_rule(rule.name.as_ref()).map(|(_, maximum)| maximum),
             Rule::Qualified(_) => None,
@@ -3382,8 +3199,6 @@ impl FfiSyntaxParse {
             rule_kind,
             name_offset,
             name_length,
-            prelude_start,
-            prelude_count,
             declarations_start,
             declaration_count,
             children_start,
@@ -3409,7 +3224,8 @@ impl FfiSyntaxParse {
     }
 
     fn append_roots(&mut self, rules: &[Rule]) {
-        // NB: Mirrors Libraries/LibWeb/CSS/Parser/Parser.cpp:89-137 at commit a14df7fab3f.
+        // NB: Mirrors the top-level rule ordering that this series removed from
+        //     Libraries/LibWeb/CSS/Parser/Parser.cpp.
         //     Invalid rules do not close either ordering window, and statement @layer rules do not
         //     close the import or namespace window.
         let mut import_rules_valid = true;
@@ -3484,10 +3300,6 @@ impl FfiSyntaxParse {
         FfiSyntaxParseData {
             values: self.values.as_ptr(),
             value_count: self.values.len(),
-            components: self.components.as_ptr(),
-            component_count: self.components.len(),
-            component_indices: self.component_indices.as_ptr(),
-            component_index_count: self.component_indices.len(),
             declarations: self.declarations.as_ptr(),
             declaration_count: self.declarations.len(),
             descriptors: self.descriptors.as_ptr(),
@@ -3946,10 +3758,6 @@ mod tests {
         assert!(declarations[0].important);
         assert!(declarations[1].important);
         assert!(declarations[2].important);
-        assert_eq!(
-            declarations[2].original_value_text.as_deref(),
-            Some(utf16("var(--y)").as_slice())
-        );
     }
 
     #[test]

@@ -449,7 +449,6 @@ enum class Keyword : u16;
 enum class LayoutTreeRebuildRoot : u8;
 enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
-enum class SizeFeatureID : u8;
 enum class ValueType : u8;
 enum class AnimatedPropertyResultOfTransition : u8;
 
