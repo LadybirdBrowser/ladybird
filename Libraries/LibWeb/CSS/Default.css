@@ -40,6 +40,9 @@ textarea {
     overflow: auto;
     font-family: monospace;
     resize: both;
+    /* This matches the behavior of other engines.
+     * Spec issue: https://github.com/whatwg/html/issues/953 */
+    overflow-wrap: break-word;
 }
 
 input::placeholder, textarea::placeholder {
