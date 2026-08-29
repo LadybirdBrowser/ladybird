@@ -8,6 +8,7 @@
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
+#include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
@@ -240,6 +241,20 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             VERIFY(reaction.old_style_record == element->style_record_identity().value());
             VERIFY(reaction.new_style_record != 0);
             VERIFY(reaction.damage == StyleEngineFFI::FfiStyleDeltaDamage::Full);
+        }
+
+        if (reaction.pseudo_kind != NumericLimits<u8>::max()) {
+            VERIFY(reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize);
+            VERIFY(reaction.reaction & StyleEngine::PublishedStyle);
+            VERIFY((reaction.reaction & ~(StyleEngine::PublishedStyle | StyleEngine::PseudoInputsMayHaveChanged)) == 0);
+            VERIFY(reaction.inherited_style_groups == 0);
+            auto pseudo_element = pseudo_element_from_ffi(reaction.pseudo_kind);
+            VERIFY(pseudo_element.has_value());
+            VERIFY(*pseudo_element != PseudoElement::UnknownWebKit);
+            auto invalidation = element->apply_style_engine_pseudo_reaction(*pseudo_element);
+            apply_element_style_invalidation_after_style_change(*element, invalidation);
+            transaction_invalidation |= invalidation;
+            continue;
         }
 
         auto previous_style_record = element->style_record_identity();

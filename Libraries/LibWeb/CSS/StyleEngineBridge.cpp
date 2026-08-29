@@ -70,6 +70,8 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 
 bool StyleEngine::published_style_delta_can_absorb_reaction(PublishedStyleDelta const& delta, u8 reaction, u8 inherited_style_groups)
 {
+    if (delta.pseudo_kind != NumericLimits<u8>::max())
+        return reaction == 0 && inherited_style_groups == 0;
     if (delta.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize)
         return true;
     bool const has_additional_reaction = (reaction & ~delta.reaction) != 0;

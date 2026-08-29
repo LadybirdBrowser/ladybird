@@ -1546,7 +1546,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     return result;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, Optional<CSS::PseudoElement> targeted_pseudo_element)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1654,20 +1654,48 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
     };
 
-    recompute_pseudo_element_style(CSS::PseudoElement::Before);
-    recompute_pseudo_element_style(CSS::PseudoElement::After);
-    recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
-    recompute_pseudo_element_style(CSS::PseudoElement::Selection);
-    if (m_rendered_in_top_layer)
+    auto should_recompute = [&](CSS::PseudoElement pseudo_element) {
+        return !targeted_pseudo_element.has_value() || *targeted_pseudo_element == pseudo_element;
+    };
+    if (should_recompute(CSS::PseudoElement::Before))
+        recompute_pseudo_element_style(CSS::PseudoElement::Before);
+    if (should_recompute(CSS::PseudoElement::After))
+        recompute_pseudo_element_style(CSS::PseudoElement::After);
+    if (should_recompute(CSS::PseudoElement::FirstLetter))
+        recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
+    if (should_recompute(CSS::PseudoElement::Selection))
+        recompute_pseudo_element_style(CSS::PseudoElement::Selection);
+    if (m_rendered_in_top_layer && should_recompute(CSS::PseudoElement::Backdrop))
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
-    if (had_list_marker || originating_style->display().is_list_item())
+    if ((had_list_marker || originating_style->display().is_list_item()) && should_recompute(CSS::PseudoElement::Marker))
         recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
     for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
         auto pseudo_element = static_cast<CSS::PseudoElement>(i);
-        if (get_pseudo_element(pseudo_element).has_value())
+        if (should_recompute(pseudo_element) && get_pseudo_element(pseudo_element).has_value())
             recompute_pseudo_element_style(pseudo_element);
     }
 
+    return invalidation;
+}
+
+CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_pseudo_reaction(CSS::PseudoElement pseudo_element)
+{
+    auto originating_style = computed_style();
+    VERIFY(originating_style);
+    VERIFY(has_style(pseudo_element));
+
+    bool did_change_custom_properties = false;
+    CSS::StyleEngineMatchResult style_engine_matches;
+    auto invalidation = recompute_pseudo_element_styles(
+        did_change_custom_properties,
+        originating_style->display().is_list_item(),
+        &*originating_style,
+        &style_engine_matches,
+        nullptr,
+        pseudo_element);
+    if (!invalidation.is_none())
+        document().style_invalidation_counters().committed_style_observer_consequences++;
+    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
     return invalidation;
 }
 

@@ -4863,6 +4863,9 @@ fn class_additions_rebuild_sparse_prefix_transitions() {
     }
     engine.retain_prefix_states();
     assert!(engine.prefix_caches.borrow().states.is_sparse());
+    engine
+        .computed_group_sets
+        .record_pseudo_kind_for_test(nodes[3], pseudo.kind.0 as u8);
 
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
     engine.record_input(
@@ -4873,10 +4876,13 @@ fn class_additions_rebuild_sparse_prefix_transitions() {
     let repairs_before = engine.counters().get(Counter::SelectorTruthRepairUpqueries);
     let passes_before = engine.counters().get(Counter::PrefixConvergencePasses);
     let mut planned = Vec::new();
+    let mut pseudo_kinds = Vec::new();
     assert!(engine.take_style_transaction(nodes[0], |_, _, answers| {
         planned.extend(answers.iter().map(|answer| answer.style_node));
+        pseudo_kinds.extend(answers.iter().map(|answer| answer.pseudo_kind));
     }));
     assert_eq!(planned, vec![nodes[3].raw()]);
+    assert_eq!(pseudo_kinds, vec![pseudo.kind.0 as u8]);
     assert_eq!(
         engine
             .consume_published_match_answer(nodes[3])
@@ -4894,6 +4900,53 @@ fn class_additions_rebuild_sparse_prefix_transitions() {
         engine.counters().get(Counter::PrefixConvergencePasses),
         passes_before + 1
     );
+}
+
+#[test]
+fn cascade_changes_suppress_targeted_pseudo_reactions() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let pseudo = PseudoElementTarget::new(PseudoElementKind(0));
+    let program = engine.programs.add(test_selector_program_with_metadata(
+        ".guard .target",
+        &[("guard", guard), ("target", target)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        Some(pseudo),
+    ));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+    let origin_rule = add_target_rule(&mut engine, StyleSheetObjectID(2), target);
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    for &node in &nodes {
+        engine.match_element(node).unwrap();
+    }
+    engine.end_cold_matching_batch();
+    engine
+        .computed_group_sets
+        .record_pseudo_kind_for_test(nodes[3], pseudo.kind.0 as u8);
+
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    let mut version = engine.program.rule_version(origin_rule);
+    version.declaration_block = Some(DeclarationBlockID(2));
+    engine.replace_rule_version(origin_rule, version);
+    let mut published = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, answers| published.extend_from_slice(answers)));
+    assert_eq!(published.len(), 1);
+    assert_eq!(published[0].style_node, nodes[3].raw());
+    assert_eq!(published[0].pseudo_kind, u8::MAX);
 }
 
 #[test]

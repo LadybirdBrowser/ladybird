@@ -610,7 +610,7 @@ impl StyleEngine {
                 self.prepared_batch_matching_traversal = Some(prepared);
             }
         }
-        let pseudo_inputs_may_have_changed = transaction
+        let transaction_may_change_all_pseudo_inputs = transaction
             .markers
             .iter()
             .any(|marker| marker.kind == transaction::InputKind::Environment)
@@ -786,6 +786,7 @@ impl StyleEngine {
         let mut identity_repair_nodes = Vec::new();
         let mut incremental_cascade_answers = Vec::new();
         let mut previous_cascade_inputs = Vec::new();
+        let mut targeted_pseudo_candidates = Vec::new();
         let mut exact_cascade_stop_nodes = DeltaBatch::default();
         let mut exact_cascade_confirmation_nodes = DeltaBatch::default();
         let mut attribution_scratch: Vec<(RuleID, EntryID)> = Vec::new();
@@ -812,6 +813,7 @@ impl StyleEngine {
             let mut repair_match_identity = false;
             let mut can_stop_at_exact_cascade = false;
             let mut can_confirm_exact_cascade = false;
+            let mut targeted_pseudo_kind = None;
             let emit_node = match retained_answer_patch.as_mut() {
                 Some(patch) => {
                     let node_is_coarse_covered = patch_cover
@@ -898,6 +900,24 @@ impl StyleEngine {
                         && node_has_safe_exact_cascade_provenance
                         && self.match_answer_is_comparable_across_elements(node);
                     can_stop_at_exact_cascade = transaction_supports_global_exact_cascade_stops;
+                    if !has_direct_action
+                        && let SelectorTruthPatch::Direct(deltas) = truth_patch
+                        && !patch.always_emit
+                        && !patch.orders_shifted
+                        && patch.cascade_update_properties.is_empty()
+                        && let Some(first) = deltas.first()
+                        && let Some(pseudo) = self.programs.entry(first.entry).1.pseudo_element
+                        && let Ok(pseudo_kind) = u8::try_from(pseudo.kind.0)
+                        && deltas
+                            .iter()
+                            .all(|delta| self.programs.entry(delta.entry).1.pseudo_element == Some(pseudo))
+                        && self
+                            .computed_group_sets
+                            .assigned_pseudo_kinds(node)
+                            .any(|assigned| assigned == pseudo_kind)
+                    {
+                        targeted_pseudo_kind = Some(pseudo_kind);
+                    }
                     match self.patch_retained_match_answer(node, patch, truth_patch) {
                         Some(outcome) => {
                             has_output_change = outcome.emit;
@@ -965,6 +985,9 @@ impl StyleEngine {
             node_count += 1;
             published_nodes.push(node);
             previous_cascade_inputs.push(previous_cascade_input);
+            if let Some(pseudo_kind) = targeted_pseudo_kind {
+                targeted_pseudo_candidates.push((node, pseudo_kind));
+            }
             if can_stop_at_exact_cascade {
                 exact_cascade_stop_nodes.push(node);
             }
@@ -992,7 +1015,10 @@ impl StyleEngine {
             self.counters = counters;
         }
         let publish_style_answers = true;
+        let targeted_pseudo_candidate_bytes =
+            (targeted_pseudo_candidates.capacity() * size_of::<(StyleNodeID, u8)>()) as u64;
         {
+            targeted_pseudo_candidates.sort_unstable();
             let published_node_bytes = (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
             let previous_cascade_input_bytes =
                 (previous_cascade_inputs.capacity() * size_of::<Option<MatchAnswerID>>()) as u64;
@@ -1001,6 +1027,8 @@ impl StyleEngine {
                 .reserve_required(MemoryCategory::BatchScratch, published_node_bytes);
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, previous_cascade_input_bytes);
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, targeted_pseudo_candidate_bytes);
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, identity_repair_node_bytes);
             if publish_style_answers {
@@ -1264,7 +1292,7 @@ impl StyleEngine {
             let mut unresolved_inheritance_sources = BitColumn::default();
             let mut unresolved_inheritance_source_bytes = 0;
             for node in published_nodes.iter().copied() {
-                let pseudo_inputs_may_have_changed = pseudo_inputs_may_have_changed
+                let pseudo_inputs_may_have_changed = transaction_may_change_all_pseudo_inputs
                     || !selector_truth_changes.refreshes_for(node).is_empty()
                     || selector_truth_changes
                         .deltas_for(node)
@@ -1276,6 +1304,24 @@ impl StyleEngine {
                 let style_input_reaction_index = style_input_reactions
                     .binary_search_by_key(&node, |&(style_node, _, _)| style_node)
                     .ok();
+                let targeted_pseudo_kind = (!transaction_may_change_all_pseudo_inputs
+                    && style_input_reaction_index.is_none())
+                .then(|| {
+                    targeted_pseudo_candidates
+                        .binary_search_by_key(&node, |&(candidate, _)| candidate)
+                        .ok()
+                        .map(|index| targeted_pseudo_candidates[index].1)
+                })
+                .flatten()
+                .filter(|&pseudo_kind| {
+                    published_match_answers.matches_for(answer).is_some_and(|matches| {
+                        matches.iter().any(|matched| {
+                            matched
+                                .pseudo_element
+                                .is_some_and(|pseudo| u8::try_from(pseudo.kind.0) == Ok(pseudo_kind))
+                        })
+                    })
+                });
                 let (reaction, inherited_style_groups) = style_input_reaction_index
                     .map_or((transaction::STYLE_REACTION_PUBLISHED_STYLE, 0), |index| {
                         (style_input_reactions[index].1, style_input_reactions[index].2)
@@ -1338,7 +1384,7 @@ impl StyleEngine {
                             0
                         },
                     inherited_style_groups,
-                    pseudo_kind: u8::MAX,
+                    pseudo_kind: targeted_pseudo_kind.unwrap_or(u8::MAX),
                     gap,
                 };
                 style_deltas.push(style_delta);
@@ -1356,6 +1402,8 @@ impl StyleEngine {
             );
             self.memory
                 .release(MemoryCategory::BatchScratch, unresolved_inheritance_source_bytes);
+            self.memory
+                .release(MemoryCategory::BatchScratch, targeted_pseudo_candidate_bytes);
         }
         self.memory
             .release(MemoryCategory::BatchScratch, style_input_reaction_bytes);

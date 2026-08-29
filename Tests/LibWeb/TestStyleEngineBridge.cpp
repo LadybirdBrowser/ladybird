@@ -120,4 +120,8 @@ TEST_CASE(direct_inherited_style_deltas_only_absorb_covered_reactions)
 
     auto materialized_delta = make_style_delta(FfiStyleDeltaGap::Materialize, StyleEngine::InheritedStyle, 0b0010);
     EXPECT(StyleEngine::published_style_delta_can_absorb_reaction(materialized_delta, StyleEngine::InheritedStyle | StyleEngine::InheritedCustomProperties, 0b0110));
+
+    auto targeted_pseudo_delta = make_style_delta(FfiStyleDeltaGap::Materialize, StyleEngine::PublishedStyle | StyleEngine::PseudoInputsMayHaveChanged, 0);
+    targeted_pseudo_delta.pseudo_kind = 0;
+    EXPECT(!StyleEngine::published_style_delta_can_absorb_reaction(targeted_pseudo_delta, StyleEngine::InheritedStyle, 0b0010));
 }

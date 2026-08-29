@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target::before {
+        content: "pseudo";
+        color: red;
+    }
+    .guard .target::before { color: green; }
+</style>
+<div id="guard"><div id="target" class="target"></div></div>
+<script>
+    test(() => {
+        const guard = document.getElementById("guard");
+        const target = document.getElementById("target");
+        getComputedStyle(target, "::before").color;
+        guard.classList.add("guard");
+        internals.updateStyle();
+        guard.classList.remove("guard");
+        internals.updateStyle();
+        target.offsetWidth;
+
+        internals.resetStyleInvalidationCounters();
+        guard.classList.add("guard");
+        println("color: " + getComputedStyle(target, "::before").color);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println("published reactions: " + counters.styleEnginePublishedReactions);
+        println("element recomputations: " + counters.elementStyleRecomputations);
+        println("layout style applications: " + counters.pseudoElementLayoutStyleApplications);
+    });
+</script>

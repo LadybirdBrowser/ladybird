@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: red; }
+    .target::before { content: "before"; color: red; }
+    .guard .target::before { color: blue; }
+</style>
+<div id="guard"><div id="target" class="target"></div></div>
+<script>
+    test(() => {
+        target.offsetWidth;
+
+        internals.resetStyleInvalidationCounters();
+        guard.classList.add("guard");
+        document.styleSheets[0].cssRules[0].style.color = "green";
+        internals.updateStyle();
+
+        println("origin: " + getComputedStyle(target).color);
+        println("before: " + getComputedStyle(target, "::before").color);
+        const counters = internals.getStyleInvalidationCounters();
+        println("element recomputations: " + counters.elementStyleRecomputations);
+    });
+</script>
