@@ -3642,7 +3642,11 @@ fn fixup_row(
 fn remove_missing_table_cells(host: &TreeBuilderHost<'_>, table_root: LayoutNode) {
     let mut cells = Vec::new();
     host.for_each_in_inclusive_subtree(table_root, |node| {
-        if node_has_flag(host.data(node), NodeFlag::IsMissingTableCell) {
+        let data = host.data(node);
+        if node != table_root && node_kind_is_box(data.kind) && display_for_table_fixup(host, node).is_table_inside() {
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
+        if node_has_flag(data, NodeFlag::IsMissingTableCell) {
             cells.push(node);
             return TraversalDecision::SkipChildrenAndContinue;
         }

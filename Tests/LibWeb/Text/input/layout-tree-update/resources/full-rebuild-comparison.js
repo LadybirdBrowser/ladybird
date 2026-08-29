@@ -2299,6 +2299,21 @@ function tableFixupIncrementalCases() {
         '<table><tbody><tr><td><table id="moving"><tbody><tr><td>inner</td></tr></tbody></table></td><td id="target"></td></tr></tbody></table>',
         fixture => fixture.querySelector("#target").append(fixture.querySelector("#moving"))
     );
+    add(
+        "append outer row preserves nested missing cells",
+        '<table><tbody id="target"><tr><td>outer<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td></tr></tbody></table></td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(row("outer second"))
+    );
+    add(
+        "remove outer column preserves nested missing cells",
+        '<table><colgroup><col id="target"><col></colgroup><tbody><tr><td>outer<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td></tr></tbody></table></td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").remove()
+    );
+    add(
+        "append outer row preserves deeply nested missing cells",
+        '<table><tbody id="target"><tr><td>outer<table><tbody><tr><td>middle<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(row("outer second"))
+    );
 
     return cases;
 }
