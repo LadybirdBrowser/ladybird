@@ -350,6 +350,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::StyleDeltaBatch => {
                     let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
+                    let computation_inputs = bridge::FfiDocumentStyleComputationInputs {
+                        viewport_width: f64::from_bits(event.payload.read_u64()?),
+                        viewport_height: f64::from_bits(event.payload.read_u64()?),
+                        root_font_size: f64::from_bits(event.payload.read_u64()?),
+                        root_font_x_height: f64::from_bits(event.payload.read_u64()?),
+                        root_font_cap_height: f64::from_bits(event.payload.read_u64()?),
+                        root_font_zero_advance: f64::from_bits(event.payload.read_u64()?),
+                        root_line_height: f64::from_bits(event.payload.read_u64()?),
+                        root_font_metrics_depend_on_viewport_metrics: event.payload.read_bool()?,
+                        initial_font_size_raw: event.payload.read_i32()?,
+                        default_font_size_raw: event.payload.read_i32()?,
+                        device_pixels_per_css_pixel: f64::from_bits(event.payload.read_u64()?),
+                        font_environment_generation: event.payload.read_u64()?,
+                    };
                     let output_bytes = event.payload.read_bytes()?;
                     let expected_digest = event.payload.read_u64()?;
                     let expected = read_style_transaction_outputs(PayloadReader::new(output_bytes))?;
@@ -380,7 +394,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     let start = Instant::now();
-                    let actual_view = unsafe { bridge::style_engine_take_style_transaction(engine, root) };
+                    let actual_view =
+                        unsafe { bridge::style_engine_take_style_transaction(engine, root, computation_inputs) };
                     let actual_reclaimed_atoms = if actual_view.reclaimed_style_atom_count == 0 {
                         Vec::new()
                     } else {

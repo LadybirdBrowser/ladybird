@@ -107,6 +107,7 @@ pub mod record_replay {
         pub fn write_bool(&mut self, _value: bool) {}
         pub fn write_bytes(&mut self, _value: &[u8]) {}
         pub fn write_length(&mut self, _value: usize) {}
+        pub fn write_i32(&mut self, _value: i32) {}
         pub fn write_u8(&mut self, _value: u8) {}
         pub fn write_u16(&mut self, _value: u16) {}
         pub fn write_u16_slice(&mut self, _value: &[u16]) {}

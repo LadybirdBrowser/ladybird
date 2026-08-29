@@ -2740,6 +2740,18 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         if engine.recording_id().is_some() {
             engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
                 payload.write_u32(root.raw());
+                payload.write_u64(computation_inputs.viewport_width.to_bits());
+                payload.write_u64(computation_inputs.viewport_height.to_bits());
+                payload.write_u64(computation_inputs.root_font_size.to_bits());
+                payload.write_u64(computation_inputs.root_font_x_height.to_bits());
+                payload.write_u64(computation_inputs.root_font_cap_height.to_bits());
+                payload.write_u64(computation_inputs.root_font_zero_advance.to_bits());
+                payload.write_u64(computation_inputs.root_line_height.to_bits());
+                payload.write_bool(computation_inputs.root_font_metrics_depend_on_viewport_metrics);
+                payload.write_i32(computation_inputs.initial_font_size_raw);
+                payload.write_i32(computation_inputs.default_font_size_raw);
+                payload.write_u64(computation_inputs.device_pixels_per_css_pixel.to_bits());
+                payload.write_u64(computation_inputs.font_environment_generation);
                 let mut outputs = super::record_replay::PayloadWriter::default();
                 write_style_transaction_outputs(&output, &mut outputs);
                 payload.write_bytes(outputs.as_bytes());
