@@ -6451,13 +6451,10 @@ void Document::make_active()
 
     set_window(window);
 
-    // AD-HOC: Keep the browsing context's active document distinct from the Window's associated Document.
-    //         The associated Document can be updated during document creation, but the browsing context
-    //         should only expose the new Document once it is made active.
-    //         Spec issue: https://github.com/whatwg/html/issues/12415
+    // 2. Set document's browsing context's active document to document.
     m_browsing_context->set_active_document(*this);
 
-    // 2. Set document's browsing context's WindowProxy's [[Window]] internal slot value to window.
+    // 3. Set document's browsing context's WindowProxy's [[Window]] internal slot value to window.
     m_browsing_context->set_active_window(window);
 
     auto current_navigable = this->navigable();
@@ -6465,7 +6462,7 @@ void Document::make_active()
         page().client().page_did_change_active_document_in_top_level_browsing_context(*this);
     }
 
-    // 3. Set window's relevant settings object's execution ready flag.
+    // 4. Set window's relevant settings object's execution ready flag.
     HTML::relevant_settings_object(window).execution_ready = true;
 
     if (m_needs_to_call_page_did_load) {

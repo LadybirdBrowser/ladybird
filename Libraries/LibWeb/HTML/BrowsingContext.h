@@ -101,6 +101,7 @@ private:
     // collected and rematerialized because it carries no observable state.
     Bindings::WrapperWorldWeakValueCacheMap<Bindings::WrapperWorld, WindowProxy> m_window_proxies;
 
+    // https://html.spec.whatwg.org/multipage/browsers.html#active-document
     GC::Ptr<DOM::Document> m_active_document;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#opener-browsing-context
