@@ -8,9 +8,7 @@ use super::*;
 
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
-use crate::painting::display_list::commands::{
-    DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex, SpatialNodeIndex,
-};
+use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use libgfx_rust::{
     AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntPoint, IntRect, InterpolationColorSpace,
@@ -414,7 +412,6 @@ pub struct FfiPaintHostCallbacks {
         *const FfiSvgPaintContext,
         *mut c_void,
     ) -> FfiSvgPaintStyle,
-    pub accumulated_2d_scale: unsafe extern "C" fn(*mut c_void, *const c_void, SpatialNodeIndex) -> FloatSize,
     pub materialize_visual_context_tree: unsafe extern "C" fn(*mut c_void, *const c_void) -> *mut c_void,
     pub nested_display_list_from_tree:
         unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *mut c_void, *const u64, usize) -> u64,
@@ -623,15 +620,6 @@ impl FfiPaintHostCallbacks {
             )
         };
         (style, sink)
-    }
-    pub(crate) fn accumulated_2d_scale(
-        &self,
-        visual_context_tree: Option<&crate::painting::visual_context::VisualContextTree>,
-        spatial: SpatialNodeIndex,
-    ) -> libgfx_rust::FloatSize {
-        let tree = visual_context_tree.map_or(std::ptr::null(), |tree| std::ptr::from_ref(tree).cast());
-        // SAFETY: The C++ host answers synchronously and only borrows the optional tree.
-        unsafe { (self.accumulated_2d_scale)(self.context, tree, spatial) }
     }
     pub(crate) fn materialize_visual_context_tree(
         &self,

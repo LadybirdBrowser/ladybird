@@ -16,7 +16,7 @@ use crate::painting::display_list::commands::OptionalF32;
 use crate::painting::paintable_data::BorderEdge;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
-    WindingRule,
+    WindingRule, translation_matrix,
 };
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 
@@ -39,6 +39,14 @@ pub struct TransformData {
     pub flattens_inherited_transform: bool,
     pub role: TransformDataRole,
     pub synthetic_plane: bool,
+}
+
+impl TransformData {
+    pub fn matrix_including_origin(&self) -> FloatMatrix4x4 {
+        translation_matrix(self.origin.x, self.origin.y, 0.0)
+            .multiplied(self.matrix)
+            .multiplied(translation_matrix(-self.origin.x, -self.origin.y, 0.0))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -173,6 +181,41 @@ pub struct AnchorScrollShift {
     pub negate: bool,
     pub compensate_horizontal_scroll: bool,
     pub compensate_vertical_scroll: bool,
+}
+
+impl AnchorScrollShift {
+    pub fn masked_offset(&self, scroll_offsets: &[FloatPoint]) -> FloatPoint {
+        let mut offset = device_offset_for_index(scroll_offsets, self.scroll_node_index);
+        if !self.compensate_horizontal_scroll {
+            offset.x = 0.0;
+        }
+        if !self.compensate_vertical_scroll {
+            offset.y = 0.0;
+        }
+        if self.negate {
+            FloatPoint {
+                x: -offset.x,
+                y: -offset.y,
+            }
+        } else {
+            offset
+        }
+    }
+}
+
+pub fn device_offset_for_index(scroll_offsets: &[FloatPoint], index: SpatialNodeIndex) -> FloatPoint {
+    scroll_offsets.get(index.0 as usize).copied().unwrap_or_default()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IncludeVisualViewportTransform {
+    No,
+    Yes,
+}
+
+struct LocalSpatialMatrix {
+    matrix: FloatMatrix4x4,
+    flattens_inherited_transform: bool,
 }
 
 pub enum SpatialData {
@@ -453,6 +496,86 @@ impl VisualContextTree {
                         && node.has_empty_effective_clip == other_node.has_empty_effective_clip
                         && node.data.kind() == other_node.data.kind()
                 })
+    }
+
+    fn ancestor_chain(&self, index: SpatialNodeIndex) -> Vec<SpatialNodeIndex> {
+        assert!((index.0 as usize) < self.spatial_nodes.len());
+        let mut chain = Vec::with_capacity(8);
+        let mut current = index;
+        loop {
+            chain.push(current);
+            if current == VISUAL_VIEWPORT_NODE_INDEX {
+                break;
+            }
+            current = self.spatial_nodes[current.0 as usize].parent;
+        }
+        chain
+    }
+
+    fn local_spatial_matrix(&self, index: SpatialNodeIndex, scroll_offsets: &[FloatPoint]) -> LocalSpatialMatrix {
+        let translation = |offset: FloatPoint| LocalSpatialMatrix {
+            matrix: translation_matrix(offset.x, offset.y, 0.0),
+            flattens_inherited_transform: false,
+        };
+        match &self.spatial_nodes[index.0 as usize].data {
+            SpatialData::Transform(transform) => LocalSpatialMatrix {
+                matrix: transform.matrix_including_origin(),
+                flattens_inherited_transform: transform.flattens_inherited_transform,
+            },
+            SpatialData::Perspective(perspective) => LocalSpatialMatrix {
+                matrix: perspective.matrix,
+                flattens_inherited_transform: perspective.flattens_inherited_transform,
+            },
+            SpatialData::Scroll(_) | SpatialData::Sticky(_) => {
+                translation(device_offset_for_index(scroll_offsets, index))
+            }
+            SpatialData::AnchorScrollShift(shift) => translation(shift.masked_offset(scroll_offsets)),
+            SpatialData::BackfaceVisibility(backface) => LocalSpatialMatrix {
+                matrix: FloatMatrix4x4::identity(),
+                flattens_inherited_transform: backface.flattens_inherited_transform,
+            },
+        }
+    }
+
+    pub fn accumulated_matrix(
+        &self,
+        index: SpatialNodeIndex,
+        scroll_offsets: &[FloatPoint],
+        include_visual_viewport_transform: IncludeVisualViewportTransform,
+    ) -> FloatMatrix4x4 {
+        let chain = self.ancestor_chain(index);
+        let mut matrix = FloatMatrix4x4::identity();
+        for node_index in chain.into_iter().rev() {
+            if node_index == VISUAL_VIEWPORT_NODE_INDEX
+                && self.root_is_visual_viewport
+                && include_visual_viewport_transform == IncludeVisualViewportTransform::No
+            {
+                continue;
+            }
+            let local = self.local_spatial_matrix(node_index, scroll_offsets);
+            let inherited = if local.flattens_inherited_transform {
+                matrix.flattened()
+            } else {
+                matrix
+            };
+            matrix = inherited.multiplied(local.matrix);
+        }
+        matrix
+    }
+
+    pub fn accumulated_2d_scale(
+        &self,
+        index: SpatialNodeIndex,
+        scroll_offsets: &[FloatPoint],
+        include_visual_viewport_transform: IncludeVisualViewportTransform,
+    ) -> FloatSize {
+        let affine = self
+            .accumulated_matrix(index, scroll_offsets, include_visual_viewport_transform)
+            .extract_2d_affine();
+        FloatSize {
+            width: affine.x_scale(),
+            height: affine.y_scale(),
+        }
     }
 
     pub fn scroll_state_slot_for_node(&self, index: SpatialNodeIndex) -> ScrollStateSlot {
@@ -776,6 +899,87 @@ mod tests {
         );
         let inherited_empty_clip = tree.append_frame(mask(unit_rect), empty_parent, VISUAL_VIEWPORT_NODE_INDEX);
         assert!(tree.frame_nodes[inherited_empty_clip.0 as usize].has_empty_effective_clip);
+    }
+
+    fn scaled(scale: f32) -> TransformData {
+        TransformData {
+            matrix: libgfx_rust::scale_matrix(scale, scale, 1.0),
+            ..transform(0.0)
+        }
+    }
+
+    #[test]
+    fn accumulated_matrix_composes_the_root_path_and_may_leave_out_the_visual_viewport() {
+        let mut tree = VisualContextTree::create(scaled(2.0));
+        let scroll = tree.append_spatial(
+            SpatialData::Scroll(ScrollData {
+                state_slot: NO_SCROLL_STATE_SLOT,
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let child = tree.append_spatial(SpatialData::Transform(scaled(3.0)), scroll);
+        let scroll_offsets = [FloatPoint::default(), FloatPoint { x: -10.0, y: -20.0 }];
+
+        let without_viewport = tree.accumulated_matrix(child, &scroll_offsets, IncludeVisualViewportTransform::No);
+        assert_eq!(
+            without_viewport,
+            translation_matrix(-10.0, -20.0, 0.0).multiplied(libgfx_rust::scale_matrix(3.0, 3.0, 1.0))
+        );
+        let with_viewport = tree.accumulated_matrix(child, &scroll_offsets, IncludeVisualViewportTransform::Yes);
+        assert_eq!(
+            with_viewport,
+            libgfx_rust::scale_matrix(2.0, 2.0, 1.0).multiplied(without_viewport)
+        );
+
+        assert_eq!(
+            tree.accumulated_2d_scale(child, &scroll_offsets, IncludeVisualViewportTransform::No),
+            FloatSize {
+                width: 3.0,
+                height: 3.0
+            }
+        );
+        assert_eq!(
+            tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::Yes),
+            FloatSize {
+                width: 6.0,
+                height: 6.0
+            }
+        );
+    }
+
+    #[test]
+    fn a_content_root_is_always_included() {
+        let mut tree = VisualContextTree::create_with_content_root(scaled(2.0));
+        let child = tree.append_spatial(SpatialData::Transform(scaled(3.0)), VISUAL_VIEWPORT_NODE_INDEX);
+        assert_eq!(
+            tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::No),
+            FloatSize {
+                width: 6.0,
+                height: 6.0
+            }
+        );
+    }
+
+    #[test]
+    fn a_transform_origin_does_not_change_the_accumulated_scale() {
+        let mut tree = VisualContextTree::create(transform(0.0));
+        let child = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                origin: FloatPoint { x: 50.0, y: 50.0 },
+                ..scaled(2.0)
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let matrix = tree.accumulated_matrix(child, &[], IncludeVisualViewportTransform::No);
+        assert_eq!(matrix.map_vector4([50.0, 50.0, 0.0, 1.0]), [50.0, 50.0, 0.0, 1.0]);
+        assert_eq!(matrix.map_vector4([0.0, 0.0, 0.0, 1.0]), [-50.0, -50.0, 0.0, 1.0]);
+        assert_eq!(
+            tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::No),
+            FloatSize {
+                width: 2.0,
+                height: 2.0
+            }
+        );
     }
 
     #[test]

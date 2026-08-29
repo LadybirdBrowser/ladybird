@@ -392,7 +392,16 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn accumulated_2d_scale_at(&self, spatial: SpatialNodeIndex) -> libgfx_rust::FloatSize {
-        self.paint_host.accumulated_2d_scale(self.nested_tree.as_ref(), spatial)
+        let tree = self
+            .nested_tree
+            .as_ref()
+            .or(self.paint_state.visual_context.tree.as_ref())
+            .expect("recording runs against a visual context tree");
+        tree.accumulated_2d_scale(
+            spatial,
+            &[],
+            crate::painting::visual_context::IncludeVisualViewportTransform::No,
+        )
     }
 
     pub(crate) fn own_accumulated_2d_scale(&self, paintable: NodeSlotId) -> libgfx_rust::FloatSize {
