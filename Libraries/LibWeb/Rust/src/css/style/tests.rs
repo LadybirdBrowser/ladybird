@@ -7280,6 +7280,7 @@ fn a_published_local_reaction_names_its_semantic_provenance() {
     let output_before = engine.counters().get(Counter::PlannedNodesWithOutputChange);
     let upquery_before = engine.counters().get(Counter::PlannedNodesWithUpquery);
     let unattributed_before = engine.counters().get(Counter::PlannedNodesUnattributed);
+    let cold_batch_rows_before = engine.counters().get(Counter::ColdMatchingBatchRows);
     let mut planned = Vec::new();
     assert!(engine.take_style_transaction(nodes[0], |_, _, reactions| {
         planned.extend(reactions.iter().map(|reaction| reaction.style_node));
@@ -7301,6 +7302,10 @@ fn a_published_local_reaction_names_its_semantic_provenance() {
     assert_eq!(
         engine.counters().get(Counter::PlannedNodesUnattributed),
         unattributed_before
+    );
+    assert_eq!(
+        engine.counters().get(Counter::ColdMatchingBatchRows),
+        cold_batch_rows_before
     );
 }
 

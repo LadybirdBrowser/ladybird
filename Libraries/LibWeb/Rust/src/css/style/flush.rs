@@ -1062,8 +1062,12 @@ impl StyleEngine {
                 identity_repair_nodes.sort_unstable();
                 identity_repair_nodes.dedup();
                 incremental_cascade_answers.sort_unstable_by_key(|answer| answer.node);
-                let prefer_complete_batch =
-                    published_nodes.len().saturating_mul(16) > self.tree.connected_element_count() as usize;
+                // A retained answer can be rebound to the current dispatch without reading its
+                // element's facts. Use the density shortcut only when the transaction cannot reuse
+                // those answers; sparse completion will read facts for its actual misses.
+                let prefer_complete_batch = plan_is_broad
+                    || (!reuse_retained_match_answers
+                        && published_nodes.len().saturating_mul(16) > self.tree.connected_element_count() as usize);
                 let reuse_active_batch_matching_traversal =
                     transaction_reaches_no_selector && self.batch_matching_traversal.is_some();
                 if !reuse_active_batch_matching_traversal {

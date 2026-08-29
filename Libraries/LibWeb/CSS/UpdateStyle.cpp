@@ -112,7 +112,6 @@ static void apply_document_style_invalidation_after_style_change(DOM::Document& 
 struct StyleEngineTransaction {
     Vector<StyleEngine::PublishedStyleDelta> reactions;
     Optional<StyleEngine::PublishedTransactionVersion> published_version;
-    bool prefers_broad_matching_batch { false };
 };
 
 static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document)
@@ -143,12 +142,6 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
         transaction.reactions.append(answer);
     }
     document.style_invalidation_counters().style_engine_planning_microseconds += (MonotonicTime::now() - planning_started_at).to_microseconds();
-
-    // A reaction batch covering more than one sixteenth of the connected elements is dense enough that
-    // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
-    // the planned elements.
-    transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
-        || transaction.reactions.size() * 16 > style_computer.style_engine().connected_element_count();
 
     return transaction;
 }
@@ -522,12 +515,10 @@ static void update_style(DOM::Document& document)
     document.update_animated_style_if_needed();
 
     auto style_engine_reactions = move(style_engine_transaction.reactions);
-    auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
     if (style_engine_reactions.is_empty()
         && document.style_computer().style_engine().has_pending_transaction()) {
         auto feedback_transaction = take_style_engine_transaction(document);
         style_engine_reactions = move(feedback_transaction.reactions);
-        prefers_broad_matching_batch = feedback_transaction.prefers_broad_matching_batch;
     }
 
     // This pass belongs to the current style change event. The outer stabilization epoch advanced
@@ -541,12 +532,11 @@ static void update_style(DOM::Document& document)
 
     bool has_cold_matching_traversal = false;
     if (auto* root = document.document_element(); root && root->style_node_id() != 0) {
-        if (prefers_broad_matching_batch) {
-            has_cold_matching_traversal = document.style_computer().style_engine().begin_cold_matching_batch(root->style_node_id());
-        } else {
-            document.style_computer().style_engine().begin_adaptive_cold_matching_batch(root->style_node_id());
-            has_cold_matching_traversal = true;
-        }
+        // The transaction planner prepares a complete batch when matching actually requires one.
+        // Otherwise retain the sparse topology and answers it published instead of inferring
+        // matching density from the number of style reactions.
+        document.style_computer().style_engine().begin_adaptive_cold_matching_batch(root->style_node_id());
+        has_cold_matching_traversal = true;
     }
     ScopeGuard end_cold_matching_batch = [&] {
         if (has_cold_matching_traversal)
