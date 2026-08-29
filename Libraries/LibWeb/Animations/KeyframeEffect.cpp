@@ -1024,6 +1024,54 @@ void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_keyframe_objects_cache);
 }
 
+bool KeyframeEffect::can_skip_per_frame_style_update() const
+{
+    // INTEROP: Other engines suppress main-thread style sampling for invisible transform animations. Restrict this
+    // optimization to the infinite transform-only case until animation overflow updates can also be throttled safely.
+    if (!isinf(iteration_count()) || pseudo_element_type().has_value())
+        return false;
+
+    auto target = this->target();
+    if (!target || target->namespace_uri() == Namespace::SVG)
+        return false;
+
+    bool has_animated_property = false;
+    auto const* key_frame_set = m_key_frame_set.ptr();
+    if (!key_frame_set)
+        return false;
+    for (auto const& keyframe : key_frame_set->keyframes_by_key) {
+        for (auto const& property : keyframe.properties) {
+            has_animated_property = true;
+            if (!first_is_one_of(property.key,
+                    CSS::PropertyID::Transform,
+                    CSS::PropertyID::Translate,
+                    CSS::PropertyID::Rotate,
+                    CSS::PropertyID::Scale))
+                return false;
+        }
+    }
+    if (!has_animated_property)
+        return false;
+
+    if (!target->document().layout_is_up_to_date())
+        return false;
+    auto const* layout_node = target->unsafe_layout_node();
+    if (!layout_node || layout_node->visibility() != CSS::Visibility::Hidden)
+        return false;
+
+    bool has_visible_descendant = false;
+    layout_node->for_each_in_inclusive_subtree_of_type<Layout::NodeWithStyle>([&](auto const& descendant) {
+        if (descendant.visibility() != CSS::Visibility::Visible)
+            return TraversalDecision::Continue;
+        has_visible_descendant = true;
+        return TraversalDecision::Break;
+    });
+    if (has_visible_descendant)
+        return false;
+
+    return true;
+}
+
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 {
     auto target = this->target();

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .animated {
+        animation: spin 100s linear infinite;
+    }
+</style>
+<script>
+    function nextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function animationOverlayBuildsOverFrames(frameCount) {
+        const before = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        for (let i = 0; i < frameCount; ++i)
+            await nextFrame();
+        return internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds - before;
+    }
+
+    asyncTest(async done => {
+        const hidden = document.createElement("div");
+        hidden.className = "animated";
+        hidden.style.visibility = "hidden";
+        document.body.append(hidden);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+
+        println(`hidden animation overlay builds: ${await animationOverlayBuildsOverFrames(4)}`);
+
+        const beforeComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        getComputedStyle(hidden).transform;
+        const afterComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        println(`computed style samples hidden animation: ${afterComputedStyle > beforeComputedStyle}`);
+
+        const visible = document.createElement("div");
+        visible.className = "animated";
+        document.body.append(visible);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        println(`visible animation builds while hidden stays throttled: ${await animationOverlayBuildsOverFrames(4)}`);
+
+        const beforeMixedComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        getComputedStyle(hidden).transform;
+        const afterMixedComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        println(`computed style samples hidden animation alongside visible animation: ${afterMixedComputedStyle > beforeMixedComputedStyle}`);
+        visible.remove();
+
+        const styleOnlyVisibilityChange = document.createElement("div");
+        styleOnlyVisibilityChange.className = "animated";
+        styleOnlyVisibilityChange.style.visibility = "hidden";
+        document.body.append(styleOnlyVisibilityChange);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        styleOnlyVisibilityChange.style.visibility = "visible";
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`style-only visibility change samples animation: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        styleOnlyVisibilityChange.remove();
+
+        const visibleChild = document.createElement("div");
+        visibleChild.style.visibility = "visible";
+        hidden.append(visibleChild);
+        await nextFrame();
+
+        const visibleDescendantBuilds = await animationOverlayBuildsOverFrames(4);
+        println(`visible descendant keeps animation updating: ${visibleDescendantBuilds > 0}`);
+
+        hidden.remove();
+        done();
+    });
+</script>
