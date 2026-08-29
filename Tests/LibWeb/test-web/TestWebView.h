@@ -24,6 +24,7 @@ public:
 
     void clear_content_blockers();
     void reset_force_dark();
+    void reset_line_box_borders();
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history();
     pid_t web_content_pid() const;
 

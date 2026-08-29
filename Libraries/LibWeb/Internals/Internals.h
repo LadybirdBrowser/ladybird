@@ -49,6 +49,7 @@ public:
     void set_test_timeout(double milliseconds);
     void force_incompatible_visual_context_tree_rebuild();
     void set_force_dark_enabled(bool);
+    void set_show_line_box_borders(bool);
     void set_force_dark_thresholds(i32, i32);
     u64 visual_context_tree_node_count();
     u64 visual_context_pending_dirty_box_count();
