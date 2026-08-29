@@ -7,10 +7,10 @@
 
 #pragma once
 
+#include <LibGfx/Matrix4x4.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -83,7 +83,7 @@ public:
         Layout::NodeWithStyle const* pattern_layout_node;
         Gfx::FloatRect tile_rect;
         Gfx::FloatSize content_scale;
-        Painting::TransformData tile_content_transform;
+        Gfx::FloatMatrix4x4 tile_content_transform;
         Optional<Gfx::AffineTransform> device_pattern_transform;
     };
     using PaintServer = Variant<Painting::PaintStyle, PatternPaintServer>;

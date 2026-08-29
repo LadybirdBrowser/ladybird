@@ -133,8 +133,6 @@ struct AnchorScrollShift {
 using SpatialData = Variant<ScrollData, StickyData, TransformData, PerspectiveData, BackfaceVisibilityData, AnchorScrollShift>;
 using FrameData = Variant<ClipData, ClipPathData, EffectsData, MaskData>;
 
-CSSPixelRect apply_css_transform_to_rect(Layout::Node const&, CSSPixelRect const&);
-
 struct SpatialNode {
     SpatialData data;
     SpatialNodeIndex parent {};

@@ -12,7 +12,6 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrolling.h>
