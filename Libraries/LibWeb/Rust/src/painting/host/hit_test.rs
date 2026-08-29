@@ -7,7 +7,7 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
-use crate::painting::display_list::commands::{ContextRef, OptionalU32, SpatialNodeIndex};
+use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -75,7 +75,7 @@ pub struct FfiHitTestQueryCallbacks {
         bool,
         *mut libgfx_rust::FloatPoint,
     ) -> bool,
-    pub line_in_scope: unsafe extern "C" fn(*mut c_void, usize) -> bool,
+    pub shell_in_scope: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub sorting_context_group: unsafe extern "C" fn(*mut c_void, SpatialNodeIndex, *mut usize) -> bool,
     pub plane_depth_key:
         unsafe extern "C" fn(*mut c_void, SpatialNodeIndex, used_values::FfiCssPixelPoint, *mut i64) -> bool,
@@ -95,9 +95,9 @@ impl FfiHitTestQueryCallbacks {
         };
         has_local.then_some((local.x, local.y))
     }
-    pub(crate) fn line_in_scope(&self, line_index: usize) -> bool {
+    pub(crate) fn shell_in_scope(&self, shell: *mut c_void) -> bool {
         // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.line_in_scope)(self.context, line_index) }
+        unsafe { (self.shell_in_scope)(self.context, shell) }
     }
     // The outermost 3D rendering context sorting the plane the visual context node renders into.
     pub(crate) fn sorting_context_group(&self, spatial: SpatialNodeIndex) -> Option<usize> {
@@ -116,6 +116,38 @@ impl FfiHitTestQueryCallbacks {
         // SAFETY: The C++ host writes the depth synchronously when it returns true.
         let has_depth = unsafe { (self.plane_depth_key)(self.context, spatial, point.into(), &raw mut depth) };
         has_depth.then_some(depth)
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiCaretPositionQueryCallbacks {
+    pub context: *mut c_void,
+    pub shell_is_query_node: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+    pub query_boundary_descends_to_shell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+    pub query_boundary_follows_shell_end: unsafe extern "C" fn(*mut c_void, *mut c_void, usize) -> bool,
+    pub query_is_adjacent_to_shell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+}
+
+impl FfiCaretPositionQueryCallbacks {
+    pub(crate) fn shell_is_query_node(&self, shell: *mut c_void) -> bool {
+        // SAFETY: The C++ host compares the shell's DOM node synchronously.
+        unsafe { (self.shell_is_query_node)(self.context, shell) }
+    }
+
+    pub(crate) fn query_boundary_descends_to_shell(&self, shell: *mut c_void) -> bool {
+        // SAFETY: The C++ host walks the query boundary synchronously.
+        unsafe { (self.query_boundary_descends_to_shell)(self.context, shell) }
+    }
+
+    pub(crate) fn query_boundary_follows_shell_end(&self, shell: *mut c_void, end_offset: usize) -> bool {
+        // SAFETY: The C++ host compares the query boundary synchronously.
+        unsafe { (self.query_boundary_follows_shell_end)(self.context, shell, end_offset) }
+    }
+
+    pub(crate) fn query_is_adjacent_to_shell(&self, shell: *mut c_void) -> bool {
+        // SAFETY: The C++ host compares the query boundary synchronously.
+        unsafe { (self.query_is_adjacent_to_shell)(self.context, shell) }
     }
 }
 
@@ -166,17 +198,53 @@ pub struct FfiAdjacentLine {
     pub point_y: i32,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiCaretLineForPosition {
+    pub has_line: bool,
+    pub line_index: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiResolvedHit {
+    pub dispatch_shell: *mut c_void,
+    pub allow_pseudo_fallback: bool,
+    pub fallback_dispatch_shell: *mut c_void,
+    pub has_index_in_node: bool,
+    pub index_in_node: usize,
+    pub is_text_fragment: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiCaretBoundaryKind {
+    #[default]
+    Offset = 0,
+    BeforeNode = 1,
+    AfterNode = 2,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiResolvedCaret {
+    pub has_position: bool,
+    pub node_shell: *mut c_void,
+    pub boundary: FfiCaretBoundaryKind,
+    pub offset: usize,
+    pub affinity_is_upstream: bool,
+    pub has_debug_rect: bool,
+    pub debug_rect: used_values::FfiCssPixelRect,
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiHitTestItemExport {
-    pub kind: u8,
+    pub can_produce_caret_position: bool,
     pub paintable: NodeSlotId,
     pub hit_node: NodeSlotId,
     pub chrome_widget_kind: u8,
-    pub text_fragment_index: OptionalU32,
     pub caret_node_shell: *mut c_void,
-    pub caret_offset: usize,
-    pub rect: used_values::FfiCssPixelRect,
     pub caret_rect: used_values::FfiCssPixelRect,
     pub context: ContextRef,
 }
