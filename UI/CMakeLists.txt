@@ -1,6 +1,14 @@
 include(cmake/GUIFramework.cmake)
 include(cmake/ResourceFiles.cmake)
 
+if (APPLE)
+    if (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
+        set(LADYBIRD_ENTITLEMENTS_FILE "${LADYBIRD_SOURCE_DIR}/Meta/DebugEntitlements.plist")
+    else()
+        set(LADYBIRD_ENTITLEMENTS_FILE "${LADYBIRD_SOURCE_DIR}/Meta/Entitlements.plist")
+    endif()
+endif()
+
 function(create_ladybird_bundle target_name)
     set_target_properties(${target_name} PROPERTIES
         OUTPUT_NAME "Ladybird"
@@ -26,14 +34,8 @@ function(create_ladybird_bundle target_name)
             COMMAND "${CMAKE_COMMAND}" -E create_symlink "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" "${bundle_dir}/Contents/lib"
         )
 
-        if (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
-            set(ENTITLEMENTS_FILE "${LADYBIRD_SOURCE_DIR}/Meta/DebugEntitlements.plist")
-        else()
-            set(ENTITLEMENTS_FILE "${LADYBIRD_SOURCE_DIR}/Meta/Entitlements.plist")
-        endif()
-
         add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND codesign -s - -v -f --entitlements "${ENTITLEMENTS_FILE}" "${bundle_dir}"
+            COMMAND codesign -s - -v -f --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" "${bundle_dir}"
         )
     endif()
 
@@ -108,6 +110,18 @@ endif()
 set_helper_process_properties(${ladybird_helper_processes})
 if (APPLE)
     set_helper_process_properties(WebDriver)
+
+    # WebDriver links into the bundle after ladybird has signed it — and that leaves the seal stale until something
+    # later relinks ladybird. Sign once more with everything in place.
+    set(bundle_signed_stamp "${CMAKE_CURRENT_BINARY_DIR}/ladybird_bundle_signed.stamp")
+    add_custom_command(
+        OUTPUT "${bundle_signed_stamp}"
+        COMMAND codesign -s - -v -f --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" "$<TARGET_BUNDLE_DIR:ladybird>"
+        COMMAND "${CMAKE_COMMAND}" -E touch "${bundle_signed_stamp}"
+        DEPENDS ladybird WebDriver "${LADYBIRD_ENTITLEMENTS_FILE}"
+        VERBATIM
+    )
+    add_custom_target(sign_ladybird_bundle ALL DEPENDS "${bundle_signed_stamp}")
 endif()
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
