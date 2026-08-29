@@ -496,6 +496,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         profile_selection.name = profile_name->to_byte_string();
     if (profile_path.has_value())
         profile_selection.path = profile_path->to_byte_string();
+    // Naming a profile is an explicit choice and wins; otherwise the app decides whether it wants a throwaway one.
+    if (!temporary_profile && !profile_name.has_value() && !profile_path.has_value())
+        temporary_profile = should_use_temporary_profile_by_default();
     profile_selection.temporary = temporary_profile;
 #endif
 
