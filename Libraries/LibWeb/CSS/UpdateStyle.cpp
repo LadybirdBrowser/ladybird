@@ -311,6 +311,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     ++document.style_invalidation_counters().element_inherited_style_recomputations;
                 auto recompute_reason = can_use_inherited_style_group_swap
                     ? DOM::Element::StyleEngineRecomputeReason::InheritedOnly
+                    : reaction.reaction & StyleEngine::ExactPseudoInputs
+                    ? DOM::Element::StyleEngineRecomputeReason::ExactPseudoInputs
                     : has_published_style_reaction && !(reaction.reaction & StyleEngine::PseudoInputsMayHaveChanged)
                     ? DOM::Element::StyleEngineRecomputeReason::PseudoInputsUnchanged
                     : DOM::Element::StyleEngineRecomputeReason::General;
@@ -324,7 +326,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 invalidation = element->apply_style_engine_reaction(
                     did_change_custom_properties,
                     recompute_reason,
-                    inherited_style_groups_for_closure);
+                    inherited_style_groups_for_closure,
+                    reaction.pseudo_recompute_mask);
                 if (materializes_inherited_style_reaction && invalidation.is_none() && !did_change_custom_properties)
                     ++document.style_invalidation_counters().element_inherited_style_noop_recomputations;
                 if (needs_regular_style_recompute)
@@ -562,6 +565,7 @@ static void update_style(DOM::Document& document)
                         .inherited_style_groups = 0,
                         .pseudo_kind = NumericLimits<u8>::max(),
                         .gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize,
+                        .pseudo_recompute_mask = 0,
                     });
                     inheritance_closure.append(prerequisite);
                 }
@@ -594,6 +598,7 @@ static void update_style(DOM::Document& document)
                                 .inherited_style_groups = 0,
                                 .pseudo_kind = NumericLimits<u8>::max(),
                                 .gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize,
+                                .pseudo_recompute_mask = 0,
                             });
                             inheritance_closure.append(style_node);
                         }

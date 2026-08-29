@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { background-color: red; }
+    .target::before { content: "before"; background-color: green; }
+    .target::after { content: "after"; background-color: blue; }
+    .guard .target { background-color: yellow; }
+    .guard .target::before { background-color: purple; }
+</style>
+<div id="guard"><div id="target" class="target"></div></div>
+<script>
+    test(() => {
+        const guard = document.getElementById("guard");
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        guard.classList.add("guard");
+        internals.updateStyle();
+
+        println("origin: " + getComputedStyle(target).backgroundColor);
+        println("before: " + getComputedStyle(target, "::before").backgroundColor);
+        println("after: " + getComputedStyle(target, "::after").backgroundColor);
+        const counters = internals.getStyleInvalidationCounters();
+        println("published reactions: " + counters.styleEnginePublishedReactions);
+        println("element recomputations: " + counters.elementStyleRecomputations);
+    });
+</script>

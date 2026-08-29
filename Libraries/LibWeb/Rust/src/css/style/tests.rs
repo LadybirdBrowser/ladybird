@@ -4117,11 +4117,18 @@ fn rule_declaration_edits_repair_only_their_property_inventory() {
     assert!(engine.program_staging.base_version.is_some());
     let feature_tests_before = engine.counters().get(Counter::LocalFeatureTests);
 
-    let mut planned = Vec::new();
+    let mut published = Vec::new();
     assert!(engine.take_style_transaction(nodes[0], |_, _, answers| {
-        planned.extend(answers.iter().map(|answer| answer.style_node));
+        published.extend_from_slice(answers);
     }));
-    assert_eq!(planned, vec![nodes[1].raw()]);
+    assert_eq!(
+        published.iter().map(|answer| answer.style_node).collect::<Vec<_>>(),
+        [nodes[1].raw()]
+    );
+    assert_eq!(
+        published[0].reaction & transaction::STYLE_REACTION_EXACT_PSEUDO_INPUTS,
+        0
+    );
     assert_eq!(engine.program.declared_properties_of(rule)[0].property, 2);
     assert_eq!(engine.counters().get(Counter::LocalFeatureTests), feature_tests_before);
     let key = WinnerGroupKey::current(nodes[1], engine.program.version());
@@ -4949,6 +4956,59 @@ fn cascade_changes_suppress_targeted_pseudo_reactions() {
     assert_eq!(published.len(), 1);
     assert_eq!(published[0].style_node, nodes[3].raw());
     assert_eq!(published[0].pseudo_kind, u8::MAX);
+}
+
+#[test]
+fn mixed_origin_and_pseudo_changes_publish_an_exact_pseudo_mask() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let pseudo = PseudoElementTarget::new(PseudoElementKind(0));
+    let origin_rule = add_guard_target_rule(&mut engine, guard, target);
+    let pseudo_program = engine.programs.add(test_selector_program_with_metadata(
+        ".guard .target",
+        &[("guard", guard), ("target", target)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        Some(pseudo),
+    ));
+    let sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let pseudo_rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(pseudo_rule, pseudo_program);
+    let mut version = engine.program.rule_version(pseudo_rule);
+    version.selector_program = Some(pseudo_program);
+    version.declaration_block = Some(DeclarationBlockID(2));
+    engine.replace_rule_version(pseudo_rule, version);
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    for &node in &nodes {
+        engine.match_element(node).unwrap();
+    }
+    engine.end_cold_matching_batch();
+
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    let mut published = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, answers| published.extend_from_slice(answers)));
+    assert_eq!(published.len(), 1);
+    let answer = published[0];
+    assert_eq!(answer.style_node, nodes[3].raw());
+    assert_eq!(answer.pseudo_kind, u8::MAX);
+    assert_ne!(answer.reaction & transaction::STYLE_REACTION_EXACT_PSEUDO_INPUTS, 0);
+    assert_eq!(answer.pseudo_recompute_mask, 1 << pseudo.kind.0);
+    assert_eq!(
+        engine
+            .consume_published_match_answer(nodes[3])
+            .unwrap()
+            .iter()
+            .map(|matched| matched.rule)
+            .collect::<Vec<_>>(),
+        [origin_rule, pseudo_rule]
+    );
 }
 
 #[test]

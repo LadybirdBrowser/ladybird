@@ -122,6 +122,7 @@ pub struct FfiStyleDelta {
     pub inherited_style_groups: u8,
     pub pseudo_kind: u8,
     pub gap: FfiStyleDeltaGap,
+    pub pseudo_recompute_mask: u8,
 }
 
 #[derive(Default)]
@@ -263,6 +264,7 @@ fn write_style_transaction_outputs(
             payload.write_u8(answer.inherited_style_groups);
             payload.write_u8(answer.pseudo_kind);
             payload.write_u8(answer.gap as u8);
+            payload.write_u8(answer.pseudo_recompute_mask);
         }
     }
     payload.write_bool(output.style_atoms_swept);

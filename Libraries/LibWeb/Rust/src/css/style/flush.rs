@@ -787,6 +787,7 @@ impl StyleEngine {
         let mut incremental_cascade_answers = Vec::new();
         let mut previous_cascade_inputs = Vec::new();
         let mut targeted_pseudo_candidates = Vec::new();
+        let mut exact_pseudo_recompute_masks = Vec::new();
         let mut exact_cascade_stop_nodes = DeltaBatch::default();
         let mut exact_cascade_confirmation_nodes = DeltaBatch::default();
         let mut attribution_scratch: Vec<(RuleID, EntryID)> = Vec::new();
@@ -814,6 +815,7 @@ impl StyleEngine {
             let mut can_stop_at_exact_cascade = false;
             let mut can_confirm_exact_cascade = false;
             let mut targeted_pseudo_kind = None;
+            let mut exact_pseudo_recompute_mask = None;
             let emit_node = match retained_answer_patch.as_mut() {
                 Some(patch) => {
                     let node_is_coarse_covered = patch_cover
@@ -894,6 +896,23 @@ impl StyleEngine {
                                 && rules.iter().all(|&(rule, entry)| rule_is_safe(rule, entry))
                         }
                     };
+                    // Direct signed selector changes name every pseudo target that can have moved.
+                    // Declaration and cascade-order edits can change pseudo inputs without a truth
+                    // delta, so leave those transactions on the conservative all-pseudo path.
+                    if let SelectorTruthPatch::Direct(deltas) = truth_patch
+                        && !deltas.is_empty()
+                        && !patch.always_emit
+                        && !patch.orders_shifted
+                        && patch.cascade_update_properties.is_empty()
+                    {
+                        exact_pseudo_recompute_mask = deltas.iter().try_fold(0_u8, |mask, delta| {
+                            let Some(pseudo) = self.programs.entry(delta.entry).1.pseudo_element else {
+                                return Some(mask);
+                            };
+                            let pseudo_kind = u8::try_from(pseudo.kind.0).ok()?;
+                            (pseudo_kind < u8::BITS as u8).then_some(mask | (1 << pseudo_kind))
+                        });
+                    }
                     can_confirm_exact_cascade = transaction_supports_retained_cascade_stops
                         && !plan_is_broad
                         && !has_direct_action
@@ -988,6 +1007,9 @@ impl StyleEngine {
             if let Some(pseudo_kind) = targeted_pseudo_kind {
                 targeted_pseudo_candidates.push((node, pseudo_kind));
             }
+            if let Some(mask) = exact_pseudo_recompute_mask {
+                exact_pseudo_recompute_masks.push((node, mask));
+            }
             if can_stop_at_exact_cascade {
                 exact_cascade_stop_nodes.push(node);
             }
@@ -1017,8 +1039,11 @@ impl StyleEngine {
         let publish_style_answers = true;
         let targeted_pseudo_candidate_bytes =
             (targeted_pseudo_candidates.capacity() * size_of::<(StyleNodeID, u8)>()) as u64;
+        let exact_pseudo_recompute_mask_bytes =
+            (exact_pseudo_recompute_masks.capacity() * size_of::<(StyleNodeID, u8)>()) as u64;
         {
             targeted_pseudo_candidates.sort_unstable();
+            exact_pseudo_recompute_masks.sort_unstable();
             let published_node_bytes = (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
             let previous_cascade_input_bytes =
                 (previous_cascade_inputs.capacity() * size_of::<Option<MatchAnswerID>>()) as u64;
@@ -1029,6 +1054,8 @@ impl StyleEngine {
                 .reserve_required(MemoryCategory::BatchScratch, previous_cascade_input_bytes);
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, targeted_pseudo_candidate_bytes);
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, exact_pseudo_recompute_mask_bytes);
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, identity_repair_node_bytes);
             if publish_style_answers {
@@ -1322,6 +1349,16 @@ impl StyleEngine {
                         })
                     })
                 });
+                let exact_pseudo_recompute_mask = (!transaction_may_change_all_pseudo_inputs
+                    && style_input_reaction_index.is_none()
+                    && targeted_pseudo_kind.is_none())
+                .then(|| {
+                    exact_pseudo_recompute_masks
+                        .binary_search_by_key(&node, |&(candidate, _)| candidate)
+                        .ok()
+                        .map(|index| exact_pseudo_recompute_masks[index].1)
+                })
+                .flatten();
                 let (reaction, inherited_style_groups) = style_input_reaction_index
                     .map_or((transaction::STYLE_REACTION_PUBLISHED_STYLE, 0), |index| {
                         (style_input_reactions[index].1, style_input_reactions[index].2)
@@ -1382,10 +1419,16 @@ impl StyleEngine {
                             transaction::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED
                         } else {
                             0
+                        }
+                        | if exact_pseudo_recompute_mask.is_some() {
+                            transaction::STYLE_REACTION_EXACT_PSEUDO_INPUTS
+                        } else {
+                            0
                         },
                     inherited_style_groups,
                     pseudo_kind: targeted_pseudo_kind.unwrap_or(u8::MAX),
                     gap,
+                    pseudo_recompute_mask: exact_pseudo_recompute_mask.unwrap_or(0),
                 };
                 style_deltas.push(style_delta);
             }
@@ -1404,6 +1447,8 @@ impl StyleEngine {
                 .release(MemoryCategory::BatchScratch, unresolved_inheritance_source_bytes);
             self.memory
                 .release(MemoryCategory::BatchScratch, targeted_pseudo_candidate_bytes);
+            self.memory
+                .release(MemoryCategory::BatchScratch, exact_pseudo_recompute_mask_bytes);
         }
         self.memory
             .release(MemoryCategory::BatchScratch, style_input_reaction_bytes);

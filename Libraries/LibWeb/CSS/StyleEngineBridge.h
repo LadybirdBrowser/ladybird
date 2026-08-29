@@ -191,6 +191,7 @@ public:
         RecomputeDescendantStyles = 1 << 4,
         AncestorBecameVisible = 1 << 5,
         PseudoInputsMayHaveChanged = 1 << 6,
+        ExactPseudoInputs = 1 << 7,
     };
     void record_element_style_input_change(StyleNodeID style_node, u8 reaction = PublishedStyle | RecomputeStyle, u8 inherited_style_groups = 0);
     void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);

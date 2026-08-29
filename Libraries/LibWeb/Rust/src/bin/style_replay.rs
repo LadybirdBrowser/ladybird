@@ -2040,6 +2040,7 @@ fn read_style_transaction_outputs(
                     1 => FfiStyleDeltaGap::Materialize,
                     tag => return Err(format!("unknown style delta gap tag {tag}").into()),
                 },
+                pseudo_recompute_mask: payload.read_u8()?,
             });
         }
         emissions.push(StyleTransactionEmission {
@@ -2082,6 +2083,7 @@ fn write_style_transaction_outputs(outputs: &StyleTransactionOutputs, payload: &
             payload.write_u8(answer.inherited_style_groups);
             payload.write_u8(answer.pseudo_kind);
             payload.write_u8(answer.gap as u8);
+            payload.write_u8(answer.pseudo_recompute_mask);
         }
     }
     payload.write_bool(outputs.style_atoms_swept);

@@ -23,6 +23,7 @@ static Web::CSS::StyleEngine::PublishedStyleDelta make_style_delta(Web::CSS::Sty
         .inherited_style_groups = inherited_style_groups,
         .pseudo_kind = 0xff,
         .gap = gap,
+        .pseudo_recompute_mask = 0,
     };
 }
 
@@ -124,4 +125,7 @@ TEST_CASE(direct_inherited_style_deltas_only_absorb_covered_reactions)
     auto targeted_pseudo_delta = make_style_delta(FfiStyleDeltaGap::Materialize, StyleEngine::PublishedStyle | StyleEngine::PseudoInputsMayHaveChanged, 0);
     targeted_pseudo_delta.pseudo_kind = 0;
     EXPECT(!StyleEngine::published_style_delta_can_absorb_reaction(targeted_pseudo_delta, StyleEngine::InheritedStyle, 0b0010));
+
+    auto exact_pseudo_delta = make_style_delta(FfiStyleDeltaGap::Materialize, StyleEngine::PublishedStyle | StyleEngine::ExactPseudoInputs, 0);
+    EXPECT(!StyleEngine::published_style_delta_can_absorb_reaction(exact_pseudo_delta, StyleEngine::InheritedStyle, 0b0010));
 }

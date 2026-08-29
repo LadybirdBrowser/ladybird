@@ -199,6 +199,7 @@ pub const STYLE_REACTION_PUBLISHED_STYLE: u8 = 1 << 0;
 pub const STYLE_REACTION_RECOMPUTE_STYLE: u8 = 1 << 1;
 pub const STYLE_REACTION_INHERITED_STYLE: u8 = 1 << 2;
 pub const STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED: u8 = 1 << 6;
+pub const STYLE_REACTION_EXACT_PSEUDO_INPUTS: u8 = 1 << 7;
 
 impl InputKey {
     #[must_use]

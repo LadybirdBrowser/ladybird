@@ -1546,7 +1546,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     return result;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, Optional<CSS::PseudoElement> targeted_pseudo_element)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, Optional<CSS::PseudoElement> targeted_pseudo_element, Optional<u8> pseudo_recompute_mask)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1655,7 +1655,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     };
 
     auto should_recompute = [&](CSS::PseudoElement pseudo_element) {
-        return !targeted_pseudo_element.has_value() || *targeted_pseudo_element == pseudo_element;
+        if (targeted_pseudo_element.has_value())
+            return *targeted_pseudo_element == pseudo_element;
+        if (pseudo_recompute_mask.has_value()) {
+            auto pseudo_kind = to_underlying(pseudo_element);
+            return pseudo_kind < sizeof(u8) * 8 && (*pseudo_recompute_mask & (1u << pseudo_kind));
+        }
+        return true;
     };
     if (should_recompute(CSS::PseudoElement::Before))
         recompute_pseudo_element_style(CSS::PseudoElement::Before);
@@ -2021,7 +2027,7 @@ static bool unregister_current_anchor_names(Element& element, Node& tree_root)
     return true;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason recompute_reason, u8 inherited_style_groups)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason recompute_reason, u8 inherited_style_groups, u8 pseudo_recompute_mask)
 {
     VERIFY(parent());
 
@@ -2088,11 +2094,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             counters.element_style_noop_recomputations++;
             return {};
         }
+        auto exact_pseudo_recompute_mask = recompute_reason == StyleEngineRecomputeReason::ExactPseudoInputs && !backdrop_style_needs_materialization()
+            ? Optional<u8> { pseudo_recompute_mask }
+            : Optional<u8> {};
         auto invalidation = recompute_pseudo_element_styles(
             did_change_custom_properties,
             old_computed_values->display().is_list_item(),
             &*old_computed_values,
-            reusable_style_engine_matches);
+            reusable_style_engine_matches,
+            nullptr,
+            {},
+            exact_pseudo_recompute_mask);
         if (invalidation.is_none()) {
             counters.element_style_noop_recomputations++;
             return invalidation;
@@ -2235,14 +2247,29 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
 
     auto pseudo_inherited_inputs_are_unchanged = old_computed_values
         && old_computed_values->inherited_style_group_identities() == new_style->inherited_style_group_identities();
-    if (recompute_reason != StyleEngineRecomputeReason::PseudoInputsUnchanged
-        || backdrop_style_needs_materialization()
-        || element_custom_properties_changed
-        || !pseudo_inherited_inputs_are_unchanged
-        || had_list_marker != new_style->display().is_list_item()
-        || style_engine_matches.node == 0
-        || !style_computer.style_engine().pseudo_cascade_states_are_unchanged(style_engine_matches.node)) {
-        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
+    auto pseudo_inputs_are_known_unchanged = recompute_reason == StyleEngineRecomputeReason::PseudoInputsUnchanged
+        && !backdrop_style_needs_materialization()
+        && !element_custom_properties_changed
+        && pseudo_inherited_inputs_are_unchanged
+        && had_list_marker == new_style->display().is_list_item()
+        && style_engine_matches.node != 0
+        && style_computer.style_engine().pseudo_cascade_states_are_unchanged(style_engine_matches.node);
+    if (!pseudo_inputs_are_known_unchanged) {
+        auto exact_pseudo_recompute_mask = recompute_reason == StyleEngineRecomputeReason::ExactPseudoInputs
+                && !backdrop_style_needs_materialization()
+                && !element_custom_properties_changed
+                && pseudo_inherited_inputs_are_unchanged
+                && had_list_marker == new_style->display().is_list_item()
+            ? Optional<u8> { pseudo_recompute_mask }
+            : Optional<u8> {};
+        invalidation |= recompute_pseudo_element_styles(
+            did_change_custom_properties,
+            had_list_marker,
+            old_computed_values ? &*old_computed_values : nullptr,
+            reusable_style_engine_matches,
+            &preserved_pseudo_element_styles,
+            {},
+            exact_pseudo_recompute_mask);
     }
 
     if (old_computed_values && (element_style_changed || element_custom_properties_changed))
