@@ -30,7 +30,22 @@
         for (let i = 0; i < 4; ++i)
             await nextFrame();
 
+        internals.resetStyleInvalidationCounters();
         println(`hidden animation overlay builds: ${await animationOverlayBuildsOverFrames(4)}`);
+        println(`hidden animation frame pump requests: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+
+        hidden.getAnimations()[0].currentTime = 250000;
+        let animationIterationEvents = 0;
+        const animationIterationListener = () => ++animationIterationEvents;
+        hidden.addEventListener("animationiteration", animationIterationListener);
+        internals.resetStyleInvalidationCounters();
+        await animationOverlayBuildsOverFrames(4);
+        println(`animation event listener keeps frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        println(`animation event listener skips past events: ${animationIterationEvents}`);
+        hidden.removeEventListener("animationiteration", animationIterationListener);
+        internals.resetStyleInvalidationCounters();
+        await animationOverlayBuildsOverFrames(4);
+        println(`removing animation event listener stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
 
         const beforeComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
         getComputedStyle(hidden).transform;

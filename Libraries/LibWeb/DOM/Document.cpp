@@ -7486,6 +7486,34 @@ void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimati
     ++m_style_invalidation_counters.committed_animation_events;
 }
 
+void Document::prepare_to_observe_css_animation_events()
+{
+    GC::RootVector<GC::Ref<Animations::KeyframeEffect>> effects_to_synchronize;
+    for (auto& animation : m_associated_animations) {
+        if (!animation.is_css_animation() || !animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+            continue;
+        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+        if (effect.per_frame_animation_tick_was_skipped())
+            effects_to_synchronize.append(effect);
+    }
+    if (effects_to_synchronize.is_empty())
+        return;
+
+    auto timestamp = HighResolutionTime::relative_high_resolution_time(
+        HighResolutionTime::unsafe_shared_current_time(), relevant_settings_object().global_object());
+    auto timelines_to_update = GC::RootVector { m_associated_animation_timelines.values() };
+    for (auto const& timeline : timelines_to_update)
+        timeline->update_current_time(timestamp);
+
+    // OPTIMIZATION: Events which occurred while there were no listeners were intentionally not sampled. Establish
+    //               the current phase as the baseline so a newly added listener only observes future events.
+    for (auto& effect : effects_to_synchronize) {
+        effect->set_previous_phase(effect->phase());
+        effect->set_previous_current_iteration(effect->current_iteration().value_or(0.0));
+        effect->clear_per_frame_animation_tick_was_skipped();
+    }
+}
+
 // https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
 void Document::update_animations_and_send_events(double timestamp)
 {
@@ -7568,13 +7596,22 @@ void Document::update_animations_and_send_events(double timestamp)
     //         false to true, and the flag is both set and cleared within the same rendering update.
     //         Without this, animations only advance when unrelated tasks happen to schedule rendering
     //         updates. Keep the frame pump going as long as some animation attached to a monotonically
-    //         increasing timeline is running.
+    //         increasing timeline needs main-thread painting or observable animation events.
     for (auto const& animation : m_associated_animations) {
         if (animation.play_state() != Bindings::AnimationPlayState::Running)
             continue;
         auto timeline = animation.timeline();
         if (!timeline || !timeline->is_monotonically_increasing())
             continue;
+        if (animation.effect() && is<Animations::KeyframeEffect>(*animation.effect())) {
+            auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+            if (effect.can_skip_per_frame_animation_tick()) {
+                effect.note_per_frame_animation_tick_was_skipped();
+                continue;
+            }
+            effect.clear_per_frame_animation_tick_was_skipped();
+        }
+        ++m_style_invalidation_counters.animation_frame_pump_requests;
         page().client().request_frame();
         break;
     }

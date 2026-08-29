@@ -1023,6 +1023,7 @@ public:
     };
     void append_pending_animation_event(PendingAnimationEvent const&);
     void update_animations_and_send_events(double timestamp);
+    void prepare_to_observe_css_animation_events();
     void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
     void remove_replaced_animations();
 
@@ -1100,6 +1101,7 @@ public:
         u64 animated_style_reconstruction_fallbacks { 0 };
         u64 animated_style_overlay_builds { 0 };
         u64 animated_style_full_builds { 0 };
+        u64 animation_frame_pump_requests { 0 };
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };
         u64 computed_longhand_evaluations { 0 };
