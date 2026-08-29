@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    #outer {
+        display: flex;
+        width: 100px;
+    }
+
+    #inner {
+        display: flex;
+    }
+
+    #item {
+        width: 100%;
+        overflow-wrap: break-word;
+    }
+</style>
+<div id="outer"><div id="inner"><div id="item">AAAAAAAAAAAAAAAAAAAAAAAAAAAA</div></div></div>
+<script>
+    test(() => {
+        const measurementsBefore = internals.intrinsicMeasurementCount();
+        document.getElementById("outer").offsetWidth;
+        println(`intrinsic measurements: ${internals.intrinsicMeasurementCount() - measurementsBefore}`);
+    });
+</script>
