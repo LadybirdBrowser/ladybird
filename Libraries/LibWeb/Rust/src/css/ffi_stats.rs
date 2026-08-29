@@ -17,7 +17,6 @@
 //! disabled hot path is one relaxed atomic load per crossing.
 
 use std::cell::RefCell;
-use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 macro_rules! define_ffi_ops {
@@ -66,7 +65,6 @@ define_ffi_ops! {
     SizesAttributeParseEntry => "sizesAttributeParseEntries",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
-    AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
     SubstitutionOracleCallback => "substitutionOracleCallbacks",
     // CSS parser callbacks: Rust -> C++.
     InternUtf16FlyStringCallback => "internUtf16FlyStringCallbacks",
@@ -84,7 +82,6 @@ thread_local! {
 struct DeferredCppReleases {
     fly_strings: Vec<usize>,
     strings: Vec<usize>,
-    animated_properties: Vec<*const c_void>,
 }
 
 impl DeferredCppReleases {
@@ -92,7 +89,6 @@ impl DeferredCppReleases {
         Self {
             fly_strings: Vec::new(),
             strings: Vec::new(),
-            animated_properties: Vec::new(),
         }
     }
 }
@@ -119,14 +115,11 @@ pub struct FfiDeferredCppReleases {
     pub fly_string_count: usize,
     pub strings: *const usize,
     pub string_count: usize,
-    pub animated_properties: *const *const c_void,
-    pub animated_property_count: usize,
 }
 
 unsafe extern "C" {
     fn ladybird_utf16_fly_string_unref(raw: usize);
     fn ladybird_string_unref(raw: usize);
-    fn ladybird_animated_properties_unref(values: *const c_void);
 }
 
 #[inline]
@@ -173,22 +166,6 @@ pub(crate) fn release_string(raw: usize) {
     unsafe { ladybird_string_unref(raw) };
 }
 
-pub(crate) fn release_animated_properties(values: *const c_void) {
-    let deferred = COMPLETE_STYLE_UPDATE_STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        if state.depth == 0 {
-            return false;
-        }
-        state.releases.animated_properties.push(values);
-        true
-    });
-    if deferred {
-        return;
-    }
-    bump_cpp_callback(FfiOp::AnimatedPropertiesRetainReleaseCallback);
-    unsafe { ladybird_animated_properties_unref(values) };
-}
-
 /// Marks a complete C++-orchestrated style update, from transaction planning
 /// through consumption of every published style reaction.
 #[unsafe(no_mangle)]
@@ -220,8 +197,6 @@ pub extern "C" fn rust_style_ffi_complete_style_update_end() -> FfiDeferredCppRe
                 fly_string_count: 0,
                 strings: std::ptr::null(),
                 string_count: 0,
-                animated_properties: std::ptr::null(),
-                animated_property_count: 0,
             };
         }
         assert!(!state.has_outstanding_view, "deferred release view was not cleared");
@@ -231,8 +206,6 @@ pub extern "C" fn rust_style_ffi_complete_style_update_end() -> FfiDeferredCppRe
             fly_string_count: state.releases.fly_strings.len(),
             strings: state.releases.strings.as_ptr(),
             string_count: state.releases.strings.len(),
-            animated_properties: state.releases.animated_properties.as_ptr(),
-            animated_property_count: state.releases.animated_properties.len(),
         }
     })
 }
@@ -247,7 +220,6 @@ pub extern "C" fn rust_deferred_cpp_releases_clear() {
         assert_eq!(state.depth, 0, "deferred releases cleared during a style update");
         state.releases.fly_strings.clear();
         state.releases.strings.clear();
-        state.releases.animated_properties.clear();
         state.has_outstanding_view = false;
     });
 }

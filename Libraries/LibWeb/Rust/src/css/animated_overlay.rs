@@ -21,9 +21,37 @@ use std::ffi::c_void;
 use crate::abort_on_panic;
 use crate::css::style_value::RetainedStyleValueData;
 
+#[derive(Default)]
 pub struct AnimatedOverlay {
     entries: Vec<AnimatedOverlayEntry>,
     ffi_entries: Vec<FfiAnimatedOverlayEntry>,
+}
+
+impl Clone for AnimatedOverlay {
+    fn clone(&self) -> Self {
+        let entries = self
+            .entries
+            .iter()
+            .map(|entry| AnimatedOverlayEntry {
+                property: entry.property,
+                value: entry.value.clone(),
+                inherited: entry.inherited,
+                result_of_transition: entry.result_of_transition,
+            })
+            .collect();
+        let mut overlay = Self {
+            entries,
+            ffi_entries: Vec::new(),
+        };
+        overlay.refresh_ffi_entries();
+        overlay
+    }
+}
+
+impl Drop for AnimatedOverlay {
+    fn drop(&mut self) {
+        crate::css::style::record_replay::invalidate_pointer(std::ptr::from_ref(self) as usize);
+    }
 }
 
 pub(crate) struct AnimatedOverlayEntry {
@@ -44,6 +72,10 @@ pub struct FfiAnimatedOverlayEntry {
 impl AnimatedOverlay {
     pub(crate) fn get(&self, property: u16) -> Option<&AnimatedOverlayEntry> {
         self.entries.iter().find(|entry| entry.property == property)
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     pub(crate) fn set_owned(
@@ -101,24 +133,7 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
 /// `overlay` must be a valid overlay.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_overlay_clone(overlay: *const AnimatedOverlay) -> *mut AnimatedOverlay {
-    abort_on_panic(|| {
-        let entries = unsafe { &*overlay }
-            .entries
-            .iter()
-            .map(|entry| AnimatedOverlayEntry {
-                property: entry.property,
-                value: entry.value.clone(),
-                inherited: entry.inherited,
-                result_of_transition: entry.result_of_transition,
-            })
-            .collect();
-        let mut overlay = AnimatedOverlay {
-            entries,
-            ffi_entries: Vec::new(),
-        };
-        overlay.refresh_ffi_entries();
-        Box::into_raw(Box::new(overlay))
-    })
+    abort_on_panic(|| Box::into_raw(Box::new(unsafe { &*overlay }.clone())))
 }
 
 /// # Safety

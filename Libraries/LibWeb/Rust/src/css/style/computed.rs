@@ -200,7 +200,7 @@ pub(crate) struct StyleRecordView<'a> {
     pub longhand_table: *const ComputedLonghandTable,
     pub longhand_values: &'a [*const c_void],
     pub raw_cascaded_font_size: *const c_void,
-    pub animated_properties: *const c_void,
+    pub animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
     pub pseudo_element_styles: u64,
     pub counter_style_environment_identity: u64,
     pub animation_overlay_identity: u64,
@@ -216,26 +216,6 @@ struct StyleRecord {
     longhand_table: Option<ComputedLonghandTableID>,
 }
 
-struct RetainedAnimatedProperties(*const c_void);
-
-impl RetainedAnimatedProperties {
-    /// Assumes ownership of one leaked C++ reference.
-    unsafe fn from_leaked(pointer: *const c_void) -> Self {
-        assert!(!pointer.is_null(), "style-record animated properties are null");
-        Self(pointer)
-    }
-
-    fn pointer(&self) -> *const c_void {
-        self.0
-    }
-}
-
-impl Drop for RetainedAnimatedProperties {
-    fn drop(&mut self) {
-        crate::css::ffi_stats::release_animated_properties(self.0);
-    }
-}
-
 pub struct ComputedReconstructionMetadataInput<'a> {
     pub property_importance: &'a [u8],
     pub property_inheritance: &'a [u8],
@@ -247,7 +227,7 @@ pub struct ComputedMetadataInput<'a> {
     pub dependency_flags: u8,
     pub counter_style_environment_identity: u64,
     pub animation_overlay_identity: u64,
-    pub animated_properties: *const c_void,
+    pub animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
     pub animation_overlay_payloads: &'a [*const c_void],
     /// The drive's frozen computed longhand table, or null when the publisher
     /// carries none. Its values are interned as the record's longhand-table
@@ -305,7 +285,7 @@ struct AnimationOverlayRecord {
     base_style_record: StyleRecordID,
     source_identity: u64,
     final_style_record: FinalStyleRecordID,
-    animated_properties: RetainedAnimatedProperties,
+    animated_overlay: Box<crate::css::animated_overlay::AnimatedOverlay>,
     payloads: Box<[*const c_void]>,
     pin_count: u64,
     is_assigned: bool,
@@ -1180,7 +1160,7 @@ impl ComputedGroupSets {
         &mut self,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_properties: RetainedAnimatedProperties,
+        animated_overlay: Box<crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[*const c_void],
     ) -> AnimationOverlayRecord {
         assert!(payloads.iter().all(|payload| !payload.is_null()));
@@ -1191,7 +1171,7 @@ impl ComputedGroupSets {
             base_style_record,
             source_identity,
             final_style_record: self.next_animation_overlay_record(),
-            animated_properties,
+            animated_overlay,
             payloads: payloads.into(),
             pin_count: 0,
             is_assigned: true,
@@ -1202,13 +1182,13 @@ impl ComputedGroupSets {
         &mut self,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_properties: &mut Option<RetainedAnimatedProperties>,
+        animated_overlay: &mut Option<Box<crate::css::animated_overlay::AnimatedOverlay>>,
         payloads: &[*const c_void],
     ) -> (u32, FinalStyleRecordID, bool) {
         let record = self.make_animation_overlay_record(
             base_style_record,
             source_identity,
-            animated_properties
+            animated_overlay
                 .take()
                 .expect("animation overlay properties are missing"),
             payloads,
@@ -1262,7 +1242,7 @@ impl ComputedGroupSets {
         current_slot: Option<u32>,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_properties: &mut Option<RetainedAnimatedProperties>,
+        animated_overlay: &mut Option<Box<crate::css::animated_overlay::AnimatedOverlay>>,
         payloads: &[*const c_void],
     ) -> AnimationOverlayPublication {
         if source_identity == 0 {
@@ -1300,7 +1280,7 @@ impl ComputedGroupSets {
                 let record = self.make_animation_overlay_record(
                     base_style_record,
                     source_identity,
-                    animated_properties
+                    animated_overlay
                         .take()
                         .expect("animation overlay properties are missing"),
                     payloads,
@@ -1329,7 +1309,7 @@ impl ComputedGroupSets {
         }
 
         let (slot, final_style_record, slot_allocated) =
-            self.allocate_animation_overlay(base_style_record, source_identity, animated_properties, payloads);
+            self.allocate_animation_overlay(base_style_record, source_identity, animated_overlay, payloads);
         AnimationOverlayPublication {
             slot: Some(slot),
             final_style_record,
@@ -1368,15 +1348,15 @@ impl ComputedGroupSets {
             dependency_flags,
             counter_style_environment_identity,
             animation_overlay_identity,
-            animated_properties,
+            animated_overlay,
             animation_overlay_payloads,
             longhand_table,
             reconstruction: reconstruction_metadata,
         } = metadata_input;
-        let mut animated_properties = if animated_properties.is_null() {
+        let mut animated_overlay = if animated_overlay.is_null() {
             None
         } else {
-            Some(unsafe { RetainedAnimatedProperties::from_leaked(animated_properties) })
+            Some(Box::new(unsafe { &*animated_overlay }.clone()))
         };
         let longhand_table = unsafe { longhand_table.as_ref() };
         let inherited_group_swap_eligible = dependency_flags & INHERITED_GROUP_SWAP_ELIGIBLE != 0;
@@ -1622,7 +1602,7 @@ impl ComputedGroupSets {
                 previous.and_then(|previous| previous.animation_overlay_slot),
                 style_record_identity,
                 animation_overlay_identity,
-                &mut animated_properties,
+                &mut animated_overlay,
                 animation_overlay_payloads,
             );
             let row = self.ensure_pseudo_row(node, pseudo_kind);
@@ -1659,7 +1639,7 @@ impl ComputedGroupSets {
                 self.columns.animation_overlay_slot(index),
                 style_record_identity,
                 animation_overlay_identity,
-                &mut animated_properties,
+                &mut animated_overlay,
                 animation_overlay_payloads,
             );
             let changed = (
@@ -1787,12 +1767,12 @@ impl ComputedGroupSets {
                 .and_then(|row| row.assignment);
             let previous_style_record_identity = previous
                 .map(|previous| self.final_style_record(previous.style_record, previous.animation_overlay_slot));
-            let mut animated_properties = None;
+            let mut animated_overlay = None;
             let animation_overlay_publication = self.update_animation_overlay(
                 previous.and_then(|previous| previous.animation_overlay_slot),
                 style_record_identity,
                 0,
-                &mut animated_properties,
+                &mut animated_overlay,
                 &[],
             );
             let row = self.ensure_pseudo_row(target.node, target.pseudo_kind);
@@ -1826,12 +1806,12 @@ impl ComputedGroupSets {
             }
             let previous_style_record_identity = self.style_record_column[index]
                 .map(|style_record| self.final_style_record(style_record, self.columns.animation_overlay_slot(index)));
-            let mut animated_properties = None;
+            let mut animated_overlay = None;
             let animation_overlay_publication = self.update_animation_overlay(
                 self.columns.animation_overlay_slot(index),
                 style_record_identity,
                 0,
-                &mut animated_properties,
+                &mut animated_overlay,
                 &[],
             );
             let changed = (
@@ -2620,7 +2600,7 @@ impl ComputedGroupSets {
 
     pub(crate) fn style_record_view(&self, raw_style_record: u64) -> Option<StyleRecordView<'_>> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
-        let (base_style_record, payloads, animation_overlay_identity, animated_properties) =
+        let (base_style_record, payloads, animation_overlay_identity, animated_overlay) =
             if let Some(style_record) = final_style_record.base_record() {
                 assert!(
                     self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
@@ -2640,7 +2620,7 @@ impl ComputedGroupSets {
                     overlay.base_style_record,
                     overlay.payloads.as_ref(),
                     overlay.source_identity,
-                    overlay.animated_properties.pointer(),
+                    std::ptr::from_ref(overlay.animated_overlay.as_ref()),
                 )
             };
         assert!(
@@ -2672,7 +2652,7 @@ impl ComputedGroupSets {
                 .raw_cascaded_font_size
                 .as_ref()
                 .map_or(std::ptr::null(), |value| value.pointer().cast()),
-            animated_properties,
+            animated_overlay,
             pseudo_element_styles: fixed_metadata.pseudo_element_styles,
             counter_style_environment_identity: fixed_metadata.counter_style_environment_identity,
             animation_overlay_identity,
@@ -2905,7 +2885,7 @@ mod tests {
             dependency_flags,
             counter_style_environment_identity,
             animation_overlay_identity: 0,
-            animated_properties: std::ptr::NonNull::<c_void>::dangling().as_ptr(),
+            animated_overlay: std::ptr::null(),
             animation_overlay_payloads: &[],
             longhand_table: std::ptr::null(),
             reconstruction: ComputedReconstructionMetadataInput {
@@ -3064,8 +3044,10 @@ mod tests {
         assert!(changed_observer_dependency.computed_fixed_metadata_node_handle_changed);
         assert!(changed_observer_dependency.style_record_node_handle_changed);
 
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
         let mut animated_metadata = metadata(7, 1, 6, &[1], &[2]);
         animated_metadata.animation_overlay_identity = 9;
+        animated_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
         let changed_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, animated_metadata);
         assert!(!changed_animation_overlay.new_computed_fixed_metadata);
         assert!(!changed_animation_overlay.computed_fixed_metadata_node_handle_changed);
@@ -3076,6 +3058,7 @@ mod tests {
         assert!(!changed_animation_overlay.node_handle_changed);
         let mut updated_animated_metadata = metadata(7, 1, 6, &[1], &[2]);
         updated_animated_metadata.animation_overlay_identity = 10;
+        updated_animated_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
         let updated_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, updated_animated_metadata);
         assert!(!updated_animation_overlay.new_computed_fixed_metadata);
         assert!(!updated_animation_overlay.new_style_record);
@@ -3099,6 +3082,7 @@ mod tests {
 
         let mut reused_animated_metadata = metadata(7, 1, 6, &[1], &[2]);
         reused_animated_metadata.animation_overlay_identity = 11;
+        reused_animated_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
         let reused_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, reused_animated_metadata);
         assert!(!reused_animation_overlay.animation_overlay_slot_allocated);
         assert_eq!(reused_animation_overlay.live_animation_overlay_records, 1);
@@ -3139,13 +3123,16 @@ mod tests {
         let mut sets = ComputedGroupSets::default();
         let node = StyleNodeID::from_raw(1).unwrap();
         let target = ComputedStyleTarget::new(node, u8::MAX);
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
         let mut first_metadata = metadata(0, 0, 0, &[], &[]);
         first_metadata.animation_overlay_identity = 1;
+        first_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
         let first = sets.publish(Some(target), &[], 0, 0, first_metadata);
 
         sets.pin_style_record(first.style_record_identity.raw());
         let mut second_metadata = metadata(0, 0, 0, &[], &[]);
         second_metadata.animation_overlay_identity = 2;
+        second_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
         let second = sets.publish(Some(target), &[], 0, 0, second_metadata);
 
         assert_ne!(first.style_record_identity, second.style_record_identity);

@@ -883,7 +883,8 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     m_values.m_computed_longhand_table = view.longhand_table;
     if (m_values.m_computed_longhand_table)
         m_values.refresh_computed_longhand_table_views();
-    m_values.m_animated_properties = static_cast<AnimatedProperties const*>(view.animated_properties);
+    if (view.animated_overlay)
+        m_values.m_animated_properties = adopt_ref(*new AnimatedProperties(static_cast<ComputedValuesFFI::AnimatedOverlay const*>(view.animated_overlay)));
     if (view.animation_overlay_identity != 0) {
         m_base_values->m_property_important = m_values.m_property_important;
         m_base_values->m_property_inherited = m_values.m_property_inherited;

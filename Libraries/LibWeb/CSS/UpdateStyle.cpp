@@ -26,7 +26,6 @@ namespace Web::CSS {
 
 using StyleUpdateMode = DOM::Document::StyleUpdateMode;
 
-extern "C" void ladybird_animated_properties_unref(void const*);
 extern "C" void ladybird_string_unref(size_t);
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 
@@ -38,8 +37,6 @@ static void finish_complete_style_update()
         ladybird_utf16_fly_string_unref(releases.fly_strings[i]);
     for (size_t i = 0; i < releases.string_count; ++i)
         ladybird_string_unref(releases.strings[i]);
-    for (size_t i = 0; i < releases.animated_property_count; ++i)
-        ladybird_animated_properties_unref(releases.animated_properties[i]);
 }
 
 static void update_style(DOM::Document&);
