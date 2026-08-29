@@ -7067,13 +7067,9 @@ void Document::process_lazy_load_intersection_observer_entries(ReadonlySpan<GC::
             resumption_steps = entry->target()->take_lazy_load_resumption_steps({});
         }
 
-        // 3. If resumptionSteps is null, then return.
-        if (!resumption_steps) {
-            // NOTE: This is wrong in the spec, since we want to keep processing
-            //       entries even if one of them doesn't have resumption steps.
-            // FIXME: Spec bug: https://github.com/whatwg/html/issues/10019
+        // 3. If resumptionSteps is null, then continue.
+        if (!resumption_steps)
             continue;
-        }
 
         // 4. Stop intersection-observing a lazy loading element for entry.target.
         stop_intersection_observing_a_lazy_loading_element(entry->target());
