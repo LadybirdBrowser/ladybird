@@ -1245,7 +1245,7 @@ public:
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
-    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
+    ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
     bool inheritance_dependent_specified_values_equal(ComputedValues const& other) const;
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values_snapshot() const;
     RefPtr<StyleValue const> raw_cascaded_font_size() const;
@@ -2095,10 +2095,8 @@ private:
     NonInheritedValues m_noninherited;
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
-    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> m_inheritance_dependent_specified_values;
+    ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> m_inheritance_dependent_specified_values;
     mutable OwnPtr<HashMap<PropertyID, NonnullRefPtr<StyleValue const>>> m_style_value_cache;
-    RefPtr<StyleValue const> m_raw_cascaded_font_size;
-    StyleValueFFI::StyleValueData const* m_borrowed_raw_cascaded_font_size { nullptr };
     // The drive's frozen computed longhand table, retained when this style owns a reference;
     // null for borrowed style-record views and for styles built without a drive.
     void const* m_computed_longhand_table { nullptr };
@@ -2205,7 +2203,6 @@ public:
     void set_font_metrics_depend_on_viewport_metrics(bool value) { m_values.m_font_metrics_depend_on_viewport_metrics = value; }
     void set_in_display_none_subtree(bool value) { m_values.m_in_display_none_subtree = value; }
     void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
-    void set_raw_cascaded_font_size(RefPtr<StyleValue const> value) { m_values.m_raw_cascaded_font_size = move(value); }
     void set_computed_longhand_table(void const* table) { m_values.adopt_computed_longhand_table(table); }
     void set_base_values(NonnullRefPtr<ComputedValues const> value)
     {
@@ -2571,7 +2568,6 @@ public:
         m_values->m_noninherited = values.m_noninherited;
         m_values->m_property_important = values.m_property_important;
         m_values->m_property_inherited = values.m_property_inherited;
-        m_values->m_raw_cascaded_font_size = values.raw_cascaded_font_size();
         m_values->copy_computed_longhand_table_from(values);
         if (values.m_borrowed_base_values)
             m_values->m_base_values = Builder { *values.m_borrowed_base_values }.build();

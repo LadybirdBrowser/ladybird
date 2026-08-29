@@ -944,6 +944,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             metadata.pseudo_element_styles = pseudo_element_styles;
                             metadata.dependency_flags = dependency_flags & 3;
                             metadata.in_display_none_subtree = dependency_flags & (1 << 2) != 0;
+                            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_set_raw_cascaded_font_size(
+                                table,
+                                raw_cascaded_font_size,
+                            );
                             libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_freeze(table);
                         }
                         table
@@ -963,7 +967,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             animated_overlay.cast(),
                             animation_overlay_payloads.as_ptr(),
                             animation_overlay_payloads.len(),
-                            raw_cascaded_font_size,
                             publication_longhand_table.cast_const().cast(),
                         )
                     };
@@ -2275,11 +2278,15 @@ fn style_record_view_matches(
     actual: bridge::FfiStyleRecordView,
 ) -> Result<bool, std::num::TryFromIntError> {
     let (actual_longhand_values, actual_longhand_value_count) = style_record_longhand_values(actual);
+    let (actual_property_importance, actual_property_inheritance, actual_property_flag_count) =
+        style_record_property_flags(actual);
+    let (actual_inheritance_dependent_values, actual_inheritance_dependent_value_count) =
+        style_record_inheritance_dependent_values(actual);
     if actual.payload_count != expected.payloads.len()
         || actual.payload_count != expected.base_payloads.len()
-        || actual.property_importance_count != expected.property_importance.len()
-        || actual.property_inheritance_count != expected.property_inheritance.len()
-        || actual.inheritance_dependent_value_count != expected.inheritance_dependent_values.len()
+        || actual_property_flag_count != expected.property_importance.len()
+        || actual_property_flag_count != expected.property_inheritance.len()
+        || actual_inheritance_dependent_value_count != expected.inheritance_dependent_values.len()
         || actual_longhand_value_count != expected.longhand_values.len()
     {
         return Ok(false);
@@ -2304,8 +2311,8 @@ fn style_record_view_matches(
     } else {
         unsafe {
             std::slice::from_raw_parts(
-                actual.inheritance_dependent_values,
-                actual.inheritance_dependent_value_count,
+                actual_inheritance_dependent_values,
+                actual_inheritance_dependent_value_count,
             )
         }
         .iter()
@@ -2319,10 +2326,10 @@ fn style_record_view_matches(
     Ok(pointers_match(actual.payloads, expected.payloads)?
         && pointers_match(actual.base_payloads, expected.base_payloads)?
         && pointers_match(actual_longhand_values, expected.longhand_values)?
-        && bytes_match(actual.property_importance, &expected.property_importance)
-        && bytes_match(actual.property_inheritance, &expected.property_inheritance)
+        && bytes_match(actual_property_importance, &expected.property_importance)
+        && bytes_match(actual_property_inheritance, &expected.property_inheritance)
         && inheritance_dependent_values_match
-        && pointer_value(actual.raw_cascaded_font_size)? == expected.raw_cascaded_font_size
+        && pointer_value(style_record_raw_cascaded_font_size(actual))? == expected.raw_cascaded_font_size
         && !actual.animated_overlay.is_null() == expected.animated_overlay_present
         && actual.pseudo_element_styles == expected.pseudo_element_styles
         && actual.counter_style_environment_identity == expected.counter_style_environment_identity
@@ -2334,6 +2341,9 @@ fn semantic_style_record_view(
     view: bridge::FfiStyleRecordView,
 ) -> Result<OwnedSemanticStyleRecordView, Box<dyn std::error::Error>> {
     let (longhand_values, longhand_value_count) = style_record_longhand_values(view);
+    let (property_importance, property_inheritance, property_flag_count) = style_record_property_flags(view);
+    let (inheritance_dependent_values, inheritance_dependent_value_count) =
+        style_record_inheritance_dependent_values(view);
     let pointers = |pointer: *const *const c_void, count: usize| -> Result<Vec<u64>, Box<dyn std::error::Error>> {
         if count == 0 {
             return Ok(Vec::new());
@@ -2348,10 +2358,10 @@ fn semantic_style_record_view(
         0 => Vec::new(),
         _ => unsafe { std::slice::from_raw_parts(pointer, count) }.to_vec(),
     };
-    let inheritance_dependent_values = match view.inheritance_dependent_value_count {
+    let inheritance_dependent_values = match inheritance_dependent_value_count {
         0 => Vec::new(),
         count => {
-            let entries = unsafe { std::slice::from_raw_parts(view.inheritance_dependent_values, count) };
+            let entries = unsafe { std::slice::from_raw_parts(inheritance_dependent_values, count) };
             let mut values = Vec::with_capacity(count);
             for entry in entries {
                 values.push((entry.property, pointer_value(entry.value)?));
@@ -2363,16 +2373,67 @@ fn semantic_style_record_view(
         payloads: pointers(view.payloads, view.payload_count)?,
         base_payloads: pointers(view.base_payloads, view.payload_count)?,
         longhand_values: pointers(longhand_values, longhand_value_count)?,
-        property_importance: bytes(view.property_importance, view.property_importance_count),
-        property_inheritance: bytes(view.property_inheritance, view.property_inheritance_count),
+        property_importance: bytes(property_importance, property_flag_count),
+        property_inheritance: bytes(property_inheritance, property_flag_count),
         inheritance_dependent_values,
-        raw_cascaded_font_size: pointer_value(view.raw_cascaded_font_size)?,
+        raw_cascaded_font_size: pointer_value(style_record_raw_cascaded_font_size(view))?,
         animated_overlay_present: !view.animated_overlay.is_null(),
         pseudo_element_styles: view.pseudo_element_styles,
         counter_style_environment_identity: view.counter_style_environment_identity,
         animation_overlay_identity: view.animation_overlay_identity,
         dependency_flags: view.dependency_flags,
     })
+}
+
+fn style_record_property_flags(view: bridge::FfiStyleRecordView) -> (*const u8, *const u8, usize) {
+    if view.longhand_table.is_null() {
+        return (std::ptr::null(), std::ptr::null(), 0);
+    }
+    let longhand_count = (libweb_rust::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
+        - libweb_rust::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+        + 1) as usize;
+    let count = longhand_count.div_ceil(8);
+    unsafe {
+        (
+            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_importance_bits(
+                view.longhand_table.cast(),
+            ),
+            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_inheritance_bits(
+                view.longhand_table.cast(),
+            ),
+            count,
+        )
+    }
+}
+
+fn style_record_inheritance_dependent_values(
+    view: bridge::FfiStyleRecordView,
+) -> (
+    *const libweb_rust::css::computed_longhand_table::FfiTableInheritanceDependentValue,
+    usize,
+) {
+    if view.longhand_table.is_null() {
+        return (std::ptr::null(), 0);
+    }
+    let mut count = 0;
+    let values = unsafe {
+        libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_inheritance_dependent_values(
+            view.longhand_table.cast(),
+            &raw mut count,
+        )
+    };
+    (values, count)
+}
+
+fn style_record_raw_cascaded_font_size(view: bridge::FfiStyleRecordView) -> *const c_void {
+    if view.longhand_table.is_null() {
+        return std::ptr::null();
+    }
+    unsafe {
+        libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_raw_cascaded_font_size(
+            view.longhand_table.cast(),
+        )
+    }
 }
 
 fn style_record_longhand_values(view: bridge::FfiStyleRecordView) -> (*const *const c_void, usize) {

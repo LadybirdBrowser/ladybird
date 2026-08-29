@@ -261,13 +261,6 @@ pub struct FfiStyleRecordDelta {
     pub new_style_record: u64,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiInheritanceDependentValue {
-    pub property: u16,
-    pub value: *const c_void,
-}
-
 #[cfg(feature = "style-recording")]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FfiMemoryPressureSnapshot {
@@ -298,17 +291,10 @@ pub struct FfiStyleRecordState {
 pub struct FfiStyleRecordView {
     pub payloads: *const *const c_void,
     pub base_payloads: *const *const c_void,
-    pub property_importance: *const u8,
-    pub property_inheritance: *const u8,
-    pub inheritance_dependent_values: *const FfiInheritanceDependentValue,
     /// The base record's borrowed table, matching `WithAnimationsApplied::No`.
     pub longhand_table: *const c_void,
-    pub raw_cascaded_font_size: *const c_void,
     pub animated_overlay: *const c_void,
     pub payload_count: usize,
-    pub property_importance_count: usize,
-    pub property_inheritance_count: usize,
-    pub inheritance_dependent_value_count: usize,
     pub pseudo_element_styles: u64,
     pub counter_style_environment_identity: u64,
     pub animation_overlay_identity: u64,
@@ -338,16 +324,9 @@ impl FfiStyleRecordView {
         Self {
             payloads: std::ptr::null(),
             base_payloads: std::ptr::null(),
-            property_importance: std::ptr::null(),
-            property_inheritance: std::ptr::null(),
-            inheritance_dependent_values: std::ptr::null(),
             longhand_table: std::ptr::null(),
-            raw_cascaded_font_size: std::ptr::null(),
             animated_overlay: std::ptr::null(),
             payload_count: 0,
-            property_importance_count: 0,
-            property_inheritance_count: 0,
-            inheritance_dependent_value_count: 0,
             pseudo_element_styles: 0,
             counter_style_environment_identity: 0,
             animation_overlay_identity: 0,
@@ -2204,7 +2183,6 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     animated_overlay: *const c_void,
     animation_overlay_payloads: *const *const c_void,
     animation_overlay_payload_count: usize,
-    raw_cascaded_font_size: *const c_void,
     longhand_table: *const c_void,
 ) -> FfiStyleRecordDelta {
     abort_on_panic(|| {
@@ -2227,6 +2205,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
                 .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
                 .as_ref()
         };
+        let raw_cascaded_font_size = longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
         assert!(longhand_table.is_some() || (node == 0 && pseudo_kind == u8::MAX));
         let pseudo_element_styles = longhand_table.map_or(0, |table| table.pseudo_element_styles());
         let inherited_group_swap_eligible = longhand_table.is_some_and(|table| {
@@ -2234,16 +2213,6 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
         });
         let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
             | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE);
-        static EMPTY_PROPERTY_FLAGS: [u8; crate::css::computed_longhand_table::LONGHAND_BITMAP_BYTES] =
-            [0; crate::css::computed_longhand_table::LONGHAND_BITMAP_BYTES];
-        let property_importance =
-            longhand_table.map_or(EMPTY_PROPERTY_FLAGS.as_slice(), |table| table.importance_bits());
-        let property_inheritance =
-            longhand_table.map_or(EMPTY_PROPERTY_FLAGS.as_slice(), |table| table.inheritance_bits());
-        let inheritance_dependent_values: Vec<_> = longhand_table
-            .into_iter()
-            .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
-            .collect();
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         if animation_overlay_identity != 0 && animated_overlay.is_null() {
             return FfiStyleRecordDelta::default();
@@ -2256,11 +2225,6 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             animated_overlay: animated_overlay.cast(),
             animation_overlay_payloads,
             longhand_table: longhand_table.map_or(std::ptr::null(), std::ptr::from_ref),
-            reconstruction: super::computed::ComputedReconstructionMetadataInput {
-                property_importance,
-                property_inheritance,
-                raw_cascaded_font_size,
-            },
         };
         let publication = if let Some(node) = StyleNodeID::from_raw(node) {
             engine.publish_computed_groups(
@@ -2316,10 +2280,13 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             for &pointer in animation_overlay_payloads {
                 payload.write_u64(pointer_token(pointer));
             }
-            payload.write_bytes(property_importance);
-            payload.write_bytes(property_inheritance);
-            payload.write_length(inheritance_dependent_values.len());
-            for &(property, value) in &inheritance_dependent_values {
+            payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
+            payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
+            payload.write_length(longhand_table.map_or(0, |table| table.inheritance_dependent_values().count()));
+            for (property, value) in longhand_table
+                .into_iter()
+                .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
+            {
                 payload.write_u16(property);
                 payload.write_u64(pointer_token(value));
                 payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
@@ -2480,16 +2447,6 @@ pub unsafe extern "C" fn style_engine_style_record_view(
     style_record: u64,
 ) -> FfiStyleRecordView {
     abort_on_panic(|| {
-        const {
-            assert!(
-                std::mem::size_of::<super::InheritanceDependentValue>()
-                    == std::mem::size_of::<FfiInheritanceDependentValue>()
-            );
-            assert!(
-                std::mem::align_of::<super::InheritanceDependentValue>()
-                    == std::mem::align_of::<FfiInheritanceDependentValue>()
-            );
-        }
         let engine = unsafe { &*engine.cast::<StyleEngine>() };
         let view = engine.style_record_view(style_record);
         let result = match &view {
@@ -2497,16 +2454,9 @@ pub unsafe extern "C" fn style_engine_style_record_view(
             Some(view) => FfiStyleRecordView {
                 payloads: view.payloads.as_ptr(),
                 base_payloads: view.base_payloads.as_ptr(),
-                property_importance: view.property_importance.as_ptr(),
-                property_inheritance: view.property_inheritance.as_ptr(),
-                inheritance_dependent_values: view.inheritance_dependent_values.as_ptr().cast(),
                 longhand_table: view.longhand_table.cast(),
-                raw_cascaded_font_size: view.raw_cascaded_font_size,
                 animated_overlay: view.animated_overlay.cast(),
                 payload_count: view.payloads.len(),
-                property_importance_count: view.property_importance.len(),
-                property_inheritance_count: view.property_inheritance.len(),
-                inheritance_dependent_value_count: view.inheritance_dependent_values.len(),
                 pseudo_element_styles: view.pseudo_element_styles,
                 counter_style_environment_identity: view.counter_style_environment_identity,
                 animation_overlay_identity: view.animation_overlay_identity,
@@ -2551,21 +2501,27 @@ pub unsafe extern "C" fn style_engine_style_record_view(
             for pointer in base_payloads {
                 payload.write_u64(pointer);
             }
-            payload.write_bytes(view.property_importance);
-            payload.write_bytes(view.property_inheritance);
-            payload.write_length(view.inheritance_dependent_values.len());
-            for entry in view.inheritance_dependent_values {
-                payload.write_u16(entry.property);
+            let longhand_table = unsafe { view.longhand_table.as_ref() };
+            payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
+            payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
+            payload.write_length(longhand_table.map_or(0, |table| table.inheritance_dependent_values().count()));
+            for (property, value) in longhand_table
+                .into_iter()
+                .flat_map(crate::css::computed_longhand_table::ComputedLonghandTable::inheritance_dependent_values)
+            {
+                payload.write_u16(property);
                 payload.write_u64(
                     engine
-                        .recording_pointer_token(entry.value.pointer() as usize)
+                        .recording_pointer_token(value as usize)
                         .expect("an enabled recorder must tokenize the pointer"),
                 );
             }
-            payload.write_u64(match view.raw_cascaded_font_size.is_null() {
+            let raw_cascaded_font_size =
+                longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
+            payload.write_u64(match raw_cascaded_font_size.is_null() {
                 true => 0,
                 false => engine
-                    .recording_pointer_token(view.raw_cascaded_font_size as usize)
+                    .recording_pointer_token(raw_cascaded_font_size as usize)
                     .expect("an enabled recorder must tokenize the pointer"),
             });
             payload.write_u64(u64::from(!view.animated_overlay.is_null()));

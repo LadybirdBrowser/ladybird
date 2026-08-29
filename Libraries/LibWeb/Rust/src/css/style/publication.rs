@@ -134,7 +134,6 @@ impl StyleEngine {
         self.counters.bump(Counter::InheritedGroupSetsReused);
         self.counters.bump(Counter::CustomPropertyEnvironmentsReused);
         self.counters.bump(Counter::ComputedFixedMetadataReused);
-        self.counters.bump(Counter::ComputedReconstructionMetadataReused);
         self.counters.bump(Counter::StyleRecordsReused);
         if publication.node_handle_changed {
             self.counters.bump(Counter::ComputedGroupNodeHandlesPublished);
@@ -148,10 +147,6 @@ impl StyleEngine {
         }
         if publication.computed_fixed_metadata_node_handle_changed {
             self.counters.bump(Counter::ComputedFixedMetadataNodeHandlesPublished);
-        }
-        if publication.computed_reconstruction_metadata_node_handle_changed {
-            self.counters
-                .bump(Counter::ComputedReconstructionMetadataNodeHandlesPublished);
         }
         if publication.style_record_node_handle_changed {
             self.counters.bump(Counter::StyleRecordNodeHandlesPublished);
@@ -254,9 +249,9 @@ impl StyleEngine {
             &mut self.memory,
             self.computed_group_sets.computed_fixed_metadata_capacity_bytes(),
         );
-        self.computed_reconstruction_metadata_memory.resize_required_to(
+        self.computed_longhand_table_memory.resize_required_to(
             &mut self.memory,
-            self.computed_group_sets.reconstruction_header_capacity_bytes(),
+            self.computed_group_sets.longhand_table_header_capacity_bytes(),
         );
         self.style_record_memory
             .resize_required_to(&mut self.memory, self.computed_group_sets.style_record_capacity_bytes());
@@ -366,13 +361,6 @@ impl StyleEngine {
         }
         if publication.computed_fixed_metadata_node_handle_changed {
             self.counters.bump(Counter::ComputedFixedMetadataNodeHandlesPublished);
-        }
-        if !publication.new_computed_reconstruction_metadata {
-            self.counters.bump(Counter::ComputedReconstructionMetadataReused);
-        }
-        if publication.computed_reconstruction_metadata_node_handle_changed {
-            self.counters
-                .bump(Counter::ComputedReconstructionMetadataNodeHandlesPublished);
         }
         match publication.new_style_record {
             true => self.counters.bump(Counter::StyleRecordsInterned),

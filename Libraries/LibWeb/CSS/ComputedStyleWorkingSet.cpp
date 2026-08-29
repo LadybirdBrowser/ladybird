@@ -51,18 +51,15 @@ ComputedStyleWorkingSet::ComputedStyleWorkingSet()
 {
 }
 
-ComputedStyleWorkingSet::ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable* longhand_table, void const* raw_cascaded_font_size)
+ComputedStyleWorkingSet::ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable* longhand_table)
     : m_computed_longhand_table(longhand_table)
     , m_mint_cache(adopt_ref(*new WrapperMintCache))
 {
-    if (raw_cascaded_font_size)
-        m_raw_cascaded_font_size = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(raw_cascaded_font_size)));
 }
 
 ComputedStyleWorkingSet::ComputedStyleWorkingSet(ShareFrozenTable, ComputedStyleWorkingSet const& other)
     : m_computed_longhand_table(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(other.m_computed_longhand_table)))
     , m_mint_cache(other.m_mint_cache)
-    , m_raw_cascaded_font_size(other.m_raw_cascaded_font_size)
 {
 }
 
@@ -76,10 +73,10 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create()
     return adopt_ref(*new ComputedStyleWorkingSet);
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable* longhand_table, void const* raw_cascaded_font_size)
+NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable* longhand_table)
 {
     VERIFY(longhand_table);
-    return adopt_ref(*new ComputedStyleWorkingSet(longhand_table, raw_cascaded_font_size));
+    return adopt_ref(*new ComputedStyleWorkingSet(longhand_table));
 }
 
 NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base_values_from(ComputedStyleWorkingSet const& style)
@@ -90,7 +87,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     // The table copy carries the importance, inheritance and evaluation flags and the recorded
     // inheritance-dependent specified values along with the value slots.
     ComputedValuesFFI::rust_computed_longhand_table_copy_from(working_set->m_computed_longhand_table, style.m_computed_longhand_table);
-    working_set->m_raw_cascaded_font_size = style.m_raw_cascaded_font_size;
     if (style.m_animated_properties)
         working_set->m_animated_properties = adopt_ref(*new AnimatedProperties(*style.m_animated_properties));
     return working_set;
@@ -122,7 +118,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
         ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(working_set->m_computed_longhand_table, entry.property, entry.value);
     working_set->set_display_before_box_type_transformation(base.display_before_box_type_transformation());
     working_set->set_has_pseudo_element_styles(base.pseudo_element_style_mask());
-    working_set->m_raw_cascaded_font_size = base.raw_cascaded_font_size();
     if (base.depends_on_viewport_metrics())
         working_set->set_depends_on_viewport_metrics();
     if (base.font_metrics_depend_on_viewport_metrics())
@@ -263,13 +258,11 @@ ReadonlyBytes ComputedStyleWorkingSet::property_inheritance_bitmap() const
     return { ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(m_computed_longhand_table), (number_of_longhand_properties + 7) / 8 };
 }
 
-ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> ComputedStyleWorkingSet::inheritance_dependent_value_span() const
+ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> ComputedStyleWorkingSet::inheritance_dependent_value_span() const
 {
     size_t count = 0;
     auto const* entries = ComputedValuesFFI::rust_computed_longhand_table_inheritance_dependent_values(m_computed_longhand_table, &count);
-    static_assert(sizeof(StyleEngineFFI::FfiInheritanceDependentValue) == sizeof(ComputedValuesFFI::FfiTableInheritanceDependentValue));
-    static_assert(alignof(StyleEngineFFI::FfiInheritanceDependentValue) == alignof(ComputedValuesFFI::FfiTableInheritanceDependentValue));
-    return { reinterpret_cast<StyleEngineFFI::FfiInheritanceDependentValue const*>(entries), count };
+    return { entries, count };
 }
 
 void ComputedStyleWorkingSet::add_inheritance_dependent_specified_value(PropertyID property_id, NonnullRefPtr<StyleValue const> value)

@@ -3446,7 +3446,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
         .viewport_width = viewport_rect.width().to_double(),
         .viewport_height = viewport_rect.height().to_double(),
     };
-    auto computed_properties = CSS::ComputedStyleWorkingSet::create_with_longhand_table(ComputedValuesFFI::rust_create_document_longhand_table(&input), nullptr);
+    auto computed_properties = CSS::ComputedStyleWorkingSet::create_with_longhand_table(ComputedValuesFFI::rust_create_document_longhand_table(&input));
     CSS::ColorResolutionContext color_resolution_context {
         .color_scheme = document().page().preferred_color_scheme(),
         .current_color = CSS::InitialValues::color(),
@@ -3620,9 +3620,8 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
         for (size_t index = 0; index < animation_overlay_payloads.size(); ++index)
             animation_overlay_payloads[index] = values.style_group_payload(static_cast<StyleGroupIndex>(index));
     }
-    auto raw_cascaded_font_size = base.raw_cascaded_font_size();
     auto pseudo_kind = pseudo_element_to_ffi(abstract_element.has_value() ? abstract_element->pseudo_element() : Optional<CSS::PseudoElement> {});
-    auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_computed_groups(style_node_id, pseudo_kind, payloads, ComputedValues::inherited_style_group_count, custom_property_environment ? custom_property_environment->identity() : 0, inherited_group_swap_candidate, counter_style_environment_identity, animation_overlay_identity, animated_properties ? animated_properties->overlay() : nullptr, animated_properties ? animation_overlay_payloads.span() : ReadonlySpan<void const*> {}, raw_cascaded_font_size ? raw_cascaded_font_size->rust_style_value_data() : nullptr, base.computed_longhand_table());
+    auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_computed_groups(style_node_id, pseudo_kind, payloads, ComputedValues::inherited_style_group_count, custom_property_environment ? custom_property_environment->identity() : 0, inherited_group_swap_candidate, counter_style_environment_identity, animation_overlay_identity, animated_properties ? animated_properties->overlay() : nullptr, animated_properties ? animation_overlay_payloads.span() : ReadonlySpan<void const*> {}, base.computed_longhand_table());
     return publication;
 }
 
@@ -5100,7 +5099,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .has_css_defined_animations = abstract_element.element().has_css_defined_animations(),
         .stop_after_longhand_drive = stop_after_longhand_drive,
         .callback_context = &native_context,
-        .prepare_longhand_drive = [](void* context_pointer, ComputedValuesFFI::FfiStyleComputationRequirements const* computation_requirements, ComputedValuesFFI::ComputedLonghandTable* longhand_table, void const* raw_cascaded_font_size, bool parent_has_animated_values, ComputedValuesFFI::FfiLonghandDriveInput* output) {
+        .prepare_longhand_drive = [](void* context_pointer, ComputedValuesFFI::FfiStyleComputationRequirements const* computation_requirements, ComputedValuesFFI::ComputedLonghandTable* longhand_table, bool parent_has_animated_values, ComputedValuesFFI::FfiLonghandDriveInput* output) {
             auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
             auto& style_computer = *context.style_computer;
             auto abstract_element = context.abstract_element;
@@ -5112,7 +5111,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             auto const* computed_properties_to_evaluate = computation_requirements->has_computed_property_selection
                 ? computation_requirements->computed_property_words
                 : nullptr;
-            auto working_set = CSS::ComputedStyleWorkingSet::create_with_longhand_table(longhand_table, raw_cascaded_font_size);
+            auto working_set = CSS::ComputedStyleWorkingSet::create_with_longhand_table(longhand_table);
             context.state = make<NativeLonghandState>(move(working_set));
             auto& state = *context.state;
             auto& computed_style = *state.working_set;
@@ -5385,9 +5384,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_LINE_HEIGHT, PropertyID::LineHeight);
             invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_POSITION, PropertyID::Position);
             invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_TEXT_ALIGN, PropertyID::TextAlign);
-            if (driver_results.raw_cascaded_font_size_data)
-                computed_style.set_raw_cascaded_font_size(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(driver_results.raw_cascaded_font_size_data))));
             if (!context.stop_after_longhand_drive && driver_results.explicitly_inherited_non_inherited_style_groups != 0) {
                 auto style_groups = driver_results.explicitly_inherited_non_inherited_style_groups;
                 if (style_groups == NumericLimits<u32>::max())

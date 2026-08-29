@@ -184,8 +184,6 @@ define_counters! {
     ComputedFixedMetadataNodeHandlesPublished => "computedFixedMetadataNodeHandlesPublished",
     ComputedFixedMetadataInterned => "computedFixedMetadataInterned",
     ComputedFixedMetadataReused => "computedFixedMetadataReused",
-    ComputedReconstructionMetadataNodeHandlesPublished => "computedReconstructionMetadataNodeHandlesPublished",
-    ComputedReconstructionMetadataReused => "computedReconstructionMetadataReused",
     StyleRecordNodeHandlesPublished => "styleRecordNodeHandlesPublished",
     StyleRecordsInterned => "styleRecordsInterned",
     StyleRecordsReused => "styleRecordsReused",

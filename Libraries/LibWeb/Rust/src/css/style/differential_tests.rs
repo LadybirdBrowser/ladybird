@@ -16,7 +16,6 @@ use super::batch_matcher::RuleMatch;
 use super::batch_matcher::RuleMatches;
 use super::cascade::PropertyWinner;
 use super::computed::ComputedMetadataInput;
-use super::computed::ComputedReconstructionMetadataInput;
 use super::fast_hash::fast_hasher;
 use super::index::DispatchCandidateWorkspace;
 use super::index::FeatureValue;
@@ -408,11 +407,6 @@ fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]
                 animated_overlay: std::ptr::null(),
                 animation_overlay_payloads: &[],
                 longhand_table: std::ptr::null(),
-                reconstruction: ComputedReconstructionMetadataInput {
-                    property_importance: &[],
-                    property_inheritance: &[],
-                    raw_cascaded_font_size: std::ptr::null(),
-                },
             },
         )
         .style_record_identity

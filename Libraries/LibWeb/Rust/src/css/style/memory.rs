@@ -93,7 +93,7 @@ define_memory_categories! {
     ComputedGroupSet => (Live, "computedGroupSet"),
     CustomPropertyEnvironment => (Live, "customPropertyEnvironment"),
     ComputedFixedMetadata => (Live, "computedFixedMetadata"),
-    ComputedReconstructionMetadata => (Live, "computedReconstructionMetadata"),
+    ComputedLonghandTable => (Live, "computedLonghandTable"),
     StyleRecord => (Live, "styleRecord"),
     AnimationOverlayRecord => (Live, "animationOverlayRecord"),
     ComputedPseudoAssignment => (Live, "computedPseudoAssignment"),
