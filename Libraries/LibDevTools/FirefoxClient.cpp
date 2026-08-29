@@ -15,6 +15,10 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibDevTools/FirefoxClient.h>
+
+#if defined(AK_OS_MACOS)
+#    include <LibDevTools/LaunchApplicationMacOS.h>
+#endif
 #include <LibFileSystem/FileSystem.h>
 
 #if !defined(AK_OS_WINDOWS)
@@ -273,16 +277,16 @@ NonnullOwnPtr<FirefoxClient> FirefoxClient::create()
 FirefoxClient::~FirefoxClient()
 {
     if (is_running())
-        (void)Core::Process::terminate_process(m_process->pid(), Core::Process::TerminationMode::Graceful);
+        (void)Core::Process::terminate_process(*m_process_id, Core::Process::TerminationMode::Graceful);
 }
 
 bool FirefoxClient::is_running() const
 {
 #if defined(AK_OS_WINDOWS)
     // FIXME: Implement actual live-process detection for this PID on Windows.
-    return m_process.has_value();
+    return m_process_id.has_value();
 #else
-    return m_process.has_value() && !Core::System::kill(m_process->pid(), 0).is_error();
+    return m_process_id.has_value() && !Core::System::kill(*m_process_id, 0).is_error();
 #endif
 }
 
@@ -339,13 +343,23 @@ ErrorOr<void> FirefoxClient::ensure_running(u16 port, u64 tab_id)
     }
 #endif
 
-    m_process = TRY(Core::Process::spawn({
+#if defined(AK_OS_MACOS)
+    // Firefox ships as an application bundle, and it has to come up through LaunchServices: exec'd straight from its
+    // binary, its helper processes fail their startup handshakes — and it gives up before it opens a profile at all.
+    if (auto bundle = installation->executable.parent().parent().parent(); bundle.basename().ends_with(".app"sv)) {
+        m_process_id = TRY(launch_macos_application(bundle.string(), arguments));
+        return {};
+    }
+#endif
+
+    auto process = TRY(Core::Process::spawn({
         .name = "devtools-client"sv,
         .executable = move(executable),
         .search_for_executable_in_path = search_for_executable_in_path,
         .die_with_parent = true,
         .arguments = arguments,
     }));
+    m_process_id = process.pid();
 
     return {};
 }

@@ -25,7 +25,7 @@ public:
 private:
     FirefoxClient() = default;
 
-    Optional<Core::Process> m_process;
+    Optional<pid_t> m_process_id;
 };
 
 }
