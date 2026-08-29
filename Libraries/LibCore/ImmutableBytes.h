@@ -6,10 +6,10 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Variant.h>
@@ -40,7 +40,7 @@ public:
     [[nodiscard]] ErrorOr<ByteBuffer> copy_to_byte_buffer() const;
 
 private:
-    class Impl final : public RefCounted<Impl> {
+    class Impl final : public AtomicRefCounted<Impl> {
     public:
         struct ReadonlyMapping {
             AK_MAKE_NONCOPYABLE(ReadonlyMapping);
