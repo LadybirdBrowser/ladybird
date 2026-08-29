@@ -1502,6 +1502,12 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
     fn facts_are_composite(&self) -> bool {
         !self.evaluator.serves_only_resident_rows()
     }
+
+    // A composite fact view replaces changed rows with sparse overlay rows, but its unchanged
+    // rows still point into the resident fact table and may share local-fact identities normally.
+    fn row_uses_resident_facts(&self, row: MatchFactRow<'_>) -> bool {
+        std::ptr::eq(row.facts, self.facts)
+    }
 }
 
 impl PrefixStates {
@@ -2393,12 +2399,12 @@ impl PrefixStates {
             0
         };
         let local_facts = if local_facts_changed || old.is_none() {
-            let identity = match evaluation.facts_are_composite() {
-                true => {
+            let identity = match evaluation.row_uses_resident_facts(row) {
+                false => {
                     counters.bump(Counter::PrefixLocalFactIdentityMisses);
                     self.local_fact_interner.mint_identity()
                 }
-                false => self.local_fact_interner.intern(row.facts, row.row, counters),
+                true => self.local_fact_interner.intern(row.facts, row.row, counters),
             };
             self.set_local_facts(node, identity);
             identity
@@ -3607,12 +3613,12 @@ impl PrefixTransitionSurface<'_> {
             Self::Retained(states) => match states.local_facts_of(node) {
                 Some(identity) => identity,
                 None => {
-                    let identity = match evaluation.facts_are_composite() {
-                        true => {
+                    let identity = match evaluation.row_uses_resident_facts(row) {
+                        false => {
                             counters.bump(Counter::PrefixLocalFactIdentityMisses);
                             states.local_fact_interner.mint_identity()
                         }
-                        false => states.local_fact_interner.intern(row.facts, row.row, counters),
+                        true => states.local_fact_interner.intern(row.facts, row.row, counters),
                     };
                     states.set_local_facts(node, identity);
                     identity

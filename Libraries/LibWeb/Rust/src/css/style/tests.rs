@@ -4875,6 +4875,7 @@ fn class_additions_rebuild_sparse_prefix_transitions() {
     );
     let repairs_before = engine.counters().get(Counter::SelectorTruthRepairUpqueries);
     let passes_before = engine.counters().get(Counter::PrefixConvergencePasses);
+    let local_fact_identity_hits_before = engine.counters().get(Counter::PrefixLocalFactIdentityHits);
     let mut planned = Vec::new();
     let mut pseudo_kinds = Vec::new();
     assert!(engine.take_style_transaction(nodes[0], |_, _, answers| {
@@ -4900,6 +4901,7 @@ fn class_additions_rebuild_sparse_prefix_transitions() {
         engine.counters().get(Counter::PrefixConvergencePasses),
         passes_before + 1
     );
+    assert!(engine.counters().get(Counter::PrefixLocalFactIdentityHits) > local_fact_identity_hits_before);
 }
 
 #[test]
