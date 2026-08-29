@@ -1,0 +1,57 @@
+PASS: table fixup: prepend row to tbody
+PASS: table fixup: insert row in tbody
+PASS: table fixup: append row to tbody
+PASS: table fixup: append rows with fragment
+PASS: table fixup: append row to thead
+PASS: table fixup: append row to tfoot
+PASS: table fixup: append direct row to table
+PASS: table fixup: append CSS row to tbody
+PASS: table fixup: append narrower row
+PASS: table fixup: append wider row
+PASS: table fixup: append spanning row
+PASS: table fixup: prepend cell to row
+PASS: table fixup: insert cell in row
+PASS: table fixup: append cell to row
+PASS: table fixup: append CSS cell to row
+PASS: table fixup: remove first cell
+PASS: table fixup: remove last cell
+PASS: table fixup: replace cells with one cell
+PASS: table fixup: change cell colspan
+PASS: table fixup: change cell rowspan
+PASS: table fixup: remove first row
+PASS: table fixup: remove last row
+PASS: table fixup: replace rows
+PASS: table fixup: move row within group
+PASS: table fixup: move row between groups
+PASS: table fixup: move row between tables
+PASS: table fixup: move cell between rows
+PASS: table fixup: append tbody
+PASS: table fixup: prepend thead
+PASS: table fixup: append tfoot
+PASS: table fixup: remove tbody
+PASS: table fixup: move tbody between tables
+PASS: table fixup: prepend caption
+PASS: table fixup: append second caption
+PASS: table fixup: remove caption
+PASS: table fixup: append colgroup
+PASS: table fixup: append column to colgroup
+PASS: table fixup: remove column
+PASS: table fixup: insert cell under table
+PASS: table fixup: insert cell under row group
+PASS: table fixup: insert cell under block
+PASS: table fixup: insert row under cell
+PASS: table fixup: insert row under block
+PASS: table fixup: insert column under row group
+PASS: table fixup: insert caption under row
+PASS: table fixup: insert block under table
+PASS: table fixup: insert block under row group
+PASS: table fixup: insert block under row
+PASS: table fixup: insert text under table
+PASS: table fixup: insert whitespace under table
+PASS: table fixup: insert text under row group
+PASS: table fixup: insert text under row
+PASS: table fixup: append row to collapsed table
+PASS: table fixup: append nested table
+PASS: table fixup: append row to nested table
+PASS: table fixup: move nested table between cells
+56 cases; 56 matched; 0 mismatched

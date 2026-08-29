@@ -163,6 +163,7 @@ pub enum NodeFlag {
     InsetsUseAnchorFunctions = 1 << 25,
     HasCommittedFragmentLink = 1 << 26,
     HasPreserve3dTransformStyle = 1 << 27,
+    IsMissingTableCell = 1 << 28,
 }
 
 #[repr(C)]

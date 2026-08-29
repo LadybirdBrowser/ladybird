@@ -2067,6 +2067,242 @@ function semanticTableMutationCases() {
     }));
 }
 
+function tableFixupIncrementalCases() {
+    const cases = [];
+    const add = (name, markup, mutate) => {
+        cases.push({
+            name: `table fixup: ${name}`,
+            setup(fixture) {
+                fixture.innerHTML = markup;
+                return () => mutate(fixture);
+            },
+        });
+    };
+    const cell = text => {
+        const element = document.createElement("td");
+        element.textContent = text;
+        return element;
+    };
+    const row = (...texts) => {
+        const element = document.createElement("tr");
+        element.append(...texts.map(cell));
+        return element;
+    };
+    const displayed = (display, text = "inserted") => {
+        const element = document.createElement("div");
+        element.style.display = display;
+        element.textContent = text;
+        return element;
+    };
+
+    const twoRowTable =
+        '<table><tbody id="target"><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>';
+    add("prepend row to tbody", twoRowTable, fixture => fixture.querySelector("#target").prepend(row("E", "F")));
+    add("insert row in tbody", twoRowTable, fixture => {
+        const target = fixture.querySelector("#target");
+        target.insertBefore(row("E", "F"), target.lastElementChild);
+    });
+    add("append row to tbody", twoRowTable, fixture => fixture.querySelector("#target").append(row("E", "F")));
+    add("append rows with fragment", twoRowTable, fixture => {
+        const fragment = new DocumentFragment();
+        fragment.append(row("E", "F"), row("G", "H"));
+        fixture.querySelector("#target").append(fragment);
+    });
+    add("append row to thead", '<table><thead id="target"><tr><td>A</td></tr></thead></table>', fixture =>
+        fixture.querySelector("#target").append(row("B"))
+    );
+    add("append row to tfoot", '<table><tfoot id="target"><tr><td>A</td></tr></tfoot></table>', fixture =>
+        fixture.querySelector("#target").append(row("B"))
+    );
+    add("append direct row to table", '<table id="target"><tr><td>A</td></tr></table>', fixture =>
+        fixture.querySelector("#target").append(row("B"))
+    );
+    add("append CSS row to tbody", twoRowTable, fixture => {
+        const inserted = displayed("table-row", "");
+        inserted.append(displayed("table-cell", "E"), displayed("table-cell", "F"));
+        fixture.querySelector("#target").append(inserted);
+    });
+    add("append narrower row", twoRowTable, fixture => fixture.querySelector("#target").append(row("E")));
+    add("append wider row", twoRowTable, fixture => fixture.querySelector("#target").append(row("E", "F", "G")));
+    add("append spanning row", twoRowTable, fixture => {
+        const inserted = row("spanning");
+        inserted.firstElementChild.colSpan = 3;
+        fixture.querySelector("#target").append(inserted);
+    });
+
+    const twoCellRow = '<table><tbody><tr id="target"><td>A</td><td>B</td></tr></tbody></table>';
+    add("prepend cell to row", twoCellRow, fixture => fixture.querySelector("#target").prepend(cell("C")));
+    add("insert cell in row", twoCellRow, fixture => {
+        const target = fixture.querySelector("#target");
+        target.insertBefore(cell("C"), target.lastElementChild);
+    });
+    add("append cell to row", twoCellRow, fixture => fixture.querySelector("#target").append(cell("C")));
+    add("append CSS cell to row", twoCellRow, fixture =>
+        fixture.querySelector("#target").append(displayed("table-cell", "C"))
+    );
+    add("remove first cell", twoCellRow, fixture => fixture.querySelector("#target").firstElementChild.remove());
+    add("remove last cell", twoCellRow, fixture => fixture.querySelector("#target").lastElementChild.remove());
+    add("replace cells with one cell", twoCellRow, fixture =>
+        fixture.querySelector("#target").replaceChildren(cell("C"))
+    );
+    add("change cell colspan", twoCellRow, fixture => {
+        fixture.querySelector("#target").firstElementChild.colSpan = 3;
+    });
+    add("change cell rowspan", twoCellRow, fixture => {
+        fixture.querySelector("#target").firstElementChild.rowSpan = 3;
+    });
+
+    add("remove first row", twoRowTable, fixture => fixture.querySelector("#target").firstElementChild.remove());
+    add("remove last row", twoRowTable, fixture => fixture.querySelector("#target").lastElementChild.remove());
+    add("replace rows", twoRowTable, fixture => fixture.querySelector("#target").replaceChildren(row("E", "F")));
+    add("move row within group", twoRowTable, fixture => {
+        const target = fixture.querySelector("#target");
+        target.prepend(target.lastElementChild);
+    });
+    add(
+        "move row between groups",
+        '<table><tbody id="source"><tr id="moving"><td>A</td></tr></tbody><tbody id="target"><tr><td>B</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(fixture.querySelector("#moving"))
+    );
+    add(
+        "move row between tables",
+        '<table><tbody><tr id="moving"><td>A</td></tr></tbody></table><table><tbody id="target"><tr><td>B</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(fixture.querySelector("#moving"))
+    );
+    add(
+        "move cell between rows",
+        '<table><tbody><tr><td id="moving">A</td></tr><tr id="target"><td>B</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(fixture.querySelector("#moving"))
+    );
+
+    add("append tbody", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture => {
+        const body = document.createElement("tbody");
+        body.append(row("B"));
+        fixture.querySelector("#target").append(body);
+    });
+    add("prepend thead", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture => {
+        const head = document.createElement("thead");
+        head.append(row("B"));
+        fixture.querySelector("#target").prepend(head);
+    });
+    add("append tfoot", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture => {
+        const foot = document.createElement("tfoot");
+        foot.append(row("B"));
+        fixture.querySelector("#target").append(foot);
+    });
+    add("remove tbody", '<table><tbody id="target"><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").remove()
+    );
+    add(
+        "move tbody between tables",
+        '<table><tbody id="moving"><tr><td>A</td></tr></tbody></table><table id="target"></table>',
+        fixture => fixture.querySelector("#target").append(fixture.querySelector("#moving"))
+    );
+
+    add("prepend caption", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture => {
+        const caption = document.createElement("caption");
+        caption.textContent = "caption";
+        fixture.querySelector("#target").prepend(caption);
+    });
+    add(
+        "append second caption",
+        '<table id="target"><caption>A</caption><tbody><tr><td>B</td></tr></tbody></table>',
+        fixture => {
+            const caption = document.createElement("caption");
+            caption.textContent = "second";
+            fixture.querySelector("#target").append(caption);
+        }
+    );
+    add(
+        "remove caption",
+        '<table><caption id="target">A</caption><tbody><tr><td>B</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").remove()
+    );
+    add("append colgroup", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture => {
+        const group = document.createElement("colgroup");
+        group.append(document.createElement("col"));
+        fixture.querySelector("#target").append(group);
+    });
+    add(
+        "append column to colgroup",
+        '<table><colgroup id="target"><col></colgroup><tbody><tr><td>A</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(document.createElement("col"))
+    );
+    add(
+        "remove column",
+        '<table><colgroup><col id="target"><col></colgroup><tbody><tr><td>A</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").remove()
+    );
+
+    add("insert cell under table", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append(cell("B"))
+    );
+    add("insert cell under row group", '<table><tbody id="target"><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append(cell("B"))
+    );
+    add("insert cell under block", '<div id="target"></div>', fixture =>
+        fixture.querySelector("#target").append(displayed("table-cell"))
+    );
+    add("insert row under cell", '<table><tbody><tr><td id="target">A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append(row("B"))
+    );
+    add("insert row under block", '<div id="target"></div>', fixture =>
+        fixture.querySelector("#target").append(displayed("table-row"))
+    );
+    add("insert column under row group", '<table><tbody id="target"><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append(document.createElement("col"))
+    );
+    add("insert caption under row", twoCellRow, fixture => {
+        const caption = document.createElement("caption");
+        caption.textContent = "caption";
+        fixture.querySelector("#target").append(caption);
+    });
+    add("insert block under table", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append(document.createElement("div"))
+    );
+    add("insert block under row group", '<table><tbody id="target"><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append(document.createElement("div"))
+    );
+    add("insert block under row", twoCellRow, fixture =>
+        fixture.querySelector("#target").append(document.createElement("div"))
+    );
+    add("insert text under table", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append("text")
+    );
+    add("insert whitespace under table", '<table id="target"><tbody><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append("  \n  ")
+    );
+    add("insert text under row group", '<table><tbody id="target"><tr><td>A</td></tr></tbody></table>', fixture =>
+        fixture.querySelector("#target").append("text")
+    );
+    add("insert text under row", twoCellRow, fixture => fixture.querySelector("#target").append("text"));
+
+    add(
+        "append row to collapsed table",
+        '<table style="border-collapse:collapse"><tbody id="target"><tr><td>A</td><td>B</td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(row("C", "D"))
+    );
+    add("append nested table", '<table><tbody><tr><td id="target">outer</td></tr></tbody></table>', fixture => {
+        const table = document.createElement("table");
+        const body = document.createElement("tbody");
+        body.append(row("inner"));
+        table.append(body);
+        fixture.querySelector("#target").append(table);
+    });
+    add(
+        "append row to nested table",
+        '<table><tbody><tr><td>outer<table><tbody id="target"><tr><td>inner</td></tr></tbody></table></td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(row("second"))
+    );
+    add(
+        "move nested table between cells",
+        '<table><tbody><tr><td><table id="moving"><tbody><tr><td>inner</td></tr></tbody></table></td><td id="target"></td></tr></tbody></table>',
+        fixture => fixture.querySelector("#target").append(fixture.querySelector("#moving"))
+    );
+
+    return cases;
+}
+
 function anonymousWrapperCases() {
     const cases = [];
     for (const inlineDisplay of ["inline", "inline flow", "contents"]) {
