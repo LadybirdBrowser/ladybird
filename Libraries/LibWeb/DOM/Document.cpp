@@ -2351,6 +2351,9 @@ void Document::update_layout(UpdateLayoutReason reason)
     if (!navigable || navigable->active_document().ptr() != this)
         return;
 
+    if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
+        flush_throttled_animation_style_update();
+
     VERIFY(!m_is_running_update_layout);
     m_is_running_update_layout = true;
     ScopeGuard guard = [&] {
@@ -2646,11 +2649,19 @@ void Document::sample_animation_effects_needing_style_update()
     Animations::AnimationUpdateContext context;
 
     GC::RootVector<GC::Ref<Animations::Animation>> animations;
-    for (auto& effect : m_effects_needing_animated_style_update) {
-        auto animation = effect.associated_animation();
-        if (!animation || animation->is_idle())
-            continue;
-        animations.append(*animation);
+    if (m_force_throttled_animation_style_update) {
+        for (auto& animation : m_associated_animations) {
+            if (animation.is_idle() || !animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+                continue;
+            animations.append(animation);
+        }
+    } else {
+        for (auto& effect : m_effects_needing_animated_style_update) {
+            auto animation = effect.associated_animation();
+            if (!animation || animation->is_idle())
+                continue;
+            animations.append(*animation);
+        }
     }
     m_effects_needing_animated_style_update.clear();
     m_needs_animated_style_update = false;
@@ -2661,8 +2672,35 @@ void Document::sample_animation_effects_needing_style_update()
         return Animations::KeyframeEffect::composite_order(a_effect, b_effect) < 0;
     });
 
-    for (auto& animation : animations)
+    bool has_throttled_animation_style_update = m_force_throttled_animation_style_update ? false : m_has_throttled_animation_style_update;
+    for (auto& animation : animations) {
+        if (!m_force_throttled_animation_style_update
+            && static_cast<Animations::KeyframeEffect&>(*animation->effect()).can_skip_per_frame_style_update()) {
+            has_throttled_animation_style_update = true;
+            continue;
+        }
         animation->effect()->update_computed_properties(context);
+    }
+
+    m_has_throttled_animation_style_update = has_throttled_animation_style_update;
+    m_force_throttled_animation_style_update = false;
+}
+
+void Document::flush_throttled_animation_style_update()
+{
+    if (!m_has_throttled_animation_style_update)
+        return;
+    m_has_throttled_animation_style_update = false;
+    m_force_throttled_animation_style_update = true;
+    m_needs_animated_style_update = true;
+}
+
+void Document::throttled_animation_visibility_changed()
+{
+    if (!m_has_throttled_animation_style_update)
+        return;
+    flush_throttled_animation_style_update();
+    page().client().request_frame();
 }
 
 void Document::set_needs_animated_style_update(Animations::KeyframeEffect& effect)
@@ -5053,8 +5091,10 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     event->set_bubbles(true);
     dispatch_event(event);
 
-    if (m_visibility_state == HTML::VisibilityState::Visible)
+    if (m_visibility_state == HTML::VisibilityState::Visible) {
+        flush_throttled_animation_style_update();
         page().client().request_frame();
+    }
 }
 
 // https://drafts.csswg.org/cssom-view/#document-run-the-resize-steps

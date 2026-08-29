@@ -246,6 +246,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         bool const was_unstyled = !previous_style_record;
         auto const* previous_box_values = element->style_group<ComputedValues::BoxValues>();
         bool const was_display_none = previous_box_values && display_from_ffi_display(previous_box_values->display).is_none();
+        auto const* previous_inherited_box_values = element->style_group<ComputedValues::InheritedBoxValues>();
+        auto const previous_visibility = previous_inherited_box_values
+            ? Optional<Visibility> { static_cast<Visibility>(previous_inherited_box_values->visibility) }
+            : Optional<Visibility> {};
         bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
         bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;
         bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
@@ -318,6 +322,12 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
         } else if (needs_custom_property_recompute && element->refresh_inherited_custom_property_data()) {
             did_change_custom_properties = true;
             element->invalidate_descendant_styles_depending_on_style_container_query();
+        }
+
+        auto const* current_inherited_box_values = element->style_group<ComputedValues::InheritedBoxValues>();
+        if (previous_visibility.has_value() && current_inherited_box_values
+            && *previous_visibility != static_cast<Visibility>(current_inherited_box_values->visibility)) {
+            document.throttled_animation_visibility_changed();
         }
 
         if (!invalidation.is_none() || did_change_custom_properties || ancestor_became_visible)
@@ -892,11 +902,13 @@ void Document::update_style()
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)
 {
+    flush_throttled_animation_style_update();
     return CSS::update_style_for_element(*this, abstract_element, StyleUpdateMode::Normal);
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
+    flush_throttled_animation_style_update();
     return CSS::update_style_for_element(*this, abstract_element, mode);
 }
 

@@ -145,6 +145,7 @@ public:
 
     virtual bool is_keyframe_effect() const override { return true; }
 
+    bool can_skip_per_frame_style_update() const;
     virtual void update_computed_properties(AnimationUpdateContext&) override;
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 

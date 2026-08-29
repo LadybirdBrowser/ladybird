@@ -1,0 +1,6 @@
+hidden animation overlay builds: 0
+computed style samples hidden animation: true
+visible animation builds while hidden stays throttled: 4
+computed style samples hidden animation alongside visible animation: true
+style-only visibility change samples animation: true
+visible descendant keeps animation updating: true

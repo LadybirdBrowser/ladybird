@@ -469,6 +469,9 @@ public:
     void obtain_theme_color();
 
     void update_style();
+    void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
+    void flush_throttled_animation_style_update();
+    void throttled_animation_visibility_changed();
     void invalidate_style_for_viewport_change();
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
     void set_suppresses_attribute_style_invalidation(bool suppresses) { m_suppresses_attribute_style_invalidation = suppresses; }
@@ -1713,6 +1716,8 @@ private:
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
     bool m_is_updating_animated_style { false };
+    bool m_has_throttled_animation_style_update { false };
+    bool m_force_throttled_animation_style_update { false };
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 

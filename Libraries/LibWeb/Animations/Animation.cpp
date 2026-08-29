@@ -1177,10 +1177,17 @@ void Animation::update()
     if (!m_is_finished || !m_timeline->is_monotonically_increasing()) {
         bool was_finished = m_is_finished;
         update_finished_state(DidSeek::No, SynchronouslyNotify::Yes, ShouldInvalidate::No);
-        if (play_state() == AnimationPlayState::Running && !pending())
+        if (play_state() == AnimationPlayState::Running && m_effect && is<KeyframeEffect>(*m_effect)) {
+            auto& effect = static_cast<KeyframeEffect&>(*m_effect);
+            if (effect.can_skip_per_frame_style_update()) {
+                if (auto target = effect.target())
+                    target->document().note_throttled_animation_style_update();
+            } else if (!pending()) {
+                invalidate_effect();
+            }
+        } else if (m_is_finished != was_finished) {
             invalidate_effect();
-        else if (m_is_finished != was_finished)
-            invalidate_effect();
+        }
     }
 
     // Act on the pending play or pause task
