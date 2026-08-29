@@ -4497,8 +4497,11 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
 
         has_complete_sharing_key = true;
         if (find_shared_style()) {
-            if (auto node = abstract_element.element().style_node_id(); node != 0 && !abstract_element.pseudo_element().has_value())
+            if (auto node = abstract_element.element().style_node_id(); node != 0 && !abstract_element.pseudo_element().has_value()) {
                 const_cast<StyleComputer&>(*this).style_engine().prepare_shared_exact_cascade_state(node);
+                VERIFY(new_style_input_record);
+                new_style_input_record->bind_next_published_style = true;
+            }
             document().style_invalidation_counters().element_style_shared_computations++;
             return {};
         }
