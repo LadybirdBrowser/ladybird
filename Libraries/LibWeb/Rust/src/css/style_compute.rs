@@ -6606,8 +6606,6 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_gfx_filter_destroy(_filter: *mut std::ffi::c_void) {}
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_glyph_run_unref(_retained: *mut std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_destroy(_path: *mut std::ffi::c_void) {}
