@@ -174,7 +174,7 @@ static Optional<Painting::CaretPosition> caret_position_from_editable_hit_node(D
         return {};
 
     return Painting::CaretPosition {
-        .box = Painting::committed_row_slot(*layout_node),
+        .paintable = Painting::committed_row_slot(*layout_node),
         .arena = layout_node->node_arena(),
         .boundary = { *boundary_node, 0 },
     };
@@ -201,9 +201,9 @@ EventHandler::EventHandler(Badge<HTML::LocalNavigable>, HTML::LocalNavigable& na
 
 EventHandler::~EventHandler() = default;
 
-static Layout::Node* layout_node_for_target(DOM::Document& document, Layout::RustFFI::NodeSlotId box)
+static Layout::Node* layout_node_for_target(DOM::Document& document, Layout::RustFFI::NodeSlotId paintable)
 {
-    return Painting::layout_node_for_committed_slot(document.layout_node_arena(), box);
+    return Painting::layout_node_for_committed_slot(document.layout_node_arena(), paintable);
 }
 
 static CSS::PointerEvents pointer_events_for_hit_target(bool is_text_fragment, DOM::Node const* hit_dom_node, Layout::Node const& target_layout_node)
@@ -321,7 +321,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
     }
 
-    auto* target_layout_node = layout_node_for_target(*document, target->box);
+    auto* target_layout_node = layout_node_for_target(*document, target->paintable);
     if (!target_layout_node)
         return EventResult::Dropped;
 
@@ -378,7 +378,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     //     matching other engines. The page can still suppress the native context menu by cancelling the
     //     contextmenu event itself.
     if (is_context_menu_trigger && dispatch_result != PointerEventDispatchResult::SwallowedByChromeWidget)
-        maybe_show_context_menu(*node, target->box, coordinates, screen_position, viewport_position, buttons, modifiers);
+        maybe_show_context_menu(*node, target->paintable, coordinates, screen_position, viewport_position, buttons, modifiers);
 
     if (dispatch_result != PointerEventDispatchResult::RunDefaultActions)
         return EventResult::Cancelled;
@@ -508,7 +508,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (!node)
             return EventResult::Dropped;
 
-        auto* target_layout_node = layout_node_for_target(*document, target->box);
+        auto* target_layout_node = layout_node_for_target(*document, target->paintable);
         if (!target_layout_node)
             return EventResult::Dropped;
 
@@ -640,7 +640,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         return EventResult::Dropped;
     }
 
-    auto* target_layout_node = layout_node_for_target(*document, target->box);
+    auto* target_layout_node = layout_node_for_target(*document, target->paintable);
     if (!target_layout_node)
         return EventResult::Dropped;
 
@@ -821,7 +821,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     };
 
     auto wheel_step_selects_a_snap_position = [&] {
-        auto* target_layout_node = layout_node_for_target(*document, target->box);
+        auto* target_layout_node = layout_node_for_target(*document, target->paintable);
         if (!target_layout_node)
             return false;
         auto* scrolling_box = scrolling_box_for_scroll_step(*target_layout_node, wheel_step_delta);
@@ -869,7 +869,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto handled_event = EventResult::Dropped;
 
     if (target.has_value()) {
-        auto* target_layout_node = layout_node_for_target(*document, target->box);
+        auto* target_layout_node = layout_node_for_target(*document, target->paintable);
         if (!target_layout_node)
             return EventResult::Dropped;
 
@@ -883,7 +883,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 return nullptr;
 
             if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
-                return layout_node_for_target(*document, result->box);
+                return layout_node_for_target(*document, result->paintable);
             return nullptr;
         };
 
@@ -919,7 +919,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 result.has_value()) {
                 if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
                     return result.value();
-                target_layout_node = layout_node_for_target(*document, target->box);
+                target_layout_node = layout_node_for_target(*document, target->paintable);
                 if (!target_layout_node)
                     return EventResult::Dropped;
             }
@@ -987,7 +987,7 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
     if (!target.has_value())
         return EventResult::Dropped;
 
-    auto* target_layout_node = layout_node_for_target(*document, target->box);
+    auto* target_layout_node = layout_node_for_target(*document, target->paintable);
     if (!target_layout_node || !target->dom_node)
         return EventResult::Dropped;
 
@@ -997,7 +997,7 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
         result.has_value()) {
         if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
             return result.value();
-        target_layout_node = layout_node_for_target(*document, target->box);
+        target_layout_node = layout_node_for_target(*document, target->paintable);
         if (!target_layout_node)
             return EventResult::Dropped;
     }
@@ -1080,7 +1080,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     if (!node)
         return;
 
-    auto* target_layout_node = layout_node_for_target(*document, target->box);
+    auto* target_layout_node = layout_node_for_target(*document, target->paintable);
     if (!target_layout_node)
         return;
 
@@ -1571,7 +1571,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!node)
         return EventResult::Dropped;
 
-    auto* target_layout_node = layout_node_for_target(document, target->box);
+    auto* target_layout_node = layout_node_for_target(document, target->paintable);
     if (!target_layout_node)
         return EventResult::Dropped;
 
@@ -2240,10 +2240,10 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
         return {};
 
     if (auto result = document->hit_test(position); result.has_value()) {
-        if (!layout_node_for_target(*document, result->box))
+        if (!layout_node_for_target(*document, result->paintable))
             return {};
         return Target {
-            .box = result->box,
+            .paintable = result->paintable,
             .chrome_widget = result->chrome_widget,
             .dom_node = result->dom_node(),
             .index_in_node = result->index_in_node,
@@ -2426,7 +2426,7 @@ bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewpo
     if (!result.has_value())
         return false;
 
-    auto* target_layout_node = layout_node_for_target(*document, result->box);
+    auto* target_layout_node = layout_node_for_target(*document, result->paintable);
     if (!target_layout_node)
         return false;
 
@@ -2567,7 +2567,7 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
 }
 
 // https://w3c.github.io/uievents/#maybe-show-context-menu
-void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::RustFFI::NodeSlotId box, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
+void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::RustFFI::NodeSlotId paintable, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint viewport_position, unsigned buttons, unsigned modifiers)
 {
     // AD-HOC: Allow the user to bypass custom context menus by holding shift, like Firefox.
     if ((modifiers & UIEvents::Mod_Shift) == 0) {
@@ -2616,7 +2616,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, Layout::Rust
         // AD-HOC: Area elements are never rendered, so use the image over which the context menu was requested
         //         instead. This keeps the image context menu available over image maps.
         if (is<HTML::HTMLAreaElement>(*context_menu_node)) {
-            if (auto* layout_node = layout_node_for_target(*document, box)) {
+            if (auto* layout_node = layout_node_for_target(*document, paintable)) {
                 if (auto* image_element = as_if<HTML::HTMLImageElement>(layout_node->dom_node()))
                     context_menu_node = *image_element;
             }

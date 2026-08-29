@@ -9322,7 +9322,7 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
             return {};
         return Painting::HitTestResult {
             .node = element,
-            .box = Painting::committed_row_slot(*layout_node),
+            .paintable = Painting::committed_row_slot(*layout_node),
             .arena = layout_node->node_arena(),
         };
     };
